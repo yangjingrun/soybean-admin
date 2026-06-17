@@ -78,101 +78,95 @@ function handlePromptKeyUpdate(value: string) {
 </script>
 
 <template>
-  <NSpace vertical :size="16">
-    <NCard :bordered="false" class="card-wrapper">
-      <div class="ai-leads-header">
-        <div>
-          <p class="ai-leads-eyebrow text-primary">AI Leads</p>
-          <h2 class="ai-leads-title">AI获客</h2>
-          <p class="ai-leads-desc">选择固定业务步骤，提交本次获客需求。</p>
-        </div>
-        <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
-          开始生成
-        </NButton>
+  <NSpace vertical :size="12" class="ai-leads-page">
+    <NCard :bordered="false" size="small" class="card-wrapper">
+      <div class="section-title">
+        <NText strong>业务条件</NText>
+        <NTag size="small" type="info">{{ isPromptLoading ? '加载中' : activePromptLabel }}</NTag>
       </div>
+
+      <NForm :model="form" label-placement="left" label-width="72" size="small" class="lead-form">
+        <NGrid :x-gap="16" :y-gap="12" responsive="screen" item-responsive>
+          <NGi span="24 m:12 l:8">
+            <NFormItem label="业务步骤">
+              <NSelect :value="form.promptKey" :options="aiPromptSelectOptions" @update:value="handlePromptKeyUpdate" />
+            </NFormItem>
+          </NGi>
+
+          <NGi span="24 m:12 l:16" class="form-actions">
+            <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
+              开始生成
+            </NButton>
+          </NGi>
+
+          <NGi span="24">
+            <NFormItem label="获客需求">
+              <NInput
+                v-model:value="form.prompt"
+                type="textarea"
+                :autosize="{ minRows: 8, maxRows: 14 }"
+                placeholder="输入本次获客需求"
+              />
+            </NFormItem>
+          </NGi>
+        </NGrid>
+      </NForm>
     </NCard>
 
-    <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 l:10">
-        <NCard :bordered="false" class="card-wrapper">
-          <NSpace vertical :size="16">
-            <div class="panel-title">
-              <NText strong>业务步骤</NText>
-              <NTag size="small" type="info">{{ isPromptLoading ? '加载中' : activePromptLabel }}</NTag>
-            </div>
-            <NSelect :value="form.promptKey" :options="aiPromptSelectOptions" @update:value="handlePromptKeyUpdate" />
-            <NAlert v-if="activePrompt" type="info" :bordered="false">
-              <NSpace vertical :size="4">
-                <NText strong>{{ activePrompt.title }}</NText>
-                <NText depth="3">{{ activePrompt.systemPrompt }}</NText>
-              </NSpace>
-            </NAlert>
-            <NInput
-              v-model:value="form.prompt"
-              type="textarea"
-              :autosize="{ minRows: 14, maxRows: 24 }"
-              placeholder="输入本次获客需求"
-            />
-          </NSpace>
-        </NCard>
-      </NGi>
+    <NCard :bordered="false" size="small" class="card-wrapper result-card">
+      <template #header>
+        <div class="section-title">
+          <NText strong>生成结果</NText>
+          <NTag v-if="aiResult" size="small" type="success">{{ aiResult.finishReason }}</NTag>
+        </div>
+      </template>
 
-      <NGi span="24 l:14">
-        <NCard :bordered="false" class="card-wrapper result-card">
-          <NSpace v-if="aiResult" vertical :size="12">
-            <div class="panel-title">
-              <NText strong>生成结果</NText>
-              <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
-            </div>
-            <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 14, maxRows: 26 }" />
-            <NText depth="3">
-              Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} /
-              总计
-              {{ aiResult.usage.totalTokens ?? '-' }}
-            </NText>
-          </NSpace>
-          <NEmpty v-else description="暂无生成结果" />
-        </NCard>
-      </NGi>
-    </NGrid>
+      <NSpace v-if="aiResult" vertical :size="12">
+        <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 14, maxRows: 26 }" />
+        <NText depth="3">
+          Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} / 总计
+          {{ aiResult.usage.totalTokens ?? '-' }}
+        </NText>
+      </NSpace>
+      <NEmpty v-else description="暂无生成结果" class="result-empty" />
+    </NCard>
   </NSpace>
 </template>
 
 <style scoped>
-.ai-leads-header,
-.panel-title {
+.section-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
-.ai-leads-eyebrow {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
+.lead-form {
+  margin-top: 12px;
 }
 
-.ai-leads-title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
+.form-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 
-.ai-leads-desc {
-  margin: 10px 0 0;
-  color: var(--n-text-color-3);
+.result-empty {
+  padding-top: 64px;
 }
 
 .result-card {
-  min-height: 100%;
+  min-height: 360px;
 }
 
 @media (max-width: 640px) {
-  .ai-leads-header,
-  .panel-title {
+  .section-title {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .form-actions {
+    justify-content: flex-start;
   }
 }
 </style>
