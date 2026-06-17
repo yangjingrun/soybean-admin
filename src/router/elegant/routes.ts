@@ -51,13 +51,25 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'ai-prompt-settings',
+    path: '/ai-prompt-settings',
+    component: 'layout.base$view.ai-prompt-settings',
+    meta: {
+      title: 'ai-prompt-settings',
+      i18nKey: 'route.ai-prompt-settings',
+      icon: 'mdi:file-document-edit-outline',
+      order: 4,
+      roles: ['R_SUPER']
+    }
+  },
+  {
     name: 'ai-settings',
     path: '/ai-settings',
     component: 'layout.base$view.ai-settings',
     meta: {
       title: 'ai-settings',
       i18nKey: 'route.ai-settings',
-      icon: 'mdi:robot-outline',
+      icon: 'mdi:server-network-outline',
       order: 3
     }
   },
@@ -105,7 +117,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'system-log',
       i18nKey: 'route.system-log',
       icon: 'mdi:clipboard-text-clock-outline',
-      order: 4,
+      order: 5,
       roles: ['R_SUPER']
     }
   }

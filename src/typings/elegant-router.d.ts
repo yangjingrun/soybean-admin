@@ -21,6 +21,7 @@ declare module "@elegant-router/types" {
     "404": "/404";
     "500": "/500";
     "ai-leads": "/ai-leads";
+    "ai-prompt-settings": "/ai-prompt-settings";
     "ai-settings": "/ai-settings";
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
@@ -61,6 +62,7 @@ declare module "@elegant-router/types" {
     | "404"
     | "500"
     | "ai-leads"
+    | "ai-prompt-settings"
     | "ai-settings"
     | "home"
     | "iframe-page"
@@ -88,6 +90,7 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "login"
     | "ai-leads"
+    | "ai-prompt-settings"
     | "ai-settings"
     | "home"
     | "system-log"

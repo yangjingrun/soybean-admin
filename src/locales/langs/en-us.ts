@@ -230,11 +230,105 @@ const local: App.I18n.Schema = {
     500: 'Server Error',
     'iframe-page': 'Iframe',
     'ai-leads': 'AI Leads',
-    'ai-settings': 'AI Settings',
+    'ai-settings': 'Model Config',
+    'ai-prompt-settings': 'Prompt Config',
     'system-log': 'System Logs',
     home: 'Home'
   },
   page: {
+    aiSettings: {
+      title: 'Model Config',
+      description:
+        'Configure the model channel used by AI Leads, Match Analysis, and Email Drafting workflows.',
+      providers: {
+        openrouter: 'OpenRouter / relay provider',
+        custom: 'OpenAI compatible',
+        openai: 'OpenAI official',
+        deepseek: 'DeepSeek',
+        dashscope: 'Qwen DashScope'
+      },
+      actions: {
+        reload: 'Reload',
+        test: 'Test Connection',
+        save: 'Save Model'
+      },
+      form: {
+        title: 'Config Name',
+        provider: 'Model Provider',
+        model: 'Model Name',
+        apiBase: 'API Base',
+        apiKey: 'API Key',
+        temperature: 'Temperature',
+        maxOutputTokens: 'Output Limit'
+      },
+      placeholders: {
+        title: 'Default model',
+        model: 'openai/gpt-4o-mini',
+        apiBase: 'https://openrouter.ai/api/v1',
+        apiKey: 'Enter the model service key'
+      },
+      status: {
+        title: 'Connection Status',
+        connected: 'Connected',
+        savedUntested: 'Saved, not tested',
+        pending: 'Pending setup',
+        notSaved: 'Not saved yet',
+        testResult: 'Test result',
+        tokens: 'Tokens',
+        input: 'Input',
+        output: 'Output'
+      },
+      test: {
+        systemPrompt: 'You are a model connectivity test assistant. Reply only with OK.',
+        prompt: 'Reply with OK'
+      },
+      messages: {
+        loaded: 'Model config loaded',
+        saved: 'Model config saved',
+        testPassed: 'Model connection is healthy'
+      }
+    },
+    aiPromptSettings: {
+      title: 'Prompt Config',
+      description: 'Maintain three built-in prompts. Saved versions become the global prompts for their workflows.',
+      superOnly: 'Super admin only',
+      globalTip:
+        'This saves a global built-in prompt. Users will read the latest saved version when they run the matching workflow.',
+      steps: {
+        title: 'Built-in Workflow Steps'
+      },
+      actions: {
+        reload: 'Reload',
+        save: 'Save Prompt'
+      },
+      form: {
+        systemPrompt: 'System Prompt'
+      },
+      placeholders: {
+        systemPrompt: 'Write the fixed rules the model must follow'
+      },
+      status: {
+        notSaved: 'Not saved yet'
+      },
+      messages: {
+        loaded: 'Prompts loaded',
+        saved: 'Prompt saved'
+      },
+      prompts: {
+        leadgen: {
+          title: 'AI Leads',
+          usage: 'Generate search strategy, customer profile, filtering rules, and outreach direction.'
+        },
+        leadMatch: {
+          title: 'Match Analysis',
+          usage: 'Judge business authenticity and lead fit, with reasons and risks.'
+        },
+        emailCraft: {
+          title: 'Email Drafting',
+          usage: 'Generate concise, professional, evidence-based English outreach emails.'
+        }
+      }
+    },
     login: {
       common: {
         loginOrRegister: 'Login / Register',

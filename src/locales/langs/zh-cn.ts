@@ -226,11 +226,103 @@ const local: App.I18n.Schema = {
     500: '服务器错误',
     'iframe-page': '外链页面',
     'ai-leads': 'AI获客',
-    'ai-settings': 'AI设置',
+    'ai-settings': '模型配置',
+    'ai-prompt-settings': '提示词配置',
     'system-log': '日志管理',
     home: '首页'
   },
   page: {
+    aiSettings: {
+      title: '模型配置',
+      description: '配置业务 AI 调用使用的模型通道，AI获客、匹配分析和开发信生成都会读取这里。',
+      providers: {
+        openrouter: 'OpenRouter / 中转站',
+        custom: 'OpenAI 兼容',
+        openai: 'OpenAI 官方',
+        deepseek: 'DeepSeek',
+        dashscope: '通义千问'
+      },
+      actions: {
+        reload: '重新加载',
+        test: '测试连接',
+        save: '保存模型'
+      },
+      form: {
+        title: '配置名称',
+        provider: '模型服务',
+        model: '模型名称',
+        apiBase: 'API Base',
+        apiKey: 'API Key',
+        temperature: 'Temperature',
+        maxOutputTokens: '输出上限'
+      },
+      placeholders: {
+        title: '默认模型',
+        model: 'openai/gpt-4o-mini',
+        apiBase: 'https://openrouter.ai/api/v1',
+        apiKey: '请输入模型服务密钥'
+      },
+      status: {
+        title: '连接状态',
+        connected: '连接正常',
+        savedUntested: '已保存，待测试',
+        pending: '待配置',
+        notSaved: '暂未保存',
+        testResult: '测试返回',
+        tokens: 'Tokens',
+        input: '输入',
+        output: '输出'
+      },
+      test: {
+        systemPrompt: '你是模型连通性测试助手。请只回复 OK。',
+        prompt: '请回复 OK'
+      },
+      messages: {
+        loaded: '模型配置已加载',
+        saved: '模型配置已保存',
+        testPassed: '模型连通性正常'
+      }
+    },
+    aiPromptSettings: {
+      title: '提示词配置',
+      description: '维护三套内置提示词，保存后会作为对应业务的全局版本生效。',
+      superOnly: '仅超级管理员',
+      globalTip: '当前保存的是全局内置提示词。用户在业务页面调用对应步骤时，会读取这里保存的最新版本。',
+      steps: {
+        title: '内置业务步骤'
+      },
+      actions: {
+        reload: '重新加载',
+        save: '保存提示词'
+      },
+      form: {
+        systemPrompt: '系统提示词'
+      },
+      placeholders: {
+        systemPrompt: '写入模型必须遵守的固定规则'
+      },
+      status: {
+        notSaved: '暂未保存'
+      },
+      messages: {
+        loaded: '提示词已加载',
+        saved: '提示词已保存'
+      },
+      prompts: {
+        leadgen: {
+          title: 'AI获客',
+          usage: '生成搜索策略、客户画像、筛选规则和开发信方向。'
+        },
+        leadMatch: {
+          title: '匹配分析',
+          usage: '判断公司业务是否属实、线索是否匹配，并给出原因和风险。'
+        },
+        emailCraft: {
+          title: '开发信生成',
+          usage: '根据客户证据生成简洁、专业、可信的英文开发信。'
+        }
+      }
+    },
     login: {
       common: {
         loginOrRegister: '登录 / 注册',

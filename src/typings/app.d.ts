@@ -481,6 +481,97 @@ declare namespace App {
       };
       route: Record<I18nRouteKey, string>;
       page: {
+        aiSettings: {
+          title: string;
+          description: string;
+          providers: {
+            openrouter: string;
+            custom: string;
+            openai: string;
+            deepseek: string;
+            dashscope: string;
+          };
+          actions: {
+            reload: string;
+            test: string;
+            save: string;
+          };
+          form: {
+            title: string;
+            provider: string;
+            model: string;
+            apiBase: string;
+            apiKey: string;
+            temperature: string;
+            maxOutputTokens: string;
+          };
+          placeholders: {
+            title: string;
+            model: string;
+            apiBase: string;
+            apiKey: string;
+          };
+          status: {
+            title: string;
+            connected: string;
+            savedUntested: string;
+            pending: string;
+            notSaved: string;
+            testResult: string;
+            tokens: string;
+            input: string;
+            output: string;
+          };
+          test: {
+            systemPrompt: string;
+            prompt: string;
+          };
+          messages: {
+            loaded: string;
+            saved: string;
+            testPassed: string;
+          };
+        };
+        aiPromptSettings: {
+          title: string;
+          description: string;
+          superOnly: string;
+          globalTip: string;
+          steps: {
+            title: string;
+          };
+          actions: {
+            reload: string;
+            save: string;
+          };
+          form: {
+            systemPrompt: string;
+          };
+          placeholders: {
+            systemPrompt: string;
+          };
+          status: {
+            notSaved: string;
+          };
+          messages: {
+            loaded: string;
+            saved: string;
+          };
+          prompts: {
+            leadgen: {
+              title: string;
+              usage: string;
+            };
+            leadMatch: {
+              title: string;
+              usage: string;
+            };
+            emailCraft: {
+              title: string;
+              usage: string;
+            };
+          };
+        };
         login: {
           common: {
             loginOrRegister: string;
