@@ -3,6 +3,7 @@ import { computed, onMounted, reactive } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useImageCaptcha } from '@/hooks/business/image-captcha';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
+import { isDev } from '@/constants/env';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -32,32 +33,43 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   return {
     userName: formRules.userName,
     password: formRules.pwd,
-    captchaCode: [
-      createRequiredRule($t('form.code.required')),
-      {
-        pattern: /^[a-zA-Z0-9]{6}$/,
-        message: $t('form.code.invalid'),
-        trigger: 'change'
-      }
-    ]
+    captchaCode: isDev
+      ? []
+      : [
+          createRequiredRule($t('form.code.required')),
+          {
+            pattern: /^[a-zA-Z0-9]{6}$/,
+            message: $t('form.code.invalid'),
+            trigger: 'change'
+          }
+        ]
   };
 });
 
 const canSubmit = computed(() => {
-  return Boolean(model.userName && model.password && model.captchaCode && captchaId.value);
+  return Boolean(model.userName && model.password && (isDev || (model.captchaCode && captchaId.value)));
 });
 
 async function handleSubmit() {
   await validate();
-  await authStore.login(model.userName, model.password, captchaId.value, model.captchaCode);
+  await authStore.login(
+    model.userName,
+    model.password,
+    isDev ? undefined : captchaId.value,
+    isDev ? undefined : model.captchaCode
+  );
   model.captchaCode = '';
 
-  if (!authStore.isLogin) {
+  if (!isDev && !authStore.isLogin) {
     await refreshCaptcha();
   }
 }
 
-onMounted(refreshCaptcha);
+onMounted(() => {
+  if (!isDev) {
+    refreshCaptcha();
+  }
+});
 </script>
 
 <template>
@@ -73,7 +85,7 @@ onMounted(refreshCaptcha);
         :placeholder="$t('page.login.common.passwordPlaceholder')"
       />
     </NFormItem>
-    <NFormItem path="captchaCode">
+    <NFormItem v-if="!isDev" path="captchaCode">
       <div class="w-full flex-y-center gap-12px">
         <NInput
           v-model:value="model.captchaCode"

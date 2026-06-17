@@ -78,94 +78,102 @@ function handlePromptKeyUpdate(value: string) {
 </script>
 
 <template>
-  <NSpace vertical :size="12" class="ai-leads-page">
-    <NCard :bordered="false" size="small" class="card-wrapper">
-      <div class="section-title">
-        <NText strong>业务条件</NText>
-        <NTag size="small" type="info">{{ isPromptLoading ? '加载中' : activePromptLabel }}</NTag>
-      </div>
+  <NSpace vertical :size="12">
+    <NCard :bordered="false" size="small" class="card-wrapper lead-search-card">
+      <div class="card-title">获客条件</div>
 
-      <NForm :model="form" label-placement="left" label-width="72" size="small" class="lead-form">
-        <NGrid :x-gap="16" :y-gap="12" responsive="screen" item-responsive>
-          <NGi span="24 m:12 l:8">
+      <NForm :model="form" label-placement="left" label-width="72" size="small">
+        <NGrid :x-gap="18" :y-gap="12" responsive="screen" item-responsive>
+          <NGi span="24 m:12 l:6">
             <NFormItem label="业务步骤">
               <NSelect :value="form.promptKey" :options="aiPromptSelectOptions" @update:value="handlePromptKeyUpdate" />
             </NFormItem>
           </NGi>
 
-          <NGi span="24 m:12 l:16" class="form-actions">
-            <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
-              开始生成
-            </NButton>
-          </NGi>
-
-          <NGi span="24">
+          <NGi span="24 m:12 l:14">
             <NFormItem label="获客需求">
               <NInput
                 v-model:value="form.prompt"
                 type="textarea"
-                :autosize="{ minRows: 8, maxRows: 14 }"
+                :autosize="{ minRows: 2, maxRows: 4 }"
                 placeholder="输入本次获客需求"
               />
             </NFormItem>
+          </NGi>
+
+          <NGi span="24 l:4" class="lead-actions">
+            <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
+              开始生成
+            </NButton>
           </NGi>
         </NGrid>
       </NForm>
     </NCard>
 
-    <NCard :bordered="false" size="small" class="card-wrapper result-card">
+    <NCard :bordered="false" size="small" class="card-wrapper result-card" content-class="result-card-content">
       <template #header>
-        <div class="section-title">
-          <NText strong>生成结果</NText>
+        <div class="result-header">
+          <span>生成结果</span>
           <NTag v-if="aiResult" size="small" type="success">{{ aiResult.finishReason }}</NTag>
         </div>
       </template>
 
-      <NSpace v-if="aiResult" vertical :size="12">
-        <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 14, maxRows: 26 }" />
-        <NText depth="3">
+      <div v-if="aiResult" class="result-panel">
+        <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 16, maxRows: 28 }" />
+        <NText depth="3" class="token-summary">
           Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} / 总计
           {{ aiResult.usage.totalTokens ?? '-' }}
         </NText>
-      </NSpace>
+      </div>
       <NEmpty v-else description="暂无生成结果" class="result-empty" />
     </NCard>
   </NSpace>
 </template>
 
 <style scoped>
-.section-title {
+.card-title,
+.result-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  font-weight: 600;
 }
 
-.lead-form {
-  margin-top: 12px;
+.lead-search-card :deep(.n-card__content) {
+  padding-bottom: 10px;
 }
 
-.form-actions {
+.lead-actions {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
 }
 
-.result-empty {
-  padding-top: 64px;
+.result-card :deep(.result-card-content) {
+  min-height: 430px;
+  display: flex;
+  flex-direction: column;
 }
 
-.result-card {
-  min-height: 360px;
+.result-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.token-summary {
+  align-self: flex-end;
+}
+
+.result-empty {
+  flex: 1;
+  justify-content: center;
 }
 
 @media (max-width: 640px) {
-  .section-title {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .form-actions {
+  .lead-actions {
     justify-content: flex-start;
   }
 }

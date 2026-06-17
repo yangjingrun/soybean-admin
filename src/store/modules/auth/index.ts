@@ -96,7 +96,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * @param password Password
    * @param [redirect=true] Whether to redirect after login. Default is `true`
    */
-  async function login(userName: string, password: string, captchaId: string, captchaCode: string, redirect = true) {
+  async function login(userName: string, password: string, captchaId?: string, captchaCode?: string, redirect = true) {
     startLoading();
 
     const { data: loginToken, error } = await fetchLogin(userName, password, captchaId, captchaCode);
