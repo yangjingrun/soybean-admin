@@ -227,6 +227,7 @@ const local: App.I18n.Schema = {
     'iframe-page': '外链页面',
     'ai-leads': 'AI获客',
     'ai-settings': 'AI设置',
+    'system-log': '日志管理',
     home: '首页'
   },
   page: {

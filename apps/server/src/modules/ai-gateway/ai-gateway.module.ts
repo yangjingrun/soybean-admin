@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
+import { SystemLogModule } from '../system-log/system-log.module';
 import { AiGatewayController } from './ai-gateway.controller';
 import { AiGatewayService } from './ai-gateway.service';
 import { AiSdkTextGenerator } from './ai-sdk-text-generator.service';
@@ -7,6 +9,7 @@ import { RedisAiModelConfigStore } from './redis-ai-model-config.store';
 import { RedisAiPromptStore } from './redis-ai-prompt.store';
 
 @Module({
+  imports: [AuthModule, SystemLogModule],
   controllers: [AiGatewayController],
   providers: [
     AiGatewayService,

@@ -23,4 +23,5 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "ai-leads": () => import("@/views/ai-leads/index.vue"),
   "ai-settings": () => import("@/views/ai-settings/index.vue"),
   home: () => import("@/views/home/index.vue"),
+  "system-log": () => import("@/views/system-log/index.vue"),
 };

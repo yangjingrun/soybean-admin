@@ -1,4 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { SystemLogService } from '../system-log/system-log.service';
+import type { SystemLogRecorder } from '../system-log/system-log.types';
+import type { UserInfo } from '../auth/auth.types';
 import { aiPromptDefinitions, aiPromptKeys, defaultAiModelConfigKey } from './ai-gateway.constants';
 import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
@@ -18,7 +21,8 @@ export class AiGatewayService {
   constructor(
     @Inject(AI_TEXT_GENERATOR) private readonly textGenerator: AiTextGenerator,
     @Inject(AI_PROMPT_STORE) private readonly promptStore: AiPromptStore,
-    @Inject(AI_MODEL_CONFIG_STORE) private readonly modelConfigStore: AiModelConfigStore
+    @Inject(AI_MODEL_CONFIG_STORE) private readonly modelConfigStore: AiModelConfigStore,
+    @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder
   ) {}
 
   /** Saves a fixed system prompt that can be referenced by promptKey during generation. */
@@ -92,10 +96,39 @@ export class AiGatewayService {
   }
 
   /** Generates text through the configured model and injects saved prompt rules when promptKey is provided. */
-  async generateText(dto: GenerateAiTextDto) {
+  async generateText(dto: GenerateAiTextDto, context: GenerateAiTextContext = {}) {
     const params = await this.toGenerateParams(dto);
 
-    return this.textGenerator.generateText(params);
+    try {
+      const result = await this.textGenerator.generateText(params);
+
+      await this.systemLogService.record({
+        level: 'info',
+        status: 'success',
+        module: 'ai-gateway',
+        action: 'generate-text',
+        message: 'AI 文本生成成功',
+        userId: context.user?.userId,
+        userName: context.user?.userName,
+        metadata: this.toLogMetadata(params, result)
+      });
+
+      return result;
+    } catch (error) {
+      await this.systemLogService.record({
+        level: 'error',
+        status: 'failed',
+        module: 'ai-gateway',
+        action: 'generate-text',
+        message: 'AI 文本生成失败',
+        userId: context.user?.userId,
+        userName: context.user?.userName,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        metadata: this.toLogMetadata(params)
+      });
+
+      throw error;
+    }
   }
 
   private async toGenerateParams(dto: GenerateAiTextDto): Promise<AiTextGenerateParams> {
@@ -137,6 +170,19 @@ export class AiGatewayService {
 
     return this.getModelConfig(dto.modelConfigKey || defaultAiModelConfigKey);
   }
+
+  private toLogMetadata(params: AiTextGenerateParams, result?: Awaited<ReturnType<AiTextGenerator['generateText']>>) {
+    return {
+      providerName: params.providerName,
+      model: params.model,
+      ...(params.promptKey ? { promptKey: params.promptKey } : {}),
+      ...(result ? { usage: result.usage } : {})
+    };
+  }
+}
+
+export interface GenerateAiTextContext {
+  user?: UserInfo | null;
 }
 
 function normalizePromptKey(promptKey: string) {

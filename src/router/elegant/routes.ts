@@ -96,5 +96,17 @@ export const generatedRoutes: GeneratedRoute[] = [
       constant: true,
       hideInMenu: true
     }
+  },
+  {
+    name: 'system-log',
+    path: '/system-log',
+    component: 'layout.base$view.system-log',
+    meta: {
+      title: 'system-log',
+      i18nKey: 'route.system-log',
+      icon: 'mdi:clipboard-text-clock-outline',
+      order: 4,
+      roles: ['R_SUPER']
+    }
   }
 ];

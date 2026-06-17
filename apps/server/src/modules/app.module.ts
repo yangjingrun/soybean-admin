@@ -5,6 +5,7 @@ import { AiGatewayModule } from './ai-gateway/ai-gateway.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
+import { SystemLogModule } from './system-log/system-log.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { RedisModule } from './redis/redis.module';
     RedisModule,
     AiGatewayModule,
     AuthModule,
+    SystemLogModule,
     HealthModule
   ],
   providers: [

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { AiGatewayService } from './ai-gateway.service';
+import type { SystemLogRecordInput } from '../system-log/system-log.types';
 import type {
   AiModelConfigRecord,
   AiModelConfigStore,
@@ -30,7 +31,8 @@ describe('AiGatewayService', () => {
     };
     const promptStore = createMemoryPromptStore();
     const modelConfigStore = createMemoryModelConfigStore();
-    const service = new AiGatewayService(generator, promptStore, modelConfigStore);
+    const logRecorder = createMemoryLogRecorder();
+    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
 
     const result = await service.generateText({
       providerName: ' openrouter ',
@@ -76,7 +78,8 @@ describe('AiGatewayService', () => {
     };
     const promptStore = createMemoryPromptStore();
     const modelConfigStore = createMemoryModelConfigStore();
-    const service = new AiGatewayService(generator, promptStore, modelConfigStore);
+    const logRecorder = createMemoryLogRecorder();
+    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
 
     await service.saveModelConfig({
       configKey: 'default',
@@ -106,6 +109,115 @@ describe('AiGatewayService', () => {
     assert.equal(generatedParams.model, 'gpt-4o-mini');
     assert.equal(generatedParams.systemPrompt, '固定只输出 JSON，不要编造客户。');
   });
+
+  it('records a success log when text generation succeeds', async () => {
+    const generator: AiTextGenerator = {
+      async generateText() {
+        return {
+          text: 'done',
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 5,
+            outputTokens: 1,
+            totalTokens: 6
+          }
+        };
+      }
+    };
+    const promptStore = createMemoryPromptStore();
+    const modelConfigStore = createMemoryModelConfigStore();
+    const logRecorder = createMemoryLogRecorder();
+    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
+
+    await service.generateText(
+      {
+        providerName: 'openrouter',
+        apiBase: 'https://openrouter.ai/api/v1',
+        apiKey: 'sk-test',
+        model: 'openai/gpt-4o-mini',
+        prompt: '找客户'
+      },
+      {
+        user: {
+          userId: 'u-1',
+          userName: 'Super',
+          roles: ['R_SUPER'],
+          buttons: []
+        }
+      }
+    );
+
+    assert.equal(logRecorder.records.length, 1);
+    assert.deepEqual(logRecorder.records[0], {
+      level: 'info',
+      status: 'success',
+      module: 'ai-gateway',
+      action: 'generate-text',
+      message: 'AI 文本生成成功',
+      userId: 'u-1',
+      userName: 'Super',
+      metadata: {
+        providerName: 'openrouter',
+        model: 'openai/gpt-4o-mini',
+        usage: {
+          inputTokens: 5,
+          outputTokens: 1,
+          totalTokens: 6
+        }
+      }
+    });
+  });
+
+  it('records a failed log and rethrows when text generation fails', async () => {
+    const cause = new Error('upstream failed');
+    const generator: AiTextGenerator = {
+      async generateText() {
+        throw cause;
+      }
+    };
+    const promptStore = createMemoryPromptStore();
+    const modelConfigStore = createMemoryModelConfigStore();
+    const logRecorder = createMemoryLogRecorder();
+    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
+
+    await assert.rejects(
+      () =>
+        service.generateText(
+          {
+            providerName: 'openrouter',
+            apiBase: 'https://openrouter.ai/api/v1',
+            apiKey: 'sk-test',
+            model: 'openai/gpt-4o-mini',
+            prompt: '找客户'
+          },
+          {
+            user: {
+              userId: 'u-1',
+              userName: 'Super',
+              roles: ['R_SUPER'],
+              buttons: []
+            }
+          }
+        ),
+      cause
+    );
+
+    assert.equal(logRecorder.records.length, 1);
+    assert.deepEqual(logRecorder.records[0], {
+      level: 'error',
+      status: 'failed',
+      module: 'ai-gateway',
+      action: 'generate-text',
+      message: 'AI 文本生成失败',
+      userId: 'u-1',
+      userName: 'Super',
+      errorMessage: 'upstream failed',
+      metadata: {
+        providerName: 'openrouter',
+        model: 'openai/gpt-4o-mini'
+      }
+    });
+  });
 });
 
 function createMemoryPromptStore(): AiPromptStore {
@@ -132,6 +244,17 @@ function createMemoryModelConfigStore(): AiModelConfigStore {
     async saveModelConfig(record) {
       configs.set(record.configKey, record);
       return record;
+    }
+  };
+}
+
+function createMemoryLogRecorder() {
+  const records: SystemLogRecordInput[] = [];
+
+  return {
+    records,
+    async record(input: SystemLogRecordInput) {
+      records.push(input);
     }
   };
 }

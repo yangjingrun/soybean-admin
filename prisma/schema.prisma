@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../apps/server/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model SystemLog {
+  id           String   @id @default(uuid())
+  level        String
+  status       String
+  module       String
+  action       String
+  message      String
+  userId       String?
+  userName     String?
+  errorCode    String?
+  errorMessage String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level])
+  @@index([userId])
+}

@@ -50,6 +50,12 @@ export function setupElegantRouter() {
         meta.order = 3;
       }
 
+      if (key === 'system-log') {
+        meta.icon = 'mdi:clipboard-text-clock-outline';
+        meta.order = 4;
+        meta.roles = ['R_SUPER'];
+      }
+
       return meta;
     }
   });

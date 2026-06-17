@@ -231,6 +231,7 @@ const local: App.I18n.Schema = {
     'iframe-page': 'Iframe',
     'ai-leads': 'AI Leads',
     'ai-settings': 'AI Settings',
+    'system-log': 'System Logs',
     home: 'Home'
   },
   page: {
