@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ok } from '../../shared/api-response';
 import { AuthService } from '../auth/auth.service';
@@ -15,7 +15,9 @@ export class AiGatewayController {
   ) {}
 
   @Post('prompts')
-  async savePrompt(@Body() dto: SaveAiPromptDto) {
+  async savePrompt(@Body() dto: SaveAiPromptDto, @Headers('authorization') authorization = '') {
+    this.assertSuper(authorization);
+
     return ok(await this.aiGatewayService.savePrompt(dto));
   }
 
@@ -46,5 +48,15 @@ export class AiGatewayController {
     const [scheme, token] = authorization.split(' ');
 
     return scheme?.toLowerCase() === 'bearer' ? token || '' : '';
+  }
+
+  private assertSuper(authorization: string) {
+    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+
+    if (!user?.roles.includes('R_SUPER')) {
+      throw new ForbiddenException('无权维护固定提示词');
+    }
+
+    return user;
   }
 }

@@ -9,8 +9,10 @@ import {
   type AiPromptKey
 } from '@/constants/ai-gateway';
 import { generateAiText, getAiModelConfig, getAiPrompt, saveAiModelConfig, saveAiPrompt } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
 
 const message = useMessage();
+const authStore = useAuthStore();
 
 const providerOptions = [
   { label: 'OpenRouter / 中转站', value: 'openrouter' },
@@ -49,6 +51,7 @@ const promptRecords = reactive<Partial<Record<AiPromptKey, Api.AiGateway.AiPromp
 const selectedPrompt = computed(
   () => aiPromptOptions.find(item => item.value === promptForm.promptKey) || defaultPrompt
 );
+const canManagePrompts = computed(() => authStore.isStaticSuper);
 const canSaveModel = computed(() =>
   Boolean(
     modelForm.providerName.trim() && modelForm.apiBase.trim() && modelForm.apiKey.trim() && modelForm.model.trim()
@@ -58,7 +61,10 @@ const canSavePrompt = computed(() => Boolean(promptForm.systemPrompt.trim()));
 
 onMounted(() => {
   void handleLoadModelConfig(false);
-  void handleLoadFixedPrompts(false);
+
+  if (canManagePrompts.value) {
+    void handleLoadFixedPrompts(false);
+  }
 });
 
 /** Loads the default backend model config into the settings form. */
@@ -356,7 +362,7 @@ function getPromptFormKey() {
         </NCard>
       </NGi>
 
-      <NGi span="24 l:14">
+      <NGi v-if="canManagePrompts" span="24 l:14">
         <NCard :bordered="false" class="card-wrapper">
           <NSpace vertical :size="16">
             <div class="panel-title">
