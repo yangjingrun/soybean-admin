@@ -4,11 +4,11 @@ import { NButton, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   formatLogDate,
-  getMetadataString,
   logLevelLabelMap,
   logLevelTagTypeMap,
   logStatusLabelMap,
-  logStatusTagTypeMap
+  logStatusTagTypeMap,
+  readMetadataString
 } from './shared';
 
 defineProps<{
@@ -24,6 +24,14 @@ const emit = defineEmits<{
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
 }>();
+
+/** Render module and action together so audit rows read like one operation. */
+function renderModuleAction(row: Api.SystemLog.SystemLogRecord) {
+  return h('div', { class: 'module-action-cell' }, [
+    h('span', { class: 'module-name' }, row.module),
+    h('span', { class: 'action-name' }, row.action)
+  ]);
+}
 
 const columns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => [
   {
@@ -63,18 +71,14 @@ const columns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => 
       )
   },
   {
-    key: 'module',
-    title: '模块',
-    minWidth: 120
-  },
-  {
-    key: 'action',
-    title: '动作',
-    minWidth: 140
+    key: 'moduleAction',
+    title: '模块 / 动作',
+    minWidth: 190,
+    render: row => renderModuleAction(row)
   },
   {
     key: 'userName',
-    title: '用户',
+    title: '操作人',
     minWidth: 120,
     render: row => row.userName || row.userId || '-'
   },
@@ -82,15 +86,21 @@ const columns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => 
     key: 'ip',
     title: 'IP',
     minWidth: 140,
-    render: row => getMetadataString(row.metadata, 'ip')
+    render: row => readMetadataString(row.metadata, 'ip')
   },
   {
     key: 'message',
-    title: '消息',
-    minWidth: 260,
+    title: '摘要',
+    minWidth: 300,
     ellipsis: {
       tooltip: true
     }
+  },
+  {
+    key: 'errorCode',
+    title: '错误码',
+    width: 120,
+    render: row => row.errorCode || '-'
   },
   {
     key: 'operate',
@@ -120,7 +130,7 @@ const columns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => 
         :data="records"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1320"
+        :scroll-x="1380"
         size="small"
         remote
       >
@@ -145,6 +155,23 @@ const columns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => 
 </template>
 
 <style scoped>
+.module-action-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.3;
+}
+
+.module-name {
+  color: var(--n-text-color);
+  font-weight: 500;
+}
+
+.action-name {
+  color: var(--n-text-color-3);
+  font-size: 12px;
+}
+
 .table-pagination {
   display: flex;
   justify-content: flex-end;

@@ -4,6 +4,7 @@ import { fetchSystemLogDetail, fetchSystemLogUsers, fetchSystemLogs } from '@/se
 import FilterPanel from './modules/FilterPanel.vue';
 import LogDetailDrawer from './modules/LogDetailDrawer.vue';
 import LogTable from './modules/LogTable.vue';
+import { buildSystemLogSearchParams, createDefaultFilterModel } from './modules/shared';
 
 const records = shallowRef<Api.SystemLog.SystemLogRecord[]>([]);
 const users = shallowRef<Api.SystemLog.SystemLogUser[]>([]);
@@ -26,60 +27,18 @@ onMounted(() => {
   void loadLogs();
 });
 
-/** Create the default filter object for initial load and reset. */
-function createDefaultFilterModel(): Api.SystemLog.SystemLogFilterModel {
-  return {
-    timeRange: null,
-    userId: null,
-    module: null,
-    level: null,
-    status: null,
-    keyword: ''
-  };
-}
-
-/** Build list query params from pagination and current filters. */
-function buildLogSearchParams(): Api.SystemLog.SystemLogSearchParams {
-  const params: Api.SystemLog.SystemLogSearchParams = {
-    current: pagination.current,
-    size: pagination.size
-  };
-
-  if (filterModel.timeRange) {
-    params.startTime = new Date(filterModel.timeRange[0]).toISOString();
-    params.endTime = new Date(filterModel.timeRange[1]).toISOString();
-  }
-
-  if (filterModel.userId) {
-    params.userId = filterModel.userId;
-  }
-
-  if (filterModel.module) {
-    params.module = filterModel.module;
-  }
-
-  if (filterModel.level) {
-    params.level = filterModel.level;
-  }
-
-  if (filterModel.status) {
-    params.status = filterModel.status;
-  }
-
-  const keyword = filterModel.keyword.trim();
-  if (keyword) {
-    params.keyword = keyword;
-  }
-
-  return params;
-}
-
 /** Load system logs with createdAt desc ordering handled by backend. */
 async function loadLogs() {
   loading.value = true;
 
   try {
-    const { data, error } = await fetchSystemLogs(buildLogSearchParams());
+    const { data, error } = await fetchSystemLogs(
+      buildSystemLogSearchParams({
+        current: pagination.current,
+        size: pagination.size,
+        filterModel
+      })
+    );
 
     if (error) {
       return;
@@ -148,7 +107,13 @@ async function handleViewDetail(record: Api.SystemLog.SystemLogRecord) {
 
 <template>
   <NSpace vertical :size="12">
-    <FilterPanel v-model="filterModel" :users="users" :loading="loading" @search="handleSearch" @reset="handleReset" />
+    <FilterPanel
+      v-model="filterModel"
+      :users="users"
+      :loading="loading"
+      @search="handleSearch"
+      @reset="handleReset"
+    />
 
     <LogTable
       :records="records"

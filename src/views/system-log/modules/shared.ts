@@ -12,8 +12,11 @@ export const logStatusOptions = [
 ] satisfies Array<{ label: string; value: Api.SystemLog.LogStatus }>;
 
 export const logModuleOptions = [
-  { label: '认证', value: 'auth' },
+  { label: '登录认证', value: 'auth' },
   { label: 'AI 网关', value: 'ai-gateway' },
+  { label: '系统配置', value: 'system-config' },
+  { label: '权限异常', value: 'permission' },
+  { label: '第三方服务', value: 'third-party' },
   { label: '系统日志', value: 'system-log' }
 ];
 
@@ -49,8 +52,61 @@ export function formatMetadata(metadata: Record<string, unknown> | null) {
   return metadata ? JSON.stringify(metadata, null, 2) : '';
 }
 
-/** Read a string field from log metadata for table and detail display. */
-export function getMetadataString(metadata: Record<string, unknown> | null, key: string) {
+/** Create the default filter object for initial load and reset. */
+export function createDefaultFilterModel(): Api.SystemLog.SystemLogFilterModel {
+  return {
+    timeRange: null,
+    userId: null,
+    module: null,
+    level: null,
+    status: null,
+    keyword: ''
+  };
+}
+
+/** Build list query params from pagination and current filters. */
+export function buildSystemLogSearchParams(options: {
+  current: number;
+  size: number;
+  filterModel: Api.SystemLog.SystemLogFilterModel;
+}): Api.SystemLog.SystemLogSearchParams {
+  const { current, size, filterModel } = options;
+  const params: Api.SystemLog.SystemLogSearchParams = {
+    current,
+    size
+  };
+
+  if (filterModel.timeRange) {
+    params.startTime = new Date(filterModel.timeRange[0]).toISOString();
+    params.endTime = new Date(filterModel.timeRange[1]).toISOString();
+  }
+
+  if (filterModel.userId) {
+    params.userId = filterModel.userId;
+  }
+
+  if (filterModel.module) {
+    params.module = filterModel.module;
+  }
+
+  if (filterModel.level) {
+    params.level = filterModel.level;
+  }
+
+  if (filterModel.status) {
+    params.status = filterModel.status;
+  }
+
+  const keyword = filterModel.keyword.trim();
+  if (keyword) {
+    params.keyword = keyword;
+  }
+
+  return params;
+}
+
+/** Read a string field from metadata for request context display. */
+export function readMetadataString(metadata: Record<string, unknown> | null, key: string) {
   const value = metadata?.[key];
 
   return typeof value === 'string' && value ? value : '-';
