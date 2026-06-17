@@ -46,6 +46,14 @@ export function fetchRefreshToken(refreshToken: string) {
   });
 }
 
+/** Logout current user and let backend record the logout action. */
+export function fetchLogout() {
+  return request<null>({
+    url: '/auth/logout',
+    method: 'post'
+  });
+}
+
 /**
  * return custom backend error
  *

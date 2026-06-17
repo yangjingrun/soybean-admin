@@ -10,7 +10,7 @@ import {
   logStatusTagTypeMap
 } from './shared';
 
-const props = defineProps<{
+defineProps<{
   records: Api.SystemLog.SystemLogRecord[];
   loading?: boolean;
   page: number;

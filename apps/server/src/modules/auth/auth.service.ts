@@ -138,6 +138,15 @@ export class AuthService {
     return this.issueTokens(userId);
   }
 
+  /** Revoke one access token for an explicit logout action. */
+  logout(token: string) {
+    if (this.isDevAuth() && token === devAccessToken) {
+      return;
+    }
+
+    this.accessTokens.delete(token);
+  }
+
   private issueTokens(userId: string): LoginToken {
     if (this.isDevAuth() && userId === devUserId) {
       return {
