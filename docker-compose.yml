@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: soybean-admin-naive-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: soybean
+      POSTGRES_PASSWORD: soybean_admin_dev
+      POSTGRES_DB: soybean_admin_naive
+    ports:
+      - '5432:5432'
+    volumes:
+      - soybean_admin_naive_postgres:/var/lib/postgresql/data
+
+volumes:
+  soybean_admin_naive_postgres:
