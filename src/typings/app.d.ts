@@ -495,6 +495,7 @@ declare namespace App {
             reload: string;
             test: string;
             save: string;
+            copyApiKey: string;
           };
           form: {
             title: string;
@@ -530,6 +531,7 @@ declare namespace App {
             loaded: string;
             saved: string;
             testPassed: string;
+            apiKeyCopied: string;
           };
         };
         aiPromptSettings: {

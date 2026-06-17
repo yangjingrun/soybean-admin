@@ -25,7 +25,7 @@ export class PrismaAiModelConfigStore implements AiModelConfigStore {
       apiKey: record.apiKey,
       model: record.model,
       temperature: record.temperature,
-      maxOutputTokens: record.maxOutputTokens
+      maxOutputTokens: record.maxOutputTokens ?? null
     };
     const saved = await this.prisma.aiModelConfig.upsert({
       where: { configKey: record.configKey },

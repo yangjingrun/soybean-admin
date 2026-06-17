@@ -19,5 +19,6 @@ export const aiPromptDefinitions = [
 export const aiPromptKeys = aiPromptDefinitions.map(item => item.promptKey);
 
 export const defaultAiModelConfigKey = 'default';
+export const defaultAiTemperature = 0.2;
 
 export const leadKeywordOptimizePromptKey = 'lead_keyword_optimize';

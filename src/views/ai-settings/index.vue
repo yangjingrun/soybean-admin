@@ -23,9 +23,7 @@ const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
   providerName: 'openrouter',
   apiBase: 'https://openrouter.ai/api/v1',
   apiKey: '',
-  model: 'openai/gpt-4o-mini',
-  temperature: 0.2,
-  maxOutputTokens: 1200
+  model: 'openai/gpt-4o-mini'
 });
 
 const isModelLoading = shallowRef(false);
@@ -40,7 +38,9 @@ const canSaveModel = computed(() =>
   )
 );
 const formattedModelUpdatedAt = computed(() =>
-  modelUpdatedAt.value ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss') : t('page.aiSettings.status.notSaved')
+  modelUpdatedAt.value
+    ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
+    : t('page.aiSettings.status.notSaved')
 );
 
 onMounted(() => {
@@ -64,9 +64,7 @@ async function handleLoadModelConfig(showMessage = true) {
       providerName: record.providerName,
       apiBase: record.apiBase,
       apiKey: record.apiKey,
-      model: record.model,
-      temperature: record.temperature,
-      maxOutputTokens: record.maxOutputTokens
+      model: record.model
     });
     modelUpdatedAt.value = record.updatedAt;
     modelTestResult.value = null;
@@ -90,9 +88,7 @@ async function handleSaveModelConfig() {
       providerName: modelForm.providerName.trim(),
       apiBase: modelForm.apiBase.trim(),
       apiKey: modelForm.apiKey.trim(),
-      model: modelForm.model.trim(),
-      temperature: modelForm.temperature,
-      maxOutputTokens: modelForm.maxOutputTokens
+      model: modelForm.model.trim()
     });
 
     if (error) {
@@ -105,6 +101,18 @@ async function handleSaveModelConfig() {
   } finally {
     isModelSaving.value = false;
   }
+}
+
+/** Copies the current model service key for quick reuse. */
+async function handleCopyApiKey() {
+  const apiKey = modelForm.apiKey.trim();
+
+  if (!apiKey) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(apiKey);
+  message.success(t('page.aiSettings.messages.apiKeyCopied'));
 }
 
 /** Sends one lightweight message with the current model config. */
@@ -174,37 +182,30 @@ async function handleTestModelConfig() {
             <NInput v-model:value="modelForm.apiBase" :placeholder="$t('page.aiSettings.placeholders.apiBase')" />
           </NFormItem>
           <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-            <NInput
-              v-model:value="modelForm.apiKey"
-              type="password"
-              show-password-on="click"
-              :placeholder="$t('page.aiSettings.placeholders.apiKey')"
-            />
+            <NInputGroup>
+              <NInput
+                v-model:value="modelForm.apiKey"
+                type="password"
+                show-password-on="click"
+                :placeholder="$t('page.aiSettings.placeholders.apiKey')"
+              />
+              <NTooltip>
+                <template #trigger>
+                  <NButton
+                    class="api-key-copy-button"
+                    :aria-label="$t('page.aiSettings.actions.copyApiKey')"
+                    :disabled="!modelForm.apiKey.trim()"
+                    @click="handleCopyApiKey"
+                  >
+                    <template #icon>
+                      <SvgIcon icon="material-symbols:content-copy-outline" />
+                    </template>
+                  </NButton>
+                </template>
+                {{ $t('page.aiSettings.actions.copyApiKey') }}
+              </NTooltip>
+            </NInputGroup>
           </NFormItem>
-          <NGrid :x-gap="12" responsive="screen" item-responsive>
-            <NGi span="24 m:12">
-              <NFormItem :label="$t('page.aiSettings.form.temperature')">
-                <NInputNumber
-                  v-model:value="modelForm.temperature"
-                  :min="0"
-                  :max="2"
-                  :step="0.1"
-                  class="full-input"
-                />
-              </NFormItem>
-            </NGi>
-            <NGi span="24 m:12">
-              <NFormItem :label="$t('page.aiSettings.form.maxOutputTokens')">
-                <NInputNumber
-                  v-model:value="modelForm.maxOutputTokens"
-                  :min="1"
-                  :max="8000"
-                  :step="100"
-                  class="full-input"
-                />
-              </NFormItem>
-            </NGi>
-          </NGrid>
         </NForm>
 
         <NAlert v-if="modelTestResult" type="success" :bordered="false">
@@ -270,8 +271,8 @@ async function handleTestModelConfig() {
   font-size: 13px;
 }
 
-.full-input {
-  width: 100%;
+.api-key-copy-button {
+  width: 34px;
 }
 
 .updated-time {

@@ -110,6 +110,27 @@ describe('AiGatewayService', () => {
     assert.equal(generatedParams.systemPrompt, '固定只输出 JSON，不要编造客户。');
   });
 
+  it('uses stable temperature and no output limit for saved model config by default', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    const record = await service.saveModelConfig({
+      configKey: 'default',
+      title: '默认模型',
+      providerName: 'openrouter',
+      apiBase: 'https://openrouter.ai/api/v1',
+      apiKey: 'sk-test',
+      model: 'openai/gpt-4o-mini'
+    });
+
+    assert.equal(record.temperature, 0.2);
+    assert.equal(record.maxOutputTokens, undefined);
+  });
+
   it('records a success log when text generation succeeds', async () => {
     const generator: AiTextGenerator = {
       async generateText() {
@@ -219,6 +240,22 @@ describe('AiGatewayService', () => {
     });
   });
 });
+
+function createMemoryTextGenerator(): AiTextGenerator {
+  return {
+    async generateText() {
+      return {
+        text: 'done',
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 1,
+          outputTokens: 1,
+          totalTokens: 2
+        }
+      };
+    }
+  };
+}
 
 function createMemoryPromptStore(): AiPromptStore {
   const prompts = new Map<string, AiPromptRecord>();

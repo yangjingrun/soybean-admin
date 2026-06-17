@@ -21,7 +21,7 @@ describe('PrismaAiModelConfigStore', () => {
             apiKey: 'sk-test',
             model: 'openai/gpt-4o-mini',
             temperature: 0.2,
-            maxOutputTokens: 1200,
+            maxOutputTokens: null,
             updatedAt
           };
         }
@@ -39,7 +39,7 @@ describe('PrismaAiModelConfigStore', () => {
       apiKey: 'sk-test',
       model: 'openai/gpt-4o-mini',
       temperature: 0.2,
-      maxOutputTokens: 1200,
+      maxOutputTokens: undefined,
       updatedAt: updatedAt.toISOString()
     });
   });
@@ -76,7 +76,6 @@ describe('PrismaAiModelConfigStore', () => {
       apiKey: 'sk-test',
       model: 'openai/gpt-4o-mini',
       temperature: 0.2,
-      maxOutputTokens: 1200,
       updatedAt: 'ignored-by-store'
     });
 
@@ -91,7 +90,7 @@ describe('PrismaAiModelConfigStore', () => {
           apiKey: 'sk-test',
           model: 'openai/gpt-4o-mini',
           temperature: 0.2,
-          maxOutputTokens: 1200
+          maxOutputTokens: null
         },
         update: {
           title: '默认模型',
@@ -100,7 +99,7 @@ describe('PrismaAiModelConfigStore', () => {
           apiKey: 'sk-test',
           model: 'openai/gpt-4o-mini',
           temperature: 0.2,
-          maxOutputTokens: 1200
+          maxOutputTokens: null
         }
       }
     ]);

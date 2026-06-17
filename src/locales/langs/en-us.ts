@@ -249,7 +249,8 @@ const local: App.I18n.Schema = {
       actions: {
         reload: 'Reload',
         test: 'Test Connection',
-        save: 'Save Model'
+        save: 'Save Model',
+        copyApiKey: 'Copy API Key'
       },
       form: {
         title: 'Config Name',
@@ -284,7 +285,8 @@ const local: App.I18n.Schema = {
       messages: {
         loaded: 'Model config loaded',
         saved: 'Model config saved',
-        testPassed: 'Model connection is healthy'
+        testPassed: 'Model connection is healthy',
+        apiKeyCopied: 'API Key copied'
       }
     },
     aiPromptSettings: {

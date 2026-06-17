@@ -2,7 +2,12 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import type { UserInfo } from '../auth/auth.types';
-import { aiPromptDefinitions, aiPromptKeys, defaultAiModelConfigKey } from './ai-gateway.constants';
+import {
+  aiPromptDefinitions,
+  aiPromptKeys,
+  defaultAiModelConfigKey,
+  defaultAiTemperature
+} from './ai-gateway.constants';
 import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
@@ -53,7 +58,7 @@ export class AiGatewayService {
       apiBase: dto.apiBase.trim(),
       apiKey: dto.apiKey.trim(),
       model: dto.model.trim(),
-      temperature: dto.temperature,
+      temperature: dto.temperature ?? defaultAiTemperature,
       maxOutputTokens: dto.maxOutputTokens,
       updatedAt: new Date().toISOString()
     });
@@ -230,8 +235,7 @@ function createModelConfigDraft(configKey: string): AiModelConfigRecord {
     apiBase: 'https://openrouter.ai/api/v1',
     apiKey: '',
     model: 'openai/gpt-4o-mini',
-    temperature: 0.2,
-    maxOutputTokens: 1200,
+    temperature: defaultAiTemperature,
     updatedAt: ''
   };
 }
