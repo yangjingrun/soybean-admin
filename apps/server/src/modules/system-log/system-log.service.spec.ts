@@ -52,6 +52,21 @@ describe('SystemLogService', () => {
     assert.equal(result.records[0].createdAt, '2026-06-17T01:00:00.000Z');
   });
 
+  it('normalizes string pagination from http query params', async () => {
+    const store = createStoreStub([]);
+    const service = new SystemLogService(store);
+
+    const result = await service.list({
+      current: '3',
+      size: '15'
+    });
+
+    assert.equal(store.lastFindManyArgs?.skip, 30);
+    assert.equal(store.lastFindManyArgs?.take, 15);
+    assert.equal(result.current, 3);
+    assert.equal(result.size, 15);
+  });
+
   it('records sanitized metadata without secret fields', async () => {
     const store = createStoreStub([]);
     const service = new SystemLogService(store);

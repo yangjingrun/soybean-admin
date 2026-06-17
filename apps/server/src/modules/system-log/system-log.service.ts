@@ -10,6 +10,9 @@ import type {
 } from './system-log.types';
 
 const secretKeys = new Set(['apikey', 'api_key', 'token', 'password']);
+const defaultPage = 1;
+const defaultPageSize = 20;
+const maxPageSize = 100;
 
 @Injectable()
 export class SystemLogService {
@@ -17,8 +20,8 @@ export class SystemLogService {
 
   /** Query system logs with business filters and normalized pagination. */
   async list(query: SystemLogListInput) {
-    const current = query.current ?? 1;
-    const size = query.size ?? 20;
+    const current = this.toPositiveInt(query.current, defaultPage);
+    const size = Math.min(this.toPositiveInt(query.size, defaultPageSize), maxPageSize);
     const where = this.toWhere(query);
     const [records, total] = await Promise.all([
       this.store.list({
@@ -96,6 +99,17 @@ export class SystemLogService {
       ...record,
       createdAt: record.createdAt.toISOString()
     };
+  }
+
+  /** Normalize HTTP query numbers before passing them into Prisma pagination. */
+  private toPositiveInt(value: number | string | undefined, fallback: number) {
+    if (value === undefined || value === '') {
+      return fallback;
+    }
+
+    const numberValue = Number(value);
+
+    return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
   }
 
   private sanitizeMetadata(value: unknown): unknown {

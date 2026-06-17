@@ -50,8 +50,8 @@ export interface SystemLogWhereInput {
 }
 
 export interface SystemLogListInput {
-  current?: number;
-  size?: number;
+  current?: number | string;
+  size?: number | string;
   level?: string;
   status?: string;
   module?: string;
