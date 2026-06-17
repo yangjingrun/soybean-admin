@@ -27,7 +27,7 @@ export class AiGatewayController {
 
   @Get('model-configs/:configKey')
   async getModelConfig(@Param() params: AiModelConfigKeyParamDto) {
-    return ok(await this.aiGatewayService.getModelConfig(params.configKey));
+    return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
   }
 
   @Post('generate-text')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   aiPromptOptions,
@@ -8,7 +8,7 @@ import {
   defaultAiPromptKey,
   type AiPromptKey
 } from '@/constants/ai-gateway';
-import { generateAiText } from '@/service/api';
+import { generateAiText, getAiPrompt } from '@/service/api';
 
 const message = useMessage();
 
@@ -18,12 +18,35 @@ const form = reactive({
 });
 
 const isGenerating = shallowRef(false);
+const isPromptLoading = shallowRef(false);
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
+const activePrompt = shallowRef<Api.AiGateway.AiPromptRecord | null>(null);
 
 const activePromptLabel = computed(
-  () => aiPromptOptions.find(item => item.value === form.promptKey)?.label || 'AI获客'
+  () => activePrompt.value?.title || aiPromptOptions.find(item => item.value === form.promptKey)?.label || 'AI获客'
 );
 const canGenerate = computed(() => Boolean(form.prompt.trim()));
+
+onMounted(() => {
+  void loadFixedPrompt(form.promptKey);
+});
+
+/** Reads the fixed system prompt from the backend REST API. */
+async function loadFixedPrompt(promptKey: AiPromptKey) {
+  isPromptLoading.value = true;
+
+  try {
+    const { data: prompt, error } = await getAiPrompt(promptKey);
+
+    if (error) {
+      return;
+    }
+
+    activePrompt.value = prompt;
+  } finally {
+    isPromptLoading.value = false;
+  }
+}
 
 /** Calls the backend AI gateway with fixed prompt and model config keys. */
 async function handleGenerate() {
@@ -50,6 +73,7 @@ async function handleGenerate() {
 
 function handlePromptKeyUpdate(value: string) {
   form.promptKey = value as AiPromptKey;
+  void loadFixedPrompt(form.promptKey);
 }
 </script>
 
@@ -74,9 +98,15 @@ function handlePromptKeyUpdate(value: string) {
           <NSpace vertical :size="16">
             <div class="panel-title">
               <NText strong>业务步骤</NText>
-              <NTag size="small" type="info">{{ activePromptLabel }}</NTag>
+              <NTag size="small" type="info">{{ isPromptLoading ? '加载中' : activePromptLabel }}</NTag>
             </div>
             <NSelect :value="form.promptKey" :options="aiPromptSelectOptions" @update:value="handlePromptKeyUpdate" />
+            <NAlert v-if="activePrompt" type="info" :bordered="false">
+              <NSpace vertical :size="4">
+                <NText strong>{{ activePrompt.title }}</NText>
+                <NText depth="3">{{ activePrompt.systemPrompt }}</NText>
+              </NSpace>
+            </NAlert>
             <NInput
               v-model:value="form.prompt"
               type="textarea"

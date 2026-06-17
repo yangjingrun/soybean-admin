@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   aiPromptOptions,
@@ -44,6 +44,7 @@ const isModelTesting = shallowRef(false);
 const isPromptLoading = shallowRef(false);
 const isPromptSaving = shallowRef(false);
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
+const promptRecords = reactive<Partial<Record<AiPromptKey, Api.AiGateway.AiPromptRecord>>>({});
 
 const selectedPrompt = computed(
   () => aiPromptOptions.find(item => item.value === promptForm.promptKey) || defaultPrompt
@@ -55,8 +56,13 @@ const canSaveModel = computed(() =>
 );
 const canSavePrompt = computed(() => Boolean(promptForm.systemPrompt.trim()));
 
+onMounted(() => {
+  void handleLoadModelConfig(false);
+  void handleLoadFixedPrompts(false);
+});
+
 /** Loads the default backend model config into the settings form. */
-async function handleLoadModelConfig() {
+async function handleLoadModelConfig(showMessage = true) {
   isModelLoading.value = true;
 
   try {
@@ -76,7 +82,9 @@ async function handleLoadModelConfig() {
       temperature: record.temperature,
       maxOutputTokens: record.maxOutputTokens
     });
-    message.success('模型配置已读取');
+    if (showMessage) {
+      message.success('模型配置已加载');
+    }
   } finally {
     isModelLoading.value = false;
   }
@@ -136,8 +144,36 @@ async function handleTestModelConfig() {
   }
 }
 
-/** Loads the saved fixed system prompt into the form. */
-async function handleLoadPrompt() {
+/** Loads all fixed system prompts from the backend REST API. */
+async function handleLoadFixedPrompts(showMessage = true) {
+  isPromptLoading.value = true;
+
+  try {
+    const records = await Promise.all(
+      aiPromptOptions.map(async option => {
+        const { data: record, error } = await getAiPrompt(option.value);
+
+        return error ? null : record;
+      })
+    );
+
+    records.forEach(record => {
+      if (record) {
+        setPromptRecord(record);
+      }
+    });
+    syncPromptForm(promptRecords[getPromptFormKey()]);
+
+    if (showMessage) {
+      message.success('提示词已加载');
+    }
+  } finally {
+    isPromptLoading.value = false;
+  }
+}
+
+/** Loads the selected fixed system prompt into the form. */
+async function handleLoadPrompt(showMessage = true) {
   isPromptLoading.value = true;
 
   try {
@@ -147,9 +183,11 @@ async function handleLoadPrompt() {
       return;
     }
 
-    promptForm.title = record.title;
-    promptForm.systemPrompt = record.systemPrompt;
-    message.success('提示词已读取');
+    setPromptRecord(record);
+    syncPromptForm(record);
+    if (showMessage) {
+      message.success('提示词已加载');
+    }
   } finally {
     isPromptLoading.value = false;
   }
@@ -160,7 +198,7 @@ async function handleSavePrompt() {
   isPromptSaving.value = true;
 
   try {
-    const { error } = await saveAiPrompt({
+    const { data: record, error } = await saveAiPrompt({
       promptKey: promptForm.promptKey,
       title: selectedPrompt.value.label,
       systemPrompt: promptForm.systemPrompt.trim()
@@ -170,6 +208,8 @@ async function handleSavePrompt() {
       return;
     }
 
+    setPromptRecord(record);
+    syncPromptForm(record);
     message.success('提示词已保存');
   } finally {
     isPromptSaving.value = false;
@@ -182,6 +222,31 @@ function handlePromptKeyUpdate(value: string) {
   promptForm.promptKey = option.value as AiPromptKey;
   promptForm.title = option.label;
   promptForm.systemPrompt = option.defaultPrompt;
+  const cachedRecord = promptRecords[getPromptFormKey()];
+
+  if (cachedRecord) {
+    syncPromptForm(cachedRecord);
+    return;
+  }
+
+  void handleLoadPrompt(false);
+}
+
+function syncPromptForm(record?: Api.AiGateway.AiPromptRecord) {
+  if (!record) {
+    return;
+  }
+
+  promptForm.title = record.title;
+  promptForm.systemPrompt = record.systemPrompt;
+}
+
+function setPromptRecord(record: Api.AiGateway.AiPromptRecord) {
+  promptRecords[record.promptKey as AiPromptKey] = record;
+}
+
+function getPromptFormKey() {
+  return promptForm.promptKey as AiPromptKey;
 }
 </script>
 
@@ -204,14 +269,14 @@ function handlePromptKeyUpdate(value: string) {
             <div class="panel-title">
               <NText strong>默认模型</NText>
               <NSpace :size="8">
-                <NButton size="small" :loading="isModelLoading" @click="handleLoadModelConfig">读取</NButton>
+                <NButton size="small" :loading="isModelLoading" @click="handleLoadModelConfig()">重新加载</NButton>
                 <NButton
                   size="small"
                   :loading="isModelTesting"
                   :disabled="!canSaveModel"
                   @click="handleTestModelConfig"
                 >
-                  测试
+                  测试连接
                 </NButton>
                 <NButton
                   size="small"
@@ -297,7 +362,7 @@ function handlePromptKeyUpdate(value: string) {
             <div class="panel-title">
               <NText strong>固定提示词</NText>
               <NSpace :size="8">
-                <NButton size="small" :loading="isPromptLoading" @click="handleLoadPrompt">读取</NButton>
+                <NButton size="small" :loading="isPromptLoading" @click="handleLoadFixedPrompts()">重新加载</NButton>
                 <NButton
                   size="small"
                   type="primary"

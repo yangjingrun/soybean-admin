@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { aiPromptKeys, defaultAiModelConfigKey } from './ai-gateway.constants';
+import { aiPromptDefinitions, aiPromptKeys, defaultAiModelConfigKey } from './ai-gateway.constants';
 import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
@@ -73,7 +73,19 @@ export class AiGatewayService {
     const record = await this.promptStore.getPrompt(normalizedKey);
 
     if (!record) {
-      throw new NotFoundException(`未找到提示词：${normalizedKey}`);
+      return createPromptDraft(normalizedKey);
+    }
+
+    return record;
+  }
+
+  /** Reads one saved backend model channel or returns an editable default draft for settings. */
+  async getModelConfigDraft(configKey = defaultAiModelConfigKey): Promise<AiModelConfigRecord> {
+    const normalizedKey = normalizeModelConfigKey(configKey);
+    const record = await this.modelConfigStore.getModelConfig(normalizedKey);
+
+    if (!record) {
+      return createModelConfigDraft(normalizedKey);
     }
 
     return record;
@@ -145,4 +157,29 @@ function normalizeModelConfigKey(configKey?: string) {
   }
 
   return normalized;
+}
+
+function createPromptDraft(promptKey: string): AiPromptRecord {
+  const definition = aiPromptDefinitions.find(item => item.promptKey === promptKey);
+
+  return {
+    promptKey,
+    title: definition?.title || promptKey,
+    systemPrompt: definition?.defaultPrompt || '',
+    updatedAt: ''
+  };
+}
+
+function createModelConfigDraft(configKey: string): AiModelConfigRecord {
+  return {
+    configKey,
+    title: '默认模型',
+    providerName: 'openrouter',
+    apiBase: 'https://openrouter.ai/api/v1',
+    apiKey: '',
+    model: 'openai/gpt-4o-mini',
+    temperature: 0.2,
+    maxOutputTokens: 1200,
+    updatedAt: ''
+  };
 }
