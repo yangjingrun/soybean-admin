@@ -48,3 +48,10 @@ export function formatLogDate(value: string) {
 export function formatMetadata(metadata: Record<string, unknown> | null) {
   return metadata ? JSON.stringify(metadata, null, 2) : '';
 }
+
+/** Read a string field from log metadata for table and detail display. */
+export function getMetadataString(metadata: Record<string, unknown> | null, key: string) {
+  const value = metadata?.[key];
+
+  return typeof value === 'string' && value ? value : '-';
+}

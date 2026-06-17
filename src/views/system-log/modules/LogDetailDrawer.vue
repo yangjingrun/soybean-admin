@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import {
   formatLogDate,
   formatMetadata,
+  getMetadataString,
   logLevelLabelMap,
   logLevelTagTypeMap,
   logStatusLabelMap,
@@ -47,6 +48,10 @@ const metadataCode = computed(() => formatMetadata(props.record?.metadata ?? nul
             <NDescriptionsItem label="模块">{{ record.module }}</NDescriptionsItem>
             <NDescriptionsItem label="动作">{{ record.action }}</NDescriptionsItem>
             <NDescriptionsItem label="用户">{{ record.userName || record.userId || '-' }}</NDescriptionsItem>
+            <NDescriptionsItem label="IP">{{ getMetadataString(record.metadata, 'ip') }}</NDescriptionsItem>
+            <NDescriptionsItem label="User Agent">
+              {{ getMetadataString(record.metadata, 'userAgent') }}
+            </NDescriptionsItem>
             <NDescriptionsItem label="消息">{{ record.message }}</NDescriptionsItem>
             <NDescriptionsItem v-if="record.errorCode" label="错误码">{{ record.errorCode }}</NDescriptionsItem>
             <NDescriptionsItem v-if="record.errorMessage" label="错误信息">

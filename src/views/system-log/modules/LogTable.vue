@@ -4,6 +4,7 @@ import { NButton, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   formatLogDate,
+  getMetadataString,
   logLevelLabelMap,
   logLevelTagTypeMap,
   logStatusLabelMap,
@@ -78,6 +79,12 @@ const columns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => 
     render: row => row.userName || row.userId || '-'
   },
   {
+    key: 'ip',
+    title: 'IP',
+    minWidth: 140,
+    render: row => getMetadataString(row.metadata, 'ip')
+  },
+  {
     key: 'message',
     title: '消息',
     minWidth: 260,
@@ -113,7 +120,7 @@ const columns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => 
         :data="records"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1180"
+        :scroll-x="1320"
         size="small"
         remote
       >
