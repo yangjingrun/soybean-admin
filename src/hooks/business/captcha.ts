@@ -43,21 +43,21 @@ export function useCaptcha() {
     const valid = isPhoneValid(phone);
 
     if (!valid || loading.value) {
-      return;
+      return null;
     }
 
     startLoading();
 
-    // request
     await new Promise(resolve => {
       setTimeout(resolve, 500);
     });
 
     window.$message?.success?.($t('page.login.codeLogin.sendCodeSuccess'));
-
     start();
 
     endLoading();
+
+    return null;
   }
 
   return {
