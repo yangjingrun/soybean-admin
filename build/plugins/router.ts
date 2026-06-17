@@ -35,6 +35,16 @@ export function setupElegantRouter() {
         meta.constant = true;
       }
 
+      if (key === 'home') {
+        meta.icon = 'mdi:monitor-dashboard';
+        meta.order = 1;
+      }
+
+      if (key === 'ai-leads') {
+        meta.icon = 'mdi:account-search-outline';
+        meta.order = 2;
+      }
+
       return meta;
     }
   });

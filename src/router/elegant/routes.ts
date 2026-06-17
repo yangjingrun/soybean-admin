@@ -40,6 +40,17 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'ai-leads',
+    path: '/ai-leads',
+    component: 'layout.base$view.ai-leads',
+    meta: {
+      title: 'ai-leads',
+      i18nKey: 'route.ai-leads',
+      icon: 'mdi:account-search-outline',
+      order: 2
+    }
+  },
+  {
     name: 'home',
     path: '/home',
     component: 'layout.base$view.home',
