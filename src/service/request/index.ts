@@ -1,10 +1,11 @@
 import type { AxiosResponse } from 'axios';
-import { BACKEND_ERROR_CODE, createFlatRequest, createRequest } from '@sa/axios';
+import { createFlatRequest, createRequest } from '@sa/axios';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
 import { $t } from '@/locales';
 import { getAuthorization, handleExpiredRequest, showErrorMsg } from './shared';
+import { getBackendErrorCode, getRequestErrorMessage } from './error-message';
 import type { RequestInstanceState } from './type';
 
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
@@ -101,14 +102,8 @@ export const request = createFlatRequest(
     onError(error) {
       // when the request is fail, you can show error message
 
-      let message = error.message;
-      let backendErrorCode = '';
-
-      // get backend error message and code
-      if (error.code === BACKEND_ERROR_CODE) {
-        message = error.response?.data?.msg || message;
-        backendErrorCode = String(error.response?.data?.code || '');
-      }
+      const message = getRequestErrorMessage(error);
+      const backendErrorCode = getBackendErrorCode(error);
 
       // the error message is displayed in the modal
       const modalLogoutCodes = import.meta.env.VITE_SERVICE_MODAL_LOGOUT_CODES?.split(',') || [];
@@ -157,12 +152,7 @@ export const demoRequest = createRequest(
     onError(error) {
       // when the request is fail, you can show error message
 
-      let message = error.message;
-
-      // show backend error message
-      if (error.code === BACKEND_ERROR_CODE) {
-        message = error.response?.data?.message || message;
-      }
+      const message = getRequestErrorMessage(error);
 
       window.$message?.error(message);
     }
