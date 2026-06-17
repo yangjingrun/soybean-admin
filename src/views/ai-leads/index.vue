@@ -1,18 +1,56 @@
 <script setup lang="ts">
-const workflowItems = [
-  {
-    title: '线索来源',
-    description: '后续可接入关键词、行业、地区等获客条件。'
-  },
-  {
-    title: 'AI筛选',
-    description: '预留客户画像、匹配度、联系建议等判断结果。'
-  },
-  {
-    title: '跟进转化',
-    description: '后续可沉淀线索状态、备注、任务和转化记录。'
+import { computed, reactive, shallowRef } from 'vue';
+import { useMessage } from 'naive-ui';
+import {
+  aiPromptOptions,
+  aiPromptSelectOptions,
+  defaultAiModelConfigKey,
+  defaultAiPromptKey,
+  type AiPromptKey
+} from '@/constants/ai-gateway';
+import { generateAiText } from '@/service/api';
+
+const message = useMessage();
+
+const form = reactive({
+  promptKey: defaultAiPromptKey,
+  prompt: '帮我找沙特阿拉伯的 6204 bearing 进口商和经销商，输出产品关键词、目标客户画像、搜索词和筛选规则。'
+});
+
+const isGenerating = shallowRef(false);
+const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
+
+const activePromptLabel = computed(
+  () => aiPromptOptions.find(item => item.value === form.promptKey)?.label || 'AI获客'
+);
+const canGenerate = computed(() => Boolean(form.prompt.trim()));
+
+/** Calls the backend AI gateway with fixed prompt and model config keys. */
+async function handleGenerate() {
+  isGenerating.value = true;
+  aiResult.value = null;
+
+  try {
+    const { data: result, error } = await generateAiText({
+      modelConfigKey: defaultAiModelConfigKey,
+      promptKey: form.promptKey,
+      prompt: form.prompt.trim()
+    });
+
+    if (error) {
+      return;
+    }
+
+    aiResult.value = result;
+    message.success('生成完成');
+  } finally {
+    isGenerating.value = false;
   }
-];
+}
+
+function handlePromptKeyUpdate(value: string) {
+  form.promptKey = value as AiPromptKey;
+}
 </script>
 
 <template>
@@ -22,19 +60,48 @@ const workflowItems = [
         <div>
           <p class="ai-leads-eyebrow text-primary">AI Leads</p>
           <h2 class="ai-leads-title">AI获客</h2>
-          <p class="ai-leads-desc">先搭好获客工作台入口，后续再补充搜索、筛选、线索列表和跟进动作。</p>
+          <p class="ai-leads-desc">选择固定业务步骤，提交本次获客需求。</p>
         </div>
-        <NButton type="primary" disabled>开始获客</NButton>
+        <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
+          开始生成
+        </NButton>
       </div>
     </NCard>
 
     <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <NGi v-for="item in workflowItems" :key="item.title" span="24 s:24 m:8">
+      <NGi span="24 l:10">
         <NCard :bordered="false" class="card-wrapper">
-          <NSpace vertical :size="8">
-            <NText strong>{{ item.title }}</NText>
-            <NText depth="3">{{ item.description }}</NText>
+          <NSpace vertical :size="16">
+            <div class="panel-title">
+              <NText strong>业务步骤</NText>
+              <NTag size="small" type="info">{{ activePromptLabel }}</NTag>
+            </div>
+            <NSelect :value="form.promptKey" :options="aiPromptSelectOptions" @update:value="handlePromptKeyUpdate" />
+            <NInput
+              v-model:value="form.prompt"
+              type="textarea"
+              :autosize="{ minRows: 14, maxRows: 24 }"
+              placeholder="输入本次获客需求"
+            />
           </NSpace>
+        </NCard>
+      </NGi>
+
+      <NGi span="24 l:14">
+        <NCard :bordered="false" class="card-wrapper result-card">
+          <NSpace v-if="aiResult" vertical :size="12">
+            <div class="panel-title">
+              <NText strong>生成结果</NText>
+              <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
+            </div>
+            <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 14, maxRows: 26 }" />
+            <NText depth="3">
+              Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} /
+              总计
+              {{ aiResult.usage.totalTokens ?? '-' }}
+            </NText>
+          </NSpace>
+          <NEmpty v-else description="暂无生成结果" />
         </NCard>
       </NGi>
     </NGrid>
@@ -42,7 +109,8 @@ const workflowItems = [
 </template>
 
 <style scoped>
-.ai-leads-header {
+.ai-leads-header,
+.panel-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -66,8 +134,13 @@ const workflowItems = [
   color: var(--n-text-color-3);
 }
 
+.result-card {
+  min-height: 100%;
+}
+
 @media (max-width: 640px) {
-  .ai-leads-header {
+  .ai-leads-header,
+  .panel-title {
     align-items: flex-start;
     flex-direction: column;
   }

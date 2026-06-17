@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AiGatewayModule } from './ai-gateway/ai-gateway.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
@@ -16,6 +17,7 @@ import { RedisModule } from './redis/redis.module';
       ]
     }),
     RedisModule,
+    AiGatewayModule,
     AuthModule,
     HealthModule
   ],

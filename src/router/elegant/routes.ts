@@ -51,6 +51,17 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'ai-settings',
+    path: '/ai-settings',
+    component: 'layout.base$view.ai-settings',
+    meta: {
+      title: 'ai-settings',
+      i18nKey: 'route.ai-settings',
+      icon: 'mdi:robot-outline',
+      order: 3
+    }
+  },
+  {
     name: 'home',
     path: '/home',
     component: 'layout.base$view.home',

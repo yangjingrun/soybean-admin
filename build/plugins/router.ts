@@ -45,6 +45,11 @@ export function setupElegantRouter() {
         meta.order = 2;
       }
 
+      if (key === 'ai-settings') {
+        meta.icon = 'mdi:robot-outline';
+        meta.order = 3;
+      }
+
       return meta;
     }
   });
