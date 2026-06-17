@@ -81,14 +81,14 @@ For private deployment:
 
 Stores customer companies or deployment units.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| name | varchar(120) | yes | Tenant display name |
-| code | varchar(60) | yes | Stable tenant code |
-| status | varchar(30) | yes | active, disabled |
-| created_at | timestamptz | yes | Created time |
-| updated_at | timestamptz | yes | Updated time |
+| Column     | Type         | Required | Notes               |
+| ---------- | ------------ | -------- | ------------------- |
+| id         | uuid         | yes      | Primary key         |
+| name       | varchar(120) | yes      | Tenant display name |
+| code       | varchar(60)  | yes      | Stable tenant code  |
+| status     | varchar(30)  | yes      | active, disabled    |
+| created_at | timestamptz  | yes      | Created time        |
+| updated_at | timestamptz  | yes      | Updated time        |
 
 Constraints:
 
@@ -98,16 +98,16 @@ Constraints:
 
 Stores backend users. Existing demo users should eventually move into this table.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| tenant_id | uuid | yes | Tenant owner |
-| user_name | varchar(80) | yes | Login name |
-| password_hash | varchar(255) | yes | Password hash |
-| display_name | varchar(120) | no | Display name |
-| status | varchar(30) | yes | active, disabled |
-| created_at | timestamptz | yes | Created time |
-| updated_at | timestamptz | yes | Updated time |
+| Column        | Type         | Required | Notes            |
+| ------------- | ------------ | -------- | ---------------- |
+| id            | uuid         | yes      | Primary key      |
+| tenant_id     | uuid         | yes      | Tenant owner     |
+| user_name     | varchar(80)  | yes      | Login name       |
+| password_hash | varchar(255) | yes      | Password hash    |
+| display_name  | varchar(120) | no       | Display name     |
+| status        | varchar(30)  | yes      | active, disabled |
+| created_at    | timestamptz  | yes      | Created time     |
+| updated_at    | timestamptz  | yes      | Updated time     |
 
 Constraints:
 
@@ -117,14 +117,14 @@ Constraints:
 
 Stores tenant-level roles. A platform-level super admin can be represented by a reserved tenant or a platform flag during implementation.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| tenant_id | uuid | yes | Tenant owner |
-| role_key | varchar(60) | yes | R_SUPER, R_ADMIN, R_USER |
-| name | varchar(100) | yes | Role display name |
-| created_at | timestamptz | yes | Created time |
-| updated_at | timestamptz | yes | Updated time |
+| Column     | Type         | Required | Notes                    |
+| ---------- | ------------ | -------- | ------------------------ |
+| id         | uuid         | yes      | Primary key              |
+| tenant_id  | uuid         | yes      | Tenant owner             |
+| role_key   | varchar(60)  | yes      | R_SUPER, R_ADMIN, R_USER |
+| name       | varchar(100) | yes      | Role display name        |
+| created_at | timestamptz  | yes      | Created time             |
+| updated_at | timestamptz  | yes      | Updated time             |
 
 Constraints:
 
@@ -134,11 +134,11 @@ Constraints:
 
 Connects users and roles.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| user_id | uuid | yes | User id |
-| role_id | uuid | yes | Role id |
-| created_at | timestamptz | yes | Created time |
+| Column     | Type        | Required | Notes        |
+| ---------- | ----------- | -------- | ------------ |
+| user_id    | uuid        | yes      | User id      |
+| role_id    | uuid        | yes      | Role id      |
+| created_at | timestamptz | yes      | Created time |
 
 Constraints:
 
@@ -150,24 +150,24 @@ Constraints:
 
 Stores customer-owned AI model channels such as OpenRouter, DeepSeek, OpenAI-compatible providers, and custom provider endpoints. Tenant administrators can manage these settings, but API keys should be stored encrypted and returned to the frontend only as masked metadata.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| tenant_id | uuid | yes | Tenant owner |
-| name | varchar(100) | yes | Tenant display name |
-| provider | varchar(50) | yes | openai, deepseek, openrouter, custom |
-| api_base | varchar(255) | yes | Provider base URL |
-| api_key_encrypted | text | yes | Encrypted API key |
-| model | varchar(120) | yes | Model name |
-| temperature | numeric(3,2) | no | Default temperature |
-| max_tokens | int | no | Default output token limit |
-| api_key_mask | varchar(80) | no | Masked key shown to tenant admin |
-| is_default | boolean | yes | Default model in tenant |
-| is_enabled | boolean | yes | Whether available to tenant features |
-| created_by | uuid | no | Tenant admin user id |
-| updated_by | uuid | no | Tenant admin user id |
-| created_at | timestamptz | yes | Created time |
-| updated_at | timestamptz | yes | Updated time |
+| Column            | Type         | Required | Notes                                |
+| ----------------- | ------------ | -------- | ------------------------------------ |
+| id                | uuid         | yes      | Primary key                          |
+| tenant_id         | uuid         | yes      | Tenant owner                         |
+| name              | varchar(100) | yes      | Tenant display name                  |
+| provider          | varchar(50)  | yes      | openai, deepseek, openrouter, custom |
+| api_base          | varchar(255) | yes      | Provider base URL                    |
+| api_key_encrypted | text         | yes      | Encrypted API key                    |
+| model             | varchar(120) | yes      | Model name                           |
+| temperature       | numeric(3,2) | no       | Default temperature                  |
+| max_tokens        | int          | no       | Default output token limit           |
+| api_key_mask      | varchar(80)  | no       | Masked key shown to tenant admin     |
+| is_default        | boolean      | yes      | Default model in tenant              |
+| is_enabled        | boolean      | yes      | Whether available to tenant features |
+| created_by        | uuid         | no       | Tenant admin user id                 |
+| updated_by        | uuid         | no       | Tenant admin user id                 |
+| created_at        | timestamptz  | yes      | Created time                         |
+| updated_at        | timestamptz  | yes      | Updated time                         |
 
 Constraints:
 
@@ -183,18 +183,18 @@ Indexes:
 
 Stores stable hidden prompt identities such as lead generation, email crafting, and lead matching. These are internal product configuration records, not customer-facing settings.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| prompt_key | varchar(60) | yes | leadgen, email_craft, lead_match |
-| name | varchar(100) | yes | Internal display name |
-| description | text | no | Internal usage description |
-| current_version_id | uuid | no | Active version |
-| is_enabled | boolean | yes | Whether available to features |
-| created_by | uuid | no | Platform admin user id |
-| updated_by | uuid | no | Platform admin user id |
-| created_at | timestamptz | yes | Created time |
-| updated_at | timestamptz | yes | Updated time |
+| Column             | Type         | Required | Notes                                                          |
+| ------------------ | ------------ | -------- | -------------------------------------------------------------- |
+| id                 | uuid         | yes      | Primary key                                                    |
+| prompt_key         | varchar(60)  | yes      | lead_keyword_optimize, lead_match_analyze, lead_email_generate |
+| name               | varchar(100) | yes      | Internal display name                                          |
+| description        | text         | no       | Internal usage description                                     |
+| current_version_id | uuid         | no       | Active version                                                 |
+| is_enabled         | boolean      | yes      | Whether available to features                                  |
+| created_by         | uuid         | no       | Platform admin user id                                         |
+| updated_by         | uuid         | no       | Platform admin user id                                         |
+| created_at         | timestamptz  | yes      | Created time                                                   |
+| updated_at         | timestamptz  | yes      | Updated time                                                   |
 
 Constraints:
 
@@ -208,16 +208,16 @@ Indexes:
 
 Stores immutable hidden prompt content versions. Updating prompt content creates a new version instead of overwriting the old one.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| template_id | uuid | yes | Platform prompt template id |
-| version_no | int | yes | 1, 2, 3... |
-| system_prompt | text | yes | Hidden system prompt content |
-| output_schema | jsonb | no | Expected JSON output shape |
-| change_note | varchar(255) | no | Why this version changed |
-| created_by | uuid | no | Platform admin user id |
-| created_at | timestamptz | yes | Created time |
+| Column        | Type         | Required | Notes                        |
+| ------------- | ------------ | -------- | ---------------------------- |
+| id            | uuid         | yes      | Primary key                  |
+| template_id   | uuid         | yes      | Platform prompt template id  |
+| version_no    | int          | yes      | 1, 2, 3...                   |
+| system_prompt | text         | yes      | Hidden system prompt content |
+| output_schema | jsonb        | no       | Expected JSON output shape   |
+| change_note   | varchar(255) | no       | Why this version changed     |
+| created_by    | uuid         | no       | Platform admin user id       |
+| created_at    | timestamptz  | yes      | Created time                 |
 
 Constraints:
 
@@ -231,19 +231,19 @@ Indexes:
 
 Binds an internal product feature to one platform prompt template. Business pages call feature-specific backend APIs instead of directly choosing prompts, prompt keys, or feature keys.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| feature_key | varchar(80) | yes | ai_leads_generate |
-| name | varchar(100) | yes | Internal display name |
-| prompt_template_id | uuid | yes | Platform prompt template id |
-| default_temperature | numeric(3,2) | no | Platform default |
-| default_max_tokens | int | no | Platform default |
-| is_enabled | boolean | yes | Whether callable |
-| created_by | uuid | no | Platform admin user id |
-| updated_by | uuid | no | Platform admin user id |
-| created_at | timestamptz | yes | Created time |
-| updated_at | timestamptz | yes | Updated time |
+| Column              | Type         | Required | Notes                       |
+| ------------------- | ------------ | -------- | --------------------------- |
+| id                  | uuid         | yes      | Primary key                 |
+| feature_key         | varchar(80)  | yes      | ai_leads_generate           |
+| name                | varchar(100) | yes      | Internal display name       |
+| prompt_template_id  | uuid         | yes      | Platform prompt template id |
+| default_temperature | numeric(3,2) | no       | Platform default            |
+| default_max_tokens  | int          | no       | Platform default            |
+| is_enabled          | boolean      | yes      | Whether callable            |
+| created_by          | uuid         | no       | Platform admin user id      |
+| updated_by          | uuid         | no       | Platform admin user id      |
+| created_at          | timestamptz  | yes      | Created time                |
+| updated_at          | timestamptz  | yes      | Updated time                |
 
 Constraints:
 
@@ -257,19 +257,19 @@ Indexes:
 
 Stores per-tenant runtime settings for platform AI features. Tenant administrators can enable a feature and choose which tenant-owned model config it uses, but they cannot see the platform prompt behind the feature.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| tenant_id | uuid | yes | Tenant owner |
-| feature_id | uuid | yes | Platform feature id |
-| model_config_id | uuid | yes | Tenant model config id |
-| temperature | numeric(3,2) | no | Tenant override |
-| max_tokens | int | no | Tenant override |
-| is_enabled | boolean | yes | Whether tenant can call this feature |
-| created_by | uuid | no | Tenant admin user id |
-| updated_by | uuid | no | Tenant admin user id |
-| created_at | timestamptz | yes | Created time |
-| updated_at | timestamptz | yes | Updated time |
+| Column          | Type         | Required | Notes                                |
+| --------------- | ------------ | -------- | ------------------------------------ |
+| id              | uuid         | yes      | Primary key                          |
+| tenant_id       | uuid         | yes      | Tenant owner                         |
+| feature_id      | uuid         | yes      | Platform feature id                  |
+| model_config_id | uuid         | yes      | Tenant model config id               |
+| temperature     | numeric(3,2) | no       | Tenant override                      |
+| max_tokens      | int          | no       | Tenant override                      |
+| is_enabled      | boolean      | yes      | Whether tenant can call this feature |
+| created_by      | uuid         | no       | Tenant admin user id                 |
+| updated_by      | uuid         | no       | Tenant admin user id                 |
+| created_at      | timestamptz  | yes      | Created time                         |
+| updated_at      | timestamptz  | yes      | Updated time                         |
 
 Constraints:
 
@@ -283,23 +283,23 @@ Indexes:
 
 Stores AI call history for debugging, cost tracking, prompt evaluation, and later CRM traceability. This table belongs to a tenant because calls happen from tenant users and business data.
 
-| Column | Type | Required | Notes |
-| --- | --- | --- | --- |
-| id | uuid | yes | Primary key |
-| tenant_id | uuid | yes | Tenant owner |
-| feature_id | uuid | no | Platform feature used |
-| prompt_version_id | uuid | no | Platform prompt version used |
-| model_config_id | uuid | no | Tenant model config used |
-| user_id | uuid | no | Operator |
-| input_text | text | yes | User input |
-| output_text | text | no | Raw model output |
-| output_json | jsonb | no | Parsed JSON output |
-| finish_reason | varchar(50) | no | Provider finish reason |
-| input_tokens | int | no | Input token count |
-| output_tokens | int | no | Output token count |
-| total_tokens | int | no | Total token count |
-| error_message | text | no | Error message if failed |
-| created_at | timestamptz | yes | Created time |
+| Column            | Type        | Required | Notes                        |
+| ----------------- | ----------- | -------- | ---------------------------- |
+| id                | uuid        | yes      | Primary key                  |
+| tenant_id         | uuid        | yes      | Tenant owner                 |
+| feature_id        | uuid        | no       | Platform feature used        |
+| prompt_version_id | uuid        | no       | Platform prompt version used |
+| model_config_id   | uuid        | no       | Tenant model config used     |
+| user_id           | uuid        | no       | Operator                     |
+| input_text        | text        | yes      | User input                   |
+| output_text       | text        | no       | Raw model output             |
+| output_json       | jsonb       | no       | Parsed JSON output           |
+| finish_reason     | varchar(50) | no       | Provider finish reason       |
+| input_tokens      | int         | no       | Input token count            |
+| output_tokens     | int         | no       | Output token count           |
+| total_tokens      | int         | no       | Total token count            |
+| error_message     | text        | no       | Error message if failed      |
+| created_at        | timestamptz | yes      | Created time                 |
 
 Indexes:
 
@@ -415,7 +415,7 @@ AI logs can later reference CRM entities, such as `lead_id`, `customer_id`, or `
 - Do not return `api_key_encrypted` to the frontend.
 - Prefer generated Prisma types in backend repositories.
 - Keep tenant filtering in repository methods for tenant-owned data so business code does not forget tenant boundaries.
-- Seed one default tenant, one platform super user, one hidden `leadgen` prompt template, one prompt version, one AI lead generation feature binding, and one tenant model config placeholder for local testing.
+- Seed one default tenant, one platform super user, one hidden `lead_keyword_optimize` prompt template, one prompt version, one AI lead generation feature binding, and one tenant model config placeholder for local testing.
 - Use Node.js `crypto.scrypt` for password hashing in phase 1, avoiding an extra password library dependency.
 - Use Node.js `crypto` AES-256-GCM for AI provider API key encryption.
 - Store encryption secrets in environment variables, not in source code or database rows.

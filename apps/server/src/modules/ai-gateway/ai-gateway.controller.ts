@@ -22,17 +22,23 @@ export class AiGatewayController {
   }
 
   @Get('prompts/:promptKey')
-  async getPrompt(@Param() params: AiPromptKeyParamDto) {
+  async getPrompt(@Param() params: AiPromptKeyParamDto, @Headers('authorization') authorization = '') {
+    this.assertSuper(authorization);
+
     return ok(await this.aiGatewayService.getPrompt(params.promptKey));
   }
 
   @Post('model-configs')
-  async saveModelConfig(@Body() dto: SaveAiModelConfigDto) {
+  async saveModelConfig(@Body() dto: SaveAiModelConfigDto, @Headers('authorization') authorization = '') {
+    this.assertSuper(authorization);
+
     return ok(await this.aiGatewayService.saveModelConfig(dto));
   }
 
   @Get('model-configs/:configKey')
-  async getModelConfig(@Param() params: AiModelConfigKeyParamDto) {
+  async getModelConfig(@Param() params: AiModelConfigKeyParamDto, @Headers('authorization') authorization = '') {
+    this.assertSuper(authorization);
+
     return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
   }
 
@@ -54,7 +60,7 @@ export class AiGatewayController {
     const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
 
     if (!user?.roles.includes('R_SUPER')) {
-      throw new ForbiddenException('无权维护固定提示词');
+      throw new ForbiddenException('无权维护 AI 配置');
     }
 
     return user;

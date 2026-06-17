@@ -25,3 +25,26 @@ model SystemLog {
   @@index([level])
   @@index([userId])
 }
+
+model AiPromptConfig {
+  id           String   @id @default(uuid())
+  promptKey    String   @unique
+  title        String
+  systemPrompt String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AiModelConfig {
+  id              String   @id @default(uuid())
+  configKey       String   @unique
+  title           String
+  providerName    String
+  apiBase         String
+  apiKey          String
+  model           String
+  temperature     Float?
+  maxOutputTokens Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

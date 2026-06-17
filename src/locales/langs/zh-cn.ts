@@ -285,7 +285,7 @@ const local: App.I18n.Schema = {
     },
     aiPromptSettings: {
       title: '提示词配置',
-      description: '维护三套内置提示词，保存后会作为对应业务的全局版本生效。',
+      description: '维护 AI获客内置业务步骤的系统提示词，保存后会作为对应步骤的全局版本生效。',
       superOnly: '仅超级管理员',
       globalTip: '当前保存的是全局内置提示词。用户在业务页面调用对应步骤时，会读取这里保存的最新版本。',
       steps: {
@@ -309,17 +309,17 @@ const local: App.I18n.Schema = {
         saved: '提示词已保存'
       },
       prompts: {
-        leadgen: {
-          title: 'AI获客',
-          usage: '生成搜索策略、客户画像、筛选规则和开发信方向。'
+        leadKeywordOptimize: {
+          title: '关键词优化',
+          usage: 'AI获客第一步，将自然语言获客需求优化成可执行关键词和搜索方向。'
         },
-        leadMatch: {
+        leadMatchAnalyze: {
           title: '匹配分析',
-          usage: '判断公司业务是否属实、线索是否匹配，并给出原因和风险。'
+          usage: 'AI获客后续步骤，判断线索是否匹配并给出原因和风险。'
         },
-        emailCraft: {
+        leadEmailGenerate: {
           title: '开发信生成',
-          usage: '根据客户证据生成简洁、专业、可信的英文开发信。'
+          usage: 'AI获客后续步骤，根据客户证据生成开发信。'
         }
       }
     },

@@ -1,63 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, shallowRef } from 'vue';
+import { computed, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
-import {
-  aiPromptOptions,
-  aiPromptSelectOptions,
-  defaultAiModelConfigKey,
-  defaultAiPromptKey,
-  type AiPromptKey
-} from '@/constants/ai-gateway';
-import { generateAiText, getAiPrompt } from '@/service/api';
+import { optimizeLeadKeywords } from '@/service/api';
 
 const message = useMessage();
 
 const form = reactive({
-  promptKey: defaultAiPromptKey,
-  prompt: '帮我找沙特阿拉伯的 6204 bearing 进口商和经销商，输出产品关键词、目标客户画像、搜索词和筛选规则。'
+  requirement:
+    '我是中国河北卖轴承的，主打 6204 bearing，想找沙特阿拉伯进口商和经销商，产品优势是供货稳定、价格有竞争力。'
 });
 
 const isGenerating = shallowRef(false);
-const isPromptLoading = shallowRef(false);
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
-const activePrompt = shallowRef<Api.AiGateway.AiPromptRecord | null>(null);
 
-const activePromptLabel = computed(
-  () => activePrompt.value?.title || aiPromptOptions.find(item => item.value === form.promptKey)?.label || 'AI获客'
-);
-const canGenerate = computed(() => Boolean(form.prompt.trim()));
+const canGenerate = computed(() => Boolean(form.requirement.trim()));
 
-onMounted(() => {
-  void loadFixedPrompt(form.promptKey);
-});
-
-/** Reads the fixed system prompt from the backend REST API. */
-async function loadFixedPrompt(promptKey: AiPromptKey) {
-  isPromptLoading.value = true;
-
-  try {
-    const { data: prompt, error } = await getAiPrompt(promptKey);
-
-    if (error) {
-      return;
-    }
-
-    activePrompt.value = prompt;
-  } finally {
-    isPromptLoading.value = false;
-  }
-}
-
-/** Calls the backend AI gateway with fixed prompt and model config keys. */
+/** Calls the AI leads keyword optimization workflow. */
 async function handleGenerate() {
   isGenerating.value = true;
   aiResult.value = null;
 
   try {
-    const { data: result, error } = await generateAiText({
-      modelConfigKey: defaultAiModelConfigKey,
-      promptKey: form.promptKey,
-      prompt: form.prompt.trim()
+    const { data: result, error } = await optimizeLeadKeywords({
+      requirement: form.requirement.trim()
     });
 
     if (error) {
@@ -71,40 +36,49 @@ async function handleGenerate() {
   }
 }
 
-function handlePromptKeyUpdate(value: string) {
-  form.promptKey = value as AiPromptKey;
-  void loadFixedPrompt(form.promptKey);
+function handleClear() {
+  form.requirement = '';
+  aiResult.value = null;
+}
+
+async function handleCopyResult() {
+  if (!aiResult.value?.text) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(aiResult.value.text);
+  message.success('结果已复制');
 }
 </script>
 
 <template>
   <NSpace vertical :size="12">
     <NCard :bordered="false" size="small" class="card-wrapper lead-search-card">
-      <div class="card-title">获客条件</div>
+      <div class="card-title">
+        <span>获客需求</span>
+        <NTag size="small" type="info" :bordered="false">当前步骤：关键词优化</NTag>
+      </div>
 
       <NForm :model="form" label-placement="left" label-width="72" size="small">
         <NGrid :x-gap="18" :y-gap="12" responsive="screen" item-responsive>
-          <NGi span="24 m:12 l:6">
-            <NFormItem label="业务步骤">
-              <NSelect :value="form.promptKey" :options="aiPromptSelectOptions" @update:value="handlePromptKeyUpdate" />
-            </NFormItem>
-          </NGi>
-
-          <NGi span="24 m:12 l:14">
+          <NGi span="24 l:19">
             <NFormItem label="获客需求">
               <NInput
-                v-model:value="form.prompt"
+                v-model:value="form.requirement"
                 type="textarea"
-                :autosize="{ minRows: 2, maxRows: 4 }"
-                placeholder="输入本次获客需求"
+                :autosize="{ minRows: 4, maxRows: 7 }"
+                placeholder="描述你的产品、地区、目标市场、客户类型、产品优势等"
               />
             </NFormItem>
           </NGi>
 
-          <NGi span="24 l:4" class="lead-actions">
-            <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
-              开始生成
-            </NButton>
+          <NGi span="24 l:5" class="lead-actions">
+            <NSpace :size="8">
+              <NButton :disabled="isGenerating" @click="handleClear">清空</NButton>
+              <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
+                优化关键词
+              </NButton>
+            </NSpace>
           </NGi>
         </NGrid>
       </NForm>
@@ -113,8 +87,11 @@ function handlePromptKeyUpdate(value: string) {
     <NCard :bordered="false" size="small" class="card-wrapper result-card" content-class="result-card-content">
       <template #header>
         <div class="result-header">
-          <span>生成结果</span>
-          <NTag v-if="aiResult" size="small" type="success">{{ aiResult.finishReason }}</NTag>
+          <span>关键词优化结果</span>
+          <NSpace v-if="aiResult" :size="8">
+            <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
+            <NButton size="small" @click="handleCopyResult">复制结果</NButton>
+          </NSpace>
         </div>
       </template>
 

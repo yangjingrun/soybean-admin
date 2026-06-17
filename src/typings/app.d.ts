@@ -558,15 +558,15 @@ declare namespace App {
             saved: string;
           };
           prompts: {
-            leadgen: {
+            leadKeywordOptimize: {
               title: string;
               usage: string;
             };
-            leadMatch: {
+            leadMatchAnalyze: {
               title: string;
               usage: string;
             };
-            emailCraft: {
+            leadEmailGenerate: {
               title: string;
               usage: string;
             };

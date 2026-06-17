@@ -238,8 +238,7 @@ const local: App.I18n.Schema = {
   page: {
     aiSettings: {
       title: 'Model Config',
-      description:
-        'Configure the model channel used by AI Leads, Match Analysis, and Email Drafting workflows.',
+      description: 'Configure the model channel used by AI Leads, Match Analysis, and Email Drafting workflows.',
       providers: {
         openrouter: 'OpenRouter / relay provider',
         custom: 'OpenAI compatible',
@@ -290,7 +289,7 @@ const local: App.I18n.Schema = {
     },
     aiPromptSettings: {
       title: 'Prompt Config',
-      description: 'Maintain three built-in prompts. Saved versions become the global prompts for their workflows.',
+      description: 'Maintain system prompts for built-in AI leads workflow steps.',
       superOnly: 'Super admin only',
       globalTip:
         'This saves a global built-in prompt. Users will read the latest saved version when they run the matching workflow.',
@@ -315,17 +314,17 @@ const local: App.I18n.Schema = {
         saved: 'Prompt saved'
       },
       prompts: {
-        leadgen: {
-          title: 'AI Leads',
-          usage: 'Generate search strategy, customer profile, filtering rules, and outreach direction.'
+        leadKeywordOptimize: {
+          title: 'Keyword Optimization',
+          usage: 'Optimize natural-language lead requirements into executable keywords and search directions.'
         },
-        leadMatch: {
+        leadMatchAnalyze: {
           title: 'Match Analysis',
-          usage: 'Judge business authenticity and lead fit, with reasons and risks.'
+          usage: 'Judge lead fit in later AI leads workflow steps, with reasons and risks.'
         },
-        emailCraft: {
+        leadEmailGenerate: {
           title: 'Email Drafting',
-          usage: 'Generate concise, professional, evidence-based English outreach emails.'
+          usage: 'Generate outreach emails from customer evidence in later AI leads workflow steps.'
         }
       }
     },

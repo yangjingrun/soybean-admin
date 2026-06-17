@@ -70,7 +70,8 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'ai-settings',
       i18nKey: 'route.ai-settings',
       icon: 'mdi:server-network-outline',
-      order: 3
+      order: 3,
+      roles: ['R_SUPER']
     }
   },
   {

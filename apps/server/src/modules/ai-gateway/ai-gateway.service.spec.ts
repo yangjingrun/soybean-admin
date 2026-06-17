@@ -92,12 +92,12 @@ describe('AiGatewayService', () => {
       maxOutputTokens: 1000
     });
     await service.savePrompt({
-      promptKey: 'leadgen',
-      title: ' AI 获客 ',
+      promptKey: 'lead_keyword_optimize',
+      title: ' 关键词优化 ',
       systemPrompt: ' 固定只输出 JSON，不要编造客户。 '
     });
     await service.generateText({
-      promptKey: 'leadgen',
+      promptKey: 'lead_keyword_optimize',
       modelConfigKey: 'default',
       prompt: '找沙特轴承进口商'
     });

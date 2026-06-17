@@ -3,28 +3,24 @@ import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
-import {
-  aiPromptOptions,
-  defaultAiPromptKey,
-  type AiPromptKey
-} from '@/constants/ai-gateway';
+import { aiPromptOptions, defaultAiPromptKey, type AiPromptKey } from '@/constants/ai-gateway';
 import { getAiPrompt, saveAiPrompt } from '@/service/api';
 
 const message = useMessage();
 const { t } = useI18n();
 
 const promptI18nMap: Record<AiPromptKey, { title: string; usage: string }> = {
-  leadgen: {
-    title: 'page.aiPromptSettings.prompts.leadgen.title',
-    usage: 'page.aiPromptSettings.prompts.leadgen.usage'
+  lead_keyword_optimize: {
+    title: 'page.aiPromptSettings.prompts.leadKeywordOptimize.title',
+    usage: 'page.aiPromptSettings.prompts.leadKeywordOptimize.usage'
   },
-  lead_match: {
-    title: 'page.aiPromptSettings.prompts.leadMatch.title',
-    usage: 'page.aiPromptSettings.prompts.leadMatch.usage'
+  lead_match_analyze: {
+    title: 'page.aiPromptSettings.prompts.leadMatchAnalyze.title',
+    usage: 'page.aiPromptSettings.prompts.leadMatchAnalyze.usage'
   },
-  email_craft: {
-    title: 'page.aiPromptSettings.prompts.emailCraft.title',
-    usage: 'page.aiPromptSettings.prompts.emailCraft.usage'
+  lead_email_generate: {
+    title: 'page.aiPromptSettings.prompts.leadEmailGenerate.title',
+    usage: 'page.aiPromptSettings.prompts.leadEmailGenerate.usage'
   }
 };
 
@@ -32,7 +28,7 @@ const defaultPrompt = aiPromptOptions.find(item => item.value === defaultAiPromp
 const promptForm = reactive<Api.AiGateway.SavePromptPayload>({
   promptKey: defaultPrompt.value,
   title: defaultPrompt.label,
-  systemPrompt: defaultPrompt.defaultPrompt
+  systemPrompt: ''
 });
 
 const isPromptLoading = shallowRef(false);
@@ -140,7 +136,7 @@ function handlePromptKeyUpdate(value: AiPromptKey) {
 
   promptForm.promptKey = option.value;
   promptForm.title = option.label;
-  promptForm.systemPrompt = option.defaultPrompt;
+  promptForm.systemPrompt = '';
   const cachedRecord = promptRecords[getPromptFormKey()];
 
   if (cachedRecord) {

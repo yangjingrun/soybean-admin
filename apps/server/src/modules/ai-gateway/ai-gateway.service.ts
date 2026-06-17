@@ -134,6 +134,12 @@ export class AiGatewayService {
   private async toGenerateParams(dto: GenerateAiTextDto): Promise<AiTextGenerateParams> {
     const promptKey = dto.promptKey ? normalizePromptKey(dto.promptKey) : undefined;
     const savedPrompt = promptKey ? await this.getPrompt(promptKey) : null;
+    const systemPrompt = savedPrompt?.systemPrompt.trim() || dto.systemPrompt?.trim();
+
+    if (promptKey && !systemPrompt) {
+      throw new NotFoundException(`提示词未配置：${promptKey}`);
+    }
+
     const modelConfig = await this.resolveModelConfig(dto);
     const params: AiTextGenerateParams = {
       providerName: modelConfig.providerName,
@@ -141,7 +147,7 @@ export class AiGatewayService {
       apiKey: modelConfig.apiKey,
       model: modelConfig.model,
       prompt: dto.prompt.trim(),
-      systemPrompt: savedPrompt?.systemPrompt || dto.systemPrompt?.trim(),
+      systemPrompt,
       temperature: dto.temperature ?? modelConfig.temperature,
       maxOutputTokens: dto.maxOutputTokens ?? modelConfig.maxOutputTokens
     };
@@ -211,7 +217,7 @@ function createPromptDraft(promptKey: string): AiPromptRecord {
   return {
     promptKey,
     title: definition?.title || promptKey,
-    systemPrompt: definition?.defaultPrompt || '',
+    systemPrompt: '',
     updatedAt: ''
   };
 }
