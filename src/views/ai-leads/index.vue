@@ -18,7 +18,9 @@ import {
   createKeywordOptimizationViewModel,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
-  parseKeywordOptimizationPlan
+  isValidTargetLeadCount,
+  parseKeywordOptimizationPlan,
+  resolveTargetLeadCountAfterOptimization
 } from './modules/shared';
 
 const message = useMessage();
@@ -51,15 +53,10 @@ const historyRecords = ref<Api.AiLeads.KeywordHistoryRecord[]>([]);
 const editableKeywordPlan = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
 const editingKeywordPlanSnapshot = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
 const selectedHistoryId = shallowRef('');
+const isTargetLeadCountTouched = shallowRef(false);
 
 const canGenerate = computed(() => Boolean(form.requirement.trim()));
-const isTargetLeadCountValid = computed(
-  () =>
-    typeof form.targetLeadCount === 'number' &&
-    Number.isInteger(form.targetLeadCount) &&
-    form.targetLeadCount >= 1 &&
-    form.targetLeadCount <= 200
-);
+const isTargetLeadCountValid = computed(() => isValidTargetLeadCount(form.targetLeadCount));
 const targetLeadCountValidationStatus = computed(() => (isTargetLeadCountValid.value ? undefined : 'error'));
 const targetLeadCountFeedback = computed(() => (isTargetLeadCountValid.value ? undefined : '请输入 1-200 的采集数量'));
 const canSaveHistory = computed(() =>
@@ -101,6 +98,7 @@ onMounted(() => {
 /** Calls the AI leads keyword optimization workflow. */
 async function handleGenerate() {
   const targetLeadCount = form.targetLeadCount;
+  const isTargetLeadCountManuallyEdited = isTargetLeadCountTouched.value;
   isGenerating.value = true;
   searchResult.value = null;
 
@@ -116,8 +114,14 @@ async function handleGenerate() {
     aiResult.value = result;
     keywordQualityWarnings.value = result.qualityWarnings ?? [];
     upsertHistoryRecord(result.historyRecord);
-    applyKeywordHistoryRecord(result.historyRecord);
-    form.targetLeadCount = normalizeTargetLeadCount(targetLeadCount);
+    applyKeywordHistoryRecord(result.historyRecord, { syncTargetLeadCount: false });
+    form.targetLeadCount = resolveTargetLeadCountAfterOptimization({
+      currentValue: targetLeadCount,
+      resolvedValue: result.historyRecord.keywordPlan.resolvedTargetLeadCount,
+      isManuallyEdited: isTargetLeadCountManuallyEdited,
+      defaultValue: defaultTargetLeadCount
+    });
+    isTargetLeadCountTouched.value = isTargetLeadCountManuallyEdited;
     message.success('生成完成');
   } finally {
     isGenerating.value = false;
@@ -167,6 +171,7 @@ async function handleSearchCustomers() {
 function handleClear() {
   form.requirement = '';
   form.targetLeadCount = defaultTargetLeadCount;
+  isTargetLeadCountTouched.value = false;
   aiResult.value = null;
   searchResult.value = null;
   keywordQualityWarnings.value = [];
@@ -304,10 +309,21 @@ async function handleSaveHistory() {
   }
 }
 
-function applyKeywordHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
+function applyKeywordHistoryRecord(
+  record: Api.AiLeads.KeywordHistoryRecord,
+  options: { syncTargetLeadCount?: boolean } = {}
+) {
   selectedHistoryId.value = record.id;
   form.requirement = record.requirement;
-  form.targetLeadCount = normalizeTargetLeadCount(record.keywordPlan.resolvedTargetLeadCount);
+  if (options.syncTargetLeadCount !== false) {
+    form.targetLeadCount = resolveTargetLeadCountAfterOptimization({
+      currentValue: defaultTargetLeadCount,
+      resolvedValue: record.keywordPlan.resolvedTargetLeadCount,
+      isManuallyEdited: false,
+      defaultValue: defaultTargetLeadCount
+    });
+    isTargetLeadCountTouched.value = false;
+  }
   aiResult.value = createAiResultFromKeywordHistory(record);
   keywordQualityWarnings.value = [];
   editableKeywordPlan.value = cloneKeywordPlan(record.keywordPlan);
@@ -318,6 +334,7 @@ function applyKeywordHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
 
 function resetKeywordHistorySelection() {
   selectedHistoryId.value = '';
+  isTargetLeadCountTouched.value = false;
   aiResult.value = null;
   keywordQualityWarnings.value = [];
   editableKeywordPlan.value = null;
@@ -337,11 +354,10 @@ function getRequiredTargetLeadCount() {
   return isTargetLeadCountValid.value ? form.targetLeadCount : null;
 }
 
-/** Uses old keyword-history target counts when available, otherwise keeps the product default. */
-function normalizeTargetLeadCount(value: number | null) {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 200
-    ? value
-    : defaultTargetLeadCount;
+/** Tracks direct edits so AI optimization does not overwrite an explicit user count. */
+function handleTargetLeadCountUpdate(value: number | null) {
+  isTargetLeadCountTouched.value = true;
+  form.targetLeadCount = value;
 }
 </script>
 
@@ -377,12 +393,13 @@ function normalizeTargetLeadCount(value: number | null) {
               :feedback="targetLeadCountFeedback"
             >
               <NInputNumber
-                v-model:value="form.targetLeadCount"
+                :value="form.targetLeadCount"
                 class="lead-count-input"
                 placeholder="20"
                 :min="1"
                 :max="200"
                 :precision="0"
+                @update:value="handleTargetLeadCountUpdate"
               />
             </NFormItem>
           </NGi>

@@ -6,7 +6,8 @@ import {
   createAiResultFromKeywordHistory,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
-  parseKeywordOptimizationPlan
+  parseKeywordOptimizationPlan,
+  resolveTargetLeadCountAfterOptimization
 } from './shared';
 
 const keywordPlan: Api.AiLeads.OptimizedKeywordPlan = {
@@ -150,5 +151,38 @@ describe('ai leads keyword optimization helpers', () => {
     assert.equal(formatAiFinishReason('length'), '输出被截断');
     assert.equal(formatAiFinishReason('content_filter'), '内容被过滤');
     assert.equal(formatAiFinishReason(''), '');
+  });
+
+  it('uses AI resolved lead count when the user has not edited the field', () => {
+    const count = resolveTargetLeadCountAfterOptimization({
+      currentValue: 20,
+      resolvedValue: 50,
+      isManuallyEdited: false,
+      defaultValue: 20
+    });
+
+    assert.equal(count, 50);
+  });
+
+  it('keeps the manually edited lead count after keyword optimization', () => {
+    const count = resolveTargetLeadCountAfterOptimization({
+      currentValue: 30,
+      resolvedValue: 50,
+      isManuallyEdited: true,
+      defaultValue: 20
+    });
+
+    assert.equal(count, 30);
+  });
+
+  it('keeps an empty manually edited lead count instead of applying AI output', () => {
+    const count = resolveTargetLeadCountAfterOptimization({
+      currentValue: null,
+      resolvedValue: 50,
+      isManuallyEdited: true,
+      defaultValue: 20
+    });
+
+    assert.equal(count, null);
   });
 });

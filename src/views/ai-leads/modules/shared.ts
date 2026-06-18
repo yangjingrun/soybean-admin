@@ -126,6 +126,31 @@ export function cloneKeywordPlan(plan: Api.AiLeads.OptimizedKeywordPlan): Api.Ai
   return JSON.parse(JSON.stringify(plan)) as Api.AiLeads.OptimizedKeywordPlan;
 }
 
+/** Checks whether a target lead count can be sent to the search workflow. */
+export function isValidTargetLeadCount(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 200;
+}
+
+/**
+ * Syncs AI-parsed lead count into the form only when the user has not manually edited the count.
+ */
+export function resolveTargetLeadCountAfterOptimization(options: {
+  currentValue: number | null;
+  resolvedValue: number | null | undefined;
+  isManuallyEdited: boolean;
+  defaultValue: number;
+}) {
+  if (options.isManuallyEdited) {
+    return options.currentValue;
+  }
+
+  if (isValidTargetLeadCount(options.resolvedValue)) {
+    return options.resolvedValue;
+  }
+
+  return isValidTargetLeadCount(options.currentValue) ? options.currentValue : options.defaultValue;
+}
+
 /** Builds the UI model and keeps query details behind the super-admin permission. */
 export function createKeywordOptimizationViewModel(
   plan: Api.AiLeads.OptimizedKeywordPlan,
