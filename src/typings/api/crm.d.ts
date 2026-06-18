@@ -264,6 +264,7 @@ declare namespace Api {
       status: MessageStatus;
       scheduledAt: string | null;
       sentAt: string | null;
+      bullJobId: string | null;
       createdAt: string;
       updatedAt: string;
     }
@@ -326,6 +327,13 @@ declare namespace Api {
     interface MessageDraftApproveResult {
       enrollment: SequenceEnrollmentRecord;
       message: MessageRecord;
+    }
+
+    interface MessageSendStartResult {
+      enrollment: SequenceEnrollmentRecord;
+      message: MessageRecord;
+      account: LeadRecord;
+      event: LeadTimelineEvent;
     }
 
     type SequenceReviewList = Api.Common.PaginatingQueryRecord<SequenceReviewItem>;

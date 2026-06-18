@@ -39,6 +39,12 @@ import type {
   CrmSequenceDraftBundleCreateInput,
   CrmSequenceDraftBundleRecord,
   CrmSequenceReviewRecord,
+  CrmSendCompletionInput,
+  CrmSendCompletionRecord,
+  CrmSendFailureInput,
+  CrmSendFailureRecord,
+  CrmSendStartInput,
+  CrmSendStartRecord,
   CrmStore,
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
@@ -578,6 +584,222 @@ export class PrismaCrmStore implements CrmStore {
             messageId: message.id,
             fromStatus: input.fromEnrollmentStatus,
             toStatus: input.toEnrollmentStatus
+          }
+        }
+      });
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async startFirstMessageSend(input: CrmSendStartInput): Promise<CrmSendStartRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: input.fromEnrollmentStatus
+        },
+        data: { status: input.toEnrollmentStatus },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment?.mailboxId) {
+        return null;
+      }
+
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          stepIndex: 1,
+          status: input.fromMessageStatus
+        },
+        data: {
+          status: input.toMessageStatus,
+          scheduledAt: input.scheduledAt
+        },
+        limit: 1
+      });
+      const message = messages[0];
+
+      if (!message) {
+        return null;
+      }
+
+      const [account, contact, mailbox, event] = await Promise.all([
+        tx.crmAccount.update({
+          where: { id: enrollment.accountId },
+          data: { status: input.accountStatus }
+        }),
+        tx.crmContact.findUnique({ where: { id: enrollment.contactId } }),
+        tx.crmMailbox.findUnique({ where: { id: enrollment.mailboxId } }),
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: enrollment.accountId,
+            contactId: enrollment.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: 'message_queued',
+            title: '首封开发信进入发送队列',
+            content: message.subject,
+            metadata: {
+              enrollmentId: enrollment.id,
+              messageId: message.id,
+              runVersion: enrollment.runVersion
+            }
+          }
+        })
+      ]);
+
+      if (!contact || !mailbox || mailbox.status !== 'active') {
+        return null;
+      }
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        contact: toContactRecord(contact),
+        mailbox: toMailboxRecord(mailbox),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          runVersion: input.runVersion,
+          status: 'sequence_running'
+        },
+        data: { currentStep: 1 },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          id: input.messageId,
+          enrollmentId: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: 'queued'
+        },
+        data: {
+          status: 'sent',
+          sentAt: input.sentAt
+        },
+        limit: 1
+      });
+      const message = messages[0];
+
+      if (!message) {
+        return null;
+      }
+
+      const account = await tx.crmAccount.update({
+        where: { id: enrollment.accountId },
+        data: { status: 'sequence_running' }
+      });
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          organizationId: input.organizationId,
+          accountId: enrollment.accountId,
+          contactId: enrollment.contactId,
+          ownerUserId: input.ownerUserId,
+          eventType: 'message_sent',
+          title: '首封开发信已发送',
+          content: message.subject,
+          metadata: {
+            enrollmentId: enrollment.id,
+            messageId: message.id,
+            runVersion: enrollment.runVersion
+          }
+        }
+      });
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async failFirstMessageSend(input: CrmSendFailureInput): Promise<CrmSendFailureRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          runVersion: input.runVersion,
+          status: 'sequence_running'
+        },
+        data: { status: 'ready_to_send' },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          id: input.messageId,
+          enrollmentId: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: 'queued'
+        },
+        data: {
+          status: 'draft_ready',
+          bullJobId: null
+        },
+        limit: 1
+      });
+      const message = messages[0];
+
+      if (!message) {
+        return null;
+      }
+
+      const account = await tx.crmAccount.update({
+        where: { id: enrollment.accountId },
+        data: { status: 'ready' }
+      });
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          organizationId: input.organizationId,
+          accountId: enrollment.accountId,
+          contactId: enrollment.contactId,
+          ownerUserId: input.ownerUserId,
+          eventType: 'message_send_failed',
+          title: '首封开发信发送失败',
+          content: input.reason,
+          metadata: {
+            enrollmentId: enrollment.id,
+            messageId: message.id,
+            runVersion: enrollment.runVersion
           }
         }
       });

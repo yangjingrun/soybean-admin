@@ -258,6 +258,7 @@ model CrmMessage {
   status         String    @default("draft_pending_review")
   scheduledAt    DateTime?
   sentAt         DateTime?
+  bullJobId      String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -271,6 +272,7 @@ model CrmMessage {
   @@index([organizationId, ownerUserId, status, updatedAt])
   @@index([organizationId, accountId, createdAt])
   @@index([organizationId, contactId, createdAt])
+  @@index([organizationId, bullJobId])
 }
 
 model AiPromptConfig {

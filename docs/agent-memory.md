@@ -119,6 +119,14 @@
 - 相关文件：`src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`、`src/views/crm/email-sequences/modules/DraftReviewDrawer.vue`。
 - 验证方式：运行 `pnpm typecheck`，并由 code review 检查抽屉切换、关闭、保存、确认路径都有 ID 校验。
 
+### 2026-06-19 CRM 发送队列要用 runVersion 和 bullJobId 做发送前 guard
+
+- 场景：首封开发信从 `ready_to_send/draft_ready` 进入 BullMQ 后，由后台 worker 标记 `queued/sent/failed`。
+- 坑点：只按 message id 或 status 更新会让旧 job、重复点击、入队失败补偿和 worker 重试互相覆盖；如果不保存 `bullJobId`，也很难排查具体是哪次入队触发了状态变化。
+- 正确做法：启动发送必须 owner-only；事务化把 enrollment 改为 `sequence_running`、message 改为 `queued` 并写 timeline，入队成功后回写 `CrmMessage.bullJobId`；worker 执行前必须校验 `organizationId + ownerUserId + enrollmentId + messageId + runVersion + enrollment.status=sequence_running + message.status=queued + mailbox.active`，不匹配直接跳过。入队失败要把 enrollment/message/account 补偿回可重试状态并记录事件，不要假成功。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-send-worker.service.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认旧 runVersion job 跳过、owner-only 生效、入队失败回退、成功发送写入 sent。
+
 ### 记录模板
 
 ```md

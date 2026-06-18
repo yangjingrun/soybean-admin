@@ -13,6 +13,7 @@ type CrmEmailVerificationView = Awaited<ReturnType<CrmService['verifyContactEmai
 type CrmSequenceReviewItemView = Awaited<ReturnType<CrmService['getSequenceReviewItem']>>;
 type CrmEnrollmentView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['enrollment'];
 type CrmMessageView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['message'];
+type CrmSendStartView = Awaited<ReturnType<CrmService['startFirstMessageSend']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -409,7 +410,7 @@ describe('CrmController', () => {
     );
   });
 
-  it('updates and approves message drafts with the current user context', async () => {
+  it('updates, approves and starts message drafts with the current user context', async () => {
     const calls: Array<{ action: string; id: string; payload?: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
       createAuthService(),
@@ -426,6 +427,11 @@ describe('CrmController', () => {
             enrollment: createEnrollmentView({ status: 'ready_to_send' }),
             message: createMessageView({ id, status: 'draft_ready' })
           };
+        },
+        async startFirstMessageSend(id, context) {
+          calls.push({ action: 'start-send', id, context });
+
+          return createSendStartView({ id });
         }
       })
     );
@@ -435,14 +441,17 @@ describe('CrmController', () => {
       bodyText: 'Body'
     });
     const approved = await controller.approveMessageDraft('Bearer token', 'message-1');
+    const queued = await controller.startFirstMessageSend('Bearer token', 'enrollment-1');
 
     assert.equal(updated.data.message.subject, 'Hello');
     assert.equal(approved.data.enrollment.status, 'ready_to_send');
+    assert.equal(queued.data.message.status, 'queued');
     assert.deepEqual(
       calls.map(call => [call.action, call.id, call.context.organizationId]),
       [
         ['update', 'message-1', 'org-1'],
-        ['approve', 'message-1', 'org-1']
+        ['approve', 'message-1', 'org-1'],
+        ['start-send', 'enrollment-1', 'org-1']
       ]
     );
   });
@@ -632,9 +641,19 @@ function createMessageView(overrides: Partial<CrmMessageView> = {}): CrmMessageV
     status: 'draft_pending_review',
     scheduledAt: null,
     sentAt: null,
+    bullJobId: null,
     createdAt: '2026-06-18T09:00:00.000Z',
     updatedAt: '2026-06-18T09:00:00.000Z',
     ...overrides
+  };
+}
+
+function createSendStartView(overrides: { id?: string } = {}): CrmSendStartView {
+  return {
+    enrollment: createEnrollmentView({ id: overrides.id ?? 'enrollment-1', status: 'sequence_running' }),
+    message: createMessageView({ status: 'queued', bullJobId: 'send-job-1' }),
+    account: createAccountView({ status: 'sequence_running' }),
+    event: createTimelineEventView({ eventType: 'message_queued' })
   };
 }
 
@@ -767,6 +786,9 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
         enrollment: createEnrollmentView({ status: 'ready_to_send' }),
         message: createMessageView({ status: 'draft_ready' })
       };
+    },
+    async startFirstMessageSend() {
+      return createSendStartView();
     },
     ...partial
   } as unknown as CrmService;

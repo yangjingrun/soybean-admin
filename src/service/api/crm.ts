@@ -163,3 +163,11 @@ export function approveCrmMessageDraft(id: string) {
     method: 'post'
   });
 }
+
+/** Start the first approved message by putting it into the CRM send queue. */
+export function startCrmFirstMessageSend(enrollmentId: string) {
+  return request<Api.Crm.MessageSendStartResult>({
+    url: `/crm/sequence-review-items/${enrollmentId}/start-send`,
+    method: 'post'
+  });
+}

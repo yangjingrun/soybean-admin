@@ -2062,6 +2062,7 @@ export const CrmMessageScalarFieldEnum = {
   status: 'status',
   scheduledAt: 'scheduledAt',
   sentAt: 'sentAt',
+  bullJobId: 'bullJobId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

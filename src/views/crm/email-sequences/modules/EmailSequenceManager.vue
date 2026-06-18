@@ -27,6 +27,7 @@ const {
   handleReset,
   handleSaveDraft,
   handleSearch,
+  handleStartSend,
   loadSequences,
   loading,
   mailboxSelectOptions,
@@ -35,7 +36,8 @@ const {
   pagination,
   productLineSelectOptions,
   records,
-  resourceLoading
+  resourceLoading,
+  sendStarting
 } = useEmailSequenceTable();
 </script>
 
@@ -85,8 +87,10 @@ const {
       :item="currentItem"
       :loading="drawerLoading"
       :saving="draftSaving"
+      :send-starting="sendStarting"
       @approve="handleApproveDraft"
       @save="handleSaveDraft"
+      @start-send="handleStartSend"
       @update:show="handleDrawerVisibleUpdate"
     />
   </NSpace>

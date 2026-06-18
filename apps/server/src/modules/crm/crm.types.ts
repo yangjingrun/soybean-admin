@@ -186,6 +186,7 @@ export interface CrmMessageRecord {
   status: CrmMessageStatus;
   scheduledAt: Date | null;
   sentAt: Date | null;
+  bullJobId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -361,6 +362,7 @@ export interface CrmMessageCreateInput {
   status: CrmMessageStatus;
   scheduledAt?: Date | null;
   sentAt?: Date | null;
+  bullJobId?: string | null;
 }
 
 export interface CrmMessageUpdateInput {
@@ -371,6 +373,7 @@ export interface CrmMessageUpdateInput {
   status?: CrmMessageStatus;
   scheduledAt?: Date | null;
   sentAt?: Date | null;
+  bullJobId?: string | null;
 }
 
 export interface CrmSequenceDraftBundleCreateInput {
@@ -411,6 +414,87 @@ export interface CrmDraftApprovalInput {
 }
 
 export interface CrmDraftApprovalRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmSendQueueJob {
+  enrollmentId: string;
+  messageId: string;
+  organizationId: string;
+  ownerUserId: string;
+  runVersion: number;
+}
+
+export interface CrmSendQueuePort {
+  enqueueFirstMessage(input: CrmSendQueueJob): Promise<{ jobId: string }>;
+}
+
+export interface CrmEmailSendGatewayInput {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  mailbox: CrmMailboxRecord;
+}
+
+export interface CrmEmailSendGatewayResult {
+  providerMessageId?: string | null;
+}
+
+export interface CrmEmailSendGateway {
+  sendPlainText(input: CrmEmailSendGatewayInput): Promise<CrmEmailSendGatewayResult>;
+}
+
+export interface CrmSendStartInput {
+  enrollmentId: string;
+  organizationId: string;
+  ownerUserId: string;
+  fromEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  toEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  fromMessageStatus: CrmMessageStatus;
+  toMessageStatus: CrmMessageStatus;
+  accountStatus: CrmAccountStatus;
+  scheduledAt: Date;
+}
+
+export interface CrmSendStartRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  mailbox: CrmMailboxRecord;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmSendCompletionInput {
+  enrollmentId: string;
+  messageId: string;
+  organizationId: string;
+  ownerUserId: string;
+  runVersion: number;
+  sentAt: Date;
+}
+
+export interface CrmSendCompletionRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmSendFailureInput {
+  enrollmentId: string;
+  messageId: string;
+  organizationId: string;
+  ownerUserId: string;
+  runVersion: number;
+  reason: string;
+}
+
+export interface CrmSendFailureRecord {
   enrollment: CrmSequenceEnrollmentRecord;
   message: CrmMessageRecord;
   account: CrmAccountRecord;
@@ -521,4 +605,7 @@ export interface CrmStore {
     guard?: CrmMessageDraftUpdateGuard
   ): Promise<CrmMessageRecord | null>;
   approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null>;
+  startFirstMessageSend(input: CrmSendStartInput): Promise<CrmSendStartRecord | null>;
+  completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null>;
+  failFirstMessageSend(input: CrmSendFailureInput): Promise<CrmSendFailureRecord | null>;
 }

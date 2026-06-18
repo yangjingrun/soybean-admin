@@ -9,6 +9,7 @@ import {
   fetchCrmProductLines,
   fetchCrmSequenceReviewItem,
   fetchCrmSequenceReviewItems,
+  startCrmFirstMessageSend,
   updateCrmMessageDraft
 } from '@/service/api';
 import {
@@ -35,6 +36,7 @@ export function useEmailSequenceTable() {
   const drawerLoading = shallowRef(false);
   const draftSaving = shallowRef(false);
   const draftApproving = shallowRef(false);
+  const sendStarting = shallowRef(false);
   const selectedEnrollmentId = shallowRef<string | null>(null);
   const selectedMessageId = shallowRef<string | null>(null);
   let latestListRequestId = 0;
@@ -306,6 +308,41 @@ export function useEmailSequenceTable() {
     }
   }
 
+  async function handleStartSend() {
+    const enrollmentId = selectedEnrollmentId.value;
+    const messageId = selectedMessageId.value;
+
+    if (!enrollmentId || !messageId || !currentItem.value) {
+      return;
+    }
+
+    sendStarting.value = true;
+
+    try {
+      const { data, error } = await startCrmFirstMessageSend(enrollmentId);
+
+      if (error) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== messageId || !currentItem.value) {
+        return;
+      }
+
+      message.success('首封开发信已进入发送队列');
+      currentItem.value = {
+        ...currentItem.value,
+        account: data.account,
+        enrollment: data.enrollment,
+        firstMessage: data.message
+      };
+      await loadSequenceDetail(data.enrollment.id);
+      await loadSequences();
+    } finally {
+      sendStarting.value = false;
+    }
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadSequences();
@@ -361,6 +398,7 @@ export function useEmailSequenceTable() {
     handleReset,
     handleSaveDraft,
     handleSearch,
+    handleStartSend,
     loadCreateResources,
     loadSequences,
     loading,
@@ -370,6 +408,7 @@ export function useEmailSequenceTable() {
     pagination,
     productLineSelectOptions,
     records,
-    resourceLoading
+    resourceLoading,
+    sendStarting
   };
 }

@@ -4,7 +4,7 @@ import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
-import { CRM_EMAIL_DNS_RESOLVER, CRM_STORE } from './crm.tokens';
+import { CRM_EMAIL_DNS_RESOLVER, CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
 import type {
   CrmAccountDetailRecord,
   CrmAccountRecord,
@@ -22,6 +22,7 @@ import type {
   CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
   CrmSequenceReviewRecord,
+  CrmSendQueuePort,
   CrmStore,
   CrmTimelineEventRecord,
   CrmUserContext,
@@ -45,6 +46,8 @@ const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
   'paused'
 ];
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
+const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
+const queuedMessageStatus: CrmMessageStatus = 'queued';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 const publicEmailPrefixes = new Set([
   'admin',
@@ -113,7 +116,10 @@ export class CrmService {
     dnsResolver?: CrmEmailDnsResolver,
     @Optional()
     @Inject(SystemLogService)
-    private readonly systemLogService?: SystemLogRecorder
+    private readonly systemLogService?: SystemLogRecorder,
+    @Optional()
+    @Inject(CRM_SEND_QUEUE)
+    private readonly sendQueue?: CrmSendQueuePort
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -705,6 +711,84 @@ export class CrmService {
     };
   }
 
+  /** Starts the approved first message by queueing a guarded background send job. */
+  async startFirstMessageSend(id: string, context: CrmUserContext) {
+    const item = await this.requireOwnedSequenceReviewItem(id, context);
+
+    if (item.enrollment.status !== 'ready_to_send') {
+      throw new BadRequestException('当前序列尚未完成首封审核');
+    }
+
+    if (!item.firstMessage || item.firstMessage.status !== approvedDraftStatus) {
+      throw new BadRequestException('首封开发信尚未确认');
+    }
+
+    if (!item.mailbox) {
+      throw new BadRequestException('请先选择发送邮箱');
+    }
+
+    if (item.mailbox.status !== 'active') {
+      throw new BadRequestException('发送邮箱未启用');
+    }
+
+    const started = await this.store.startFirstMessageSend({
+      enrollmentId: item.enrollment.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      fromEnrollmentStatus: 'ready_to_send',
+      toEnrollmentStatus: 'sequence_running',
+      fromMessageStatus: approvedDraftStatus,
+      toMessageStatus: queuedMessageStatus,
+      accountStatus: 'sequence_running',
+      scheduledAt: new Date()
+    });
+
+    if (!started) {
+      throw new BadRequestException('当前序列状态已变化，请刷新后重试');
+    }
+
+    try {
+      const { jobId } = await this.enqueueFirstMessage(started.enrollment, started.message);
+      const queuedMessage = await this.store.updateMessage(
+        started.message.id,
+        started.message.organizationId,
+        { bullJobId: jobId },
+        { status: queuedMessageStatus }
+      );
+
+      if (queuedMessage) {
+        started.message = queuedMessage;
+      }
+    } catch (error) {
+      await this.store.failFirstMessageSend({
+        enrollmentId: started.enrollment.id,
+        messageId: started.message.id,
+        organizationId: started.enrollment.organizationId,
+        ownerUserId: started.enrollment.ownerUserId,
+        runVersion: started.enrollment.runVersion,
+        reason: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+
+    await this.recordCrmLog('sequence-send-started', 'CRM 首封开发信已进入发送队列', context, {
+      organizationId: context.organizationId,
+      accountId: started.account.id,
+      contactId: started.contact.id,
+      enrollmentId: started.enrollment.id,
+      messageId: started.message.id,
+      mailboxId: started.mailbox.id,
+      runVersion: started.enrollment.runVersion
+    });
+
+    return {
+      enrollment: toSequenceEnrollmentView(started.enrollment),
+      message: toMessageView(started.message),
+      account: toAccountView(started.account),
+      event: toTimelineEventView(started.event)
+    };
+  }
+
   private async importContactIfPresent(
     account: CrmAccountRecord,
     input: ImportCrmLeadInput,
@@ -986,6 +1070,20 @@ export class CrmService {
     }
 
     return message;
+  }
+
+  private async enqueueFirstMessage(enrollment: CrmSequenceEnrollmentRecord, message: CrmMessageRecord) {
+    if (!this.sendQueue) {
+      throw new BadRequestException('CRM 邮件发送队列未启用');
+    }
+
+    return this.sendQueue.enqueueFirstMessage({
+      enrollmentId: enrollment.id,
+      messageId: message.id,
+      organizationId: enrollment.organizationId,
+      ownerUserId: enrollment.ownerUserId,
+      runVersion: enrollment.runVersion
+    });
   }
 
   private async assertProductLineNameAvailable(organizationId: string, name: string, ignoredId?: string) {

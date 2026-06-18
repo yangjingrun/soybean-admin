@@ -167,6 +167,11 @@ export class CrmController {
     return ok(await this.crmService.approveMessageDraft(id, this.requireUserContext(authorization)));
   }
 
+  @Post('sequence-review-items/:id/start-send')
+  async startFirstMessageSend(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.startFirstMessageSend(id, this.requireUserContext(authorization)));
+  }
+
   private requireUserContext(authorization: string): CrmUserContext {
     const user = this.requireUser(authorization);
 

@@ -57,7 +57,6 @@ const emit = defineEmits<{
         </NGi>
       </NGrid>
     </NForm>
-
   </NSpace>
 </template>
 

@@ -5,7 +5,14 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import { CrmService } from './crm.service';
-import type { CrmMailboxRecord, CrmSequenceReviewRecord, CrmStore, CrmUserContext } from './crm.types';
+import type {
+  CrmMailboxRecord,
+  CrmSendQueueJob,
+  CrmSendQueuePort,
+  CrmSequenceReviewRecord,
+  CrmStore,
+  CrmUserContext
+} from './crm.types';
 
 describe('CrmService', () => {
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -874,6 +881,111 @@ describe('CrmService', () => {
       BadRequestException
     );
   });
+
+  it('starts an approved first message by queueing a guarded send job', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'ready_to_send',
+          runVersion: 3
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'draft_ready'
+        })
+      ]
+    });
+    const queue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, queue);
+
+    const result = await service.startFirstMessageSend('enrollment-1', createContext());
+
+    assert.equal(result.enrollment.status, 'sequence_running');
+    assert.equal(result.message.status, 'queued');
+    assert.equal(store.messages[0].bullJobId, 'send-job-1');
+    assert.deepEqual(queue.jobs[0], {
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 3
+    });
+  });
+
+  it('rejects admin attempts to start another member send queue job', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1', ownerUserId: 'user-2' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          ownerUserId: 'user-2',
+          status: 'ready_to_send'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          ownerUserId: 'user-2',
+          status: 'draft_ready'
+        })
+      ]
+    });
+    const service = new CrmService(store, undefined, undefined, createSendQueue());
+
+    await assert.rejects(
+      () => service.startFirstMessageSend('enrollment-1', createContext({ organizationRole: 'admin' })),
+      NotFoundException
+    );
+  });
+
+  it('rolls queued first messages back to ready when enqueue fails', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'ready_to_send'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'draft_ready'
+        })
+      ]
+    });
+    const service = new CrmService(store, undefined, undefined, createSendQueue(new Error('queue down')));
+
+    await assert.rejects(() => service.startFirstMessageSend('enrollment-1', createContext()), /queue down/);
+    assert.equal(store.enrollments[0].status, 'ready_to_send');
+    assert.equal(store.messages[0].status, 'draft_ready');
+    assert.equal(store.accounts[0].status, 'ready');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'message_send_failed');
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -1331,6 +1443,123 @@ function createStore(
       timelineEvents.push(event);
 
       return { enrollment, message, account, event };
+    },
+    async startFirstMessageSend(input) {
+      const enrollment = enrollments.find(
+        item =>
+          item.id === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.status === input.fromEnrollmentStatus
+      );
+      const message = messages.find(
+        item =>
+          item.enrollmentId === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.stepIndex === 1 &&
+          item.status === input.fromMessageStatus
+      );
+      const account = enrollment ? accounts.find(item => item.id === enrollment.accountId) : null;
+      const contact = enrollment ? contacts.find(item => item.id === enrollment.contactId) : null;
+      const mailbox = enrollment?.mailboxId ? mailboxes.find(item => item.id === enrollment.mailboxId) : null;
+
+      if (!enrollment || !message || !account || !contact || !mailbox || mailbox.status !== 'active') return null;
+
+      Object.assign(enrollment, { status: input.toEnrollmentStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      Object.assign(message, {
+        status: input.toMessageStatus,
+        scheduledAt: input.scheduledAt,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+      Object.assign(account, { status: input.accountStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      const event = createTimelineEvent({
+        accountId: enrollment.accountId,
+        contactId: enrollment.contactId,
+        eventType: 'message_queued',
+        title: '首封开发信进入发送队列',
+        content: message.subject,
+        metadata: {
+          enrollmentId: enrollment.id,
+          messageId: message.id,
+          runVersion: enrollment.runVersion
+        }
+      });
+      timelineEvents.push(event);
+
+      return { enrollment, message, account, contact, mailbox, event };
+    },
+    async completeFirstMessageSend(input) {
+      const enrollment = enrollments.find(
+        item =>
+          item.id === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.runVersion === input.runVersion &&
+          item.status === 'sequence_running'
+      );
+      const message = messages.find(
+        item =>
+          item.id === input.messageId &&
+          item.enrollmentId === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.status === 'queued'
+      );
+      const account = enrollment ? accounts.find(item => item.id === enrollment.accountId) : null;
+
+      if (!enrollment || !message || !account) return null;
+
+      Object.assign(message, { status: 'sent', sentAt: input.sentAt, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      const event = createTimelineEvent({
+        accountId: enrollment.accountId,
+        contactId: enrollment.contactId,
+        eventType: 'message_sent',
+        title: '首封开发信已发送',
+        content: message.subject
+      });
+      timelineEvents.push(event);
+
+      return { enrollment, message, account, event };
+    },
+    async failFirstMessageSend(input) {
+      const enrollment = enrollments.find(
+        item =>
+          item.id === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.runVersion === input.runVersion &&
+          item.status === 'sequence_running'
+      );
+      const message = messages.find(
+        item =>
+          item.id === input.messageId &&
+          item.enrollmentId === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.status === 'queued'
+      );
+      const account = enrollment ? accounts.find(item => item.id === enrollment.accountId) : null;
+
+      if (!enrollment || !message || !account) return null;
+
+      Object.assign(enrollment, { status: 'ready_to_send', updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      Object.assign(message, {
+        status: 'draft_ready',
+        bullJobId: null,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+      Object.assign(account, { status: 'ready', updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      const event = createTimelineEvent({
+        accountId: enrollment.accountId,
+        contactId: enrollment.contactId,
+        eventType: 'message_send_failed',
+        title: '首封开发信发送失败',
+        content: input.reason
+      });
+      timelineEvents.push(event);
+
+      return { enrollment, message, account, event };
     }
   };
 }
@@ -1469,6 +1698,7 @@ function createMessage(input: Partial<TestMessage> = {}): TestMessage {
     status: input.status || 'draft_pending_review',
     scheduledAt: input.scheduledAt ?? null,
     sentAt: input.sentAt ?? null,
+    bullJobId: input.bullJobId ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };
@@ -1541,6 +1771,22 @@ function createDnsResolver(result: Array<{ exchange: string; priority: number }>
 
 function createDnsError(code: string) {
   return Object.assign(new Error(code), { code });
+}
+
+function createSendQueue(error?: Error): CrmSendQueuePort & { jobs: CrmSendQueueJob[] } {
+  const jobs: CrmSendQueueJob[] = [];
+
+  return {
+    jobs,
+    async enqueueFirstMessage(input) {
+      if (error) {
+        throw error;
+      }
+
+      jobs.push(input);
+      return { jobId: `send-job-${jobs.length}` };
+    }
+  };
 }
 
 function hashTestEmail(email: string) {

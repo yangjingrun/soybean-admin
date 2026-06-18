@@ -98,7 +98,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
           type: 'primary',
           onClick: () => emit('review', row)
         },
-        { default: () => '审核' }
+        { default: () => (row.firstMessage?.status === 'draft_pending_review' ? '审核' : '查看') }
       )
   }
 ]);

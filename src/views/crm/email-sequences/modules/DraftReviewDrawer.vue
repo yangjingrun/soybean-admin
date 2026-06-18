@@ -15,12 +15,14 @@ const props = defineProps<{
   item: Api.Crm.SequenceReviewItem | null;
   loading?: boolean;
   saving?: boolean;
+  sendStarting?: boolean;
   show: boolean;
 }>();
 
 const emit = defineEmits<{
   approve: [];
   save: [payload: Api.Crm.MessageDraftPayload];
+  startSend: [];
   'update:show': [show: boolean];
 }>();
 
@@ -39,6 +41,22 @@ const canEdit = computed(() => {
   return Boolean(props.item?.canOperateDraft && status === 'draft_pending_review');
 });
 const canApprove = computed(() => Boolean(props.item?.canOperateDraft && currentMessage.value?.status === 'draft_pending_review'));
+const canStartSend = computed(() =>
+  Boolean(
+    props.item?.canOperateDraft &&
+      props.item.enrollment.status === 'ready_to_send' &&
+      currentMessage.value?.status === 'draft_ready'
+  )
+);
+const statusTip = computed(() => {
+  if (!props.item?.firstMessage) return '暂无首封草稿';
+  if (props.item.firstMessage.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
+  if (props.item.firstMessage.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
+  if (props.item.firstMessage.status === 'queued') return '首封开发信已进入发送队列';
+  if (props.item.firstMessage.status === 'sent') return '首封开发信已发送';
+  if (props.item.firstMessage.status === 'failed') return '首封发送失败，可刷新后重新处理';
+  return '当前邮件不可发送';
+});
 
 watch(
   () => props.item?.firstMessage?.id,
@@ -115,6 +133,9 @@ function handleSave() {
 
           <div class="drawer-section">
             <div class="section-title">首封草稿</div>
+            <NAlert type="info" :bordered="false" class="status-alert">
+              {{ statusTip }}
+            </NAlert>
             <NForm :model="draftForm" label-placement="top" size="small">
               <NFormItem label="主题">
                 <NInput v-model:value="draftForm.subject" :disabled="!canEdit" maxlength="200" show-count />
@@ -138,16 +159,27 @@ function handleSave() {
       <template #footer>
         <NSpace justify="end">
           <NButton @click="drawerVisible = false">关闭</NButton>
-          <NButton :disabled="loading || approving || !item?.firstMessage || !canEdit" :loading="saving" @click="handleSave">
+          <NButton
+            :disabled="loading || approving || sendStarting || !item?.firstMessage || !canEdit"
+            :loading="saving"
+            @click="handleSave"
+          >
             保存草稿
           </NButton>
           <NButton
-            type="primary"
-            :disabled="loading || saving || !item?.firstMessage || !canApprove"
+            :disabled="loading || saving || sendStarting || !item?.firstMessage || !canApprove"
             :loading="approving"
             @click="emit('approve')"
           >
             确认草稿
+          </NButton>
+          <NButton
+            type="primary"
+            :disabled="loading || saving || approving || !item?.firstMessage || !canStartSend"
+            :loading="sendStarting"
+            @click="emit('startSend')"
+          >
+            启动发送
           </NButton>
         </NSpace>
       </template>
@@ -183,6 +215,10 @@ function handleSave() {
   color: var(--n-text-color);
   font-size: 14px;
   font-weight: 600;
+}
+
+.status-alert {
+  margin-bottom: 10px;
 }
 
 .check-label {

@@ -471,6 +471,39 @@ describe('PrismaCrmStore', () => {
       ownerUserId: 'user-1'
     });
   });
+
+  it('starts first message sending with enrollment and message status guards', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.startFirstMessageSend({
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      fromEnrollmentStatus: 'ready_to_send',
+      toEnrollmentStatus: 'sequence_running',
+      fromMessageStatus: 'draft_ready',
+      toMessageStatus: 'queued',
+      accountStatus: 'sequence_running',
+      scheduledAt: new Date('2026-06-18T10:00:00.000Z')
+    });
+
+    assert.equal(result?.message.status, 'queued');
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyAndReturnCalls[0].where, {
+      id: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'ready_to_send'
+    });
+    assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls[0].where, {
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      stepIndex: 1,
+      status: 'draft_ready'
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'message_queued');
+  });
 });
 
 function createPrisma() {
@@ -559,6 +592,7 @@ function createPrisma() {
     status: 'draft_pending_review',
     scheduledAt: null,
     sentAt: null,
+    bullJobId: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
@@ -624,6 +658,7 @@ function createPrisma() {
     },
     crmContact: {
       findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -650,6 +685,25 @@ function createPrisma() {
             updatedAt: new Date('2026-06-18T09:00:00.000Z')
           }
         ];
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return {
+          id: 'contact-1',
+          organizationId: 'org-1',
+          accountId: 'account-1',
+          ownerUserId: 'user-1',
+          fullName: 'Ali Hassan',
+          title: 'Buyer',
+          email: 'ali@example.com',
+          emailHash: 'hash-1',
+          maskedEmail: 'a***@example.com',
+          isPublicEmail: false,
+          emailStatus: 'unchecked',
+          sourceTaskId: null,
+          createdAt: new Date('2026-06-18T09:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T09:00:00.000Z')
+        };
       },
       async findFirst(args: { where: Record<string, unknown> }) {
         this.findFirstCalls.push(args);

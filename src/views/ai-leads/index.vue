@@ -710,11 +710,11 @@ function createStartingSearchProgressState(): LeadSearchProgressState {
               <NButton
                 :disabled="
                   isGenerating ||
-                  isSearching ||
-                  isSearchTaskActionLoading ||
-                  isHistorySaving ||
-                  isHistoryDeleting ||
-                  isSearchTaskBlockingForm
+                    isSearching ||
+                    isSearchTaskActionLoading ||
+                    isHistorySaving ||
+                    isHistoryDeleting ||
+                    isSearchTaskBlockingForm
                 "
                 @click="handleClear"
               >
@@ -724,11 +724,11 @@ function createStartingSearchProgressState(): LeadSearchProgressState {
                 :loading="isGenerating"
                 :disabled="
                   !canGenerate ||
-                  isSearching ||
-                  isSearchTaskActionLoading ||
-                  isHistorySaving ||
-                  isHistoryDeleting ||
-                  isSearchTaskBlockingForm
+                    isSearching ||
+                    isSearchTaskActionLoading ||
+                    isHistorySaving ||
+                    isHistoryDeleting ||
+                    isSearchTaskBlockingForm
                 "
                 @click="handleGenerate"
               >
