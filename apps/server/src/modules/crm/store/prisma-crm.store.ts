@@ -3,6 +3,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
 import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
+import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
 import { PrismaService } from '../../database/prisma.service';
 import type {
@@ -19,6 +20,10 @@ import type {
   CrmContactRecord,
   CrmContactUpdateInput,
   CrmEmailStatus,
+  CrmProductLineCreateInput,
+  CrmProductLineRecord,
+  CrmProductLineStatus,
+  CrmProductLineUpdateInput,
   CrmStore,
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
@@ -284,6 +289,72 @@ export class PrismaCrmStore implements CrmStore {
 
     return records[0] ? toMailboxRecord(records[0]) : null;
   }
+
+  async listProductLines(args: {
+    organizationId: string;
+    keyword?: string;
+    status?: CrmProductLineStatus;
+    skip: number;
+    take: number;
+  }) {
+    const where = toProductLineListWhere(args);
+    const [records, total] = await Promise.all([
+      this.prisma.crmProductLine.findMany({
+        where,
+        skip: args.skip,
+        take: args.take,
+        orderBy: { updatedAt: 'desc' }
+      }),
+      this.prisma.crmProductLine.count({ where })
+    ]);
+
+    return {
+      records: records.map(toProductLineRecord),
+      total
+    };
+  }
+
+  findProductLineByName(organizationId: string, name: string) {
+    return this.prisma.crmProductLine
+      .findUnique({
+        where: {
+          organizationId_name: {
+            organizationId,
+            name
+          }
+        }
+      })
+      .then(record => (record ? toProductLineRecord(record) : null));
+  }
+
+  findProductLineById(args: { id: string; organizationId: string }) {
+    return this.prisma.crmProductLine
+      .findFirst({
+        where: toProductLineIdentityWhere(args)
+      })
+      .then(record => (record ? toProductLineRecord(record) : null));
+  }
+
+  async createProductLine(input: CrmProductLineCreateInput) {
+    const record = await this.prisma.crmProductLine.create({
+      data: input as Prisma.CrmProductLineUncheckedCreateInput
+    });
+
+    return toProductLineRecord(record);
+  }
+
+  async updateProductLine(id: string, organizationId: string, input: CrmProductLineUpdateInput) {
+    const records = await this.prisma.crmProductLine.updateManyAndReturn({
+      where: {
+        id,
+        organizationId
+      },
+      data: input,
+      limit: 1
+    });
+
+    return records[0] ? toProductLineRecord(records[0]) : null;
+  }
 }
 
 /** Builds the scoped account identity filter used before detail reads and writes. */
@@ -325,6 +396,14 @@ function toMailboxIdentityWhere(args: {
   };
 }
 
+/** Builds the scoped product line identity filter used before organization-level writes. */
+function toProductLineIdentityWhere(args: { id: string; organizationId: string }): Prisma.CrmProductLineWhereInput {
+  return {
+    id: args.id,
+    organizationId: args.organizationId
+  };
+}
+
 /** Builds the Prisma account list scope and optional UI filters. */
 function toAccountListWhere(args: {
   organizationId: string;
@@ -359,6 +438,21 @@ function toMailboxListWhere(args: {
   };
 }
 
+/** Builds the Prisma product line list scope and optional UI filters. */
+function toProductLineListWhere(args: {
+  organizationId: string;
+  keyword?: string;
+  status?: CrmProductLineStatus;
+}): Prisma.CrmProductLineWhereInput {
+  const keywordFilter = args.keyword ? toProductLineKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(args.status ? { status: args.status } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 function toAccountKeywordFilter(keyword: string): Prisma.CrmAccountWhereInput[] {
   return ['name', 'domain', 'websiteUrl', 'country', 'customerType'].map(field => ({
     [field]: {
@@ -370,6 +464,24 @@ function toAccountKeywordFilter(keyword: string): Prisma.CrmAccountWhereInput[] 
 
 function toMailboxKeywordFilter(keyword: string): Prisma.CrmMailboxWhereInput[] {
   return ['emailAddress', 'maskedEmail', 'ownerUserName'].map(field => ({
+    [field]: {
+      contains: keyword,
+      mode: 'insensitive'
+    }
+  }));
+}
+
+function toProductLineKeywordFilter(keyword: string): Prisma.CrmProductLineWhereInput[] {
+  return [
+    'name',
+    'targetCustomerType',
+    'coreSellingPoints',
+    'moq',
+    'leadTime',
+    'paymentTerms',
+    'certifications',
+    'commonModelsText'
+  ].map(field => ({
     [field]: {
       contains: keyword,
       mode: 'insensitive'
@@ -401,6 +513,13 @@ function toMailboxRecord(record: CrmMailboxModel): CrmMailboxRecord {
     provider: record.provider as CrmMailboxRecord['provider'],
     status: record.status as CrmMailboxRecord['status'],
     warmupStage: record.warmupStage as CrmMailboxRecord['warmupStage']
+  };
+}
+
+function toProductLineRecord(record: CrmProductLineModel): CrmProductLineRecord {
+  return {
+    ...record,
+    status: record.status as CrmProductLineRecord['status']
   };
 }
 

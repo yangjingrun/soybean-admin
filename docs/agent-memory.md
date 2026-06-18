@@ -87,6 +87,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认并发唯一冲突返回其他 owner mailbox 时会拒绝且不写成功日志。
 
+### 2026-06-18 先查重再写入仍要转换数据库唯一冲突
+
+- 场景：CRM ProductLine 按 `organizationId + name` 做唯一约束，Service 在创建或改名前会先查同名记录。
+- 坑点：先查重不是并发安全保证；两个请求可能同时通过查重，后写入的一方触发 Prisma `P2002`。如果不转换，会把底层数据库错误当 500 抛给前端。
+- 正确做法：对有唯一约束的写入，Service 除了前置查重，还要 catch Prisma `P2002` 并转换成业务错误；测试要覆盖 create 和 update/rename 两条路径。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认并发 create/rename 唯一冲突会返回“产品资料名称已存在”。
+
 ### 记录模板
 
 ```md

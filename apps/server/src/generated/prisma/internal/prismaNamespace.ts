@@ -391,6 +391,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
+  CrmProductLine: 'CrmProductLine',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -415,7 +416,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmProductLine" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -934,6 +935,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmMailboxCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmMailboxCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmProductLine: {
+      payload: Prisma.$CrmProductLinePayload<ExtArgs>
+      fields: Prisma.CrmProductLineFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmProductLineFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmProductLineFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>
+        }
+        findFirst: {
+          args: Prisma.CrmProductLineFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmProductLineFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>
+        }
+        findMany: {
+          args: Prisma.CrmProductLineFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>[]
+        }
+        create: {
+          args: Prisma.CrmProductLineCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>
+        }
+        createMany: {
+          args: Prisma.CrmProductLineCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmProductLineCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>[]
+        }
+        delete: {
+          args: Prisma.CrmProductLineDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>
+        }
+        update: {
+          args: Prisma.CrmProductLineUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmProductLineDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmProductLineUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmProductLineUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmProductLineUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLinePayload>
+        }
+        aggregate: {
+          args: Prisma.CrmProductLineAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmProductLine>
+        }
+        groupBy: {
+          args: Prisma.CrmProductLineGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmProductLineGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmProductLineCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmProductLineCountAggregateOutputType> | number
         }
       }
     }
@@ -1777,6 +1852,29 @@ export const CrmMailboxScalarFieldEnum = {
 export type CrmMailboxScalarFieldEnum = (typeof CrmMailboxScalarFieldEnum)[keyof typeof CrmMailboxScalarFieldEnum]
 
 
+export const CrmProductLineScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  name: 'name',
+  targetCustomerType: 'targetCustomerType',
+  coreSellingPoints: 'coreSellingPoints',
+  moq: 'moq',
+  leadTime: 'leadTime',
+  paymentTerms: 'paymentTerms',
+  certifications: 'certifications',
+  catalogUrl: 'catalogUrl',
+  websiteUrl: 'websiteUrl',
+  commonModelsText: 'commonModelsText',
+  status: 'status',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
+
+
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
   promptKey: 'promptKey',
@@ -2179,6 +2277,7 @@ export type GlobalOmitConfig = {
   crmContact?: Prisma.CrmContactOmit
   crmTimelineEvent?: Prisma.CrmTimelineEventOmit
   crmMailbox?: Prisma.CrmMailboxOmit
+  crmProductLine?: Prisma.CrmProductLineOmit
   aiPromptConfig?: Prisma.AiPromptConfigOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
   serperConfig?: Prisma.SerperConfigOmit

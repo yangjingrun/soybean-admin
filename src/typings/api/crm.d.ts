@@ -24,6 +24,8 @@ declare namespace Api {
 
     type MailboxWarmupStage = 'new' | 'warming' | 'ready';
 
+    type ProductLineStatus = 'active' | 'archived';
+
     interface LeadRecord {
       id: string;
       organizationId: string;
@@ -163,5 +165,56 @@ declare namespace Api {
     }
 
     type MailboxList = Api.Common.PaginatingQueryRecord<MailboxRecord>;
+
+    interface ProductLineRecord {
+      id: string;
+      organizationId: string;
+      name: string;
+      targetCustomerType: string | null;
+      coreSellingPoints: string | null;
+      moq: string | null;
+      leadTime: string | null;
+      paymentTerms: string | null;
+      certifications: string | null;
+      catalogUrl: string | null;
+      websiteUrl: string | null;
+      commonModelsText: string | null;
+      status: ProductLineStatus;
+      createdById: string;
+      createdByName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface ProductLineSearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+      status?: ProductLineStatus;
+    }
+
+    interface ProductLineFilterModel {
+      keyword: string;
+      status: ProductLineStatus | null;
+    }
+
+    interface ProductLinePayload {
+      name: string;
+      targetCustomerType: string;
+      coreSellingPoints: string;
+      moq: string;
+      leadTime: string;
+      paymentTerms: string;
+      certifications: string;
+      catalogUrl: string;
+      websiteUrl: string;
+      commonModelsText: string;
+    }
+
+    type ProductLineFormModel = ProductLinePayload;
+
+    interface ProductLineOperateResult {
+      productLine: ProductLineRecord;
+    }
+
+    type ProductLineList = Api.Common.PaginatingQueryRecord<ProductLineRecord>;
   }
 }

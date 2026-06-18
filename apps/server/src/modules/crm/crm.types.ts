@@ -23,10 +23,12 @@ export type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unre
 
 export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
+export const crmProductLineStatuses = ['active', 'archived'] as const;
 
 export type CrmMailboxProvider = 'gmail';
 export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
 export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
+export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
 
 export interface CrmUserContext {
   userId: string;
@@ -112,6 +114,26 @@ export interface CrmMailboxRecord {
   lastHistoryId: string | null;
   authorizedAt: Date;
   pausedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmProductLineRecord {
+  id: string;
+  organizationId: string;
+  name: string;
+  targetCustomerType: string | null;
+  coreSellingPoints: string | null;
+  moq: string | null;
+  leadTime: string | null;
+  paymentTerms: string | null;
+  certifications: string | null;
+  catalogUrl: string | null;
+  websiteUrl: string | null;
+  commonModelsText: string | null;
+  status: CrmProductLineStatus;
+  createdById: string;
+  createdByName: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -207,6 +229,37 @@ export interface CrmMailboxUpdateInput {
   pausedAt?: Date | null;
 }
 
+export interface CrmProductLineCreateInput {
+  organizationId: string;
+  name: string;
+  targetCustomerType?: string | null;
+  coreSellingPoints?: string | null;
+  moq?: string | null;
+  leadTime?: string | null;
+  paymentTerms?: string | null;
+  certifications?: string | null;
+  catalogUrl?: string | null;
+  websiteUrl?: string | null;
+  commonModelsText?: string | null;
+  status: CrmProductLineStatus;
+  createdById: string;
+  createdByName?: string | null;
+}
+
+export interface CrmProductLineUpdateInput {
+  name?: string;
+  targetCustomerType?: string | null;
+  coreSellingPoints?: string | null;
+  moq?: string | null;
+  leadTime?: string | null;
+  paymentTerms?: string | null;
+  certifications?: string | null;
+  catalogUrl?: string | null;
+  websiteUrl?: string | null;
+  commonModelsText?: string | null;
+  status?: CrmProductLineStatus;
+}
+
 export interface CrmStore {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
@@ -257,4 +310,19 @@ export interface CrmStore {
     ownerUserId?: string;
   }): Promise<CrmMailboxRecord | null>;
   updateMailbox(id: string, input: CrmMailboxUpdateInput): Promise<CrmMailboxRecord | null>;
+  listProductLines(args: {
+    organizationId: string;
+    keyword?: string;
+    status?: CrmProductLineStatus;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmProductLineRecord[]; total: number }>;
+  findProductLineByName(organizationId: string, name: string): Promise<CrmProductLineRecord | null>;
+  findProductLineById(args: { id: string; organizationId: string }): Promise<CrmProductLineRecord | null>;
+  createProductLine(input: CrmProductLineCreateInput): Promise<CrmProductLineRecord>;
+  updateProductLine(
+    id: string,
+    organizationId: string,
+    input: CrmProductLineUpdateInput
+  ): Promise<CrmProductLineRecord | null>;
 }

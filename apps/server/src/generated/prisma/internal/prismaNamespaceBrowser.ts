@@ -58,6 +58,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
+  CrmProductLine: 'CrmProductLine',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -218,6 +219,29 @@ export const CrmMailboxScalarFieldEnum = {
 } as const
 
 export type CrmMailboxScalarFieldEnum = (typeof CrmMailboxScalarFieldEnum)[keyof typeof CrmMailboxScalarFieldEnum]
+
+
+export const CrmProductLineScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  name: 'name',
+  targetCustomerType: 'targetCustomerType',
+  coreSellingPoints: 'coreSellingPoints',
+  moq: 'moq',
+  leadTime: 'leadTime',
+  paymentTerms: 'paymentTerms',
+  certifications: 'certifications',
+  catalogUrl: 'catalogUrl',
+  websiteUrl: 'websiteUrl',
+  commonModelsText: 'commonModelsText',
+  status: 'status',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
 
 
 export const AiPromptConfigScalarFieldEnum = {

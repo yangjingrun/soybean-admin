@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
+import { Prisma } from '../../generated/prisma/client';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { CRM_EMAIL_DNS_RESOLVER, CRM_STORE } from './crm.tokens';
@@ -13,6 +14,9 @@ import type {
   CrmMailboxStatus,
   CrmContactRecord,
   CrmEmailStatus,
+  CrmProductLineRecord,
+  CrmProductLineStatus,
+  CrmProductLineUpdateInput,
   CrmStore,
   CrmTimelineEventRecord,
   CrmUserContext,
@@ -26,6 +30,7 @@ const maxNoteLength = 2000;
 const gmailProvider: CrmMailboxProvider = 'gmail';
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
+const defaultProductLineStatus: CrmProductLineStatus = 'active';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 const publicEmailPrefixes = new Set([
   'admin',
@@ -47,6 +52,23 @@ interface EmailVerificationResult {
   status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'unreachable'>;
   domain: string | null;
   reason: 'mx_found' | 'invalid_format' | 'no_mx' | 'dns_temporary_failure';
+}
+
+interface ProductLineCreateInput {
+  name: string;
+  targetCustomerType?: string | null;
+  coreSellingPoints?: string | null;
+  moq?: string | null;
+  leadTime?: string | null;
+  paymentTerms?: string | null;
+  certifications?: string | null;
+  catalogUrl?: string | null;
+  websiteUrl?: string | null;
+  commonModelsText?: string | null;
+}
+
+interface ProductLineUpdateInput extends Partial<ProductLineCreateInput> {
+  status?: CrmProductLineStatus;
 }
 
 @Injectable()
@@ -341,6 +363,108 @@ export class CrmService {
     return this.changeMailboxStatus(id, 'active', null, 'mailbox-resume', 'CRM 邮箱恢复', context);
   }
 
+  /** Lists organization-level product lines for the current organization. */
+  async listProductLines(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: CrmProductLineStatus;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const result = await this.store.listProductLines({
+      organizationId: context.organizationId,
+      ...(keyword ? { keyword } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(toProductLineView)
+    };
+  }
+
+  /** Creates an organization-level product line after checking name uniqueness. */
+  async createProductLine(input: ProductLineCreateInput, context: CrmUserContext) {
+    const data = normalizeProductLineCreateInput(input);
+    await this.assertProductLineNameAvailable(context.organizationId, data.name);
+    const productLine = await this.runProductLineWrite(() =>
+      this.store.createProductLine({
+        organizationId: context.organizationId,
+        ...data,
+        status: defaultProductLineStatus,
+        createdById: context.userId,
+        createdByName: context.userName
+      })
+    );
+
+    await this.recordProductLineLog('product-line-create', 'CRM 产品资料新建', context, productLine, null, productLine.status);
+
+    return { productLine: toProductLineView(productLine) };
+  }
+
+  /** Updates an organization-level product line through organization scoped reads and writes. */
+  async updateProductLine(id: string, input: ProductLineUpdateInput, context: CrmUserContext) {
+    const currentProductLine = await this.requireScopedProductLine(id, context);
+    const fromStatus = currentProductLine.status;
+    const data = normalizeProductLineUpdateInput(input);
+
+    if (data.name && data.name !== currentProductLine.name) {
+      await this.assertProductLineNameAvailable(context.organizationId, data.name, currentProductLine.id);
+    }
+
+    const productLine = await this.runProductLineWrite(() =>
+      this.store.updateProductLine(currentProductLine.id, context.organizationId, data)
+    );
+
+    if (!productLine) {
+      throw new NotFoundException('产品资料不存在');
+    }
+
+    await this.recordProductLineLog(
+      'product-line-update',
+      'CRM 产品资料更新',
+      context,
+      productLine,
+      fromStatus,
+      productLine.status
+    );
+
+    return { productLine: toProductLineView(productLine) };
+  }
+
+  /** Archives an organization-level product line through organization scoped reads and writes. */
+  async archiveProductLine(id: string, context: CrmUserContext) {
+    const currentProductLine = await this.requireScopedProductLine(id, context);
+    const fromStatus = currentProductLine.status;
+    const productLine = await this.store.updateProductLine(currentProductLine.id, context.organizationId, {
+      status: 'archived'
+    });
+
+    if (!productLine) {
+      throw new NotFoundException('产品资料不存在');
+    }
+
+    await this.recordProductLineLog(
+      'product-line-archive',
+      'CRM 产品资料归档',
+      context,
+      productLine,
+      fromStatus,
+      productLine.status
+    );
+
+    return { productLine: toProductLineView(productLine) };
+  }
+
   private async importContactIfPresent(
     account: CrmAccountRecord,
     input: ImportCrmLeadInput,
@@ -515,6 +639,39 @@ export class CrmService {
     return mailbox;
   }
 
+  private async requireScopedProductLine(id: string, context: CrmUserContext) {
+    const productLine = await this.store.findProductLineById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!productLine) {
+      throw new NotFoundException('产品资料不存在');
+    }
+
+    return productLine;
+  }
+
+  private async assertProductLineNameAvailable(organizationId: string, name: string, ignoredId?: string) {
+    const existingProductLine = await this.store.findProductLineByName(organizationId, name);
+
+    if (existingProductLine && existingProductLine.id !== ignoredId) {
+      throw new BadRequestException('产品资料名称已存在');
+    }
+  }
+
+  private async runProductLineWrite<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        throw new BadRequestException('产品资料名称已存在');
+      }
+
+      throw error;
+    }
+  }
+
   private recordCrmLog(
     action: string,
     message: string,
@@ -550,6 +707,24 @@ export class CrmService {
       toStatus
     });
   }
+
+  private recordProductLineLog(
+    action: string,
+    message: string,
+    context: CrmUserContext,
+    productLine: CrmProductLineRecord,
+    fromStatus: CrmProductLineStatus | null,
+    toStatus: CrmProductLineStatus
+  ) {
+    return this.recordCrmLog(action, message, context, {
+      organizationId: productLine.organizationId,
+      productLineId: productLine.id,
+      name: productLine.name,
+      status: productLine.status,
+      fromStatus,
+      toStatus
+    });
+  }
 }
 
 function toAccountView(record: CrmAccountRecord) {
@@ -581,6 +756,14 @@ function toMailboxView(record: CrmMailboxRecord) {
     authorizedAt: record.authorizedAt.toISOString(),
     watchExpiration: record.watchExpiration?.toISOString() ?? null,
     pausedAt: record.pausedAt?.toISOString() ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toProductLineView(record: CrmProductLineRecord) {
+  return {
+    ...record,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
@@ -639,6 +822,51 @@ function normalizeLimitedContent(value: string, emptyMessage: string) {
 
   if (normalized.length > maxNoteLength) {
     throw new BadRequestException(`内容不能超过 ${maxNoteLength} 个字符`);
+  }
+
+  return normalized;
+}
+
+function normalizeProductLineCreateInput(input: ProductLineCreateInput) {
+  const name = normalizeRequiredString(input.name, '产品资料名称不能为空');
+
+  return {
+    name,
+    targetCustomerType: normalizeNullableString(input.targetCustomerType),
+    coreSellingPoints: normalizeNullableString(input.coreSellingPoints),
+    moq: normalizeNullableString(input.moq),
+    leadTime: normalizeNullableString(input.leadTime),
+    paymentTerms: normalizeNullableString(input.paymentTerms),
+    certifications: normalizeNullableString(input.certifications),
+    catalogUrl: normalizeNullableString(input.catalogUrl),
+    websiteUrl: normalizeNullableString(input.websiteUrl),
+    commonModelsText: normalizeNullableString(input.commonModelsText)
+  };
+}
+
+function normalizeProductLineUpdateInput(input: ProductLineUpdateInput): CrmProductLineUpdateInput {
+  const data: CrmProductLineUpdateInput = {};
+
+  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '产品资料名称不能为空');
+  if (hasOwn(input, 'targetCustomerType')) data.targetCustomerType = normalizeNullableString(input.targetCustomerType);
+  if (hasOwn(input, 'coreSellingPoints')) data.coreSellingPoints = normalizeNullableString(input.coreSellingPoints);
+  if (hasOwn(input, 'moq')) data.moq = normalizeNullableString(input.moq);
+  if (hasOwn(input, 'leadTime')) data.leadTime = normalizeNullableString(input.leadTime);
+  if (hasOwn(input, 'paymentTerms')) data.paymentTerms = normalizeNullableString(input.paymentTerms);
+  if (hasOwn(input, 'certifications')) data.certifications = normalizeNullableString(input.certifications);
+  if (hasOwn(input, 'catalogUrl')) data.catalogUrl = normalizeNullableString(input.catalogUrl);
+  if (hasOwn(input, 'websiteUrl')) data.websiteUrl = normalizeNullableString(input.websiteUrl);
+  if (hasOwn(input, 'commonModelsText')) data.commonModelsText = normalizeNullableString(input.commonModelsText);
+  if (hasOwn(input, 'status')) data.status = input.status;
+
+  return data;
+}
+
+function normalizeRequiredString(value: string, emptyMessage: string) {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    throw new BadRequestException(emptyMessage);
   }
 
   return normalized;
@@ -719,4 +947,12 @@ function normalizePositiveInteger(value: number | string | undefined, fallback: 
 
   const numberValue = Number(value);
   return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
+}
+
+function hasOwn<T extends object>(object: T, key: PropertyKey) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+
+function isPrismaUniqueConflict(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }

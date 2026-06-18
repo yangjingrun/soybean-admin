@@ -71,6 +71,7 @@ model Organization {
   crmContacts       CrmContact[]
   crmTimelineEvents CrmTimelineEvent[]
   crmMailboxes      CrmMailbox[]
+  crmProductLines   CrmProductLine[]
 
   @@index([status])
 }
@@ -174,6 +175,32 @@ model CrmMailbox {
   @@index([organizationId, ownerUserId, updatedAt])
   @@index([organizationId, status, updatedAt])
   @@index([provider, status])
+}
+
+model CrmProductLine {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  name               String
+  targetCustomerType String?
+  coreSellingPoints  String?
+  moq                String?
+  leadTime           String?
+  paymentTerms       String?
+  certifications     String?
+  catalogUrl         String?
+  websiteUrl         String?
+  commonModelsText   String?
+  status             String   @default("active")
+  createdById        String
+  createdByName      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, updatedAt])
 }
 
 model AiPromptConfig {

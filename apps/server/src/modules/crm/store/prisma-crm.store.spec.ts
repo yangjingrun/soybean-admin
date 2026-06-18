@@ -294,6 +294,101 @@ describe('PrismaCrmStore', () => {
       limit: 1
     });
   });
+
+  it('creates and lists product lines with organization scope only', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    await store.createProductLine({
+      organizationId: 'org-1',
+      name: 'Bearing Series',
+      targetCustomerType: 'distributor',
+      coreSellingPoints: 'Stable supply',
+      moq: '100 pcs',
+      leadTime: '15 days',
+      paymentTerms: 'T/T',
+      certifications: 'ISO 9001',
+      catalogUrl: '/catalog/bearing.pdf',
+      websiteUrl: 'https://example.com/bearing',
+      commonModelsText: '6204, 6205',
+      status: 'active',
+      createdById: 'user-1',
+      createdByName: 'Alice'
+    });
+    const result = await store.listProductLines({
+      organizationId: 'org-1',
+      keyword: 'bearing',
+      status: 'active',
+      skip: 0,
+      take: 20
+    });
+
+    assert.equal(prisma.crmProductLine.createCalls[0].data.organizationId, 'org-1');
+    assert.deepEqual(prisma.crmProductLine.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      status: 'active',
+      OR: [
+        { name: { contains: 'bearing', mode: 'insensitive' } },
+        { targetCustomerType: { contains: 'bearing', mode: 'insensitive' } },
+        { coreSellingPoints: { contains: 'bearing', mode: 'insensitive' } },
+        { moq: { contains: 'bearing', mode: 'insensitive' } },
+        { leadTime: { contains: 'bearing', mode: 'insensitive' } },
+        { paymentTerms: { contains: 'bearing', mode: 'insensitive' } },
+        { certifications: { contains: 'bearing', mode: 'insensitive' } },
+        { commonModelsText: { contains: 'bearing', mode: 'insensitive' } }
+      ]
+    });
+    assert.deepEqual(prisma.crmProductLine.findManyCalls[0].orderBy, { updatedAt: 'desc' });
+    assert.equal(result.records[0].id, 'product-line-1');
+    assert.equal(result.total, 1);
+  });
+
+  it('finds product line by organization name for duplicate checks', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const productLine = await store.findProductLineByName('org-1', 'Bearing Series');
+
+    assert.equal(productLine?.id, 'product-line-1');
+    assert.deepEqual(prisma.crmProductLine.findUniqueCalls[0].where, {
+      organizationId_name: {
+        organizationId: 'org-1',
+        name: 'Bearing Series'
+      }
+    });
+  });
+
+  it('finds and updates product lines through organization scoped identity', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const found = await store.findProductLineById({
+      id: 'product-line-1',
+      organizationId: 'org-1'
+    });
+    const updated = await store.updateProductLine('product-line-1', 'org-1', {
+      name: 'Premium Bearing Series',
+      status: 'archived'
+    });
+
+    assert.equal(found?.id, 'product-line-1');
+    assert.equal(updated?.status, 'archived');
+    assert.deepEqual(prisma.crmProductLine.findFirstCalls[0].where, {
+      id: 'product-line-1',
+      organizationId: 'org-1'
+    });
+    assert.deepEqual(prisma.crmProductLine.updateManyAndReturnCalls[0], {
+      where: {
+        id: 'product-line-1',
+        organizationId: 'org-1'
+      },
+      data: {
+        name: 'Premium Bearing Series',
+        status: 'archived'
+      },
+      limit: 1
+    });
+  });
 });
 
 function createPrisma() {
@@ -329,6 +424,25 @@ function createPrisma() {
     lastHistoryId: null,
     authorizedAt: new Date('2026-06-18T09:00:00.000Z'),
     pausedAt: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
+  const productLine = {
+    id: 'product-line-1',
+    organizationId: 'org-1',
+    name: 'Bearing Series',
+    targetCustomerType: 'distributor',
+    coreSellingPoints: 'Stable supply',
+    moq: '100 pcs',
+    leadTime: '15 days',
+    paymentTerms: 'T/T',
+    certifications: 'ISO 9001',
+    catalogUrl: '/catalog/bearing.pdf',
+    websiteUrl: 'https://example.com/bearing',
+    commonModelsText: '6204, 6205',
+    status: 'active',
+    createdById: 'user-1',
+    createdByName: 'Alice',
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
@@ -495,6 +609,52 @@ function createPrisma() {
       async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...mailbox, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+      }
+    },
+    crmProductLine: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+      }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
+      createError: null as Error | null,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        if (this.createError) throw this.createError;
+        return productLine;
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return productLine;
+      },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return productLine;
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+      }) {
+        this.findManyCalls.push(args);
+        return [productLine];
+      },
+      async count() {
+        return 1;
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [{ ...productLine, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
     }
   };

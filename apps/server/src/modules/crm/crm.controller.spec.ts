@@ -287,6 +287,75 @@ describe('CrmController', () => {
     );
   });
 
+  it('lists product lines with the current organization context', async () => {
+    const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listProductLines(context, query) {
+          calls.push({ context, query });
+
+          return {
+            current: 1,
+            size: 20,
+            total: 1,
+            records: [createProductLineView()]
+          };
+        }
+      })
+    );
+
+    const query = { current: 1, size: 20, keyword: 'bearing', status: 'active' as const };
+    const result = await controller.listProductLines('Bearer token', query);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].context.organizationId, 'org-1');
+    assert.equal(calls[0].query, query);
+    assert.equal(result.data.records[0].name, 'Bearing Series');
+  });
+
+  it('creates, updates and archives product lines with the current organization context', async () => {
+    const calls: Array<{ action: string; id?: string; dto?: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async createProductLine(dto, context) {
+          calls.push({ action: 'create', dto, context });
+
+          return { productLine: createProductLineView({ name: dto.name }) };
+        },
+        async updateProductLine(id, dto, context) {
+          calls.push({ action: 'update', id, dto, context });
+
+          return { productLine: createProductLineView({ id, name: dto.name ?? 'Bearing Series' }) };
+        },
+        async archiveProductLine(id, context) {
+          calls.push({ action: 'archive', id, context });
+
+          return { productLine: createProductLineView({ id, status: 'archived' }) };
+        }
+      })
+    );
+
+    const createDto = { name: 'Bearing Series' };
+    const updateDto = { name: 'Premium Bearing Series', status: 'active' as const };
+    const created = await controller.createProductLine('Bearer token', createDto);
+    const updated = await controller.updateProductLine('Bearer token', 'line-1', updateDto);
+    const archived = await controller.archiveProductLine('Bearer token', 'line-1');
+
+    assert.equal(created.data.productLine.name, 'Bearing Series');
+    assert.equal(updated.data.productLine.name, 'Premium Bearing Series');
+    assert.equal(archived.data.productLine.status, 'archived');
+    assert.deepEqual(
+      calls.map(call => ({ action: call.action, id: call.id, organizationId: call.context.organizationId })),
+      [
+        { action: 'create', id: undefined, organizationId: 'org-1' },
+        { action: 'update', id: 'line-1', organizationId: 'org-1' },
+        { action: 'archive', id: 'line-1', organizationId: 'org-1' }
+      ]
+    );
+  });
+
   it('rejects anonymous users', async () => {
     const controller = new CrmController(createAuthService(null), createCrmService());
 
@@ -393,6 +462,47 @@ function createMailboxView(overrides: Partial<CrmMailboxView> = {}) {
   };
 }
 
+function createProductLineView(overrides: Partial<{
+  id: string;
+  organizationId: string;
+  name: string;
+  targetCustomerType: string | null;
+  coreSellingPoints: string | null;
+  moq: string | null;
+  leadTime: string | null;
+  paymentTerms: string | null;
+  certifications: string | null;
+  catalogUrl: string | null;
+  websiteUrl: string | null;
+  commonModelsText: string | null;
+  status: 'active' | 'archived';
+  createdById: string;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}> = {}) {
+  return {
+    id: 'product-line-1',
+    organizationId: 'org-1',
+    name: 'Bearing Series',
+    targetCustomerType: null,
+    coreSellingPoints: null,
+    moq: null,
+    leadTime: null,
+    paymentTerms: null,
+    certifications: null,
+    catalogUrl: null,
+    websiteUrl: null,
+    commonModelsText: null,
+    status: 'active' as const,
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
 function createEmailVerificationView(overrides: { contactId?: string } = {}): CrmEmailVerificationView {
   return {
     contact: createContactView({ id: overrides.contactId }),
@@ -462,6 +572,23 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async resumeMailbox() {
       return { mailbox: createMailboxView({ status: 'active' }) };
+    },
+    async listProductLines() {
+      return {
+        current: 1,
+        size: 20,
+        total: 0,
+        records: []
+      };
+    },
+    async createProductLine() {
+      return { productLine: createProductLineView() };
+    },
+    async updateProductLine() {
+      return { productLine: createProductLineView() };
+    },
+    async archiveProductLine() {
+      return { productLine: createProductLineView({ status: 'archived' }) };
     },
     ...partial
   } as unknown as CrmService;

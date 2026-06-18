@@ -85,3 +85,38 @@ export function resumeCrmMailbox(id: string) {
     method: 'patch'
   });
 }
+
+/** List organization product lines by filters and pagination. */
+export function fetchCrmProductLines(params: Api.Crm.ProductLineSearchParams) {
+  return request<Api.Crm.ProductLineList>({
+    url: '/crm/product-lines',
+    method: 'get',
+    params
+  });
+}
+
+/** Create one organization product line profile. */
+export function createCrmProductLine(data: Api.Crm.ProductLinePayload) {
+  return request<Api.Crm.ProductLineOperateResult>({
+    url: '/crm/product-lines',
+    method: 'post',
+    data
+  });
+}
+
+/** Update one organization product line profile. */
+export function updateCrmProductLine(id: string, data: Partial<Api.Crm.ProductLinePayload>) {
+  return request<Api.Crm.ProductLineOperateResult>({
+    url: `/crm/product-lines/${id}`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Archive one organization product line profile. */
+export function archiveCrmProductLine(id: string) {
+  return request<Api.Crm.ProductLineOperateResult>({
+    url: `/crm/product-lines/${id}/archive`,
+    method: 'patch'
+  });
+}

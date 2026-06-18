@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import { CrmService } from './crm.service';
 import type { CrmEmailStatus, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
@@ -531,6 +532,162 @@ describe('CrmService', () => {
     assert.equal(store.mailboxes[0].status, 'active');
     assert.equal(store.mailboxUpdateCalls.length, 0);
   });
+
+  it('lists organization product lines for members without owner isolation', async () => {
+    const store = createStore([], {
+      productLines: [
+        createProductLine({ id: 'line-1', organizationId: 'org-1', name: 'Bearing Series' }),
+        createProductLine({ id: 'line-2', organizationId: 'org-1', name: 'Motor Series', status: 'archived' }),
+        createProductLine({ id: 'other-org-line', organizationId: 'org-2', name: 'Other Org Series' })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.listProductLines(createContext(), {
+      keyword: ' Series ',
+      status: 'active'
+    });
+
+    assert.deepEqual(
+      result.records.map(record => record.id),
+      ['line-1']
+    );
+    assert.deepEqual(store.lastProductLineListArgs, {
+      organizationId: 'org-1',
+      skip: 0,
+      take: 20,
+      keyword: 'Series',
+      status: 'active'
+    });
+  });
+
+  it('creates product lines with trimmed fields and sanitized system log metadata', async () => {
+    const store = createStore();
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const result = await service.createProductLine(
+      {
+        name: '  Bearing Series  ',
+        targetCustomerType: '  distributors  ',
+        coreSellingPoints: '  Stable supply, ISO factories  ',
+        moq: '  100 pcs  ',
+        leadTime: '  15-20 days  ',
+        paymentTerms: '  T/T  ',
+        certifications: '  ISO 9001  ',
+        catalogUrl: '  /catalog/bearing.pdf  ',
+        websiteUrl: '  https://example.com/bearing  ',
+        commonModelsText: '  6204, 6205  '
+      },
+      createContext()
+    );
+
+    assert.equal(result.productLine.name, 'Bearing Series');
+    assert.equal(result.productLine.targetCustomerType, 'distributors');
+    assert.equal(result.productLine.catalogUrl, '/catalog/bearing.pdf');
+    assert.equal(store.productLines[0].organizationId, 'org-1');
+    assert.equal(store.productLines[0].createdById, 'user-1');
+    assert.deepEqual(logs.records[0].metadata, {
+      organizationId: 'org-1',
+      productLineId: 'product-line-1',
+      name: 'Bearing Series',
+      status: 'active',
+      fromStatus: null,
+      toStatus: 'active'
+    });
+  });
+
+  it('rejects duplicate product line names within the same organization', async () => {
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1', name: 'Bearing Series' })]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.createProductLine({ name: ' Bearing Series ' }, createContext()),
+      BadRequestException
+    );
+  });
+
+  it('maps concurrent product line create unique conflicts to business errors', async () => {
+    const store = createStore();
+    store.createProductLine = async () => {
+      throw createPrismaUniqueError();
+    };
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.createProductLine({ name: 'Bearing Series' }, createContext()), {
+      message: '产品资料名称已存在'
+    });
+  });
+
+  it('updates product lines through organization scoped reads and writes sanitized logs', async () => {
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1', name: 'Bearing Series', status: 'active' })]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const result = await service.updateProductLine(
+      'line-1',
+      {
+        name: 'Premium Bearing Series',
+        leadTime: '20 days',
+        status: 'archived'
+      },
+      createContext()
+    );
+
+    assert.equal(result.productLine.name, 'Premium Bearing Series');
+    assert.equal(result.productLine.status, 'archived');
+    assert.deepEqual(store.lastProductLineDetailArgs, {
+      id: 'line-1',
+      organizationId: 'org-1'
+    });
+    assert.deepEqual(store.productLineUpdateCalls[0], {
+      id: 'line-1',
+      organizationId: 'org-1',
+      input: {
+        name: 'Premium Bearing Series',
+        leadTime: '20 days',
+        status: 'archived'
+      }
+    });
+    assert.deepEqual(logs.records[0].metadata, {
+      organizationId: 'org-1',
+      productLineId: 'line-1',
+      name: 'Premium Bearing Series',
+      status: 'archived',
+      fromStatus: 'active',
+      toStatus: 'archived'
+    });
+  });
+
+  it('maps concurrent product line rename unique conflicts to business errors', async () => {
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1', name: 'Bearing Series' })]
+    });
+    store.updateProductLine = async () => {
+      throw createPrismaUniqueError();
+    };
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.updateProductLine('line-1', { name: 'Premium Bearing Series' }, createContext()), {
+      message: '产品资料名称已存在'
+    });
+  });
+
+  it('archives product lines only inside the current organization scope', async () => {
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1', organizationId: 'org-2', status: 'active' })]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.archiveProductLine('line-1', createContext()), NotFoundException);
+
+    assert.equal(store.productLines[0].status, 'active');
+    assert.equal(store.productLineUpdateCalls.length, 0);
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -550,31 +707,46 @@ function createStore(
     contacts?: TestContact[];
     timelineEvents?: TestTimelineEvent[];
     mailboxes?: TestMailbox[];
+    productLines?: TestProductLine[];
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
   contacts: TestContact[];
   timelineEvents: TestTimelineEvent[];
   mailboxes: TestMailbox[];
+  productLines: TestProductLine[];
   mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
+  productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }>;
   lastListArgs?: Parameters<CrmStore['listAccounts']>[0];
   lastDetailArgs?: Parameters<CrmStore['getAccountDetail']>[0];
   lastContactArgs?: Parameters<CrmStore['findContactById']>[0];
   lastMailboxListArgs?: Parameters<CrmStore['listMailboxes']>[0];
   lastMailboxDetailArgs?: Parameters<CrmStore['findMailboxById']>[0];
+  lastProductLineListArgs?: {
+    organizationId: string;
+    keyword?: string;
+    status?: TestProductLine['status'];
+    skip: number;
+    take: number;
+  };
+  lastProductLineDetailArgs?: { id: string; organizationId: string };
 } {
   const accounts = [...initialAccounts];
   const contacts: TestContact[] = [...(initialData.contacts ?? [])];
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
+  const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
+  const productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }> = [];
 
   return {
     accounts,
     contacts,
     timelineEvents,
     mailboxes,
+    productLines,
     mailboxUpdateCalls,
+    productLineUpdateCalls,
     async findAccountByDomain(organizationId, ownerUserId, domain) {
       return (
         accounts.find(
@@ -749,6 +921,56 @@ function createStore(
       if (!mailbox) return null;
       Object.assign(mailbox, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return mailbox;
+    },
+    async listProductLines(args) {
+      this.lastProductLineListArgs = args;
+      const records = productLines.filter(productLine => {
+        if (productLine.organizationId !== args.organizationId) return false;
+        if (args.status && productLine.status !== args.status) return false;
+        if (!args.keyword) return true;
+        const keyword = args.keyword.toLowerCase();
+        return [
+          productLine.name,
+          productLine.targetCustomerType,
+          productLine.coreSellingPoints,
+          productLine.commonModelsText
+        ].some(value => value?.toLowerCase().includes(keyword));
+      });
+
+      return {
+        records: records.slice(args.skip, args.skip + args.take),
+        total: records.length
+      };
+    },
+    async findProductLineByName(organizationId, name) {
+      return (
+        productLines.find(
+          productLine => productLine.organizationId === organizationId && productLine.name === name
+        ) ?? null
+      );
+    },
+    async findProductLineById(args) {
+      this.lastProductLineDetailArgs = args;
+      return (
+        productLines.find(
+          productLine => productLine.id === args.id && productLine.organizationId === args.organizationId
+        ) ?? null
+      );
+    },
+    async createProductLine(input) {
+      const productLine = createProductLine({
+        ...input,
+        id: `product-line-${productLines.length + 1}`
+      });
+      productLines.push(productLine);
+      return productLine;
+    },
+    async updateProductLine(id, organizationId, input) {
+      productLineUpdateCalls.push({ id, organizationId, input });
+      const productLine = productLines.find(item => item.id === id && item.organizationId === organizationId);
+      if (!productLine) return null;
+      Object.assign(productLine, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      return productLine;
     }
   };
 }
@@ -828,10 +1050,52 @@ function createMailbox(input: Partial<TestMailbox> = {}): TestMailbox {
   };
 }
 
+function createProductLine(input: Partial<TestProductLine> = {}): TestProductLine {
+  return {
+    id: input.id || 'product-line-1',
+    organizationId: input.organizationId || 'org-1',
+    name: input.name || 'Bearing Series',
+    targetCustomerType: input.targetCustomerType ?? null,
+    coreSellingPoints: input.coreSellingPoints ?? null,
+    moq: input.moq ?? null,
+    leadTime: input.leadTime ?? null,
+    paymentTerms: input.paymentTerms ?? null,
+    certifications: input.certifications ?? null,
+    catalogUrl: input.catalogUrl ?? null,
+    websiteUrl: input.websiteUrl ?? null,
+    commonModelsText: input.commonModelsText ?? null,
+    status: input.status || 'active',
+    createdById: input.createdById || 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
+
+interface TestProductLine {
+  id: string;
+  organizationId: string;
+  name: string;
+  targetCustomerType: string | null;
+  coreSellingPoints: string | null;
+  moq: string | null;
+  leadTime: string | null;
+  paymentTerms: string | null;
+  certifications: string | null;
+  catalogUrl: string | null;
+  websiteUrl: string | null;
+  commonModelsText: string | null;
+  status: 'active' | 'archived';
+  createdById: string;
+  createdByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 function createDnsResolver(result: Array<{ exchange: string; priority: number }> | Error) {
   return {
@@ -854,6 +1118,13 @@ function createDnsError(code: string) {
 
 function hashTestEmail(email: string) {
   return createHash('sha256').update(email).digest('hex');
+}
+
+function createPrismaUniqueError() {
+  return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+    code: 'P2002',
+    clientVersion: 'test'
+  });
 }
 
 function createLogRecorder() {

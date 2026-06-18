@@ -3,6 +3,7 @@ import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
 import MailboxTable from './MailboxTable.vue';
 import MailboxToolbar from './MailboxToolbar.vue';
+import ProductLineManager from './ProductLineManager.vue';
 import { useMailboxTable } from './useMailboxTable';
 
 const {
@@ -61,6 +62,10 @@ const {
             />
           </NSpace>
         </NCard>
+      </NGi>
+
+      <NGi>
+        <ProductLineManager />
       </NGi>
     </NGrid>
 

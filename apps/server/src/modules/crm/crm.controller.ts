@@ -18,9 +18,12 @@ import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
+import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
+import { CreateCrmProductLineDto } from './dto/create-crm-product-line.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
+import { UpdateCrmProductLineDto } from './dto/update-crm-product-line.dto';
 import type { CrmUserContext } from './crm.types';
 
 @Controller('crm')
@@ -100,6 +103,30 @@ export class CrmController {
   @Patch('mailboxes/:id/resume')
   async resumeMailbox(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.resumeMailbox(id, this.requireUserContext(authorization)));
+  }
+
+  @Get('product-lines')
+  async listProductLines(@Headers('authorization') authorization = '', @Query() query: CrmProductLineQueryDto) {
+    return ok(await this.crmService.listProductLines(this.requireUserContext(authorization), query));
+  }
+
+  @Post('product-lines')
+  async createProductLine(@Headers('authorization') authorization = '', @Body() dto: CreateCrmProductLineDto) {
+    return ok(await this.crmService.createProductLine(dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('product-lines/:id')
+  async updateProductLine(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmProductLineDto
+  ) {
+    return ok(await this.crmService.updateProductLine(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('product-lines/:id/archive')
+  async archiveProductLine(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.archiveProductLine(id, this.requireUserContext(authorization)));
   }
 
   private requireUserContext(authorization: string): CrmUserContext {

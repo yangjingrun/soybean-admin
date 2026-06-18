@@ -75,6 +75,11 @@ export type CrmTimelineEvent = Prisma.CrmTimelineEventModel
  */
 export type CrmMailbox = Prisma.CrmMailboxModel
 /**
+ * Model CrmProductLine
+ * 
+ */
+export type CrmProductLine = Prisma.CrmProductLineModel
+/**
  * Model AiPromptConfig
  * 
  */
