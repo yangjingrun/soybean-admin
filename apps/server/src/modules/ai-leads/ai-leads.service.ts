@@ -76,7 +76,7 @@ export class AiLeadsService {
   /** Lists recent keyword optimization histories for the current user. */
   async listKeywordHistories(query: KeywordHistoryQueryDto = {}, context: AiLeadsContext = {}) {
     const user = this.requireUser(context);
-    const records = await this.keywordHistoryStore.listByUser(user.userId, query.size ?? defaultHistorySize);
+    const records = await this.keywordHistoryStore.listByUser(user.userId, normalizeHistorySize(query.size));
 
     return {
       records: records.map(record => this.toKeywordHistoryView(record))
@@ -158,10 +158,15 @@ export class AiLeadsService {
   }
 }
 
+/** Normalizes query values before passing them to Prisma pagination options. */
+function normalizeHistorySize(size: unknown) {
+  return Number(size ?? defaultHistorySize);
+}
+
 function parseKeywordPlan(text: string) {
   try {
     return JSON.parse(text) as Record<string, unknown>;
-  } catch (error) {
+  } catch {
     throw new BadGatewayException('关键词优化结果不是合法 JSON');
   }
 }

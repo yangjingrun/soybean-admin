@@ -128,6 +128,24 @@ describe('AiLeadsService', () => {
     assert.equal(result.records[0].updatedAt, '2026-06-18T02:00:00.000Z');
   });
 
+  it('normalizes keyword history query size before passing it to the store', async () => {
+    let capturedTake: number | undefined;
+    const service = new AiLeadsService(
+      createAiGatewayService(),
+      createHistoryStore({
+        async listByUser(_userId, take) {
+          capturedTake = take;
+
+          return [];
+        }
+      })
+    );
+
+    await service.listKeywordHistories({ size: '20' } as never, { user });
+
+    assert.equal(capturedTake, 20);
+  });
+
   it('updates one keyword history inside the current user boundary', async () => {
     let capturedId = '';
     let capturedUserId = '';
