@@ -232,14 +232,14 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
 </script>
 
 <template>
-  <NSpace vertical :size="12">
+  <NSpace vertical :size="14" class="ai-leads-page">
     <NCard :bordered="false" size="small" class="card-wrapper lead-search-card">
       <div class="card-title">
-        <span>获客需求</span>
+        <span class="card-title-text">获客需求</span>
         <NTag size="small" type="info" :bordered="false">当前步骤：关键词优化</NTag>
       </div>
 
-      <NForm :model="form" label-placement="left" label-width="72" size="small">
+      <NForm :model="form" label-placement="left" label-width="72" size="small" class="lead-form">
         <NGrid :x-gap="18" :y-gap="12" responsive="screen" item-responsive>
           <NGi span="24 l:18">
             <NFormItem label="获客需求">
@@ -253,7 +253,7 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
           </NGi>
 
           <NGi span="24 l:6" class="lead-actions">
-            <NSpace :size="8">
+            <NSpace :size="8" class="lead-action-group">
               <NButton :disabled="isGenerating || isSearching || isHistorySaving" @click="handleClear">清空</NButton>
               <NButton
                 :loading="isGenerating"
@@ -279,8 +279,8 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
     <NCard :bordered="false" size="small" class="card-wrapper result-card" content-class="result-card-content">
       <template #header>
         <div class="result-header">
-          <span>{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
-          <NSpace :size="8">
+          <span class="result-title">{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
+          <NSpace :size="8" class="result-actions">
             <NButton size="small" secondary :loading="isHistoryLoading" @click="isHistoryDrawerVisible = true">
               <template #icon>
                 <SvgIcon icon="material-symbols:history" />
@@ -314,7 +314,7 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
               <NButton size="small" :disabled="isEditingResult" @click="handleCopyResult">复制结果</NButton>
             </template>
           </NSpace>
-          <NSpace v-if="searchResult" :size="8">
+          <NSpace v-if="searchResult" :size="8" class="result-actions">
             <NTag size="small" type="info">请求 {{ searchResult.serperRequests.length }}</NTag>
             <NTag size="small" type="success">候选 {{ searchResult.candidates.length }}</NTag>
             <NButton size="small" @click="handleCopySearchResult">复制结果</NButton>
@@ -367,6 +367,22 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
 </template>
 
 <style scoped>
+.ai-leads-page {
+  --ai-leads-surface: #f7f9fd;
+  --ai-leads-border: #dbe5f3;
+  --ai-leads-primary: #5b75ff;
+  --ai-leads-primary-soft: #eef3ff;
+  --ai-leads-ink: #1f2937;
+}
+
+.lead-search-card,
+.result-card {
+  overflow: hidden;
+  border: 1px solid var(--ai-leads-border);
+  background: linear-gradient(180deg, #ffffff 0%, var(--ai-leads-surface) 100%);
+  box-shadow: 0 10px 28px rgb(15 23 42 / 5%);
+}
+
 .card-title,
 .result-header {
   display: flex;
@@ -376,8 +392,43 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   font-weight: 600;
 }
 
+.card-title {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.card-title-text,
+.result-title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ai-leads-ink);
+}
+
+.card-title-text::before,
+.result-title::before {
+  width: 4px;
+  height: 16px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: var(--ai-leads-primary);
+  content: '';
+}
+
+.lead-form {
+  padding-top: 12px;
+}
+
 .lead-search-card :deep(.n-card__content) {
-  padding-bottom: 10px;
+  padding: 16px 18px 14px;
+}
+
+.lead-search-card :deep(.n-input) {
+  background: #ffffff;
+}
+
+.lead-search-card :deep(.n-form-item-label) {
+  font-weight: 600;
 }
 
 .lead-actions {
@@ -386,21 +437,42 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   justify-content: flex-end;
 }
 
+.lead-action-group {
+  justify-content: flex-end;
+}
+
+.result-card :deep(.n-card-header) {
+  padding: 14px 18px;
+  border-bottom: 1px solid #edf1f7;
+  background: #fbfcff;
+}
+
 .result-card :deep(.result-card-content) {
   min-height: 430px;
   display: flex;
   flex-direction: column;
+  padding: 18px;
+  background: #ffffff;
 }
 
 .result-panel {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+
+.result-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .token-summary {
   align-self: flex-end;
+  padding: 4px 10px;
+  border: 1px solid #e3e9f3;
+  border-radius: 6px;
+  background: #f8fafc;
 }
 
 .result-empty {
@@ -409,7 +481,18 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
 }
 
 @media (max-width: 640px) {
+  .card-title,
+  .result-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .lead-actions {
+    justify-content: flex-start;
+  }
+
+  .lead-action-group,
+  .result-actions {
     justify-content: flex-start;
   }
 }

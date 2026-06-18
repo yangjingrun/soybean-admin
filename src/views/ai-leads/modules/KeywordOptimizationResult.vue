@@ -56,16 +56,12 @@ function updateSegmentList(
     .filter(Boolean);
 }
 
-/** Returns a stable accent class for buyer segment groups. */
-function getBuyerSegmentToneClass(index: number) {
-  return `buyer-segment-tone-${(index % 4) + 1}`;
-}
 </script>
 
 <template>
   <NSpace vertical :size="14" class="keyword-result">
-    <NForm v-if="editable && keywordPlan" :model="keywordPlan" label-placement="top" size="small">
-      <NGrid :x-gap="12" :y-gap="10" responsive="screen" item-responsive>
+    <NForm v-if="editable && keywordPlan" :model="keywordPlan" label-placement="top" size="small" class="keyword-editor">
+      <NGrid :x-gap="12" :y-gap="10" responsive="screen" item-responsive class="summary-editor-grid">
         <NGi span="24 m:12">
           <NFormItem label="需求归纳">
             <NInput
@@ -106,12 +102,7 @@ function getBuyerSegmentToneClass(index: number) {
           <NButton size="tiny" secondary @click="addBuyerSegment">新增</NButton>
         </div>
         <NSpace vertical :size="10">
-          <div
-            v-for="(segment, index) in keywordPlan.buyerSegments"
-            :key="index"
-            class="buyer-segment editor"
-            :class="getBuyerSegmentToneClass(index)"
-          >
+          <div v-for="(segment, index) in keywordPlan.buyerSegments" :key="index" class="buyer-segment editor">
             <div class="buyer-segment-header">
               <NInput v-model:value="segment.buyerType" placeholder="客户类型" />
               <NButton size="tiny" quaternary type="error" @click="removeBuyerSegment(index)">删除</NButton>
@@ -148,7 +139,7 @@ function getBuyerSegmentToneClass(index: number) {
       </section>
     </NForm>
 
-    <NDescriptions v-else size="small" label-placement="left" bordered :column="1">
+    <NDescriptions v-else size="small" label-placement="left" bordered :column="1" class="summary-descriptions">
       <NDescriptionsItem v-for="item in viewModel.summaryItems" :key="item.label" :label="item.label">
         {{ item.value }}
       </NDescriptionsItem>
@@ -157,8 +148,8 @@ function getBuyerSegmentToneClass(index: number) {
     <section v-if="!editable" class="keyword-section">
       <div class="section-title">买家类型</div>
       <NGrid :x-gap="12" :y-gap="12" responsive="screen" item-responsive>
-        <NGi v-for="(segment, index) in viewModel.buyerSegments" :key="segment.buyerType" span="24 m:12 xl:8">
-          <div class="buyer-segment" :class="getBuyerSegmentToneClass(index)">
+        <NGi v-for="segment in viewModel.buyerSegments" :key="segment.buyerType" span="24 m:12 xl:8">
+          <div class="buyer-segment">
             <div class="buyer-segment-header">
               <NText strong>{{ segment.buyerType }}</NText>
               <NTag size="small" type="info" :bordered="false">{{ segment.priorityLevel }}</NTag>
@@ -176,7 +167,7 @@ function getBuyerSegmentToneClass(index: number) {
     </section>
 
     <template v-if="viewModel.showQueryDetails">
-      <section class="keyword-section">
+      <section class="keyword-section query-section">
         <div class="section-title">Search 查询词</div>
         <NDataTable
           size="small"
@@ -187,7 +178,7 @@ function getBuyerSegmentToneClass(index: number) {
         />
       </section>
 
-      <section class="keyword-section">
+      <section class="keyword-section query-section">
         <div class="section-title">Places 查询词</div>
         <NDataTable
           size="small"
@@ -204,17 +195,59 @@ function getBuyerSegmentToneClass(index: number) {
 <style scoped>
 .keyword-result {
   min-width: 0;
+  --keyword-primary: #5b75ff;
+  --keyword-primary-deep: #7c5cff;
+  --keyword-soft: #f3f6ff;
+  --keyword-border: #dbe5ff;
 }
 
 .keyword-section {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e6ecf7;
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.keyword-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.summary-editor-grid,
+.summary-descriptions {
+  padding: 12px;
+  border: 1px solid #e6ecf7;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--keyword-soft) 100%);
+}
+
+.summary-editor-grid :deep(.n-form-item-label) {
+  font-weight: 600;
+}
+
+.summary-descriptions :deep(.n-descriptions-table) {
+  background: #ffffff;
 }
 
 .section-title {
+  display: inline-flex;
+  align-items: center;
+  color: #24324b;
   font-weight: 600;
+}
+
+.section-title::before {
+  width: 3px;
+  height: 14px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--keyword-primary), var(--keyword-primary-deep));
+  content: '';
 }
 
 .section-heading {
@@ -232,10 +265,12 @@ function getBuyerSegmentToneClass(index: number) {
   gap: 10px;
   padding: 12px;
   overflow: hidden;
-  border: 1px solid var(--buyer-segment-border);
-  border-left: 4px solid var(--buyer-segment-accent);
+  border: 1px solid var(--keyword-border);
+  border-left: 4px solid var(--keyword-primary);
   border-radius: 8px;
-  background: var(--buyer-segment-bg);
+  background:
+    linear-gradient(90deg, rgb(91 117 255 / 10%) 0%, rgb(124 92 255 / 5%) 34%, #ffffff 72%),
+    #ffffff;
   box-shadow: 0 6px 18px rgb(15 23 42 / 4%);
 }
 
@@ -243,36 +278,15 @@ function getBuyerSegmentToneClass(index: number) {
   position: absolute;
   inset: 0 0 auto;
   height: 3px;
-  background: var(--buyer-segment-accent);
+  background: linear-gradient(90deg, var(--keyword-primary), var(--keyword-primary-deep));
   content: '';
-}
-
-.buyer-segment-tone-1 {
-  --buyer-segment-bg: #f5f8ff;
-  --buyer-segment-border: #cfdbff;
-  --buyer-segment-accent: #5b75ff;
-}
-
-.buyer-segment-tone-2 {
-  --buyer-segment-bg: #f2fbf8;
-  --buyer-segment-border: #bfeade;
-  --buyer-segment-accent: #16a085;
-}
-
-.buyer-segment-tone-3 {
-  --buyer-segment-bg: #fff9ee;
-  --buyer-segment-border: #f3d6a3;
-  --buyer-segment-accent: #d99022;
-}
-
-.buyer-segment-tone-4 {
-  --buyer-segment-bg: #fff5f8;
-  --buyer-segment-border: #f1c4d3;
-  --buyer-segment-accent: #d95f8d;
 }
 
 .buyer-segment.editor {
   min-height: auto;
+  background:
+    linear-gradient(90deg, rgb(91 117 255 / 12%) 0%, rgb(124 92 255 / 5%) 30%, #ffffff 68%),
+    #ffffff;
 }
 
 .buyer-segment-header {
@@ -290,5 +304,15 @@ function getBuyerSegmentToneClass(index: number) {
 
 .contact-line {
   margin-top: auto;
+}
+
+.query-section :deep(.n-data-table) {
+  overflow: hidden;
+  border: 1px solid #e6ecf7;
+  border-radius: 8px;
+}
+
+.query-section :deep(.n-data-table-th) {
+  background: #f4f7ff;
 }
 </style>
