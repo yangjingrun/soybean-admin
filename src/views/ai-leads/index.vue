@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import { useAuthStore } from '@/store/modules/auth';
 import {
+  deleteLeadKeywordHistory,
   fetchLeadKeywordHistories,
   optimizeLeadKeywords,
   searchLeadCustomers,
@@ -33,6 +34,7 @@ const isHistoryLoading = shallowRef(false);
 const isHistorySaving = shallowRef(false);
 const isHistoryDrawerVisible = shallowRef(false);
 const isEditingResult = shallowRef(false);
+const deletingKeywordHistoryId = shallowRef('');
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const searchResult = shallowRef<Api.AiLeads.SearchOrchestrateResult | null>(null);
 const historyRecords = ref<Api.AiLeads.KeywordHistoryRecord[]>([]);
@@ -44,6 +46,7 @@ const canGenerate = computed(() => Boolean(form.requirement.trim()));
 const canSaveHistory = computed(() =>
   Boolean(selectedHistoryId.value && editableKeywordPlan.value && form.requirement.trim())
 );
+const isHistoryDeleting = computed(() => Boolean(deletingKeywordHistoryId.value));
 const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
 const searchResultText = computed(() => (searchResult.value ? JSON.stringify(searchResult.value, null, 2) : ''));
 const parsedAiKeywordPlan = computed(() => {
@@ -62,6 +65,9 @@ const keywordOptimizationViewModel = computed(() =>
   keywordOptimizationPlan.value
     ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, isSuperAdmin.value)
     : null
+);
+const currentHistoryRecord = computed(
+  () => historyRecords.value.find(record => record.id === selectedHistoryId.value) || null
 );
 
 onMounted(() => {
@@ -171,6 +177,43 @@ function handleSelectHistory(record: Api.AiLeads.KeywordHistoryRecord) {
   isHistoryDrawerVisible.value = false;
 }
 
+/** Deletes one history record and keeps the current selection in sync. */
+async function handleDeleteHistory(record: Api.AiLeads.KeywordHistoryRecord) {
+  deletingKeywordHistoryId.value = record.id;
+
+  try {
+    const { error } = await deleteLeadKeywordHistory(record.id);
+
+    if (error) {
+      return;
+    }
+
+    const nextRecords = historyRecords.value.filter(item => item.id !== record.id);
+    historyRecords.value = nextRecords;
+
+    // 删除当前记录后，切到剩余最新记录；没有历史时清空当前结果。
+    if (record.id === selectedHistoryId.value) {
+      if (nextRecords[0]) {
+        applyKeywordHistoryRecord(nextRecords[0]);
+      } else {
+        resetKeywordHistorySelection();
+      }
+    }
+
+    message.success('删除完成');
+  } finally {
+    deletingKeywordHistoryId.value = '';
+  }
+}
+
+async function handleDeleteCurrentHistory() {
+  if (!currentHistoryRecord.value) {
+    return;
+  }
+
+  await handleDeleteHistory(currentHistoryRecord.value);
+}
+
 function handleStartEdit() {
   if (!keywordOptimizationPlan.value) {
     return;
@@ -224,6 +267,15 @@ function applyKeywordHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   isEditingResult.value = false;
 }
 
+function resetKeywordHistorySelection() {
+  selectedHistoryId.value = '';
+  aiResult.value = null;
+  editableKeywordPlan.value = null;
+  editingKeywordPlanSnapshot.value = null;
+  searchResult.value = null;
+  isEditingResult.value = false;
+}
+
 function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   const nextRecords = historyRecords.value.filter(item => item.id !== record.id);
 
@@ -254,10 +306,12 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
 
           <NGi span="24 l:6" class="lead-actions">
             <NSpace :size="8" class="lead-action-group">
-              <NButton :disabled="isGenerating || isSearching || isHistorySaving" @click="handleClear">清空</NButton>
+              <NButton :disabled="isGenerating || isSearching || isHistorySaving || isHistoryDeleting" @click="handleClear">
+                清空
+              </NButton>
               <NButton
                 :loading="isGenerating"
-                :disabled="!canGenerate || isSearching || isHistorySaving"
+                :disabled="!canGenerate || isSearching || isHistorySaving || isHistoryDeleting"
                 @click="handleGenerate"
               >
                 优化关键词
@@ -265,7 +319,7 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
               <NButton
                 type="primary"
                 :loading="isSearching"
-                :disabled="!canGenerate || isGenerating || isHistorySaving"
+                :disabled="!canGenerate || isGenerating || isHistorySaving || isHistoryDeleting"
                 @click="handleSearchCustomers"
               >
                 开始搜索采集
@@ -300,7 +354,7 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
                 size="small"
                 type="primary"
                 :loading="isHistorySaving"
-                :disabled="!canSaveHistory"
+                :disabled="!canSaveHistory || isHistoryDeleting"
                 @click="handleSaveHistory"
               >
                 <template #icon>
@@ -308,10 +362,34 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
                 </template>
                 保存
               </NButton>
-              <NButton v-if="isEditingResult" size="small" :disabled="isHistorySaving" @click="handleCancelEdit">
+              <NButton
+                v-if="isEditingResult"
+                size="small"
+                :disabled="isHistorySaving || isHistoryDeleting"
+                @click="handleCancelEdit"
+              >
                 取消
               </NButton>
-              <NButton size="small" :disabled="isEditingResult" @click="handleCopyResult">复制结果</NButton>
+              <NButton size="small" :disabled="isEditingResult || isHistoryDeleting" @click="handleCopyResult">
+                复制结果
+              </NButton>
+              <NPopconfirm @positive-click="handleDeleteCurrentHistory">
+                <template #trigger>
+                  <NButton
+                    size="small"
+                    type="error"
+                    secondary
+                    :loading="deletingKeywordHistoryId === selectedHistoryId"
+                    :disabled="isEditingResult || isHistorySaving || isHistoryDeleting || !currentHistoryRecord"
+                  >
+                    <template #icon>
+                      <SvgIcon icon="material-symbols:delete-outline" />
+                    </template>
+                    删除
+                  </NButton>
+                </template>
+                删除当前关键词优化历史？
+              </NPopconfirm>
             </template>
           </NSpace>
           <NSpace v-if="searchResult" :size="8" class="result-actions">
@@ -361,7 +439,9 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
       :records="historyRecords"
       :selected-id="selectedHistoryId"
       :loading="isHistoryLoading"
+      :deleting-id="deletingKeywordHistoryId"
       @select="handleSelectHistory"
+      @delete="handleDeleteHistory"
     />
   </NSpace>
 </template>

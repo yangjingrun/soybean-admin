@@ -192,17 +192,20 @@ describe('AiLeadsService', () => {
       { user }
     );
 
-    assert.equal(capturedDto?.modelConfigKey, defaultAiModelConfigKey);
-    assert.equal(capturedDto?.promptKey, leadKeywordOptimizePromptKey);
-    assert.equal(capturedDto?.maxOutputTokens, 3600);
-    assert.match(capturedDto?.prompt || '', /^我是河北卖轴承的，想找沙特进口商/);
-    assert.match(capturedDto?.prompt || '', /目标市场本地语言查询强约束/);
-    assert.match(capturedDto?.prompt || '', /沙特阿拉伯=阿拉伯语，hl=ar/);
+    assert.ok(capturedDto);
+    const optimizeDto = capturedDto as GenerateAiTextDto;
+
+    assert.equal(optimizeDto.modelConfigKey, defaultAiModelConfigKey);
+    assert.equal(optimizeDto.promptKey, leadKeywordOptimizePromptKey);
+    assert.equal(optimizeDto.maxOutputTokens, 3600);
+    assert.match(optimizeDto.prompt, /^我是河北卖轴承的，想找沙特进口商/);
+    assert.match(optimizeDto.prompt, /目标市场本地语言查询强约束/);
+    assert.match(optimizeDto.prompt, /沙特阿拉伯=阿拉伯语，hl=ar/);
     assert.deepEqual(
       {
-        modelConfigKey: capturedDto?.modelConfigKey,
-        promptKey: capturedDto?.promptKey,
-        maxOutputTokens: capturedDto?.maxOutputTokens
+        modelConfigKey: optimizeDto.modelConfigKey,
+        promptKey: optimizeDto.promptKey,
+        maxOutputTokens: optimizeDto.maxOutputTokens
       },
       {
         modelConfigKey: defaultAiModelConfigKey,
@@ -253,12 +256,15 @@ describe('AiLeadsService', () => {
       { user }
     );
 
-    assert.match(capturedDto?.prompt || '', /目标市场本地语言查询强约束/);
-    assert.match(capturedDto?.prompt || '', /韩国=韩语，hl=ko/);
-    assert.match(capturedDto?.prompt || '', /墨西哥=西班牙语，hl=es/);
-    assert.match(capturedDto?.prompt || '', /serperSearchQueries[\s\S]*至少输出 2 条当地语言查询/);
-    assert.match(capturedDto?.prompt || '', /前 6 条 Search 查询/);
-    assert.match(capturedDto?.prompt || '', /requestBody\.hl 必须使用对应语言代码/);
+    assert.ok(capturedDto);
+    const localLanguageDto = capturedDto as GenerateAiTextDto;
+
+    assert.match(localLanguageDto.prompt, /目标市场本地语言查询强约束/);
+    assert.match(localLanguageDto.prompt, /韩国=韩语，hl=ko/);
+    assert.match(localLanguageDto.prompt, /墨西哥=西班牙语，hl=es/);
+    assert.match(localLanguageDto.prompt, /serperSearchQueries[\s\S]*至少输出 2 条当地语言查询/);
+    assert.match(localLanguageDto.prompt, /前 6 条 Search 查询/);
+    assert.match(localLanguageDto.prompt, /requestBody\.hl 必须使用对应语言代码/);
   });
 
   it('rejects keyword plans missing required local-language Search queries', async () => {
@@ -398,6 +404,28 @@ describe('AiLeadsService', () => {
     assert.equal(capturedInput!.resultText, JSON.stringify(keywordPlan));
     assert.equal(result.updatedAt, '2026-06-18T03:00:00.000Z');
   });
+
+  it('deletes one keyword history inside the current user boundary', async () => {
+    let capturedId = '';
+    let capturedUserId = '';
+    const service = new AiLeadsService(
+      createAiGatewayService(),
+      createHistoryStore({
+        async deleteByIdForUser(id, userId) {
+          capturedId = id;
+          capturedUserId = userId;
+
+          return true;
+        }
+      })
+    );
+
+    const result = await service.deleteKeywordHistory('history-1', { user });
+
+    assert.equal(capturedId, 'history-1');
+    assert.equal(capturedUserId, 'u-1');
+    assert.deepEqual(result, { id: 'history-1' });
+  });
 });
 
 function createAiGatewayService() {
@@ -418,6 +446,9 @@ function createHistoryStore(overrides: Partial<AiLeadKeywordHistoryStore> = {}):
     },
     async updateByIdForUser(id, userId, input) {
       return createHistoryRecord({ id, userId, ...input });
+    },
+    async deleteByIdForUser() {
+      return true;
     },
     ...overrides
   };

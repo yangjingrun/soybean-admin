@@ -107,6 +107,22 @@ export class AiLeadsService {
     return this.toKeywordHistoryView(record);
   }
 
+  /** Deletes one keyword optimization history inside the current user's boundary. */
+  async deleteKeywordHistory(id: string, context: AiLeadsContext = {}) {
+    const user = this.requireUser(context);
+    const deleted = await this.keywordHistoryStore.deleteByIdForUser(id, user.userId);
+
+    if (!deleted) {
+      throw new NotFoundException('关键词优化历史不存在');
+    }
+
+    await this.recordLog('keyword-history-delete', '关键词优化历史已删除', context, {
+      historyId: id
+    });
+
+    return { id };
+  }
+
   /** Runs the backend AI leads Search + Places orchestration workflow. */
   searchOrchestrate(dto: SearchOrchestrateDto, context: AiLeadsContext = {}) {
     if (!this.searchOrchestrator) {

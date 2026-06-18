@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ok } from '../../shared/api-response';
 import { AuthService } from '../auth/auth.service';
@@ -46,6 +46,13 @@ export class AiLeadsController {
     const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
 
     return ok(await this.aiLeadsService.updateKeywordHistory(id, dto, { user }));
+  }
+
+  @Delete('keyword-histories/:id')
+  async deleteKeywordHistory(@Param('id') id: string, @Headers('authorization') authorization = '') {
+    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+
+    return ok(await this.aiLeadsService.deleteKeywordHistory(id, { user }));
   }
 
   private extractBearerToken(authorization: string) {

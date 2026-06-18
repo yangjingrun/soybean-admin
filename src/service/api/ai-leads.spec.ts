@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   aiLeadKeywordOptimizeTimeout,
+  buildDeleteLeadKeywordHistoryRequestConfig,
   buildLeadKeywordHistoryListRequestConfig,
   buildLeadKeywordOptimizeRequestConfig,
   buildUpdateLeadKeywordHistoryRequestConfig
@@ -54,5 +55,12 @@ describe('ai leads api helpers', () => {
     assert.equal(config.url, '/ai-leads/keyword-histories/history-1');
     assert.equal(config.method, 'patch');
     assert.deepEqual(config.data, payload);
+  });
+
+  it('builds keyword history delete request config', () => {
+    const config = buildDeleteLeadKeywordHistoryRequestConfig('history-1');
+
+    assert.equal(config.url, '/ai-leads/keyword-histories/history-1');
+    assert.equal(config.method, 'delete');
   });
 });

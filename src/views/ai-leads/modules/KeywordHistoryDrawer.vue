@@ -7,11 +7,13 @@ const props = defineProps<{
   records: Api.AiLeads.KeywordHistoryRecord[];
   selectedId?: string;
   loading?: boolean;
+  deletingId?: string;
 }>();
 
 const emit = defineEmits<{
   'update:show': [show: boolean];
   select: [record: Api.AiLeads.KeywordHistoryRecord];
+  delete: [record: Api.AiLeads.KeywordHistoryRecord];
 }>();
 
 const drawerVisible = computed({
@@ -29,23 +31,45 @@ function formatTime(value: string) {
     <NDrawerContent title="关键词优化历史" closable>
       <NSpin :show="loading">
         <NSpace v-if="records.length" vertical :size="10" class="history-list">
-          <button
+          <div
             v-for="record in records"
             :key="record.id"
             class="history-item"
             :class="{ active: record.id === selectedId }"
-            type="button"
+            role="button"
+            tabindex="0"
             @click="emit('select', record)"
+            @keydown.enter.prevent="emit('select', record)"
+            @keydown.space.prevent="emit('select', record)"
           >
             <span class="history-item-main">
               <span class="history-item-title">{{ record.keywordPlan.resolvedProductKeywords || record.requirement }}</span>
               <span class="history-item-desc">{{ record.requirement }}</span>
             </span>
-            <span class="history-item-meta">
-              <NTag v-if="record.id === selectedId" size="small" type="success" :bordered="false">当前</NTag>
-              <span>{{ formatTime(record.updatedAt) }}</span>
+            <span class="history-item-side">
+              <span class="history-item-meta">
+                <NTag v-if="record.id === selectedId" size="small" type="success" :bordered="false">当前</NTag>
+                <span>{{ formatTime(record.updatedAt) }}</span>
+              </span>
+              <NPopconfirm @positive-click="emit('delete', record)">
+                <template #trigger>
+                  <NButton
+                    quaternary
+                    circle
+                    size="tiny"
+                    type="error"
+                    :loading="deletingId === record.id"
+                    @click.stop
+                  >
+                    <template #icon>
+                      <SvgIcon icon="material-symbols:delete-outline" />
+                    </template>
+                  </NButton>
+                </template>
+                删除这条关键词优化历史？
+              </NPopconfirm>
             </span>
-          </button>
+          </div>
         </NSpace>
         <NEmpty v-else description="暂无历史记录" />
       </NSpin>
@@ -76,7 +100,6 @@ function formatTime(value: string) {
   border-radius: 8px;
   background: var(--history-item-bg);
   cursor: pointer;
-  font: inherit;
   padding: 12px;
   text-align: left;
   transition:
@@ -88,6 +111,11 @@ function formatTime(value: string) {
 .history-item.active {
   border-color: var(--n-primary-color);
   background: var(--history-item-bg-hover);
+}
+
+.history-item:focus-visible {
+  outline: 2px solid var(--n-primary-color);
+  outline-offset: 2px;
 }
 
 .history-item-main {
@@ -113,6 +141,13 @@ function formatTime(value: string) {
   line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.history-item-side {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .history-item-meta {

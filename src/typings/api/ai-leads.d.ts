@@ -118,6 +118,10 @@ declare namespace Api {
       keywordPlan: OptimizedKeywordPlan;
     }
 
+    interface KeywordHistoryDeleteResult {
+      id: string;
+    }
+
     interface SearchOrchestratePayload {
       requirement: string;
       targetLeadCountOverride?: number;

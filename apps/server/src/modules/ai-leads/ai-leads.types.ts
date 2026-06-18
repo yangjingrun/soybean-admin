@@ -52,4 +52,5 @@ export interface AiLeadKeywordHistoryStore {
     userId: string,
     input: UpdateKeywordHistoryInput
   ): Promise<AiLeadKeywordHistoryRecord | null>;
+  deleteByIdForUser(id: string, userId: string): Promise<boolean>;
 }

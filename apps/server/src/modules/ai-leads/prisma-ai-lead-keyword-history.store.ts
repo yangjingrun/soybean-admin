@@ -57,6 +57,15 @@ export class PrismaAiLeadKeywordHistoryStore implements AiLeadKeywordHistoryStor
 
     return records[0] ? toKeywordHistoryRecord(records[0]) : null;
   }
+
+  /** Deletes one keyword history only when it belongs to the current user. */
+  async deleteByIdForUser(id: string, userId: string) {
+    const result = await this.prisma.aiLeadKeywordHistory.deleteMany({
+      where: { id, userId }
+    });
+
+    return result.count > 0;
+  }
 }
 
 function toKeywordHistoryRecord(record: AiLeadKeywordHistoryModel): AiLeadKeywordHistoryRecord {

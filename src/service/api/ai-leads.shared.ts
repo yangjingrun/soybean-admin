@@ -39,6 +39,14 @@ export function buildUpdateLeadKeywordHistoryRequestConfig(
   };
 }
 
+/** Build the request config for deleting one keyword optimization history. */
+export function buildDeleteLeadKeywordHistoryRequestConfig(id: string): CustomAxiosRequestConfig {
+  return {
+    url: `/ai-leads/keyword-histories/${id}`,
+    method: 'delete'
+  };
+}
+
 /** Build the request config for the long-running AI leads search orchestration task. */
 export function buildLeadSearchOrchestrateRequestConfig(
   data: Api.AiLeads.SearchOrchestratePayload

@@ -1,5 +1,6 @@
 import { request } from '../request';
 import {
+  buildDeleteLeadKeywordHistoryRequestConfig,
   buildLeadKeywordHistoryListRequestConfig,
   buildLeadKeywordOptimizeRequestConfig,
   buildLeadSearchOrchestrateRequestConfig,
@@ -19,6 +20,11 @@ export function fetchLeadKeywordHistories(params?: Api.AiLeads.KeywordHistoryLis
 /** Save edited keyword optimization content for one history record. */
 export function updateLeadKeywordHistory(id: string, data: Api.AiLeads.UpdateKeywordHistoryPayload) {
   return request<Api.AiLeads.KeywordHistoryRecord>(buildUpdateLeadKeywordHistoryRequestConfig(id, data));
+}
+
+/** Delete one keyword optimization history owned by the current user. */
+export function deleteLeadKeywordHistory(id: string) {
+  return request<Api.AiLeads.KeywordHistoryDeleteResult>(buildDeleteLeadKeywordHistoryRequestConfig(id));
 }
 
 /** Run keyword optimization, Serper search, and search-result decisions as one backend workflow. */
