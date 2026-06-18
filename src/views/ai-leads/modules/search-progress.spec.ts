@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  canReturnToKeywordOptimizationStep,
   createLeadSearchProgressState,
   getMetricDisplayText,
   isSearchWorkflowFinished,
@@ -108,5 +109,28 @@ describe('ai leads search progress state', () => {
     assert.equal(state.status, 'failed');
     assert.equal(state.errorMessage, '搜索采集失败，请稍后重试');
     assert.equal(isSearchWorkflowFinished(state), true);
+  });
+
+  it('allows returning to keyword optimization only after search workflow stops', () => {
+    const idleState = createLeadSearchProgressState();
+    const runningState = reduceLeadSearchProgressEvent(idleState, {
+      type: 'workflow_started',
+      runId: 'run-1',
+      sequence: 1,
+      emittedAt: '2026-06-18T00:00:00.000Z',
+      title: '准备搜索采集'
+    });
+    const failedState = reduceLeadSearchProgressEvent(runningState, {
+      type: 'workflow_failed',
+      runId: 'run-1',
+      sequence: 2,
+      emittedAt: '2026-06-18T00:00:02.000Z',
+      title: '搜索采集失败'
+    });
+
+    assert.equal(canReturnToKeywordOptimizationStep(idleState, false), false);
+    assert.equal(canReturnToKeywordOptimizationStep(runningState, true), false);
+    assert.equal(canReturnToKeywordOptimizationStep(failedState, true), false);
+    assert.equal(canReturnToKeywordOptimizationStep(failedState, false), true);
   });
 });

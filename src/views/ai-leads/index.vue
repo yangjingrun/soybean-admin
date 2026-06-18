@@ -13,6 +13,7 @@ import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
 import SearchProgressPanel from './modules/SearchProgressPanel.vue';
 import {
+  canReturnToKeywordOptimizationStep,
   createLeadSearchProgressState,
   reduceLeadSearchProgressEvent
 } from './modules/search-progress';
@@ -85,7 +86,12 @@ const parsedAiKeywordPlan = computed(() => {
 const keywordOptimizationPlan = computed(() => editableKeywordPlan.value || parsedAiKeywordPlan.value);
 const hasKeywordPlan = computed(() => Boolean(keywordOptimizationPlan.value));
 const canSearchCustomers = computed(
-  () => canGenerate.value && hasKeywordPlan.value && isTargetLeadCountValid.value && !isGenerating.value && !isSearching.value
+  () =>
+    canGenerate.value &&
+    hasKeywordPlan.value &&
+    isTargetLeadCountValid.value &&
+    !isGenerating.value &&
+    !isSearching.value
 );
 const keywordOptimizationViewModel = computed(() =>
   keywordOptimizationPlan.value
@@ -99,6 +105,10 @@ const currentHistoryRecord = computed(
 const hasSearchProgress = computed(
   () => isSearching.value || searchProgress.value.status !== 'idle' || Boolean(searchProgress.value.result)
 );
+const canReturnToKeywordStep = computed(() =>
+  canReturnToKeywordOptimizationStep(searchProgress.value, isSearching.value)
+);
+const currentWorkflowStepLabel = computed(() => (hasSearchProgress.value ? '搜索采集' : '关键词优化'));
 
 onMounted(() => {
   void loadKeywordHistories();
@@ -164,7 +174,6 @@ async function handleSearchCustomers() {
   }
 
   isSearching.value = true;
-  aiResult.value = null;
   keywordQualityWarnings.value = [];
   searchProgress.value = createStartingSearchProgressState();
 
@@ -387,6 +396,11 @@ function handleTargetLeadCountUpdate(value: number | null) {
   form.targetLeadCount = value;
 }
 
+/** Returns to the optimized keyword result while keeping the current keyword plan intact. */
+function handleReturnToKeywordOptimization() {
+  resetSearchProgress();
+}
+
 /** Clears previous search progress and aborts an active stream if one exists. */
 function resetSearchProgress() {
   cancelSearchStream();
@@ -430,7 +444,7 @@ function isAbortError(error: unknown) {
       <div class="card-title">
         <div class="card-title-main">
           <span class="card-title-text">获客需求</span>
-          <NTag size="small" type="info" :bordered="false">当前步骤：关键词优化</NTag>
+          <NTag size="small" type="info" :bordered="false">当前步骤：{{ currentWorkflowStepLabel }}</NTag>
           <NTag size="small" type="warning" :bordered="false">最多重复 {{ maxLeadSearchRepeatRounds }} 轮</NTag>
         </div>
       </div>
@@ -506,13 +520,25 @@ function isAbortError(error: unknown) {
             </NTag>
           </div>
           <NSpace :size="8" class="result-actions">
+            <NButton
+              v-if="canReturnToKeywordStep"
+              size="small"
+              secondary
+              :disabled="isHistorySaving || isHistoryDeleting"
+              @click="handleReturnToKeywordOptimization"
+            >
+              <template #icon>
+                <SvgIcon icon="material-symbols:keyboard-return" />
+              </template>
+              返回关键词
+            </NButton>
             <NButton size="small" secondary :loading="isHistoryLoading" @click="isHistoryDrawerVisible = true">
               <template #icon>
                 <SvgIcon icon="material-symbols:history" />
               </template>
               历史
             </NButton>
-            <template v-if="aiResult && (isSuperAdmin || keywordOptimizationViewModel)">
+            <template v-if="!hasSearchProgress && aiResult && (isSuperAdmin || keywordOptimizationViewModel)">
               <NButton v-if="!isEditingResult" size="small" @click="handleStartEdit">
                 <template #icon>
                   <SvgIcon icon="material-symbols:edit-outline" />

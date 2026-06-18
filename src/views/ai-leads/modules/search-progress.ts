@@ -98,11 +98,18 @@ export function reduceLeadSearchProgressEvent(
 }
 
 export function getMetricDisplayText(metric: Api.AiLeads.LeadSearchProgressMetric) {
-  return typeof metric.total === 'number' ? `${metric.label} ${metric.value}/${metric.total}` : `${metric.label} ${metric.value}`;
+  return typeof metric.total === 'number'
+    ? `${metric.label} ${metric.value}/${metric.total}`
+    : `${metric.label} ${metric.value}`;
 }
 
 export function isSearchWorkflowFinished(state: LeadSearchProgressState) {
   return state.status === 'completed' || state.status === 'failed';
+}
+
+/** Checks whether the user can leave the search result panel and review keywords again. */
+export function canReturnToKeywordOptimizationStep(state: LeadSearchProgressState, isSearching: boolean) {
+  return !isSearching && isSearchWorkflowFinished(state);
 }
 
 function resolveStepStatus(type: Api.AiLeads.LeadSearchProgressEventType): LeadSearchProgressStepStatus {
