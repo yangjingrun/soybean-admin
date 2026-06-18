@@ -15,6 +15,7 @@ import type { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
 import type { KeywordHistoryQueryDto, UpdateKeywordHistoryDto } from './dto/keyword-history.dto';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
+import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 import { AI_LEAD_KEYWORD_HISTORY_STORE } from './ai-leads.tokens';
 import type { AiLeadKeywordHistoryRecord, AiLeadKeywordHistoryStore } from './ai-leads.types';
 import {
@@ -163,6 +164,26 @@ export class AiLeadsService {
         requirement: dto.requirement.trim()
       },
       context
+    );
+  }
+
+  /** Runs the backend AI leads orchestration workflow and reports business progress events. */
+  searchOrchestrateStream(
+    dto: SearchOrchestrateDto,
+    context: AiLeadsContext = {},
+    reporter?: LeadSearchProgressReporter
+  ) {
+    if (!this.searchOrchestrator) {
+      throw new NotFoundException('AI 获客搜索编排服务未初始化');
+    }
+
+    return this.searchOrchestrator.search(
+      {
+        ...dto,
+        requirement: dto.requirement.trim()
+      },
+      context,
+      reporter
     );
   }
 

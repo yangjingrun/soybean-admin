@@ -138,5 +138,61 @@ declare namespace Api {
       candidates: Array<Record<string, unknown>>;
       stopReason: string;
     }
+
+    type LeadSearchProgressEventType =
+      | 'workflow_started'
+      | 'step_started'
+      | 'step_progress'
+      | 'step_completed'
+      | 'workflow_completed'
+      | 'workflow_failed';
+
+    interface LeadSearchProgressMetric {
+      key: string;
+      label: string;
+      value: number | string;
+      total?: number;
+    }
+
+    interface LeadSearchCandidateView {
+      title?: string;
+      website?: string;
+      snippet?: string;
+      address?: string;
+      phoneNumber?: string;
+      sourceLabel: string;
+    }
+
+    interface LeadSearchPublicResult {
+      summary: {
+        actionCount: number;
+        qualityCheckCount: number;
+        candidateCount: number;
+        stopReason: string;
+      };
+      candidates: LeadSearchCandidateView[];
+      warnings?: string[];
+    }
+
+    interface LeadSearchProgressEvent {
+      type: LeadSearchProgressEventType;
+      runId: string;
+      sequence: number;
+      emittedAt: string;
+      stepKey?: string;
+      parentKey?: string;
+      title?: string;
+      description?: string;
+      progressPercent?: number;
+      metrics?: LeadSearchProgressMetric[];
+      result?: LeadSearchPublicResult;
+      errorMessage?: string;
+    }
+
+    interface LeadSearchStreamHandlers {
+      onEvent: (event: LeadSearchProgressEvent) => void;
+      onError?: (error: unknown) => void;
+      onComplete?: () => void;
+    }
   }
 }

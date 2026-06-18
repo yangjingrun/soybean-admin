@@ -2,6 +2,7 @@ import type { CustomAxiosRequestConfig } from '@sa/axios';
 
 export const aiLeadKeywordOptimizeTimeout = 120 * 1000;
 export const aiLeadSearchOrchestrateTimeout = 180 * 1000;
+export const aiLeadSearchOrchestrateStreamUrl = '/ai-leads/search-orchestrate/stream';
 
 /** Build the request config for the long-running AI leads keyword optimization task. */
 export function buildLeadKeywordOptimizeRequestConfig(

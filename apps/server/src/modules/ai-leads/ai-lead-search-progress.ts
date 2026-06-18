@@ -1,0 +1,147 @@
+export type LeadSearchProgressEventType =
+  | 'workflow_started'
+  | 'step_started'
+  | 'step_progress'
+  | 'step_completed'
+  | 'workflow_completed'
+  | 'workflow_failed';
+
+export interface LeadSearchProgressMetric {
+  key: string;
+  label: string;
+  value: number | string;
+  total?: number;
+}
+
+export interface LeadSearchCandidateView {
+  title?: string;
+  website?: string;
+  snippet?: string;
+  address?: string;
+  phoneNumber?: string;
+  sourceLabel: string;
+}
+
+export interface LeadSearchPublicResult {
+  summary: {
+    actionCount: number;
+    qualityCheckCount: number;
+    candidateCount: number;
+    stopReason: string;
+  };
+  candidates: LeadSearchCandidateView[];
+  warnings?: string[];
+}
+
+export interface LeadSearchProgressEvent {
+  type: LeadSearchProgressEventType;
+  runId: string;
+  sequence: number;
+  emittedAt: string;
+  stepKey?: string;
+  parentKey?: string;
+  title?: string;
+  description?: string;
+  progressPercent?: number;
+  metrics?: LeadSearchProgressMetric[];
+  result?: LeadSearchPublicResult;
+  errorMessage?: string;
+}
+
+export type LeadSearchProgressEventInput = Omit<LeadSearchProgressEvent, 'runId' | 'sequence' | 'emittedAt'>;
+
+export interface LeadSearchProgressReporter {
+  emit(event: LeadSearchProgressEventInput): void | Promise<void>;
+}
+
+interface InternalSearchResult {
+  qualityWarnings?: string[];
+  serperRequests: unknown[];
+  decisions: unknown[];
+  candidates: InternalCandidateSummary[];
+  stopReason: string;
+}
+
+interface InternalCandidateSummary {
+  sourceType?: string;
+  title?: string;
+  url?: string;
+  snippet?: string;
+  website?: string;
+  address?: string;
+  phoneNumber?: string;
+}
+
+/** Adds run metadata and monotonic sequence numbers to business progress events. */
+export function createLeadSearchProgressEmitter(
+  runId: string,
+  sink: (event: LeadSearchProgressEvent) => void | Promise<void>
+): LeadSearchProgressReporter {
+  let sequence = 0;
+
+  return {
+    emit(event) {
+      sequence += 1;
+
+      return sink({
+        ...event,
+        runId,
+        sequence,
+        emittedAt: new Date().toISOString()
+      });
+    }
+  };
+}
+
+/** Serializes a progress event as one NDJSON line. */
+export function serializeLeadSearchProgressEvent(event: LeadSearchProgressEvent) {
+  return `${JSON.stringify(event)}\n`;
+}
+
+/** Projects internal search traces into an ordinary-user-safe result shape. */
+export function toLeadSearchPublicResult(result: InternalSearchResult): LeadSearchPublicResult {
+  return {
+    summary: {
+      actionCount: result.serperRequests.length,
+      qualityCheckCount: result.decisions.length,
+      candidateCount: result.candidates.length,
+      stopReason: toPublicText(result.stopReason)
+    },
+    candidates: result.candidates.map(toCandidateView),
+    warnings: result.qualityWarnings?.length ? result.qualityWarnings.map(toPublicText) : undefined
+  };
+}
+
+function toCandidateView(candidate: InternalCandidateSummary): LeadSearchCandidateView {
+  return {
+    title: candidate.title,
+    website: candidate.website || candidate.url,
+    snippet: candidate.snippet,
+    address: candidate.address,
+    phoneNumber: candidate.phoneNumber,
+    sourceLabel: toSourceLabel(candidate.sourceType)
+  };
+}
+
+function toSourceLabel(sourceType?: string) {
+  if (sourceType === 'place' || sourceType === 'local') {
+    return '本地商家线索';
+  }
+
+  if (sourceType === 'organic') {
+    return '公开线索';
+  }
+
+  return '候选线索';
+}
+
+function toPublicText(text: string) {
+  return text
+    .replace(/Serper 请求/g, '采集动作')
+    .replace(/Serper/g, '采集')
+    .replace(/Search 查询/g, '公开线索采集方向')
+    .replace(/Places 查询/g, '本地商家采集方向')
+    .replace(/Search/g, '公开线索采集')
+    .replace(/Places/g, '本地商家采集')
+    .replace(/endpoint/gi, '采集通道');
+}

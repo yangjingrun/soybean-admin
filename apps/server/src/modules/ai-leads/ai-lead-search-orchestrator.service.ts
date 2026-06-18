@@ -16,6 +16,8 @@ import {
   buildKeywordOptimizeRepairPrompt,
   validateKeywordPlanLocalLanguages
 } from './keyword-local-language-rules';
+import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
+import { toLeadSearchPublicResult } from './ai-lead-search-progress';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -23,6 +25,7 @@ const defaultMaxSearchRequests = 20;
 const maxRepeatRounds = 2;
 const maxSearchPages = 3;
 const maxPlacesPages = 2;
+const candidatePoolMultiplier = 1.5;
 
 export interface AiLeadSearchContext {
   user?: UserInfo | null;
@@ -104,16 +107,38 @@ export class AiLeadSearchOrchestrator {
   ) {}
 
   /** Runs keyword optimization, Serper search, and search-result decisions as one backend workflow. */
-  async search(dto: SearchOrchestrateDto, context: AiLeadSearchContext = {}) {
+  async search(
+    dto: SearchOrchestrateDto,
+    context: AiLeadSearchContext = {},
+    reporter?: LeadSearchProgressReporter
+  ) {
     const requirement = dto.requirement.trim();
     const maxRequests = dto.maxSearchRequests ?? defaultMaxSearchRequests;
     const targetLeadCount = dto.targetLeadCount;
+    const candidatePoolTargetCount = toCandidatePoolTargetCount(targetLeadCount);
+
+    await reporter?.emit({
+      type: 'workflow_started',
+      title: '开始搜索采集',
+      description: '正在准备采集任务',
+      progressPercent: 0
+    });
+
     const serperConfig = await this.aiGatewayService.getSerperConfig(defaultSerperConfigKey);
 
     await this.recordLog('processing', 'AI 获客搜索编排开始', context, {
       maxRequests,
       targetLeadCount,
+      candidatePoolTargetCount,
       maxRepeatRounds
+    });
+
+    await reporter?.emit({
+      type: 'step_started',
+      stepKey: 'understand_requirement',
+      title: '理解获客需求',
+      description: '正在分析产品、市场和目标客户',
+      progressPercent: 5
     });
 
     const {
@@ -131,10 +156,28 @@ export class AiLeadSearchOrchestrator {
     await this.recordLog('processing', '关键词优化完成', context, {
       searchQueryCount: keywordOptimization.serperSearchQueries?.length ?? 0,
       placesQueryCount: this.getPlacesQueries(keywordOptimization).length,
-      targetLeadCount
+      targetLeadCount,
+      candidatePoolTargetCount
     });
 
     let stopReason = '所有查询已完成';
+
+    await reporter?.emit({
+      type: 'step_completed',
+      stepKey: 'understand_requirement',
+      title: '理解获客需求',
+      description: '已完成需求理解和采集方向规划',
+      progressPercent: 20
+    });
+
+    await reporter?.emit({
+      type: 'step_started',
+      stepKey: 'collect_public_leads',
+      title: '采集公开线索',
+      description: '正在按规划方向采集公开线索',
+      progressPercent: 25,
+      metrics: this.toProgressMetrics(serperRequests.length, maxRequests, candidates.length, decisions.length)
+    });
 
     for (const initialRequest of queryQueue) {
       let currentRequest: SearchRequestTrace | null = initialRequest;
@@ -148,8 +191,8 @@ export class AiLeadSearchOrchestrator {
           break;
         }
 
-        if (targetLeadCount && candidates.length >= targetLeadCount) {
-          stopReason = '已达到目标线索数量';
+        if (candidates.length >= candidatePoolTargetCount) {
+          stopReason = '已达到候选池目标数量';
           currentRequest = null;
           break;
         }
@@ -175,11 +218,20 @@ export class AiLeadSearchOrchestrator {
           endpoint: currentRequest.endpoint,
           q: currentRequest.requestBody.q,
           page: currentRequest.requestBody.page,
+          num: currentRequest.requestBody.num,
           collectedLeadCount: candidates.length
         });
+        await reporter?.emit({
+          type: 'step_progress',
+          stepKey: 'collect_public_leads',
+          title: '采集公开线索',
+          description: `已完成 ${serperRequests.length} 个采集动作，整理出 ${candidates.length} 条候选线索`,
+          progressPercent: toProgressPercent(serperRequests.length, maxRequests),
+          metrics: this.toProgressMetrics(serperRequests.length, maxRequests, candidates.length, decisions.length)
+        });
 
-        if (targetLeadCount && candidates.length >= targetLeadCount) {
-          stopReason = '已达到目标线索数量';
+        if (candidates.length >= candidatePoolTargetCount) {
+          stopReason = '已达到候选池目标数量';
           currentRequest = null;
           break;
         }
@@ -196,11 +248,20 @@ export class AiLeadSearchOrchestrator {
           context
         });
         decisions.push({ request: currentRequest, decision });
+        await reporter?.emit({
+          type: 'step_progress',
+          stepKey: 'analyze_candidate_quality',
+          title: '判断线索质量',
+          description: `已完成 ${decisions.length} 次质量判断`,
+          progressPercent: toProgressPercent(serperRequests.length, maxRequests),
+          metrics: this.toProgressMetrics(serperRequests.length, maxRequests, candidates.length, decisions.length)
+        });
 
         await this.recordLog('processing', '搜索结果决策完成', context, {
           endpoint: currentRequest.endpoint,
           q: currentRequest.requestBody.q,
           page: currentRequest.requestBody.page,
+          num: currentRequest.requestBody.num,
           nextAction: decision.nextAction,
           pageQuality: decision.pageQuality
         });
@@ -223,6 +284,23 @@ export class AiLeadSearchOrchestrator {
       }
     }
 
+    await reporter?.emit({
+      type: 'step_completed',
+      stepKey: 'collect_public_leads',
+      title: '采集公开线索',
+      description: `已完成 ${serperRequests.length} 个采集动作`,
+      progressPercent: 90,
+      metrics: this.toProgressMetrics(serperRequests.length, maxRequests, candidates.length, decisions.length)
+    });
+    await reporter?.emit({
+      type: 'step_completed',
+      stepKey: 'organize_candidates',
+      title: '整理候选客户',
+      description: `已整理 ${candidates.length} 条候选线索`,
+      progressPercent: 95,
+      metrics: this.toProgressMetrics(serperRequests.length, maxRequests, candidates.length, decisions.length)
+    });
+
     await this.recordLog('success', 'AI 获客搜索编排完成', context, {
       serperRequestCount: serperRequests.length,
       decisionCount: decisions.length,
@@ -230,7 +308,7 @@ export class AiLeadSearchOrchestrator {
       stopReason
     });
 
-    return {
+    const result = {
       keywordOptimization,
       keywordOptimizationText: keywordOptimizationText.text,
       qualityWarnings,
@@ -239,6 +317,18 @@ export class AiLeadSearchOrchestrator {
       candidates,
       stopReason
     };
+
+    const publicResult = toLeadSearchPublicResult(result);
+
+    await reporter?.emit({
+      type: 'workflow_completed',
+      title: '搜索采集完成',
+      description: publicResult.summary.stopReason,
+      progressPercent: 100,
+      result: publicResult
+    });
+
+    return result;
   }
 
   /** Generates a keyword plan and asks the model to repair it once if quality gates fail. */
@@ -413,6 +503,14 @@ export class AiLeadSearchOrchestrator {
     }
   }
 
+  private toProgressMetrics(actionCount: number, actionTotal: number, candidateCount: number, qualityCheckCount: number) {
+    return [
+      { key: 'actionCount', label: '采集动作', value: actionCount, total: actionTotal },
+      { key: 'candidateCount', label: '候选线索', value: candidateCount },
+      { key: 'qualityCheckCount', label: '质量判断', value: qualityCheckCount }
+    ];
+  }
+
   private recordLog(
     status: 'processing' | 'success',
     message: string,
@@ -477,6 +575,18 @@ function readTbs(value: unknown) {
   const tbs = trimOptional(value);
 
   return tbs ? { tbs } : {};
+}
+
+function toCandidatePoolTargetCount(targetLeadCount: number) {
+  return Math.ceil(targetLeadCount * candidatePoolMultiplier);
+}
+
+function toProgressPercent(done: number, total: number) {
+  if (total <= 0) {
+    return undefined;
+  }
+
+  return Math.min(89, 25 + Math.round((done / total) * 60));
 }
 
 function toRequestKey(request: SearchRequestTrace) {

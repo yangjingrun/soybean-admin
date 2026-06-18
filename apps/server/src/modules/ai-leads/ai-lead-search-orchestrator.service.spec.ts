@@ -5,6 +5,7 @@ import type { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { leadKeywordOptimizePromptKey, leadSearchResultDecidePromptKey } from '../ai-gateway/ai-gateway.constants';
 import type { SerperClient } from '../ai-gateway/serper-client.service';
 import type { SystemLogRecordInput } from '../system-log/system-log.types';
+import type { LeadSearchProgressEventInput } from './ai-lead-search-progress';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 
 describe('AiLeadSearchOrchestrator', () => {
@@ -114,7 +115,12 @@ describe('AiLeadSearchOrchestrator', () => {
       }
     ]);
     const serper = createSerperClient([
-      { organic: [{ title: 'A', link: 'https://a.example.com', snippet: 'bearing importer' }] }
+      {
+        organic: [
+          { title: 'A', link: 'https://a.example.com', snippet: 'bearing importer' },
+          { title: 'B', link: 'https://b.example.com', snippet: 'bearing distributor' }
+        ]
+      }
     ]);
     const service = new AiLeadSearchOrchestrator(
       aiGateway as unknown as AiGatewayService,
@@ -127,8 +133,163 @@ describe('AiLeadSearchOrchestrator', () => {
 
     assert.equal(serper.calls.length, 1);
     assert.equal(aiGateway.calls.length, 1);
-    assert.equal(result.candidates.length, 1);
-    assert.equal(result.stopReason, '已达到目标线索数量');
+    assert.equal(result.candidates.length, 2);
+    assert.equal(result.stopReason, '已达到候选池目标数量');
+  });
+
+  it('collects a buffered candidate pool without shrinking the last Serper page', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 20,
+          serperSearchQueries: [
+            {
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'high',
+          nextAction: 'paginate',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 2
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'high',
+          nextAction: 'paginate',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 3
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      { organic: createOrganicCandidates('first', 10) },
+      { organic: createOrganicCandidates('second', 10) },
+      { organic: createOrganicCandidates('third', 10) }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    const result = await service.search({ requirement: '找轴承进口商', targetLeadCount: 20 }, { user: createUser() });
+
+    assert.deepEqual(
+      serper.calls.map(call => call.request.num),
+      [10, 10, 10]
+    );
+    assert.equal(result.candidates.length, 30);
+    assert.equal(result.stopReason, '已达到候选池目标数量');
+  });
+
+  it('emits business-safe progress events while orchestrating search collection', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 10,
+          serperSearchQueries: [
+            {
+              buyerType: 'importer',
+              intent: 'importer',
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      { organic: [{ title: 'A', link: 'https://a.example.com', snippet: 'bearing importer' }] }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+    const events: LeadSearchProgressEventInput[] = [];
+
+    await service.search(
+      { requirement: '找轴承进口商', targetLeadCount: 20 },
+      { user: createUser() },
+      {
+        emit(event) {
+          events.push(event);
+        }
+      }
+    );
+
+    assert.equal(events[0].type, 'workflow_started');
+    assert.ok(
+      events.some(
+        event =>
+          event.type === 'step_progress' &&
+          event.stepKey === 'collect_public_leads' &&
+          event.metrics?.some(metric => metric.label === '采集动作' && metric.value === 1)
+      )
+    );
+    const completed = events.find(event => event.type === 'workflow_completed');
+    assert.equal(completed?.result?.summary.actionCount, 1);
+    assert.equal(completed?.result?.summary.candidateCount, 1);
+    assert.equal(completed?.result?.candidates[0].sourceLabel, '公开线索');
+    assert.doesNotMatch(JSON.stringify(events), /Serper|endpoint|Places|Search|6204 bearing importer Saudi Arabia/);
   });
 
   it('continues one initial query at most two extra rounds', async () => {
@@ -805,6 +966,14 @@ function createSerperClient(results: unknown[]) {
       return results.shift() || {};
     }
   };
+}
+
+function createOrganicCandidates(prefix: string, count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    title: `${prefix} buyer ${index + 1}`,
+    link: `https://${prefix}-${index + 1}.example.com`,
+    snippet: 'bearing importer'
+  }));
 }
 
 function createLogRecorder() {

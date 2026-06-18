@@ -1,4 +1,5 @@
 import { request } from '../request';
+export { streamLeadCustomerSearch } from './ai-leads.stream';
 import {
   buildDeleteLeadKeywordHistoryRequestConfig,
   buildLeadKeywordHistoryListRequestConfig,

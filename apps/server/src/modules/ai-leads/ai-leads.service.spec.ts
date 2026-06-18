@@ -4,6 +4,8 @@ import type { UserInfo } from '../auth/auth.types';
 import type { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { GenerateAiTextDto } from '../ai-gateway/dto/generate-ai-text.dto';
 import { defaultAiModelConfigKey, leadKeywordOptimizePromptKey } from '../ai-gateway/ai-gateway.constants';
+import type { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
+import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 import { AiLeadsService } from './ai-leads.service';
 import type {
   AiLeadKeywordHistoryRecord,
@@ -382,7 +384,7 @@ describe('AiLeadsService', () => {
 
     assert.equal(callCount, 2);
     assert.match(result.qualityWarnings?.[0] || '', /关键词优化结果缺少韩国韩语 Search 查询/);
-    assert.equal(capturedHistoryInput?.resultText, JSON.stringify(invalidKeywordPlan));
+    assert.equal(requireCapturedHistoryInput(capturedHistoryInput).resultText, JSON.stringify(invalidKeywordPlan));
   });
 
   it('repairs keyword plans once when local-language validation fails', async () => {
@@ -426,7 +428,10 @@ describe('AiLeadsService', () => {
     assert.match(capturedPrompts[1], /关键词优化结果需要修复/);
     assert.match(capturedPrompts[1], /缺少格鲁吉亚格鲁吉亚语 Search 查询/);
     assert.deepEqual(result.keywordPlan, repairedGeorgiaKeywordPlan);
-    assert.equal(capturedHistoryInput?.resultText, JSON.stringify(repairedGeorgiaKeywordPlan));
+    assert.equal(
+      requireCapturedHistoryInput(capturedHistoryInput).resultText,
+      JSON.stringify(repairedGeorgiaKeywordPlan)
+    );
   });
 
   it('lists keyword histories for the current user only', async () => {
@@ -533,6 +538,42 @@ describe('AiLeadsService', () => {
     assert.equal(capturedUserId, 'u-1');
     assert.deepEqual(result, { id: 'history-1' });
   });
+
+  it('passes trimmed stream search requests and reporter to the search orchestrator', async () => {
+    let capturedDto: unknown;
+    let capturedContext: unknown;
+    let capturedReporter: unknown;
+    const reporter: LeadSearchProgressReporter = {
+      emit() {}
+    };
+    const searchOrchestrator = {
+      async search(dto: unknown, context: unknown, progressReporter: unknown) {
+        capturedDto = dto;
+        capturedContext = context;
+        capturedReporter = progressReporter;
+
+        return { stopReason: '所有查询已完成' };
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const service = new AiLeadsService(createAiGatewayService(), createHistoryStore(), undefined, searchOrchestrator);
+
+    const result = await service.searchOrchestrateStream(
+      {
+        requirement: '  找沙特轴承进口商  ',
+        targetLeadCount: 20
+      },
+      { user },
+      reporter
+    );
+
+    assert.deepEqual(capturedDto, {
+      requirement: '找沙特轴承进口商',
+      targetLeadCount: 20
+    });
+    assert.deepEqual(capturedContext, { user });
+    assert.equal(capturedReporter, reporter);
+    assert.deepEqual(result, { stopReason: '所有查询已完成' });
+  });
 });
 
 function createAiGatewayService() {
@@ -541,6 +582,12 @@ function createAiGatewayService() {
       throw new Error('generateText should not be called');
     }
   } as unknown as AiGatewayService;
+}
+
+function requireCapturedHistoryInput(input: SaveKeywordHistoryInput | null) {
+  assert.ok(input);
+
+  return input;
 }
 
 function createHistoryStore(overrides: Partial<AiLeadKeywordHistoryStore> = {}): AiLeadKeywordHistoryStore {

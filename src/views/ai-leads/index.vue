@@ -1,16 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import { useAuthStore } from '@/store/modules/auth';
 import {
   deleteLeadKeywordHistory,
   fetchLeadKeywordHistories,
   optimizeLeadKeywords,
-  searchLeadCustomers,
+  streamLeadCustomerSearch,
   updateLeadKeywordHistory
 } from '@/service/api';
 import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
+import SearchProgressPanel from './modules/SearchProgressPanel.vue';
+import {
+  createLeadSearchProgressState,
+  reduceLeadSearchProgressEvent
+} from './modules/search-progress';
+import type { LeadSearchProgressState } from './modules/search-progress';
 import {
   buildKeywordHistoryUpdatePayload,
   cloneKeywordPlan,
@@ -45,9 +51,10 @@ const isHistoryLoading = shallowRef(false);
 const isHistorySaving = shallowRef(false);
 const isHistoryDrawerVisible = shallowRef(false);
 const isEditingResult = shallowRef(false);
+const searchAbortController = shallowRef<AbortController | null>(null);
 const deletingKeywordHistoryId = shallowRef('');
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
-const searchResult = shallowRef<Api.AiLeads.SearchOrchestrateResult | null>(null);
+const searchProgress = ref<LeadSearchProgressState>(createLeadSearchProgressState());
 const keywordQualityWarnings = ref<string[]>([]);
 const historyRecords = ref<Api.AiLeads.KeywordHistoryRecord[]>([]);
 const editableKeywordPlan = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
@@ -64,7 +71,6 @@ const canSaveHistory = computed(() =>
 );
 const isHistoryDeleting = computed(() => Boolean(deletingKeywordHistoryId.value));
 const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
-const searchResultText = computed(() => (searchResult.value ? JSON.stringify(searchResult.value, null, 2) : ''));
 const parsedAiKeywordPlan = computed(() => {
   if (!aiResult.value?.text) {
     return null;
@@ -79,7 +85,7 @@ const parsedAiKeywordPlan = computed(() => {
 const keywordOptimizationPlan = computed(() => editableKeywordPlan.value || parsedAiKeywordPlan.value);
 const hasKeywordPlan = computed(() => Boolean(keywordOptimizationPlan.value));
 const canSearchCustomers = computed(
-  () => canGenerate.value && hasKeywordPlan.value && isTargetLeadCountValid.value && !isGenerating.value
+  () => canGenerate.value && hasKeywordPlan.value && isTargetLeadCountValid.value && !isGenerating.value && !isSearching.value
 );
 const keywordOptimizationViewModel = computed(() =>
   keywordOptimizationPlan.value
@@ -90,9 +96,16 @@ const aiFinishReasonLabel = computed(() => formatAiFinishReason(aiResult.value?.
 const currentHistoryRecord = computed(
   () => historyRecords.value.find(record => record.id === selectedHistoryId.value) || null
 );
+const hasSearchProgress = computed(
+  () => isSearching.value || searchProgress.value.status !== 'idle' || Boolean(searchProgress.value.result)
+);
 
 onMounted(() => {
   void loadKeywordHistories();
+});
+
+onBeforeUnmount(() => {
+  cancelSearchStream();
 });
 
 /** Calls the AI leads keyword optimization workflow. */
@@ -100,7 +113,7 @@ async function handleGenerate() {
   const targetLeadCount = form.targetLeadCount;
   const isTargetLeadCountManuallyEdited = isTargetLeadCountTouched.value;
   isGenerating.value = true;
-  searchResult.value = null;
+  resetSearchProgress();
 
   try {
     const { data: result, error } = await optimizeLeadKeywords({
@@ -128,8 +141,12 @@ async function handleGenerate() {
   }
 }
 
-/** Runs keyword optimization, Serper search, and search-result decisions through the backend workflow. */
+/** Starts the backend search collection workflow and consumes streamed progress events. */
 async function handleSearchCustomers() {
+  if (isSearching.value) {
+    return;
+  }
+
   if (isGenerating.value) {
     message.warning('关键词生成中，请稍后再开始采集');
     return;
@@ -147,33 +164,52 @@ async function handleSearchCustomers() {
   }
 
   isSearching.value = true;
-  searchResult.value = null;
+  aiResult.value = null;
+  keywordQualityWarnings.value = [];
+  searchProgress.value = createStartingSearchProgressState();
+
+  const abortController = new AbortController();
+  searchAbortController.value = abortController;
 
   try {
-    const { data: result, error } = await searchLeadCustomers({
-      requirement: form.requirement.trim(),
-      targetLeadCount
-    });
+    await streamLeadCustomerSearch(
+      {
+        requirement: form.requirement.trim(),
+        targetLeadCount
+      },
+      {
+        onEvent(event) {
+          searchProgress.value = reduceLeadSearchProgressEvent(searchProgress.value, event);
+        }
+      },
+      { signal: abortController.signal }
+    );
 
-    if (error) {
-      return;
+    if (searchProgress.value.status === 'completed') {
+      message.success('搜索采集完成');
+    } else if (searchProgress.value.status === 'failed') {
+      message.error(searchProgress.value.errorMessage || '搜索采集失败，请稍后重试');
     }
-
-    aiResult.value = null;
-    keywordQualityWarnings.value = [];
-    searchResult.value = result;
-    message.success('搜索采集完成');
+  } catch (error) {
+    if (!isAbortError(error)) {
+      searchProgress.value = reduceLeadSearchProgressEvent(searchProgress.value, createClientFailureEvent());
+      message.error('搜索采集失败，请稍后重试');
+    }
   } finally {
     isSearching.value = false;
+    if (searchAbortController.value === abortController) {
+      searchAbortController.value = null;
+    }
   }
 }
 
 function handleClear() {
+  cancelSearchStream();
   form.requirement = '';
   form.targetLeadCount = defaultTargetLeadCount;
   isTargetLeadCountTouched.value = false;
   aiResult.value = null;
-  searchResult.value = null;
+  searchProgress.value = createLeadSearchProgressState();
   keywordQualityWarnings.value = [];
   editableKeywordPlan.value = null;
   editingKeywordPlanSnapshot.value = null;
@@ -192,15 +228,6 @@ async function handleCopyResult() {
       : formatKeywordOptimizationVisibleText(keywordOptimizationViewModel.value);
 
   await navigator.clipboard.writeText(copyText);
-  message.success('结果已复制');
-}
-
-async function handleCopySearchResult() {
-  if (!searchResultText.value) {
-    return;
-  }
-
-  await navigator.clipboard.writeText(searchResultText.value);
   message.success('结果已复制');
 }
 
@@ -328,7 +355,7 @@ function applyKeywordHistoryRecord(
   keywordQualityWarnings.value = [];
   editableKeywordPlan.value = cloneKeywordPlan(record.keywordPlan);
   editingKeywordPlanSnapshot.value = null;
-  searchResult.value = null;
+  resetSearchProgress();
   isEditingResult.value = false;
 }
 
@@ -339,7 +366,7 @@ function resetKeywordHistorySelection() {
   keywordQualityWarnings.value = [];
   editableKeywordPlan.value = null;
   editingKeywordPlanSnapshot.value = null;
-  searchResult.value = null;
+  resetSearchProgress();
   isEditingResult.value = false;
 }
 
@@ -358,6 +385,42 @@ function getRequiredTargetLeadCount() {
 function handleTargetLeadCountUpdate(value: number | null) {
   isTargetLeadCountTouched.value = true;
   form.targetLeadCount = value;
+}
+
+/** Clears previous search progress and aborts an active stream if one exists. */
+function resetSearchProgress() {
+  cancelSearchStream();
+  searchProgress.value = createLeadSearchProgressState();
+}
+
+function cancelSearchStream() {
+  searchAbortController.value?.abort();
+  searchAbortController.value = null;
+}
+
+function createStartingSearchProgressState(): LeadSearchProgressState {
+  return {
+    ...createLeadSearchProgressState(),
+    status: 'running',
+    currentTitle: '准备搜索采集',
+    currentDescription: '正在建立采集任务。',
+    progressPercent: 3
+  };
+}
+
+function createClientFailureEvent(): Api.AiLeads.LeadSearchProgressEvent {
+  return {
+    type: 'workflow_failed',
+    runId: 'client',
+    sequence: Date.now(),
+    emittedAt: new Date().toISOString(),
+    title: '搜索采集失败',
+    errorMessage: '搜索采集失败，请稍后重试'
+  };
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === 'AbortError';
 }
 </script>
 
@@ -437,7 +500,7 @@ function handleTargetLeadCountUpdate(value: number | null) {
       <template #header>
         <div class="result-header">
           <div class="result-heading">
-            <span class="result-title">{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
+            <span class="result-title">{{ hasSearchProgress ? '搜索采集结果' : '关键词优化结果' }}</span>
             <NTag v-if="aiResult && aiFinishReasonLabel" size="small" type="success">
               {{ aiFinishReasonLabel }}
             </NTag>
@@ -499,25 +562,11 @@ function handleTargetLeadCountUpdate(value: number | null) {
               </NPopconfirm>
             </template>
           </NSpace>
-          <NSpace v-if="searchResult" :size="8" class="result-actions">
-            <NTag size="small" type="info">请求 {{ searchResult.serperRequests.length }}</NTag>
-            <NTag size="small" type="success">候选 {{ searchResult.candidates.length }}</NTag>
-            <NButton size="small" @click="handleCopySearchResult">复制结果</NButton>
-          </NSpace>
         </div>
       </template>
 
-      <div v-if="searchResult" class="result-panel">
-        <NAlert v-if="searchResult.qualityWarnings?.length" type="warning" :bordered="false">
-          {{ searchResult.qualityWarnings.join('；') }}
-        </NAlert>
-        <NSpace :size="8">
-          <NTag type="info" :bordered="false">Serper 请求：{{ searchResult.serperRequests.length }}</NTag>
-          <NTag type="warning" :bordered="false">决策：{{ searchResult.decisions.length }}</NTag>
-          <NTag type="success" :bordered="false">候选：{{ searchResult.candidates.length }}</NTag>
-          <NTag :bordered="false">{{ searchResult.stopReason }}</NTag>
-        </NSpace>
-        <NInput :value="searchResultText" type="textarea" readonly :autosize="{ minRows: 18, maxRows: 30 }" />
+      <div v-if="hasSearchProgress" class="result-panel">
+        <SearchProgressPanel :state="searchProgress" :loading="isSearching" />
       </div>
       <div v-else-if="aiResult" class="result-panel">
         <NAlert v-if="keywordQualityWarnings.length" type="warning" :bordered="false">
