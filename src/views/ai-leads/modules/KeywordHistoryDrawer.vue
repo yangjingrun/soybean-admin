@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import dayjs from 'dayjs';
-import { formatHistoryTargetRegions } from './history-display';
+import { formatHistorySubject } from './history-display';
 
 const props = defineProps<{
   show: boolean;
@@ -44,13 +44,7 @@ function formatTime(value: string) {
             @keydown.space.prevent="emit('select', record)"
           >
             <span class="history-item-main">
-              <span v-if="formatHistoryTargetRegions(record.keywordPlan.resolvedTargetRegions)" class="history-item-target">
-                <span class="history-item-target-label">目标市场</span>
-                <span class="history-item-target-text">
-                  {{ formatHistoryTargetRegions(record.keywordPlan.resolvedTargetRegions) }}
-                </span>
-              </span>
-              <span class="history-item-title">{{ record.keywordPlan.resolvedProductKeywords || record.requirement }}</span>
+              <span class="history-item-subject">{{ formatHistorySubject(record.keywordPlan) || record.requirement }}</span>
               <span class="history-item-desc">{{ record.requirement }}</span>
             </span>
             <span class="history-item-side">
@@ -133,33 +127,10 @@ function formatTime(value: string) {
   gap: 6px;
 }
 
-.history-item-title {
+.history-item-subject {
   overflow: hidden;
   color: var(--history-item-text);
-  font-size: 13px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-item-target {
-  display: inline-flex;
-  min-width: 0;
-  align-items: baseline;
-  gap: 8px;
   padding-right: 154px;
-}
-
-.history-item-target-label {
-  flex-shrink: 0;
-  color: var(--history-item-text-tertiary);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.history-item-target-text {
-  overflow: hidden;
-  color: var(--history-item-text);
   font-size: 17px;
   font-weight: 700;
   line-height: 1.25;

@@ -36,6 +36,26 @@ const targetRegionNames: Record<string, string> = {
   israel: '以色列'
 };
 
+const productCategoryMatchers: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /轴承|bearing/i, label: '轴承' },
+  { pattern: /轮胎|tire|tyre/i, label: '轮胎' },
+  { pattern: /阀门|valve/i, label: '阀门' },
+  { pattern: /水泵|泵|pump/i, label: '泵' },
+  { pattern: /电机|motor/i, label: '电机' }
+];
+
+const customerTypeMatchers: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /进口商|importer/i, label: '进口商' },
+  { pattern: /经销商|distributor/i, label: '经销商' },
+  { pattern: /批发商|wholesaler|wholesale/i, label: '批发商' },
+  { pattern: /代理商|dealer|agent/i, label: '代理商' },
+  { pattern: /库存商|stockist/i, label: '库存商' },
+  { pattern: /供应商|supplier/i, label: '供应商' },
+  { pattern: /零售商|retailer/i, label: '零售商' },
+  { pattern: /承包商|contractor/i, label: '承包商' },
+  { pattern: /安装商|installer/i, label: '安装商' }
+];
+
 /** Formats saved target regions for the history list, keeping the country signal readable. */
 export function formatHistoryTargetRegions(regions?: string | null) {
   const regionText = regions?.trim();
@@ -50,4 +70,44 @@ export function formatHistoryTargetRegions(regions?: string | null) {
     .filter(Boolean)
     .map(region => targetRegionNames[region.toLowerCase()] || region)
     .join('、');
+}
+
+/** Formats the history title as product, country and buyer type for quick scanning. */
+export function formatHistorySubject(plan: Api.AiLeads.OptimizedKeywordPlan) {
+  return [
+    resolveProductCategory(plan),
+    formatHistoryTargetRegions(plan.resolvedTargetRegions),
+    resolveCustomerTypes(plan)
+  ]
+    .filter(Boolean)
+    .join('  ');
+}
+
+function resolveProductCategory(plan: Api.AiLeads.OptimizedKeywordPlan) {
+  const productText = [plan.resolvedProductKeywords, plan.structuredRequirement].filter(Boolean).join(' ');
+  const matchedCategory = productCategoryMatchers.find(item => item.pattern.test(productText));
+
+  if (matchedCategory) {
+    return matchedCategory.label;
+  }
+
+  // 没匹配到已知类目时，取第一个关键词，避免历史标题过长。
+  return plan.resolvedProductKeywords
+    .split(/[,，、/|]+/)
+    .map(keyword => keyword.trim())
+    .find(Boolean);
+}
+
+function resolveCustomerTypes(plan: Api.AiLeads.OptimizedKeywordPlan) {
+  const customerText = [
+    plan.resolvedTargetCustomerProfile,
+    ...plan.buyerSegments.map(segment => segment.buyerType)
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return customerTypeMatchers
+    .filter(item => item.pattern.test(customerText))
+    .map(item => item.label)
+    .join('/');
 }
