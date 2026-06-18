@@ -63,6 +63,8 @@ const parsedAiKeywordPlan = computed(() => {
   }
 });
 const keywordOptimizationPlan = computed(() => editableKeywordPlan.value || parsedAiKeywordPlan.value);
+const hasKeywordPlan = computed(() => Boolean(keywordOptimizationPlan.value));
+const canSearchCustomers = computed(() => canGenerate.value && hasKeywordPlan.value && !isGenerating.value);
 const keywordOptimizationViewModel = computed(() =>
   keywordOptimizationPlan.value
     ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, isSuperAdmin.value)
@@ -103,6 +105,16 @@ async function handleGenerate() {
 
 /** Runs keyword optimization, Serper search, and search-result decisions through the backend workflow. */
 async function handleSearchCustomers() {
+  if (isGenerating.value) {
+    message.warning('关键词生成中，请稍后再开始采集');
+    return;
+  }
+
+  if (!hasKeywordPlan.value) {
+    message.warning('请先优化关键词，再开始采集');
+    return;
+  }
+
   isSearching.value = true;
   searchResult.value = null;
 
@@ -330,7 +342,7 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
               <NButton
                 type="primary"
                 :loading="isSearching"
-                :disabled="!canGenerate || isGenerating || isHistorySaving || isHistoryDeleting"
+                :disabled="!canSearchCustomers || isHistorySaving || isHistoryDeleting"
                 @click="handleSearchCustomers"
               >
                 开始搜索采集
