@@ -21,6 +21,13 @@ export type CrmAccountStatus = (typeof crmAccountStatuses)[number];
 
 export type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable';
 
+export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
+export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
+
+export type CrmMailboxProvider = 'gmail';
+export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
+export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
+
 export interface CrmUserContext {
   userId: string;
   userName: string;
@@ -88,6 +95,27 @@ export interface CrmTimelineEventRecord {
   createdAt: Date;
 }
 
+export interface CrmMailboxRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  ownerUserName: string | null;
+  provider: CrmMailboxProvider;
+  emailAddress: string;
+  emailHash: string;
+  maskedEmail: string;
+  status: CrmMailboxStatus;
+  dailyLimit: number;
+  hourlyLimit: number;
+  warmupStage: CrmMailboxWarmupStage;
+  watchExpiration: Date | null;
+  lastHistoryId: string | null;
+  authorizedAt: Date;
+  pausedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface CrmAccountDetailRecord {
   account: CrmAccountRecord;
   contacts: CrmContactRecord[];
@@ -150,6 +178,35 @@ export interface CrmTimelineEventCreateInput {
   metadata?: unknown;
 }
 
+export interface CrmMailboxCreateInput {
+  organizationId: string;
+  ownerUserId: string;
+  ownerUserName?: string | null;
+  provider: CrmMailboxProvider;
+  emailAddress: string;
+  emailHash: string;
+  maskedEmail: string;
+  status: CrmMailboxStatus;
+  dailyLimit: number;
+  hourlyLimit: number;
+  warmupStage: CrmMailboxWarmupStage;
+  watchExpiration?: Date | null;
+  lastHistoryId?: string | null;
+  authorizedAt: Date;
+  pausedAt?: Date | null;
+}
+
+export interface CrmMailboxUpdateInput {
+  status?: CrmMailboxStatus;
+  dailyLimit?: number;
+  hourlyLimit?: number;
+  warmupStage?: CrmMailboxWarmupStage;
+  watchExpiration?: Date | null;
+  lastHistoryId?: string | null;
+  authorizedAt?: Date;
+  pausedAt?: Date | null;
+}
+
 export interface CrmStore {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
@@ -181,4 +238,23 @@ export interface CrmStore {
     ownerUserId?: string;
   }): Promise<CrmAccountDetailRecord | null>;
   createTimelineEvent(input: CrmTimelineEventCreateInput): Promise<CrmTimelineEventRecord>;
+  findMailboxByProviderAndEmailHash(
+    provider: CrmMailboxProvider,
+    emailHash: string
+  ): Promise<CrmMailboxRecord | null>;
+  createMailbox(input: CrmMailboxCreateInput): Promise<CrmMailboxRecord>;
+  listMailboxes(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmMailboxStatus;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmMailboxRecord[]; total: number }>;
+  findMailboxById(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmMailboxRecord | null>;
+  updateMailbox(id: string, input: CrmMailboxUpdateInput): Promise<CrmMailboxRecord | null>;
 }

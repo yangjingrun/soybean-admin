@@ -18,6 +18,12 @@ declare namespace Api {
 
     type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable';
 
+    type MailboxProvider = 'gmail';
+
+    type MailboxStatus = 'active' | 'paused' | 'auth_expired';
+
+    type MailboxWarmupStage = 'new' | 'warming' | 'ready';
+
     interface LeadRecord {
       id: string;
       organizationId: string;
@@ -113,5 +119,49 @@ declare namespace Api {
     }
 
     type LeadList = Api.Common.PaginatingQueryRecord<LeadRecord>;
+
+    interface MailboxRecord {
+      id: string;
+      organizationId: string;
+      ownerUserId: string;
+      ownerUserName: string;
+      provider: MailboxProvider;
+      emailAddress: string;
+      maskedEmail: string;
+      status: MailboxStatus;
+      dailyLimit: number;
+      hourlyLimit: number;
+      warmupStage: MailboxWarmupStage;
+      watchExpiration: string | null;
+      lastHistoryId: string | null;
+      authorizedAt: string | null;
+      pausedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface MailboxSearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+      status?: MailboxStatus;
+    }
+
+    interface MailboxFilterModel {
+      keyword: string;
+      status: MailboxStatus | null;
+    }
+
+    interface MailboxAuthorizePayload {
+      emailAddress: string;
+    }
+
+    interface MailboxAuthorizeFormModel {
+      emailAddress: string;
+    }
+
+    interface MailboxOperateResult {
+      mailbox: MailboxRecord;
+    }
+
+    type MailboxList = Api.Common.PaginatingQueryRecord<MailboxRecord>;
   }
 }

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import { CrmService } from './crm.service';
-import type { CrmEmailStatus, CrmStore, CrmUserContext } from './crm.types';
+import type { CrmEmailStatus, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
 
 describe('CrmService', () => {
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -375,6 +376,161 @@ describe('CrmService', () => {
     assert.equal(store.lastContactArgs?.ownerUserId, undefined);
     assert.equal(store.contacts[0].emailStatus, 'valid');
   });
+
+  it('mock authorizes a normalized Gmail mailbox without storing tokens and records a sanitized log', async () => {
+    const store = createStore();
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const result = await service.mockAuthorizeMailbox({ emailAddress: '  Alice@Gmail.COM  ' }, createContext());
+
+    assert.equal(result.mailbox.provider, 'gmail');
+    assert.equal(result.mailbox.emailAddress, 'alice@gmail.com');
+    assert.equal(result.mailbox.maskedEmail, 'a***@gmail.com');
+    assert.equal(result.mailbox.status, 'active');
+    assert.equal(result.mailbox.dailyLimit, 50);
+    assert.equal(result.mailbox.hourlyLimit, 10);
+    assert.equal(result.mailbox.warmupStage, 'new');
+    assert.equal(result.mailbox.authorizedAt, '2026-06-18T09:00:00.000Z');
+    assert.equal(result.mailbox.ownerUserId, 'user-1');
+    assert.equal(store.mailboxes[0].emailHash.length, 64);
+    assert.deepEqual(logs.records[0].metadata, {
+      organizationId: 'org-1',
+      mailboxId: 'mailbox-1',
+      provider: 'gmail',
+      maskedEmail: 'a***@gmail.com',
+      fromStatus: null,
+      toStatus: 'active'
+    });
+  });
+
+  it('returns the current user mailbox when mock authorizing the same Gmail address again', async () => {
+    const existingMailbox = createMailbox({
+      id: 'mailbox-existing',
+      emailAddress: 'alice@gmail.com',
+      emailHash: hashTestEmail('alice@gmail.com')
+    });
+    const store = createStore([], { mailboxes: [existingMailbox] });
+    const service = new CrmService(store);
+
+    const result = await service.mockAuthorizeMailbox({ emailAddress: 'ALICE@gmail.com' }, createContext());
+
+    assert.equal(result.mailbox.id, 'mailbox-existing');
+    assert.equal(store.mailboxes.length, 1);
+  });
+
+  it('rejects concurrent mock authorization when unique conflict returns another owner mailbox', async () => {
+    const store = createStore();
+    const peerMailbox = createMailbox({
+      id: 'peer-mailbox',
+      organizationId: 'org-2',
+      ownerUserId: 'user-2',
+      emailAddress: 'alice@gmail.com',
+      emailHash: hashTestEmail('alice@gmail.com')
+    });
+    store.createMailbox = async () => peerMailbox;
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    await assert.rejects(
+      () => service.mockAuthorizeMailbox({ emailAddress: 'alice@gmail.com' }, createContext()),
+      BadRequestException
+    );
+
+    assert.equal(logs.records.length, 0);
+  });
+
+  it('rejects unsupported mailbox aliases and non-Gmail addresses in the first version', async () => {
+    const service = new CrmService(createStore());
+
+    await assert.rejects(
+      () => service.mockAuthorizeMailbox({ emailAddress: 'alice+sales@gmail.com' }, createContext()),
+      BadRequestException
+    );
+    await assert.rejects(
+      () => service.mockAuthorizeMailbox({ emailAddress: 'alice@example.com' }, createContext()),
+      BadRequestException
+    );
+  });
+
+  it('lists only owner mailboxes for members and all organization mailboxes for admins', async () => {
+    const store = createStore([], {
+      mailboxes: [
+        createMailbox({ id: 'own-mailbox', ownerUserId: 'user-1', emailAddress: 'own@gmail.com' }),
+        createMailbox({ id: 'peer-mailbox', ownerUserId: 'user-2', emailAddress: 'peer@gmail.com' })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const memberResult = await service.listMailboxes(createContext(), { keyword: 'gmail', status: 'active' });
+
+    assert.deepEqual(
+      memberResult.records.map(record => record.id),
+      ['own-mailbox']
+    );
+    assert.deepEqual(store.lastMailboxListArgs, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      skip: 0,
+      take: 20,
+      keyword: 'gmail',
+      status: 'active'
+    });
+
+    const adminResult = await service.listMailboxes(createContext({ organizationRole: 'admin' }));
+
+    assert.deepEqual(
+      adminResult.records.map(record => record.id),
+      ['own-mailbox', 'peer-mailbox']
+    );
+  });
+
+  it('pauses and resumes mailboxes after scoped reads with sanitized logs', async () => {
+    const store = createStore([], {
+      mailboxes: [createMailbox({ id: 'mailbox-1', status: 'active' })]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const paused = await service.pauseMailbox('mailbox-1', createContext());
+    const resumed = await service.resumeMailbox('mailbox-1', createContext());
+
+    assert.equal(paused.mailbox.status, 'paused');
+    assert.match(paused.mailbox.pausedAt ?? '', /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(resumed.mailbox.status, 'active');
+    assert.equal(resumed.mailbox.pausedAt, null);
+    assert.equal(store.lastMailboxDetailArgs?.ownerUserId, 'user-1');
+    assert.deepEqual(logs.records.map(record => record.metadata), [
+      {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        maskedEmail: 'a***@gmail.com',
+        fromStatus: 'active',
+        toStatus: 'paused'
+      },
+      {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        maskedEmail: 'a***@gmail.com',
+        fromStatus: 'paused',
+        toStatus: 'active'
+      }
+    ]);
+  });
+
+  it('rejects mailbox pause outside the current member scope without raw id updates', async () => {
+    const store = createStore([], {
+      mailboxes: [createMailbox({ id: 'peer-mailbox', ownerUserId: 'user-2', status: 'active' })]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.pauseMailbox('peer-mailbox', createContext()), NotFoundException);
+
+    assert.equal(store.mailboxes[0].status, 'active');
+    assert.equal(store.mailboxUpdateCalls.length, 0);
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -393,23 +549,32 @@ function createStore(
   initialData: {
     contacts?: TestContact[];
     timelineEvents?: TestTimelineEvent[];
+    mailboxes?: TestMailbox[];
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
   contacts: TestContact[];
   timelineEvents: TestTimelineEvent[];
+  mailboxes: TestMailbox[];
+  mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
   lastListArgs?: Parameters<CrmStore['listAccounts']>[0];
   lastDetailArgs?: Parameters<CrmStore['getAccountDetail']>[0];
   lastContactArgs?: Parameters<CrmStore['findContactById']>[0];
+  lastMailboxListArgs?: Parameters<CrmStore['listMailboxes']>[0];
+  lastMailboxDetailArgs?: Parameters<CrmStore['findMailboxById']>[0];
 } {
   const accounts = [...initialAccounts];
   const contacts: TestContact[] = [...(initialData.contacts ?? [])];
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
+  const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
+  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
 
   return {
     accounts,
     contacts,
     timelineEvents,
+    mailboxes,
+    mailboxUpdateCalls,
     async findAccountByDomain(organizationId, ownerUserId, domain) {
       return (
         accounts.find(
@@ -541,6 +706,49 @@ function createStore(
       };
       timelineEvents.push(event);
       return event;
+    },
+    async findMailboxByProviderAndEmailHash(provider, emailHash) {
+      return mailboxes.find(mailbox => mailbox.provider === provider && mailbox.emailHash === emailHash) || null;
+    },
+    async createMailbox(input) {
+      const mailbox = createMailbox({
+        ...input,
+        id: `mailbox-${mailboxes.length + 1}`,
+        authorizedAt: new Date('2026-06-18T09:00:00.000Z'),
+        createdAt: new Date('2026-06-18T09:00:00.000Z'),
+        updatedAt: new Date('2026-06-18T09:00:00.000Z')
+      });
+      mailboxes.push(mailbox);
+      return mailbox;
+    },
+    async listMailboxes(args) {
+      this.lastMailboxListArgs = args;
+      const records = mailboxes.filter(mailbox => {
+        if (mailbox.organizationId !== args.organizationId) return false;
+        if (args.ownerUserId && mailbox.ownerUserId !== args.ownerUserId) return false;
+        if (args.status && mailbox.status !== args.status) return false;
+        if (args.keyword && !mailbox.emailAddress.includes(args.keyword.toLowerCase())) return false;
+        return true;
+      });
+      return { records, total: records.length };
+    },
+    async findMailboxById(args) {
+      this.lastMailboxDetailArgs = args;
+      return (
+        mailboxes.find(mailbox => {
+          if (mailbox.id !== args.id) return false;
+          if (mailbox.organizationId !== args.organizationId) return false;
+          if (args.ownerUserId && mailbox.ownerUserId !== args.ownerUserId) return false;
+          return true;
+        }) || null
+      );
+    },
+    async updateMailbox(id, input) {
+      mailboxUpdateCalls.push({ id, input });
+      const mailbox = mailboxes.find(item => item.id === id);
+      if (!mailbox) return null;
+      Object.assign(mailbox, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      return mailbox;
     }
   };
 }
@@ -597,9 +805,33 @@ function createTimelineEvent(input: Partial<TestTimelineEvent> = {}): TestTimeli
   };
 }
 
+function createMailbox(input: Partial<TestMailbox> = {}): TestMailbox {
+  return {
+    id: input.id || 'mailbox-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    ownerUserName: input.ownerUserName ?? 'Alice',
+    provider: input.provider || 'gmail',
+    emailAddress: input.emailAddress || 'alice@gmail.com',
+    emailHash: input.emailHash || 'hash-1',
+    maskedEmail: input.maskedEmail || 'a***@gmail.com',
+    status: input.status || 'active',
+    dailyLimit: input.dailyLimit ?? 50,
+    hourlyLimit: input.hourlyLimit ?? 10,
+    warmupStage: input.warmupStage || 'new',
+    watchExpiration: input.watchExpiration ?? null,
+    lastHistoryId: input.lastHistoryId ?? null,
+    authorizedAt: input.authorizedAt || new Date('2026-06-18T09:00:00.000Z'),
+    pausedAt: input.pausedAt ?? null,
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
+type TestMailbox = CrmMailboxRecord;
 
 function createDnsResolver(result: Array<{ exchange: string; priority: number }> | Error) {
   return {
@@ -618,6 +850,10 @@ function createDnsResolver(result: Array<{ exchange: string; priority: number }>
 
 function createDnsError(code: string) {
   return Object.assign(new Error(code), { code });
+}
+
+function hashTestEmail(email: string) {
+  return createHash('sha256').update(email).digest('hex');
 }
 
 function createLogRecorder() {

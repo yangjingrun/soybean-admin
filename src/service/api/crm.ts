@@ -51,3 +51,37 @@ export function archiveCrmAccount(id: string, data: Api.Crm.LeadArchivePayload =
     data
   });
 }
+
+/** List CRM mailboxes by filters and pagination. */
+export function fetchCrmMailboxes(params: Api.Crm.MailboxSearchParams) {
+  return request<Api.Crm.MailboxList>({
+    url: '/crm/mailboxes',
+    method: 'get',
+    params
+  });
+}
+
+/** Create a mocked Gmail authorization record before the real OAuth flow is wired. */
+export function mockAuthorizeCrmMailbox(data: Api.Crm.MailboxAuthorizePayload) {
+  return request<Api.Crm.MailboxOperateResult>({
+    url: '/crm/mailboxes/mock-authorize',
+    method: 'post',
+    data
+  });
+}
+
+/** Pause one CRM mailbox. */
+export function pauseCrmMailbox(id: string) {
+  return request<Api.Crm.MailboxOperateResult>({
+    url: `/crm/mailboxes/${id}/pause`,
+    method: 'patch'
+  });
+}
+
+/** Resume one CRM mailbox. */
+export function resumeCrmMailbox(id: string) {
+  return request<Api.Crm.MailboxOperateResult>({
+    url: `/crm/mailboxes/${id}/resume`,
+    method: 'patch'
+  });
+}

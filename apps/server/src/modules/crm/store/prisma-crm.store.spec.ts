@@ -175,6 +175,125 @@ describe('PrismaCrmStore', () => {
       limit: 1
     });
   });
+
+  it('creates mailbox and uses provider plus email hash for duplicate lookup', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const mailbox = await store.createMailbox({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      ownerUserName: 'Alice',
+      provider: 'gmail',
+      emailAddress: 'alice@gmail.com',
+      emailHash: 'hash-1',
+      maskedEmail: 'a***@gmail.com',
+      status: 'active',
+      dailyLimit: 50,
+      hourlyLimit: 10,
+      warmupStage: 'new',
+      authorizedAt: new Date('2026-06-18T09:00:00.000Z')
+    });
+    const existing = await store.findMailboxByProviderAndEmailHash('gmail', 'hash-1');
+
+    assert.equal(mailbox.id, 'mailbox-1');
+    assert.equal(existing?.id, 'mailbox-1');
+    assert.deepEqual(prisma.crmMailbox.findUniqueCalls[0].where, {
+      provider_emailHash: {
+        provider: 'gmail',
+        emailHash: 'hash-1'
+      }
+    });
+  });
+
+  it('returns existing mailbox when concurrent create hits global provider email hash uniqueness', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    prisma.crmMailbox.createError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: 'test'
+    });
+
+    const mailbox = await store.createMailbox({
+      organizationId: 'org-2',
+      ownerUserId: 'user-2',
+      ownerUserName: 'Bob',
+      provider: 'gmail',
+      emailAddress: 'alice@gmail.com',
+      emailHash: 'hash-1',
+      maskedEmail: 'a***@gmail.com',
+      status: 'active',
+      dailyLimit: 50,
+      hourlyLimit: 10,
+      warmupStage: 'new',
+      authorizedAt: new Date('2026-06-18T09:00:00.000Z')
+    });
+
+    assert.equal(mailbox.id, 'mailbox-1');
+    assert.deepEqual(prisma.crmMailbox.findUniqueCalls[0].where, {
+      provider_emailHash: {
+        provider: 'gmail',
+        emailHash: 'hash-1'
+      }
+    });
+  });
+
+  it('lists mailboxes with organization, owner, keyword and status filters', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    await store.listMailboxes({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      keyword: 'gmail',
+      status: 'active',
+      skip: 0,
+      take: 20
+    });
+
+    assert.deepEqual(prisma.crmMailbox.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'active',
+      OR: [
+        { emailAddress: { contains: 'gmail', mode: 'insensitive' } },
+        { maskedEmail: { contains: 'gmail', mode: 'insensitive' } },
+        { ownerUserName: { contains: 'gmail', mode: 'insensitive' } }
+      ]
+    });
+    assert.deepEqual(prisma.crmMailbox.findManyCalls[0].orderBy, { updatedAt: 'desc' });
+  });
+
+  it('finds and updates mailboxes through scoped identity reads before writes', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const found = await store.findMailboxById({
+      id: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    const updated = await store.updateMailbox('mailbox-1', {
+      status: 'paused',
+      pausedAt: new Date('2026-06-18T10:00:00.000Z')
+    });
+
+    assert.equal(found?.id, 'mailbox-1');
+    assert.equal(updated?.status, 'paused');
+    assert.deepEqual(prisma.crmMailbox.findFirstCalls[0].where, {
+      id: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmMailbox.updateManyAndReturnCalls[0], {
+      where: { id: 'mailbox-1' },
+      data: {
+        status: 'paused',
+        pausedAt: new Date('2026-06-18T10:00:00.000Z')
+      },
+      limit: 1
+    });
+  });
 });
 
 function createPrisma() {
@@ -190,6 +309,26 @@ function createPrisma() {
     customerType: 'distributor',
     status: 'missing_contact',
     sourceTaskId: 'task-1',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
+  const mailbox = {
+    id: 'mailbox-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    provider: 'gmail',
+    emailAddress: 'alice@gmail.com',
+    emailHash: 'hash-1',
+    maskedEmail: 'a***@gmail.com',
+    status: 'active',
+    dailyLimit: 50,
+    hourlyLimit: 10,
+    warmupStage: 'new',
+    watchExpiration: null,
+    lastHistoryId: null,
+    authorizedAt: new Date('2026-06-18T09:00:00.000Z'),
+    pausedAt: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
@@ -310,6 +449,52 @@ function createPrisma() {
             createdAt: new Date('2026-06-18T10:00:00.000Z')
           }
         ];
+      }
+    },
+    crmMailbox: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+      }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
+      createError: null as Error | null,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        if (this.createError) throw this.createError;
+        return mailbox;
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return mailbox;
+      },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return mailbox;
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+      }) {
+        this.findManyCalls.push(args);
+        return [mailbox];
+      },
+      async count() {
+        return 1;
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [{ ...mailbox, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
     }
   };

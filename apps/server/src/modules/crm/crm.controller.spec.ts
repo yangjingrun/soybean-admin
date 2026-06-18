@@ -7,6 +7,7 @@ import { CrmService } from './crm.service';
 import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
 
 type CrmAccountView = Awaited<ReturnType<CrmService['listAccounts']>>['records'][number];
+type CrmMailboxView = Awaited<ReturnType<CrmService['listMailboxes']>>['records'][number];
 type CrmTimelineEventView = Awaited<ReturnType<CrmService['addAccountNote']>>['event'];
 type CrmEmailVerificationView = Awaited<ReturnType<CrmService['verifyContactEmail']>>;
 
@@ -205,6 +206,87 @@ describe('CrmController', () => {
     assert.equal(result.data.event.eventType, 'email_verified');
   });
 
+  it('mock authorizes mailbox with the current user context', async () => {
+    const calls: Array<{ dto: { emailAddress: string }; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async mockAuthorizeMailbox(dto, context) {
+          calls.push({ dto, context });
+
+          return { mailbox: createMailboxView({ emailAddress: dto.emailAddress.toLowerCase() }) };
+        }
+      })
+    );
+
+    const dto = { emailAddress: 'Alice@Gmail.COM' };
+    const result = await controller.mockAuthorizeMailbox('Bearer token', dto);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].dto, dto);
+    assert.equal(calls[0].context.organizationId, 'org-1');
+    assert.equal(result.data.mailbox.emailAddress, 'alice@gmail.com');
+  });
+
+  it('lists mailboxes with the current organization context', async () => {
+    const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listMailboxes(context, query) {
+          calls.push({ context, query });
+
+          return {
+            current: 1,
+            size: 20,
+            total: 1,
+            records: [createMailboxView()]
+          };
+        }
+      })
+    );
+
+    const query = { current: 1, size: 20, keyword: 'gmail', status: 'active' as const };
+    const result = await controller.listMailboxes('Bearer token', query);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].query, query);
+    assert.equal(calls[0].context.userId, 'user-1');
+    assert.equal(result.data.records[0].provider, 'gmail');
+  });
+
+  it('pauses and resumes mailboxes with the current user context', async () => {
+    const calls: Array<{ action: string; id: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async pauseMailbox(id, context) {
+          calls.push({ action: 'pause', id, context });
+
+          return { mailbox: createMailboxView({ id, status: 'paused' }) };
+        },
+        async resumeMailbox(id, context) {
+          calls.push({ action: 'resume', id, context });
+
+          return { mailbox: createMailboxView({ id, status: 'active' }) };
+        }
+      })
+    );
+
+    const paused = await controller.pauseMailbox('Bearer token', 'mailbox-1');
+    const resumed = await controller.resumeMailbox('Bearer token', 'mailbox-1');
+
+    assert.equal(paused.data.mailbox.status, 'paused');
+    assert.equal(resumed.data.mailbox.status, 'active');
+    assert.deepEqual(
+      calls.map(call => ({ action: call.action, id: call.id, userId: call.context.userId })),
+      [
+        { action: 'pause', id: 'mailbox-1', userId: 'user-1' },
+        { action: 'resume', id: 'mailbox-1', userId: 'user-1' }
+      ]
+    );
+  });
+
   it('rejects anonymous users', async () => {
     const controller = new CrmController(createAuthService(null), createCrmService());
 
@@ -287,6 +369,30 @@ function createContactView(overrides: Partial<CrmEmailVerificationView['contact'
   };
 }
 
+function createMailboxView(overrides: Partial<CrmMailboxView> = {}) {
+  return {
+    id: 'mailbox-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    provider: 'gmail' as const,
+    emailAddress: 'alice@gmail.com',
+    emailHash: 'hash-1',
+    maskedEmail: 'a***@gmail.com',
+    status: 'active' as const,
+    dailyLimit: 50,
+    hourlyLimit: 10,
+    warmupStage: 'new' as const,
+    watchExpiration: null,
+    lastHistoryId: null,
+    authorizedAt: '2026-06-18T09:00:00.000Z',
+    pausedAt: null,
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
 function createEmailVerificationView(overrides: { contactId?: string } = {}): CrmEmailVerificationView {
   return {
     contact: createContactView({ id: overrides.contactId }),
@@ -339,6 +445,23 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async verifyContactEmail() {
       return createEmailVerificationView();
+    },
+    async mockAuthorizeMailbox() {
+      return { mailbox: createMailboxView() };
+    },
+    async listMailboxes() {
+      return {
+        current: 1,
+        size: 20,
+        total: 0,
+        records: []
+      };
+    },
+    async pauseMailbox() {
+      return { mailbox: createMailboxView({ status: 'paused' }) };
+    },
+    async resumeMailbox() {
+      return { mailbox: createMailboxView({ status: 'active' }) };
     },
     ...partial
   } as unknown as CrmService;

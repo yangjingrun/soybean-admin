@@ -8,6 +8,9 @@ import type {
   CrmAccountDetailRecord,
   CrmAccountRecord,
   CrmAccountStatus,
+  CrmMailboxProvider,
+  CrmMailboxRecord,
+  CrmMailboxStatus,
   CrmContactRecord,
   CrmEmailStatus,
   CrmStore,
@@ -20,6 +23,9 @@ const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
 const maxNoteLength = 2000;
+const gmailProvider: CrmMailboxProvider = 'gmail';
+const defaultMailboxDailyLimit = 50;
+const defaultMailboxHourlyLimit = 10;
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 const publicEmailPrefixes = new Set([
   'admin',
@@ -245,6 +251,96 @@ export class CrmService {
     };
   }
 
+  /** Creates a Gmail mock authorization record without storing any OAuth token. */
+  async mockAuthorizeMailbox(input: { emailAddress: string }, context: CrmUserContext) {
+    const emailAddress = normalizeMailboxEmail(input.emailAddress);
+    const emailHash = hashEmail(emailAddress);
+    const existingMailbox = await this.store.findMailboxByProviderAndEmailHash(gmailProvider, emailHash);
+
+    if (existingMailbox) {
+      if (isOwnedMailbox(existingMailbox, context)) {
+        await this.recordMailboxLog(
+          'mailbox-mock-authorize',
+          'CRM 邮箱 mock 授权完成',
+          context,
+          existingMailbox,
+          existingMailbox.status,
+          existingMailbox.status
+        );
+
+        return { mailbox: toMailboxView(existingMailbox) };
+      }
+
+      throw new BadRequestException('该 Gmail 地址已绑定');
+    }
+
+    const mailbox = await this.store.createMailbox({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      ownerUserName: context.userName,
+      provider: gmailProvider,
+      emailAddress,
+      emailHash,
+      maskedEmail: maskEmail(emailAddress),
+      status: 'active',
+      dailyLimit: defaultMailboxDailyLimit,
+      hourlyLimit: defaultMailboxHourlyLimit,
+      warmupStage: 'new',
+      watchExpiration: null,
+      lastHistoryId: null,
+      authorizedAt: new Date(),
+      pausedAt: null
+    });
+
+    if (!isOwnedMailbox(mailbox, context)) {
+      throw new BadRequestException('该 Gmail 地址已绑定');
+    }
+
+    await this.recordMailboxLog('mailbox-mock-authorize', 'CRM 邮箱 mock 授权完成', context, mailbox, null, mailbox.status);
+
+    return { mailbox: toMailboxView(mailbox) };
+  }
+
+  /** Lists mailboxes within the current organization and applies member ownership isolation. */
+  async listMailboxes(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: CrmMailboxStatus;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const result = await this.store.listMailboxes({
+      organizationId: context.organizationId,
+      ...toOwnerScope(context),
+      ...(keyword ? { keyword } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(toMailboxView)
+    };
+  }
+
+  /** Pauses a scoped mailbox after verifying the current user can read it. */
+  async pauseMailbox(id: string, context: CrmUserContext) {
+    return this.changeMailboxStatus(id, 'paused', new Date(), 'mailbox-pause', 'CRM 邮箱暂停', context);
+  }
+
+  /** Resumes a scoped mailbox after verifying the current user can read it. */
+  async resumeMailbox(id: string, context: CrmUserContext) {
+    return this.changeMailboxStatus(id, 'active', null, 'mailbox-resume', 'CRM 邮箱恢复', context);
+  }
+
   private async importContactIfPresent(
     account: CrmAccountRecord,
     input: ImportCrmLeadInput,
@@ -384,6 +480,41 @@ export class CrmService {
     return detail;
   }
 
+  private async changeMailboxStatus(
+    id: string,
+    status: CrmMailboxStatus,
+    pausedAt: Date | null,
+    action: string,
+    message: string,
+    context: CrmUserContext
+  ) {
+    const currentMailbox = await this.requireScopedMailbox(id, context);
+    const fromStatus = currentMailbox.status;
+    const mailbox = await this.store.updateMailbox(currentMailbox.id, { status, pausedAt });
+
+    if (!mailbox) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    await this.recordMailboxLog(action, message, context, mailbox, fromStatus, status);
+
+    return { mailbox: toMailboxView(mailbox) };
+  }
+
+  private async requireScopedMailbox(id: string, context: CrmUserContext) {
+    const mailbox = await this.store.findMailboxById({
+      id,
+      organizationId: context.organizationId,
+      ...toOwnerScope(context)
+    });
+
+    if (!mailbox) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    return mailbox;
+  }
+
   private recordCrmLog(
     action: string,
     message: string,
@@ -399,6 +530,24 @@ export class CrmService {
       userId: context.userId,
       userName: context.userName,
       metadata
+    });
+  }
+
+  private recordMailboxLog(
+    action: string,
+    message: string,
+    context: CrmUserContext,
+    mailbox: CrmMailboxRecord,
+    fromStatus: CrmMailboxStatus | null,
+    toStatus: CrmMailboxStatus
+  ) {
+    return this.recordCrmLog(action, message, context, {
+      organizationId: mailbox.organizationId,
+      mailboxId: mailbox.id,
+      provider: mailbox.provider,
+      maskedEmail: mailbox.maskedEmail,
+      fromStatus,
+      toStatus
     });
   }
 }
@@ -426,6 +575,17 @@ function toTimelineEventView(record: CrmTimelineEventRecord) {
   };
 }
 
+function toMailboxView(record: CrmMailboxRecord) {
+  return {
+    ...record,
+    authorizedAt: record.authorizedAt.toISOString(),
+    watchExpiration: record.watchExpiration?.toISOString() ?? null,
+    pausedAt: record.pausedAt?.toISOString() ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
 function toAccountDetailView(detail: CrmAccountDetailRecord) {
   return {
     account: toAccountView(detail.account),
@@ -440,6 +600,10 @@ function toOwnerScope(context: CrmUserContext) {
 
 function isOrganizationAdmin(context: CrmUserContext) {
   return context.organizationRole === 'admin' || context.roles.includes('R_SUPER');
+}
+
+function isOwnedMailbox(mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'ownerUserId'>, context: CrmUserContext) {
+  return mailbox.organizationId === context.organizationId && mailbox.ownerUserId === context.userId;
 }
 
 function normalizeDomain(value?: string | null) {
@@ -483,6 +647,17 @@ function normalizeLimitedContent(value: string, emptyMessage: string) {
 function normalizeEmail(value?: string | null) {
   const normalized = value?.trim().toLowerCase();
   return normalized && normalized.includes('@') ? normalized : null;
+}
+
+function normalizeMailboxEmail(value: string) {
+  const normalized = value.trim().toLowerCase();
+  const match = /^([^+@\s]+)@gmail\.com$/.exec(normalized);
+
+  if (!match) {
+    throw new BadRequestException('第一版仅支持 Gmail 地址，且不支持 alias');
+  }
+
+  return normalized;
 }
 
 function parseEmailAddress(email: string) {

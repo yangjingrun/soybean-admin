@@ -17,7 +17,9 @@ import { CrmService } from './crm.service';
 import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
+import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
+import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import type { CrmUserContext } from './crm.types';
 
@@ -75,6 +77,29 @@ export class CrmController {
   @Post('contacts/:id/verify-email')
   async verifyContactEmail(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.verifyContactEmail(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('mailboxes/mock-authorize')
+  async mockAuthorizeMailbox(
+    @Headers('authorization') authorization = '',
+    @Body() dto: MockAuthorizeCrmMailboxDto
+  ) {
+    return ok(await this.crmService.mockAuthorizeMailbox(dto, this.requireUserContext(authorization)));
+  }
+
+  @Get('mailboxes')
+  async listMailboxes(@Headers('authorization') authorization = '', @Query() query: CrmMailboxQueryDto) {
+    return ok(await this.crmService.listMailboxes(this.requireUserContext(authorization), query));
+  }
+
+  @Patch('mailboxes/:id/pause')
+  async pauseMailbox(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.pauseMailbox(id, this.requireUserContext(authorization)));
+  }
+
+  @Patch('mailboxes/:id/resume')
+  async resumeMailbox(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.resumeMailbox(id, this.requireUserContext(authorization)));
   }
 
   private requireUserContext(authorization: string): CrmUserContext {

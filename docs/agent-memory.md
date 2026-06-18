@@ -79,6 +79,14 @@
 - 相关文件：`src/views/crm/leads/modules/shared/useLeadTable.ts`、`src/views/crm/leads/modules/LeadStats.vue`。
 - 验证方式：运行 `pnpm typecheck`，并由 code review 检查快速切换筛选/重置时不会出现旧响应覆盖新状态的代码路径。
 
+### 2026-06-18 全局唯一资源冲突不能直接返回未授权记录
+
+- 场景：CRM Mailbox 第一版要求同一个 Gmail 地址不能绑定到多个组织或用户，数据库用 `provider + emailHash` 全局唯一约束。
+- 坑点：Store 为处理并发唯一冲突而重读已有记录时，不能直接把已有记录返回给 Service 当成功结果；如果输掉唯一索引的一方来自其他组织或用户，就会拿到别人的 mailbox 并泄露记录。
+- 正确做法：全局唯一资源在 create 前查重后，create 返回值仍要在 Service 再做归属校验；不是当前 `organizationId + ownerUserId` 的记录必须抛业务错误，不能写成功日志或返回视图。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认并发唯一冲突返回其他 owner mailbox 时会拒绝且不写成功日志。
+
 ### 记录模板
 
 ```md

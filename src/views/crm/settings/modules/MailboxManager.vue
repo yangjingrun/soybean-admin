@@ -1,0 +1,75 @@
+<script setup lang="ts">
+import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
+import BasicRulesCard from './BasicRulesCard.vue';
+import MailboxTable from './MailboxTable.vue';
+import MailboxToolbar from './MailboxToolbar.vue';
+import { useMailboxTable } from './useMailboxTable';
+
+const {
+  authorizeForm,
+  authorizeSubmitting,
+  authorizeVisible,
+  filterModel,
+  handleAuthorizeMailbox,
+  handleAuthorizeVisibleUpdate,
+  handlePageSizeUpdate,
+  handlePageUpdate,
+  handleReset,
+  handleSearch,
+  handleToggleMailbox,
+  loadMailboxes,
+  loading,
+  openAuthorizeModal,
+  operatingMailboxId,
+  pagination,
+  records
+} = useMailboxTable();
+</script>
+
+<template>
+  <NSpace vertical :size="16">
+    <NPageHeader title="CRM配置" subtitle="线索分配、邮箱账号和基础规则" />
+
+    <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1">
+      <NGi>
+        <BasicRulesCard />
+      </NGi>
+
+      <NGi>
+        <NCard :bordered="false" size="small" class="card-wrapper" title="邮箱账号">
+          <NSpace vertical :size="12">
+            <MailboxToolbar
+              v-model="filterModel"
+              :authorizing="authorizeSubmitting"
+              :loading="loading"
+              @add="openAuthorizeModal"
+              @refresh="loadMailboxes"
+              @reset="handleReset"
+              @search="handleSearch"
+            />
+
+            <MailboxTable
+              :records="records"
+              :loading="loading"
+              :operating-mailbox-id="operatingMailboxId"
+              :page="pagination.current"
+              :page-size="pagination.size"
+              :total="pagination.total"
+              @toggle="handleToggleMailbox"
+              @update-page="handlePageUpdate"
+              @update-page-size="handlePageSizeUpdate"
+            />
+          </NSpace>
+        </NCard>
+      </NGi>
+    </NGrid>
+
+    <AuthorizeMailboxModal
+      v-model:visible="authorizeVisible"
+      v-model="authorizeForm"
+      :submitting="authorizeSubmitting"
+      @submit="handleAuthorizeMailbox"
+      @update:visible="handleAuthorizeVisibleUpdate"
+    />
+  </NSpace>
+</template>

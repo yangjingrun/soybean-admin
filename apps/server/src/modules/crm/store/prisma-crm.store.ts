@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
+import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
 import { PrismaService } from '../../database/prisma.service';
 import type {
@@ -9,6 +10,11 @@ import type {
   CrmAccountRecord,
   CrmAccountStatus,
   CrmAccountUpdateInput,
+  CrmMailboxCreateInput,
+  CrmMailboxProvider,
+  CrmMailboxRecord,
+  CrmMailboxStatus,
+  CrmMailboxUpdateInput,
   CrmContactCreateInput,
   CrmContactRecord,
   CrmContactUpdateInput,
@@ -204,6 +210,80 @@ export class PrismaCrmStore implements CrmStore {
 
     return toTimelineEventRecord(record);
   }
+
+  findMailboxByProviderAndEmailHash(provider: CrmMailboxProvider, emailHash: string) {
+    return this.prisma.crmMailbox
+      .findUnique({
+        where: {
+          provider_emailHash: {
+            provider,
+            emailHash
+          }
+        }
+      })
+      .then(record => (record ? toMailboxRecord(record) : null));
+  }
+
+  async createMailbox(input: CrmMailboxCreateInput) {
+    try {
+      const record = await this.prisma.crmMailbox.create({
+        data: input as Prisma.CrmMailboxUncheckedCreateInput
+      });
+
+      return toMailboxRecord(record);
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        const existingMailbox = await this.findMailboxByProviderAndEmailHash(input.provider, input.emailHash);
+
+        if (existingMailbox) return existingMailbox;
+      }
+
+      throw error;
+    }
+  }
+
+  async listMailboxes(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmMailboxStatus;
+    skip: number;
+    take: number;
+  }) {
+    const where = toMailboxListWhere(args);
+    const [records, total] = await Promise.all([
+      this.prisma.crmMailbox.findMany({
+        where,
+        skip: args.skip,
+        take: args.take,
+        orderBy: { updatedAt: 'desc' }
+      }),
+      this.prisma.crmMailbox.count({ where })
+    ]);
+
+    return {
+      records: records.map(toMailboxRecord),
+      total
+    };
+  }
+
+  findMailboxById(args: { id: string; organizationId: string; ownerUserId?: string }) {
+    return this.prisma.crmMailbox
+      .findFirst({
+        where: toMailboxIdentityWhere(args)
+      })
+      .then(record => (record ? toMailboxRecord(record) : null));
+  }
+
+  async updateMailbox(id: string, input: CrmMailboxUpdateInput) {
+    const records = await this.prisma.crmMailbox.updateManyAndReturn({
+      where: { id },
+      data: input,
+      limit: 1
+    });
+
+    return records[0] ? toMailboxRecord(records[0]) : null;
+  }
 }
 
 /** Builds the scoped account identity filter used before detail reads and writes. */
@@ -232,6 +312,19 @@ function toContactIdentityWhere(args: {
   };
 }
 
+/** Builds the scoped mailbox identity filter used before mailbox writes. */
+function toMailboxIdentityWhere(args: {
+  id: string;
+  organizationId: string;
+  ownerUserId?: string;
+}): Prisma.CrmMailboxWhereInput {
+  return {
+    id: args.id,
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+  };
+}
+
 /** Builds the Prisma account list scope and optional UI filters. */
 function toAccountListWhere(args: {
   organizationId: string;
@@ -249,8 +342,34 @@ function toAccountListWhere(args: {
   };
 }
 
+/** Builds the Prisma mailbox list scope and optional UI filters. */
+function toMailboxListWhere(args: {
+  organizationId: string;
+  ownerUserId?: string;
+  keyword?: string;
+  status?: CrmMailboxStatus;
+}): Prisma.CrmMailboxWhereInput {
+  const keywordFilter = args.keyword ? toMailboxKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
+    ...(args.status ? { status: args.status } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 function toAccountKeywordFilter(keyword: string): Prisma.CrmAccountWhereInput[] {
   return ['name', 'domain', 'websiteUrl', 'country', 'customerType'].map(field => ({
+    [field]: {
+      contains: keyword,
+      mode: 'insensitive'
+    }
+  }));
+}
+
+function toMailboxKeywordFilter(keyword: string): Prisma.CrmMailboxWhereInput[] {
+  return ['emailAddress', 'maskedEmail', 'ownerUserName'].map(field => ({
     [field]: {
       contains: keyword,
       mode: 'insensitive'
@@ -274,6 +393,15 @@ function toContactRecord(record: CrmContactModel): CrmContactRecord {
 
 function toTimelineEventRecord(record: CrmTimelineEventModel): CrmTimelineEventRecord {
   return record;
+}
+
+function toMailboxRecord(record: CrmMailboxModel): CrmMailboxRecord {
+  return {
+    ...record,
+    provider: record.provider as CrmMailboxRecord['provider'],
+    status: record.status as CrmMailboxRecord['status'],
+    warmupStage: record.warmupStage as CrmMailboxRecord['warmupStage']
+  };
 }
 
 function isPrismaUniqueConflict(error: unknown) {
