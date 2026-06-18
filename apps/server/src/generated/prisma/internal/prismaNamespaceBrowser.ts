@@ -59,6 +59,8 @@ export const ModelName = {
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmProductLine: 'CrmProductLine',
+  CrmSequenceEnrollment: 'CrmSequenceEnrollment',
+  CrmMessage: 'CrmMessage',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -242,6 +244,50 @@ export const CrmProductLineScalarFieldEnum = {
 } as const
 
 export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
+
+
+export const CrmSequenceEnrollmentScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  productLineId: 'productLineId',
+  mailboxId: 'mailboxId',
+  name: 'name',
+  status: 'status',
+  currentStep: 'currentStep',
+  totalSteps: 'totalSteps',
+  runVersion: 'runVersion',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmSequenceEnrollmentScalarFieldEnum = (typeof CrmSequenceEnrollmentScalarFieldEnum)[keyof typeof CrmSequenceEnrollmentScalarFieldEnum]
+
+
+export const CrmMessageScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  mailboxId: 'mailboxId',
+  stepIndex: 'stepIndex',
+  threadMode: 'threadMode',
+  subject: 'subject',
+  bodyText: 'bodyText',
+  status: 'status',
+  scheduledAt: 'scheduledAt',
+  sentAt: 'sentAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmMessageScalarFieldEnum = (typeof CrmMessageScalarFieldEnum)[keyof typeof CrmMessageScalarFieldEnum]
 
 
 export const AiPromptConfigScalarFieldEnum = {

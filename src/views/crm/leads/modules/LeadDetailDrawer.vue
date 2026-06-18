@@ -167,7 +167,13 @@ function handleSubmitStatus() {
               <span class="lead-summary-domain">{{ formatLeadText(account.domain) }}</span>
             </NSpace>
             <div class="lead-summary-title">{{ account.name }}</div>
-            <a v-if="account.websiteUrl" class="lead-summary-link" :href="websiteHref" target="_blank" rel="noreferrer">
+            <a
+              v-if="account.websiteUrl"
+              class="lead-summary-link"
+              :href="websiteHref"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {{ account.websiteUrl }}
             </a>
             <span v-else class="lead-secondary-text">暂无官网</span>

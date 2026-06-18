@@ -16,6 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const formRef = ref<FormInst | null>(null);
+const normalizedEmail = computed(() => formModel.value.emailAddress.trim().toLowerCase());
 const rules = reactive<FormRules>({
   emailAddress: [
     {
@@ -31,8 +32,6 @@ const rules = reactive<FormRules>({
     }
   ]
 });
-
-const normalizedEmail = computed(() => formModel.value.emailAddress.trim().toLowerCase());
 
 watch(
   () => visible.value,

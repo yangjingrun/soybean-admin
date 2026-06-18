@@ -279,6 +279,7 @@ export type CrmProductLineWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
+  enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
 }
 
 export type CrmProductLineOrderByWithRelationInput = {
@@ -300,6 +301,7 @@ export type CrmProductLineOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   organization?: Prisma.OrganizationOrderByWithRelationInput
+  enrollments?: Prisma.CrmSequenceEnrollmentOrderByRelationAggregateInput
 }
 
 export type CrmProductLineWhereUniqueInput = Prisma.AtLeast<{
@@ -325,6 +327,7 @@ export type CrmProductLineWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
+  enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
 }, "id" | "organizationId_name">
 
 export type CrmProductLineOrderByWithAggregationInput = {
@@ -391,6 +394,7 @@ export type CrmProductLineCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmProductLinesInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineUncheckedCreateInput = {
@@ -411,6 +415,7 @@ export type CrmProductLineUncheckedCreateInput = {
   createdByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineUpdateInput = {
@@ -431,6 +436,7 @@ export type CrmProductLineUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmProductLinesNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineUncheckedUpdateInput = {
@@ -451,6 +457,7 @@ export type CrmProductLineUncheckedUpdateInput = {
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineCreateManyInput = {
@@ -587,6 +594,11 @@ export type CrmProductLineMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
+export type CrmProductLineNullableScalarRelationFilter = {
+  is?: Prisma.CrmProductLineWhereInput | null
+  isNot?: Prisma.CrmProductLineWhereInput | null
+}
+
 export type CrmProductLineCreateNestedManyWithoutOrganizationInput = {
   create?: Prisma.XOR<Prisma.CrmProductLineCreateWithoutOrganizationInput, Prisma.CrmProductLineUncheckedCreateWithoutOrganizationInput> | Prisma.CrmProductLineCreateWithoutOrganizationInput[] | Prisma.CrmProductLineUncheckedCreateWithoutOrganizationInput[]
   connectOrCreate?: Prisma.CrmProductLineCreateOrConnectWithoutOrganizationInput | Prisma.CrmProductLineCreateOrConnectWithoutOrganizationInput[]
@@ -629,6 +641,22 @@ export type CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput = {
   deleteMany?: Prisma.CrmProductLineScalarWhereInput | Prisma.CrmProductLineScalarWhereInput[]
 }
 
+export type CrmProductLineCreateNestedOneWithoutEnrollmentsInput = {
+  create?: Prisma.XOR<Prisma.CrmProductLineCreateWithoutEnrollmentsInput, Prisma.CrmProductLineUncheckedCreateWithoutEnrollmentsInput>
+  connectOrCreate?: Prisma.CrmProductLineCreateOrConnectWithoutEnrollmentsInput
+  connect?: Prisma.CrmProductLineWhereUniqueInput
+}
+
+export type CrmProductLineUpdateOneWithoutEnrollmentsNestedInput = {
+  create?: Prisma.XOR<Prisma.CrmProductLineCreateWithoutEnrollmentsInput, Prisma.CrmProductLineUncheckedCreateWithoutEnrollmentsInput>
+  connectOrCreate?: Prisma.CrmProductLineCreateOrConnectWithoutEnrollmentsInput
+  upsert?: Prisma.CrmProductLineUpsertWithoutEnrollmentsInput
+  disconnect?: Prisma.CrmProductLineWhereInput | boolean
+  delete?: Prisma.CrmProductLineWhereInput | boolean
+  connect?: Prisma.CrmProductLineWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CrmProductLineUpdateToOneWithWhereWithoutEnrollmentsInput, Prisma.CrmProductLineUpdateWithoutEnrollmentsInput>, Prisma.CrmProductLineUncheckedUpdateWithoutEnrollmentsInput>
+}
+
 export type CrmProductLineCreateWithoutOrganizationInput = {
   id?: string
   name: string
@@ -646,6 +674,7 @@ export type CrmProductLineCreateWithoutOrganizationInput = {
   createdByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineUncheckedCreateWithoutOrganizationInput = {
@@ -665,6 +694,7 @@ export type CrmProductLineUncheckedCreateWithoutOrganizationInput = {
   createdByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineCreateOrConnectWithoutOrganizationInput = {
@@ -716,6 +746,102 @@ export type CrmProductLineScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
 }
 
+export type CrmProductLineCreateWithoutEnrollmentsInput = {
+  id?: string
+  name: string
+  targetCustomerType?: string | null
+  coreSellingPoints?: string | null
+  moq?: string | null
+  leadTime?: string | null
+  paymentTerms?: string | null
+  certifications?: string | null
+  catalogUrl?: string | null
+  websiteUrl?: string | null
+  commonModelsText?: string | null
+  status?: string
+  createdById: string
+  createdByName?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization: Prisma.OrganizationCreateNestedOneWithoutCrmProductLinesInput
+}
+
+export type CrmProductLineUncheckedCreateWithoutEnrollmentsInput = {
+  id?: string
+  organizationId: string
+  name: string
+  targetCustomerType?: string | null
+  coreSellingPoints?: string | null
+  moq?: string | null
+  leadTime?: string | null
+  paymentTerms?: string | null
+  certifications?: string | null
+  catalogUrl?: string | null
+  websiteUrl?: string | null
+  commonModelsText?: string | null
+  status?: string
+  createdById: string
+  createdByName?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type CrmProductLineCreateOrConnectWithoutEnrollmentsInput = {
+  where: Prisma.CrmProductLineWhereUniqueInput
+  create: Prisma.XOR<Prisma.CrmProductLineCreateWithoutEnrollmentsInput, Prisma.CrmProductLineUncheckedCreateWithoutEnrollmentsInput>
+}
+
+export type CrmProductLineUpsertWithoutEnrollmentsInput = {
+  update: Prisma.XOR<Prisma.CrmProductLineUpdateWithoutEnrollmentsInput, Prisma.CrmProductLineUncheckedUpdateWithoutEnrollmentsInput>
+  create: Prisma.XOR<Prisma.CrmProductLineCreateWithoutEnrollmentsInput, Prisma.CrmProductLineUncheckedCreateWithoutEnrollmentsInput>
+  where?: Prisma.CrmProductLineWhereInput
+}
+
+export type CrmProductLineUpdateToOneWithWhereWithoutEnrollmentsInput = {
+  where?: Prisma.CrmProductLineWhereInput
+  data: Prisma.XOR<Prisma.CrmProductLineUpdateWithoutEnrollmentsInput, Prisma.CrmProductLineUncheckedUpdateWithoutEnrollmentsInput>
+}
+
+export type CrmProductLineUpdateWithoutEnrollmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  targetCustomerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coreSellingPoints?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  moq?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  leadTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentTerms?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  certifications?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdById?: Prisma.StringFieldUpdateOperationsInput | string
+  createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmProductLinesNestedInput
+}
+
+export type CrmProductLineUncheckedUpdateWithoutEnrollmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  targetCustomerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coreSellingPoints?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  moq?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  leadTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentTerms?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  certifications?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdById?: Prisma.StringFieldUpdateOperationsInput | string
+  createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type CrmProductLineCreateManyOrganizationInput = {
   id?: string
   name: string
@@ -752,6 +878,7 @@ export type CrmProductLineUpdateWithoutOrganizationInput = {
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineUncheckedUpdateWithoutOrganizationInput = {
@@ -771,6 +898,7 @@ export type CrmProductLineUncheckedUpdateWithoutOrganizationInput = {
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineUncheckedUpdateManyWithoutOrganizationInput = {
@@ -793,6 +921,35 @@ export type CrmProductLineUncheckedUpdateManyWithoutOrganizationInput = {
 }
 
 
+/**
+ * Count Type CrmProductLineCountOutputType
+ */
+
+export type CrmProductLineCountOutputType = {
+  enrollments: number
+}
+
+export type CrmProductLineCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  enrollments?: boolean | CrmProductLineCountOutputTypeCountEnrollmentsArgs
+}
+
+/**
+ * CrmProductLineCountOutputType without action
+ */
+export type CrmProductLineCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmProductLineCountOutputType
+   */
+  select?: Prisma.CrmProductLineCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * CrmProductLineCountOutputType without action
+ */
+export type CrmProductLineCountOutputTypeCountEnrollmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmSequenceEnrollmentWhereInput
+}
+
 
 export type CrmProductLineSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -813,6 +970,8 @@ export type CrmProductLineSelect<ExtArgs extends runtime.Types.Extensions.Intern
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
+  enrollments?: boolean | Prisma.CrmProductLine$enrollmentsArgs<ExtArgs>
+  _count?: boolean | Prisma.CrmProductLineCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["crmProductLine"]>
 
 export type CrmProductLineSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -880,6 +1039,8 @@ export type CrmProductLineSelectScalar = {
 export type CrmProductLineOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "name" | "targetCustomerType" | "coreSellingPoints" | "moq" | "leadTime" | "paymentTerms" | "certifications" | "catalogUrl" | "websiteUrl" | "commonModelsText" | "status" | "createdById" | "createdByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmProductLine"]>
 export type CrmProductLineInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
+  enrollments?: boolean | Prisma.CrmProductLine$enrollmentsArgs<ExtArgs>
+  _count?: boolean | Prisma.CrmProductLineCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CrmProductLineIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -892,6 +1053,7 @@ export type $CrmProductLinePayload<ExtArgs extends runtime.Types.Extensions.Inte
   name: "CrmProductLine"
   objects: {
     organization: Prisma.$OrganizationPayload<ExtArgs>
+    enrollments: Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1306,6 +1468,7 @@ readonly fields: CrmProductLineFieldRefs;
 export interface Prisma__CrmProductLineClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>): Prisma.Prisma__OrganizationClient<runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  enrollments<T extends Prisma.CrmProductLine$enrollmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmProductLine$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1750,6 +1913,30 @@ export type CrmProductLineDeleteManyArgs<ExtArgs extends runtime.Types.Extension
    * Limit how many CrmProductLines to delete.
    */
   limit?: number
+}
+
+/**
+ * CrmProductLine.enrollments
+ */
+export type CrmProductLine$enrollmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmSequenceEnrollment
+   */
+  select?: Prisma.CrmSequenceEnrollmentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmSequenceEnrollment
+   */
+  omit?: Prisma.CrmSequenceEnrollmentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmSequenceEnrollmentInclude<ExtArgs> | null
+  where?: Prisma.CrmSequenceEnrollmentWhereInput
+  orderBy?: Prisma.CrmSequenceEnrollmentOrderByWithRelationInput | Prisma.CrmSequenceEnrollmentOrderByWithRelationInput[]
+  cursor?: Prisma.CrmSequenceEnrollmentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmSequenceEnrollmentScalarFieldEnum | Prisma.CrmSequenceEnrollmentScalarFieldEnum[]
 }
 
 /**

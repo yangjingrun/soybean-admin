@@ -95,6 +95,30 @@
 - 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认并发 create/rename 唯一冲突会返回“产品资料名称已存在”。
 
+### 2026-06-19 CRM 草稿确认必须 owner-only
+
+- 场景：CRM 邮件序列第一期允许组织管理员查看组织内线索/序列，但需求明确管理员不能编辑正文、确认草稿、代发、代回复。
+- 坑点：复用 `toOwnerScope(context)` 会让组织管理员和 `R_SUPER` 去掉 `ownerUserId` 限制；如果草稿保存/确认也走这个 scope，管理员就能把成员草稿置为 `ready_to_send`，后续发送队列接入后等同代发。
+- 正确做法：读列表/详情可以按管理员组织 scope；任何会改变邮件正文、草稿审核状态、发送准备状态的操作必须强制 `ownerUserId: context.userId`。已确认草稿不允许再次编辑，避免 `Message=draft_pending_review` 但 `Enrollment=ready_to_send` 的状态错位。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认管理员不能修改/确认他人草稿，`draft_ready` 草稿不能编辑。
+
+### 2026-06-19 CRM 草稿创建和确认要事务化
+
+- 场景：创建首封开发信审核项需要同时写 `CrmSequenceEnrollment`、首封 `CrmMessage`、时间线事件，并更新 Account 状态；确认草稿也会同时更新 message、enrollment、timeline 和 Account。
+- 坑点：如果分多次写入，`createMessage`、时间线或 Account 状态更新失败会留下半成品 enrollment；确认草稿时如果保存请求和确认请求并发，旧保存可能把 `draft_ready` 改回 `draft_pending_review`，造成 message/enrollment 状态错位。
+- 正确做法：Store 提供事务方法一次性创建 enrollment/message/timeline 并更新 Account；确认草稿也走事务并用当前 message/enrollment 状态做条件更新。保存草稿时 update 要带 `status=draft_pending_review` guard。Service 只编排校验和日志。数据库层用 partial unique index 约束同一 `organizationId + ownerUserId + contactId` 只能存在一个 active 状态序列，Prisma schema 里保留普通索引即可。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`、`prisma/migrations/20260619103000_create_crm_sequence_drafts/migration.sql`、`prisma/schema.prisma`。
+- 验证方式：运行 CRM store/service spec 和 `pnpm --filter @soybean/server typecheck`，确认事务方法类型通过、active partial unique index 存在于迁移 SQL。
+
+### 2026-06-19 审核抽屉异步请求要绑定当前记录 ID
+
+- 场景：CRM 邮件序列审核抽屉可快速切换不同 enrollment，并支持保存/确认草稿。
+- 坑点：只用 `currentItem` 承载抽屉状态时，打开新行但旧详情或旧保存请求晚返回，可能把 A 草稿响应写到 B 抽屉；如果 footer 在 loading 时仍可点，也可能对上一条 message 发保存/确认。
+- 正确做法：抽屉状态要维护 `selectedEnrollmentId/selectedMessageId`，打开新行先清空旧 item，关闭时递增 detail request id 让旧请求失效；保存/确认返回后必须校验仍是同一 enrollment/message 才写 UI 状态和弹成功提示。确认按钮只允许 `draft_pending_review` 状态。
+- 相关文件：`src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`、`src/views/crm/email-sequences/modules/DraftReviewDrawer.vue`。
+- 验证方式：运行 `pnpm typecheck`，并由 code review 检查抽屉切换、关闭、保存、确认路径都有 ID 校验。
+
 ### 记录模板
 
 ```md

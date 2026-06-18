@@ -392,6 +392,8 @@ export const ModelName = {
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmProductLine: 'CrmProductLine',
+  CrmSequenceEnrollment: 'CrmSequenceEnrollment',
+  CrmMessage: 'CrmMessage',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -416,7 +418,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmProductLine" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1009,6 +1011,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmProductLineCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmProductLineCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmSequenceEnrollment: {
+      payload: Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>
+      fields: Prisma.CrmSequenceEnrollmentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmSequenceEnrollmentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmSequenceEnrollmentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmSequenceEnrollmentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmSequenceEnrollmentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>
+        }
+        findMany: {
+          args: Prisma.CrmSequenceEnrollmentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>[]
+        }
+        create: {
+          args: Prisma.CrmSequenceEnrollmentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>
+        }
+        createMany: {
+          args: Prisma.CrmSequenceEnrollmentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmSequenceEnrollmentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmSequenceEnrollmentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>
+        }
+        update: {
+          args: Prisma.CrmSequenceEnrollmentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmSequenceEnrollmentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmSequenceEnrollmentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmSequenceEnrollmentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmSequenceEnrollmentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequenceEnrollmentPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmSequenceEnrollmentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmSequenceEnrollment>
+        }
+        groupBy: {
+          args: Prisma.CrmSequenceEnrollmentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmSequenceEnrollmentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmSequenceEnrollmentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmSequenceEnrollmentCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmMessage: {
+      payload: Prisma.$CrmMessagePayload<ExtArgs>
+      fields: Prisma.CrmMessageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmMessageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmMessageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>
+        }
+        findFirst: {
+          args: Prisma.CrmMessageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmMessageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>
+        }
+        findMany: {
+          args: Prisma.CrmMessageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>[]
+        }
+        create: {
+          args: Prisma.CrmMessageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>
+        }
+        createMany: {
+          args: Prisma.CrmMessageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmMessageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>[]
+        }
+        delete: {
+          args: Prisma.CrmMessageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>
+        }
+        update: {
+          args: Prisma.CrmMessageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmMessageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmMessageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmMessageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmMessageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMessagePayload>
+        }
+        aggregate: {
+          args: Prisma.CrmMessageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmMessage>
+        }
+        groupBy: {
+          args: Prisma.CrmMessageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmMessageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmMessageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmMessageCountAggregateOutputType> | number
         }
       }
     }
@@ -1875,6 +2025,50 @@ export const CrmProductLineScalarFieldEnum = {
 export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
 
 
+export const CrmSequenceEnrollmentScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  productLineId: 'productLineId',
+  mailboxId: 'mailboxId',
+  name: 'name',
+  status: 'status',
+  currentStep: 'currentStep',
+  totalSteps: 'totalSteps',
+  runVersion: 'runVersion',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmSequenceEnrollmentScalarFieldEnum = (typeof CrmSequenceEnrollmentScalarFieldEnum)[keyof typeof CrmSequenceEnrollmentScalarFieldEnum]
+
+
+export const CrmMessageScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  mailboxId: 'mailboxId',
+  stepIndex: 'stepIndex',
+  threadMode: 'threadMode',
+  subject: 'subject',
+  bodyText: 'bodyText',
+  status: 'status',
+  scheduledAt: 'scheduledAt',
+  sentAt: 'sentAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmMessageScalarFieldEnum = (typeof CrmMessageScalarFieldEnum)[keyof typeof CrmMessageScalarFieldEnum]
+
+
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
   promptKey: 'promptKey',
@@ -2278,6 +2472,8 @@ export type GlobalOmitConfig = {
   crmTimelineEvent?: Prisma.CrmTimelineEventOmit
   crmMailbox?: Prisma.CrmMailboxOmit
   crmProductLine?: Prisma.CrmProductLineOmit
+  crmSequenceEnrollment?: Prisma.CrmSequenceEnrollmentOmit
+  crmMessage?: Prisma.CrmMessageOmit
   aiPromptConfig?: Prisma.AiPromptConfigOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
   serperConfig?: Prisma.SerperConfigOmit

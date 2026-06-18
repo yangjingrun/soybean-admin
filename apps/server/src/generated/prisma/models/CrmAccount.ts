@@ -249,6 +249,8 @@ export type CrmAccountWhereInput = {
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   contacts?: Prisma.CrmContactListRelationFilter
   events?: Prisma.CrmTimelineEventListRelationFilter
+  enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
+  messages?: Prisma.CrmMessageListRelationFilter
 }
 
 export type CrmAccountOrderByWithRelationInput = {
@@ -268,6 +270,8 @@ export type CrmAccountOrderByWithRelationInput = {
   organization?: Prisma.OrganizationOrderByWithRelationInput
   contacts?: Prisma.CrmContactOrderByRelationAggregateInput
   events?: Prisma.CrmTimelineEventOrderByRelationAggregateInput
+  enrollments?: Prisma.CrmSequenceEnrollmentOrderByRelationAggregateInput
+  messages?: Prisma.CrmMessageOrderByRelationAggregateInput
 }
 
 export type CrmAccountWhereUniqueInput = Prisma.AtLeast<{
@@ -291,6 +295,8 @@ export type CrmAccountWhereUniqueInput = Prisma.AtLeast<{
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   contacts?: Prisma.CrmContactListRelationFilter
   events?: Prisma.CrmTimelineEventListRelationFilter
+  enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
+  messages?: Prisma.CrmMessageListRelationFilter
 }, "id" | "organizationId_ownerUserId_domain">
 
 export type CrmAccountOrderByWithAggregationInput = {
@@ -347,6 +353,8 @@ export type CrmAccountCreateInput = {
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmAccountsInput
   contacts?: Prisma.CrmContactCreateNestedManyWithoutAccountInput
   events?: Prisma.CrmTimelineEventCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountUncheckedCreateInput = {
@@ -365,6 +373,8 @@ export type CrmAccountUncheckedCreateInput = {
   updatedAt?: Date | string
   contacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutAccountInput
   events?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountUpdateInput = {
@@ -383,6 +393,8 @@ export type CrmAccountUpdateInput = {
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmAccountsNestedInput
   contacts?: Prisma.CrmContactUpdateManyWithoutAccountNestedInput
   events?: Prisma.CrmTimelineEventUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountUncheckedUpdateInput = {
@@ -401,6 +413,8 @@ export type CrmAccountUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   contacts?: Prisma.CrmContactUncheckedUpdateManyWithoutAccountNestedInput
   events?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountCreateManyInput = {
@@ -589,6 +603,34 @@ export type CrmAccountUpdateOneRequiredWithoutEventsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.CrmAccountUpdateToOneWithWhereWithoutEventsInput, Prisma.CrmAccountUpdateWithoutEventsInput>, Prisma.CrmAccountUncheckedUpdateWithoutEventsInput>
 }
 
+export type CrmAccountCreateNestedOneWithoutEnrollmentsInput = {
+  create?: Prisma.XOR<Prisma.CrmAccountCreateWithoutEnrollmentsInput, Prisma.CrmAccountUncheckedCreateWithoutEnrollmentsInput>
+  connectOrCreate?: Prisma.CrmAccountCreateOrConnectWithoutEnrollmentsInput
+  connect?: Prisma.CrmAccountWhereUniqueInput
+}
+
+export type CrmAccountUpdateOneRequiredWithoutEnrollmentsNestedInput = {
+  create?: Prisma.XOR<Prisma.CrmAccountCreateWithoutEnrollmentsInput, Prisma.CrmAccountUncheckedCreateWithoutEnrollmentsInput>
+  connectOrCreate?: Prisma.CrmAccountCreateOrConnectWithoutEnrollmentsInput
+  upsert?: Prisma.CrmAccountUpsertWithoutEnrollmentsInput
+  connect?: Prisma.CrmAccountWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CrmAccountUpdateToOneWithWhereWithoutEnrollmentsInput, Prisma.CrmAccountUpdateWithoutEnrollmentsInput>, Prisma.CrmAccountUncheckedUpdateWithoutEnrollmentsInput>
+}
+
+export type CrmAccountCreateNestedOneWithoutMessagesInput = {
+  create?: Prisma.XOR<Prisma.CrmAccountCreateWithoutMessagesInput, Prisma.CrmAccountUncheckedCreateWithoutMessagesInput>
+  connectOrCreate?: Prisma.CrmAccountCreateOrConnectWithoutMessagesInput
+  connect?: Prisma.CrmAccountWhereUniqueInput
+}
+
+export type CrmAccountUpdateOneRequiredWithoutMessagesNestedInput = {
+  create?: Prisma.XOR<Prisma.CrmAccountCreateWithoutMessagesInput, Prisma.CrmAccountUncheckedCreateWithoutMessagesInput>
+  connectOrCreate?: Prisma.CrmAccountCreateOrConnectWithoutMessagesInput
+  upsert?: Prisma.CrmAccountUpsertWithoutMessagesInput
+  connect?: Prisma.CrmAccountWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CrmAccountUpdateToOneWithWhereWithoutMessagesInput, Prisma.CrmAccountUpdateWithoutMessagesInput>, Prisma.CrmAccountUncheckedUpdateWithoutMessagesInput>
+}
+
 export type CrmAccountCreateWithoutOrganizationInput = {
   id?: string
   ownerUserId: string
@@ -604,6 +646,8 @@ export type CrmAccountCreateWithoutOrganizationInput = {
   updatedAt?: Date | string
   contacts?: Prisma.CrmContactCreateNestedManyWithoutAccountInput
   events?: Prisma.CrmTimelineEventCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountUncheckedCreateWithoutOrganizationInput = {
@@ -621,6 +665,8 @@ export type CrmAccountUncheckedCreateWithoutOrganizationInput = {
   updatedAt?: Date | string
   contacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutAccountInput
   events?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountCreateOrConnectWithoutOrganizationInput = {
@@ -683,6 +729,8 @@ export type CrmAccountCreateWithoutContactsInput = {
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmAccountsInput
   events?: Prisma.CrmTimelineEventCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountUncheckedCreateWithoutContactsInput = {
@@ -700,6 +748,8 @@ export type CrmAccountUncheckedCreateWithoutContactsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   events?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountCreateOrConnectWithoutContactsInput = {
@@ -733,6 +783,8 @@ export type CrmAccountUpdateWithoutContactsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmAccountsNestedInput
   events?: Prisma.CrmTimelineEventUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountUncheckedUpdateWithoutContactsInput = {
@@ -750,6 +802,8 @@ export type CrmAccountUncheckedUpdateWithoutContactsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   events?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountCreateWithoutEventsInput = {
@@ -767,6 +821,8 @@ export type CrmAccountCreateWithoutEventsInput = {
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmAccountsInput
   contacts?: Prisma.CrmContactCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountUncheckedCreateWithoutEventsInput = {
@@ -784,6 +840,8 @@ export type CrmAccountUncheckedCreateWithoutEventsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   contacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type CrmAccountCreateOrConnectWithoutEventsInput = {
@@ -817,6 +875,8 @@ export type CrmAccountUpdateWithoutEventsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmAccountsNestedInput
   contacts?: Prisma.CrmContactUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountUncheckedUpdateWithoutEventsInput = {
@@ -834,6 +894,192 @@ export type CrmAccountUncheckedUpdateWithoutEventsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   contacts?: Prisma.CrmContactUncheckedUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutAccountNestedInput
+}
+
+export type CrmAccountCreateWithoutEnrollmentsInput = {
+  id?: string
+  ownerUserId: string
+  name: string
+  normalizedName: string
+  websiteUrl?: string | null
+  domain?: string | null
+  country?: string | null
+  customerType?: string | null
+  status?: string
+  sourceTaskId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization: Prisma.OrganizationCreateNestedOneWithoutCrmAccountsInput
+  contacts?: Prisma.CrmContactCreateNestedManyWithoutAccountInput
+  events?: Prisma.CrmTimelineEventCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutAccountInput
+}
+
+export type CrmAccountUncheckedCreateWithoutEnrollmentsInput = {
+  id?: string
+  organizationId: string
+  ownerUserId: string
+  name: string
+  normalizedName: string
+  websiteUrl?: string | null
+  domain?: string | null
+  country?: string | null
+  customerType?: string | null
+  status?: string
+  sourceTaskId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  contacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutAccountInput
+  events?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutAccountInput
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutAccountInput
+}
+
+export type CrmAccountCreateOrConnectWithoutEnrollmentsInput = {
+  where: Prisma.CrmAccountWhereUniqueInput
+  create: Prisma.XOR<Prisma.CrmAccountCreateWithoutEnrollmentsInput, Prisma.CrmAccountUncheckedCreateWithoutEnrollmentsInput>
+}
+
+export type CrmAccountUpsertWithoutEnrollmentsInput = {
+  update: Prisma.XOR<Prisma.CrmAccountUpdateWithoutEnrollmentsInput, Prisma.CrmAccountUncheckedUpdateWithoutEnrollmentsInput>
+  create: Prisma.XOR<Prisma.CrmAccountCreateWithoutEnrollmentsInput, Prisma.CrmAccountUncheckedCreateWithoutEnrollmentsInput>
+  where?: Prisma.CrmAccountWhereInput
+}
+
+export type CrmAccountUpdateToOneWithWhereWithoutEnrollmentsInput = {
+  where?: Prisma.CrmAccountWhereInput
+  data: Prisma.XOR<Prisma.CrmAccountUpdateWithoutEnrollmentsInput, Prisma.CrmAccountUncheckedUpdateWithoutEnrollmentsInput>
+}
+
+export type CrmAccountUpdateWithoutEnrollmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedName?: Prisma.StringFieldUpdateOperationsInput | string
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmAccountsNestedInput
+  contacts?: Prisma.CrmContactUpdateManyWithoutAccountNestedInput
+  events?: Prisma.CrmTimelineEventUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUpdateManyWithoutAccountNestedInput
+}
+
+export type CrmAccountUncheckedUpdateWithoutEnrollmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedName?: Prisma.StringFieldUpdateOperationsInput | string
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  contacts?: Prisma.CrmContactUncheckedUpdateManyWithoutAccountNestedInput
+  events?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutAccountNestedInput
+}
+
+export type CrmAccountCreateWithoutMessagesInput = {
+  id?: string
+  ownerUserId: string
+  name: string
+  normalizedName: string
+  websiteUrl?: string | null
+  domain?: string | null
+  country?: string | null
+  customerType?: string | null
+  status?: string
+  sourceTaskId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization: Prisma.OrganizationCreateNestedOneWithoutCrmAccountsInput
+  contacts?: Prisma.CrmContactCreateNestedManyWithoutAccountInput
+  events?: Prisma.CrmTimelineEventCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutAccountInput
+}
+
+export type CrmAccountUncheckedCreateWithoutMessagesInput = {
+  id?: string
+  organizationId: string
+  ownerUserId: string
+  name: string
+  normalizedName: string
+  websiteUrl?: string | null
+  domain?: string | null
+  country?: string | null
+  customerType?: string | null
+  status?: string
+  sourceTaskId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  contacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutAccountInput
+  events?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutAccountInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutAccountInput
+}
+
+export type CrmAccountCreateOrConnectWithoutMessagesInput = {
+  where: Prisma.CrmAccountWhereUniqueInput
+  create: Prisma.XOR<Prisma.CrmAccountCreateWithoutMessagesInput, Prisma.CrmAccountUncheckedCreateWithoutMessagesInput>
+}
+
+export type CrmAccountUpsertWithoutMessagesInput = {
+  update: Prisma.XOR<Prisma.CrmAccountUpdateWithoutMessagesInput, Prisma.CrmAccountUncheckedUpdateWithoutMessagesInput>
+  create: Prisma.XOR<Prisma.CrmAccountCreateWithoutMessagesInput, Prisma.CrmAccountUncheckedCreateWithoutMessagesInput>
+  where?: Prisma.CrmAccountWhereInput
+}
+
+export type CrmAccountUpdateToOneWithWhereWithoutMessagesInput = {
+  where?: Prisma.CrmAccountWhereInput
+  data: Prisma.XOR<Prisma.CrmAccountUpdateWithoutMessagesInput, Prisma.CrmAccountUncheckedUpdateWithoutMessagesInput>
+}
+
+export type CrmAccountUpdateWithoutMessagesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedName?: Prisma.StringFieldUpdateOperationsInput | string
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmAccountsNestedInput
+  contacts?: Prisma.CrmContactUpdateManyWithoutAccountNestedInput
+  events?: Prisma.CrmTimelineEventUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutAccountNestedInput
+}
+
+export type CrmAccountUncheckedUpdateWithoutMessagesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedName?: Prisma.StringFieldUpdateOperationsInput | string
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  contacts?: Prisma.CrmContactUncheckedUpdateManyWithoutAccountNestedInput
+  events?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountCreateManyOrganizationInput = {
@@ -866,6 +1112,8 @@ export type CrmAccountUpdateWithoutOrganizationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   contacts?: Prisma.CrmContactUpdateManyWithoutAccountNestedInput
   events?: Prisma.CrmTimelineEventUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountUncheckedUpdateWithoutOrganizationInput = {
@@ -883,6 +1131,8 @@ export type CrmAccountUncheckedUpdateWithoutOrganizationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   contacts?: Prisma.CrmContactUncheckedUpdateManyWithoutAccountNestedInput
   events?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutAccountNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutAccountNestedInput
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type CrmAccountUncheckedUpdateManyWithoutOrganizationInput = {
@@ -908,11 +1158,15 @@ export type CrmAccountUncheckedUpdateManyWithoutOrganizationInput = {
 export type CrmAccountCountOutputType = {
   contacts: number
   events: number
+  enrollments: number
+  messages: number
 }
 
 export type CrmAccountCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contacts?: boolean | CrmAccountCountOutputTypeCountContactsArgs
   events?: boolean | CrmAccountCountOutputTypeCountEventsArgs
+  enrollments?: boolean | CrmAccountCountOutputTypeCountEnrollmentsArgs
+  messages?: boolean | CrmAccountCountOutputTypeCountMessagesArgs
 }
 
 /**
@@ -939,6 +1193,20 @@ export type CrmAccountCountOutputTypeCountEventsArgs<ExtArgs extends runtime.Typ
   where?: Prisma.CrmTimelineEventWhereInput
 }
 
+/**
+ * CrmAccountCountOutputType without action
+ */
+export type CrmAccountCountOutputTypeCountEnrollmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmSequenceEnrollmentWhereInput
+}
+
+/**
+ * CrmAccountCountOutputType without action
+ */
+export type CrmAccountCountOutputTypeCountMessagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmMessageWhereInput
+}
+
 
 export type CrmAccountSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -957,6 +1225,8 @@ export type CrmAccountSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   contacts?: boolean | Prisma.CrmAccount$contactsArgs<ExtArgs>
   events?: boolean | Prisma.CrmAccount$eventsArgs<ExtArgs>
+  enrollments?: boolean | Prisma.CrmAccount$enrollmentsArgs<ExtArgs>
+  messages?: boolean | Prisma.CrmAccount$messagesArgs<ExtArgs>
   _count?: boolean | Prisma.CrmAccountCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["crmAccount"]>
 
@@ -1015,6 +1285,8 @@ export type CrmAccountInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   contacts?: boolean | Prisma.CrmAccount$contactsArgs<ExtArgs>
   events?: boolean | Prisma.CrmAccount$eventsArgs<ExtArgs>
+  enrollments?: boolean | Prisma.CrmAccount$enrollmentsArgs<ExtArgs>
+  messages?: boolean | Prisma.CrmAccount$messagesArgs<ExtArgs>
   _count?: boolean | Prisma.CrmAccountCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CrmAccountIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1030,6 +1302,8 @@ export type $CrmAccountPayload<ExtArgs extends runtime.Types.Extensions.Internal
     organization: Prisma.$OrganizationPayload<ExtArgs>
     contacts: Prisma.$CrmContactPayload<ExtArgs>[]
     events: Prisma.$CrmTimelineEventPayload<ExtArgs>[]
+    enrollments: Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>[]
+    messages: Prisma.$CrmMessagePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1442,6 +1716,8 @@ export interface Prisma__CrmAccountClient<T, Null = never, ExtArgs extends runti
   organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>): Prisma.Prisma__OrganizationClient<runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   contacts<T extends Prisma.CrmAccount$contactsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmAccount$contactsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmContactPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   events<T extends Prisma.CrmAccount$eventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmAccount$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmTimelineEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  enrollments<T extends Prisma.CrmAccount$enrollmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmAccount$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  messages<T extends Prisma.CrmAccount$messagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmAccount$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1930,6 +2206,54 @@ export type CrmAccount$eventsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.CrmTimelineEventScalarFieldEnum | Prisma.CrmTimelineEventScalarFieldEnum[]
+}
+
+/**
+ * CrmAccount.enrollments
+ */
+export type CrmAccount$enrollmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmSequenceEnrollment
+   */
+  select?: Prisma.CrmSequenceEnrollmentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmSequenceEnrollment
+   */
+  omit?: Prisma.CrmSequenceEnrollmentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmSequenceEnrollmentInclude<ExtArgs> | null
+  where?: Prisma.CrmSequenceEnrollmentWhereInput
+  orderBy?: Prisma.CrmSequenceEnrollmentOrderByWithRelationInput | Prisma.CrmSequenceEnrollmentOrderByWithRelationInput[]
+  cursor?: Prisma.CrmSequenceEnrollmentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmSequenceEnrollmentScalarFieldEnum | Prisma.CrmSequenceEnrollmentScalarFieldEnum[]
+}
+
+/**
+ * CrmAccount.messages
+ */
+export type CrmAccount$messagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmMessage
+   */
+  select?: Prisma.CrmMessageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmMessage
+   */
+  omit?: Prisma.CrmMessageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmMessageInclude<ExtArgs> | null
+  where?: Prisma.CrmMessageWhereInput
+  orderBy?: Prisma.CrmMessageOrderByWithRelationInput | Prisma.CrmMessageOrderByWithRelationInput[]
+  cursor?: Prisma.CrmMessageWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmMessageScalarFieldEnum | Prisma.CrmMessageScalarFieldEnum[]
 }
 
 /**

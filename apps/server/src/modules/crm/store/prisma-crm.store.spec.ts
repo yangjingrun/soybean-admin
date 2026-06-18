@@ -389,6 +389,88 @@ describe('PrismaCrmStore', () => {
       limit: 1
     });
   });
+
+  it('creates and lists sequence review items with scoped include data', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    await store.createSequenceEnrollment({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      productLineId: 'product-line-1',
+      mailboxId: 'mailbox-1',
+      name: 'ABC Trading - Ali Hassan',
+      status: 'draft_review_pending',
+      currentStep: 1,
+      totalSteps: 5,
+      runVersion: 1,
+      createdById: 'user-1',
+      createdByName: 'Alice'
+    });
+    const result = await store.listSequenceReviewItems({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      keyword: 'abc',
+      status: 'draft_review_pending',
+      skip: 0,
+      take: 20
+    });
+
+    assert.equal(prisma.crmSequenceEnrollment.createCalls[0].data.organizationId, 'org-1');
+    assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'draft_review_pending',
+      OR: [
+        { name: { contains: 'abc', mode: 'insensitive' } },
+        { account: { name: { contains: 'abc', mode: 'insensitive' } } },
+        { account: { domain: { contains: 'abc', mode: 'insensitive' } } },
+        { contact: { fullName: { contains: 'abc', mode: 'insensitive' } } },
+        { contact: { title: { contains: 'abc', mode: 'insensitive' } } },
+        { contact: { maskedEmail: { contains: 'abc', mode: 'insensitive' } } }
+      ]
+    });
+    assert.equal(result.records[0].firstMessage?.id, 'message-1');
+    assert.equal(result.total, 1);
+  });
+
+  it('finds active enrollments and updates draft messages through scoped identities', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const enrollment = await store.findActiveEnrollmentByContact({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      contactId: 'contact-1',
+      statuses: ['draft_review_pending', 'ready_to_send']
+    });
+    const message = await store.findMessageById({
+      id: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    const updated = await store.updateMessage('message-1', 'org-1', {
+      subject: 'Updated',
+      status: 'draft_ready'
+    });
+
+    assert.equal(enrollment?.id, 'enrollment-1');
+    assert.equal(message?.id, 'message-1');
+    assert.equal(updated?.status, 'draft_ready');
+    assert.deepEqual(prisma.crmSequenceEnrollment.findFirstCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      contactId: 'contact-1',
+      status: { in: ['draft_review_pending', 'ready_to_send'] }
+    });
+    assert.deepEqual(prisma.crmMessage.findFirstCalls[0].where, {
+      id: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+  });
 });
 
 function createPrisma() {
@@ -446,13 +528,74 @@ function createPrisma() {
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
+  const contact = {
+    id: 'contact-1',
+    organizationId: 'org-1',
+    accountId: 'account-1',
+    ownerUserId: 'user-1',
+    fullName: 'Ali Hassan',
+    title: 'Buyer',
+    email: 'ali@example.com',
+    emailHash: 'hash-1',
+    maskedEmail: 'a***@example.com',
+    isPublicEmail: false,
+    emailStatus: 'valid',
+    sourceTaskId: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
+  const message = {
+    id: 'message-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    enrollmentId: 'enrollment-1',
+    mailboxId: 'mailbox-1',
+    stepIndex: 1,
+    threadMode: 'new_subject',
+    subject: 'Bearing Series for ABC Trading',
+    bodyText: 'Hi Ali',
+    status: 'draft_pending_review',
+    scheduledAt: null,
+    sentAt: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
+  const enrollment = {
+    id: 'enrollment-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    productLineId: 'product-line-1',
+    mailboxId: 'mailbox-1',
+    name: 'ABC Trading - Ali Hassan',
+    status: 'draft_review_pending',
+    currentStep: 1,
+    totalSteps: 5,
+    runVersion: 1,
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    account,
+    contact,
+    productLine,
+    mailbox,
+    messages: [message]
+  };
 
   return {
+    async $transaction<T>(operation: (tx: unknown) => Promise<T>) {
+      return operation(this);
+    },
     crmAccount: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{ where: Record<string, unknown> }>,
+      updateCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
       createError: null as Error | null,
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
@@ -473,6 +616,10 @@ function createPrisma() {
       },
       async count() {
         return 1;
+      },
+      async update(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+        this.updateCalls.push(args);
+        return { ...account, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') };
       }
     },
     crmContact: {
@@ -547,6 +694,7 @@ function createPrisma() {
     },
     crmTimelineEvent: {
       findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
       async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
         this.findManyCalls.push(args);
         return [
@@ -563,6 +711,21 @@ function createPrisma() {
             createdAt: new Date('2026-06-18T10:00:00.000Z')
           }
         ];
+      },
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return {
+          id: 'event-1',
+          organizationId: 'org-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-1',
+          eventType: args.data.eventType,
+          title: args.data.title,
+          content: args.data.content ?? null,
+          metadata: args.data.metadata ?? null,
+          createdAt: new Date('2026-06-18T10:00:00.000Z')
+        };
       }
     },
     crmMailbox: {
@@ -655,6 +818,68 @@ function createPrisma() {
       async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...productLine, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+      }
+    },
+    crmSequenceEnrollment: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+        include: Record<string, unknown>;
+      }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return enrollment;
+      },
+      async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return args.include ? enrollment : { ...enrollment, account: undefined, contact: undefined, productLine: undefined, mailbox: undefined, messages: undefined };
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+        include: Record<string, unknown>;
+      }) {
+        this.findManyCalls.push(args);
+        return [enrollment];
+      },
+      async count() {
+        return 1;
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [{ ...enrollment, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+      }
+    },
+    crmMessage: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return message;
+      },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return message;
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [{ ...message, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
     }
   };

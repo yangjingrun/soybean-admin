@@ -14,9 +14,14 @@ import type {
   CrmMailboxStatus,
   CrmContactRecord,
   CrmEmailStatus,
+  CrmMessageRecord,
+  CrmMessageStatus,
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmProductLineUpdateInput,
+  CrmSequenceEnrollmentRecord,
+  CrmSequenceEnrollmentStatus,
+  CrmSequenceReviewRecord,
   CrmStore,
   CrmTimelineEventRecord,
   CrmUserContext,
@@ -31,6 +36,15 @@ const gmailProvider: CrmMailboxProvider = 'gmail';
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
 const defaultProductLineStatus: CrmProductLineStatus = 'active';
+const defaultSequenceStepCount = 5;
+const initialDraftStepIndex = 1;
+const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
+  'draft_review_pending',
+  'ready_to_send',
+  'sequence_running',
+  'paused'
+];
+const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 const publicEmailPrefixes = new Set([
   'admin',
@@ -69,6 +83,23 @@ interface ProductLineCreateInput {
 
 interface ProductLineUpdateInput extends Partial<ProductLineCreateInput> {
   status?: CrmProductLineStatus;
+}
+
+interface SequenceReviewCreateInput {
+  accountId: string;
+  contactId: string;
+  productLineId?: string | null;
+  mailboxId?: string | null;
+}
+
+interface MessageDraftUpdateInput {
+  subject: string;
+  bodyText: string;
+}
+
+interface GeneratedDraft {
+  subject: string;
+  bodyText: string;
 }
 
 @Injectable()
@@ -465,6 +496,215 @@ export class CrmService {
     return { productLine: toProductLineView(productLine) };
   }
 
+  /** Creates one first-email review item and deterministic draft without queueing any send job. */
+  async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
+    const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
+    const existingEnrollment = await this.store.findActiveEnrollmentByContact({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      contactId: contact.id,
+      statuses: activeSequenceStatuses
+    });
+
+    if (existingEnrollment) {
+      throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
+    }
+
+    const [productLine, mailbox] = await Promise.all([
+      input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
+      input.mailboxId ? this.requireOwnedActiveMailbox(input.mailboxId, context) : Promise.resolve(null)
+    ]);
+    const draft = generateFirstDraft({ account, contact, productLine, context });
+    const bundle = await this.runSequenceWrite(() =>
+      this.store.createSequenceDraftBundle({
+        enrollment: {
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          accountId: account.id,
+          contactId: contact.id,
+          productLineId: productLine?.id ?? null,
+          mailboxId: mailbox?.id ?? null,
+          name: buildSequenceName(account, contact),
+          status: 'draft_review_pending',
+          currentStep: initialDraftStepIndex,
+          totalSteps: defaultSequenceStepCount,
+          runVersion: 1,
+          createdById: context.userId,
+          createdByName: context.userName
+        },
+        message: {
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          accountId: account.id,
+          contactId: contact.id,
+          mailboxId: mailbox?.id ?? null,
+          stepIndex: initialDraftStepIndex,
+          threadMode: 'new_subject',
+          subject: draft.subject,
+          bodyText: draft.bodyText,
+          status: 'draft_pending_review'
+        },
+        timelineEvent: {
+          organizationId: context.organizationId,
+          accountId: account.id,
+          contactId: contact.id,
+          ownerUserId: context.userId,
+          eventType: 'sequence_draft_generated',
+          title: '生成首封开发信草稿',
+          content: draft.subject,
+          metadata: {
+            productLineId: productLine?.id ?? null,
+            mailboxId: mailbox?.id ?? null
+          }
+        },
+        accountStatus: 'manual_review_pending'
+      })
+    );
+
+    await this.recordCrmLog('sequence-review-create', 'CRM 首封开发信草稿生成', context, {
+      organizationId: context.organizationId,
+      accountId: account.id,
+      contactId: contact.id,
+      enrollmentId: bundle.enrollment.id,
+      messageId: bundle.message.id,
+      productLineId: productLine?.id ?? null,
+      mailboxId: mailbox?.id ?? null
+    });
+
+    return {
+      item: toSequenceReviewView(
+        {
+          enrollment: bundle.enrollment,
+          account: bundle.account,
+          contact,
+          productLine,
+          mailbox,
+          firstMessage: bundle.message
+        },
+        context
+      )
+    };
+  }
+
+  /** Lists first-email review items within the current organization scope. */
+  async listSequenceReviewItems(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: CrmSequenceEnrollmentStatus;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const result = await this.store.listSequenceReviewItems({
+      organizationId: context.organizationId,
+      ...toOwnerScope(context),
+      ...(keyword ? { keyword } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(record => toSequenceReviewView(record, context))
+    };
+  }
+
+  /** Returns one review item detail with the first draft message. */
+  async getSequenceReviewItem(id: string, context: CrmUserContext) {
+    const item = await this.requireScopedSequenceReviewItem(id, context);
+
+    return toSequenceReviewView(item, context);
+  }
+
+  /** Saves human edits to one draft and keeps it in pending review. */
+  async updateMessageDraft(id: string, input: MessageDraftUpdateInput, context: CrmUserContext) {
+    const message = await this.requireOwnedEditableMessage(id, context);
+    const updatedMessage = await this.store.updateMessage(
+      message.id,
+      context.organizationId,
+      {
+        subject: normalizeRequiredString(input.subject, '邮件主题不能为空'),
+        bodyText: normalizeRequiredString(input.bodyText, '邮件正文不能为空'),
+        status: 'draft_pending_review'
+      },
+      {
+        status: 'draft_pending_review'
+      }
+    );
+
+    if (!updatedMessage) {
+      throw new NotFoundException('邮件草稿不存在');
+    }
+
+    await this.store.createTimelineEvent({
+      organizationId: updatedMessage.organizationId,
+      accountId: updatedMessage.accountId,
+      contactId: updatedMessage.contactId,
+      ownerUserId: context.userId,
+      eventType: 'draft_updated',
+      title: '用户修改首封开发信草稿',
+      content: updatedMessage.subject,
+      metadata: {
+        enrollmentId: updatedMessage.enrollmentId,
+        messageId: updatedMessage.id
+      }
+    });
+
+    return {
+      message: toMessageView(updatedMessage)
+    };
+  }
+
+  /** Marks one reviewed draft as ready for the future send queue without sending it. */
+  async approveMessageDraft(id: string, context: CrmUserContext) {
+    const message = await this.requireOwnedEditableMessage(id, context);
+    const reviewItem = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
+
+    if (reviewItem.enrollment.status !== 'draft_review_pending') {
+      throw new BadRequestException('当前序列状态不能确认草稿');
+    }
+
+    const approval = await this.store.approveMessageDraft({
+      messageId: message.id,
+      enrollmentId: reviewItem.enrollment.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      accountId: message.accountId,
+      contactId: message.contactId,
+      fromEnrollmentStatus: 'draft_review_pending',
+      toEnrollmentStatus: 'ready_to_send',
+      fromMessageStatus: 'draft_pending_review',
+      toMessageStatus: 'draft_ready',
+      accountStatus: 'ready'
+    });
+
+    if (!approval) {
+      throw new BadRequestException('当前草稿状态已变化，请刷新后重试');
+    }
+
+    await this.recordCrmLog('draft-approve', 'CRM 首封开发信人工确认', context, {
+      organizationId: context.organizationId,
+      accountId: approval.message.accountId,
+      contactId: approval.message.contactId,
+      enrollmentId: approval.enrollment.id,
+      messageId: approval.message.id,
+      fromStatus: reviewItem.enrollment.status,
+      toStatus: approval.enrollment.status
+    });
+
+    return {
+      enrollment: toSequenceEnrollmentView(approval.enrollment),
+      message: toMessageView(approval.message)
+    };
+  }
+
   private async importContactIfPresent(
     account: CrmAccountRecord,
     input: ImportCrmLeadInput,
@@ -652,6 +892,102 @@ export class CrmService {
     return productLine;
   }
 
+  private async requireActiveProductLine(id: string, context: CrmUserContext) {
+    const productLine = await this.requireScopedProductLine(id, context);
+
+    if (productLine.status !== 'active') {
+      throw new BadRequestException('产品资料已归档');
+    }
+
+    return productLine;
+  }
+
+  private async requireOwnedActiveMailbox(id: string, context: CrmUserContext) {
+    const mailbox = await this.store.findMailboxById({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!mailbox) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    if (mailbox.status !== 'active') {
+      throw new BadRequestException('邮箱未启用');
+    }
+
+    return mailbox;
+  }
+
+  private async requireScopedAccountAndContact(accountId: string, contactId: string, context: CrmUserContext) {
+    const detail = await this.requireScopedAccountDetail(accountId, context);
+    const contact = detail.contacts.find(item => item.id === contactId) ?? null;
+
+    if (!contact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    if (detail.account.status === 'archived' || detail.account.status === 'blocked') {
+      throw new BadRequestException('当前线索不可开发');
+    }
+
+    if (detail.account.ownerUserId !== context.userId || contact.ownerUserId !== context.userId) {
+      throw new BadRequestException('只能为自己的线索创建开发信序列');
+    }
+
+    return {
+      account: detail.account,
+      contact
+    };
+  }
+
+  private async requireScopedSequenceReviewItem(id: string, context: CrmUserContext) {
+    const item = await this.store.getSequenceReviewItem({
+      id,
+      organizationId: context.organizationId,
+      ...toOwnerScope(context)
+    });
+
+    if (!item) {
+      throw new NotFoundException('邮件序列不存在');
+    }
+
+    return item;
+  }
+
+  private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
+    const item = await this.store.getSequenceReviewItem({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!item) {
+      throw new NotFoundException('邮件序列不存在');
+    }
+
+    return item;
+  }
+
+  private async requireOwnedEditableMessage(id: string, context: CrmUserContext) {
+    const message = await this.store.findMessageById({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!message) {
+      throw new NotFoundException('邮件草稿不存在');
+    }
+
+    if (!editableDraftStatuses.includes(message.status)) {
+      throw new BadRequestException('当前邮件状态不能修改');
+    }
+
+    return message;
+  }
+
   private async assertProductLineNameAvailable(organizationId: string, name: string, ignoredId?: string) {
     const existingProductLine = await this.store.findProductLineByName(organizationId, name);
 
@@ -666,6 +1002,18 @@ export class CrmService {
     } catch (error) {
       if (isPrismaUniqueConflict(error)) {
         throw new BadRequestException('产品资料名称已存在');
+      }
+
+      throw error;
+    }
+  }
+
+  private async runSequenceWrite<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
       }
 
       throw error;
@@ -769,12 +1117,78 @@ function toProductLineView(record: CrmProductLineRecord) {
   };
 }
 
+function toSequenceEnrollmentView(record: CrmSequenceEnrollmentRecord) {
+  return {
+    ...record,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toMessageView(record: CrmMessageRecord) {
+  return {
+    ...record,
+    scheduledAt: record.scheduledAt?.toISOString() ?? null,
+    sentAt: record.sentAt?.toISOString() ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
 function toAccountDetailView(detail: CrmAccountDetailRecord) {
   return {
     account: toAccountView(detail.account),
     contacts: detail.contacts.map(toContactView),
     timelineEvents: detail.timelineEvents.map(toTimelineEventView)
   };
+}
+
+function toSequenceReviewView(record: CrmSequenceReviewRecord, context: CrmUserContext) {
+  return {
+    enrollment: toSequenceEnrollmentView(record.enrollment),
+    account: toAccountView(record.account),
+    contact: toContactView(record.contact),
+    productLine: record.productLine ? toProductLineView(record.productLine) : null,
+    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
+    firstMessage: record.firstMessage ? toMessageView(record.firstMessage) : null,
+    canOperateDraft: record.enrollment.ownerUserId === context.userId,
+    checklist: buildReviewChecklist(record)
+  };
+}
+
+function buildReviewChecklist(record: CrmSequenceReviewRecord) {
+  return [
+    {
+      key: 'mailbox_active',
+      label: '发送邮箱',
+      passed: record.mailbox?.status === 'active',
+      message: record.mailbox?.status === 'active' ? `已选择 ${record.mailbox.maskedEmail}` : '未选择启用的发送邮箱'
+    },
+    {
+      key: 'personal_email',
+      label: '联系人邮箱',
+      passed: !record.contact.isPublicEmail,
+      message: record.contact.isPublicEmail ? '公共邮箱，建议人工确认' : `个人邮箱 ${record.contact.maskedEmail}`
+    },
+    {
+      key: 'email_verified',
+      label: '邮箱验证',
+      passed: record.contact.emailStatus === 'valid',
+      message: `当前状态：${toEmailStatusText(record.contact.emailStatus)}`
+    },
+    {
+      key: 'product_line',
+      label: '产品资料',
+      passed: record.productLine?.status === 'active',
+      message: record.productLine?.status === 'active' ? record.productLine.name : '未选择启用的产品资料'
+    },
+    {
+      key: 'draft_content',
+      label: '首封草稿',
+      passed: Boolean(record.firstMessage?.subject && record.firstMessage.bodyText),
+      message: record.firstMessage ? '已生成首封纯文本草稿' : '尚未生成首封草稿'
+    }
+  ];
 }
 
 function toOwnerScope(context: CrmUserContext) {
@@ -872,6 +1286,48 @@ function normalizeRequiredString(value: string, emptyMessage: string) {
   return normalized;
 }
 
+/** Builds a conservative first-touch draft from verified CRM fields only. */
+function generateFirstDraft(options: {
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  productLine: CrmProductLineRecord | null;
+  context: CrmUserContext;
+}): GeneratedDraft {
+  const { account, contact, context, productLine } = options;
+  const greetingName = contact.fullName || contact.title || 'there';
+  const productName = productLine?.name || 'our product line';
+  const sellingPoint = productLine?.coreSellingPoints || `supporting ${account.customerType || 'B2B'} customers`;
+  const supplyInfo = [
+    productLine?.moq ? `MOQ: ${productLine.moq}` : null,
+    productLine?.leadTime ? `lead time: ${productLine.leadTime}` : null,
+    productLine?.certifications ? `certifications: ${productLine.certifications}` : null
+  ].filter(Boolean);
+  const subject = productLine ? `${productName} for ${account.name}` : `Potential cooperation with ${account.name}`;
+  const bodyLines = [
+    `Hi ${greetingName},`,
+    '',
+    `I noticed ${account.name}${account.country ? ` in ${account.country}` : ''} and thought this might be relevant to your team.`,
+    `We work on ${productName}, mainly focused on ${sellingPoint}.`,
+    supplyInfo.length ? `For reference, ${supplyInfo.join(', ')}.` : null,
+    '',
+    'Would it be useful if I sent a short product list for your review?',
+    '',
+    'Best regards,',
+    context.userName || 'Sales team'
+  ].filter((line): line is string => line !== null);
+
+  return {
+    subject,
+    bodyText: bodyLines.join('\n')
+  };
+}
+
+function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord) {
+  const contactLabel = contact.fullName || contact.title || contact.maskedEmail;
+
+  return `${account.name} - ${contactLabel}`;
+}
+
 function normalizeEmail(value?: string | null) {
   const normalized = value?.trim().toLowerCase();
   return normalized && normalized.includes('@') ? normalized : null;
@@ -930,10 +1386,12 @@ function isPublicEmail(email: string) {
   return publicEmailPrefixes.has(local.toLowerCase());
 }
 
-function toEmailStatusText(status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'unreachable'>) {
-  const textMap: Record<Extract<CrmEmailStatus, 'valid' | 'invalid' | 'unreachable'>, string> = {
+function toEmailStatusText(status: CrmEmailStatus) {
+  const textMap: Record<CrmEmailStatus, string> = {
+    unchecked: '未验证',
     valid: '有效',
     invalid: '无效',
+    risky: '风险',
     unreachable: '暂不可达'
   };
 

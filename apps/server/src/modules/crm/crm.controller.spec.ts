@@ -10,6 +10,9 @@ type CrmAccountView = Awaited<ReturnType<CrmService['listAccounts']>>['records']
 type CrmMailboxView = Awaited<ReturnType<CrmService['listMailboxes']>>['records'][number];
 type CrmTimelineEventView = Awaited<ReturnType<CrmService['addAccountNote']>>['event'];
 type CrmEmailVerificationView = Awaited<ReturnType<CrmService['verifyContactEmail']>>;
+type CrmSequenceReviewItemView = Awaited<ReturnType<CrmService['getSequenceReviewItem']>>;
+type CrmEnrollmentView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['enrollment'];
+type CrmMessageView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['message'];
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -356,6 +359,94 @@ describe('CrmController', () => {
     );
   });
 
+  it('creates, lists and reads sequence review items with the current user context', async () => {
+    const calls: Array<{ action: string; payload: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async createSequenceReviewItem(dto, context) {
+          calls.push({ action: 'create', payload: dto, context });
+
+          return { item: createSequenceReviewItemView({ id: 'enrollment-1' }) };
+        },
+        async listSequenceReviewItems(context, query) {
+          calls.push({ action: 'list', payload: query, context });
+
+          return {
+            current: 1,
+            size: 20,
+            total: 1,
+            records: [createSequenceReviewItemView({ id: 'enrollment-1' })]
+          };
+        },
+        async getSequenceReviewItem(id, context) {
+          calls.push({ action: 'detail', payload: id, context });
+
+          return createSequenceReviewItemView({ id });
+        }
+      })
+    );
+
+    const dto = { accountId: 'account-1', contactId: 'contact-1', productLineId: 'line-1', mailboxId: 'mailbox-1' };
+    const created = await controller.createSequenceReviewItem('Bearer token', dto);
+    const listed = await controller.listSequenceReviewItems('Bearer token', {
+      current: 1,
+      size: 20,
+      status: 'draft_review_pending'
+    });
+    const detail = await controller.getSequenceReviewItem('Bearer token', 'enrollment-1');
+
+    assert.equal(created.code, '0000');
+    assert.equal(listed.data.records[0].enrollment.id, 'enrollment-1');
+    assert.equal(detail.data.enrollment.id, 'enrollment-1');
+    assert.deepEqual(
+      calls.map(call => [call.action, call.context.userId]),
+      [
+        ['create', 'user-1'],
+        ['list', 'user-1'],
+        ['detail', 'user-1']
+      ]
+    );
+  });
+
+  it('updates and approves message drafts with the current user context', async () => {
+    const calls: Array<{ action: string; id: string; payload?: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async updateMessageDraft(id, dto, context) {
+          calls.push({ action: 'update', id, payload: dto, context });
+
+          return { message: createMessageView({ id, subject: dto.subject, bodyText: dto.bodyText }) };
+        },
+        async approveMessageDraft(id, context) {
+          calls.push({ action: 'approve', id, context });
+
+          return {
+            enrollment: createEnrollmentView({ status: 'ready_to_send' }),
+            message: createMessageView({ id, status: 'draft_ready' })
+          };
+        }
+      })
+    );
+
+    const updated = await controller.updateMessageDraft('Bearer token', 'message-1', {
+      subject: 'Hello',
+      bodyText: 'Body'
+    });
+    const approved = await controller.approveMessageDraft('Bearer token', 'message-1');
+
+    assert.equal(updated.data.message.subject, 'Hello');
+    assert.equal(approved.data.enrollment.status, 'ready_to_send');
+    assert.deepEqual(
+      calls.map(call => [call.action, call.id, call.context.organizationId]),
+      [
+        ['update', 'message-1', 'org-1'],
+        ['approve', 'message-1', 'org-1']
+      ]
+    );
+  });
+
   it('rejects anonymous users', async () => {
     const controller = new CrmController(createAuthService(null), createCrmService());
 
@@ -503,6 +594,70 @@ function createProductLineView(overrides: Partial<{
   };
 }
 
+function createEnrollmentView(overrides: Partial<CrmEnrollmentView> = {}): CrmEnrollmentView {
+  return {
+    id: 'enrollment-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    productLineId: 'product-line-1',
+    mailboxId: 'mailbox-1',
+    name: 'ABC Trading - Ali Hassan',
+    status: 'draft_review_pending',
+    currentStep: 1,
+    totalSteps: 5,
+    runVersion: 1,
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
+function createMessageView(overrides: Partial<CrmMessageView> = {}): CrmMessageView {
+  return {
+    id: 'message-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    enrollmentId: 'enrollment-1',
+    mailboxId: 'mailbox-1',
+    stepIndex: 1,
+    threadMode: 'new_subject',
+    subject: 'Bearing Series for ABC Trading',
+    bodyText: 'Hi Ali,\n\nWould it be useful if I sent a short product list?\n\nBest regards,\nAlice',
+    status: 'draft_pending_review',
+    scheduledAt: null,
+    sentAt: null,
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
+function createSequenceReviewItemView(overrides: { id?: string } = {}): CrmSequenceReviewItemView {
+  return {
+    enrollment: createEnrollmentView({ id: overrides.id ?? 'enrollment-1' }),
+    account: createAccountView(),
+    contact: createContactView(),
+    productLine: createProductLineView(),
+    mailbox: createMailboxView(),
+    firstMessage: createMessageView(),
+    canOperateDraft: true,
+    checklist: [
+      {
+        key: 'draft_content',
+        label: '首封草稿',
+        passed: true,
+        message: '已生成首封纯文本草稿'
+      }
+    ]
+  };
+}
+
 function createEmailVerificationView(overrides: { contactId?: string } = {}): CrmEmailVerificationView {
   return {
     contact: createContactView({ id: overrides.contactId }),
@@ -589,6 +744,29 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async archiveProductLine() {
       return { productLine: createProductLineView({ status: 'archived' }) };
+    },
+    async createSequenceReviewItem() {
+      return { item: createSequenceReviewItemView() };
+    },
+    async listSequenceReviewItems() {
+      return {
+        current: 1,
+        size: 20,
+        total: 0,
+        records: []
+      };
+    },
+    async getSequenceReviewItem() {
+      return createSequenceReviewItemView();
+    },
+    async updateMessageDraft() {
+      return { message: createMessageView() };
+    },
+    async approveMessageDraft() {
+      return {
+        enrollment: createEnrollmentView({ status: 'ready_to_send' }),
+        message: createMessageView({ status: 'draft_ready' })
+      };
     },
     ...partial
   } as unknown as CrmService;

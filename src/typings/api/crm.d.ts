@@ -26,6 +26,19 @@ declare namespace Api {
 
     type ProductLineStatus = 'active' | 'archived';
 
+    type SequenceEnrollmentStatus =
+      | 'draft_review_pending'
+      | 'ready_to_send'
+      | 'sequence_running'
+      | 'paused'
+      | 'stopped'
+      | 'replied'
+      | 'archived';
+
+    type MessageStatus = 'draft_pending_review' | 'draft_ready' | 'queued' | 'sent' | 'failed' | 'skipped';
+
+    type MessageThreadMode = 'new_subject' | 'same_thread';
+
     interface LeadRecord {
       id: string;
       organizationId: string;
@@ -216,5 +229,105 @@ declare namespace Api {
     }
 
     type ProductLineList = Api.Common.PaginatingQueryRecord<ProductLineRecord>;
+
+    interface SequenceEnrollmentRecord {
+      id: string;
+      organizationId: string;
+      ownerUserId: string;
+      accountId: string;
+      contactId: string;
+      productLineId: string | null;
+      mailboxId: string | null;
+      name: string;
+      status: SequenceEnrollmentStatus;
+      currentStep: number;
+      totalSteps: number;
+      runVersion: number;
+      createdById: string;
+      createdByName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface MessageRecord {
+      id: string;
+      organizationId: string;
+      ownerUserId: string;
+      accountId: string;
+      contactId: string;
+      enrollmentId: string;
+      mailboxId: string | null;
+      stepIndex: number;
+      threadMode: MessageThreadMode;
+      subject: string;
+      bodyText: string;
+      status: MessageStatus;
+      scheduledAt: string | null;
+      sentAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface SequenceReviewChecklistItem {
+      key: string;
+      label: string;
+      passed: boolean;
+      message: string;
+    }
+
+    interface SequenceReviewItem {
+      enrollment: SequenceEnrollmentRecord;
+      account: LeadRecord;
+      contact: LeadContact;
+      productLine: ProductLineRecord | null;
+      mailbox: MailboxRecord | null;
+      firstMessage: MessageRecord | null;
+      canOperateDraft: boolean;
+      checklist: SequenceReviewChecklistItem[];
+    }
+
+    interface SequenceReviewSearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+      status?: SequenceEnrollmentStatus;
+    }
+
+    interface SequenceReviewFilterModel {
+      keyword: string;
+      status: SequenceEnrollmentStatus | null;
+    }
+
+    interface SequenceReviewCreatePayload {
+      accountId: string;
+      contactId: string;
+      productLineId?: string;
+      mailboxId?: string;
+    }
+
+    interface SequenceReviewCreateFormModel {
+      accountId: string | null;
+      contactId: string | null;
+      productLineId: string | null;
+      mailboxId: string | null;
+    }
+
+    interface MessageDraftPayload {
+      subject: string;
+      bodyText: string;
+    }
+
+    interface SequenceReviewOperateResult {
+      item: SequenceReviewItem;
+    }
+
+    interface MessageDraftUpdateResult {
+      message: MessageRecord;
+    }
+
+    interface MessageDraftApproveResult {
+      enrollment: SequenceEnrollmentRecord;
+      message: MessageRecord;
+    }
+
+    type SequenceReviewList = Api.Common.PaginatingQueryRecord<SequenceReviewItem>;
   }
 }

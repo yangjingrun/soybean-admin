@@ -6,7 +6,7 @@
 /*
  * This file should be your main import to use Prisma-related types and utilities in a browser. 
  * Use it to get access to models, enums, and input types.
- * 
+ *
  * This file does not contain a `PrismaClient` class, nor several other helpers that are intended as server-side only.
  * See `client.ts` for the standard, server-side entry point.
  *
@@ -19,7 +19,7 @@ export * as $Enums from './enums'
 export * from './enums';
 /**
  * Model SystemLog
- * 
+ *
  */
 export type SystemLog = Prisma.SystemLogModel
 /**
@@ -57,6 +57,16 @@ export type CrmMailbox = Prisma.CrmMailboxModel
  * 
  */
 export type CrmProductLine = Prisma.CrmProductLineModel
+/**
+ * Model CrmSequenceEnrollment
+ *
+ */
+export type CrmSequenceEnrollment = Prisma.CrmSequenceEnrollmentModel
+/**
+ * Model CrmMessage
+ *
+ */
+export type CrmMessage = Prisma.CrmMessageModel
 /**
  * Model AiPromptConfig
  * 

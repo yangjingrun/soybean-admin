@@ -3,7 +3,9 @@ import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
 import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
+import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
 import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
+import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
 import { PrismaService } from '../../database/prisma.service';
 import type {
@@ -24,6 +26,19 @@ import type {
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmProductLineUpdateInput,
+  CrmMessageCreateInput,
+  CrmMessageDraftUpdateGuard,
+  CrmMessageRecord,
+  CrmMessageUpdateInput,
+  CrmDraftApprovalInput,
+  CrmDraftApprovalRecord,
+  CrmSequenceEnrollmentCreateInput,
+  CrmSequenceEnrollmentRecord,
+  CrmSequenceEnrollmentStatus,
+  CrmSequenceEnrollmentUpdateInput,
+  CrmSequenceDraftBundleCreateInput,
+  CrmSequenceDraftBundleRecord,
+  CrmSequenceReviewRecord,
   CrmStore,
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
@@ -355,6 +370,226 @@ export class PrismaCrmStore implements CrmStore {
 
     return records[0] ? toProductLineRecord(records[0]) : null;
   }
+
+  findActiveEnrollmentByContact(args: {
+    organizationId: string;
+    ownerUserId: string;
+    contactId: string;
+    statuses: CrmSequenceEnrollmentStatus[];
+  }) {
+    return this.prisma.crmSequenceEnrollment
+      .findFirst({
+        where: {
+          organizationId: args.organizationId,
+          ownerUserId: args.ownerUserId,
+          contactId: args.contactId,
+          status: { in: args.statuses }
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+      .then(record => (record ? toSequenceEnrollmentRecord(record) : null));
+  }
+
+  async createSequenceEnrollment(input: CrmSequenceEnrollmentCreateInput) {
+    const record = await this.prisma.crmSequenceEnrollment.create({
+      data: input as Prisma.CrmSequenceEnrollmentUncheckedCreateInput
+    });
+
+    return toSequenceEnrollmentRecord(record);
+  }
+
+  async createSequenceDraftBundle(input: CrmSequenceDraftBundleCreateInput): Promise<CrmSequenceDraftBundleRecord> {
+    return this.prisma.$transaction(async tx => {
+      const enrollment = await tx.crmSequenceEnrollment.create({
+        data: input.enrollment as Prisma.CrmSequenceEnrollmentUncheckedCreateInput
+      });
+      const message = await tx.crmMessage.create({
+        data: {
+          ...input.message,
+          enrollmentId: enrollment.id
+        } as Prisma.CrmMessageUncheckedCreateInput
+      });
+      const account = await tx.crmAccount.update({
+        where: { id: input.enrollment.accountId },
+        data: { status: input.accountStatus }
+      });
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          organizationId: input.timelineEvent.organizationId,
+          accountId: input.timelineEvent.accountId,
+          contactId: input.timelineEvent.contactId,
+          ownerUserId: input.timelineEvent.ownerUserId,
+          eventType: input.timelineEvent.eventType,
+          title: input.timelineEvent.title,
+          content: input.timelineEvent.content,
+          metadata: {
+            ...input.timelineEvent.metadata,
+            enrollmentId: enrollment.id,
+            messageId: message.id
+          }
+        }
+      });
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async listSequenceReviewItems(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmSequenceEnrollmentStatus;
+    skip: number;
+    take: number;
+  }) {
+    const where = toSequenceEnrollmentListWhere(args);
+    const [records, total] = await Promise.all([
+      this.prisma.crmSequenceEnrollment.findMany({
+        where,
+        skip: args.skip,
+        take: args.take,
+        orderBy: { updatedAt: 'desc' },
+        include: toSequenceReviewInclude()
+      }),
+      this.prisma.crmSequenceEnrollment.count({ where })
+    ]);
+
+    return {
+      records: records.map(toSequenceReviewRecord),
+      total
+    };
+  }
+
+  async getSequenceReviewItem(args: { id: string; organizationId: string; ownerUserId?: string }) {
+    const record = await this.prisma.crmSequenceEnrollment.findFirst({
+      where: toSequenceEnrollmentIdentityWhere(args),
+      include: toSequenceReviewInclude()
+    });
+
+    return record ? toSequenceReviewRecord(record) : null;
+  }
+
+  async updateSequenceEnrollment(
+    id: string,
+    organizationId: string,
+    input: CrmSequenceEnrollmentUpdateInput
+  ) {
+    const records = await this.prisma.crmSequenceEnrollment.updateManyAndReturn({
+      where: {
+        id,
+        organizationId
+      },
+      data: input,
+      limit: 1
+    });
+
+    return records[0] ? toSequenceEnrollmentRecord(records[0]) : null;
+  }
+
+  async createMessage(input: CrmMessageCreateInput) {
+    const record = await this.prisma.crmMessage.create({
+      data: input as Prisma.CrmMessageUncheckedCreateInput
+    });
+
+    return toMessageRecord(record);
+  }
+
+  findMessageById(args: { id: string; organizationId: string; ownerUserId?: string }) {
+    return this.prisma.crmMessage
+      .findFirst({
+        where: toMessageIdentityWhere(args)
+      })
+      .then(record => (record ? toMessageRecord(record) : null));
+  }
+
+  async updateMessage(
+    id: string,
+    organizationId: string,
+    input: CrmMessageUpdateInput,
+    guard?: CrmMessageDraftUpdateGuard
+  ) {
+    const records = await this.prisma.crmMessage.updateManyAndReturn({
+      where: {
+        id,
+        organizationId,
+        ...(guard ? { status: guard.status } : {})
+      },
+      data: input,
+      limit: 1
+    });
+
+    return records[0] ? toMessageRecord(records[0]) : null;
+  }
+
+  async approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          id: input.messageId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: input.fromMessageStatus
+        },
+        data: { status: input.toMessageStatus },
+        limit: 1
+      });
+      const message = messages[0];
+
+      if (!message) {
+        return null;
+      }
+
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: input.fromEnrollmentStatus
+        },
+        data: { status: input.toEnrollmentStatus },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const account = await tx.crmAccount.update({
+        where: { id: input.accountId },
+        data: { status: input.accountStatus }
+      });
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          organizationId: input.organizationId,
+          accountId: input.accountId,
+          contactId: input.contactId,
+          ownerUserId: input.ownerUserId,
+          eventType: 'draft_approved',
+          title: '首封开发信人工确认',
+          content: message.subject,
+          metadata: {
+            enrollmentId: enrollment.id,
+            messageId: message.id,
+            fromStatus: input.fromEnrollmentStatus,
+            toStatus: input.toEnrollmentStatus
+          }
+        }
+      });
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
 }
 
 /** Builds the scoped account identity filter used before detail reads and writes. */
@@ -401,6 +636,32 @@ function toProductLineIdentityWhere(args: { id: string; organizationId: string }
   return {
     id: args.id,
     organizationId: args.organizationId
+  };
+}
+
+/** Builds the scoped sequence identity filter used before sequence reads and writes. */
+function toSequenceEnrollmentIdentityWhere(args: {
+  id: string;
+  organizationId: string;
+  ownerUserId?: string;
+}): Prisma.CrmSequenceEnrollmentWhereInput {
+  return {
+    id: args.id,
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+  };
+}
+
+/** Builds the scoped message identity filter used before draft reads and writes. */
+function toMessageIdentityWhere(args: {
+  id: string;
+  organizationId: string;
+  ownerUserId?: string;
+}): Prisma.CrmMessageWhereInput {
+  return {
+    id: args.id,
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
   };
 }
 
@@ -453,6 +714,23 @@ function toProductLineListWhere(args: {
   };
 }
 
+/** Builds the sequence review list scope and optional UI filters. */
+function toSequenceEnrollmentListWhere(args: {
+  organizationId: string;
+  ownerUserId?: string;
+  keyword?: string;
+  status?: CrmSequenceEnrollmentStatus;
+}): Prisma.CrmSequenceEnrollmentWhereInput {
+  const keywordFilter = args.keyword ? toSequenceEnrollmentKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
+    ...(args.status ? { status: args.status } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 function toAccountKeywordFilter(keyword: string): Prisma.CrmAccountWhereInput[] {
   return ['name', 'domain', 'websiteUrl', 'country', 'customerType'].map(field => ({
     [field]: {
@@ -489,6 +767,31 @@ function toProductLineKeywordFilter(keyword: string): Prisma.CrmProductLineWhere
   }));
 }
 
+function toSequenceEnrollmentKeywordFilter(keyword: string): Prisma.CrmSequenceEnrollmentWhereInput[] {
+  return [
+    { name: { contains: keyword, mode: 'insensitive' } },
+    { account: { name: { contains: keyword, mode: 'insensitive' } } },
+    { account: { domain: { contains: keyword, mode: 'insensitive' } } },
+    { contact: { fullName: { contains: keyword, mode: 'insensitive' } } },
+    { contact: { title: { contains: keyword, mode: 'insensitive' } } },
+    { contact: { maskedEmail: { contains: keyword, mode: 'insensitive' } } }
+  ];
+}
+
+function toSequenceReviewInclude() {
+  return {
+    account: true,
+    contact: true,
+    productLine: true,
+    mailbox: true,
+    messages: {
+      where: { stepIndex: 1 },
+      take: 1,
+      orderBy: { createdAt: 'asc' as const }
+    }
+  };
+}
+
 function toAccountRecord(record: CrmAccountModel): CrmAccountRecord {
   return {
     ...record,
@@ -520,6 +823,40 @@ function toProductLineRecord(record: CrmProductLineModel): CrmProductLineRecord 
   return {
     ...record,
     status: record.status as CrmProductLineRecord['status']
+  };
+}
+
+function toSequenceEnrollmentRecord(record: CrmSequenceEnrollmentModel): CrmSequenceEnrollmentRecord {
+  return {
+    ...record,
+    status: record.status as CrmSequenceEnrollmentRecord['status']
+  };
+}
+
+function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
+  return {
+    ...record,
+    threadMode: record.threadMode as CrmMessageRecord['threadMode'],
+    status: record.status as CrmMessageRecord['status']
+  };
+}
+
+function toSequenceReviewRecord(
+  record: CrmSequenceEnrollmentModel & {
+    account: CrmAccountModel;
+    contact: CrmContactModel;
+    productLine: CrmProductLineModel | null;
+    mailbox: CrmMailboxModel | null;
+    messages: CrmMessageModel[];
+  }
+): CrmSequenceReviewRecord {
+  return {
+    enrollment: toSequenceEnrollmentRecord(record),
+    account: toAccountRecord(record.account),
+    contact: toContactRecord(record.contact),
+    productLine: record.productLine ? toProductLineRecord(record.productLine) : null,
+    mailbox: record.mailbox ? toMailboxRecord(record.mailbox) : null,
+    firstMessage: record.messages[0] ? toMessageRecord(record.messages[0]) : null
   };
 }
 

@@ -19,10 +19,13 @@ import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
 import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
+import { CrmSequenceReviewQueryDto } from './dto/crm-sequence-review-query.dto';
+import { CreateCrmSequenceReviewItemDto } from './dto/create-crm-sequence-review-item.dto';
 import { CreateCrmProductLineDto } from './dto/create-crm-product-line.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
+import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
 import { UpdateCrmProductLineDto } from './dto/update-crm-product-line.dto';
 import type { CrmUserContext } from './crm.types';
 
@@ -127,6 +130,41 @@ export class CrmController {
   @Patch('product-lines/:id/archive')
   async archiveProductLine(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.archiveProductLine(id, this.requireUserContext(authorization)));
+  }
+
+  @Get('sequence-review-items')
+  async listSequenceReviewItems(
+    @Headers('authorization') authorization = '',
+    @Query() query: CrmSequenceReviewQueryDto
+  ) {
+    return ok(await this.crmService.listSequenceReviewItems(this.requireUserContext(authorization), query));
+  }
+
+  @Post('sequence-review-items')
+  async createSequenceReviewItem(
+    @Headers('authorization') authorization = '',
+    @Body() dto: CreateCrmSequenceReviewItemDto
+  ) {
+    return ok(await this.crmService.createSequenceReviewItem(dto, this.requireUserContext(authorization)));
+  }
+
+  @Get('sequence-review-items/:id')
+  async getSequenceReviewItem(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.getSequenceReviewItem(id, this.requireUserContext(authorization)));
+  }
+
+  @Patch('messages/:id/draft')
+  async updateMessageDraft(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmMessageDraftDto
+  ) {
+    return ok(await this.crmService.updateMessageDraft(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('messages/:id/approve')
+  async approveMessageDraft(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.approveMessageDraft(id, this.requireUserContext(authorization)));
   }
 
   private requireUserContext(authorization: string): CrmUserContext {

@@ -22,7 +22,7 @@ export * as $Enums from './enums'
 export * from "./enums"
 /**
  * ## Prisma Client
- * 
+ *
  * Type-safe database client for TypeScript
  * @example
  * ```
@@ -32,7 +32,7 @@ export * from "./enums"
  * // Fetch zero or more SystemLogs
  * const systemLogs = await prisma.systemLog.findMany()
  * ```
- * 
+ *
  * Read more in our [docs](https://pris.ly/d/client).
  */
 export const PrismaClient = $Class.getPrismaClientClass()
@@ -79,6 +79,16 @@ export type CrmMailbox = Prisma.CrmMailboxModel
  * 
  */
 export type CrmProductLine = Prisma.CrmProductLineModel
+/**
+ * Model CrmSequenceEnrollment
+ *
+ */
+export type CrmSequenceEnrollment = Prisma.CrmSequenceEnrollmentModel
+/**
+ * Model CrmMessage
+ *
+ */
+export type CrmMessage = Prisma.CrmMessageModel
 /**
  * Model AiPromptConfig
  * 

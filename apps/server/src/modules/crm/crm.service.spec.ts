@@ -5,7 +5,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import { CrmService } from './crm.service';
-import type { CrmEmailStatus, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
+import type { CrmMailboxRecord, CrmSequenceReviewRecord, CrmStore, CrmUserContext } from './crm.types';
 
 describe('CrmService', () => {
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -301,7 +301,7 @@ describe('CrmService', () => {
 
     assert.equal(result.contact.emailStatus, 'invalid');
     assert.equal(resolver.calls.length, 0);
-    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'invalid_format');
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string } | undefined)?.reason, 'invalid_format');
   });
 
   it('marks malformed email domains invalid without querying DNS', async () => {
@@ -315,7 +315,7 @@ describe('CrmService', () => {
 
     assert.equal(result.contact.emailStatus, 'invalid');
     assert.equal(resolver.calls.length, 0);
-    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'invalid_format');
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string } | undefined)?.reason, 'invalid_format');
   });
 
   it('marks emails invalid when the domain has no MX records', async () => {
@@ -327,7 +327,7 @@ describe('CrmService', () => {
     const result = await service.verifyContactEmail('contact-1', createContext());
 
     assert.equal(result.contact.emailStatus, 'invalid');
-    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'no_mx');
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string } | undefined)?.reason, 'no_mx');
   });
 
   it('marks emails unreachable when DNS fails temporarily', async () => {
@@ -339,7 +339,7 @@ describe('CrmService', () => {
     const result = await service.verifyContactEmail('contact-1', createContext());
 
     assert.equal(result.contact.emailStatus, 'unreachable');
-    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'dns_temporary_failure');
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string } | undefined)?.reason, 'dns_temporary_failure');
   });
 
   it('rejects contact verification outside current member scope without updating status', async () => {
@@ -688,6 +688,192 @@ describe('CrmService', () => {
     assert.equal(store.productLines[0].status, 'active');
     assert.equal(store.productLineUpdateCalls.length, 0);
   });
+
+  it('creates first draft review items with scoped resources and sanitized logs', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          fullName: 'Ali Hassan',
+          emailStatus: 'valid'
+        })
+      ],
+      mailboxes: [createMailbox({ id: 'mailbox-1', maskedEmail: 'a***@gmail.com' })],
+      productLines: [
+        createProductLine({
+          id: 'line-1',
+          name: 'Bearing Series',
+          coreSellingPoints: 'stable supply',
+          moq: '100 pcs',
+          leadTime: '15 days'
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const result = await service.createSequenceReviewItem(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        productLineId: 'line-1',
+        mailboxId: 'mailbox-1'
+      },
+      createContext()
+    );
+
+    assert.equal(result.item.enrollment.status, 'draft_review_pending');
+    assert.equal(result.item.firstMessage?.status, 'draft_pending_review');
+    assert.equal(result.item.firstMessage?.subject, 'Bearing Series for ABC Trading');
+    assert.match(result.item.firstMessage?.bodyText ?? '', /stable supply/);
+    assert.equal(store.accounts[0].status, 'manual_review_pending');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_draft_generated');
+    assert.equal((logs.records[0].metadata as Record<string, unknown>).messageId, 'message-1');
+    assert.equal(JSON.stringify(logs.records[0].metadata).includes('stable supply'), false);
+  });
+
+  it('rejects sequence review creation for peer contacts and active duplicate enrollments', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-1' })], {
+      contacts: [
+        createContact({ id: 'contact-1', ownerUserId: 'user-2', accountId: 'account-1' }),
+        createContact({ id: 'contact-2', ownerUserId: 'user-1', accountId: 'account-1' })
+      ],
+      enrollments: [createEnrollment({ id: 'enrollment-1', contactId: 'contact-2' })]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext()),
+      BadRequestException
+    );
+    await assert.rejects(
+      () => service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-2' }, createContext()),
+      BadRequestException
+    );
+  });
+
+  it('lists sequence review items with member owner scope and generated checklist', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', emailStatus: 'valid' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      productLines: [createProductLine({ id: 'line-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          productLineId: 'line-1',
+          mailboxId: 'mailbox-1'
+        })
+      ],
+      messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1' })]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.listSequenceReviewItems(createContext(), {
+      keyword: ' ABC ',
+      status: 'draft_review_pending'
+    });
+
+    assert.deepEqual(store.lastSequenceReviewListArgs, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      keyword: 'ABC',
+      status: 'draft_review_pending',
+      skip: 0,
+      take: 20
+    });
+    assert.equal(result.records[0].firstMessage?.id, 'message-1');
+    assert.equal(result.records[0].checklist.every(item => item.passed), true);
+  });
+
+  it('updates and approves editable message drafts without sending them', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'manual_review_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
+      messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1' })]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const updated = await service.updateMessageDraft(
+      'message-1',
+      {
+        subject: ' Updated subject ',
+        bodyText: ' Updated body '
+      },
+      createContext()
+    );
+    const approved = await service.approveMessageDraft('message-1', createContext());
+
+    assert.equal(updated.message.subject, 'Updated subject');
+    assert.equal(store.messages[0].status, 'draft_ready');
+    assert.equal(approved.enrollment.status, 'ready_to_send');
+    assert.equal(store.accounts[0].status, 'ready');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'draft_approved');
+    assert.equal((logs.records[0].metadata as Record<string, unknown>).messageId, 'message-1');
+  });
+
+  it('rejects admin attempts to edit or approve another member draft', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+    const adminContext = createContext({ organizationRole: 'admin' });
+
+    await assert.rejects(
+      () => service.updateMessageDraft('message-1', { subject: 'Admin edit', bodyText: 'Body' }, adminContext),
+      NotFoundException
+    );
+    await assert.rejects(() => service.approveMessageDraft('message-1', adminContext), NotFoundException);
+    assert.equal(store.messages[0].status, 'draft_pending_review');
+    assert.equal(store.enrollments[0].status, 'draft_review_pending');
+  });
+
+  it('rejects editing already approved drafts to avoid ready-to-send content drift', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          status: 'ready_to_send'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_ready'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.updateMessageDraft('message-1', { subject: 'Change', bodyText: 'Body' }, createContext()),
+      BadRequestException
+    );
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -708,6 +894,8 @@ function createStore(
     timelineEvents?: TestTimelineEvent[];
     mailboxes?: TestMailbox[];
     productLines?: TestProductLine[];
+    enrollments?: TestEnrollment[];
+    messages?: TestMessage[];
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
@@ -715,8 +903,12 @@ function createStore(
   timelineEvents: TestTimelineEvent[];
   mailboxes: TestMailbox[];
   productLines: TestProductLine[];
+  enrollments: TestEnrollment[];
+  messages: TestMessage[];
   mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
   productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }>;
+  enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }>;
+  messageUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestMessage> }>;
   lastListArgs?: Parameters<CrmStore['listAccounts']>[0];
   lastDetailArgs?: Parameters<CrmStore['getAccountDetail']>[0];
   lastContactArgs?: Parameters<CrmStore['findContactById']>[0];
@@ -730,14 +922,21 @@ function createStore(
     take: number;
   };
   lastProductLineDetailArgs?: { id: string; organizationId: string };
+  lastSequenceReviewListArgs?: Parameters<CrmStore['listSequenceReviewItems']>[0];
+  lastSequenceReviewDetailArgs?: Parameters<CrmStore['getSequenceReviewItem']>[0];
+  lastMessageDetailArgs?: Parameters<CrmStore['findMessageById']>[0];
 } {
   const accounts = [...initialAccounts];
   const contacts: TestContact[] = [...(initialData.contacts ?? [])];
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
   const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
+  const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
+  const messages: TestMessage[] = [...(initialData.messages ?? [])];
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
   const productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }> = [];
+  const enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }> = [];
+  const messageUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestMessage> }> = [];
 
   return {
     accounts,
@@ -745,8 +944,12 @@ function createStore(
     timelineEvents,
     mailboxes,
     productLines,
+    enrollments,
+    messages,
     mailboxUpdateCalls,
     productLineUpdateCalls,
+    enrollmentUpdateCalls,
+    messageUpdateCalls,
     async findAccountByDomain(organizationId, ownerUserId, domain) {
       return (
         accounts.find(
@@ -971,6 +1174,163 @@ function createStore(
       if (!productLine) return null;
       Object.assign(productLine, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return productLine;
+    },
+    async findActiveEnrollmentByContact(args) {
+      return (
+        enrollments.find(
+          enrollment =>
+            enrollment.organizationId === args.organizationId &&
+            enrollment.ownerUserId === args.ownerUserId &&
+            enrollment.contactId === args.contactId &&
+            args.statuses.includes(enrollment.status)
+        ) ?? null
+      );
+    },
+    async createSequenceEnrollment(input) {
+      const enrollment = createEnrollment({
+        ...input,
+        id: `enrollment-${enrollments.length + 1}`
+      });
+      enrollments.push(enrollment);
+      return enrollment;
+    },
+    async createSequenceDraftBundle(input) {
+      const enrollment = createEnrollment({
+        ...input.enrollment,
+        id: `enrollment-${enrollments.length + 1}`
+      });
+      const message = createMessage({
+        ...input.message,
+        id: `message-${messages.length + 1}`,
+        enrollmentId: enrollment.id
+      });
+      const account = accounts.find(item => item.id === input.enrollment.accountId);
+      if (!account) throw new Error('account missing');
+      Object.assign(account, { status: input.accountStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      const event = createTimelineEvent({
+        ...input.timelineEvent,
+        metadata: {
+          ...input.timelineEvent.metadata,
+          enrollmentId: enrollment.id,
+          messageId: message.id
+        }
+      });
+      enrollments.push(enrollment);
+      messages.push(message);
+      timelineEvents.push(event);
+
+      return { enrollment, message, account, event };
+    },
+    async listSequenceReviewItems(args) {
+      this.lastSequenceReviewListArgs = args;
+      const records = buildSequenceReviewRecords(
+        enrollments.filter(enrollment => {
+          if (enrollment.organizationId !== args.organizationId) return false;
+          if (args.ownerUserId && enrollment.ownerUserId !== args.ownerUserId) return false;
+          if (args.status && enrollment.status !== args.status) return false;
+          if (!args.keyword) return true;
+          const keyword = args.keyword.toLowerCase();
+          const account = accounts.find(item => item.id === enrollment.accountId);
+          const contact = contacts.find(item => item.id === enrollment.contactId);
+          return [enrollment.name, account?.name, account?.domain, contact?.fullName, contact?.title].some(value =>
+            value?.toLowerCase().includes(keyword)
+          );
+        }),
+        { accounts, contacts, productLines, mailboxes, messages }
+      );
+
+      return {
+        records: records.slice(args.skip, args.skip + args.take),
+        total: records.length
+      };
+    },
+    async getSequenceReviewItem(args) {
+      this.lastSequenceReviewDetailArgs = args;
+      const enrollment = enrollments.find(item => {
+        if (item.id !== args.id) return false;
+        if (item.organizationId !== args.organizationId) return false;
+        if (args.ownerUserId && item.ownerUserId !== args.ownerUserId) return false;
+        return true;
+      });
+      return enrollment
+        ? buildSequenceReviewRecords([enrollment], { accounts, contacts, productLines, mailboxes, messages })[0]
+        : null;
+    },
+    async updateSequenceEnrollment(id, organizationId, input) {
+      enrollmentUpdateCalls.push({ id, organizationId, input });
+      const enrollment = enrollments.find(item => item.id === id && item.organizationId === organizationId);
+      if (!enrollment) return null;
+      Object.assign(enrollment, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      return enrollment;
+    },
+    async createMessage(input) {
+      const message = createMessage({
+        ...input,
+        id: `message-${messages.length + 1}`
+      });
+      messages.push(message);
+      return message;
+    },
+    async findMessageById(args) {
+      this.lastMessageDetailArgs = args;
+      return (
+        messages.find(message => {
+          if (message.id !== args.id) return false;
+          if (message.organizationId !== args.organizationId) return false;
+          if (args.ownerUserId && message.ownerUserId !== args.ownerUserId) return false;
+          return true;
+        }) ?? null
+      );
+    },
+    async updateMessage(id, organizationId, input, guard) {
+      messageUpdateCalls.push({ id, organizationId, input });
+      const message = messages.find(item => {
+        if (item.id !== id || item.organizationId !== organizationId) return false;
+        if (guard?.status && item.status !== guard.status) return false;
+        return true;
+      });
+      if (!message) return null;
+      Object.assign(message, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      return message;
+    },
+    async approveMessageDraft(input) {
+      const message = messages.find(
+        item =>
+          item.id === input.messageId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.status === input.fromMessageStatus
+      );
+      const enrollment = enrollments.find(
+        item =>
+          item.id === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.status === input.fromEnrollmentStatus
+      );
+      const account = accounts.find(item => item.id === input.accountId);
+
+      if (!message || !enrollment || !account) return null;
+
+      Object.assign(message, { status: input.toMessageStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      Object.assign(enrollment, { status: input.toEnrollmentStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      Object.assign(account, { status: input.accountStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      const event = createTimelineEvent({
+        accountId: input.accountId,
+        contactId: input.contactId,
+        eventType: 'draft_approved',
+        title: '首封开发信人工确认',
+        content: message.subject,
+        metadata: {
+          enrollmentId: enrollment.id,
+          messageId: message.id,
+          fromStatus: input.fromEnrollmentStatus,
+          toStatus: input.toEnrollmentStatus
+        }
+      });
+      timelineEvents.push(event);
+
+      return { enrollment, message, account, event };
     }
   };
 }
@@ -1072,10 +1432,77 @@ function createProductLine(input: Partial<TestProductLine> = {}): TestProductLin
   };
 }
 
+function createEnrollment(input: Partial<TestEnrollment> = {}): TestEnrollment {
+  return {
+    id: input.id || 'enrollment-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    accountId: input.accountId || 'account-1',
+    contactId: input.contactId || 'contact-1',
+    productLineId: input.productLineId ?? null,
+    mailboxId: input.mailboxId ?? null,
+    name: input.name || 'Account - Ali Hassan',
+    status: input.status || 'draft_review_pending',
+    currentStep: input.currentStep ?? 1,
+    totalSteps: input.totalSteps ?? 5,
+    runVersion: input.runVersion ?? 1,
+    createdById: input.createdById || 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createMessage(input: Partial<TestMessage> = {}): TestMessage {
+  return {
+    id: input.id || 'message-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    accountId: input.accountId || 'account-1',
+    contactId: input.contactId || 'contact-1',
+    enrollmentId: input.enrollmentId || 'enrollment-1',
+    mailboxId: input.mailboxId ?? null,
+    stepIndex: input.stepIndex ?? 1,
+    threadMode: input.threadMode || 'new_subject',
+    subject: input.subject || 'Bearing Series for Account',
+    bodyText: input.bodyText || 'Hi Ali,\n\nWould it be useful if I sent a short product list?\n\nBest regards,\nAlice',
+    status: input.status || 'draft_pending_review',
+    scheduledAt: input.scheduledAt ?? null,
+    sentAt: input.sentAt ?? null,
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function buildSequenceReviewRecords(
+  enrollments: TestEnrollment[],
+  data: {
+    accounts: TestAccount[];
+    contacts: TestContact[];
+    productLines: TestProductLine[];
+    mailboxes: TestMailbox[];
+    messages: TestMessage[];
+  }
+): CrmSequenceReviewRecord[] {
+  return enrollments.map(enrollment => ({
+    enrollment,
+    account: data.accounts.find(account => account.id === enrollment.accountId) || createAccount({ id: enrollment.accountId }),
+    contact: data.contacts.find(contact => contact.id === enrollment.contactId) || createContact({ id: enrollment.contactId }),
+    productLine: enrollment.productLineId
+      ? data.productLines.find(productLine => productLine.id === enrollment.productLineId) || null
+      : null,
+    mailbox: enrollment.mailboxId ? data.mailboxes.find(mailbox => mailbox.id === enrollment.mailboxId) || null : null,
+    firstMessage:
+      data.messages.find(message => message.enrollmentId === enrollment.id && message.stepIndex === 1) || null
+  }));
+}
+
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
+type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
+type TestMessage = Awaited<ReturnType<CrmStore['createMessage']>>;
 
 interface TestProductLine {
   id: string;

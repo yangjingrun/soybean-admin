@@ -24,11 +24,25 @@ export type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unre
 export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
 export const crmProductLineStatuses = ['active', 'archived'] as const;
+export const crmSequenceEnrollmentStatuses = [
+  'draft_review_pending',
+  'ready_to_send',
+  'sequence_running',
+  'paused',
+  'stopped',
+  'replied',
+  'archived'
+] as const;
+export const crmMessageStatuses = ['draft_pending_review', 'draft_ready', 'queued', 'sent', 'failed', 'skipped'] as const;
+export const crmMessageThreadModes = ['new_subject', 'same_thread'] as const;
 
 export type CrmMailboxProvider = 'gmail';
 export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
 export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
 export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
+export type CrmSequenceEnrollmentStatus = (typeof crmSequenceEnrollmentStatuses)[number];
+export type CrmMessageStatus = (typeof crmMessageStatuses)[number];
+export type CrmMessageThreadMode = (typeof crmMessageThreadModes)[number];
 
 export interface CrmUserContext {
   userId: string;
@@ -136,6 +150,53 @@ export interface CrmProductLineRecord {
   createdByName: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CrmSequenceEnrollmentRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  productLineId: string | null;
+  mailboxId: string | null;
+  name: string;
+  status: CrmSequenceEnrollmentStatus;
+  currentStep: number;
+  totalSteps: number;
+  runVersion: number;
+  createdById: string;
+  createdByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmMessageRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId: string;
+  mailboxId: string | null;
+  stepIndex: number;
+  threadMode: CrmMessageThreadMode;
+  subject: string;
+  bodyText: string;
+  status: CrmMessageStatus;
+  scheduledAt: Date | null;
+  sentAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmSequenceReviewRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  productLine: CrmProductLineRecord | null;
+  mailbox: CrmMailboxRecord | null;
+  firstMessage: CrmMessageRecord | null;
 }
 
 export interface CrmAccountDetailRecord {
@@ -260,6 +321,102 @@ export interface CrmProductLineUpdateInput {
   status?: CrmProductLineStatus;
 }
 
+export interface CrmSequenceEnrollmentCreateInput {
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  productLineId?: string | null;
+  mailboxId?: string | null;
+  name: string;
+  status: CrmSequenceEnrollmentStatus;
+  currentStep: number;
+  totalSteps: number;
+  runVersion: number;
+  createdById: string;
+  createdByName?: string | null;
+}
+
+export interface CrmSequenceEnrollmentUpdateInput {
+  productLineId?: string | null;
+  mailboxId?: string | null;
+  name?: string;
+  status?: CrmSequenceEnrollmentStatus;
+  currentStep?: number;
+  totalSteps?: number;
+  runVersion?: number;
+}
+
+export interface CrmMessageCreateInput {
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId: string;
+  mailboxId?: string | null;
+  stepIndex: number;
+  threadMode: CrmMessageThreadMode;
+  subject: string;
+  bodyText: string;
+  status: CrmMessageStatus;
+  scheduledAt?: Date | null;
+  sentAt?: Date | null;
+}
+
+export interface CrmMessageUpdateInput {
+  mailboxId?: string | null;
+  threadMode?: CrmMessageThreadMode;
+  subject?: string;
+  bodyText?: string;
+  status?: CrmMessageStatus;
+  scheduledAt?: Date | null;
+  sentAt?: Date | null;
+}
+
+export interface CrmSequenceDraftBundleCreateInput {
+  enrollment: CrmSequenceEnrollmentCreateInput;
+  message: Omit<CrmMessageCreateInput, 'enrollmentId'>;
+  timelineEvent: Omit<CrmTimelineEventCreateInput, 'metadata'> & {
+    metadata: {
+      productLineId: string | null;
+      mailboxId: string | null;
+    };
+  };
+  accountStatus: CrmAccountStatus;
+}
+
+export interface CrmSequenceDraftBundleRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmMessageDraftUpdateGuard {
+  status: CrmMessageStatus;
+}
+
+export interface CrmDraftApprovalInput {
+  messageId: string;
+  enrollmentId: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  fromEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  toEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  fromMessageStatus: CrmMessageStatus;
+  toMessageStatus: CrmMessageStatus;
+  accountStatus: CrmAccountStatus;
+}
+
+export interface CrmDraftApprovalRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
 export interface CrmStore {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
@@ -325,4 +482,43 @@ export interface CrmStore {
     organizationId: string,
     input: CrmProductLineUpdateInput
   ): Promise<CrmProductLineRecord | null>;
+  findActiveEnrollmentByContact(args: {
+    organizationId: string;
+    ownerUserId: string;
+    contactId: string;
+    statuses: CrmSequenceEnrollmentStatus[];
+  }): Promise<CrmSequenceEnrollmentRecord | null>;
+  createSequenceEnrollment(input: CrmSequenceEnrollmentCreateInput): Promise<CrmSequenceEnrollmentRecord>;
+  createSequenceDraftBundle(input: CrmSequenceDraftBundleCreateInput): Promise<CrmSequenceDraftBundleRecord>;
+  listSequenceReviewItems(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmSequenceEnrollmentStatus;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmSequenceReviewRecord[]; total: number }>;
+  getSequenceReviewItem(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmSequenceReviewRecord | null>;
+  updateSequenceEnrollment(
+    id: string,
+    organizationId: string,
+    input: CrmSequenceEnrollmentUpdateInput
+  ): Promise<CrmSequenceEnrollmentRecord | null>;
+  createMessage(input: CrmMessageCreateInput): Promise<CrmMessageRecord>;
+  findMessageById(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmMessageRecord | null>;
+  updateMessage(
+    id: string,
+    organizationId: string,
+    input: CrmMessageUpdateInput,
+    guard?: CrmMessageDraftUpdateGuard
+  ): Promise<CrmMessageRecord | null>;
+  approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null>;
 }

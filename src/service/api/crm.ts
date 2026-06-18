@@ -120,3 +120,46 @@ export function archiveCrmProductLine(id: string) {
     method: 'patch'
   });
 }
+
+/** List first-email sequence review items by filters and pagination. */
+export function fetchCrmSequenceReviewItems(params: Api.Crm.SequenceReviewSearchParams) {
+  return request<Api.Crm.SequenceReviewList>({
+    url: '/crm/sequence-review-items',
+    method: 'get',
+    params
+  });
+}
+
+/** Create one first-email review item and deterministic draft. */
+export function createCrmSequenceReviewItem(data: Api.Crm.SequenceReviewCreatePayload) {
+  return request<Api.Crm.SequenceReviewOperateResult>({
+    url: '/crm/sequence-review-items',
+    method: 'post',
+    data
+  });
+}
+
+/** Get one first-email review item with draft and checklist. */
+export function fetchCrmSequenceReviewItem(id: string) {
+  return request<Api.Crm.SequenceReviewItem>({
+    url: `/crm/sequence-review-items/${id}`,
+    method: 'get'
+  });
+}
+
+/** Save human edits to one first-email draft. */
+export function updateCrmMessageDraft(id: string, data: Api.Crm.MessageDraftPayload) {
+  return request<Api.Crm.MessageDraftUpdateResult>({
+    url: `/crm/messages/${id}/draft`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Approve one reviewed draft without queueing or sending it. */
+export function approveCrmMessageDraft(id: string) {
+  return request<Api.Crm.MessageDraftApproveResult>({
+    url: `/crm/messages/${id}/approve`,
+    method: 'post'
+  });
+}
