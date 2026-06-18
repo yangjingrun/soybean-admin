@@ -1,8 +1,9 @@
-import { Body, Controller, Headers, Inject, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ok } from '../../shared/api-response';
 import { AuthService } from '../auth/auth.service';
 import { AiLeadsService } from './ai-leads.service';
+import { KeywordHistoryQueryDto, UpdateKeywordHistoryDto } from './dto/keyword-history.dto';
 import { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
 import { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 
@@ -27,6 +28,24 @@ export class AiLeadsController {
     const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
 
     return ok(await this.aiLeadsService.searchOrchestrate(dto, { user }));
+  }
+
+  @Get('keyword-histories')
+  async listKeywordHistories(@Query() query: KeywordHistoryQueryDto, @Headers('authorization') authorization = '') {
+    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+
+    return ok(await this.aiLeadsService.listKeywordHistories(query, { user }));
+  }
+
+  @Patch('keyword-histories/:id')
+  async updateKeywordHistory(
+    @Param('id') id: string,
+    @Body() dto: UpdateKeywordHistoryDto,
+    @Headers('authorization') authorization = ''
+  ) {
+    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+
+    return ok(await this.aiLeadsService.updateKeywordHistory(id, dto, { user }));
   }
 
   private extractBearerToken(authorization: string) {

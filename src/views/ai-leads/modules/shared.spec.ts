@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  buildKeywordHistoryUpdatePayload,
   createKeywordOptimizationViewModel,
+  createAiResultFromKeywordHistory,
   formatKeywordOptimizationVisibleText,
   parseKeywordOptimizationPlan
 } from './shared';
@@ -105,5 +107,40 @@ describe('ai leads keyword optimization helpers', () => {
     assert.match(text, /买家类型：Importer（进口商）/);
     assert.doesNotMatch(text, /6204 bearing importer Saudi Arabia/);
     assert.doesNotMatch(text, /bearing supplier Riyadh/);
+  });
+
+  it('restores ai result from a keyword history record', () => {
+    const result = createAiResultFromKeywordHistory({
+      id: 'history-1',
+      requirement: '找沙特轴承进口商',
+      resultText: JSON.stringify(keywordPlan),
+      keywordPlan,
+      finishReason: 'stop',
+      usage: {
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20
+      },
+      createdAt: '2026-06-18T01:00:00.000Z',
+      updatedAt: '2026-06-18T01:00:00.000Z'
+    });
+
+    assert.equal(result.text, JSON.stringify(keywordPlan));
+    assert.deepEqual(result.usage, {
+      inputTokens: 12,
+      outputTokens: 8,
+      totalTokens: 20
+    });
+  });
+
+  it('builds keyword history update payload from edited plan', () => {
+    const editedPlan = {
+      ...keywordPlan,
+      resolvedProductKeywords: '6204 bearing supplier'
+    };
+    const payload = buildKeywordHistoryUpdatePayload(' 更新后的需求 ', editedPlan);
+
+    assert.equal(payload.requirement, '更新后的需求');
+    assert.equal(payload.keywordPlan.resolvedProductKeywords, '6204 bearing supplier');
   });
 });

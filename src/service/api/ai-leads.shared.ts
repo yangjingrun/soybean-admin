@@ -16,6 +16,29 @@ export function buildLeadKeywordOptimizeRequestConfig(
   };
 }
 
+/** Build the request config for current user's keyword optimization histories. */
+export function buildLeadKeywordHistoryListRequestConfig(
+  params: Api.AiLeads.KeywordHistoryListParams = {}
+): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-leads/keyword-histories',
+    method: 'get',
+    params
+  };
+}
+
+/** Build the request config for saving edited keyword optimization history. */
+export function buildUpdateLeadKeywordHistoryRequestConfig(
+  id: string,
+  data: Api.AiLeads.UpdateKeywordHistoryPayload
+): CustomAxiosRequestConfig {
+  return {
+    url: `/ai-leads/keyword-histories/${id}`,
+    method: 'patch',
+    data
+  };
+}
+
 /** Build the request config for the long-running AI leads search orchestration task. */
 export function buildLeadSearchOrchestrateRequestConfig(
   data: Api.AiLeads.SearchOrchestratePayload

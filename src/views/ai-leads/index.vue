@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { computed, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, ref, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import { useAuthStore } from '@/store/modules/auth';
-import { optimizeLeadKeywords, searchLeadCustomers } from '@/service/api';
+import {
+  fetchLeadKeywordHistories,
+  optimizeLeadKeywords,
+  searchLeadCustomers,
+  updateLeadKeywordHistory
+} from '@/service/api';
+import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
 import {
+  buildKeywordHistoryUpdatePayload,
+  cloneKeywordPlan,
+  createAiResultFromKeywordHistory,
   createKeywordOptimizationViewModel,
   formatKeywordOptimizationVisibleText,
   parseKeywordOptimizationPlan
@@ -20,13 +29,24 @@ const form = reactive({
 
 const isGenerating = shallowRef(false);
 const isSearching = shallowRef(false);
+const isHistoryLoading = shallowRef(false);
+const isHistorySaving = shallowRef(false);
+const isHistoryDrawerVisible = shallowRef(false);
+const isEditingResult = shallowRef(false);
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const searchResult = shallowRef<Api.AiLeads.SearchOrchestrateResult | null>(null);
+const historyRecords = ref<Api.AiLeads.KeywordHistoryRecord[]>([]);
+const editableKeywordPlan = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
+const editingKeywordPlanSnapshot = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
+const selectedHistoryId = shallowRef('');
 
 const canGenerate = computed(() => Boolean(form.requirement.trim()));
+const canSaveHistory = computed(() =>
+  Boolean(selectedHistoryId.value && editableKeywordPlan.value && form.requirement.trim())
+);
 const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
 const searchResultText = computed(() => (searchResult.value ? JSON.stringify(searchResult.value, null, 2) : ''));
-const keywordOptimizationPlan = computed(() => {
+const parsedAiKeywordPlan = computed(() => {
   if (!aiResult.value?.text) {
     return null;
   }
@@ -37,16 +57,20 @@ const keywordOptimizationPlan = computed(() => {
     return null;
   }
 });
+const keywordOptimizationPlan = computed(() => editableKeywordPlan.value || parsedAiKeywordPlan.value);
 const keywordOptimizationViewModel = computed(() =>
   keywordOptimizationPlan.value
     ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, isSuperAdmin.value)
     : null
 );
 
+onMounted(() => {
+  void loadKeywordHistories();
+});
+
 /** Calls the AI leads keyword optimization workflow. */
 async function handleGenerate() {
   isGenerating.value = true;
-  aiResult.value = null;
   searchResult.value = null;
 
   try {
@@ -59,6 +83,8 @@ async function handleGenerate() {
     }
 
     aiResult.value = result;
+    upsertHistoryRecord(result.historyRecord);
+    applyKeywordHistoryRecord(result.historyRecord);
     message.success('生成完成');
   } finally {
     isGenerating.value = false;
@@ -91,6 +117,10 @@ function handleClear() {
   form.requirement = '';
   aiResult.value = null;
   searchResult.value = null;
+  editableKeywordPlan.value = null;
+  editingKeywordPlanSnapshot.value = null;
+  selectedHistoryId.value = '';
+  isEditingResult.value = false;
 }
 
 async function handleCopyResult() {
@@ -114,6 +144,90 @@ async function handleCopySearchResult() {
 
   await navigator.clipboard.writeText(searchResultText.value);
   message.success('结果已复制');
+}
+
+/** Loads keyword histories and selects the newest one by default. */
+async function loadKeywordHistories() {
+  isHistoryLoading.value = true;
+
+  try {
+    const { data: result, error } = await fetchLeadKeywordHistories({ size: 20 });
+
+    if (error) {
+      return;
+    }
+
+    historyRecords.value = result.records;
+    if (!selectedHistoryId.value && result.records[0]) {
+      applyKeywordHistoryRecord(result.records[0]);
+    }
+  } finally {
+    isHistoryLoading.value = false;
+  }
+}
+
+function handleSelectHistory(record: Api.AiLeads.KeywordHistoryRecord) {
+  applyKeywordHistoryRecord(record);
+  isHistoryDrawerVisible.value = false;
+}
+
+function handleStartEdit() {
+  if (!keywordOptimizationPlan.value) {
+    return;
+  }
+
+  editingKeywordPlanSnapshot.value = cloneKeywordPlan(keywordOptimizationPlan.value);
+  editableKeywordPlan.value = cloneKeywordPlan(keywordOptimizationPlan.value);
+  isEditingResult.value = true;
+}
+
+function handleCancelEdit() {
+  editableKeywordPlan.value = editingKeywordPlanSnapshot.value
+    ? cloneKeywordPlan(editingKeywordPlanSnapshot.value)
+    : null;
+  editingKeywordPlanSnapshot.value = null;
+  isEditingResult.value = false;
+}
+
+async function handleSaveHistory() {
+  if (!selectedHistoryId.value || !editableKeywordPlan.value) {
+    return;
+  }
+
+  isHistorySaving.value = true;
+
+  try {
+    const { data: record, error } = await updateLeadKeywordHistory(
+      selectedHistoryId.value,
+      buildKeywordHistoryUpdatePayload(form.requirement, editableKeywordPlan.value)
+    );
+
+    if (error) {
+      return;
+    }
+
+    upsertHistoryRecord(record);
+    applyKeywordHistoryRecord(record);
+    message.success('保存完成');
+  } finally {
+    isHistorySaving.value = false;
+  }
+}
+
+function applyKeywordHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
+  selectedHistoryId.value = record.id;
+  form.requirement = record.requirement;
+  aiResult.value = createAiResultFromKeywordHistory(record);
+  editableKeywordPlan.value = cloneKeywordPlan(record.keywordPlan);
+  editingKeywordPlanSnapshot.value = null;
+  searchResult.value = null;
+  isEditingResult.value = false;
+}
+
+function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
+  const nextRecords = historyRecords.value.filter(item => item.id !== record.id);
+
+  historyRecords.value = [record, ...nextRecords].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 </script>
 
@@ -140,14 +254,18 @@ async function handleCopySearchResult() {
 
           <NGi span="24 l:6" class="lead-actions">
             <NSpace :size="8">
-              <NButton :disabled="isGenerating || isSearching" @click="handleClear">清空</NButton>
-              <NButton :loading="isGenerating" :disabled="!canGenerate || isSearching" @click="handleGenerate">
+              <NButton :disabled="isGenerating || isSearching || isHistorySaving" @click="handleClear">清空</NButton>
+              <NButton
+                :loading="isGenerating"
+                :disabled="!canGenerate || isSearching || isHistorySaving"
+                @click="handleGenerate"
+              >
                 优化关键词
               </NButton>
               <NButton
                 type="primary"
                 :loading="isSearching"
-                :disabled="!canGenerate || isGenerating"
+                :disabled="!canGenerate || isGenerating || isHistorySaving"
                 @click="handleSearchCustomers"
               >
                 开始搜索采集
@@ -162,9 +280,39 @@ async function handleCopySearchResult() {
       <template #header>
         <div class="result-header">
           <span>{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
-          <NSpace v-if="aiResult && (isSuperAdmin || keywordOptimizationViewModel)" :size="8">
-            <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
-            <NButton size="small" @click="handleCopyResult">复制结果</NButton>
+          <NSpace :size="8">
+            <NButton size="small" secondary :loading="isHistoryLoading" @click="isHistoryDrawerVisible = true">
+              <template #icon>
+                <SvgIcon icon="material-symbols:history" />
+              </template>
+              历史
+            </NButton>
+            <template v-if="aiResult && (isSuperAdmin || keywordOptimizationViewModel)">
+              <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
+              <NButton v-if="!isEditingResult" size="small" @click="handleStartEdit">
+                <template #icon>
+                  <SvgIcon icon="material-symbols:edit-outline" />
+                </template>
+                编辑
+              </NButton>
+              <NButton
+                v-if="isEditingResult"
+                size="small"
+                type="primary"
+                :loading="isHistorySaving"
+                :disabled="!canSaveHistory"
+                @click="handleSaveHistory"
+              >
+                <template #icon>
+                  <SvgIcon icon="material-symbols:save-outline" />
+                </template>
+                保存
+              </NButton>
+              <NButton v-if="isEditingResult" size="small" :disabled="isHistorySaving" @click="handleCancelEdit">
+                取消
+              </NButton>
+              <NButton size="small" :disabled="isEditingResult" @click="handleCopyResult">复制结果</NButton>
+            </template>
           </NSpace>
           <NSpace v-if="searchResult" :size="8">
             <NTag size="small" type="info">请求 {{ searchResult.serperRequests.length }}</NTag>
@@ -184,7 +332,12 @@ async function handleCopySearchResult() {
         <NInput :value="searchResultText" type="textarea" readonly :autosize="{ minRows: 18, maxRows: 30 }" />
       </div>
       <div v-else-if="aiResult" class="result-panel">
-        <KeywordOptimizationResult v-if="keywordOptimizationViewModel" :view-model="keywordOptimizationViewModel" />
+        <KeywordOptimizationResult
+          v-if="keywordOptimizationViewModel"
+          v-model:keyword-plan="editableKeywordPlan"
+          :view-model="keywordOptimizationViewModel"
+          :editable="isEditingResult"
+        />
         <template v-else>
           <NAlert type="warning" :bordered="false">关键词优化结果不是合法 JSON，请重新生成。</NAlert>
           <NInput
@@ -202,6 +355,14 @@ async function handleCopySearchResult() {
       </div>
       <NEmpty v-else description="暂无生成结果" class="result-empty" />
     </NCard>
+
+    <KeywordHistoryDrawer
+      v-model:show="isHistoryDrawerVisible"
+      :records="historyRecords"
+      :selected-id="selectedHistoryId"
+      :loading="isHistoryLoading"
+      @select="handleSelectHistory"
+    />
   </NSpace>
 </template>
 

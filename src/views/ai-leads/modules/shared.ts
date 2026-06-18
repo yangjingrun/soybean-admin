@@ -78,6 +78,31 @@ export function parseKeywordOptimizationPlan(text: string): Api.AiLeads.Optimize
   return JSON.parse(text) as Api.AiLeads.OptimizedKeywordPlan;
 }
 
+/** Restores the AI text result shape used by the result panel from one saved history. */
+export function createAiResultFromKeywordHistory(record: Api.AiLeads.KeywordHistoryRecord): Api.AiGateway.AiTextResult {
+  return {
+    text: record.resultText,
+    finishReason: record.finishReason,
+    usage: record.usage
+  };
+}
+
+/** Builds the API payload for saving edited keyword optimization content. */
+export function buildKeywordHistoryUpdatePayload(
+  requirement: string,
+  keywordPlan: Api.AiLeads.OptimizedKeywordPlan
+): Api.AiLeads.UpdateKeywordHistoryPayload {
+  return {
+    requirement: requirement.trim(),
+    keywordPlan
+  };
+}
+
+/** Clones a keyword plan before editing so history selection does not mutate source records. */
+export function cloneKeywordPlan(plan: Api.AiLeads.OptimizedKeywordPlan): Api.AiLeads.OptimizedKeywordPlan {
+  return JSON.parse(JSON.stringify(plan)) as Api.AiLeads.OptimizedKeywordPlan;
+}
+
 /** Builds the UI model and keeps query details behind the super-admin permission. */
 export function createKeywordOptimizationViewModel(
   plan: Api.AiLeads.OptimizedKeywordPlan,

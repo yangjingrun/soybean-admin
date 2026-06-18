@@ -4,7 +4,10 @@ import type { KeywordOptimizationQueryRow, KeywordOptimizationViewModel } from '
 
 defineProps<{
   viewModel: KeywordOptimizationViewModel;
+  editable?: boolean;
 }>();
+
+const keywordPlan = defineModel<Api.AiLeads.OptimizedKeywordPlan | null>('keywordPlan', { required: true });
 
 const searchQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
   { title: '客户类型', key: 'buyerType', width: 130 },
@@ -21,17 +24,127 @@ const placesQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
   { title: '城市', key: 'city', width: 120 },
   { title: '优先级', key: 'priority', width: 90 }
 ];
+
+/** Adds one editable buyer segment to the current keyword plan. */
+function addBuyerSegment() {
+  keywordPlan.value?.buyerSegments.push({
+    buyerType: '',
+    purchaseReason: '',
+    websiteSignals: [],
+    priorityContacts: [],
+    priorityLevel: '中'
+  });
+}
+
+/** Removes one buyer segment from the editable keyword plan. */
+function removeBuyerSegment(index: number) {
+  keywordPlan.value?.buyerSegments.splice(index, 1);
+}
+
+function formatList(items: string[]) {
+  return items.join('\n');
+}
+
+function updateSegmentList(
+  segment: Api.AiLeads.BuyerSegment,
+  key: 'websiteSignals' | 'priorityContacts',
+  value: string
+) {
+  segment[key] = value
+    .split('\n')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
 </script>
 
 <template>
   <NSpace vertical :size="14" class="keyword-result">
-    <NDescriptions size="small" label-placement="left" bordered :column="1">
+    <NForm v-if="editable && keywordPlan" :model="keywordPlan" label-placement="top" size="small">
+      <NGrid :x-gap="12" :y-gap="10" responsive="screen" item-responsive>
+        <NGi span="24 m:12">
+          <NFormItem label="需求归纳">
+            <NInput
+              v-model:value="keywordPlan.structuredRequirement"
+              type="textarea"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+            />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="产品关键词">
+            <NInput
+              v-model:value="keywordPlan.resolvedProductKeywords"
+              type="textarea"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+            />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="目标市场">
+            <NInput v-model:value="keywordPlan.resolvedTargetRegions" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="客户画像">
+            <NInput
+              v-model:value="keywordPlan.resolvedTargetCustomerProfile"
+              type="textarea"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+            />
+          </NFormItem>
+        </NGi>
+      </NGrid>
+
+      <section class="keyword-section">
+        <div class="section-heading">
+          <div class="section-title">买家类型</div>
+          <NButton size="tiny" secondary @click="addBuyerSegment">新增</NButton>
+        </div>
+        <NSpace vertical :size="10">
+          <div v-for="(segment, index) in keywordPlan.buyerSegments" :key="index" class="buyer-segment editor">
+            <div class="buyer-segment-header">
+              <NInput v-model:value="segment.buyerType" placeholder="客户类型" />
+              <NButton size="tiny" quaternary type="error" @click="removeBuyerSegment(index)">删除</NButton>
+            </div>
+            <NInput
+              v-model:value="segment.purchaseReason"
+              type="textarea"
+              placeholder="采购原因"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+            />
+            <NGrid :x-gap="10" :y-gap="8" responsive="screen" item-responsive>
+              <NGi span="24 m:12">
+                <NInput
+                  :value="formatList(segment.websiteSignals)"
+                  type="textarea"
+                  placeholder="官网信号，每行一条"
+                  :autosize="{ minRows: 2, maxRows: 5 }"
+                  @update:value="updateSegmentList(segment, 'websiteSignals', $event)"
+                />
+              </NGi>
+              <NGi span="24 m:12">
+                <NInput
+                  :value="formatList(segment.priorityContacts)"
+                  type="textarea"
+                  placeholder="优先联系人，每行一条"
+                  :autosize="{ minRows: 2, maxRows: 5 }"
+                  @update:value="updateSegmentList(segment, 'priorityContacts', $event)"
+                />
+              </NGi>
+            </NGrid>
+            <NInput v-model:value="segment.priorityLevel" placeholder="优先级" />
+          </div>
+        </NSpace>
+      </section>
+    </NForm>
+
+    <NDescriptions v-else size="small" label-placement="left" bordered :column="1">
       <NDescriptionsItem v-for="item in viewModel.summaryItems" :key="item.label" :label="item.label">
         {{ item.value }}
       </NDescriptionsItem>
     </NDescriptions>
 
-    <section class="keyword-section">
+    <section v-if="!editable" class="keyword-section">
       <div class="section-title">买家类型</div>
       <NGrid :x-gap="12" :y-gap="12" responsive="screen" item-responsive>
         <NGi v-for="segment in viewModel.buyerSegments" :key="segment.buyerType" span="24 m:12 xl:8">
@@ -94,6 +207,13 @@ const placesQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
   font-weight: 600;
 }
 
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .buyer-segment {
   display: flex;
   min-height: 156px;
@@ -102,6 +222,10 @@ const placesQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
   padding: 12px;
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
+}
+
+.buyer-segment.editor {
+  min-height: auto;
 }
 
 .buyer-segment-header {

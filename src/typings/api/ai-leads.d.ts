@@ -89,6 +89,35 @@ declare namespace Api {
       searchExecutionRules: SearchExecutionRules;
     }
 
+    interface KeywordHistoryRecord {
+      id: string;
+      requirement: string;
+      resultText: string;
+      keywordPlan: OptimizedKeywordPlan;
+      finishReason: string;
+      usage: Api.AiGateway.AiUsage;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface KeywordOptimizeResult extends Api.AiGateway.AiTextResult {
+      keywordPlan: OptimizedKeywordPlan;
+      historyRecord: KeywordHistoryRecord;
+    }
+
+    interface KeywordHistoryListParams {
+      size?: number;
+    }
+
+    interface KeywordHistoryListResult {
+      records: KeywordHistoryRecord[];
+    }
+
+    interface UpdateKeywordHistoryPayload {
+      requirement: string;
+      keywordPlan: OptimizedKeywordPlan;
+    }
+
     interface SearchOrchestratePayload {
       requirement: string;
       targetLeadCountOverride?: number;
