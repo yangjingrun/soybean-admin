@@ -35,6 +35,14 @@ export function createCrmAccountNote(id: string, data: Api.Crm.LeadNotePayload) 
   });
 }
 
+/** Verify one CRM contact email and append the backend timeline event. */
+export function verifyCrmContactEmail(contactId: string) {
+  return request<Api.Crm.LeadContactEmailVerifyResult>({
+    url: `/crm/contacts/${contactId}/verify-email`,
+    method: 'post'
+  });
+}
+
 /** Archive one CRM account with an optional reason. */
 export function archiveCrmAccount(id: string, data: Api.Crm.LeadArchivePayload = {}) {
   return request<Api.Crm.LeadArchiveResult>({

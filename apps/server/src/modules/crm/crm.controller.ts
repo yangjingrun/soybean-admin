@@ -72,6 +72,11 @@ export class CrmController {
     return ok(await this.crmService.archiveAccount(id, dto, this.requireUserContext(authorization)));
   }
 
+  @Post('contacts/:id/verify-email')
+  async verifyContactEmail(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.verifyContactEmail(id, this.requireUserContext(authorization)));
+  }
+
   private requireUserContext(authorization: string): CrmUserContext {
     const user = this.requireUser(authorization);
 

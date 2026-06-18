@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import { CrmService } from './crm.service';
-import type { CrmStore, CrmUserContext } from './crm.types';
+import type { CrmEmailStatus, CrmStore, CrmUserContext } from './crm.types';
 
 describe('CrmService', () => {
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -244,6 +245,136 @@ describe('CrmService', () => {
       toStatus: 'archived'
     });
   });
+
+  it('verifies a contact email as valid when the domain has MX records', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'Ali@Example.COM' })]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]), logs.service);
+
+    const result = await service.verifyContactEmail('contact-1', createContext());
+
+    assert.equal(result.contact.emailStatus, 'valid');
+    assert.equal(result.contact.updatedAt, '2026-06-18T10:00:00.000Z');
+    assert.equal(result.event.eventType, 'email_verified');
+    assert.equal(result.event.title, '邮箱验证');
+    assert.equal(store.timelineEvents.at(-1)?.contactId, 'contact-1');
+    assert.deepEqual(store.timelineEvents.at(-1)?.metadata, {
+      maskedEmail: 'a***@example.com',
+      domain: 'example.com',
+      fromStatus: 'unchecked',
+      toStatus: 'valid',
+      reason: 'mx_found'
+    });
+    assert.deepEqual(logs.records[0], {
+      level: 'info',
+      status: 'success',
+      module: 'crm',
+      action: 'contact-email-verify',
+      message: 'CRM 联系人邮箱验证完成',
+      userId: 'user-1',
+      userName: 'Alice',
+      metadata: {
+        organizationId: 'org-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        maskedEmail: 'a***@example.com',
+        domain: 'example.com',
+        fromStatus: 'unchecked',
+        toStatus: 'valid',
+        reason: 'mx_found'
+      }
+    });
+  });
+
+  it('marks invalid format emails without querying DNS', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'invalid-email' })]
+    });
+    const resolver = createDnsResolver([]);
+    const service = new CrmService(store, resolver);
+
+    const result = await service.verifyContactEmail('contact-1', createContext());
+
+    assert.equal(result.contact.emailStatus, 'invalid');
+    assert.equal(resolver.calls.length, 0);
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'invalid_format');
+  });
+
+  it('marks malformed email domains invalid without querying DNS', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'buyer@example..com' })]
+    });
+    const resolver = createDnsResolver([]);
+    const service = new CrmService(store, resolver);
+
+    const result = await service.verifyContactEmail('contact-1', createContext());
+
+    assert.equal(result.contact.emailStatus, 'invalid');
+    assert.equal(resolver.calls.length, 0);
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'invalid_format');
+  });
+
+  it('marks emails invalid when the domain has no MX records', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'buyer@nomx.example' })]
+    });
+    const service = new CrmService(store, createDnsResolver(createDnsError('ENODATA')));
+
+    const result = await service.verifyContactEmail('contact-1', createContext());
+
+    assert.equal(result.contact.emailStatus, 'invalid');
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'no_mx');
+  });
+
+  it('marks emails unreachable when DNS fails temporarily', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'buyer@timeout.example' })]
+    });
+    const service = new CrmService(store, createDnsResolver(createDnsError('ETIMEOUT')));
+
+    const result = await service.verifyContactEmail('contact-1', createContext());
+
+    assert.equal(result.contact.emailStatus, 'unreachable');
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string }).reason, 'dns_temporary_failure');
+  });
+
+  it('rejects contact verification outside current member scope without updating status', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })]
+    });
+    const service = new CrmService(store, createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]));
+
+    await assert.rejects(() => service.verifyContactEmail('contact-1', createContext()), NotFoundException);
+
+    assert.equal(store.contacts[0].emailStatus, 'unchecked');
+    assert.equal(store.timelineEvents.length, 0);
+  });
+
+  it('allows organization admins to verify organization contacts without owner scope', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })]
+    });
+    const service = new CrmService(store, createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]));
+
+    await service.verifyContactEmail('contact-1', createContext({ organizationRole: 'admin' }));
+
+    assert.equal(store.lastContactArgs?.ownerUserId, undefined);
+    assert.equal(store.contacts[0].emailStatus, 'valid');
+  });
+
+  it('allows R_SUPER users to verify organization contacts without owner scope', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })]
+    });
+    const service = new CrmService(store, createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]));
+
+    await service.verifyContactEmail('contact-1', createContext({ roles: ['R_SUPER'], organizationRole: 'member' }));
+
+    assert.equal(store.lastContactArgs?.ownerUserId, undefined);
+    assert.equal(store.contacts[0].emailStatus, 'valid');
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -269,6 +400,7 @@ function createStore(
   timelineEvents: TestTimelineEvent[];
   lastListArgs?: Parameters<CrmStore['listAccounts']>[0];
   lastDetailArgs?: Parameters<CrmStore['getAccountDetail']>[0];
+  lastContactArgs?: Parameters<CrmStore['findContactById']>[0];
 } {
   const accounts = [...initialAccounts];
   const contacts: TestContact[] = [...(initialData.contacts ?? [])];
@@ -336,6 +468,23 @@ function createStore(
       const contact = contacts.find(item => item.id === id);
       if (!contact) return null;
       Object.assign(contact, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      return contact;
+    },
+    async findContactById(args) {
+      this.lastContactArgs = args;
+      return (
+        contacts.find(contact => {
+          if (contact.id !== args.id) return false;
+          if (contact.organizationId !== args.organizationId) return false;
+          if (args.ownerUserId && contact.ownerUserId !== args.ownerUserId) return false;
+          return true;
+        }) || null
+      );
+    },
+    async updateContactEmailStatus(id, emailStatus) {
+      const contact = contacts.find(item => item.id === id);
+      if (!contact) return null;
+      Object.assign(contact, { emailStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return contact;
     },
     async listAccounts(args) {
@@ -451,3 +600,35 @@ function createTimelineEvent(input: Partial<TestTimelineEvent> = {}): TestTimeli
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
+
+function createDnsResolver(result: Array<{ exchange: string; priority: number }> | Error) {
+  return {
+    calls: [] as string[],
+    async resolveMx(domain: string) {
+      this.calls.push(domain);
+
+      if (result instanceof Error) {
+        throw result;
+      }
+
+      return result;
+    }
+  };
+}
+
+function createDnsError(code: string) {
+  return Object.assign(new Error(code), { code });
+}
+
+function createLogRecorder() {
+  const records: SystemLogRecordInput[] = [];
+
+  return {
+    records,
+    service: {
+      async record(input: SystemLogRecordInput) {
+        records.push(input);
+      }
+    } satisfies SystemLogRecorder
+  };
+}

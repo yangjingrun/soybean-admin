@@ -161,6 +161,12 @@ export interface CrmStore {
   ): Promise<CrmContactRecord | null>;
   createContact(input: CrmContactCreateInput): Promise<CrmContactRecord>;
   updateContact(id: string, input: CrmContactUpdateInput): Promise<CrmContactRecord | null>;
+  findContactById(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmContactRecord | null>;
+  updateContactEmailStatus(id: string, emailStatus: CrmEmailStatus): Promise<CrmContactRecord | null>;
   listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;

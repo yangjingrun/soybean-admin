@@ -102,6 +102,11 @@ declare namespace Api {
       event: LeadTimelineEvent;
     }
 
+    interface LeadContactEmailVerifyResult {
+      contact: LeadContact;
+      event: LeadTimelineEvent;
+    }
+
     interface LeadArchiveResult {
       account: LeadRecord;
       event: LeadTimelineEvent;

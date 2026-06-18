@@ -143,6 +143,38 @@ describe('PrismaCrmStore', () => {
       organizationId: 'org-1'
     });
   });
+
+  it('loads contacts with organization and optional owner scope', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const contact = await store.findContactById({
+      id: 'contact-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+
+    assert.equal(contact?.id, 'contact-1');
+    assert.deepEqual(prisma.crmContact.findFirstCalls[0].where, {
+      id: 'contact-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+  });
+
+  it('updates contact email status through Prisma', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const contact = await store.updateContactEmailStatus('contact-1', 'valid');
+
+    assert.equal(contact?.emailStatus, 'valid');
+    assert.deepEqual(prisma.crmContact.updateManyAndReturnCalls[0], {
+      where: { id: 'contact-1' },
+      data: { emailStatus: 'valid' },
+      limit: 1
+    });
+  });
 });
 
 function createPrisma() {
@@ -192,6 +224,12 @@ function createPrisma() {
     },
     crmContact: {
       findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
       async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
         this.findManyCalls.push(args);
         return [
@@ -210,6 +248,46 @@ function createPrisma() {
             sourceTaskId: null,
             createdAt: new Date('2026-06-18T09:00:00.000Z'),
             updatedAt: new Date('2026-06-18T09:00:00.000Z')
+          }
+        ];
+      },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return {
+          id: 'contact-1',
+          organizationId: 'org-1',
+          accountId: 'account-1',
+          ownerUserId: 'user-1',
+          fullName: 'Ali Hassan',
+          title: 'Buyer',
+          email: 'ali@example.com',
+          emailHash: 'hash-1',
+          maskedEmail: 'a***@example.com',
+          isPublicEmail: false,
+          emailStatus: 'unchecked',
+          sourceTaskId: null,
+          createdAt: new Date('2026-06-18T09:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T09:00:00.000Z')
+        };
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [
+          {
+            id: 'contact-1',
+            organizationId: 'org-1',
+            accountId: 'account-1',
+            ownerUserId: 'user-1',
+            fullName: 'Ali Hassan',
+            title: 'Buyer',
+            email: 'ali@example.com',
+            emailHash: 'hash-1',
+            maskedEmail: 'a***@example.com',
+            isPublicEmail: false,
+            emailStatus: args.data.emailStatus,
+            sourceTaskId: null,
+            createdAt: new Date('2026-06-18T09:00:00.000Z'),
+            updatedAt: new Date('2026-06-18T10:00:00.000Z')
           }
         ];
       }

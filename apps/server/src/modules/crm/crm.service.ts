@@ -1,11 +1,15 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { CRM_STORE } from './crm.tokens';
+import { resolveMx } from 'node:dns/promises';
+import { SystemLogService } from '../system-log/system-log.service';
+import type { SystemLogRecorder } from '../system-log/system-log.types';
+import { CRM_EMAIL_DNS_RESOLVER, CRM_STORE } from './crm.tokens';
 import type {
   CrmAccountDetailRecord,
   CrmAccountRecord,
   CrmAccountStatus,
   CrmContactRecord,
+  CrmEmailStatus,
   CrmStore,
   CrmTimelineEventRecord,
   CrmUserContext,
@@ -16,6 +20,7 @@ const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
 const maxNoteLength = 2000;
+const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 const publicEmailPrefixes = new Set([
   'admin',
   'contact',
@@ -28,9 +33,31 @@ const publicEmailPrefixes = new Set([
   'support'
 ]);
 
+export interface CrmEmailDnsResolver {
+  resolveMx(domain: string): Promise<unknown[]>;
+}
+
+interface EmailVerificationResult {
+  status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'unreachable'>;
+  domain: string | null;
+  reason: 'mx_found' | 'invalid_format' | 'no_mx' | 'dns_temporary_failure';
+}
+
 @Injectable()
 export class CrmService {
-  constructor(@Inject(CRM_STORE) private readonly store: CrmStore) {}
+  private readonly dnsResolver: CrmEmailDnsResolver;
+
+  constructor(
+    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Optional()
+    @Inject(CRM_EMAIL_DNS_RESOLVER)
+    dnsResolver?: CrmEmailDnsResolver,
+    @Optional()
+    @Inject(SystemLogService)
+    private readonly systemLogService?: SystemLogRecorder
+  ) {
+    this.dnsResolver = dnsResolver ?? { resolveMx };
+  }
 
   /** Imports one lead candidate into the organization CRM with domain and email dedupe. */
   async importAccountFromLead(input: ImportCrmLeadInput, context: CrmUserContext) {
@@ -165,6 +192,59 @@ export class CrmService {
     return this.changeAccountStatus(id, 'archived', 'account_archived', '归档线索', input.reason, context);
   }
 
+  /** Verifies one scoped contact email with basic syntax and MX lookup. */
+  async verifyContactEmail(id: string, context: CrmUserContext) {
+    const contact = await this.store.findContactById({
+      id,
+      organizationId: context.organizationId,
+      ...toOwnerScope(context)
+    });
+
+    if (!contact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    const fromStatus = contact.emailStatus;
+    const verification = await this.verifyEmailAddress(contact.email);
+    const updatedContact = await this.store.updateContactEmailStatus(contact.id, verification.status);
+
+    if (!updatedContact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    const event = await this.store.createTimelineEvent({
+      organizationId: updatedContact.organizationId,
+      accountId: updatedContact.accountId,
+      contactId: updatedContact.id,
+      ownerUserId: context.userId,
+      eventType: 'email_verified',
+      title: '邮箱验证',
+      content: `邮箱 ${updatedContact.maskedEmail} 验证结果：${toEmailStatusText(verification.status)}`,
+      metadata: {
+        maskedEmail: updatedContact.maskedEmail,
+        domain: verification.domain,
+        fromStatus,
+        toStatus: verification.status,
+        reason: verification.reason
+      }
+    });
+    await this.recordCrmLog('contact-email-verify', 'CRM 联系人邮箱验证完成', context, {
+      organizationId: updatedContact.organizationId,
+      accountId: updatedContact.accountId,
+      contactId: updatedContact.id,
+      maskedEmail: updatedContact.maskedEmail,
+      domain: verification.domain,
+      fromStatus,
+      toStatus: verification.status,
+      reason: verification.reason
+    });
+
+    return {
+      contact: toContactView(updatedContact),
+      event: toTimelineEventView(event)
+    };
+  }
+
   private async importContactIfPresent(
     account: CrmAccountRecord,
     input: ImportCrmLeadInput,
@@ -254,6 +334,42 @@ export class CrmService {
     };
   }
 
+  private async verifyEmailAddress(email: string): Promise<EmailVerificationResult> {
+    const parsedEmail = parseEmailAddress(email);
+
+    if (!parsedEmail) {
+      return {
+        status: 'invalid',
+        domain: null,
+        reason: 'invalid_format'
+      };
+    }
+
+    try {
+      const mxRecords = await this.dnsResolver.resolveMx(parsedEmail.domain);
+
+      if (mxRecords.length > 0) {
+        return {
+          status: 'valid',
+          domain: parsedEmail.domain,
+          reason: 'mx_found'
+        };
+      }
+
+      return {
+        status: 'invalid',
+        domain: parsedEmail.domain,
+        reason: 'no_mx'
+      };
+    } catch (error) {
+      return {
+        status: noMxErrorCodes.has(getErrorCode(error)) ? 'invalid' : 'unreachable',
+        domain: parsedEmail.domain,
+        reason: noMxErrorCodes.has(getErrorCode(error)) ? 'no_mx' : 'dns_temporary_failure'
+      };
+    }
+  }
+
   private async requireScopedAccountDetail(id: string, context: CrmUserContext) {
     const detail = await this.store.getAccountDetail({
       id,
@@ -266,6 +382,24 @@ export class CrmService {
     }
 
     return detail;
+  }
+
+  private recordCrmLog(
+    action: string,
+    message: string,
+    context: CrmUserContext,
+    metadata: Record<string, unknown>
+  ) {
+    return this.systemLogService?.record({
+      level: 'info',
+      status: 'success',
+      module: 'crm',
+      action,
+      message,
+      userId: context.userId,
+      userName: context.userName,
+      metadata
+    });
   }
 }
 
@@ -351,6 +485,33 @@ function normalizeEmail(value?: string | null) {
   return normalized && normalized.includes('@') ? normalized : null;
 }
 
+function parseEmailAddress(email: string) {
+  const normalized = email.trim().toLowerCase();
+  const match = /^([^@\s]+)@([^@\s]+)$/.exec(normalized);
+
+  if (!match || !isDnsDomain(match[2])) {
+    return null;
+  }
+
+  return {
+    domain: match[2]
+  };
+}
+
+function isDnsDomain(domain: string) {
+  if (domain.length > 253 || domain.startsWith('.') || domain.endsWith('.')) {
+    return false;
+  }
+
+  const labels = domain.split('.');
+
+  return labels.every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
+}
+
+function getErrorCode(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
+}
+
 function hashEmail(email: string) {
   return createHash('sha256').update(email).digest('hex');
 }
@@ -364,6 +525,16 @@ function maskEmail(email: string) {
 function isPublicEmail(email: string) {
   const [local = ''] = email.split('@');
   return publicEmailPrefixes.has(local.toLowerCase());
+}
+
+function toEmailStatusText(status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'unreachable'>) {
+  const textMap: Record<Extract<CrmEmailStatus, 'valid' | 'invalid' | 'unreachable'>, string> = {
+    valid: '有效',
+    invalid: '无效',
+    unreachable: '暂不可达'
+  };
+
+  return textMap[status];
 }
 
 function normalizePositiveInteger(value: number | string | undefined, fallback: number) {

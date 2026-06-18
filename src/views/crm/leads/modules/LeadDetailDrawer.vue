@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, reactive, watch } from 'vue';
-import { NTag, useMessage } from 'naive-ui';
+import { NButton, NTag, useMessage } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   createDefaultLeadNoteForm,
@@ -23,6 +23,7 @@ const props = defineProps<{
   loading?: boolean;
   noteSubmitting?: boolean;
   statusSubmitting?: boolean;
+  verifyingContactIds?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   reload: [];
   submitNote: [payload: Api.Crm.LeadNotePayload];
   submitStatus: [payload: Api.Crm.LeadStatusPayload];
+  verifyContactEmail: [contact: Api.Crm.LeadContact];
 }>();
 
 const message = useMessage();
@@ -46,6 +48,11 @@ const account = computed(() => props.detail?.account ?? null);
 const contacts = computed(() => props.detail?.contacts ?? []);
 const timelineEvents = computed(() => props.detail?.timelineEvents ?? []);
 const websiteHref = computed(() => (account.value?.websiteUrl ? getWebsiteHref(account.value.websiteUrl) : ''));
+
+/** Check whether the current contact already has an email verification request in flight. */
+function isContactVerifying(contactId: string) {
+  return props.verifyingContactIds?.includes(contactId) ?? false;
+}
 
 const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
   {
@@ -77,6 +84,25 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
           type: leadEmailStatusTagTypeMap[row.emailStatus]
         },
         { default: () => leadEmailStatusLabelMap[row.emailStatus] }
+      )
+  },
+  {
+    key: 'operate',
+    title: '操作',
+    width: 90,
+    fixed: 'right',
+    render: row =>
+      h(
+        NButton,
+        {
+          size: 'small',
+          text: true,
+          type: 'primary',
+          loading: isContactVerifying(row.id),
+          disabled: isContactVerifying(row.id),
+          onClick: () => emit('verifyContactEmail', row)
+        },
+        { default: () => '验证' }
       )
   }
 ]);
@@ -187,7 +213,7 @@ function handleSubmitStatus() {
               :columns="contactColumns"
               :data="contacts"
               :row-key="row => row.id"
-              :scroll-x="520"
+              :scroll-x="620"
               size="small"
             >
               <template #empty>

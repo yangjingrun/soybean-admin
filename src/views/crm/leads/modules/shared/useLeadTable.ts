@@ -5,7 +5,8 @@ import {
   createCrmAccountNote,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
-  updateCrmAccountStatus
+  updateCrmAccountStatus,
+  verifyCrmContactEmail
 } from '@/service/api';
 import { buildLeadSearchParams, createDefaultLeadFilterModel } from '../shared';
 
@@ -22,6 +23,7 @@ export function useLeadTable() {
   const noteSubmitting = shallowRef(false);
   const statusSubmitting = shallowRef(false);
   const archiveOperatingId = shallowRef<string | null>(null);
+  const verifyingContactIds = shallowRef<string[]>([]);
   let latestRequestId = 0;
   let latestDetailRequestId = 0;
 
@@ -117,6 +119,45 @@ export function useLeadTable() {
       leadDetail.value = null;
       detailLoading.value = false;
       latestDetailRequestId += 1;
+    }
+  }
+
+  /** Mark one contact email verification request as running. */
+  function addVerifyingContact(contactId: string) {
+    verifyingContactIds.value = [...verifyingContactIds.value, contactId];
+  }
+
+  /** Remove one finished contact email verification request. */
+  function removeVerifyingContact(contactId: string) {
+    verifyingContactIds.value = verifyingContactIds.value.filter(id => id !== contactId);
+  }
+
+  /** Verify one contact email, then refresh the matching open detail drawer. */
+  async function handleVerifyContactEmail(contact: Api.Crm.LeadContact) {
+    const contactId = contact.id;
+    const accountId = contact.accountId;
+
+    if (verifyingContactIds.value.includes(contactId)) {
+      return;
+    }
+
+    addVerifyingContact(contactId);
+
+    try {
+      const { error } = await verifyCrmContactEmail(contactId);
+
+      if (error) {
+        return;
+      }
+
+      message.success('邮箱验证已完成');
+
+      // Only refresh the drawer if the user is still viewing this contact's account.
+      if (detailVisible.value && selectedLeadId.value === accountId) {
+        await loadLeadDetail(accountId);
+      }
+    } finally {
+      removeVerifyingContact(contactId);
     }
   }
 
@@ -240,6 +281,7 @@ export function useLeadTable() {
     handleReset,
     handleSearch,
     handleUpdateStatus,
+    handleVerifyContactEmail,
     leadDetail,
     loadLeads,
     loadLeadDetail,
@@ -248,6 +290,7 @@ export function useLeadTable() {
     pagination,
     records,
     openLeadDetail,
-    statusSubmitting
+    statusSubmitting,
+    verifyingContactIds
   };
 }

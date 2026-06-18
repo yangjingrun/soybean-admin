@@ -18,6 +18,7 @@ const {
   handleReset,
   handleSearch,
   handleUpdateStatus,
+  handleVerifyContactEmail,
   leadDetail,
   loadLeadDetail,
   loading,
@@ -25,7 +26,8 @@ const {
   openLeadDetail,
   pagination,
   records,
-  statusSubmitting
+  statusSubmitting,
+  verifyingContactIds
 } = useLeadTable();
 </script>
 
@@ -55,10 +57,12 @@ const {
       :loading="detailLoading"
       :note-submitting="noteSubmitting"
       :status-submitting="statusSubmitting"
+      :verifying-contact-ids="verifyingContactIds"
       @update:show="handleDetailVisibleUpdate"
       @reload="loadLeadDetail()"
       @submit-note="handleCreateNote"
       @submit-status="handleUpdateStatus"
+      @verify-contact-email="handleVerifyContactEmail"
     />
   </NSpace>
 </template>

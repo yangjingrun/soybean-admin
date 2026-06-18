@@ -8,6 +8,7 @@ import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
 
 type CrmAccountView = Awaited<ReturnType<CrmService['listAccounts']>>['records'][number];
 type CrmTimelineEventView = Awaited<ReturnType<CrmService['addAccountNote']>>['event'];
+type CrmEmailVerificationView = Awaited<ReturnType<CrmService['verifyContactEmail']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -182,6 +183,28 @@ describe('CrmController', () => {
     assert.equal(calls[0].context.organizationId, 'org-1');
   });
 
+  it('verifies contact email with the current user context', async () => {
+    const calls: Array<{ id: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async verifyContactEmail(id, context) {
+          calls.push({ id, context });
+
+          return createEmailVerificationView({ contactId: id });
+        }
+      })
+    );
+
+    const result = await controller.verifyContactEmail('Bearer token', 'contact-1');
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].id, 'contact-1');
+    assert.equal(calls[0].context.userId, 'user-1');
+    assert.equal(result.data.contact.id, 'contact-1');
+    assert.equal(result.data.event.eventType, 'email_verified');
+  });
+
   it('rejects anonymous users', async () => {
     const controller = new CrmController(createAuthService(null), createCrmService());
 
@@ -244,6 +267,38 @@ function createTimelineEventView(overrides: Partial<CrmTimelineEventView> = {}) 
   };
 }
 
+function createContactView(overrides: Partial<CrmEmailVerificationView['contact']> = {}) {
+  return {
+    id: 'contact-1',
+    organizationId: 'org-1',
+    accountId: 'account-1',
+    ownerUserId: 'user-1',
+    fullName: 'Ali Hassan',
+    title: 'Buyer',
+    email: 'ali@example.com',
+    emailHash: 'hash-1',
+    maskedEmail: 'a***@example.com',
+    isPublicEmail: false,
+    emailStatus: 'valid' as const,
+    sourceTaskId: null,
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T10:00:00.000Z',
+    ...overrides
+  };
+}
+
+function createEmailVerificationView(overrides: { contactId?: string } = {}): CrmEmailVerificationView {
+  return {
+    contact: createContactView({ id: overrides.contactId }),
+    event: createTimelineEventView({
+      accountId: 'account-1',
+      contactId: overrides.contactId ?? 'contact-1',
+      eventType: 'email_verified',
+      title: '邮箱验证'
+    })
+  };
+}
+
 function createCrmService(partial: Partial<CrmService> = {}): CrmService {
   return {
     async listAccounts() {
@@ -281,6 +336,9 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
       return {
         account: null
       };
+    },
+    async verifyContactEmail() {
+      return createEmailVerificationView();
     },
     ...partial
   } as unknown as CrmService;

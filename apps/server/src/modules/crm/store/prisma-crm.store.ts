@@ -12,6 +12,7 @@ import type {
   CrmContactCreateInput,
   CrmContactRecord,
   CrmContactUpdateInput,
+  CrmEmailStatus,
   CrmStore,
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
@@ -109,6 +110,24 @@ export class PrismaCrmStore implements CrmStore {
     return records[0] ? toContactRecord(records[0]) : null;
   }
 
+  findContactById(args: { id: string; organizationId: string; ownerUserId?: string }) {
+    return this.prisma.crmContact
+      .findFirst({
+        where: toContactIdentityWhere(args)
+      })
+      .then(record => (record ? toContactRecord(record) : null));
+  }
+
+  async updateContactEmailStatus(id: string, emailStatus: CrmEmailStatus) {
+    const records = await this.prisma.crmContact.updateManyAndReturn({
+      where: { id },
+      data: { emailStatus },
+      limit: 1
+    });
+
+    return records[0] ? toContactRecord(records[0]) : null;
+  }
+
   async listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;
@@ -193,6 +212,19 @@ function toAccountIdentityWhere(args: {
   organizationId: string;
   ownerUserId?: string;
 }): Prisma.CrmAccountWhereInput {
+  return {
+    id: args.id,
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+  };
+}
+
+/** Builds the scoped contact identity filter used before contact writes. */
+function toContactIdentityWhere(args: {
+  id: string;
+  organizationId: string;
+  ownerUserId?: string;
+}): Prisma.CrmContactWhereInput {
   return {
     id: args.id,
     organizationId: args.organizationId,
