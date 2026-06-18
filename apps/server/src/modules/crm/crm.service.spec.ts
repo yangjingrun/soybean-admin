@@ -71,6 +71,33 @@ describe('CrmService', () => {
     );
   });
 
+  it('passes keyword and status filters while keeping member ownership isolation', async () => {
+    const store = createStore([
+      createAccount({ id: 'own-ready', ownerUserId: 'user-1', name: 'ABC Bearing', status: 'ready' }),
+      createAccount({ id: 'own-candidate', ownerUserId: 'user-1', name: 'ABC Distributor', status: 'candidate' }),
+      createAccount({ id: 'peer-ready', ownerUserId: 'user-2', name: 'ABC Peer', status: 'ready' })
+    ]);
+    const service = new CrmService(store);
+
+    const result = await service.listAccounts(createContext(), {
+      keyword: ' ABC ',
+      status: 'ready'
+    });
+
+    assert.deepEqual(
+      result.records.map(record => record.id),
+      ['own-ready']
+    );
+    assert.deepEqual(store.lastListArgs, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      skip: 0,
+      take: 20,
+      keyword: 'ABC',
+      status: 'ready'
+    });
+  });
+
   it('keeps same-organization member imports isolated by owner', async () => {
     const store = createStore([
       createAccount({ id: 'peer-account', ownerUserId: 'user-2', name: 'Peer Account', domain: 'shared.example' })
@@ -121,6 +148,7 @@ function createStore(initialAccounts: TestAccount[] = []): CrmStore & {
   accounts: TestAccount[];
   contacts: TestContact[];
   timelineEvents: TestTimelineEvent[];
+  lastListArgs?: Parameters<CrmStore['listAccounts']>[0];
 } {
   const accounts = [...initialAccounts];
   const contacts: TestContact[] = [];
@@ -191,9 +219,22 @@ function createStore(initialAccounts: TestAccount[] = []): CrmStore & {
       return contact;
     },
     async listAccounts(args) {
+      this.lastListArgs = args;
       const records = accounts.filter(account => {
         if (account.organizationId !== args.organizationId) return false;
         if (args.ownerUserId && account.ownerUserId !== args.ownerUserId) return false;
+        if (args.status && account.status !== args.status) return false;
+        if (args.keyword) {
+          const keyword = args.keyword.toLowerCase();
+          const searchableValues = [
+            account.name,
+            account.domain,
+            account.websiteUrl,
+            account.country,
+            account.customerType
+          ];
+          if (!searchableValues.some(value => value?.toLowerCase().includes(keyword))) return false;
+        }
         return true;
       });
       return { records, total: records.length };

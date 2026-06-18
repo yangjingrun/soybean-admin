@@ -1,20 +1,23 @@
 export type OrganizationRole = 'member' | 'admin';
 
-export type CrmAccountStatus =
-  | 'candidate'
-  | 'missing_contact'
-  | 'email_verification_pending'
-  | 'manual_review_pending'
-  | 'ready'
-  | 'sequence_running'
-  | 'replied_pending'
-  | 'followed_up'
-  | 'opportunity'
-  | 'customer'
-  | 'invalid'
-  | 'paused'
-  | 'blocked'
-  | 'archived';
+export const crmAccountStatuses = [
+  'candidate',
+  'missing_contact',
+  'email_verification_pending',
+  'manual_review_pending',
+  'ready',
+  'sequence_running',
+  'replied_pending',
+  'followed_up',
+  'opportunity',
+  'customer',
+  'invalid',
+  'paused',
+  'blocked',
+  'archived'
+] as const;
+
+export type CrmAccountStatus = (typeof crmAccountStatuses)[number];
 
 export type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable';
 
@@ -155,6 +158,8 @@ export interface CrmStore {
   listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;
+    keyword?: string;
+    status?: CrmAccountStatus;
     skip: number;
     take: number;
   }): Promise<{ records: CrmAccountRecord[]; total: number }>;

@@ -71,6 +71,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`、`prisma/migrations/20260618230000_create_crm_foundation/migration.sql`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认同组织不同成员同域名不会复用对方 Account，并发唯一冲突会重读已有记录。
 
+### 2026-06-18 远程表格筛选要防旧请求覆盖新结果
+
+- 场景：CRM 线索库这类前端远程表格支持关键词、状态、分页快速切换。
+- 坑点：如果每次筛选/分页都直接请求并在返回时写入表格，旧请求可能比新请求更晚返回，导致 UI 筛选条件已变但表格数据被旧结果覆盖；旧请求的 `finally` 也可能提前关闭新请求的 loading。
+- 正确做法：列表 composable 内维护递增 request id 或 AbortController，只允许最后一次请求写入 `records/pagination/loading`；筛选统计文案要区分“全库总数”和“当前筛选 total”。
+- 相关文件：`src/views/crm/leads/modules/shared/useLeadTable.ts`、`src/views/crm/leads/modules/LeadStats.vue`。
+- 验证方式：运行 `pnpm typecheck`，并由 code review 检查快速切换筛选/重置时不会出现旧响应覆盖新状态的代码路径。
+
 ### 记录模板
 
 ```md

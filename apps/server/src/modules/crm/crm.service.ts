@@ -1,7 +1,14 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { CRM_STORE } from './crm.tokens';
-import type { CrmAccountRecord, CrmContactRecord, CrmStore, CrmUserContext, ImportCrmLeadInput } from './crm.types';
+import type {
+  CrmAccountRecord,
+  CrmAccountStatus,
+  CrmContactRecord,
+  CrmStore,
+  CrmUserContext,
+  ImportCrmLeadInput
+} from './crm.types';
 
 const defaultPage = 1;
 const defaultPageSize = 20;
@@ -72,13 +79,24 @@ export class CrmService {
   }
 
   /** Lists accounts within the current organization and applies member ownership isolation. */
-  async listAccounts(context: CrmUserContext, query: { current?: number | string; size?: number | string } = {}) {
+  async listAccounts(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: CrmAccountStatus;
+    } = {}
+  ) {
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const isOrganizationAdmin = context.organizationRole === 'admin' || context.roles.includes('R_SUPER');
+    const keyword = normalizeNullableString(query.keyword);
     const result = await this.store.listAccounts({
       organizationId: context.organizationId,
       ...(isOrganizationAdmin ? {} : { ownerUserId: context.userId }),
+      ...(keyword ? { keyword } : {}),
+      ...(query.status ? { status: query.status } : {}),
       skip: (current - 1) * size,
       take: size
     });

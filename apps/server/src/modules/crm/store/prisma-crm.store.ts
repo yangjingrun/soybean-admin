@@ -7,6 +7,7 @@ import { PrismaService } from '../../database/prisma.service';
 import type {
   CrmAccountCreateInput,
   CrmAccountRecord,
+  CrmAccountStatus,
   CrmAccountUpdateInput,
   CrmContactCreateInput,
   CrmContactRecord,
@@ -108,7 +109,14 @@ export class PrismaCrmStore implements CrmStore {
     return records[0] ? toContactRecord(records[0]) : null;
   }
 
-  async listAccounts(args: { organizationId: string; ownerUserId?: string; skip: number; take: number }) {
+  async listAccounts(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmAccountStatus;
+    skip: number;
+    take: number;
+  }) {
     const where = toAccountListWhere(args);
     const [records, total] = await Promise.all([
       this.prisma.crmAccount.findMany({
@@ -144,11 +152,30 @@ export class PrismaCrmStore implements CrmStore {
   }
 }
 
-function toAccountListWhere(args: { organizationId: string; ownerUserId?: string }) {
+/** Builds the Prisma account list scope and optional UI filters. */
+function toAccountListWhere(args: {
+  organizationId: string;
+  ownerUserId?: string;
+  keyword?: string;
+  status?: CrmAccountStatus;
+}): Prisma.CrmAccountWhereInput {
+  const keywordFilter = args.keyword ? toAccountKeywordFilter(args.keyword) : undefined;
+
   return {
     organizationId: args.organizationId,
-    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
+    ...(args.status ? { status: args.status } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
   };
+}
+
+function toAccountKeywordFilter(keyword: string): Prisma.CrmAccountWhereInput[] {
+  return ['name', 'domain', 'websiteUrl', 'country', 'customerType'].map(field => ({
+    [field]: {
+      contains: keyword,
+      mode: 'insensitive'
+    }
+  }));
 }
 
 function toAccountRecord(record: CrmAccountModel): CrmAccountRecord {

@@ -1,5 +1,13 @@
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { crmAccountStatuses, type CrmAccountStatus } from '../crm.types';
+
+function trimOptionalString({ value }: { value: unknown }) {
+  if (typeof value !== 'string') return value;
+
+  const normalized = value.trim();
+  return normalized || undefined;
+}
 
 export class CrmAccountQueryDto {
   @IsOptional()
@@ -14,4 +22,15 @@ export class CrmAccountQueryDto {
   @Min(1)
   @Max(100)
   size?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Transform(trimOptionalString)
+  keyword?: string;
+
+  @IsOptional()
+  @IsIn(crmAccountStatuses)
+  @Transform(trimOptionalString)
+  status?: CrmAccountStatus;
 }

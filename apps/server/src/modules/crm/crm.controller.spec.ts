@@ -8,12 +8,12 @@ import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
-    const calls: CrmUserContext[] = [];
+    const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
     const controller = new CrmController(
       createAuthService(),
       createCrmService({
-        async listAccounts(context) {
-          calls.push(context);
+        async listAccounts(context, query) {
+          calls.push({ context, query });
 
           return {
             current: 1,
@@ -25,16 +25,18 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.listAccounts('Bearer token', { current: 1, size: 20 });
+    const query = { current: 1, size: 20, keyword: 'abc', status: 'ready' as const };
+    const result = await controller.listAccounts('Bearer token', query);
 
     assert.equal(result.code, '0000');
-    assert.deepEqual(calls[0], {
+    assert.deepEqual(calls[0].context, {
       userId: 'user-1',
       userName: 'Alice',
       roles: ['R_USER'],
       organizationId: 'org-1',
       organizationRole: 'member'
     });
+    assert.equal(calls[0].query, query);
   });
 
   it('imports one lead account for the current user', async () => {

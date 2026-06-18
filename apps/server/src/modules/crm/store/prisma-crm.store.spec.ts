@@ -35,6 +35,33 @@ describe('PrismaCrmStore', () => {
     assert.equal(result.total, 1);
   });
 
+  it('builds keyword and status account filters without dropping organization scope', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    await store.listAccounts({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      skip: 0,
+      take: 20,
+      keyword: 'bearing',
+      status: 'ready'
+    });
+
+    assert.deepEqual(prisma.crmAccount.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'ready',
+      OR: [
+        { name: { contains: 'bearing', mode: 'insensitive' } },
+        { domain: { contains: 'bearing', mode: 'insensitive' } },
+        { websiteUrl: { contains: 'bearing', mode: 'insensitive' } },
+        { country: { contains: 'bearing', mode: 'insensitive' } },
+        { customerType: { contains: 'bearing', mode: 'insensitive' } }
+      ]
+    });
+  });
+
   it('returns the existing account when concurrent create hits a unique conflict', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
