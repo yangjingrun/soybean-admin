@@ -2,6 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useLoading } from '@sa/hooks';
+import { DEFAULT_ORGANIZATION_ID, DEFAULT_ORGANIZATION_NAME } from '@soybean/shared';
 import { fetchGetUserInfo, fetchLogin, fetchLogout } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
@@ -25,7 +26,10 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     userId: '',
     userName: '',
     roles: [],
-    buttons: []
+    buttons: [],
+    organizationId: DEFAULT_ORGANIZATION_ID,
+    organizationName: DEFAULT_ORGANIZATION_NAME,
+    organizationRole: 'admin'
   });
 
   /** is super role in static route */
