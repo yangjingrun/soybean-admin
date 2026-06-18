@@ -33,6 +33,7 @@
     "commit": "sa git-commit",
     "commit:zh": "sa git-commit -l=zh-cn",
     "dev": "vite --mode test",
+    "dev:all": "node scripts/dev-all.mjs",
     "dev:prod": "vite --mode prod",
     "fmt": "oxfmt",
     "gen-route": "sa gen-route",
