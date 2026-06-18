@@ -211,13 +211,19 @@ describe('AiLeadsService', () => {
     userId: 'u-1',
     userName: 'Super',
     roles: ['R_SUPER'],
-    buttons: []
+    buttons: [],
+    organizationId: 'org-1',
+    organizationName: 'Org One',
+    organizationRole: 'admin'
   };
   const ordinaryUser: UserInfo = {
     userId: 'u-2',
     userName: 'Operator',
     roles: ['R_USER'],
-    buttons: []
+    buttons: [],
+    organizationId: 'org-1',
+    organizationName: 'Org One',
+    organizationRole: 'member'
   };
 
   it('uses the fixed keyword optimization prompt and saves the result as current user history', async () => {
