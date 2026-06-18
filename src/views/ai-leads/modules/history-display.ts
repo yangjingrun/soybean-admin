@@ -36,6 +36,13 @@ const targetRegionNames: Record<string, string> = {
   israel: '以色列'
 };
 
+type HistorySubjectTokenType = 'product' | 'region' | 'customer';
+
+export interface HistorySubjectToken {
+  type: HistorySubjectTokenType;
+  text: string;
+}
+
 const productCategoryMatchers: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /轴承|bearing/i, label: '轴承' },
   { pattern: /轮胎|tire|tyre/i, label: '轮胎' },
@@ -64,23 +71,50 @@ export function formatHistoryTargetRegions(regions?: string | null) {
     return '';
   }
 
-  return regionText
-    .split(/[,，、/|]+|\s+and\s+/i)
+  // 分号/冒号后通常是城市、产业等说明，历史标题只保留国家信号。
+  const regionTitleText = regionText.split(/[;；:：]/)[0]?.trim() || regionText;
+
+  return regionTitleText
+    .split(/[,，、/|;；]+|\s+and\s+/i)
     .map(region => region.trim())
     .filter(Boolean)
-    .map(region => targetRegionNames[region.toLowerCase()] || region)
+    .map(resolveTargetRegionName)
     .join('、');
 }
 
 /** Formats the history title as product, country and buyer type for quick scanning. */
 export function formatHistorySubject(plan: Api.AiLeads.OptimizedKeywordPlan) {
-  return [
-    resolveProductCategory(plan),
-    formatHistoryTargetRegions(plan.resolvedTargetRegions),
-    resolveCustomerTypes(plan)
-  ]
-    .filter(Boolean)
+  return formatHistorySubjectTokens(plan)
+    .map(token => token.text)
     .join('  ');
+}
+
+/** Splits the history subject into UI tokens so key fields can be styled independently. */
+export function formatHistorySubjectTokens(plan: Api.AiLeads.OptimizedKeywordPlan): HistorySubjectToken[] {
+  return [
+    { type: 'product', text: resolveProductCategory(plan) },
+    { type: 'region', text: formatHistoryTargetRegions(plan.resolvedTargetRegions) },
+    { type: 'customer', text: resolveCustomerTypes(plan) }
+  ].filter((token): token is HistorySubjectToken => Boolean(token.text));
+}
+
+function resolveTargetRegionName(region: string) {
+  const regionLower = region.toLowerCase();
+  const exactName = targetRegionNames[regionLower];
+
+  if (exactName) {
+    return exactName;
+  }
+
+  const includedTargetName = Object.values(targetRegionNames).find(name => region.includes(name));
+
+  if (includedTargetName) {
+    return includedTargetName;
+  }
+
+  const includedAlias = Object.entries(targetRegionNames).find(([alias]) => regionLower.includes(alias));
+
+  return includedAlias?.[1] || region;
 }
 
 function resolveProductCategory(plan: Api.AiLeads.OptimizedKeywordPlan) {

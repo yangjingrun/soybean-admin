@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatHistorySubject, formatHistoryTargetRegions } from './history-display';
+import { formatHistorySubject, formatHistorySubjectTokens, formatHistoryTargetRegions } from './history-display';
 
 const keywordPlan: Api.AiLeads.OptimizedKeywordPlan = {
   resolvedProductKeywords: '6204 bearing, deep groove ball bearing',
@@ -32,7 +32,19 @@ describe('ai leads history display helpers', () => {
     assert.equal(formatHistoryTargetRegions('South Korea, Mexico'), '韩国、墨西哥');
   });
 
+  it('keeps only the country signal from descriptive target regions', () => {
+    assert.equal(formatHistoryTargetRegions('韩国；重点城市、产业与贸易区'), '韩国');
+  });
+
   it('formats a compact history subject from product, region and customer profile', () => {
     assert.equal(formatHistorySubject(keywordPlan), '轴承  韩国  经销商/批发商');
+  });
+
+  it('splits the compact subject into styleable tokens', () => {
+    assert.deepEqual(formatHistorySubjectTokens(keywordPlan), [
+      { type: 'product', text: '轴承' },
+      { type: 'region', text: '韩国' },
+      { type: 'customer', text: '经销商/批发商' }
+    ]);
   });
 });

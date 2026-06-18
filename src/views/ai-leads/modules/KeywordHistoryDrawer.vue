@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import dayjs from 'dayjs';
-import { formatHistorySubject } from './history-display';
+import { formatHistorySubjectTokens, type HistorySubjectToken } from './history-display';
 
 const props = defineProps<{
   show: boolean;
@@ -25,6 +25,16 @@ const drawerVisible = computed({
 function formatTime(value: string) {
   return dayjs(value).format('YYYY-MM-DD HH:mm');
 }
+
+function resolveHistorySubjectTokens(record: Api.AiLeads.KeywordHistoryRecord): HistorySubjectToken[] {
+  const tokens = formatHistorySubjectTokens(record.keywordPlan);
+
+  if (tokens.length) {
+    return tokens;
+  }
+
+  return [{ type: 'product', text: record.requirement }];
+}
 </script>
 
 <template>
@@ -44,7 +54,16 @@ function formatTime(value: string) {
             @keydown.space.prevent="emit('select', record)"
           >
             <span class="history-item-main">
-              <span class="history-item-subject">{{ formatHistorySubject(record.keywordPlan) || record.requirement }}</span>
+              <span class="history-item-subject">
+                <span
+                  v-for="token in resolveHistorySubjectTokens(record)"
+                  :key="`${record.id}-${token.type}`"
+                  class="history-item-subject-token"
+                  :class="`history-item-subject-token--${token.type}`"
+                >
+                  {{ token.text }}
+                </span>
+              </span>
               <span class="history-item-desc">{{ record.requirement }}</span>
             </span>
             <span class="history-item-side">
@@ -128,14 +147,37 @@ function formatTime(value: string) {
 }
 
 .history-item-subject {
+  display: flex;
+  max-width: calc(100% - 168px);
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
   overflow: hidden;
-  color: var(--history-item-text);
-  padding-right: 154px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.25;
+  white-space: nowrap;
+}
+
+.history-item-subject-token {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.history-item-subject-token--product {
+  flex-shrink: 0;
+  color: var(--history-item-text);
+}
+
+.history-item-subject-token--region {
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+.history-item-subject-token--customer {
+  color: #7c3aed;
 }
 
 .history-item-desc {
