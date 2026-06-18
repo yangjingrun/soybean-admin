@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { computed, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { useAuthStore } from '@/store/modules/auth';
 import { optimizeLeadKeywords, searchLeadCustomers } from '@/service/api';
+import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
+import {
+  createKeywordOptimizationViewModel,
+  formatKeywordOptimizationVisibleText,
+  parseKeywordOptimizationPlan
+} from './modules/shared';
 
 const message = useMessage();
+const authStore = useAuthStore();
 
 const form = reactive({
   requirement:
@@ -16,7 +24,24 @@ const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const searchResult = shallowRef<Api.AiLeads.SearchOrchestrateResult | null>(null);
 
 const canGenerate = computed(() => Boolean(form.requirement.trim()));
+const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
 const searchResultText = computed(() => (searchResult.value ? JSON.stringify(searchResult.value, null, 2) : ''));
+const keywordOptimizationPlan = computed(() => {
+  if (!aiResult.value?.text) {
+    return null;
+  }
+
+  try {
+    return parseKeywordOptimizationPlan(aiResult.value.text);
+  } catch {
+    return null;
+  }
+});
+const keywordOptimizationViewModel = computed(() =>
+  keywordOptimizationPlan.value
+    ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, isSuperAdmin.value)
+    : null
+);
 
 /** Calls the AI leads keyword optimization workflow. */
 async function handleGenerate() {
@@ -73,7 +98,12 @@ async function handleCopyResult() {
     return;
   }
 
-  await navigator.clipboard.writeText(aiResult.value.text);
+  const copyText =
+    isSuperAdmin.value || !keywordOptimizationViewModel.value
+      ? aiResult.value.text
+      : formatKeywordOptimizationVisibleText(keywordOptimizationViewModel.value);
+
+  await navigator.clipboard.writeText(copyText);
   message.success('结果已复制');
 }
 
@@ -132,7 +162,7 @@ async function handleCopySearchResult() {
       <template #header>
         <div class="result-header">
           <span>{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
-          <NSpace v-if="aiResult" :size="8">
+          <NSpace v-if="aiResult && (isSuperAdmin || keywordOptimizationViewModel)" :size="8">
             <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
             <NButton size="small" @click="handleCopyResult">复制结果</NButton>
           </NSpace>
@@ -154,7 +184,17 @@ async function handleCopySearchResult() {
         <NInput :value="searchResultText" type="textarea" readonly :autosize="{ minRows: 18, maxRows: 30 }" />
       </div>
       <div v-else-if="aiResult" class="result-panel">
-        <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 16, maxRows: 28 }" />
+        <KeywordOptimizationResult v-if="keywordOptimizationViewModel" :view-model="keywordOptimizationViewModel" />
+        <template v-else>
+          <NAlert type="warning" :bordered="false">关键词优化结果不是合法 JSON，请重新生成。</NAlert>
+          <NInput
+            v-if="isSuperAdmin"
+            :value="aiResult.text"
+            type="textarea"
+            readonly
+            :autosize="{ minRows: 16, maxRows: 28 }"
+          />
+        </template>
         <NText depth="3" class="token-summary">
           Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} / 总计
           {{ aiResult.usage.totalTokens ?? '-' }}
