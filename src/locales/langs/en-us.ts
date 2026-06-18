@@ -300,6 +300,11 @@ const local: App.I18n.Schema = {
       },
       actions: {
         reload: 'Reload',
+        test: 'Test Prompt',
+        runTest: 'Run Test',
+        clearTest: 'Clear Input',
+        copyResult: 'Copy Result',
+        goModelConfig: 'Go to Model Config',
         save: 'Save Prompt'
       },
       form: {
@@ -311,9 +316,25 @@ const local: App.I18n.Schema = {
       status: {
         notSaved: 'Not saved yet'
       },
+      test: {
+        title: 'Test Prompt',
+        tip: 'The test uses the prompt currently in the editor and does not save it automatically. Save the prompt after the result looks right.',
+        inputLabel: 'Test Input',
+        inputPlaceholder: 'Enter product, market, customer type, strengths, and other workflow input',
+        resultTitle: 'Test Result',
+        tokens: 'Tokens',
+        inputTokens: 'Input',
+        outputTokens: 'Output',
+        totalTokens: 'Total',
+        empty: 'No test result yet',
+        modelConfigMissingTitle: 'Model config is missing',
+        modelConfigMissingDesc: 'configure the default model before testing prompts'
+      },
       messages: {
         loaded: 'Prompts loaded',
-        saved: 'Prompt saved'
+        saved: 'Prompt saved',
+        testPassed: 'Prompt test completed',
+        testCopied: 'Test result copied'
       },
       prompts: {
         leadKeywordOptimize: {

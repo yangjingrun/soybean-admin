@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
 import { fetchRefreshToken } from '../api';
+import { handleRequestBusinessError } from './business-error';
 import type { RequestInstanceState } from './type';
 
 export function getAuthorization() {
@@ -50,6 +51,13 @@ export function showErrorMsg(state: RequestInstanceState, message: string) {
 
   if (!isExist) {
     state.errMsgStack.push(message);
+
+    if (handleRequestBusinessError(message)) {
+      setTimeout(() => {
+        state.errMsgStack = state.errMsgStack.filter(msg => msg !== message);
+      }, 5000);
+      return;
+    }
 
     window.$message?.error(message, {
       onLeave: () => {

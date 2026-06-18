@@ -23,6 +23,16 @@ export function getBackendErrorCode(error: AxiosError<BackendErrorBody>) {
   return String(error.response?.data?.code || '');
 }
 
+/** Checks whether the backend says the default AI model channel is missing. */
+export function isMissingModelConfigError(message: string) {
+  const normalized = message.trim().toLowerCase();
+
+  return (
+    message.includes('未找到模型配置') ||
+    (normalized.includes('model config') && (normalized.includes('not found') || normalized.includes('missing')))
+  );
+}
+
 function getFirstString(...values: unknown[]) {
   const matched = values.find(value => typeof value === 'string' && value.trim());
 

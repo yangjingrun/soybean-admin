@@ -544,6 +544,11 @@ declare namespace App {
           };
           actions: {
             reload: string;
+            test: string;
+            runTest: string;
+            clearTest: string;
+            copyResult: string;
+            goModelConfig: string;
             save: string;
           };
           form: {
@@ -555,9 +560,25 @@ declare namespace App {
           status: {
             notSaved: string;
           };
+          test: {
+            title: string;
+            tip: string;
+            inputLabel: string;
+            inputPlaceholder: string;
+            resultTitle: string;
+            tokens: string;
+            inputTokens: string;
+            outputTokens: string;
+            totalTokens: string;
+            empty: string;
+            modelConfigMissingTitle: string;
+            modelConfigMissingDesc: string;
+          };
           messages: {
             loaded: string;
             saved: string;
+            testPassed: string;
+            testCopied: string;
           };
           prompts: {
             leadKeywordOptimize: {

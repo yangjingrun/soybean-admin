@@ -107,13 +107,7 @@ async function handleViewDetail(record: Api.SystemLog.SystemLogRecord) {
 
 <template>
   <NSpace vertical :size="12">
-    <FilterPanel
-      v-model="filterModel"
-      :users="users"
-      :loading="loading"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
+    <FilterPanel v-model="filterModel" :users="users" :loading="loading" @search="handleSearch" @reset="handleReset" />
 
     <LogTable
       :records="records"

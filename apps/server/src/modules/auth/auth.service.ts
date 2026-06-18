@@ -48,7 +48,12 @@ export class AuthService {
   constructor(@Inject(RedisService) private readonly redisService: RedisService) {}
 
   /** Validate captcha and demo credentials, then issue frontend-compatible tokens. */
-  async login(userName: string, password: string, captchaId?: string, captchaCode?: string): Promise<LoginToken | null> {
+  async login(
+    userName: string,
+    password: string,
+    captchaId?: string,
+    captchaCode?: string
+  ): Promise<LoginToken | null> {
     const captchaPassed = this.isDevAuth() || (await this.verifyCaptcha(captchaId, captchaCode));
 
     if (!captchaPassed) {

@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import dayjs from 'dayjs';
-import {
-  logLevelLabelMap,
-  logLevelOptions,
-  logModuleOptions,
-  logStatusLabelMap,
-  logStatusOptions
-} from './shared';
+import { logLevelLabelMap, logLevelOptions, logModuleOptions, logStatusLabelMap, logStatusOptions } from './shared';
 
 const filterModel = defineModel<Api.SystemLog.SystemLogFilterModel>('modelValue', { required: true });
 
@@ -123,7 +117,12 @@ function clearFilter(key: string) {
           </NGi>
           <NGi span="24 m:12 xl:4">
             <NFormItem label="模块">
-              <NSelect v-model:value="filterModel.module" :options="logModuleOptions" clearable placeholder="全部模块" />
+              <NSelect
+                v-model:value="filterModel.module"
+                :options="logModuleOptions"
+                clearable
+                placeholder="全部模块"
+              />
             </NFormItem>
           </NGi>
           <NGi span="24 m:12 xl:3">
@@ -158,14 +157,7 @@ function clearFilter(key: string) {
 
       <div v-if="activeFilters.length" class="active-filter-row">
         <span class="active-filter-label">当前筛选</span>
-        <NTag
-          v-for="item in activeFilters"
-          :key="item.key"
-          size="small"
-          round
-          closable
-          @close="clearFilter(item.key)"
-        >
+        <NTag v-for="item in activeFilters" :key="item.key" size="small" round closable @close="clearFilter(item.key)">
           {{ item.label }}
         </NTag>
       </div>

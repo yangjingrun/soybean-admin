@@ -295,6 +295,11 @@ const local: App.I18n.Schema = {
       },
       actions: {
         reload: '重新加载',
+        test: '测试提示词',
+        runTest: '开始测试',
+        clearTest: '清空输入',
+        copyResult: '复制结果',
+        goModelConfig: '去模型配置',
         save: '保存提示词'
       },
       form: {
@@ -306,9 +311,25 @@ const local: App.I18n.Schema = {
       status: {
         notSaved: '暂未保存'
       },
+      test: {
+        title: '测试提示词',
+        tip: '测试会使用当前编辑框里的提示词，不会自动保存；满意后仍需要点击保存提示词。',
+        inputLabel: '测试输入',
+        inputPlaceholder: '输入产品、市场、客户类型、优势等内容，模拟业务页面调用',
+        resultTitle: '测试结果',
+        tokens: 'Tokens',
+        inputTokens: '输入',
+        outputTokens: '输出',
+        totalTokens: '总计',
+        empty: '暂无测试结果',
+        modelConfigMissingTitle: '模型配置未完成',
+        modelConfigMissingDesc: '请先配置默认模型后再测试提示词'
+      },
       messages: {
         loaded: '提示词已加载',
-        saved: '提示词已保存'
+        saved: '提示词已保存',
+        testPassed: '提示词测试完成',
+        testCopied: '测试结果已复制'
       },
       prompts: {
         leadKeywordOptimize: {

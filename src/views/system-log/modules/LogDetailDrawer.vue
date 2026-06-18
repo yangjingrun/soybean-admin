@@ -103,13 +103,7 @@ async function copyText(value: string, label: string) {
           <div class="drawer-section">
             <div class="section-heading">
               <div class="section-title">Metadata</div>
-              <NButton
-                v-if="metadataCode"
-                size="tiny"
-                text
-                type="primary"
-                @click="copyText(metadataCode, 'Metadata')"
-              >
+              <NButton v-if="metadataCode" size="tiny" text type="primary" @click="copyText(metadataCode, 'Metadata')">
                 <template #icon>
                   <SvgIcon icon="material-symbols:content-copy-outline" />
                 </template>

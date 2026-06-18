@@ -118,7 +118,12 @@ function createLog(overrides: Partial<SystemLogRecord> = {}): SystemLogRecord {
 
 function createStoreStub(records: SystemLogRecord[]) {
   const stub = {
-    lastFindManyArgs: null as { where: SystemLogWhereInput; skip: number; take: number; orderBy: { createdAt: 'desc' } } | null,
+    lastFindManyArgs: null as {
+      where: SystemLogWhereInput;
+      skip: number;
+      take: number;
+      orderBy: { createdAt: 'desc' };
+    } | null,
     lastCreateArgs: null as SystemLogRecordInput | null,
     async list(args: { where: SystemLogWhereInput; skip: number; take: number; orderBy: { createdAt: 'desc' } }) {
       stub.lastFindManyArgs = args;

@@ -5,6 +5,7 @@ import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { aiPromptOptions, defaultAiPromptKey, type AiPromptKey } from '@/constants/ai-gateway';
 import { getAiPrompt, saveAiPrompt } from '@/service/api';
+import PromptTestModal from './modules/PromptTestModal.vue';
 
 const message = useMessage();
 const { t } = useI18n();
@@ -33,6 +34,7 @@ const promptForm = reactive<Api.AiGateway.SavePromptPayload>({
 
 const isPromptLoading = shallowRef(false);
 const isPromptSaving = shallowRef(false);
+const isPromptTestVisible = shallowRef(false);
 const promptRecords = reactive<Partial<Record<AiPromptKey, Api.AiGateway.AiPromptRecord>>>({});
 
 const selectedPrompt = computed(
@@ -54,6 +56,7 @@ const selectedPromptUpdatedAt = computed(() => {
   return updatedAt ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss') : t('page.aiPromptSettings.status.notSaved');
 });
 const canSavePrompt = computed(() => Boolean(promptForm.systemPrompt.trim()));
+const canTestPrompt = computed(() => Boolean(promptForm.systemPrompt.trim()));
 
 onMounted(() => {
   void handleLoadFixedPrompts(false);
@@ -216,6 +219,9 @@ function getPromptFormKey() {
                 >
                   {{ $t('page.aiPromptSettings.actions.save') }}
                 </NButton>
+                <NButton size="small" :disabled="!canTestPrompt" @click="isPromptTestVisible = true">
+                  {{ $t('page.aiPromptSettings.actions.test') }}
+                </NButton>
               </NSpace>
             </div>
 
@@ -237,6 +243,12 @@ function getPromptFormKey() {
         </NCard>
       </NGi>
     </NGrid>
+
+    <PromptTestModal
+      v-model:show="isPromptTestVisible"
+      :prompt-title="selectedPromptTitle"
+      :system-prompt="promptForm.systemPrompt"
+    />
   </NSpace>
 </template>
 
