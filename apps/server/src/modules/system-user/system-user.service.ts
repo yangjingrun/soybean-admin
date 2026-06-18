@@ -52,6 +52,7 @@ export class SystemUserService {
   /** Create one user and return a one-time temporary password. */
   async create(input: SystemUserOperateInput, operator: OperatorContext) {
     const userName = input.userName.trim();
+    assertUserName(userName);
     this.assertRoles(input.roles);
     await this.assertUniqueUserName(userName);
 
@@ -105,6 +106,10 @@ export class SystemUserService {
     await this.assertAnotherActiveSuperIfNeeded(user, nextRoles, nextStatus, nextExpireAt);
 
     const userName = input.userName?.trim();
+    if (input.userName !== undefined) {
+      assertUserName(userName || '');
+    }
+
     if (userName && userName !== user.userName) {
       await this.assertUniqueUserName(userName, id);
     }
@@ -374,6 +379,12 @@ function normalizeNullableString(value: string | null | undefined) {
   const normalized = value?.trim();
 
   return normalized || null;
+}
+
+function assertUserName(value: string) {
+  if (value.length < 2 || value.length > 50) {
+    throw new BadRequestException('用户名长度需为 2 到 50 个字符');
+  }
 }
 
 function toNullableDate(value: string | null | undefined) {

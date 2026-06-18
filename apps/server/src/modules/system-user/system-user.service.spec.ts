@@ -82,6 +82,22 @@ describe('SystemUserService', () => {
     assert.equal(logService.records[0].action, 'create');
   });
 
+  it('rejects blank user names after trimming', async () => {
+    const service = createService(createPrismaStub([]));
+
+    await assert.rejects(
+      () =>
+        service.create(
+          {
+            userName: '   ',
+            roles: ['R_USER']
+          },
+          { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
+        ),
+      /用户名长度需为 2 到 50 个字符/
+    );
+  });
+
   it('rejects disabling the current operator from profile update', async () => {
     const users = [
       createUser({
