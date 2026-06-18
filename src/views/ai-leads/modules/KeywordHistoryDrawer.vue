@@ -59,7 +59,10 @@ function formatTime(value: string) {
                     size="tiny"
                     type="error"
                     :loading="deletingId === record.id"
+                    :disabled="Boolean(deletingId)"
                     @click.stop
+                    @keydown.enter.stop
+                    @keydown.space.stop
                   >
                     <template #icon>
                       <SvgIcon icon="material-symbols:delete-outline" />
