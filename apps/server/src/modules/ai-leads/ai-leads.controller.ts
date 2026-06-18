@@ -4,6 +4,7 @@ import { ok } from '../../shared/api-response';
 import { AuthService } from '../auth/auth.service';
 import { AiLeadsService } from './ai-leads.service';
 import { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
+import { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 
 @Controller('ai-leads')
 export class AiLeadsController {
@@ -18,6 +19,14 @@ export class AiLeadsController {
     const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
 
     return ok(await this.aiLeadsService.optimizeKeywords(dto, { user }));
+  }
+
+  @Post('search-orchestrate')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async searchOrchestrate(@Body() dto: SearchOrchestrateDto, @Headers('authorization') authorization = '') {
+    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+
+    return ok(await this.aiLeadsService.searchOrchestrate(dto, { user }));
   }
 
   private extractBearerToken(authorization: string) {

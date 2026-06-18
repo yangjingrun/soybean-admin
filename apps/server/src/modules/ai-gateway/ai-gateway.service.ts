@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import type { UserInfo } from '../auth/auth.types';
@@ -8,19 +8,25 @@ import {
   aiPromptKeys,
   defaultAiPromptSystemPrompts,
   defaultAiModelConfigKey,
+  defaultSerperApiBase,
+  defaultSerperConfigKey,
   defaultAiTemperature
 } from './ai-gateway.constants';
-import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR } from './ai-gateway.tokens';
+import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR, SERPER_CONFIG_STORE } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
 import type { SaveAiModelConfigDto } from './dto/ai-model-config.dto';
+import type { SaveSerperConfigDto } from './dto/serper-config.dto';
+import { SerperClient } from './serper-client.service';
 import type {
   AiModelConfigRecord,
   AiModelConfigStore,
   AiPromptRecord,
   AiPromptStore,
   AiTextGenerateParams,
-  AiTextGenerator
+  AiTextGenerator,
+  SerperConfigRecord,
+  SerperConfigStore
 } from './ai-gateway.types';
 
 @Injectable()
@@ -29,7 +35,9 @@ export class AiGatewayService {
     @Inject(AI_TEXT_GENERATOR) private readonly textGenerator: AiTextGenerator,
     @Inject(AI_PROMPT_STORE) private readonly promptStore: AiPromptStore,
     @Inject(AI_MODEL_CONFIG_STORE) private readonly modelConfigStore: AiModelConfigStore,
-    @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder
+    @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder,
+    @Optional() @Inject(SERPER_CONFIG_STORE) private readonly serperConfigStore?: SerperConfigStore,
+    @Optional() @Inject(SerperClient) private readonly serperClient?: SerperClient
   ) {}
 
   /** Saves a fixed system prompt that can be referenced by promptKey during generation. */
@@ -76,6 +84,97 @@ export class AiGatewayService {
     }
 
     return record;
+  }
+
+  /** Saves the Serper search channel used by AI leads search orchestration. */
+  async saveSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}): Promise<SerperConfigRecord> {
+    const configKey = normalizeSerperConfigKey(dto.configKey);
+    const store = this.requireSerperConfigStore();
+    const record = await store.saveSerperConfig({
+      configKey,
+      title: dto.title.trim() || 'Serper 搜索',
+      apiBase: dto.apiBase.trim(),
+      apiKey: dto.apiKey.trim(),
+      updatedAt: new Date().toISOString()
+    });
+
+    await this.systemLogService.record({
+      level: 'info',
+      status: 'success',
+      module: 'ai-gateway',
+      action: 'save-serper-config',
+      message: 'Serper 搜索配置已保存',
+      userId: context.user?.userId,
+      userName: context.user?.userName,
+      metadata: {
+        configKey: record.configKey,
+        apiBase: record.apiBase
+      }
+    });
+
+    return record;
+  }
+
+  /** Reads one saved Serper search channel by key. */
+  async getSerperConfig(configKey = defaultSerperConfigKey): Promise<SerperConfigRecord> {
+    const normalizedKey = normalizeSerperConfigKey(configKey);
+    const record = await this.requireSerperConfigStore().getSerperConfig(normalizedKey);
+
+    if (!record) {
+      throw new NotFoundException(`未找到 Serper 配置：${normalizedKey}`);
+    }
+
+    return record;
+  }
+
+  /** Reads a saved Serper channel or returns an editable default draft for settings. */
+  async getSerperConfigDraft(configKey = defaultSerperConfigKey): Promise<SerperConfigRecord> {
+    const normalizedKey = normalizeSerperConfigKey(configKey);
+    const record = await this.requireSerperConfigStore().getSerperConfig(normalizedKey);
+
+    if (!record) {
+      return createSerperConfigDraft(normalizedKey);
+    }
+
+    return record;
+  }
+
+  /** Sends one lightweight Search request with a candidate Serper config. */
+  async testSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}) {
+    const client = this.requireSerperClient();
+    const record = {
+      configKey: normalizeSerperConfigKey(dto.configKey),
+      title: dto.title.trim() || 'Serper 搜索',
+      apiBase: dto.apiBase.trim(),
+      apiKey: dto.apiKey.trim(),
+      updatedAt: new Date().toISOString()
+    };
+    const result = await client.search(record, {
+      q: 'test',
+      gl: 'us',
+      hl: 'en',
+      num: 1,
+      page: 1
+    });
+
+    await this.systemLogService.record({
+      level: 'info',
+      status: 'success',
+      module: 'ai-gateway',
+      action: 'test-serper-config',
+      message: 'Serper 搜索配置测试成功',
+      userId: context.user?.userId,
+      userName: context.user?.userName,
+      metadata: {
+        configKey: record.configKey,
+        apiBase: record.apiBase
+      }
+    });
+
+    return {
+      ok: true,
+      result
+    };
   }
 
   /** Reads one fixed system prompt by key. */
@@ -242,6 +341,22 @@ export class AiGatewayService {
       hasInlineModelConfig: Boolean(dto.apiBase?.trim() && dto.apiKey?.trim() && dto.model?.trim())
     };
   }
+
+  private requireSerperConfigStore() {
+    if (!this.serperConfigStore) {
+      throw new NotFoundException('Serper 配置存储未初始化');
+    }
+
+    return this.serperConfigStore;
+  }
+
+  private requireSerperClient() {
+    if (!this.serperClient) {
+      throw new NotFoundException('Serper 客户端未初始化');
+    }
+
+    return this.serperClient;
+  }
 }
 
 export interface GenerateAiTextContext {
@@ -268,6 +383,16 @@ function normalizeModelConfigKey(configKey?: string) {
   return normalized;
 }
 
+function normalizeSerperConfigKey(configKey?: string) {
+  const normalized = configKey?.trim() || defaultSerperConfigKey;
+
+  if (!normalized) {
+    throw new BadRequestException('Serper 配置 key 不能为空');
+  }
+
+  return normalized;
+}
+
 function createPromptDraft(promptKey: string): AiPromptRecord {
   const definition = aiPromptDefinitions.find(item => item.promptKey === promptKey);
   const systemPrompt = defaultAiPromptSystemPrompts[promptKey as keyof typeof defaultAiPromptSystemPrompts] || '';
@@ -289,6 +414,16 @@ function createModelConfigDraft(configKey: string): AiModelConfigRecord {
     apiKey: '',
     model: 'openai/gpt-4o-mini',
     temperature: defaultAiTemperature,
+    updatedAt: ''
+  };
+}
+
+function createSerperConfigDraft(configKey: string): SerperConfigRecord {
+  return {
+    configKey,
+    title: 'Serper 搜索',
+    apiBase: defaultSerperApiBase,
+    apiKey: '',
     updatedAt: ''
   };
 }

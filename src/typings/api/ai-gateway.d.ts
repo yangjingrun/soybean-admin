@@ -37,6 +37,14 @@ declare namespace Api {
       updatedAt: string;
     }
 
+    interface SerperConfigRecord {
+      configKey: string;
+      title: string;
+      apiBase: string;
+      apiKey: string;
+      updatedAt: string;
+    }
+
     interface SaveModelConfigPayload {
       configKey: string;
       title: string;
@@ -44,6 +52,18 @@ declare namespace Api {
       apiBase: string;
       apiKey: string;
       model: string;
+    }
+
+    interface SaveSerperConfigPayload {
+      configKey: string;
+      title: string;
+      apiBase: string;
+      apiKey: string;
+    }
+
+    interface SerperTestResult {
+      ok: boolean;
+      result: unknown;
     }
 
     interface GenerateTextPayload {

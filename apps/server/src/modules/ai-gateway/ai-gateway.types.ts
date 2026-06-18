@@ -54,3 +54,16 @@ export interface AiModelConfigStore {
   getModelConfig(configKey: string): Promise<AiModelConfigRecord | null>;
   saveModelConfig(record: AiModelConfigRecord): Promise<AiModelConfigRecord>;
 }
+
+export interface SerperConfigRecord {
+  configKey: string;
+  title: string;
+  apiBase: string;
+  apiKey: string;
+  updatedAt: string;
+}
+
+export interface SerperConfigStore {
+  getSerperConfig(configKey: string): Promise<SerperConfigRecord | null>;
+  saveSerperConfig(record: SerperConfigRecord): Promise<SerperConfigRecord>;
+}

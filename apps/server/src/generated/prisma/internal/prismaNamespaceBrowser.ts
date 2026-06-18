@@ -50,7 +50,8 @@ export const AnyNull = runtime.AnyNull;
 export const ModelName = {
   SystemLog: 'SystemLog',
   AiPromptConfig: 'AiPromptConfig',
-  AiModelConfig: 'AiModelConfig'
+  AiModelConfig: 'AiModelConfig',
+  SerperConfig: 'SerperConfig'
 } as const;
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName];
@@ -113,6 +114,19 @@ export const AiModelConfigScalarFieldEnum = {
 
 export type AiModelConfigScalarFieldEnum =
   (typeof AiModelConfigScalarFieldEnum)[keyof typeof AiModelConfigScalarFieldEnum];
+
+export const SerperConfigScalarFieldEnum = {
+  id: 'id',
+  configKey: 'configKey',
+  title: 'title',
+  apiBase: 'apiBase',
+  apiKey: 'apiKey',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type SerperConfigScalarFieldEnum =
+  (typeof SerperConfigScalarFieldEnum)[keyof typeof SerperConfigScalarFieldEnum];
 
 export const SortOrder = {
   asc: 'asc',

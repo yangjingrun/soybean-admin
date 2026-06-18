@@ -5,9 +5,11 @@ import { SystemLogModule } from '../system-log/system-log.module';
 import { AiGatewayController } from './ai-gateway.controller';
 import { AiGatewayService } from './ai-gateway.service';
 import { AiSdkTextGenerator } from './ai-sdk-text-generator.service';
-import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR } from './ai-gateway.tokens';
+import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR, SERPER_CONFIG_STORE } from './ai-gateway.tokens';
 import { PrismaAiModelConfigStore } from './prisma-ai-model-config.store';
 import { PrismaAiPromptStore } from './prisma-ai-prompt.store';
+import { PrismaSerperConfigStore } from './prisma-serper-config.store';
+import { SerperClient } from './serper-client.service';
 
 @Module({
   imports: [AuthModule, DatabaseModule, SystemLogModule],
@@ -25,8 +27,16 @@ import { PrismaAiPromptStore } from './prisma-ai-prompt.store';
     {
       provide: AI_MODEL_CONFIG_STORE,
       useClass: PrismaAiModelConfigStore
+    },
+    {
+      provide: SERPER_CONFIG_STORE,
+      useClass: PrismaSerperConfigStore
+    },
+    {
+      provide: SerperClient,
+      useFactory: () => new SerperClient()
     }
   ],
-  exports: [AiGatewayService]
+  exports: [AiGatewayService, SerperClient]
 })
 export class AiGatewayModule {}

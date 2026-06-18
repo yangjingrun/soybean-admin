@@ -48,3 +48,13 @@ model AiModelConfig {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+model SerperConfig {
+  id        String   @id @default(uuid())
+  configKey String   @unique
+  title     String
+  apiBase   String
+  apiKey    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

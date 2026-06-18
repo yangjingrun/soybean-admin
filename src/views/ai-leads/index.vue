@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
-import { optimizeLeadKeywords } from '@/service/api';
+import { optimizeLeadKeywords, searchLeadCustomers } from '@/service/api';
 
 const message = useMessage();
 
@@ -11,14 +11,18 @@ const form = reactive({
 });
 
 const isGenerating = shallowRef(false);
+const isSearching = shallowRef(false);
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
+const searchResult = shallowRef<Api.AiLeads.SearchOrchestrateResult | null>(null);
 
 const canGenerate = computed(() => Boolean(form.requirement.trim()));
+const searchResultText = computed(() => (searchResult.value ? JSON.stringify(searchResult.value, null, 2) : ''));
 
 /** Calls the AI leads keyword optimization workflow. */
 async function handleGenerate() {
   isGenerating.value = true;
   aiResult.value = null;
+  searchResult.value = null;
 
   try {
     const { data: result, error } = await optimizeLeadKeywords({
@@ -36,9 +40,32 @@ async function handleGenerate() {
   }
 }
 
+/** Runs keyword optimization, Serper search, and search-result decisions through the backend workflow. */
+async function handleSearchCustomers() {
+  isSearching.value = true;
+  aiResult.value = null;
+  searchResult.value = null;
+
+  try {
+    const { data: result, error } = await searchLeadCustomers({
+      requirement: form.requirement.trim()
+    });
+
+    if (error) {
+      return;
+    }
+
+    searchResult.value = result;
+    message.success('搜索采集完成');
+  } finally {
+    isSearching.value = false;
+  }
+}
+
 function handleClear() {
   form.requirement = '';
   aiResult.value = null;
+  searchResult.value = null;
 }
 
 async function handleCopyResult() {
@@ -47,6 +74,15 @@ async function handleCopyResult() {
   }
 
   await navigator.clipboard.writeText(aiResult.value.text);
+  message.success('结果已复制');
+}
+
+async function handleCopySearchResult() {
+  if (!searchResultText.value) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(searchResultText.value);
   message.success('结果已复制');
 }
 </script>
@@ -61,7 +97,7 @@ async function handleCopyResult() {
 
       <NForm :model="form" label-placement="left" label-width="72" size="small">
         <NGrid :x-gap="18" :y-gap="12" responsive="screen" item-responsive>
-          <NGi span="24 l:19">
+          <NGi span="24 l:18">
             <NFormItem label="获客需求">
               <NInput
                 v-model:value="form.requirement"
@@ -72,11 +108,19 @@ async function handleCopyResult() {
             </NFormItem>
           </NGi>
 
-          <NGi span="24 l:5" class="lead-actions">
+          <NGi span="24 l:6" class="lead-actions">
             <NSpace :size="8">
-              <NButton :disabled="isGenerating" @click="handleClear">清空</NButton>
-              <NButton type="primary" :loading="isGenerating" :disabled="!canGenerate" @click="handleGenerate">
+              <NButton :disabled="isGenerating || isSearching" @click="handleClear">清空</NButton>
+              <NButton :loading="isGenerating" :disabled="!canGenerate || isSearching" @click="handleGenerate">
                 优化关键词
+              </NButton>
+              <NButton
+                type="primary"
+                :loading="isSearching"
+                :disabled="!canGenerate || isGenerating"
+                @click="handleSearchCustomers"
+              >
+                开始搜索采集
               </NButton>
             </NSpace>
           </NGi>
@@ -87,15 +131,29 @@ async function handleCopyResult() {
     <NCard :bordered="false" size="small" class="card-wrapper result-card" content-class="result-card-content">
       <template #header>
         <div class="result-header">
-          <span>关键词优化结果</span>
+          <span>{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
           <NSpace v-if="aiResult" :size="8">
             <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
             <NButton size="small" @click="handleCopyResult">复制结果</NButton>
           </NSpace>
+          <NSpace v-if="searchResult" :size="8">
+            <NTag size="small" type="info">请求 {{ searchResult.serperRequests.length }}</NTag>
+            <NTag size="small" type="success">候选 {{ searchResult.candidates.length }}</NTag>
+            <NButton size="small" @click="handleCopySearchResult">复制结果</NButton>
+          </NSpace>
         </div>
       </template>
 
-      <div v-if="aiResult" class="result-panel">
+      <div v-if="searchResult" class="result-panel">
+        <NSpace :size="8">
+          <NTag type="info" :bordered="false">Serper 请求：{{ searchResult.serperRequests.length }}</NTag>
+          <NTag type="warning" :bordered="false">决策：{{ searchResult.decisions.length }}</NTag>
+          <NTag type="success" :bordered="false">候选：{{ searchResult.candidates.length }}</NTag>
+          <NTag :bordered="false">{{ searchResult.stopReason }}</NTag>
+        </NSpace>
+        <NInput :value="searchResultText" type="textarea" readonly :autosize="{ minRows: 18, maxRows: 30 }" />
+      </div>
+      <div v-else-if="aiResult" class="result-panel">
         <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 16, maxRows: 28 }" />
         <NText depth="3" class="token-summary">
           Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} / 总计

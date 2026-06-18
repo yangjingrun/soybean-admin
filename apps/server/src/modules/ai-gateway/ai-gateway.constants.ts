@@ -195,6 +195,9 @@ tbs 规则：
 };
 
 export const defaultAiModelConfigKey = 'default';
+export const defaultSerperConfigKey = 'default';
+export const defaultSerperApiBase = 'https://google.serper.dev';
 export const defaultAiTemperature = 0.2;
 
 export const leadKeywordOptimizePromptKey = 'lead_keyword_optimize';
+export const leadSearchResultDecidePromptKey = 'lead_search_result_decide';

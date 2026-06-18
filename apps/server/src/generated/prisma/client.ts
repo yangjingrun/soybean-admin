@@ -57,3 +57,8 @@ export type AiPromptConfig = Prisma.AiPromptConfigModel;
  *
  */
 export type AiModelConfig = Prisma.AiModelConfigModel;
+/**
+ * Model SerperConfig
+ *
+ */
+export type SerperConfig = Prisma.SerperConfigModel;

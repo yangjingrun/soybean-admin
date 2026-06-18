@@ -3,8 +3,15 @@ import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
-import { defaultAiModelConfigKey } from '@/constants/ai-gateway';
-import { generateAiText, getAiModelConfig, saveAiModelConfig } from '@/service/api';
+import { defaultAiModelConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
+import {
+  generateAiText,
+  getAiModelConfig,
+  getSerperConfig,
+  saveAiModelConfig,
+  saveSerperConfig,
+  testSerperConfig
+} from '@/service/api';
 
 const message = useMessage();
 const { t } = useI18n();
@@ -25,12 +32,23 @@ const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
   apiKey: '',
   model: 'openai/gpt-4o-mini'
 });
+const serperForm = reactive<Api.AiGateway.SaveSerperConfigPayload>({
+  configKey: defaultSerperConfigKey,
+  title: 'Serper 搜索',
+  apiBase: 'https://google.serper.dev',
+  apiKey: ''
+});
 
 const isModelLoading = shallowRef(false);
 const isModelSaving = shallowRef(false);
 const isModelTesting = shallowRef(false);
+const isSerperLoading = shallowRef(false);
+const isSerperSaving = shallowRef(false);
+const isSerperTesting = shallowRef(false);
 const modelUpdatedAt = shallowRef('');
+const serperUpdatedAt = shallowRef('');
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
+const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
 
 const canSaveModel = computed(() =>
   Boolean(
@@ -42,9 +60,18 @@ const formattedModelUpdatedAt = computed(() =>
     ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
+const canSaveSerper = computed(() =>
+  Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
+);
+const formattedSerperUpdatedAt = computed(() =>
+  serperUpdatedAt.value
+    ? dayjs(serperUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
+    : t('page.aiSettings.status.notSaved')
+);
 
 onMounted(() => {
   void handleLoadModelConfig(false);
+  void handleLoadSerperConfig(false);
 });
 
 /** Loads the default backend model config into the settings form. */
@@ -103,9 +130,73 @@ async function handleSaveModelConfig() {
   }
 }
 
+/** Loads the default Serper config into the settings form. */
+async function handleLoadSerperConfig(showMessage = true) {
+  isSerperLoading.value = true;
+
+  try {
+    const { data: record, error } = await getSerperConfig(defaultSerperConfigKey);
+
+    if (error) {
+      return;
+    }
+
+    Object.assign(serperForm, {
+      configKey: record.configKey,
+      title: record.title,
+      apiBase: record.apiBase,
+      apiKey: record.apiKey
+    });
+    serperUpdatedAt.value = record.updatedAt;
+    serperTestResult.value = null;
+
+    if (showMessage) {
+      message.success(t('page.aiSettings.serper.loaded'));
+    }
+  } finally {
+    isSerperLoading.value = false;
+  }
+}
+
+/** Saves the Serper config used by AI leads search orchestration. */
+async function handleSaveSerperConfig() {
+  isSerperSaving.value = true;
+
+  try {
+    const { data: record, error } = await saveSerperConfig({
+      configKey: defaultSerperConfigKey,
+      title: serperForm.title.trim(),
+      apiBase: serperForm.apiBase.trim(),
+      apiKey: serperForm.apiKey.trim()
+    });
+
+    if (error) {
+      return;
+    }
+
+    serperUpdatedAt.value = record.updatedAt;
+    serperTestResult.value = null;
+    message.success(t('page.aiSettings.serper.saved'));
+  } finally {
+    isSerperSaving.value = false;
+  }
+}
+
 /** Copies the current model service key for quick reuse. */
 async function handleCopyApiKey() {
   const apiKey = modelForm.apiKey.trim();
+
+  if (!apiKey) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(apiKey);
+  message.success(t('page.aiSettings.messages.apiKeyCopied'));
+}
+
+/** Copies the current Serper key for quick reuse. */
+async function handleCopySerperApiKey() {
+  const apiKey = serperForm.apiKey.trim();
 
   if (!apiKey) {
     return;
@@ -140,6 +231,30 @@ async function handleTestModelConfig() {
     message.success(t('page.aiSettings.messages.testPassed'));
   } finally {
     isModelTesting.value = false;
+  }
+}
+
+/** Sends one lightweight request with the current Serper config. */
+async function handleTestSerperConfig() {
+  isSerperTesting.value = true;
+  serperTestResult.value = null;
+
+  try {
+    const { data: result, error } = await testSerperConfig({
+      configKey: defaultSerperConfigKey,
+      title: serperForm.title.trim(),
+      apiBase: serperForm.apiBase.trim(),
+      apiKey: serperForm.apiKey.trim()
+    });
+
+    if (error) {
+      return;
+    }
+
+    serperTestResult.value = result;
+    message.success(t('page.aiSettings.serper.testPassed'));
+  } finally {
+    isSerperTesting.value = false;
   }
 }
 </script>
@@ -238,6 +353,85 @@ async function handleTestModelConfig() {
               @click="handleSaveModelConfig"
             >
               {{ $t('page.aiSettings.actions.save') }}
+            </NButton>
+          </NSpace>
+        </div>
+      </NSpace>
+    </NCard>
+
+    <NCard :bordered="false" class="card-wrapper">
+      <NSpace vertical :size="14">
+        <div class="page-heading">
+          <div>
+            <h2 class="page-title">{{ $t('page.aiSettings.serper.title') }}</h2>
+            <p class="panel-desc">{{ $t('page.aiSettings.serper.description') }}</p>
+          </div>
+          <NTag v-if="serperTestResult" type="success" :bordered="false">
+            {{ $t('page.aiSettings.status.connected') }}
+          </NTag>
+          <NTag v-else-if="serperUpdatedAt" type="warning" :bordered="false">
+            {{ $t('page.aiSettings.status.savedUntested') }}
+          </NTag>
+          <NTag v-else :bordered="false">{{ $t('page.aiSettings.status.pending') }}</NTag>
+        </div>
+
+        <NForm :model="serperForm" label-placement="top" size="small">
+          <NFormItem :label="$t('page.aiSettings.form.title')">
+            <NInput v-model:value="serperForm.title" :placeholder="$t('page.aiSettings.serper.title')" />
+          </NFormItem>
+          <NFormItem :label="$t('page.aiSettings.form.apiBase')">
+            <NInput v-model:value="serperForm.apiBase" placeholder="https://google.serper.dev" />
+          </NFormItem>
+          <NFormItem :label="$t('page.aiSettings.form.apiKey')">
+            <NInputGroup>
+              <NInput
+                v-model:value="serperForm.apiKey"
+                type="password"
+                show-password-on="click"
+                :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
+              />
+              <NTooltip>
+                <template #trigger>
+                  <NButton
+                    class="api-key-copy-button"
+                    :aria-label="$t('page.aiSettings.actions.copyApiKey')"
+                    :disabled="!serperForm.apiKey.trim()"
+                    @click="handleCopySerperApiKey"
+                  >
+                    <template #icon>
+                      <SvgIcon icon="material-symbols:content-copy-outline" />
+                    </template>
+                  </NButton>
+                </template>
+                {{ $t('page.aiSettings.actions.copyApiKey') }}
+              </NTooltip>
+            </NInputGroup>
+          </NFormItem>
+        </NForm>
+
+        <NAlert v-if="serperTestResult" type="success" :bordered="false">
+          <NText strong>{{ $t('page.aiSettings.serper.testResult') }}：OK</NText>
+        </NAlert>
+
+        <div class="form-footer">
+          <NText depth="3" class="updated-time">
+            {{ $t('page.aiSettings.status.title') }}：{{ formattedSerperUpdatedAt }}
+          </NText>
+          <NSpace :size="8">
+            <NButton size="small" :loading="isSerperLoading" @click="handleLoadSerperConfig()">
+              {{ $t('page.aiSettings.actions.reload') }}
+            </NButton>
+            <NButton size="small" :loading="isSerperTesting" :disabled="!canSaveSerper" @click="handleTestSerperConfig">
+              {{ $t('page.aiSettings.actions.test') }}
+            </NButton>
+            <NButton
+              size="small"
+              type="primary"
+              :loading="isSerperSaving"
+              :disabled="!canSaveSerper"
+              @click="handleSaveSerperConfig"
+            >
+              {{ $t('page.aiSettings.serper.save') }}
             </NButton>
           </NSpace>
         </div>

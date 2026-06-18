@@ -6,6 +6,7 @@ import { AiGatewayService } from './ai-gateway.service';
 import { AiModelConfigKeyParamDto, SaveAiModelConfigDto } from './dto/ai-model-config.dto';
 import { AiPromptKeyParamDto, SaveAiPromptDto } from './dto/ai-prompt.dto';
 import { GenerateAiTextDto } from './dto/generate-ai-text.dto';
+import { SaveSerperConfigDto, SerperConfigKeyParamDto } from './dto/serper-config.dto';
 
 @Controller('ai-gateway')
 export class AiGatewayController {
@@ -40,6 +41,28 @@ export class AiGatewayController {
     this.assertSuper(authorization);
 
     return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
+  }
+
+  @Post('serper-configs')
+  async saveSerperConfig(@Body() dto: SaveSerperConfigDto, @Headers('authorization') authorization = '') {
+    const user = this.assertSuper(authorization);
+
+    return ok(await this.aiGatewayService.saveSerperConfig(dto, { user }));
+  }
+
+  @Get('serper-configs/:configKey')
+  async getSerperConfig(@Param() params: SerperConfigKeyParamDto, @Headers('authorization') authorization = '') {
+    this.assertSuper(authorization);
+
+    return ok(await this.aiGatewayService.getSerperConfigDraft(params.configKey));
+  }
+
+  @Post('serper-configs/test')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async testSerperConfig(@Body() dto: SaveSerperConfigDto, @Headers('authorization') authorization = '') {
+    const user = this.assertSuper(authorization);
+
+    return ok(await this.aiGatewayService.testSerperConfig(dto, { user }));
   }
 
   @Post('generate-text')

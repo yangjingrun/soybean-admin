@@ -278,6 +278,16 @@ const local: App.I18n.Schema = {
         systemPrompt: '你是模型连通性测试助手。请只回复 OK。',
         prompt: '请回复 OK'
       },
+      serper: {
+        title: 'Serper 搜索配置',
+        description: '配置 AI获客搜索编排使用的 Serper Search / Places API。',
+        save: '保存 Serper',
+        loaded: 'Serper 配置已加载',
+        saved: 'Serper 配置已保存',
+        testPassed: 'Serper 连接正常',
+        testResult: 'Serper 测试返回',
+        apiKeyPlaceholder: '请输入 Serper API Key'
+      },
       messages: {
         loaded: '模型配置已加载',
         saved: '模型配置已保存',

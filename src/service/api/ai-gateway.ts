@@ -33,6 +33,31 @@ export function getAiModelConfig(configKey = 'default') {
   });
 }
 
+/** Save the backend Serper config used by AI leads search workflows. */
+export function saveSerperConfig(data: Api.AiGateway.SaveSerperConfigPayload) {
+  return request<Api.AiGateway.SerperConfigRecord>({
+    url: '/ai-gateway/serper-configs',
+    method: 'post',
+    data
+  });
+}
+
+/** Read one backend Serper config by stable config key. */
+export function getSerperConfig(configKey = 'default') {
+  return request<Api.AiGateway.SerperConfigRecord>({
+    url: `/ai-gateway/serper-configs/${configKey}`
+  });
+}
+
+/** Test one Serper config before saving it. */
+export function testSerperConfig(data: Api.AiGateway.SaveSerperConfigPayload) {
+  return request<Api.AiGateway.SerperTestResult>({
+    url: '/ai-gateway/serper-configs/test',
+    method: 'post',
+    data
+  });
+}
+
 /** Generate text through the backend AI gateway. */
 export function generateAiText(data: Api.AiGateway.GenerateTextPayload) {
   return request<Api.AiGateway.AiTextResult>(buildGenerateAiTextRequestConfig(data));

@@ -363,7 +363,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   SystemLog: 'SystemLog',
   AiPromptConfig: 'AiPromptConfig',
-  AiModelConfig: 'AiModelConfig'
+  AiModelConfig: 'AiModelConfig',
+  SerperConfig: 'SerperConfig'
 } as const;
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName];
@@ -383,7 +384,7 @@ export type TypeMap<
     omit: GlobalOmitOptions;
   };
   meta: {
-    modelProps: 'systemLog' | 'aiPromptConfig' | 'aiModelConfig';
+    modelProps: 'systemLog' | 'aiPromptConfig' | 'aiModelConfig' | 'serperConfig';
     txIsolationLevel: TransactionIsolationLevel;
   };
   model: {
@@ -609,6 +610,80 @@ export type TypeMap<
         };
       };
     };
+    SerperConfig: {
+      payload: Prisma.$SerperConfigPayload<ExtArgs>;
+      fields: Prisma.SerperConfigFieldRefs;
+      operations: {
+        findUnique: {
+          args: Prisma.SerperConfigFindUniqueArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload> | null;
+        };
+        findUniqueOrThrow: {
+          args: Prisma.SerperConfigFindUniqueOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>;
+        };
+        findFirst: {
+          args: Prisma.SerperConfigFindFirstArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload> | null;
+        };
+        findFirstOrThrow: {
+          args: Prisma.SerperConfigFindFirstOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>;
+        };
+        findMany: {
+          args: Prisma.SerperConfigFindManyArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>[];
+        };
+        create: {
+          args: Prisma.SerperConfigCreateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>;
+        };
+        createMany: {
+          args: Prisma.SerperConfigCreateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        createManyAndReturn: {
+          args: Prisma.SerperConfigCreateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>[];
+        };
+        delete: {
+          args: Prisma.SerperConfigDeleteArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>;
+        };
+        update: {
+          args: Prisma.SerperConfigUpdateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>;
+        };
+        deleteMany: {
+          args: Prisma.SerperConfigDeleteManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateMany: {
+          args: Prisma.SerperConfigUpdateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateManyAndReturn: {
+          args: Prisma.SerperConfigUpdateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>[];
+        };
+        upsert: {
+          args: Prisma.SerperConfigUpsertArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SerperConfigPayload>;
+        };
+        aggregate: {
+          args: Prisma.SerperConfigAggregateArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSerperConfig>;
+        };
+        groupBy: {
+          args: Prisma.SerperConfigGroupByArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.SerperConfigGroupByOutputType>[];
+        };
+        count: {
+          args: Prisma.SerperConfigCountArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.SerperConfigCountAggregateOutputType> | number;
+        };
+      };
+    };
   };
 } & {
   other: {
@@ -692,6 +767,19 @@ export const AiModelConfigScalarFieldEnum = {
 
 export type AiModelConfigScalarFieldEnum =
   (typeof AiModelConfigScalarFieldEnum)[keyof typeof AiModelConfigScalarFieldEnum];
+
+export const SerperConfigScalarFieldEnum = {
+  id: 'id',
+  configKey: 'configKey',
+  title: 'title',
+  apiBase: 'apiBase',
+  apiKey: 'apiKey',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type SerperConfigScalarFieldEnum =
+  (typeof SerperConfigScalarFieldEnum)[keyof typeof SerperConfigScalarFieldEnum];
 
 export const SortOrder = {
   asc: 'asc',
@@ -903,6 +991,7 @@ export type GlobalOmitConfig = {
   systemLog?: Prisma.SystemLogOmit;
   aiPromptConfig?: Prisma.AiPromptConfigOmit;
   aiModelConfig?: Prisma.AiModelConfigOmit;
+  serperConfig?: Prisma.SerperConfigOmit;
 };
 
 /* Types for Logging */

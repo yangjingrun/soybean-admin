@@ -10,4 +10,5 @@
 export type * from './models/SystemLog';
 export type * from './models/AiPromptConfig';
 export type * from './models/AiModelConfig';
+export type * from './models/SerperConfig';
 export type * from './commonInputTypes';

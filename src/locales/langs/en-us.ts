@@ -282,6 +282,16 @@ const local: App.I18n.Schema = {
         systemPrompt: 'You are a model connectivity test assistant. Reply only with OK.',
         prompt: 'Reply with OK'
       },
+      serper: {
+        title: 'Serper Search Config',
+        description: 'Configure the Serper Search / Places API used by AI Leads search orchestration.',
+        save: 'Save Serper',
+        loaded: 'Serper config loaded',
+        saved: 'Serper config saved',
+        testPassed: 'Serper connection is healthy',
+        testResult: 'Serper test result',
+        apiKeyPlaceholder: 'Enter the Serper API Key'
+      },
       messages: {
         loaded: 'Model config loaded',
         saved: 'Model config saved',

@@ -527,6 +527,16 @@ declare namespace App {
             systemPrompt: string;
             prompt: string;
           };
+          serper: {
+            title: string;
+            description: string;
+            save: string;
+            loaded: string;
+            saved: string;
+            testPassed: string;
+            testResult: string;
+            apiKeyPlaceholder: string;
+          };
           messages: {
             loaded: string;
             saved: string;
