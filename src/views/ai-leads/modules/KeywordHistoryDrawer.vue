@@ -100,12 +100,10 @@ function formatTime(value: string) {
 }
 
 .history-item {
-  display: flex;
+  position: relative;
+  display: block;
   width: 100%;
   min-width: 0;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
   border: 1px solid var(--history-item-border);
   border-radius: 8px;
   background: var(--history-item-bg);
@@ -131,7 +129,6 @@ function formatTime(value: string) {
 .history-item-main {
   display: flex;
   min-width: 0;
-  flex: 1;
   flex-direction: column;
   gap: 6px;
 }
@@ -150,6 +147,7 @@ function formatTime(value: string) {
   min-width: 0;
   align-items: baseline;
   gap: 8px;
+  padding-right: 154px;
 }
 
 .history-item-target-label {
@@ -179,8 +177,10 @@ function formatTime(value: string) {
 }
 
 .history-item-side {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   display: flex;
-  flex-shrink: 0;
   align-items: flex-start;
   gap: 6px;
 }
