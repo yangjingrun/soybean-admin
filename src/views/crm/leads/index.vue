@@ -1,11 +1,32 @@
 <script setup lang="ts">
 import FilterPanel from './modules/FilterPanel.vue';
+import LeadDetailDrawer from './modules/LeadDetailDrawer.vue';
 import LeadStats from './modules/LeadStats.vue';
 import LeadTable from './modules/LeadTable.vue';
 import { useLeadTable } from './modules/shared/useLeadTable';
 
-const { filterModel, handlePageSizeUpdate, handlePageUpdate, handleReset, handleSearch, loading, pagination, records } =
-  useLeadTable();
+const {
+  archiveOperatingId,
+  detailLoading,
+  detailVisible,
+  filterModel,
+  handleArchiveLead,
+  handleCreateNote,
+  handleDetailVisibleUpdate,
+  handlePageSizeUpdate,
+  handlePageUpdate,
+  handleReset,
+  handleSearch,
+  handleUpdateStatus,
+  leadDetail,
+  loadLeadDetail,
+  loading,
+  noteSubmitting,
+  openLeadDetail,
+  pagination,
+  records,
+  statusSubmitting
+} = useLeadTable();
 </script>
 
 <template>
@@ -17,11 +38,27 @@ const { filterModel, handlePageSizeUpdate, handlePageUpdate, handleReset, handle
     <LeadTable
       :records="records"
       :loading="loading"
+      :archive-operating-id="archiveOperatingId"
       :page="pagination.current"
       :page-size="pagination.size"
       :total="pagination.total"
+      @view="openLeadDetail"
+      @change-status="openLeadDetail"
+      @archive="handleArchiveLead"
       @update-page="handlePageUpdate"
       @update-page-size="handlePageSizeUpdate"
+    />
+
+    <LeadDetailDrawer
+      :show="detailVisible"
+      :detail="leadDetail"
+      :loading="detailLoading"
+      :note-submitting="noteSubmitting"
+      :status-submitting="statusSubmitting"
+      @update:show="handleDetailVisibleUpdate"
+      @reload="loadLeadDetail()"
+      @submit-note="handleCreateNote"
+      @submit-status="handleUpdateStatus"
     />
   </NSpace>
 </template>

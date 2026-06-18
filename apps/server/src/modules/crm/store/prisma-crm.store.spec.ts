@@ -92,6 +92,57 @@ describe('PrismaCrmStore', () => {
       }
     });
   });
+
+  it('loads account detail with member owner scope and newest timeline first', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const detail = await store.getAccountDetail({
+      id: 'account-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+
+    assert.equal(detail?.account.id, 'account-1');
+    assert.deepEqual(prisma.crmAccount.findFirstCalls[0].where, {
+      id: 'account-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmContact.findManyCalls[0], {
+      where: {
+        organizationId: 'org-1',
+        accountId: 'account-1'
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+    assert.deepEqual(prisma.crmTimelineEvent.findManyCalls[0], {
+      where: {
+        organizationId: 'org-1',
+        accountId: 'account-1'
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+  });
+
+  it('loads account detail without owner scope for organization admins', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    await store.getAccountDetail({
+      id: 'account-1',
+      organizationId: 'org-1'
+    });
+
+    assert.deepEqual(prisma.crmAccount.findFirstCalls[0].where, {
+      id: 'account-1',
+      organizationId: 'org-1'
+    });
+  });
 });
 
 function createPrisma() {
@@ -115,6 +166,7 @@ function createPrisma() {
     crmAccount: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{ where: Record<string, unknown> }>,
       createError: null as Error | null,
       async create(args: { data: Record<string, unknown> }) {
@@ -126,6 +178,10 @@ function createPrisma() {
         this.findUniqueCalls.push(args);
         return account;
       },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return account;
+      },
       async findMany(args: { where: Record<string, unknown> }) {
         this.findManyCalls.push(args);
         return [account];
@@ -134,7 +190,49 @@ function createPrisma() {
         return 1;
       }
     },
-    crmContact: {},
-    crmTimelineEvent: {}
+    crmContact: {
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
+        this.findManyCalls.push(args);
+        return [
+          {
+            id: 'contact-1',
+            organizationId: 'org-1',
+            accountId: 'account-1',
+            ownerUserId: 'user-1',
+            fullName: 'Ali Hassan',
+            title: 'Buyer',
+            email: 'ali@example.com',
+            emailHash: 'hash-1',
+            maskedEmail: 'a***@example.com',
+            isPublicEmail: false,
+            emailStatus: 'unchecked',
+            sourceTaskId: null,
+            createdAt: new Date('2026-06-18T09:00:00.000Z'),
+            updatedAt: new Date('2026-06-18T09:00:00.000Z')
+          }
+        ];
+      }
+    },
+    crmTimelineEvent: {
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
+        this.findManyCalls.push(args);
+        return [
+          {
+            id: 'event-1',
+            organizationId: 'org-1',
+            accountId: 'account-1',
+            contactId: null,
+            ownerUserId: 'user-1',
+            eventType: 'account_imported',
+            title: '导入',
+            content: null,
+            metadata: null,
+            createdAt: new Date('2026-06-18T10:00:00.000Z')
+          }
+        ];
+      }
+    }
   };
 }

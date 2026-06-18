@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CrmService } from './crm.service';
 import type { CrmStore, CrmUserContext } from './crm.types';
 
@@ -131,6 +132,118 @@ describe('CrmService', () => {
 
     assert.equal(result.account.domain, 'example.com');
   });
+
+  it('returns account detail for scoped member accounts with ISO dates and newest timeline first', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-1' })],
+      timelineEvents: [
+        createTimelineEvent({
+          id: 'event-old',
+          accountId: 'account-1',
+          createdAt: new Date('2026-06-18T08:00:00.000Z')
+        }),
+        createTimelineEvent({
+          id: 'event-new',
+          accountId: 'account-1',
+          createdAt: new Date('2026-06-18T10:00:00.000Z')
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.getAccountDetail('account-1', createContext());
+
+    assert.equal(result.account.createdAt, '2026-06-18T09:00:00.000Z');
+    assert.equal(result.contacts[0].createdAt, '2026-06-18T09:00:00.000Z');
+    assert.deepEqual(
+      result.timelineEvents.map(event => event.id),
+      ['event-new', 'event-old']
+    );
+    assert.equal(store.lastDetailArgs?.ownerUserId, 'user-1');
+  });
+
+  it('allows organization admins to read organization account detail without owner scope', async () => {
+    const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2' })]);
+    const service = new CrmService(store);
+
+    await service.getAccountDetail('peer-account', createContext({ organizationRole: 'admin' }));
+
+    assert.equal(store.lastDetailArgs?.ownerUserId, undefined);
+  });
+
+  it('throws not found for account detail outside the current member scope', async () => {
+    const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2' })]);
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.getAccountDetail('peer-account', createContext()), NotFoundException);
+  });
+
+  it('changes account status after scoped read and writes status timeline metadata', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'candidate' })]);
+    const service = new CrmService(store);
+
+    const result = await service.updateAccountStatus(
+      'account-1',
+      { status: 'ready', remark: ' verified ' },
+      createContext()
+    );
+
+    assert.equal(result.account.status, 'ready');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'status_changed');
+    assert.equal(store.timelineEvents.at(-1)?.title, '线索状态变更');
+    assert.equal(store.timelineEvents.at(-1)?.content, 'verified');
+    assert.deepEqual(store.timelineEvents.at(-1)?.metadata, {
+      fromStatus: 'candidate',
+      toStatus: 'ready'
+    });
+  });
+
+  it('rejects status changes outside current member scope without updating by raw id', async () => {
+    const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2', status: 'candidate' })]);
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.updateAccountStatus('peer-account', { status: 'ready' }, createContext()),
+      NotFoundException
+    );
+
+    assert.equal(store.accounts[0].status, 'candidate');
+    assert.equal(store.timelineEvents.length, 0);
+  });
+
+  it('adds a trimmed note timeline event for scoped accounts', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })]);
+    const service = new CrmService(store);
+
+    const result = await service.addAccountNote('account-1', { content: '  Call next week.  ' }, createContext());
+
+    assert.equal(result.event.eventType, 'note_added');
+    assert.equal(result.event.title, '新增备注');
+    assert.equal(result.event.content, 'Call next week.');
+  });
+
+  it('rejects empty account notes', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })]);
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.addAccountNote('account-1', { content: '   ' }, createContext()), BadRequestException);
+  });
+
+  it('archives scoped accounts with archive timeline metadata', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })]);
+    const service = new CrmService(store);
+
+    const result = await service.archiveAccount('account-1', { reason: '  Not a fit  ' }, createContext());
+
+    assert.equal(result.account.status, 'archived');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'account_archived');
+    assert.equal(store.timelineEvents.at(-1)?.title, '归档线索');
+    assert.equal(store.timelineEvents.at(-1)?.content, 'Not a fit');
+    assert.deepEqual(store.timelineEvents.at(-1)?.metadata, {
+      fromStatus: 'ready',
+      toStatus: 'archived'
+    });
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -144,15 +257,22 @@ function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext 
   };
 }
 
-function createStore(initialAccounts: TestAccount[] = []): CrmStore & {
+function createStore(
+  initialAccounts: TestAccount[] = [],
+  initialData: {
+    contacts?: TestContact[];
+    timelineEvents?: TestTimelineEvent[];
+  } = {}
+): CrmStore & {
   accounts: TestAccount[];
   contacts: TestContact[];
   timelineEvents: TestTimelineEvent[];
   lastListArgs?: Parameters<CrmStore['listAccounts']>[0];
+  lastDetailArgs?: Parameters<CrmStore['getAccountDetail']>[0];
 } {
   const accounts = [...initialAccounts];
-  const contacts: TestContact[] = [];
-  const timelineEvents: TestTimelineEvent[] = [];
+  const contacts: TestContact[] = [...(initialData.contacts ?? [])];
+  const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
 
   return {
     accounts,
@@ -239,6 +359,24 @@ function createStore(initialAccounts: TestAccount[] = []): CrmStore & {
       });
       return { records, total: records.length };
     },
+    async getAccountDetail(args) {
+      this.lastDetailArgs = args;
+      const account = accounts.find(item => {
+        if (item.id !== args.id) return false;
+        if (item.organizationId !== args.organizationId) return false;
+        if (args.ownerUserId && item.ownerUserId !== args.ownerUserId) return false;
+        return true;
+      });
+      if (!account) return null;
+
+      return {
+        account,
+        contacts: contacts.filter(contact => contact.accountId === account.id),
+        timelineEvents: timelineEvents
+          .filter(event => event.accountId === account.id)
+          .toSorted((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      };
+    },
     async createTimelineEvent(input) {
       const event: TestTimelineEvent = {
         id: `event-${timelineEvents.length + 1}`,
@@ -273,6 +411,40 @@ function createAccount(input: Partial<TestAccount> = {}): TestAccount {
     sourceTaskId: input.sourceTaskId ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createContact(input: Partial<TestContact> = {}): TestContact {
+  return {
+    id: input.id || 'contact-1',
+    organizationId: input.organizationId || 'org-1',
+    accountId: input.accountId || 'account-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    fullName: input.fullName ?? 'Ali Hassan',
+    title: input.title ?? 'Buyer',
+    email: input.email ?? 'ali@example.com',
+    emailHash: input.emailHash ?? 'hash-1',
+    maskedEmail: input.maskedEmail ?? 'a***@example.com',
+    isPublicEmail: input.isPublicEmail ?? false,
+    emailStatus: input.emailStatus ?? 'unchecked',
+    sourceTaskId: input.sourceTaskId ?? null,
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createTimelineEvent(input: Partial<TestTimelineEvent> = {}): TestTimelineEvent {
+  return {
+    id: input.id || 'event-1',
+    organizationId: input.organizationId || 'org-1',
+    accountId: input.accountId || 'account-1',
+    contactId: input.contactId ?? null,
+    ownerUserId: input.ownerUserId || 'user-1',
+    eventType: input.eventType || 'account_imported',
+    title: input.title || '导入',
+    content: input.content ?? null,
+    metadata: input.metadata ?? null,
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z')
   };
 }
 

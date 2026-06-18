@@ -1,10 +1,24 @@
-import { Body, Controller, Get, Headers, Inject, Post, Query, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UnauthorizedException
+} from '@nestjs/common';
 import { ok } from '../../shared/api-response';
 import { AuthService } from '../auth/auth.service';
 import type { UserInfo } from '../auth/auth.types';
 import { CrmService } from './crm.service';
+import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
+import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
+import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import type { CrmUserContext } from './crm.types';
 
 @Controller('crm')
@@ -24,6 +38,38 @@ export class CrmController {
     return ok(
       await this.crmService.importAccountFromLead({ ...dto, sourceTaskId: null }, this.requireUserContext(authorization))
     );
+  }
+
+  @Get('accounts/:id')
+  async getAccountDetail(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.getAccountDetail(id, this.requireUserContext(authorization)));
+  }
+
+  @Patch('accounts/:id/status')
+  async updateAccountStatus(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmAccountStatusDto
+  ) {
+    return ok(await this.crmService.updateAccountStatus(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('accounts/:id/notes')
+  async addAccountNote(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: CreateCrmAccountNoteDto
+  ) {
+    return ok(await this.crmService.addAccountNote(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('accounts/:id/archive')
+  async archiveAccount(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: ArchiveCrmAccountDto
+  ) {
+    return ok(await this.crmService.archiveAccount(id, dto, this.requireUserContext(authorization)));
   }
 
   private requireUserContext(authorization: string): CrmUserContext {

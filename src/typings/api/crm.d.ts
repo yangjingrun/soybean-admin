@@ -16,6 +16,8 @@ declare namespace Api {
       | 'blocked'
       | 'archived';
 
+    type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable';
+
     interface LeadRecord {
       id: string;
       organizationId: string;
@@ -32,6 +34,42 @@ declare namespace Api {
       updatedAt: string;
     }
 
+    interface LeadContact {
+      id: string;
+      organizationId: string;
+      accountId: string;
+      ownerUserId: string;
+      fullName: string | null;
+      title: string | null;
+      email: string;
+      emailHash: string;
+      maskedEmail: string;
+      isPublicEmail: boolean;
+      emailStatus: CrmEmailStatus;
+      sourceTaskId: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface LeadTimelineEvent {
+      id: string;
+      organizationId: string;
+      accountId: string;
+      contactId: string | null;
+      ownerUserId: string;
+      eventType: string;
+      title: string;
+      content: string | null;
+      metadata: unknown;
+      createdAt: string;
+    }
+
+    interface LeadDetail {
+      account: LeadRecord;
+      contacts: LeadContact[];
+      timelineEvents: LeadTimelineEvent[];
+    }
+
     interface LeadSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
       status?: CrmAccountStatus;
@@ -40,6 +78,33 @@ declare namespace Api {
     interface LeadFilterModel {
       keyword: string;
       status: CrmAccountStatus | null;
+    }
+
+    interface LeadStatusPayload {
+      status: CrmAccountStatus;
+      remark?: string;
+    }
+
+    interface LeadNotePayload {
+      content: string;
+    }
+
+    interface LeadArchivePayload {
+      reason?: string;
+    }
+
+    interface LeadStatusResult {
+      account: LeadRecord;
+      event: LeadTimelineEvent;
+    }
+
+    interface LeadNoteResult {
+      event: LeadTimelineEvent;
+    }
+
+    interface LeadArchiveResult {
+      account: LeadRecord;
+      event: LeadTimelineEvent;
     }
 
     type LeadList = Api.Common.PaginatingQueryRecord<LeadRecord>;

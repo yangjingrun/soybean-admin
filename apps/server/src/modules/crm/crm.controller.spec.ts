@@ -6,6 +6,9 @@ import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
 import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
 
+type CrmAccountView = Awaited<ReturnType<CrmService['listAccounts']>>['records'][number];
+type CrmTimelineEventView = Awaited<ReturnType<CrmService['addAccountNote']>>['event'];
+
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
@@ -83,6 +86,102 @@ describe('CrmController', () => {
     assert.equal(calls[0].context.organizationId, 'org-1');
   });
 
+  it('gets account detail with the current user context', async () => {
+    const calls: Array<{ id: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async getAccountDetail(id, context) {
+          calls.push({ id, context });
+
+          return {
+            account: createAccountView({ id }),
+            contacts: [],
+            timelineEvents: []
+          };
+        }
+      })
+    );
+
+    const result = await controller.getAccountDetail('Bearer token', 'account-1');
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].id, 'account-1');
+    assert.equal(calls[0].context.userId, 'user-1');
+  });
+
+  it('changes account status with the current user context', async () => {
+    const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async updateAccountStatus(id, dto, context) {
+          calls.push({ id, dto, context });
+
+          return {
+            account: createAccountView({ id, status: dto.status }),
+            event: createTimelineEventView({ accountId: id, eventType: 'status_changed' })
+          };
+        }
+      })
+    );
+
+    const dto = { status: 'ready' as const, remark: 'verified' };
+    const result = await controller.updateAccountStatus('Bearer token', 'account-1', dto);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].id, 'account-1');
+    assert.equal(calls[0].dto, dto);
+    assert.equal(calls[0].context.organizationId, 'org-1');
+  });
+
+  it('adds account notes with the current user context', async () => {
+    const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async addAccountNote(id, dto, context) {
+          calls.push({ id, dto, context });
+
+          return { event: createTimelineEventView({ id: 'event-1', accountId: id, content: dto.content }) };
+        }
+      })
+    );
+
+    const dto = { content: 'Call next week.' };
+    const result = await controller.addAccountNote('Bearer token', 'account-1', dto);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].id, 'account-1');
+    assert.equal(calls[0].dto, dto);
+    assert.equal(calls[0].context.userId, 'user-1');
+  });
+
+  it('archives accounts with the current user context', async () => {
+    const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async archiveAccount(id, dto, context) {
+          calls.push({ id, dto, context });
+
+          return {
+            account: createAccountView({ id, status: 'archived' }),
+            event: createTimelineEventView({ accountId: id, eventType: 'account_archived' })
+          };
+        }
+      })
+    );
+
+    const dto = { reason: 'Not a fit' };
+    const result = await controller.archiveAccount('Bearer token', 'account-1', dto);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].id, 'account-1');
+    assert.equal(calls[0].dto, dto);
+    assert.equal(calls[0].context.organizationId, 'org-1');
+  });
+
   it('rejects anonymous users', async () => {
     const controller = new CrmController(createAuthService(null), createCrmService());
 
@@ -110,6 +209,41 @@ function createUser() {
   };
 }
 
+function createAccountView(overrides: Partial<CrmAccountView> = {}) {
+  return {
+    id: 'account-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    name: 'ABC Trading',
+    normalizedName: 'abc trading',
+    websiteUrl: 'https://abc.example',
+    domain: 'abc.example',
+    country: 'AE',
+    customerType: 'distributor',
+    status: 'candidate' as const,
+    sourceTaskId: null,
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
+function createTimelineEventView(overrides: Partial<CrmTimelineEventView> = {}) {
+  return {
+    id: 'event-1',
+    organizationId: 'org-1',
+    accountId: 'account-1',
+    contactId: null,
+    ownerUserId: 'user-1',
+    eventType: 'note_added',
+    title: '新增备注',
+    content: null,
+    metadata: null,
+    createdAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
 function createCrmService(partial: Partial<CrmService> = {}): CrmService {
   return {
     async listAccounts() {
@@ -124,6 +258,28 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
       return {
         account: null,
         contact: null
+      };
+    },
+    async getAccountDetail() {
+      return {
+        account: null,
+        contacts: [],
+        timelineEvents: []
+      };
+    },
+    async updateAccountStatus() {
+      return {
+        account: null
+      };
+    },
+    async addAccountNote() {
+      return {
+        event: null
+      };
+    },
+    async archiveAccount() {
+      return {
+        account: null
       };
     },
     ...partial

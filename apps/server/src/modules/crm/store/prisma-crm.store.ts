@@ -134,6 +134,41 @@ export class PrismaCrmStore implements CrmStore {
     };
   }
 
+  async getAccountDetail(args: { id: string; organizationId: string; ownerUserId?: string }) {
+    const account = await this.prisma.crmAccount.findFirst({
+      where: toAccountIdentityWhere(args)
+    });
+
+    if (!account) return null;
+
+    const [contacts, timelineEvents] = await Promise.all([
+      this.prisma.crmContact.findMany({
+        where: {
+          organizationId: args.organizationId,
+          accountId: account.id
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      }),
+      this.prisma.crmTimelineEvent.findMany({
+        where: {
+          organizationId: args.organizationId,
+          accountId: account.id
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
+    ]);
+
+    return {
+      account: toAccountRecord(account),
+      contacts: contacts.map(toContactRecord),
+      timelineEvents: timelineEvents.map(toTimelineEventRecord)
+    };
+  }
+
   async createTimelineEvent(input: CrmTimelineEventCreateInput) {
     const record = await this.prisma.crmTimelineEvent.create({
       data: {
@@ -150,6 +185,19 @@ export class PrismaCrmStore implements CrmStore {
 
     return toTimelineEventRecord(record);
   }
+}
+
+/** Builds the scoped account identity filter used before detail reads and writes. */
+function toAccountIdentityWhere(args: {
+  id: string;
+  organizationId: string;
+  ownerUserId?: string;
+}): Prisma.CrmAccountWhereInput {
+  return {
+    id: args.id,
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+  };
 }
 
 /** Builds the Prisma account list scope and optional UI filters. */

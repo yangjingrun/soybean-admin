@@ -51,11 +51,50 @@ export const leadStatusTagTypeMap: Record<Api.Crm.CrmAccountStatus, NaiveUI.Them
   archived: 'default'
 };
 
+export const leadEmailStatusLabelMap: Record<Api.Crm.CrmEmailStatus, string> = {
+  unchecked: '未检查',
+  valid: '有效',
+  invalid: '无效',
+  risky: '有风险',
+  unreachable: '不可达'
+};
+
+export const leadEmailStatusTagTypeMap: Record<Api.Crm.CrmEmailStatus, NaiveUI.ThemeColor> = {
+  unchecked: 'default',
+  valid: 'success',
+  invalid: 'error',
+  risky: 'warning',
+  unreachable: 'error'
+};
+
+export const leadTimelineEventLabelMap: Record<string, string> = {
+  account_imported: '账户导入',
+  contact_imported: '联系人导入',
+  status_changed: '状态变更',
+  note_added: '备注',
+  account_archived: '归档'
+};
+
 /** Create the default lead filter object for initial load and reset. */
 export function createDefaultLeadFilterModel(): Api.Crm.LeadFilterModel {
   return {
     keyword: '',
     status: null
+  };
+}
+
+/** Create a status form model from the current backend status. */
+export function createDefaultLeadStatusForm(status?: Api.Crm.CrmAccountStatus) {
+  return {
+    status: status ?? null,
+    remark: ''
+  };
+}
+
+/** Create the default manual note form model. */
+export function createDefaultLeadNoteForm() {
+  return {
+    content: ''
   };
 }
 
@@ -86,6 +125,16 @@ export function buildLeadSearchParams(options: {
 /** Format backend ISO datetime for the lead table. */
 export function formatLeadDate(value: string) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
+}
+
+/** Format optional backend text for compact descriptions. */
+export function formatLeadText(value: string | null | undefined) {
+  return value || '-';
+}
+
+/** Read the timeline label from known event types, falling back to the backend title. */
+export function formatLeadTimelineTitle(event: Api.Crm.LeadTimelineEvent) {
+  return event.title || leadTimelineEventLabelMap[event.eventType] || event.eventType;
 }
 
 /** Normalize website text into a clickable href without changing displayed backend data. */

@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NTag } from 'naive-ui';
+import { NButton, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { formatLeadDate, getWebsiteHref, leadStatusLabelMap, leadStatusTagTypeMap } from './shared';
 
-defineProps<{
+const props = defineProps<{
   records: Api.Crm.LeadRecord[];
   loading?: boolean;
+  archiveOperatingId?: string | null;
   page: number;
   pageSize: number;
   total: number;
 }>();
 
 const emit = defineEmits<{
+  archive: [record: Api.Crm.LeadRecord];
+  changeStatus: [record: Api.Crm.LeadRecord];
+  view: [record: Api.Crm.LeadRecord];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
 }>();
@@ -97,6 +101,56 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
     title: '更新时间',
     width: 180,
     render: row => formatLeadDate(row.updatedAt)
+  },
+  {
+    key: 'operate',
+    title: '操作',
+    width: 190,
+    fixed: 'right',
+    render: row =>
+      h(
+        NSpace,
+        {
+          size: 8,
+          justify: 'center'
+        },
+        {
+          default: () => [
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'primary',
+                onClick: () => emit('view', row)
+              },
+              { default: () => '详情' }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'warning',
+                onClick: () => emit('changeStatus', row)
+              },
+              { default: () => '状态' }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'error',
+                disabled: row.status === 'archived',
+                loading: props.archiveOperatingId === row.id,
+                onClick: () => emit('archive', row)
+              },
+              { default: () => '归档' }
+            )
+          ]
+        }
+      )
   }
 ]);
 </script>
@@ -109,7 +163,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
         :data="records"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1160"
+        :scroll-x="1350"
         size="small"
         remote
       >

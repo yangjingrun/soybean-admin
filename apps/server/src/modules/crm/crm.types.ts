@@ -88,6 +88,12 @@ export interface CrmTimelineEventRecord {
   createdAt: Date;
 }
 
+export interface CrmAccountDetailRecord {
+  account: CrmAccountRecord;
+  contacts: CrmContactRecord[];
+  timelineEvents: CrmTimelineEventRecord[];
+}
+
 export interface CrmAccountCreateInput {
   organizationId: string;
   ownerUserId: string;
@@ -163,5 +169,10 @@ export interface CrmStore {
     skip: number;
     take: number;
   }): Promise<{ records: CrmAccountRecord[]; total: number }>;
+  getAccountDetail(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmAccountDetailRecord | null>;
   createTimelineEvent(input: CrmTimelineEventCreateInput): Promise<CrmTimelineEventRecord>;
 }
