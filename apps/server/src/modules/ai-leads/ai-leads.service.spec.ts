@@ -143,6 +143,66 @@ const koreaMexicoKeywordPlan = {
   serperPlacesQueries: []
 };
 
+const georgiaKeywordPlan = {
+  ...keywordPlan,
+  resolvedTargetRegions: '格鲁吉亚',
+  searchExecutionRules: {
+    ...keywordPlan.searchExecutionRules,
+    marketLanguagePlan: [
+      {
+        marketName: '格鲁吉亚',
+        languageName: '格鲁吉亚语',
+        languageCode: 'ka',
+        localQueryRequired: true,
+        reason: '本地经销商和工业品供应商可能使用格鲁吉亚语官网或目录'
+      }
+    ]
+  },
+  serperSearchQueries: [
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: '6203 bearing importer Georgia',
+        gl: 'ge',
+        hl: 'en',
+        location: 'Georgia',
+        num: 10,
+        page: 1
+      }
+    }
+  ],
+  serperPlacesQueries: []
+};
+
+const repairedGeorgiaKeywordPlan = {
+  ...georgiaKeywordPlan,
+  serperSearchQueries: [
+    ...georgiaKeywordPlan.serperSearchQueries,
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: 'საკისრების იმპორტიორი საქართველო',
+        gl: 'ge',
+        hl: 'ka',
+        location: 'Georgia',
+        num: 10,
+        page: 1
+      }
+    },
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: 'საკისრების დისტრიბუტორი თბილისი',
+        gl: 'ge',
+        hl: 'ka',
+        location: 'Tbilisi, Georgia',
+        num: 10,
+        page: 1
+      }
+    }
+  ]
+};
+
 describe('AiLeadsService', () => {
   const user: UserInfo = {
     userId: 'u-1',
@@ -267,28 +327,32 @@ describe('AiLeadsService', () => {
     assert.match(localLanguageDto.prompt, /requestBody\.hl 必须使用对应语言代码/);
   });
 
-  it('rejects keyword plans missing required local-language Search queries', async () => {
-    let saved = false;
+  it('returns quality warnings instead of blocking keyword plans missing local-language Search queries', async () => {
+    const invalidKeywordPlan = {
+      ...keywordPlan,
+      serperSearchQueries: [
+        {
+          endpoint: 'search',
+          requestBody: {
+            q: '6203 bearing importer South Korea',
+            gl: 'kr',
+            hl: 'en',
+            location: 'South Korea',
+            num: 10,
+            page: 1
+          }
+        }
+      ],
+      serperPlacesQueries: []
+    };
+    let callCount = 0;
+    let capturedHistoryInput: SaveKeywordHistoryInput | null = null;
     const aiGatewayService = {
       async generateText() {
+        callCount += 1;
+
         return {
-          text: JSON.stringify({
-            ...keywordPlan,
-            serperSearchQueries: [
-              {
-                endpoint: 'search',
-                requestBody: {
-                  q: '6203 bearing importer South Korea',
-                  gl: 'kr',
-                  hl: 'en',
-                  location: 'South Korea',
-                  num: 10,
-                  page: 1
-                }
-              }
-            ],
-            serperPlacesQueries: []
-          }),
+          text: JSON.stringify(invalidKeywordPlan),
           finishReason: 'stop',
           usage: {
             inputTokens: 12,
@@ -302,24 +366,67 @@ describe('AiLeadsService', () => {
       aiGatewayService,
       createHistoryStore({
         async create(input) {
-          saved = true;
+          capturedHistoryInput = input;
 
           return createHistoryRecord(input);
         }
       })
     );
 
-    await assert.rejects(
-      () =>
-        service.optimizeKeywords(
-          {
-            requirement: '我是河北卖轴承的，找韩国进口商和经销商'
-          },
-          { user }
-        ),
-      /关键词优化结果缺少韩国韩语 Search 查询/
+    const result = await service.optimizeKeywords(
+      {
+        requirement: '我是河北卖轴承的，找韩国进口商和经销商'
+      },
+      { user }
     );
-    assert.equal(saved, false);
+
+    assert.equal(callCount, 2);
+    assert.match(result.qualityWarnings?.[0] || '', /关键词优化结果缺少韩国韩语 Search 查询/);
+    assert.equal(capturedHistoryInput?.resultText, JSON.stringify(invalidKeywordPlan));
+  });
+
+  it('repairs keyword plans once when local-language validation fails', async () => {
+    const generatedTexts = [JSON.stringify(georgiaKeywordPlan), JSON.stringify(repairedGeorgiaKeywordPlan)];
+    const capturedPrompts: string[] = [];
+    let capturedHistoryInput: SaveKeywordHistoryInput | null = null;
+    const aiGatewayService = {
+      async generateText(dto: GenerateAiTextDto) {
+        capturedPrompts.push(dto.prompt);
+
+        return {
+          text: generatedTexts.shift() || JSON.stringify(repairedGeorgiaKeywordPlan),
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 12,
+            outputTokens: 8,
+            totalTokens: 20
+          }
+        };
+      }
+    } as unknown as AiGatewayService;
+    const service = new AiLeadsService(
+      aiGatewayService,
+      createHistoryStore({
+        async create(input) {
+          capturedHistoryInput = input;
+
+          return createHistoryRecord(input);
+        }
+      })
+    );
+
+    const result = await service.optimizeKeywords(
+      {
+        requirement: '我是河北卖轴承的，找格鲁吉亚进口商和经销商'
+      },
+      { user }
+    );
+
+    assert.equal(capturedPrompts.length, 2);
+    assert.match(capturedPrompts[1], /关键词优化结果需要修复/);
+    assert.match(capturedPrompts[1], /缺少格鲁吉亚格鲁吉亚语 Search 查询/);
+    assert.deepEqual(result.keywordPlan, repairedGeorgiaKeywordPlan);
+    assert.equal(capturedHistoryInput?.resultText, JSON.stringify(repairedGeorgiaKeywordPlan));
   });
 
   it('lists keyword histories for the current user only', async () => {

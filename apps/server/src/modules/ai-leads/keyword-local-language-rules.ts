@@ -9,6 +9,17 @@ interface KeywordPlanWithQueries {
   serperSearchQueries?: SerperQueryLike[];
   serperPlacesQueries?: SerperQueryLike[];
   serperMapsQueries?: SerperQueryLike[];
+  marketLanguagePlan?: MarketLanguagePlanItem[];
+  searchExecutionRules?: {
+    marketLanguagePlan?: MarketLanguagePlanItem[];
+  };
+}
+
+interface MarketLanguagePlanItem {
+  marketName?: unknown;
+  languageName?: unknown;
+  languageCode?: unknown;
+  localQueryRequired?: unknown;
 }
 
 interface SerperQueryLike {
@@ -157,6 +168,7 @@ export function buildKeywordOptimizePrompt(requirement: string) {
 
 【目标市场本地语言查询强约束】
 你必须先识别目标国家/地区的主要商业语言；如果目标市场主要语言不是英语，Search 和 Places 都必须同时覆盖英文查询和当地语言查询。${marketRulesText}
+- searchExecutionRules.marketLanguagePlan 必须输出目标市场语言计划，数组项包含 marketName、languageName、languageCode、localQueryRequired、reason；即使目标市场不在常见国家列表，也要由你根据当地商业环境判断。
 - serperSearchQueries：每个非英语目标市场至少输出 2 条当地语言查询，且单一目标市场时，前 6 条 Search 查询中至少出现 1 条当地语言查询。
 - serperPlacesQueries：只要输出 Places 查询，每个非英语目标市场至少输出 2 条当地语言本地商家查询。
 - 当地语言查询的 requestBody.hl 必须使用对应语言代码，例如 ko、ja、ar、es、pt、de、fr、tr、ru、th、vi、it、id。
@@ -165,15 +177,41 @@ export function buildKeywordOptimizePrompt(requirement: string) {
 - 如果查询数量冲突，优先替换低优先级的英文 supplier / general supplier 查询，而不是删除 importer、distributor、dealer、stockist 主线索。`;
 }
 
+/** Builds one repair prompt from validation errors and the previous model output. */
+export function buildKeywordOptimizeRepairPrompt(requirement: string, issues: string[], keywordPlan: unknown) {
+  return `${requirement.trim()}
+
+【关键词优化结果需要修复】
+上一次输出的 JSON 没有通过后端质量门，请只根据下面的问题修复查询计划，并重新输出一个完整合法 JSON 对象。
+
+质量门问题：
+${issues.map(issue => `- ${issue}`).join('\n')}
+
+修复要求：
+- 保留原有 JSON 顶层结构，不输出 Markdown、解释文字或代码块。
+- 必须补齐 searchExecutionRules.marketLanguagePlan，用它声明每个目标市场的 languageCode 和是否需要当地语言查询。
+- 必须补齐缺失的当地语言 Search 查询；如果有 Places 查询，也要补齐当地语言 Places 查询。
+- requestBody.q 必须是 Serper 可直接执行的查询词，不要加入中文括号备注。
+- requestBody.hl 必须与对应当地语言代码一致。
+- 不要删除 importer、distributor、dealer、stockist 等主线索，只替换或补充低价值 supplier/general supplier 查询。
+
+上一次输出 JSON：
+${JSON.stringify(keywordPlan)}`;
+}
+
 /** Validates local-language query coverage for non-English target markets. */
 export function validateKeywordPlanLocalLanguages(requirement: string, plan: unknown) {
-  const detectedRules = detectMarketLanguageRules(requirement);
-
-  if (!detectedRules.length || !plan || typeof plan !== 'object') {
+  if (!plan || typeof plan !== 'object') {
     return [];
   }
 
   const keywordPlan = plan as KeywordPlanWithQueries;
+  const detectedRules = collectValidationRules(requirement, keywordPlan);
+
+  if (!detectedRules.length) {
+    return [];
+  }
+
   const searchQueries = keywordPlan.serperSearchQueries ?? [];
   const placesQueries = keywordPlan.serperPlacesQueries ?? keywordPlan.serperMapsQueries ?? [];
 
@@ -209,6 +247,46 @@ function detectMarketLanguageRules(requirement: string) {
   );
 }
 
+function collectValidationRules(requirement: string, keywordPlan: KeywordPlanWithQueries) {
+  const rules = [...detectMarketLanguageRules(requirement), ...readDeclaredMarketLanguageRules(keywordPlan)].filter(
+    rule => rule.languageCode !== 'en'
+  );
+  const seenKeys = new Set<string>();
+
+  return rules.filter(rule => {
+    const key = `${rule.marketName}:${rule.languageCode}`;
+
+    if (seenKeys.has(key)) {
+      return false;
+    }
+
+    seenKeys.add(key);
+
+    return true;
+  });
+}
+
+function readDeclaredMarketLanguageRules(keywordPlan: KeywordPlanWithQueries): MarketLanguageRule[] {
+  const planItems = [
+    ...(Array.isArray(keywordPlan.searchExecutionRules?.marketLanguagePlan)
+      ? keywordPlan.searchExecutionRules.marketLanguagePlan
+      : []),
+    ...(Array.isArray(keywordPlan.marketLanguagePlan) ? keywordPlan.marketLanguagePlan : [])
+  ];
+
+  return planItems
+    .filter(item => item.localQueryRequired !== false)
+    .map(item => {
+      return {
+        marketName: readNonEmptyString(item.marketName),
+        languageName: readNonEmptyString(item.languageName),
+        languageCode: readNonEmptyString(item.languageCode).toLowerCase(),
+        aliases: []
+      };
+    })
+    .filter(rule => rule.marketName && rule.languageName && rule.languageCode);
+}
+
 function countLocalLanguageQueries(queries: SerperQueryLike[], languageCode: string) {
   return queries.filter(query => isLocalLanguageQuery(query, languageCode)).length;
 }
@@ -227,4 +305,8 @@ function readQueryLanguage(query: SerperQueryLike) {
   const value = query.requestBody?.hl ?? query.hl;
 
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function readNonEmptyString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
 }

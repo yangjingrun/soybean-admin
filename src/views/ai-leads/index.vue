@@ -38,6 +38,7 @@ const isEditingResult = shallowRef(false);
 const deletingKeywordHistoryId = shallowRef('');
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const searchResult = shallowRef<Api.AiLeads.SearchOrchestrateResult | null>(null);
+const keywordQualityWarnings = ref<string[]>([]);
 const historyRecords = ref<Api.AiLeads.KeywordHistoryRecord[]>([]);
 const editableKeywordPlan = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
 const editingKeywordPlanSnapshot = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
@@ -91,6 +92,7 @@ async function handleGenerate() {
     }
 
     aiResult.value = result;
+    keywordQualityWarnings.value = result.qualityWarnings ?? [];
     upsertHistoryRecord(result.historyRecord);
     applyKeywordHistoryRecord(result.historyRecord);
     message.success('生成完成');
@@ -102,7 +104,6 @@ async function handleGenerate() {
 /** Runs keyword optimization, Serper search, and search-result decisions through the backend workflow. */
 async function handleSearchCustomers() {
   isSearching.value = true;
-  aiResult.value = null;
   searchResult.value = null;
 
   try {
@@ -114,6 +115,8 @@ async function handleSearchCustomers() {
       return;
     }
 
+    aiResult.value = null;
+    keywordQualityWarnings.value = [];
     searchResult.value = result;
     message.success('搜索采集完成');
   } finally {
@@ -125,6 +128,7 @@ function handleClear() {
   form.requirement = '';
   aiResult.value = null;
   searchResult.value = null;
+  keywordQualityWarnings.value = [];
   editableKeywordPlan.value = null;
   editingKeywordPlanSnapshot.value = null;
   selectedHistoryId.value = '';
@@ -263,6 +267,7 @@ function applyKeywordHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   selectedHistoryId.value = record.id;
   form.requirement = record.requirement;
   aiResult.value = createAiResultFromKeywordHistory(record);
+  keywordQualityWarnings.value = [];
   editableKeywordPlan.value = cloneKeywordPlan(record.keywordPlan);
   editingKeywordPlanSnapshot.value = null;
   searchResult.value = null;
@@ -272,6 +277,7 @@ function applyKeywordHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
 function resetKeywordHistorySelection() {
   selectedHistoryId.value = '';
   aiResult.value = null;
+  keywordQualityWarnings.value = [];
   editableKeywordPlan.value = null;
   editingKeywordPlanSnapshot.value = null;
   searchResult.value = null;
@@ -296,19 +302,22 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
       <NForm :model="form" label-placement="left" label-width="72" size="small" class="lead-form">
         <NGrid :x-gap="18" :y-gap="12" responsive="screen" item-responsive>
           <NGi span="24 l:18">
-            <NFormItem label="获客需求">
+            <NFormItem label="">
               <NInput
                 v-model:value="form.requirement"
                 type="textarea"
                 :autosize="{ minRows: 4, maxRows: 7 }"
-                placeholder="描述你的产品、地区、目标市场、客户类型、产品优势等"
+                placeholder="描述你的产品、地区、目标市场、客户类型、产品优势等。例如：我是中国河北卖轴承的，主打 6204 bearing，想找沙特阿拉伯进口商和经销商，产品优势是供货稳定、价格有竞争力。"
               />
             </NFormItem>
           </NGi>
 
           <NGi span="24 l:6" class="lead-actions">
             <NSpace :size="8" class="lead-action-group">
-              <NButton :disabled="isGenerating || isSearching || isHistorySaving || isHistoryDeleting" @click="handleClear">
+              <NButton
+                :disabled="isGenerating || isSearching || isHistorySaving || isHistoryDeleting"
+                @click="handleClear"
+              >
                 清空
               </NButton>
               <NButton
@@ -407,6 +416,9 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
       </template>
 
       <div v-if="searchResult" class="result-panel">
+        <NAlert v-if="searchResult.qualityWarnings?.length" type="warning" :bordered="false">
+          {{ searchResult.qualityWarnings.join('；') }}
+        </NAlert>
         <NSpace :size="8">
           <NTag type="info" :bordered="false">Serper 请求：{{ searchResult.serperRequests.length }}</NTag>
           <NTag type="warning" :bordered="false">决策：{{ searchResult.decisions.length }}</NTag>
@@ -416,6 +428,9 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
         <NInput :value="searchResultText" type="textarea" readonly :autosize="{ minRows: 18, maxRows: 30 }" />
       </div>
       <div v-else-if="aiResult" class="result-panel">
+        <NAlert v-if="keywordQualityWarnings.length" type="warning" :bordered="false">
+          {{ keywordQualityWarnings.join('；') }}
+        </NAlert>
         <KeywordOptimizationResult
           v-if="keywordOptimizationViewModel"
           v-model:keyword-plan="editableKeywordPlan"

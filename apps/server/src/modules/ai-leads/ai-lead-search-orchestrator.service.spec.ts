@@ -168,29 +168,33 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.match(aiGateway.calls[0]?.prompt || '', /前 6 条 Search 查询/);
   });
 
-  it('rejects keyword plans missing required local-language Search queries before calling Serper', async () => {
+  it('returns quality warnings and still calls Serper when local-language Search queries are missing', async () => {
+    const invalidKeywordPlan = {
+      resolvedProductKeywords: '6203 bearing',
+      resolvedTargetRegions: 'South Korea',
+      resolvedTargetCustomerProfile: 'bearing importer and distributor',
+      resolvedTargetLeadCount: null,
+      serperSearchQueries: [
+        {
+          endpoint: 'search',
+          requestBody: {
+            q: '6203 bearing importer South Korea',
+            gl: 'kr',
+            hl: 'en',
+            location: 'South Korea',
+            num: 10,
+            page: 1
+          }
+        }
+      ],
+      serperPlacesQueries: []
+    };
     const aiGateway = createAiGateway([
       {
-        text: JSON.stringify({
-          resolvedProductKeywords: '6203 bearing',
-          resolvedTargetRegions: 'South Korea',
-          resolvedTargetCustomerProfile: 'bearing importer and distributor',
-          resolvedTargetLeadCount: null,
-          serperSearchQueries: [
-            {
-              endpoint: 'search',
-              requestBody: {
-                q: '6203 bearing importer South Korea',
-                gl: 'kr',
-                hl: 'en',
-                location: 'South Korea',
-                num: 10,
-                page: 1
-              }
-            }
-          ],
-          serperPlacesQueries: []
-        })
+        text: JSON.stringify(invalidKeywordPlan)
+      },
+      {
+        text: JSON.stringify(invalidKeywordPlan)
       },
       {
         text: JSON.stringify({
@@ -218,15 +222,148 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    await assert.rejects(
-      () =>
-        service.search(
-          { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国进口商和经销商' },
-          { user: createUser() }
-        ),
-      /关键词优化结果缺少韩国韩语 Search 查询/
+    const result = await service.search(
+      { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国进口商和经销商' },
+      { user: createUser() }
     );
-    assert.equal(serper.calls.length, 0);
+
+    assert.equal(serper.calls.length, 1);
+    assert.match(result.qualityWarnings?.[0] || '', /关键词优化结果缺少韩国韩语 Search 查询/);
+  });
+
+  it('repairs keyword plans once before running Serper when local-language validation fails', async () => {
+    const invalidGeorgiaPlan = {
+      resolvedProductKeywords: '6203 bearing',
+      resolvedTargetRegions: 'Georgia',
+      resolvedTargetCustomerProfile: 'bearing importer and distributor',
+      resolvedTargetLeadCount: null,
+      searchExecutionRules: {
+        marketLanguagePlan: [
+          {
+            marketName: '格鲁吉亚',
+            languageName: '格鲁吉亚语',
+            languageCode: 'ka',
+            localQueryRequired: true
+          }
+        ]
+      },
+      serperSearchQueries: [
+        {
+          endpoint: 'search',
+          requestBody: {
+            q: '6203 bearing importer Georgia',
+            gl: 'ge',
+            hl: 'en',
+            location: 'Georgia',
+            num: 10,
+            page: 1
+          }
+        }
+      ],
+      serperPlacesQueries: []
+    };
+    const repairedGeorgiaPlan = {
+      ...invalidGeorgiaPlan,
+      serperSearchQueries: [
+        ...invalidGeorgiaPlan.serperSearchQueries,
+        {
+          endpoint: 'search',
+          requestBody: {
+            q: 'საკისრების იმპორტიორი საქართველო',
+            gl: 'ge',
+            hl: 'ka',
+            location: 'Georgia',
+            num: 10,
+            page: 1
+          }
+        },
+        {
+          endpoint: 'search',
+          requestBody: {
+            q: 'საკისრების დისტრიბუტორი თბილისი',
+            gl: 'ge',
+            hl: 'ka',
+            location: 'Tbilisi, Georgia',
+            num: 10,
+            page: 1
+          }
+        }
+      ]
+    };
+    const aiGateway = createAiGateway([
+      { text: JSON.stringify(invalidGeorgiaPlan) },
+      { text: JSON.stringify(repairedGeorgiaPlan) },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'ge',
+              hl: 'en',
+              location: 'Georgia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'ge',
+              hl: 'ka',
+              location: 'Georgia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'ge',
+              hl: 'ka',
+              location: 'Tbilisi, Georgia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([{ organic: [] }, { organic: [] }, { organic: [] }]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    const result = await service.search(
+      { requirement: '我是河北卖轴承的，找格鲁吉亚进口商和经销商' },
+      { user: createUser() }
+    );
+
+    assert.match(aiGateway.calls[1]?.prompt || '', /关键词优化结果需要修复/);
+    assert.match(aiGateway.calls[1]?.prompt || '', /缺少格鲁吉亚格鲁吉亚语 Search 查询/);
+    assert.equal(serper.calls.length, 3);
+    assert.deepEqual(result.keywordOptimization, repairedGeorgiaPlan);
   });
 
   it('resets to page one when the decision action is requery', async () => {

@@ -11,7 +11,11 @@ import { SerperClient, type SerperEndpoint, type SerperRequestBody } from '../ai
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
-import { buildKeywordOptimizePrompt, validateKeywordPlanLocalLanguages } from './keyword-local-language-rules';
+import {
+  buildKeywordOptimizePrompt,
+  buildKeywordOptimizeRepairPrompt,
+  validateKeywordPlanLocalLanguages
+} from './keyword-local-language-rules';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -108,17 +112,11 @@ export class AiLeadSearchOrchestrator {
       maxRequests
     });
 
-    const keywordOptimizationText = await this.aiGatewayService.generateText(
-      {
-        modelConfigKey: defaultAiModelConfigKey,
-        promptKey: leadKeywordOptimizePromptKey,
-        prompt: buildKeywordOptimizePrompt(requirement),
-        maxOutputTokens: keywordOptimizeMaxOutputTokens
-      },
-      context
-    );
-    const keywordOptimization = parseJsonObject<OptimizedKeywordPlan>(keywordOptimizationText.text, '关键词优化结果');
-    assertKeywordPlanLocalLanguages(requirement, keywordOptimization);
+    const {
+      result: keywordOptimizationText,
+      keywordOptimization,
+      qualityWarnings
+    } = await this.generateKeywordPlanWithRepair(requirement, context);
     const targetLeadCount = dto.targetLeadCountOverride ?? keywordOptimization.resolvedTargetLeadCount ?? null;
     const queryQueue = this.toInitialRequests(keywordOptimization);
     const executedKeys = new Set<string>();
@@ -220,11 +218,45 @@ export class AiLeadSearchOrchestrator {
     return {
       keywordOptimization,
       keywordOptimizationText: keywordOptimizationText.text,
+      qualityWarnings,
       serperRequests,
       decisions,
       candidates,
       stopReason
     };
+  }
+
+  /** Generates a keyword plan and asks the model to repair it once if quality gates fail. */
+  private async generateKeywordPlanWithRepair(requirement: string, context: AiLeadSearchContext) {
+    const result = await this.aiGatewayService.generateText(
+      {
+        modelConfigKey: defaultAiModelConfigKey,
+        promptKey: leadKeywordOptimizePromptKey,
+        prompt: buildKeywordOptimizePrompt(requirement),
+        maxOutputTokens: keywordOptimizeMaxOutputTokens
+      },
+      context
+    );
+    const keywordOptimization = parseJsonObject<OptimizedKeywordPlan>(result.text, '关键词优化结果');
+    const issues = validateKeywordPlanLocalLanguages(requirement, keywordOptimization);
+
+    if (issues.length === 0) {
+      return { result, keywordOptimization, qualityWarnings: [] };
+    }
+
+    const repairResult = await this.aiGatewayService.generateText(
+      {
+        modelConfigKey: defaultAiModelConfigKey,
+        promptKey: leadKeywordOptimizePromptKey,
+        prompt: buildKeywordOptimizeRepairPrompt(requirement, issues, keywordOptimization),
+        maxOutputTokens: keywordOptimizeMaxOutputTokens
+      },
+      context
+    );
+    const repairedKeywordOptimization = parseJsonObject<OptimizedKeywordPlan>(repairResult.text, '关键词优化修复结果');
+    const qualityWarnings = validateKeywordPlanLocalLanguages(requirement, repairedKeywordOptimization);
+
+    return { result: repairResult, keywordOptimization: repairedKeywordOptimization, qualityWarnings };
   }
 
   private toInitialRequests(keywordOptimization: OptimizedKeywordPlan): SearchRequestTrace[] {
@@ -393,14 +425,6 @@ function parseJsonObject<T>(text: string, label: string): T {
     return value as T;
   } catch {
     throw new BadGatewayException(`${label}不是合法 JSON`);
-  }
-}
-
-function assertKeywordPlanLocalLanguages(requirement: string, keywordPlan: OptimizedKeywordPlan) {
-  const issues = validateKeywordPlanLocalLanguages(requirement, keywordPlan);
-
-  if (issues.length > 0) {
-    throw new BadGatewayException(issues.join('；'));
   }
 }
 

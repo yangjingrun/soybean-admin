@@ -17,7 +17,11 @@ import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 import { AI_LEAD_KEYWORD_HISTORY_STORE } from './ai-leads.tokens';
 import type { AiLeadKeywordHistoryRecord, AiLeadKeywordHistoryStore } from './ai-leads.types';
-import { buildKeywordOptimizePrompt, validateKeywordPlanLocalLanguages } from './keyword-local-language-rules';
+import {
+  buildKeywordOptimizePrompt,
+  buildKeywordOptimizeRepairPrompt,
+  validateKeywordPlanLocalLanguages
+} from './keyword-local-language-rules';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const defaultHistorySize = 20;
@@ -39,18 +43,7 @@ export class AiLeadsService {
   async optimizeKeywords(dto: KeywordOptimizeDto, context: AiLeadsContext = {}) {
     const user = this.requireUser(context);
     const requirement = dto.requirement.trim();
-    const result = await this.aiGatewayService.generateText(
-      {
-        modelConfigKey: defaultAiModelConfigKey,
-        promptKey: leadKeywordOptimizePromptKey,
-        prompt: buildKeywordOptimizePrompt(requirement),
-        // 关键词优化只需要结构化建议，限制输出长度避免长时间阻塞请求。
-        maxOutputTokens: keywordOptimizeMaxOutputTokens
-      },
-      context
-    );
-    const keywordPlan = parseKeywordPlan(result.text);
-    assertKeywordPlanLocalLanguages(requirement, keywordPlan);
+    const { result, keywordPlan, qualityWarnings } = await this.generateKeywordPlanWithRepair(requirement, context);
     const historyRecord = await this.keywordHistoryStore.create({
       userId: user.userId,
       userName: user.userName,
@@ -72,8 +65,43 @@ export class AiLeadsService {
     return {
       ...result,
       keywordPlan,
-      historyRecord: this.toKeywordHistoryView(historyRecord)
+      historyRecord: this.toKeywordHistoryView(historyRecord),
+      qualityWarnings
     };
+  }
+
+  /** Generates a keyword plan and asks the model to repair it once if quality gates fail. */
+  private async generateKeywordPlanWithRepair(requirement: string, context: AiLeadsContext) {
+    const result = await this.aiGatewayService.generateText(
+      {
+        modelConfigKey: defaultAiModelConfigKey,
+        promptKey: leadKeywordOptimizePromptKey,
+        prompt: buildKeywordOptimizePrompt(requirement),
+        // 关键词优化只需要结构化建议，限制输出长度避免长时间阻塞请求。
+        maxOutputTokens: keywordOptimizeMaxOutputTokens
+      },
+      context
+    );
+    const keywordPlan = parseKeywordPlan(result.text);
+    const issues = validateKeywordPlanLocalLanguages(requirement, keywordPlan);
+
+    if (issues.length === 0) {
+      return { result, keywordPlan, qualityWarnings: [] };
+    }
+
+    const repairResult = await this.aiGatewayService.generateText(
+      {
+        modelConfigKey: defaultAiModelConfigKey,
+        promptKey: leadKeywordOptimizePromptKey,
+        prompt: buildKeywordOptimizeRepairPrompt(requirement, issues, keywordPlan),
+        maxOutputTokens: keywordOptimizeMaxOutputTokens
+      },
+      context
+    );
+    const repairedKeywordPlan = parseKeywordPlan(repairResult.text);
+    const qualityWarnings = validateKeywordPlanLocalLanguages(requirement, repairedKeywordPlan);
+
+    return { result: repairResult, keywordPlan: repairedKeywordPlan, qualityWarnings };
   }
 
   /** Lists recent keyword optimization histories for the current user. */
@@ -187,14 +215,6 @@ function parseKeywordPlan(text: string) {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new BadGatewayException('关键词优化结果不是合法 JSON');
-  }
-}
-
-function assertKeywordPlanLocalLanguages(requirement: string, keywordPlan: Record<string, unknown>) {
-  const issues = validateKeywordPlanLocalLanguages(requirement, keywordPlan);
-
-  if (issues.length > 0) {
-    throw new BadGatewayException(issues.join('；'));
   }
 }
 

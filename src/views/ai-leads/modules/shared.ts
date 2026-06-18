@@ -1,7 +1,6 @@
 export interface KeywordOptimizationSummaryItem {
   label: string;
   value: string;
-  width?: string | number;
 }
 
 export interface KeywordOptimizationQueryRow {
@@ -134,7 +133,7 @@ export function createKeywordOptimizationViewModel(
 ): KeywordOptimizationViewModel {
   return {
     summaryItems: [
-      { label: '需求归纳', value: annotateBusinessTerms(plan.structuredRequirement), width: '100%' },
+      { label: '需求归纳', value: annotateBusinessTerms(plan.structuredRequirement) },
       { label: '产品关键词', value: annotateBusinessTerms(plan.resolvedProductKeywords) },
       { label: '目标市场', value: annotateBusinessTerms(plan.resolvedTargetRegions) },
       { label: '客户画像', value: annotateBusinessTerms(plan.resolvedTargetCustomerProfile) }

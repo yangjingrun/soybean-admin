@@ -103,6 +103,7 @@ declare namespace Api {
     interface KeywordOptimizeResult extends Api.AiGateway.AiTextResult {
       keywordPlan: OptimizedKeywordPlan;
       historyRecord: KeywordHistoryRecord;
+      qualityWarnings?: string[];
     }
 
     interface KeywordHistoryListParams {
@@ -131,6 +132,7 @@ declare namespace Api {
     interface SearchOrchestrateResult {
       keywordOptimization: OptimizedKeywordPlan;
       keywordOptimizationText: string;
+      qualityWarnings?: string[];
       serperRequests: Array<Record<string, unknown>>;
       decisions: Array<Record<string, unknown>>;
       candidates: Array<Record<string, unknown>>;
