@@ -11,6 +11,7 @@ import { SerperClient, type SerperEndpoint, type SerperRequestBody } from '../ai
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
+import { buildKeywordOptimizePrompt } from './keyword-local-language-rules';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -111,7 +112,7 @@ export class AiLeadSearchOrchestrator {
       {
         modelConfigKey: defaultAiModelConfigKey,
         promptKey: leadKeywordOptimizePromptKey,
-        prompt: requirement,
+        prompt: buildKeywordOptimizePrompt(requirement),
         maxOutputTokens: keywordOptimizeMaxOutputTokens
       },
       context

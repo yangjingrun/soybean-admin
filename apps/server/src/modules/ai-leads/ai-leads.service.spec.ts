@@ -78,12 +78,24 @@ describe('AiLeadsService', () => {
       { user }
     );
 
-    assert.deepEqual(capturedDto, {
-      modelConfigKey: defaultAiModelConfigKey,
-      promptKey: leadKeywordOptimizePromptKey,
-      prompt: '我是河北卖轴承的，想找沙特进口商',
-      maxOutputTokens: 3600
-    });
+    assert.equal(capturedDto?.modelConfigKey, defaultAiModelConfigKey);
+    assert.equal(capturedDto?.promptKey, leadKeywordOptimizePromptKey);
+    assert.equal(capturedDto?.maxOutputTokens, 3600);
+    assert.match(capturedDto?.prompt || '', /^我是河北卖轴承的，想找沙特进口商/);
+    assert.match(capturedDto?.prompt || '', /目标市场本地语言查询强约束/);
+    assert.match(capturedDto?.prompt || '', /沙特阿拉伯=阿拉伯语，hl=ar/);
+    assert.deepEqual(
+      {
+        modelConfigKey: capturedDto?.modelConfigKey,
+        promptKey: capturedDto?.promptKey,
+        maxOutputTokens: capturedDto?.maxOutputTokens
+      },
+      {
+        modelConfigKey: defaultAiModelConfigKey,
+        promptKey: leadKeywordOptimizePromptKey,
+        maxOutputTokens: 3600
+      }
+    );
     assert.deepEqual(capturedContext, { user });
     assert.deepEqual(capturedHistoryInput, {
       userId: 'u-1',
@@ -99,6 +111,40 @@ describe('AiLeadsService', () => {
     assert.equal(result.text, JSON.stringify(keywordPlan));
     assert.equal(result.historyRecord.id, 'history-1');
     assert.deepEqual(result.keywordPlan, keywordPlan);
+  });
+
+  it('adds generic local-language query requirements when optimizing non-English markets', async () => {
+    let capturedDto: GenerateAiTextDto | null = null;
+    const aiGatewayService = {
+      async generateText(dto: GenerateAiTextDto) {
+        capturedDto = dto;
+
+        return {
+          text: JSON.stringify(keywordPlan),
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 12,
+            outputTokens: 8,
+            totalTokens: 20
+          }
+        };
+      }
+    } as unknown as AiGatewayService;
+    const service = new AiLeadsService(aiGatewayService, createHistoryStore());
+
+    await service.optimizeKeywords(
+      {
+        requirement: '我是中国河北卖轴承的，主打 6203及以上 轴承，找韩国和墨西哥进口商和经销商'
+      },
+      { user }
+    );
+
+    assert.match(capturedDto?.prompt || '', /目标市场本地语言查询强约束/);
+    assert.match(capturedDto?.prompt || '', /韩国=韩语，hl=ko/);
+    assert.match(capturedDto?.prompt || '', /墨西哥=西班牙语，hl=es/);
+    assert.match(capturedDto?.prompt || '', /serperSearchQueries[\s\S]*至少输出 2 条当地语言查询/);
+    assert.match(capturedDto?.prompt || '', /前 6 条 Search 查询/);
+    assert.match(capturedDto?.prompt || '', /requestBody\.hl 必须使用对应语言代码/);
   });
 
   it('lists keyword histories for the current user only', async () => {

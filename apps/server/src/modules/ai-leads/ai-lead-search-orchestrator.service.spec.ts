@@ -92,6 +92,37 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.equal(result.stopReason, '所有查询已完成');
   });
 
+  it('adds generic local-language query requirements before search orchestration keyword optimization', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          resolvedProductKeywords: '6203 bearing',
+          resolvedTargetRegions: 'South Korea, Mexico',
+          resolvedTargetCustomerProfile: 'bearing importer and distributor',
+          resolvedTargetLeadCount: null,
+          serperSearchQueries: [],
+          serperPlacesQueries: []
+        })
+      }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      createSerperClient([]) as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    await service.search(
+      { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国和墨西哥进口商和经销商' },
+      { user: createUser() }
+    );
+
+    assert.match(aiGateway.calls[0]?.prompt || '', /目标市场本地语言查询强约束/);
+    assert.match(aiGateway.calls[0]?.prompt || '', /韩国=韩语，hl=ko/);
+    assert.match(aiGateway.calls[0]?.prompt || '', /墨西哥=西班牙语，hl=es/);
+    assert.match(aiGateway.calls[0]?.prompt || '', /serperSearchQueries[\s\S]*至少输出 2 条当地语言查询/);
+    assert.match(aiGateway.calls[0]?.prompt || '', /前 6 条 Search 查询/);
+  });
+
   it('resets to page one when the decision action is requery', async () => {
     const aiGateway = createAiGateway([
       {

@@ -17,6 +17,7 @@ import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 import { AI_LEAD_KEYWORD_HISTORY_STORE } from './ai-leads.tokens';
 import type { AiLeadKeywordHistoryRecord, AiLeadKeywordHistoryStore } from './ai-leads.types';
+import { buildKeywordOptimizePrompt } from './keyword-local-language-rules';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const defaultHistorySize = 20;
@@ -37,11 +38,12 @@ export class AiLeadsService {
   /** Runs the fixed AI leads keyword optimization step with the configured system prompt. */
   async optimizeKeywords(dto: KeywordOptimizeDto, context: AiLeadsContext = {}) {
     const user = this.requireUser(context);
+    const requirement = dto.requirement.trim();
     const result = await this.aiGatewayService.generateText(
       {
         modelConfigKey: defaultAiModelConfigKey,
         promptKey: leadKeywordOptimizePromptKey,
-        prompt: dto.requirement.trim(),
+        prompt: buildKeywordOptimizePrompt(requirement),
         // 关键词优化只需要结构化建议，限制输出长度避免长时间阻塞请求。
         maxOutputTokens: keywordOptimizeMaxOutputTokens
       },
@@ -51,7 +53,7 @@ export class AiLeadsService {
     const historyRecord = await this.keywordHistoryStore.create({
       userId: user.userId,
       userName: user.userName,
-      requirement: dto.requirement.trim(),
+      requirement,
       resultText: result.text,
       keywordPlan,
       finishReason: result.finishReason,
