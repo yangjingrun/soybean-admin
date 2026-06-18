@@ -75,6 +75,63 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'crm',
+    path: '/crm',
+    component: 'layout.base',
+    meta: {
+      title: 'crm',
+      i18nKey: 'route.crm',
+      icon: 'mdi:account-box-multiple-outline',
+      order: 5
+    },
+    children: [
+      {
+        name: 'crm_email-sequences',
+        path: '/crm/email-sequences',
+        component: 'view.crm_email-sequences',
+        meta: {
+          title: 'crm_email-sequences',
+          i18nKey: 'route.crm_email-sequences',
+          icon: 'mdi:email-sync-outline',
+          order: 2
+        }
+      },
+      {
+        name: 'crm_inbox',
+        path: '/crm/inbox',
+        component: 'view.crm_inbox',
+        meta: {
+          title: 'crm_inbox',
+          i18nKey: 'route.crm_inbox',
+          icon: 'mdi:inbox-full-outline',
+          order: 3
+        }
+      },
+      {
+        name: 'crm_leads',
+        path: '/crm/leads',
+        component: 'view.crm_leads',
+        meta: {
+          title: 'crm_leads',
+          i18nKey: 'route.crm_leads',
+          icon: 'mdi:account-multiple-outline',
+          order: 1
+        }
+      },
+      {
+        name: 'crm_settings',
+        path: '/crm/settings',
+        component: 'view.crm_settings',
+        meta: {
+          title: 'crm_settings',
+          i18nKey: 'route.crm_settings',
+          icon: 'mdi:cog-outline',
+          order: 4
+        }
+      }
+    ]
+  },
+  {
     name: 'home',
     path: '/home',
     component: 'layout.base$view.home',

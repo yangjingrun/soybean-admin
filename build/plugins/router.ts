@@ -46,8 +46,52 @@ export function setupElegantRouter() {
       }
 
       if (key === 'ai-settings') {
-        meta.icon = 'mdi:robot-outline';
+        meta.icon = 'mdi:server-network-outline';
         meta.order = 3;
+        meta.roles = ['R_SUPER'];
+      }
+
+      if (key === 'ai-prompt-settings') {
+        meta.icon = 'mdi:file-document-edit-outline';
+        meta.order = 4;
+        meta.roles = ['R_SUPER'];
+      }
+
+      if (key === 'crm') {
+        meta.icon = 'mdi:account-box-multiple-outline';
+        meta.order = 5;
+      }
+
+      if (key === 'crm_leads') {
+        meta.icon = 'mdi:account-multiple-outline';
+        meta.order = 1;
+      }
+
+      if (key === 'crm_email-sequences') {
+        meta.icon = 'mdi:email-sync-outline';
+        meta.order = 2;
+      }
+
+      if (key === 'crm_inbox') {
+        meta.icon = 'mdi:inbox-full-outline';
+        meta.order = 3;
+      }
+
+      if (key === 'crm_settings') {
+        meta.icon = 'mdi:cog-outline';
+        meta.order = 4;
+      }
+
+      if (key === 'manage') {
+        meta.icon = 'carbon:cloud-service-management';
+        meta.order = 6;
+        meta.roles = ['R_SUPER'];
+      }
+
+      if (key === 'manage_user') {
+        meta.icon = 'ic:round-manage-accounts';
+        meta.order = 1;
+        meta.roles = ['R_SUPER'];
       }
 
       if (key === 'manage_system-log') {

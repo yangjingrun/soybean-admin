@@ -23,6 +23,11 @@ declare module "@elegant-router/types" {
     "ai-leads": "/ai-leads";
     "ai-prompt-settings": "/ai-prompt-settings";
     "ai-settings": "/ai-settings";
+    "crm": "/crm";
+    "crm_email-sequences": "/crm/email-sequences";
+    "crm_inbox": "/crm/inbox";
+    "crm_leads": "/crm/leads";
+    "crm_settings": "/crm/settings";
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
@@ -66,6 +71,7 @@ declare module "@elegant-router/types" {
     | "ai-leads"
     | "ai-prompt-settings"
     | "ai-settings"
+    | "crm"
     | "home"
     | "iframe-page"
     | "login"
@@ -94,6 +100,10 @@ declare module "@elegant-router/types" {
     | "ai-leads"
     | "ai-prompt-settings"
     | "ai-settings"
+    | "crm_email-sequences"
+    | "crm_inbox"
+    | "crm_leads"
+    | "crm_settings"
     | "home"
     | "manage_system-log"
     | "manage_user"
