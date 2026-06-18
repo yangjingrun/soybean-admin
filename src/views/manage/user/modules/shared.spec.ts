@@ -1,12 +1,22 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildSystemUserSearchParams, createDefaultUserFilterModel } from './shared';
+import {
+  buildSystemUserSearchParams,
+  createDefaultUserFilterModel,
+  formatUserDateTime,
+  getUserExpirationState,
+  getUserLockedState,
+  userExpirationLabelMap,
+  userStatusLabelMap
+} from './shared';
 
 describe('system user shared helpers', () => {
   it('creates an empty user filter model', () => {
     assert.deepEqual(createDefaultUserFilterModel(), {
       keyword: '',
-      role: null
+      role: null,
+      status: null,
+      expirationStatus: null
     });
   });
 
@@ -17,15 +27,56 @@ describe('system user shared helpers', () => {
         size: 20,
         filterModel: {
           keyword: ' Super ',
-          role: 'R_SUPER'
+          role: 'R_SUPER',
+          status: 'enabled',
+          expirationStatus: 'active'
         }
       }),
       {
         current: 2,
         size: 20,
         keyword: 'Super',
-        role: 'R_SUPER'
+        role: 'R_SUPER',
+        status: 'enabled',
+        expirationStatus: 'active'
       }
     );
+  });
+
+  it('skips empty optional search filters', () => {
+    assert.deepEqual(
+      buildSystemUserSearchParams({
+        current: 1,
+        size: 10,
+        filterModel: createDefaultUserFilterModel()
+      }),
+      {
+        current: 1,
+        size: 10
+      }
+    );
+  });
+
+  it('exposes labels for enabled, disabled and expiration states', () => {
+    assert.equal(userStatusLabelMap.enabled, '启用');
+    assert.equal(userStatusLabelMap.disabled, '禁用');
+    assert.equal(userExpirationLabelMap.active, '有效');
+    assert.equal(userExpirationLabelMap.expired, '已过期');
+  });
+
+  it('reads expiration and lock display state from row flags', () => {
+    assert.deepEqual(getUserExpirationState({ expired: false } as Api.SystemUser.UserListItem), {
+      label: '有效',
+      type: 'success'
+    });
+    assert.deepEqual(getUserLockedState({ locked: true } as Api.SystemUser.UserListItem), {
+      label: '已锁定',
+      type: 'error'
+    });
+  });
+
+  it('formats nullable user datetime values', () => {
+    assert.equal(formatUserDateTime('2026-06-18T10:11:12.000+08:00'), '2026-06-18 10:11:12');
+    assert.equal(formatUserDateTime(null), '-');
   });
 });

@@ -1,23 +1,70 @@
 declare namespace Api {
   namespace SystemUser {
-    type UserStatus = 'enabled';
+    type UserRole = 'R_SUPER' | 'R_ADMIN' | 'R_USER';
+
+    type UserStatus = 'enabled' | 'disabled';
+
+    type UserExpirationStatus = 'expired' | 'active';
 
     interface UserListItem {
-      userId: string;
+      id: string;
       userName: string;
-      roles: string[];
-      buttons: string[];
+      nickName: string | null;
+      phone: string | null;
+      email: string | null;
+      roles: UserRole[];
       status: UserStatus;
+      companyName: string | null;
+      expireAt: string | null;
+      remark: string | null;
+      lastLoginAt: string | null;
+      lastLoginIp: string | null;
+      lockedUntil: string | null;
+      expired: boolean;
+      locked: boolean;
+      createdAt: string;
+      updatedAt: string;
     }
 
     interface UserSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
-      role?: string;
+      role?: UserRole;
+      status?: UserStatus;
+      expirationStatus?: UserExpirationStatus;
     }
 
     interface UserFilterModel {
       keyword: string;
-      role: string | null;
+      role: UserRole | null;
+      status: UserStatus | null;
+      expirationStatus: UserExpirationStatus | null;
+    }
+
+    interface UserOperatePayload {
+      userName: string;
+      nickName?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      roles: UserRole[];
+      status?: UserStatus;
+      companyName?: string | null;
+      expireAt?: string | null;
+      remark?: string | null;
+    }
+
+    type UserCreatePayload = UserOperatePayload;
+
+    type UserUpdatePayload = Partial<UserOperatePayload> & {
+      roles?: UserRole[];
+    };
+
+    interface UserStatusPayload {
+      status: UserStatus;
+    }
+
+    interface UserWithTemporaryPassword {
+      user: UserListItem;
+      temporaryPassword: string;
     }
 
     type UserList = Api.Common.PaginatingQueryRecord<UserListItem>;
