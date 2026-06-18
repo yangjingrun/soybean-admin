@@ -4,6 +4,7 @@ import {
   buildKeywordHistoryUpdatePayload,
   createKeywordOptimizationViewModel,
   createAiResultFromKeywordHistory,
+  formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
   parseKeywordOptimizationPlan
 } from './shared';
@@ -142,5 +143,12 @@ describe('ai leads keyword optimization helpers', () => {
 
     assert.equal(payload.requirement, '更新后的需求');
     assert.equal(payload.keywordPlan.resolvedProductKeywords, '6204 bearing supplier');
+  });
+
+  it('formats AI finish reason for user-facing display', () => {
+    assert.equal(formatAiFinishReason('stop'), '正常完成');
+    assert.equal(formatAiFinishReason('length'), '输出被截断');
+    assert.equal(formatAiFinishReason('content_filter'), '内容被过滤');
+    assert.equal(formatAiFinishReason(''), '');
   });
 });

@@ -1,6 +1,7 @@
 export interface KeywordOptimizationSummaryItem {
   label: string;
   value: string;
+  width?: string | number;
 }
 
 export interface KeywordOptimizationQueryRow {
@@ -73,9 +74,32 @@ const businessGlossary = [
   ['Owner', '负责人']
 ] as const;
 
+const aiFinishReasonLabels: Record<string, string> = {
+  stop: '正常完成',
+  length: '输出被截断',
+  content_filter: '内容被过滤',
+  'content-filter': '内容被过滤',
+  tool_calls: '工具调用完成',
+  'tool-calls': '工具调用完成',
+  error: '生成异常',
+  other: '已结束',
+  unknown: '状态待确认'
+};
+
 /** Parses the AI keyword optimization result into the agreed structured JSON plan. */
 export function parseKeywordOptimizationPlan(text: string): Api.AiLeads.OptimizedKeywordPlan {
   return JSON.parse(text) as Api.AiLeads.OptimizedKeywordPlan;
+}
+
+/** Converts raw AI finish reasons into user-facing status text. */
+export function formatAiFinishReason(reason?: string | null) {
+  const normalizedReason = reason?.trim();
+
+  if (!normalizedReason) {
+    return '';
+  }
+
+  return aiFinishReasonLabels[normalizedReason] || '已结束';
 }
 
 /** Restores the AI text result shape used by the result panel from one saved history. */
@@ -110,7 +134,7 @@ export function createKeywordOptimizationViewModel(
 ): KeywordOptimizationViewModel {
   return {
     summaryItems: [
-      { label: '需求归纳', value: annotateBusinessTerms(plan.structuredRequirement) },
+      { label: '需求归纳', value: annotateBusinessTerms(plan.structuredRequirement), width: '100%' },
       { label: '产品关键词', value: annotateBusinessTerms(plan.resolvedProductKeywords) },
       { label: '目标市场', value: annotateBusinessTerms(plan.resolvedTargetRegions) },
       { label: '客户画像', value: annotateBusinessTerms(plan.resolvedTargetCustomerProfile) }

@@ -16,6 +16,7 @@ import {
   cloneKeywordPlan,
   createAiResultFromKeywordHistory,
   createKeywordOptimizationViewModel,
+  formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
   parseKeywordOptimizationPlan
 } from './modules/shared';
@@ -66,6 +67,7 @@ const keywordOptimizationViewModel = computed(() =>
     ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, isSuperAdmin.value)
     : null
 );
+const aiFinishReasonLabel = computed(() => formatAiFinishReason(aiResult.value?.finishReason));
 const currentHistoryRecord = computed(
   () => historyRecords.value.find(record => record.id === selectedHistoryId.value) || null
 );
@@ -342,7 +344,7 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
               历史
             </NButton>
             <template v-if="aiResult && (isSuperAdmin || keywordOptimizationViewModel)">
-              <NTag size="small" type="success">{{ aiResult.finishReason }}</NTag>
+              <NTag v-if="aiFinishReasonLabel" size="small" type="success">{{ aiFinishReasonLabel }}</NTag>
               <NButton v-if="!isEditingResult" size="small" @click="handleStartEdit">
                 <template #icon>
                   <SvgIcon icon="material-symbols:edit-outline" />
