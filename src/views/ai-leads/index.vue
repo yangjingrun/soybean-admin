@@ -335,7 +335,12 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
     <NCard :bordered="false" size="small" class="card-wrapper result-card" content-class="result-card-content">
       <template #header>
         <div class="result-header">
-          <span class="result-title">{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
+          <div class="result-heading">
+            <span class="result-title">{{ searchResult ? '搜索采集结果' : '关键词优化结果' }}</span>
+            <NTag v-if="aiResult && aiFinishReasonLabel" size="small" type="success">
+              {{ aiFinishReasonLabel }}
+            </NTag>
+          </div>
           <NSpace :size="8" class="result-actions">
             <NButton size="small" secondary :loading="isHistoryLoading" @click="isHistoryDrawerVisible = true">
               <template #icon>
@@ -344,7 +349,6 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
               历史
             </NButton>
             <template v-if="aiResult && (isSuperAdmin || keywordOptimizationViewModel)">
-              <NTag v-if="aiFinishReasonLabel" size="small" type="success">{{ aiFinishReasonLabel }}</NTag>
               <NButton v-if="!isEditingResult" size="small" @click="handleStartEdit">
                 <template #icon>
                   <SvgIcon icon="material-symbols:edit-outline" />
@@ -495,6 +499,14 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   border-radius: 999px;
   background: var(--ai-leads-primary);
   content: '';
+}
+
+.result-heading {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .lead-form {
