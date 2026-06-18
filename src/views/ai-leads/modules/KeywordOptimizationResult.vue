@@ -55,6 +55,11 @@ function updateSegmentList(
     .map(item => item.trim())
     .filter(Boolean);
 }
+
+/** Returns a stable accent class for buyer segment groups. */
+function getBuyerSegmentToneClass(index: number) {
+  return `buyer-segment-tone-${(index % 4) + 1}`;
+}
 </script>
 
 <template>
@@ -101,7 +106,12 @@ function updateSegmentList(
           <NButton size="tiny" secondary @click="addBuyerSegment">新增</NButton>
         </div>
         <NSpace vertical :size="10">
-          <div v-for="(segment, index) in keywordPlan.buyerSegments" :key="index" class="buyer-segment editor">
+          <div
+            v-for="(segment, index) in keywordPlan.buyerSegments"
+            :key="index"
+            class="buyer-segment editor"
+            :class="getBuyerSegmentToneClass(index)"
+          >
             <div class="buyer-segment-header">
               <NInput v-model:value="segment.buyerType" placeholder="客户类型" />
               <NButton size="tiny" quaternary type="error" @click="removeBuyerSegment(index)">删除</NButton>
@@ -147,8 +157,8 @@ function updateSegmentList(
     <section v-if="!editable" class="keyword-section">
       <div class="section-title">买家类型</div>
       <NGrid :x-gap="12" :y-gap="12" responsive="screen" item-responsive>
-        <NGi v-for="segment in viewModel.buyerSegments" :key="segment.buyerType" span="24 m:12 xl:8">
-          <div class="buyer-segment">
+        <NGi v-for="(segment, index) in viewModel.buyerSegments" :key="segment.buyerType" span="24 m:12 xl:8">
+          <div class="buyer-segment" :class="getBuyerSegmentToneClass(index)">
             <div class="buyer-segment-header">
               <NText strong>{{ segment.buyerType }}</NText>
               <NTag size="small" type="info" :bordered="false">{{ segment.priorityLevel }}</NTag>
@@ -215,13 +225,50 @@ function updateSegmentList(
 }
 
 .buyer-segment {
+  position: relative;
   display: flex;
   min-height: 156px;
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--n-border-color);
+  overflow: hidden;
+  border: 1px solid var(--buyer-segment-border);
+  border-left: 4px solid var(--buyer-segment-accent);
   border-radius: 8px;
+  background: var(--buyer-segment-bg);
+  box-shadow: 0 6px 18px rgb(15 23 42 / 4%);
+}
+
+.buyer-segment::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--buyer-segment-accent);
+  content: '';
+}
+
+.buyer-segment-tone-1 {
+  --buyer-segment-bg: #f5f8ff;
+  --buyer-segment-border: #cfdbff;
+  --buyer-segment-accent: #5b75ff;
+}
+
+.buyer-segment-tone-2 {
+  --buyer-segment-bg: #f2fbf8;
+  --buyer-segment-border: #bfeade;
+  --buyer-segment-accent: #16a085;
+}
+
+.buyer-segment-tone-3 {
+  --buyer-segment-bg: #fff9ee;
+  --buyer-segment-border: #f3d6a3;
+  --buyer-segment-accent: #d99022;
+}
+
+.buyer-segment-tone-4 {
+  --buyer-segment-bg: #fff5f8;
+  --buyer-segment-border: #f1c4d3;
+  --buyer-segment-accent: #d95f8d;
 }
 
 .buyer-segment.editor {
