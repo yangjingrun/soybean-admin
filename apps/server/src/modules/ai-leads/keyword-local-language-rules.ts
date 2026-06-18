@@ -5,6 +5,21 @@ interface MarketLanguageRule {
   aliases: string[];
 }
 
+interface KeywordPlanWithQueries {
+  serperSearchQueries?: SerperQueryLike[];
+  serperPlacesQueries?: SerperQueryLike[];
+  serperMapsQueries?: SerperQueryLike[];
+}
+
+interface SerperQueryLike {
+  requestBody?: {
+    q?: unknown;
+    hl?: unknown;
+  };
+  q?: unknown;
+  hl?: unknown;
+}
+
 const marketLanguageRules: MarketLanguageRule[] = [
   {
     marketName: '韩国',
@@ -150,10 +165,66 @@ export function buildKeywordOptimizePrompt(requirement: string) {
 - 如果查询数量冲突，优先替换低优先级的英文 supplier / general supplier 查询，而不是删除 importer、distributor、dealer、stockist 主线索。`;
 }
 
+/** Validates local-language query coverage for non-English target markets. */
+export function validateKeywordPlanLocalLanguages(requirement: string, plan: unknown) {
+  const detectedRules = detectMarketLanguageRules(requirement);
+
+  if (!detectedRules.length || !plan || typeof plan !== 'object') {
+    return [];
+  }
+
+  const keywordPlan = plan as KeywordPlanWithQueries;
+  const searchQueries = keywordPlan.serperSearchQueries ?? [];
+  const placesQueries = keywordPlan.serperPlacesQueries ?? keywordPlan.serperMapsQueries ?? [];
+
+  return detectedRules.flatMap(rule => {
+    const issues: string[] = [];
+    const localSearchCount = countLocalLanguageQueries(searchQueries, rule.languageCode);
+    const localSearchInFirstPage = searchQueries
+      .slice(0, 6)
+      .some(query => isLocalLanguageQuery(query, rule.languageCode));
+    const localPlacesCount = countLocalLanguageQueries(placesQueries, rule.languageCode);
+
+    if (localSearchCount < 2) {
+      issues.push(`关键词优化结果缺少${rule.marketName}${rule.languageName} Search 查询，至少需要 2 条`);
+    }
+
+    if (detectedRules.length === 1 && !localSearchInFirstPage) {
+      issues.push(`关键词优化结果前 6 条 Search 查询缺少${rule.marketName}${rule.languageName}查询`);
+    }
+
+    if (placesQueries.length > 0 && localPlacesCount < 2) {
+      issues.push(`关键词优化结果缺少${rule.marketName}${rule.languageName} Places 查询，至少需要 2 条`);
+    }
+
+    return issues;
+  });
+}
+
 function detectMarketLanguageRules(requirement: string) {
   const normalizedRequirement = requirement.toLowerCase();
 
   return marketLanguageRules.filter(rule =>
     rule.aliases.some(alias => normalizedRequirement.includes(alias.toLowerCase()))
   );
+}
+
+function countLocalLanguageQueries(queries: SerperQueryLike[], languageCode: string) {
+  return queries.filter(query => isLocalLanguageQuery(query, languageCode)).length;
+}
+
+function isLocalLanguageQuery(query: SerperQueryLike, languageCode: string) {
+  return readQueryText(query).length > 0 && readQueryLanguage(query) === languageCode;
+}
+
+function readQueryText(query: SerperQueryLike) {
+  const value = query.requestBody?.q ?? query.q;
+
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readQueryLanguage(query: SerperQueryLike) {
+  const value = query.requestBody?.hl ?? query.hl;
+
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }

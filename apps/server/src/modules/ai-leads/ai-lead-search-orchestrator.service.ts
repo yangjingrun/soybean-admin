@@ -11,7 +11,7 @@ import { SerperClient, type SerperEndpoint, type SerperRequestBody } from '../ai
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
-import { buildKeywordOptimizePrompt } from './keyword-local-language-rules';
+import { buildKeywordOptimizePrompt, validateKeywordPlanLocalLanguages } from './keyword-local-language-rules';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -118,6 +118,7 @@ export class AiLeadSearchOrchestrator {
       context
     );
     const keywordOptimization = parseJsonObject<OptimizedKeywordPlan>(keywordOptimizationText.text, '关键词优化结果');
+    assertKeywordPlanLocalLanguages(requirement, keywordOptimization);
     const targetLeadCount = dto.targetLeadCountOverride ?? keywordOptimization.resolvedTargetLeadCount ?? null;
     const queryQueue = this.toInitialRequests(keywordOptimization);
     const executedKeys = new Set<string>();
@@ -392,6 +393,14 @@ function parseJsonObject<T>(text: string, label: string): T {
     return value as T;
   } catch {
     throw new BadGatewayException(`${label}不是合法 JSON`);
+  }
+}
+
+function assertKeywordPlanLocalLanguages(requirement: string, keywordPlan: OptimizedKeywordPlan) {
+  const issues = validateKeywordPlanLocalLanguages(requirement, keywordPlan);
+
+  if (issues.length > 0) {
+    throw new BadGatewayException(issues.join('；'));
   }
 }
 

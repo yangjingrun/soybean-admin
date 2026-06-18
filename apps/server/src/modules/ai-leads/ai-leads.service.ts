@@ -17,7 +17,7 @@ import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 import { AI_LEAD_KEYWORD_HISTORY_STORE } from './ai-leads.tokens';
 import type { AiLeadKeywordHistoryRecord, AiLeadKeywordHistoryStore } from './ai-leads.types';
-import { buildKeywordOptimizePrompt } from './keyword-local-language-rules';
+import { buildKeywordOptimizePrompt, validateKeywordPlanLocalLanguages } from './keyword-local-language-rules';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const defaultHistorySize = 20;
@@ -50,6 +50,7 @@ export class AiLeadsService {
       context
     );
     const keywordPlan = parseKeywordPlan(result.text);
+    assertKeywordPlanLocalLanguages(requirement, keywordPlan);
     const historyRecord = await this.keywordHistoryStore.create({
       userId: user.userId,
       userName: user.userName,
@@ -170,6 +171,14 @@ function parseKeywordPlan(text: string) {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new BadGatewayException('关键词优化结果不是合法 JSON');
+  }
+}
+
+function assertKeywordPlanLocalLanguages(requirement: string, keywordPlan: Record<string, unknown>) {
+  const issues = validateKeywordPlanLocalLanguages(requirement, keywordPlan);
+
+  if (issues.length > 0) {
+    throw new BadGatewayException(issues.join('；'));
   }
 }
 

@@ -77,7 +77,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    const result = await service.search({ requirement: '找沙特轴承进口商' }, { user: createUser() });
+    const result = await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
 
     assert.deepEqual(
       serper.calls.map(call => call.request.page),
@@ -100,7 +100,52 @@ describe('AiLeadSearchOrchestrator', () => {
           resolvedTargetRegions: 'South Korea, Mexico',
           resolvedTargetCustomerProfile: 'bearing importer and distributor',
           resolvedTargetLeadCount: null,
-          serperSearchQueries: [],
+          serperSearchQueries: [
+            {
+              endpoint: 'search',
+              requestBody: {
+                q: '6203 베어링 수입업체 한국',
+                gl: 'kr',
+                hl: 'ko',
+                location: 'South Korea',
+                num: 10,
+                page: 1
+              }
+            },
+            {
+              endpoint: 'search',
+              requestBody: {
+                q: '베어링 유통업체 서울',
+                gl: 'kr',
+                hl: 'ko',
+                location: 'Seoul, South Korea',
+                num: 10,
+                page: 1
+              }
+            },
+            {
+              endpoint: 'search',
+              requestBody: {
+                q: 'importador de rodamientos Mexico',
+                gl: 'mx',
+                hl: 'es',
+                location: 'Mexico',
+                num: 10,
+                page: 1
+              }
+            },
+            {
+              endpoint: 'search',
+              requestBody: {
+                q: 'distribuidor de rodamientos Monterrey',
+                gl: 'mx',
+                hl: 'es',
+                location: 'Monterrey, Mexico',
+                num: 10,
+                page: 1
+              }
+            }
+          ],
           serperPlacesQueries: []
         })
       }
@@ -112,7 +157,7 @@ describe('AiLeadSearchOrchestrator', () => {
     );
 
     await service.search(
-      { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国和墨西哥进口商和经销商' },
+      { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国和墨西哥进口商和经销商', maxSearchRequests: 0 },
       { user: createUser() }
     );
 
@@ -121,6 +166,67 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.match(aiGateway.calls[0]?.prompt || '', /墨西哥=西班牙语，hl=es/);
     assert.match(aiGateway.calls[0]?.prompt || '', /serperSearchQueries[\s\S]*至少输出 2 条当地语言查询/);
     assert.match(aiGateway.calls[0]?.prompt || '', /前 6 条 Search 查询/);
+  });
+
+  it('rejects keyword plans missing required local-language Search queries before calling Serper', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          resolvedProductKeywords: '6203 bearing',
+          resolvedTargetRegions: 'South Korea',
+          resolvedTargetCustomerProfile: 'bearing importer and distributor',
+          resolvedTargetLeadCount: null,
+          serperSearchQueries: [
+            {
+              endpoint: 'search',
+              requestBody: {
+                q: '6203 bearing importer South Korea',
+                gl: 'kr',
+                hl: 'en',
+                location: 'South Korea',
+                num: 10,
+                page: 1
+              }
+            }
+          ],
+          serperPlacesQueries: []
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'kr',
+              hl: 'en',
+              location: 'South Korea',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([{ organic: [] }]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    await assert.rejects(
+      () =>
+        service.search(
+          { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国进口商和经销商' },
+          { user: createUser() }
+        ),
+      /关键词优化结果缺少韩国韩语 Search 查询/
+    );
+    assert.equal(serper.calls.length, 0);
   });
 
   it('resets to page one when the decision action is requery', async () => {
@@ -187,7 +293,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    await service.search({ requirement: '找沙特轴承进口商' }, { user: createUser() });
+    await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
 
     assert.deepEqual(
       serper.calls.map(call => call.request),
@@ -299,7 +405,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    await service.search({ requirement: '找沙特轴承进口商' }, { user: createUser() });
+    await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
 
     assert.deepEqual(
       serper.calls.map(call => call.endpoint),
@@ -370,7 +476,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    const result = await service.search({ requirement: '找沙特轴承进口商' }, { user: createUser() });
+    const result = await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
 
     assert.equal(serper.calls.length, 1);
     assert.equal(result.stopReason, '所有查询已完成');

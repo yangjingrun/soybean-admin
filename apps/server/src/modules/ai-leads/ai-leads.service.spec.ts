@@ -19,14 +19,128 @@ const keywordPlan = {
   resolvedTargetLeadCount: null,
   structuredRequirement: '寻找沙特轴承进口商',
   buyerSegments: [],
-  serperSearchQueries: [],
-  serperPlacesQueries: [],
+  serperSearchQueries: [
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: '6204 bearing importer Saudi Arabia',
+        gl: 'sa',
+        hl: 'en',
+        location: 'Saudi Arabia',
+        num: 10,
+        page: 1
+      },
+      meta: { priority: '高' }
+    },
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: 'مستورد محامل السعودية',
+        gl: 'sa',
+        hl: 'ar',
+        location: 'Saudi Arabia',
+        num: 10,
+        page: 1
+      },
+      meta: { priority: '高' }
+    },
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: 'موزع محامل الرياض',
+        gl: 'sa',
+        hl: 'ar',
+        location: 'Riyadh, Saudi Arabia',
+        num: 10,
+        page: 1
+      },
+      meta: { priority: '高' }
+    }
+  ],
+  serperPlacesQueries: [
+    {
+      endpoint: 'places',
+      requestBody: {
+        q: 'مورد محامل الرياض',
+        gl: 'sa',
+        hl: 'ar',
+        location: 'Riyadh, Saudi Arabia',
+        num: 10,
+        page: 1
+      },
+      meta: { priority: '高' }
+    },
+    {
+      endpoint: 'places',
+      requestBody: {
+        q: 'محل محامل جدة',
+        gl: 'sa',
+        hl: 'ar',
+        location: 'Jeddah, Saudi Arabia',
+        num: 10,
+        page: 1
+      },
+      meta: { priority: '中' }
+    }
+  ],
   searchExecutionRules: {
     keep: [],
     exclude: [],
     websiteCheckPages: [],
     dedupeKeys: []
   }
+};
+
+const koreaMexicoKeywordPlan = {
+  ...keywordPlan,
+  resolvedTargetRegions: '韩国、墨西哥',
+  serperSearchQueries: [
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: '6203 베어링 수입업체 한국',
+        gl: 'kr',
+        hl: 'ko',
+        location: 'South Korea',
+        num: 10,
+        page: 1
+      }
+    },
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: '베어링 유통업체 서울',
+        gl: 'kr',
+        hl: 'ko',
+        location: 'Seoul, South Korea',
+        num: 10,
+        page: 1
+      }
+    },
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: 'importador de rodamientos Mexico',
+        gl: 'mx',
+        hl: 'es',
+        location: 'Mexico',
+        num: 10,
+        page: 1
+      }
+    },
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: 'distribuidor de rodamientos Monterrey',
+        gl: 'mx',
+        hl: 'es',
+        location: 'Monterrey, Mexico',
+        num: 10,
+        page: 1
+      }
+    }
+  ],
+  serperPlacesQueries: []
 };
 
 describe('AiLeadsService', () => {
@@ -120,7 +234,7 @@ describe('AiLeadsService', () => {
         capturedDto = dto;
 
         return {
-          text: JSON.stringify(keywordPlan),
+          text: JSON.stringify(koreaMexicoKeywordPlan),
           finishReason: 'stop',
           usage: {
             inputTokens: 12,
@@ -145,6 +259,61 @@ describe('AiLeadsService', () => {
     assert.match(capturedDto?.prompt || '', /serperSearchQueries[\s\S]*至少输出 2 条当地语言查询/);
     assert.match(capturedDto?.prompt || '', /前 6 条 Search 查询/);
     assert.match(capturedDto?.prompt || '', /requestBody\.hl 必须使用对应语言代码/);
+  });
+
+  it('rejects keyword plans missing required local-language Search queries', async () => {
+    let saved = false;
+    const aiGatewayService = {
+      async generateText() {
+        return {
+          text: JSON.stringify({
+            ...keywordPlan,
+            serperSearchQueries: [
+              {
+                endpoint: 'search',
+                requestBody: {
+                  q: '6203 bearing importer South Korea',
+                  gl: 'kr',
+                  hl: 'en',
+                  location: 'South Korea',
+                  num: 10,
+                  page: 1
+                }
+              }
+            ],
+            serperPlacesQueries: []
+          }),
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 12,
+            outputTokens: 8,
+            totalTokens: 20
+          }
+        };
+      }
+    } as unknown as AiGatewayService;
+    const service = new AiLeadsService(
+      aiGatewayService,
+      createHistoryStore({
+        async create(input) {
+          saved = true;
+
+          return createHistoryRecord(input);
+        }
+      })
+    );
+
+    await assert.rejects(
+      () =>
+        service.optimizeKeywords(
+          {
+            requirement: '我是河北卖轴承的，找韩国进口商和经销商'
+          },
+          { user }
+        ),
+      /关键词优化结果缺少韩国韩语 Search 查询/
+    );
+    assert.equal(saved, false);
   });
 
   it('lists keyword histories for the current user only', async () => {
