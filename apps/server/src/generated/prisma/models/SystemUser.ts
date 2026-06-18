@@ -40,6 +40,8 @@ export type SystemUserMinAggregateOutputType = {
   phone: string | null;
   email: string | null;
   status: string | null;
+  organizationId: string | null;
+  organizationRole: string | null;
   companyName: string | null;
   expireAt: Date | null;
   remark: string | null;
@@ -61,6 +63,8 @@ export type SystemUserMaxAggregateOutputType = {
   phone: string | null;
   email: string | null;
   status: string | null;
+  organizationId: string | null;
+  organizationRole: string | null;
   companyName: string | null;
   expireAt: Date | null;
   remark: string | null;
@@ -83,6 +87,8 @@ export type SystemUserCountAggregateOutputType = {
   email: number;
   roles: number;
   status: number;
+  organizationId: number;
+  organizationRole: number;
   companyName: number;
   expireAt: number;
   remark: number;
@@ -113,6 +119,8 @@ export type SystemUserMinAggregateInputType = {
   phone?: true;
   email?: true;
   status?: true;
+  organizationId?: true;
+  organizationRole?: true;
   companyName?: true;
   expireAt?: true;
   remark?: true;
@@ -134,6 +142,8 @@ export type SystemUserMaxAggregateInputType = {
   phone?: true;
   email?: true;
   status?: true;
+  organizationId?: true;
+  organizationRole?: true;
   companyName?: true;
   expireAt?: true;
   remark?: true;
@@ -156,6 +166,8 @@ export type SystemUserCountAggregateInputType = {
   email?: true;
   roles?: true;
   status?: true;
+  organizationId?: true;
+  organizationRole?: true;
   companyName?: true;
   expireAt?: true;
   remark?: true;
@@ -266,6 +278,8 @@ export type SystemUserGroupByOutputType = {
   email: string | null;
   roles: string[];
   status: string;
+  organizationId: string;
+  organizationRole: string;
   companyName: string | null;
   expireAt: Date | null;
   remark: string | null;
@@ -308,6 +322,8 @@ export type SystemUserWhereInput = {
   email?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
   roles?: Prisma.StringNullableListFilter<'SystemUser'>;
   status?: Prisma.StringFilter<'SystemUser'> | string;
+  organizationId?: Prisma.StringFilter<'SystemUser'> | string;
+  organizationRole?: Prisma.StringFilter<'SystemUser'> | string;
   companyName?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
   expireAt?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
   remark?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
@@ -320,6 +336,7 @@ export type SystemUserWhereInput = {
   passwordResetAt?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
   createdAt?: Prisma.DateTimeFilter<'SystemUser'> | Date | string;
   updatedAt?: Prisma.DateTimeFilter<'SystemUser'> | Date | string;
+  organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>;
 };
 
 export type SystemUserOrderByWithRelationInput = {
@@ -330,6 +347,8 @@ export type SystemUserOrderByWithRelationInput = {
   email?: Prisma.SortOrderInput | Prisma.SortOrder;
   roles?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   companyName?: Prisma.SortOrderInput | Prisma.SortOrder;
   expireAt?: Prisma.SortOrderInput | Prisma.SortOrder;
   remark?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -342,6 +361,7 @@ export type SystemUserOrderByWithRelationInput = {
   passwordResetAt?: Prisma.SortOrderInput | Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
   updatedAt?: Prisma.SortOrder;
+  organization?: Prisma.OrganizationOrderByWithRelationInput;
 };
 
 export type SystemUserWhereUniqueInput = Prisma.AtLeast<
@@ -356,6 +376,8 @@ export type SystemUserWhereUniqueInput = Prisma.AtLeast<
     email?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
     roles?: Prisma.StringNullableListFilter<'SystemUser'>;
     status?: Prisma.StringFilter<'SystemUser'> | string;
+    organizationId?: Prisma.StringFilter<'SystemUser'> | string;
+    organizationRole?: Prisma.StringFilter<'SystemUser'> | string;
     companyName?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
     expireAt?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
     remark?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
@@ -368,6 +390,7 @@ export type SystemUserWhereUniqueInput = Prisma.AtLeast<
     passwordResetAt?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
     createdAt?: Prisma.DateTimeFilter<'SystemUser'> | Date | string;
     updatedAt?: Prisma.DateTimeFilter<'SystemUser'> | Date | string;
+    organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>;
   },
   'id' | 'userName'
 >;
@@ -380,6 +403,8 @@ export type SystemUserOrderByWithAggregationInput = {
   email?: Prisma.SortOrderInput | Prisma.SortOrder;
   roles?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   companyName?: Prisma.SortOrderInput | Prisma.SortOrder;
   expireAt?: Prisma.SortOrderInput | Prisma.SortOrder;
   remark?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -410,6 +435,8 @@ export type SystemUserScalarWhereWithAggregatesInput = {
   email?: Prisma.StringNullableWithAggregatesFilter<'SystemUser'> | string | null;
   roles?: Prisma.StringNullableListFilter<'SystemUser'>;
   status?: Prisma.StringWithAggregatesFilter<'SystemUser'> | string;
+  organizationId?: Prisma.StringWithAggregatesFilter<'SystemUser'> | string;
+  organizationRole?: Prisma.StringWithAggregatesFilter<'SystemUser'> | string;
   companyName?: Prisma.StringNullableWithAggregatesFilter<'SystemUser'> | string | null;
   expireAt?: Prisma.DateTimeNullableWithAggregatesFilter<'SystemUser'> | Date | string | null;
   remark?: Prisma.StringNullableWithAggregatesFilter<'SystemUser'> | string | null;
@@ -432,6 +459,7 @@ export type SystemUserCreateInput = {
   email?: string | null;
   roles?: Prisma.SystemUserCreaterolesInput | string[];
   status?: string;
+  organizationRole?: string;
   companyName?: string | null;
   expireAt?: Date | string | null;
   remark?: string | null;
@@ -444,6 +472,7 @@ export type SystemUserCreateInput = {
   passwordResetAt?: Date | string | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
+  organization?: Prisma.OrganizationCreateNestedOneWithoutUsersInput;
 };
 
 export type SystemUserUncheckedCreateInput = {
@@ -454,6 +483,8 @@ export type SystemUserUncheckedCreateInput = {
   email?: string | null;
   roles?: Prisma.SystemUserCreaterolesInput | string[];
   status?: string;
+  organizationId?: string;
+  organizationRole?: string;
   companyName?: string | null;
   expireAt?: Date | string | null;
   remark?: string | null;
@@ -476,6 +507,7 @@ export type SystemUserUpdateInput = {
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   roles?: Prisma.SystemUserUpdaterolesInput | string[];
   status?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -488,6 +520,7 @@ export type SystemUserUpdateInput = {
   passwordResetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput;
 };
 
 export type SystemUserUncheckedUpdateInput = {
@@ -498,6 +531,8 @@ export type SystemUserUncheckedUpdateInput = {
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   roles?: Prisma.SystemUserUpdaterolesInput | string[];
   status?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -520,6 +555,8 @@ export type SystemUserCreateManyInput = {
   email?: string | null;
   roles?: Prisma.SystemUserCreaterolesInput | string[];
   status?: string;
+  organizationId?: string;
+  organizationRole?: string;
   companyName?: string | null;
   expireAt?: Date | string | null;
   remark?: string | null;
@@ -542,6 +579,7 @@ export type SystemUserUpdateManyMutationInput = {
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   roles?: Prisma.SystemUserUpdaterolesInput | string[];
   status?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -564,6 +602,8 @@ export type SystemUserUncheckedUpdateManyInput = {
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   roles?: Prisma.SystemUserUpdaterolesInput | string[];
   status?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -594,6 +634,8 @@ export type SystemUserCountOrderByAggregateInput = {
   email?: Prisma.SortOrder;
   roles?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   companyName?: Prisma.SortOrder;
   expireAt?: Prisma.SortOrder;
   remark?: Prisma.SortOrder;
@@ -619,6 +661,8 @@ export type SystemUserMaxOrderByAggregateInput = {
   phone?: Prisma.SortOrder;
   email?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   companyName?: Prisma.SortOrder;
   expireAt?: Prisma.SortOrder;
   remark?: Prisma.SortOrder;
@@ -640,6 +684,8 @@ export type SystemUserMinOrderByAggregateInput = {
   phone?: Prisma.SortOrder;
   email?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   companyName?: Prisma.SortOrder;
   expireAt?: Prisma.SortOrder;
   remark?: Prisma.SortOrder;
@@ -656,6 +702,16 @@ export type SystemUserMinOrderByAggregateInput = {
 
 export type SystemUserSumOrderByAggregateInput = {
   failedLoginCount?: Prisma.SortOrder;
+};
+
+export type SystemUserListRelationFilter = {
+  every?: Prisma.SystemUserWhereInput;
+  some?: Prisma.SystemUserWhereInput;
+  none?: Prisma.SystemUserWhereInput;
+};
+
+export type SystemUserOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder;
 };
 
 export type SystemUserCreaterolesInput = {
@@ -679,6 +735,298 @@ export type IntFieldUpdateOperationsInput = {
   divide?: number;
 };
 
+export type SystemUserCreateNestedManyWithoutOrganizationInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.SystemUserCreateWithoutOrganizationInput,
+        Prisma.SystemUserUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.SystemUserCreateWithoutOrganizationInput[]
+    | Prisma.SystemUserUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput[];
+  createMany?: Prisma.SystemUserCreateManyOrganizationInputEnvelope;
+  connect?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+};
+
+export type SystemUserUncheckedCreateNestedManyWithoutOrganizationInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.SystemUserCreateWithoutOrganizationInput,
+        Prisma.SystemUserUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.SystemUserCreateWithoutOrganizationInput[]
+    | Prisma.SystemUserUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput[];
+  createMany?: Prisma.SystemUserCreateManyOrganizationInputEnvelope;
+  connect?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+};
+
+export type SystemUserUpdateManyWithoutOrganizationNestedInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.SystemUserCreateWithoutOrganizationInput,
+        Prisma.SystemUserUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.SystemUserCreateWithoutOrganizationInput[]
+    | Prisma.SystemUserUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput[];
+  upsert?:
+    | Prisma.SystemUserUpsertWithWhereUniqueWithoutOrganizationInput
+    | Prisma.SystemUserUpsertWithWhereUniqueWithoutOrganizationInput[];
+  createMany?: Prisma.SystemUserCreateManyOrganizationInputEnvelope;
+  set?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  disconnect?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  delete?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  connect?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  update?:
+    | Prisma.SystemUserUpdateWithWhereUniqueWithoutOrganizationInput
+    | Prisma.SystemUserUpdateWithWhereUniqueWithoutOrganizationInput[];
+  updateMany?:
+    | Prisma.SystemUserUpdateManyWithWhereWithoutOrganizationInput
+    | Prisma.SystemUserUpdateManyWithWhereWithoutOrganizationInput[];
+  deleteMany?: Prisma.SystemUserScalarWhereInput | Prisma.SystemUserScalarWhereInput[];
+};
+
+export type SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.SystemUserCreateWithoutOrganizationInput,
+        Prisma.SystemUserUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.SystemUserCreateWithoutOrganizationInput[]
+    | Prisma.SystemUserUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput
+    | Prisma.SystemUserCreateOrConnectWithoutOrganizationInput[];
+  upsert?:
+    | Prisma.SystemUserUpsertWithWhereUniqueWithoutOrganizationInput
+    | Prisma.SystemUserUpsertWithWhereUniqueWithoutOrganizationInput[];
+  createMany?: Prisma.SystemUserCreateManyOrganizationInputEnvelope;
+  set?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  disconnect?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  delete?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  connect?: Prisma.SystemUserWhereUniqueInput | Prisma.SystemUserWhereUniqueInput[];
+  update?:
+    | Prisma.SystemUserUpdateWithWhereUniqueWithoutOrganizationInput
+    | Prisma.SystemUserUpdateWithWhereUniqueWithoutOrganizationInput[];
+  updateMany?:
+    | Prisma.SystemUserUpdateManyWithWhereWithoutOrganizationInput
+    | Prisma.SystemUserUpdateManyWithWhereWithoutOrganizationInput[];
+  deleteMany?: Prisma.SystemUserScalarWhereInput | Prisma.SystemUserScalarWhereInput[];
+};
+
+export type SystemUserCreateWithoutOrganizationInput = {
+  id?: string;
+  userName: string;
+  nickName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  roles?: Prisma.SystemUserCreaterolesInput | string[];
+  status?: string;
+  organizationRole?: string;
+  companyName?: string | null;
+  expireAt?: Date | string | null;
+  remark?: string | null;
+  passwordHash: string;
+  passwordSalt: string;
+  lastLoginAt?: Date | string | null;
+  lastLoginIp?: string | null;
+  failedLoginCount?: number;
+  lockedUntil?: Date | string | null;
+  passwordResetAt?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+};
+
+export type SystemUserUncheckedCreateWithoutOrganizationInput = {
+  id?: string;
+  userName: string;
+  nickName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  roles?: Prisma.SystemUserCreaterolesInput | string[];
+  status?: string;
+  organizationRole?: string;
+  companyName?: string | null;
+  expireAt?: Date | string | null;
+  remark?: string | null;
+  passwordHash: string;
+  passwordSalt: string;
+  lastLoginAt?: Date | string | null;
+  lastLoginIp?: string | null;
+  failedLoginCount?: number;
+  lockedUntil?: Date | string | null;
+  passwordResetAt?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+};
+
+export type SystemUserCreateOrConnectWithoutOrganizationInput = {
+  where: Prisma.SystemUserWhereUniqueInput;
+  create: Prisma.XOR<
+    Prisma.SystemUserCreateWithoutOrganizationInput,
+    Prisma.SystemUserUncheckedCreateWithoutOrganizationInput
+  >;
+};
+
+export type SystemUserCreateManyOrganizationInputEnvelope = {
+  data: Prisma.SystemUserCreateManyOrganizationInput | Prisma.SystemUserCreateManyOrganizationInput[];
+  skipDuplicates?: boolean;
+};
+
+export type SystemUserUpsertWithWhereUniqueWithoutOrganizationInput = {
+  where: Prisma.SystemUserWhereUniqueInput;
+  update: Prisma.XOR<
+    Prisma.SystemUserUpdateWithoutOrganizationInput,
+    Prisma.SystemUserUncheckedUpdateWithoutOrganizationInput
+  >;
+  create: Prisma.XOR<
+    Prisma.SystemUserCreateWithoutOrganizationInput,
+    Prisma.SystemUserUncheckedCreateWithoutOrganizationInput
+  >;
+};
+
+export type SystemUserUpdateWithWhereUniqueWithoutOrganizationInput = {
+  where: Prisma.SystemUserWhereUniqueInput;
+  data: Prisma.XOR<
+    Prisma.SystemUserUpdateWithoutOrganizationInput,
+    Prisma.SystemUserUncheckedUpdateWithoutOrganizationInput
+  >;
+};
+
+export type SystemUserUpdateManyWithWhereWithoutOrganizationInput = {
+  where: Prisma.SystemUserScalarWhereInput;
+  data: Prisma.XOR<
+    Prisma.SystemUserUpdateManyMutationInput,
+    Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationInput
+  >;
+};
+
+export type SystemUserScalarWhereInput = {
+  AND?: Prisma.SystemUserScalarWhereInput | Prisma.SystemUserScalarWhereInput[];
+  OR?: Prisma.SystemUserScalarWhereInput[];
+  NOT?: Prisma.SystemUserScalarWhereInput | Prisma.SystemUserScalarWhereInput[];
+  id?: Prisma.StringFilter<'SystemUser'> | string;
+  userName?: Prisma.StringFilter<'SystemUser'> | string;
+  nickName?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
+  phone?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
+  email?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
+  roles?: Prisma.StringNullableListFilter<'SystemUser'>;
+  status?: Prisma.StringFilter<'SystemUser'> | string;
+  organizationId?: Prisma.StringFilter<'SystemUser'> | string;
+  organizationRole?: Prisma.StringFilter<'SystemUser'> | string;
+  companyName?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
+  expireAt?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
+  remark?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
+  passwordHash?: Prisma.StringFilter<'SystemUser'> | string;
+  passwordSalt?: Prisma.StringFilter<'SystemUser'> | string;
+  lastLoginAt?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
+  lastLoginIp?: Prisma.StringNullableFilter<'SystemUser'> | string | null;
+  failedLoginCount?: Prisma.IntFilter<'SystemUser'> | number;
+  lockedUntil?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
+  passwordResetAt?: Prisma.DateTimeNullableFilter<'SystemUser'> | Date | string | null;
+  createdAt?: Prisma.DateTimeFilter<'SystemUser'> | Date | string;
+  updatedAt?: Prisma.DateTimeFilter<'SystemUser'> | Date | string;
+};
+
+export type SystemUserCreateManyOrganizationInput = {
+  id?: string;
+  userName: string;
+  nickName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  roles?: Prisma.SystemUserCreaterolesInput | string[];
+  status?: string;
+  organizationRole?: string;
+  companyName?: string | null;
+  expireAt?: Date | string | null;
+  remark?: string | null;
+  passwordHash: string;
+  passwordSalt: string;
+  lastLoginAt?: Date | string | null;
+  lastLoginIp?: string | null;
+  failedLoginCount?: number;
+  lockedUntil?: Date | string | null;
+  passwordResetAt?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+};
+
+export type SystemUserUpdateWithoutOrganizationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  userName?: Prisma.StringFieldUpdateOperationsInput | string;
+  nickName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  roles?: Prisma.SystemUserUpdaterolesInput | string[];
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string;
+  passwordSalt?: Prisma.StringFieldUpdateOperationsInput | string;
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  lastLoginIp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  failedLoginCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  passwordResetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+};
+
+export type SystemUserUncheckedUpdateWithoutOrganizationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  userName?: Prisma.StringFieldUpdateOperationsInput | string;
+  nickName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  roles?: Prisma.SystemUserUpdaterolesInput | string[];
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string;
+  passwordSalt?: Prisma.StringFieldUpdateOperationsInput | string;
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  lastLoginIp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  failedLoginCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  passwordResetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+};
+
+export type SystemUserUncheckedUpdateManyWithoutOrganizationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  userName?: Prisma.StringFieldUpdateOperationsInput | string;
+  nickName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  roles?: Prisma.SystemUserUpdaterolesInput | string[];
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string;
+  passwordSalt?: Prisma.StringFieldUpdateOperationsInput | string;
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  lastLoginIp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  failedLoginCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  passwordResetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+};
+
 export type SystemUserSelect<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > = runtime.Types.Extensions.GetSelect<
@@ -690,6 +1038,8 @@ export type SystemUserSelect<
     email?: boolean;
     roles?: boolean;
     status?: boolean;
+    organizationId?: boolean;
+    organizationRole?: boolean;
     companyName?: boolean;
     expireAt?: boolean;
     remark?: boolean;
@@ -702,6 +1052,7 @@ export type SystemUserSelect<
     passwordResetAt?: boolean;
     createdAt?: boolean;
     updatedAt?: boolean;
+    organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['systemUser']
 >;
@@ -717,6 +1068,8 @@ export type SystemUserSelectCreateManyAndReturn<
     email?: boolean;
     roles?: boolean;
     status?: boolean;
+    organizationId?: boolean;
+    organizationRole?: boolean;
     companyName?: boolean;
     expireAt?: boolean;
     remark?: boolean;
@@ -729,6 +1082,7 @@ export type SystemUserSelectCreateManyAndReturn<
     passwordResetAt?: boolean;
     createdAt?: boolean;
     updatedAt?: boolean;
+    organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['systemUser']
 >;
@@ -744,6 +1098,8 @@ export type SystemUserSelectUpdateManyAndReturn<
     email?: boolean;
     roles?: boolean;
     status?: boolean;
+    organizationId?: boolean;
+    organizationRole?: boolean;
     companyName?: boolean;
     expireAt?: boolean;
     remark?: boolean;
@@ -756,6 +1112,7 @@ export type SystemUserSelectUpdateManyAndReturn<
     passwordResetAt?: boolean;
     createdAt?: boolean;
     updatedAt?: boolean;
+    organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['systemUser']
 >;
@@ -768,6 +1125,8 @@ export type SystemUserSelectScalar = {
   email?: boolean;
   roles?: boolean;
   status?: boolean;
+  organizationId?: boolean;
+  organizationRole?: boolean;
   companyName?: boolean;
   expireAt?: boolean;
   remark?: boolean;
@@ -792,6 +1151,8 @@ export type SystemUserOmit<
   | 'email'
   | 'roles'
   | 'status'
+  | 'organizationId'
+  | 'organizationRole'
   | 'companyName'
   | 'expireAt'
   | 'remark'
@@ -806,12 +1167,29 @@ export type SystemUserOmit<
   | 'updatedAt',
   ExtArgs['result']['systemUser']
 >;
+export type SystemUserInclude<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
+};
+export type SystemUserIncludeCreateManyAndReturn<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
+};
+export type SystemUserIncludeUpdateManyAndReturn<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
+};
 
 export type $SystemUserPayload<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > = {
   name: 'SystemUser';
-  objects: {};
+  objects: {
+    organization: Prisma.$OrganizationPayload<ExtArgs>;
+  };
   scalars: runtime.Types.Extensions.GetPayloadResult<
     {
       id: string;
@@ -821,6 +1199,8 @@ export type $SystemUserPayload<
       email: string | null;
       roles: string[];
       status: string;
+      organizationId: string;
+      organizationRole: string;
       companyName: string | null;
       expireAt: Date | null;
       remark: string | null;
@@ -1308,6 +1688,15 @@ export interface Prisma__SystemUserClient<
   GlobalOmitOptions = {}
 > extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: 'PrismaPromise';
+  organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(
+    args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>
+  ): Prisma.Prisma__OrganizationClient<
+    | runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, 'findUniqueOrThrow', GlobalOmitOptions>
+    | Null,
+    Null,
+    ExtArgs,
+    GlobalOmitOptions
+  >;
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1346,6 +1735,8 @@ export interface SystemUserFieldRefs {
   readonly email: Prisma.FieldRef<'SystemUser', 'String'>;
   readonly roles: Prisma.FieldRef<'SystemUser', 'String[]'>;
   readonly status: Prisma.FieldRef<'SystemUser', 'String'>;
+  readonly organizationId: Prisma.FieldRef<'SystemUser', 'String'>;
+  readonly organizationRole: Prisma.FieldRef<'SystemUser', 'String'>;
   readonly companyName: Prisma.FieldRef<'SystemUser', 'String'>;
   readonly expireAt: Prisma.FieldRef<'SystemUser', 'DateTime'>;
   readonly remark: Prisma.FieldRef<'SystemUser', 'String'>;
@@ -1376,6 +1767,10 @@ export type SystemUserFindUniqueArgs<
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
+  /**
    * Filter, which SystemUser to fetch.
    */
   where: Prisma.SystemUserWhereUniqueInput;
@@ -1396,6 +1791,10 @@ export type SystemUserFindUniqueOrThrowArgs<
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
+  /**
    * Filter, which SystemUser to fetch.
    */
   where: Prisma.SystemUserWhereUniqueInput;
@@ -1415,6 +1814,10 @@ export type SystemUserFindFirstArgs<
    * Omit specific fields from the SystemUser
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
   /**
    * Filter, which SystemUser to fetch.
    */
@@ -1466,6 +1869,10 @@ export type SystemUserFindFirstOrThrowArgs<
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
+  /**
    * Filter, which SystemUser to fetch.
    */
   where?: Prisma.SystemUserWhereInput;
@@ -1515,6 +1922,10 @@ export type SystemUserFindManyArgs<
    * Omit specific fields from the SystemUser
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
   /**
    * Filter, which SystemUsers to fetch.
    */
@@ -1566,6 +1977,10 @@ export type SystemUserCreateArgs<
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
+  /**
    * The data needed to create a SystemUser.
    */
   data: Prisma.XOR<Prisma.SystemUserCreateInput, Prisma.SystemUserUncheckedCreateInput>;
@@ -1603,6 +2018,10 @@ export type SystemUserCreateManyAndReturnArgs<
    */
   data: Prisma.SystemUserCreateManyInput | Prisma.SystemUserCreateManyInput[];
   skipDuplicates?: boolean;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserIncludeCreateManyAndReturn<ExtArgs> | null;
 };
 
 /**
@@ -1619,6 +2038,10 @@ export type SystemUserUpdateArgs<
    * Omit specific fields from the SystemUser
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
   /**
    * The data needed to update a SystemUser.
    */
@@ -1675,6 +2098,10 @@ export type SystemUserUpdateManyAndReturnArgs<
    * Limit how many SystemUsers to update.
    */
   limit?: number;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserIncludeUpdateManyAndReturn<ExtArgs> | null;
 };
 
 /**
@@ -1691,6 +2118,10 @@ export type SystemUserUpsertArgs<
    * Omit specific fields from the SystemUser
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
   /**
    * The filter to search for the SystemUser to update in case it exists.
    */
@@ -1719,6 +2150,10 @@ export type SystemUserDeleteArgs<
    * Omit specific fields from the SystemUser
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
   /**
    * Filter which SystemUser to delete.
    */
@@ -1755,4 +2190,8 @@ export type SystemUserDefaultArgs<
    * Omit specific fields from the SystemUser
    */
   omit?: Prisma.SystemUserOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SystemUserInclude<ExtArgs> | null;
 };

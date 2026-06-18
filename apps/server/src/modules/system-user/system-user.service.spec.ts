@@ -43,6 +43,9 @@ describe('SystemUserService', () => {
       email: null,
       roles: ['R_SUPER'],
       status: 'enabled',
+      organizationId: 'org-default',
+      organizationName: '默认组织',
+      organizationRole: 'admin',
       companyName: 'Soybean',
       expireAt: users[0].expireAt!.toISOString(),
       remark: null,
@@ -75,9 +78,12 @@ describe('SystemUserService', () => {
     assert.equal(users.length, 1);
     assert.equal(users[0].userName, 'Operator');
     assert.equal(users[0].companyName, 'Soybean');
+    assert.equal(users[0].organizationId, 'org-default');
+    assert.equal(users[0].organizationRole, 'admin');
     assert.equal(Boolean(users[0].passwordHash), true);
     assert.equal(Boolean(result.temporaryPassword), true);
     assert.equal(result.user.userName, 'Operator');
+    assert.equal(result.user.organizationName, '默认组织');
     assert.equal(logService.records[0].module, 'system-user');
     assert.equal(logService.records[0].action, 'create');
   });
@@ -319,6 +325,15 @@ function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
     email: input.email ?? null,
     roles: input.roles || ['R_SUPER'],
     status: input.status || 'enabled',
+    organizationId: input.organizationId || 'org-default',
+    organizationRole: input.organizationRole || 'admin',
+    organization: input.organization || {
+      id: input.organizationId || 'org-default',
+      name: '默认组织',
+      status: 'enabled',
+      createdAt: now,
+      updatedAt: now
+    },
     companyName: input.companyName ?? null,
     expireAt: input.expireAt ?? null,
     remark: input.remark ?? null,
@@ -342,6 +357,15 @@ interface TestSystemUser {
   email: string | null;
   roles: string[];
   status: string;
+  organizationId: string;
+  organizationRole: string;
+  organization: {
+    id: string;
+    name: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
   companyName: string | null;
   expireAt: Date | null;
   remark: string | null;

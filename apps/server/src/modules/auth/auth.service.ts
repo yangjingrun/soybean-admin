@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import * as svgCaptcha from 'svg-captcha';
-import type { SystemUser } from '../../generated/prisma/client';
+import type { Organization, SystemUser } from '../../generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import type { ImageCaptchaResult, LoginToken, UserInfo } from './auth.types';
@@ -120,7 +120,10 @@ export class AuthService {
       userId: user.userId,
       userName: user.userName,
       roles: user.roles,
-      buttons: user.buttons
+      buttons: user.buttons,
+      organizationId: user.organizationId,
+      organizationName: user.organizationName,
+      organizationRole: user.organizationRole
     };
   }
 
@@ -205,6 +208,9 @@ export class AuthService {
           equals: trimUserName,
           mode: 'insensitive'
         }
+      },
+      include: {
+        organization: true
       }
     });
   }
@@ -224,12 +230,15 @@ export class AuthService {
     });
   }
 
-  private toUserInfo(user: SystemUser): UserInfoWithSession {
+  private toUserInfo(user: AuthSystemUser): UserInfoWithSession {
     return {
       userId: user.id,
       userName: user.userName,
       roles: user.roles,
       buttons: getButtonsByRoles(user.roles),
+      organizationId: user.organizationId,
+      organizationName: user.organization.name,
+      organizationRole: user.organizationRole as UserInfo['organizationRole'],
       status: user.status,
       expireAt: user.expireAt?.toISOString() || null,
       lockedUntil: user.lockedUntil?.toISOString() || null
@@ -312,6 +321,10 @@ export class AuthService {
     return process.env.NODE_ENV !== 'production';
   }
 }
+
+type AuthSystemUser = SystemUser & {
+  organization: Pick<Organization, 'id' | 'name'>;
+};
 
 function getButtonsByRoles(roles: string[]) {
   if (roles.includes('R_SUPER')) {

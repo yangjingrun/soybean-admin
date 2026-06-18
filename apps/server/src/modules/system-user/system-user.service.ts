@@ -6,7 +6,8 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import type { Prisma, SystemUser } from '../../generated/prisma/client';
+import { DEFAULT_ORGANIZATION_ID, type OrganizationRole } from '@soybean/shared';
+import type { Organization, Prisma, SystemUser } from '../../generated/prisma/client';
 import { hashPassword, generateTemporaryPassword } from '../auth/password';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../database/prisma.service';
@@ -43,7 +44,10 @@ export class SystemUserService {
         where,
         skip: (current - 1) * size,
         take: size,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        include: {
+          organization: true
+        }
       }),
       this.prisma.systemUser.count({ where })
     ]);
@@ -73,11 +77,16 @@ export class SystemUserService {
         email: normalizeNullableString(input.email),
         roles: input.roles,
         status: input.status || 'enabled',
+        organizationId: DEFAULT_ORGANIZATION_ID,
+        organizationRole: resolveOrganizationRole(input.roles),
         companyName: normalizeNullableString(input.companyName),
         expireAt: toNullableDate(input.expireAt),
         remark: normalizeNullableString(input.remark),
         passwordHash: password.hash,
         passwordSalt: password.salt
+      },
+      include: {
+        organization: true
       }
     });
 
@@ -128,11 +137,14 @@ export class SystemUserService {
         ...(input.nickName !== undefined ? { nickName: normalizeNullableString(input.nickName) } : {}),
         ...(input.phone !== undefined ? { phone: normalizeNullableString(input.phone) } : {}),
         ...(input.email !== undefined ? { email: normalizeNullableString(input.email) } : {}),
-        ...(input.roles ? { roles: input.roles } : {}),
+        ...(input.roles ? { roles: input.roles, organizationRole: resolveOrganizationRole(input.roles) } : {}),
         ...(input.status ? { status: input.status } : {}),
         ...(input.companyName !== undefined ? { companyName: normalizeNullableString(input.companyName) } : {}),
         ...(input.expireAt !== undefined ? { expireAt: toNullableDate(input.expireAt) } : {}),
         ...(input.remark !== undefined ? { remark: normalizeNullableString(input.remark) } : {})
+      },
+      include: {
+        organization: true
       }
     });
 
@@ -160,7 +172,10 @@ export class SystemUserService {
 
     const updated = await this.prisma.systemUser.update({
       where: { id },
-      data: { status }
+      data: { status },
+      include: {
+        organization: true
+      }
     });
 
     if (status === 'disabled') {
@@ -195,6 +210,9 @@ export class SystemUserService {
         passwordResetAt: new Date(),
         failedLoginCount: 0,
         lockedUntil: null
+      },
+      include: {
+        organization: true
       }
     });
 
@@ -254,7 +272,12 @@ export class SystemUserService {
   }
 
   private async findByIdOrThrow(id: string) {
-    const user = await this.prisma.systemUser.findUnique({ where: { id } });
+    const user = await this.prisma.systemUser.findUnique({
+      where: { id },
+      include: {
+        organization: true
+      }
+    });
 
     if (!user) {
       throw new NotFoundException('用户不存在');
@@ -330,7 +353,7 @@ export class SystemUserService {
     }
   }
 
-  private toListItem(user: SystemUser): SystemUserListItem {
+  private toListItem(user: SystemUserWithOrganization): SystemUserListItem {
     const now = Date.now();
     const expired = Boolean(user.expireAt && user.expireAt.getTime() <= now);
     const locked = Boolean(user.lockedUntil && user.lockedUntil.getTime() > now);
@@ -343,6 +366,9 @@ export class SystemUserService {
       email: user.email,
       roles: user.roles as SystemUserRole[],
       status: user.status as SystemUserStatus,
+      organizationId: user.organizationId,
+      organizationName: user.organization.name,
+      organizationRole: user.organizationRole as OrganizationRole,
       companyName: user.companyName,
       expireAt: user.expireAt?.toISOString() || null,
       remark: user.remark,
@@ -380,6 +406,10 @@ export class SystemUserService {
   }
 }
 
+type SystemUserWithOrganization = SystemUser & {
+  organization: Pick<Organization, 'id' | 'name'>;
+};
+
 function normalizePositiveInteger(value: number | string | undefined, defaultValue: number) {
   if (value === undefined || value === '') {
     return defaultValue;
@@ -404,6 +434,11 @@ function assertUserName(value: string) {
 
 function toNullableDate(value: string | null | undefined) {
   return value ? new Date(value) : null;
+}
+
+/** Map platform roles to the first-version organization role. */
+function resolveOrganizationRole(roles: SystemUserRole[]): OrganizationRole {
+  return roles.includes('R_SUPER') || roles.includes('R_ADMIN') ? 'admin' : 'member';
 }
 
 export interface OperatorContext {

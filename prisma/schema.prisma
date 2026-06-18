@@ -34,6 +34,8 @@ model SystemUser {
   email            String?
   roles            String[]
   status           String    @default("enabled")
+  organizationId   String    @default("org-default")
+  organizationRole String    @default("member")
   companyName      String?
   expireAt         DateTime?
   remark           String?
@@ -47,9 +49,25 @@ model SystemUser {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  organization Organization @relation(fields: [organizationId], references: [id])
+
   @@index([status])
+  @@index([organizationId])
+  @@index([organizationRole])
   @@index([expireAt])
   @@index([lockedUntil])
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("enabled")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users SystemUser[]
+
+  @@index([status])
 }
 
 model AiPromptConfig {

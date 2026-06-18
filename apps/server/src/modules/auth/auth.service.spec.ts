@@ -14,7 +14,15 @@ describe('AuthService', () => {
     const token = await service.login('super', '123456', undefined, undefined, '127.0.0.1');
 
     assert.equal(Boolean(token?.token), true);
-    assert.equal(service.getUserByAccessToken(token!.token)?.userName, 'Super');
+    assert.deepEqual(service.getUserByAccessToken(token!.token), {
+      userId: '1',
+      userName: 'Super',
+      roles: ['R_SUPER'],
+      buttons: ['B_CODE1', 'B_CODE2', 'B_CODE3'],
+      organizationId: 'org-default',
+      organizationName: '默认组织',
+      organizationRole: 'admin'
+    });
     assert.equal(user.failedLoginCount, 0);
     assert.equal(user.lastLoginIp, '127.0.0.1');
   });
@@ -98,6 +106,15 @@ function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
     email: input.email ?? null,
     roles: input.roles || ['R_SUPER'],
     status: input.status || 'enabled',
+    organizationId: input.organizationId || 'org-default',
+    organizationRole: input.organizationRole || 'admin',
+    organization: input.organization || {
+      id: input.organizationId || 'org-default',
+      name: '默认组织',
+      status: 'enabled',
+      createdAt: now,
+      updatedAt: now
+    },
     companyName: input.companyName ?? null,
     expireAt: input.expireAt ?? null,
     remark: input.remark ?? null,
@@ -121,6 +138,15 @@ interface TestSystemUser {
   email: string | null;
   roles: string[];
   status: string;
+  organizationId: string;
+  organizationRole: string;
+  organization: {
+    id: string;
+    name: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
   companyName: string | null;
   expireAt: Date | null;
   remark: string | null;

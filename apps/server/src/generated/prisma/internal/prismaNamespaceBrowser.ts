@@ -50,6 +50,7 @@ export const AnyNull = runtime.AnyNull;
 export const ModelName = {
   SystemLog: 'SystemLog',
   SystemUser: 'SystemUser',
+  Organization: 'Organization',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -101,6 +102,8 @@ export const SystemUserScalarFieldEnum = {
   email: 'email',
   roles: 'roles',
   status: 'status',
+  organizationId: 'organizationId',
+  organizationRole: 'organizationRole',
   companyName: 'companyName',
   expireAt: 'expireAt',
   remark: 'remark',
@@ -116,6 +119,17 @@ export const SystemUserScalarFieldEnum = {
 } as const;
 
 export type SystemUserScalarFieldEnum = (typeof SystemUserScalarFieldEnum)[keyof typeof SystemUserScalarFieldEnum];
+
+export const OrganizationScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type OrganizationScalarFieldEnum =
+  (typeof OrganizationScalarFieldEnum)[keyof typeof OrganizationScalarFieldEnum];
 
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',

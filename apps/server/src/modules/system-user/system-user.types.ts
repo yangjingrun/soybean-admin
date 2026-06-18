@@ -1,3 +1,5 @@
+import type { OrganizationRole } from '@soybean/shared';
+
 export type SystemUserRole = 'R_SUPER' | 'R_ADMIN' | 'R_USER';
 
 export type SystemUserStatus = 'enabled' | 'disabled';
@@ -21,6 +23,9 @@ export interface SystemUserListItem {
   email: string | null;
   roles: SystemUserRole[];
   status: SystemUserStatus;
+  organizationId: string;
+  organizationName: string;
+  organizationRole: OrganizationRole;
   companyName: string | null;
   expireAt: string | null;
   remark: string | null;

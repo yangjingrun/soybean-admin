@@ -9,11 +9,20 @@ export interface LoginToken {
   refreshToken: string;
 }
 
+export type OrganizationRole = 'admin' | 'member';
+
+export const DEFAULT_ORGANIZATION_ID = 'org-default';
+
+export const DEFAULT_ORGANIZATION_NAME = '默认组织';
+
 export interface UserInfo {
   userId: string;
   userName: string;
   roles: string[];
   buttons: string[];
+  organizationId: string;
+  organizationName: string;
+  organizationRole: OrganizationRole;
 }
 
 export interface ImageCaptchaResult {

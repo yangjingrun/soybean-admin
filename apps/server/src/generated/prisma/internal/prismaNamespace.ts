@@ -363,6 +363,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   SystemLog: 'SystemLog',
   SystemUser: 'SystemUser',
+  Organization: 'Organization',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -394,6 +395,7 @@ export type TypeMap<
     modelProps:
       | 'systemLog'
       | 'systemUser'
+      | 'organization'
       | 'aiPromptConfig'
       | 'aiModelConfig'
       | 'serperConfig'
@@ -551,6 +553,80 @@ export type TypeMap<
         count: {
           args: Prisma.SystemUserCountArgs<ExtArgs>;
           result: runtime.Types.Utils.Optional<Prisma.SystemUserCountAggregateOutputType> | number;
+        };
+      };
+    };
+    Organization: {
+      payload: Prisma.$OrganizationPayload<ExtArgs>;
+      fields: Prisma.OrganizationFieldRefs;
+      operations: {
+        findUnique: {
+          args: Prisma.OrganizationFindUniqueArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload> | null;
+        };
+        findUniqueOrThrow: {
+          args: Prisma.OrganizationFindUniqueOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>;
+        };
+        findFirst: {
+          args: Prisma.OrganizationFindFirstArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload> | null;
+        };
+        findFirstOrThrow: {
+          args: Prisma.OrganizationFindFirstOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>;
+        };
+        findMany: {
+          args: Prisma.OrganizationFindManyArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>[];
+        };
+        create: {
+          args: Prisma.OrganizationCreateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>;
+        };
+        createMany: {
+          args: Prisma.OrganizationCreateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        createManyAndReturn: {
+          args: Prisma.OrganizationCreateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>[];
+        };
+        delete: {
+          args: Prisma.OrganizationDeleteArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>;
+        };
+        update: {
+          args: Prisma.OrganizationUpdateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>;
+        };
+        deleteMany: {
+          args: Prisma.OrganizationDeleteManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateMany: {
+          args: Prisma.OrganizationUpdateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateManyAndReturn: {
+          args: Prisma.OrganizationUpdateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>[];
+        };
+        upsert: {
+          args: Prisma.OrganizationUpsertArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrganizationPayload>;
+        };
+        aggregate: {
+          args: Prisma.OrganizationAggregateArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOrganization>;
+        };
+        groupBy: {
+          args: Prisma.OrganizationGroupByArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.OrganizationGroupByOutputType>[];
+        };
+        count: {
+          args: Prisma.OrganizationCountArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.OrganizationCountAggregateOutputType> | number;
         };
       };
     };
@@ -1283,6 +1359,8 @@ export const SystemUserScalarFieldEnum = {
   email: 'email',
   roles: 'roles',
   status: 'status',
+  organizationId: 'organizationId',
+  organizationRole: 'organizationRole',
   companyName: 'companyName',
   expireAt: 'expireAt',
   remark: 'remark',
@@ -1298,6 +1376,17 @@ export const SystemUserScalarFieldEnum = {
 } as const;
 
 export type SystemUserScalarFieldEnum = (typeof SystemUserScalarFieldEnum)[keyof typeof SystemUserScalarFieldEnum];
+
+export const OrganizationScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type OrganizationScalarFieldEnum =
+  (typeof OrganizationScalarFieldEnum)[keyof typeof OrganizationScalarFieldEnum];
 
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
@@ -1667,6 +1756,7 @@ export type PrismaClientOptions = (
 export type GlobalOmitConfig = {
   systemLog?: Prisma.SystemLogOmit;
   systemUser?: Prisma.SystemUserOmit;
+  organization?: Prisma.OrganizationOmit;
   aiPromptConfig?: Prisma.AiPromptConfigOmit;
   aiModelConfig?: Prisma.AiModelConfigOmit;
   serperConfig?: Prisma.SerperConfigOmit;

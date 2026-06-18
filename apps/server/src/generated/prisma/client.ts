@@ -53,6 +53,11 @@ export type SystemLog = Prisma.SystemLogModel;
  */
 export type SystemUser = Prisma.SystemUserModel;
 /**
+ * Model Organization
+ *
+ */
+export type Organization = Prisma.OrganizationModel;
+/**
  * Model AiPromptConfig
  *
  */
