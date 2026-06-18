@@ -8,6 +8,8 @@ export interface AiLeadSearchTaskRecord {
   id: string;
   userId: string;
   userName: string | null;
+  organizationId: string;
+  organizationRole: UserInfo['organizationRole'];
   requirement: string;
   targetLeadCount: number;
   keywordPlan: unknown;
@@ -29,6 +31,8 @@ export interface AiLeadSearchTaskRecord {
 export interface AiLeadSearchTaskCreateInput {
   userId: string;
   userName?: string | null;
+  organizationId: string;
+  organizationRole: UserInfo['organizationRole'];
   requirement: string;
   targetLeadCount: number;
   keywordPlan: unknown;
@@ -90,9 +94,9 @@ export interface AiLeadSearchTaskEventInput {
 export interface AiLeadSearchTaskStore {
   createTask(input: AiLeadSearchTaskCreateInput): Promise<AiLeadSearchTaskRecord>;
   createTaskIfNoCurrent(input: AiLeadSearchTaskCreateInput): Promise<AiLeadSearchTaskRecord | null>;
-  findCurrentTaskForUser(userId: string): Promise<AiLeadSearchTaskRecord | null>;
+  findCurrentTaskForUser(userId: string, organizationId: string): Promise<AiLeadSearchTaskRecord | null>;
   findTaskById(id: string): Promise<AiLeadSearchTaskRecord | null>;
-  findTaskByIdForUser(id: string, userId: string): Promise<AiLeadSearchTaskRecord | null>;
+  findTaskByIdForUser(id: string, userId: string, organizationId: string): Promise<AiLeadSearchTaskRecord | null>;
   updateTask(
     id: string,
     patch: AiLeadSearchTaskUpdateInput,

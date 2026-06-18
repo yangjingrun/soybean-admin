@@ -364,6 +364,9 @@ export const ModelName = {
   SystemLog: 'SystemLog',
   SystemUser: 'SystemUser',
   Organization: 'Organization',
+  CrmAccount: 'CrmAccount',
+  CrmContact: 'CrmContact',
+  CrmTimelineEvent: 'CrmTimelineEvent',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -396,6 +399,9 @@ export type TypeMap<
       | 'systemLog'
       | 'systemUser'
       | 'organization'
+      | 'crmAccount'
+      | 'crmContact'
+      | 'crmTimelineEvent'
       | 'aiPromptConfig'
       | 'aiModelConfig'
       | 'serperConfig'
@@ -627,6 +633,228 @@ export type TypeMap<
         count: {
           args: Prisma.OrganizationCountArgs<ExtArgs>;
           result: runtime.Types.Utils.Optional<Prisma.OrganizationCountAggregateOutputType> | number;
+        };
+      };
+    };
+    CrmAccount: {
+      payload: Prisma.$CrmAccountPayload<ExtArgs>;
+      fields: Prisma.CrmAccountFieldRefs;
+      operations: {
+        findUnique: {
+          args: Prisma.CrmAccountFindUniqueArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload> | null;
+        };
+        findUniqueOrThrow: {
+          args: Prisma.CrmAccountFindUniqueOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>;
+        };
+        findFirst: {
+          args: Prisma.CrmAccountFindFirstArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload> | null;
+        };
+        findFirstOrThrow: {
+          args: Prisma.CrmAccountFindFirstOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>;
+        };
+        findMany: {
+          args: Prisma.CrmAccountFindManyArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>[];
+        };
+        create: {
+          args: Prisma.CrmAccountCreateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>;
+        };
+        createMany: {
+          args: Prisma.CrmAccountCreateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        createManyAndReturn: {
+          args: Prisma.CrmAccountCreateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>[];
+        };
+        delete: {
+          args: Prisma.CrmAccountDeleteArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>;
+        };
+        update: {
+          args: Prisma.CrmAccountUpdateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>;
+        };
+        deleteMany: {
+          args: Prisma.CrmAccountDeleteManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateMany: {
+          args: Prisma.CrmAccountUpdateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateManyAndReturn: {
+          args: Prisma.CrmAccountUpdateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>[];
+        };
+        upsert: {
+          args: Prisma.CrmAccountUpsertArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAccountPayload>;
+        };
+        aggregate: {
+          args: Prisma.CrmAccountAggregateArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmAccount>;
+        };
+        groupBy: {
+          args: Prisma.CrmAccountGroupByArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmAccountGroupByOutputType>[];
+        };
+        count: {
+          args: Prisma.CrmAccountCountArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmAccountCountAggregateOutputType> | number;
+        };
+      };
+    };
+    CrmContact: {
+      payload: Prisma.$CrmContactPayload<ExtArgs>;
+      fields: Prisma.CrmContactFieldRefs;
+      operations: {
+        findUnique: {
+          args: Prisma.CrmContactFindUniqueArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload> | null;
+        };
+        findUniqueOrThrow: {
+          args: Prisma.CrmContactFindUniqueOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>;
+        };
+        findFirst: {
+          args: Prisma.CrmContactFindFirstArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload> | null;
+        };
+        findFirstOrThrow: {
+          args: Prisma.CrmContactFindFirstOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>;
+        };
+        findMany: {
+          args: Prisma.CrmContactFindManyArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>[];
+        };
+        create: {
+          args: Prisma.CrmContactCreateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>;
+        };
+        createMany: {
+          args: Prisma.CrmContactCreateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        createManyAndReturn: {
+          args: Prisma.CrmContactCreateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>[];
+        };
+        delete: {
+          args: Prisma.CrmContactDeleteArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>;
+        };
+        update: {
+          args: Prisma.CrmContactUpdateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>;
+        };
+        deleteMany: {
+          args: Prisma.CrmContactDeleteManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateMany: {
+          args: Prisma.CrmContactUpdateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateManyAndReturn: {
+          args: Prisma.CrmContactUpdateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>[];
+        };
+        upsert: {
+          args: Prisma.CrmContactUpsertArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmContactPayload>;
+        };
+        aggregate: {
+          args: Prisma.CrmContactAggregateArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmContact>;
+        };
+        groupBy: {
+          args: Prisma.CrmContactGroupByArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmContactGroupByOutputType>[];
+        };
+        count: {
+          args: Prisma.CrmContactCountArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmContactCountAggregateOutputType> | number;
+        };
+      };
+    };
+    CrmTimelineEvent: {
+      payload: Prisma.$CrmTimelineEventPayload<ExtArgs>;
+      fields: Prisma.CrmTimelineEventFieldRefs;
+      operations: {
+        findUnique: {
+          args: Prisma.CrmTimelineEventFindUniqueArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload> | null;
+        };
+        findUniqueOrThrow: {
+          args: Prisma.CrmTimelineEventFindUniqueOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>;
+        };
+        findFirst: {
+          args: Prisma.CrmTimelineEventFindFirstArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload> | null;
+        };
+        findFirstOrThrow: {
+          args: Prisma.CrmTimelineEventFindFirstOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>;
+        };
+        findMany: {
+          args: Prisma.CrmTimelineEventFindManyArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>[];
+        };
+        create: {
+          args: Prisma.CrmTimelineEventCreateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>;
+        };
+        createMany: {
+          args: Prisma.CrmTimelineEventCreateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        createManyAndReturn: {
+          args: Prisma.CrmTimelineEventCreateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>[];
+        };
+        delete: {
+          args: Prisma.CrmTimelineEventDeleteArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>;
+        };
+        update: {
+          args: Prisma.CrmTimelineEventUpdateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>;
+        };
+        deleteMany: {
+          args: Prisma.CrmTimelineEventDeleteManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateMany: {
+          args: Prisma.CrmTimelineEventUpdateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateManyAndReturn: {
+          args: Prisma.CrmTimelineEventUpdateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>[];
+        };
+        upsert: {
+          args: Prisma.CrmTimelineEventUpsertArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmTimelineEventPayload>;
+        };
+        aggregate: {
+          args: Prisma.CrmTimelineEventAggregateArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmTimelineEvent>;
+        };
+        groupBy: {
+          args: Prisma.CrmTimelineEventGroupByArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmTimelineEventGroupByOutputType>[];
+        };
+        count: {
+          args: Prisma.CrmTimelineEventCountArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmTimelineEventCountAggregateOutputType> | number;
         };
       };
     };
@@ -1388,6 +1616,59 @@ export const OrganizationScalarFieldEnum = {
 export type OrganizationScalarFieldEnum =
   (typeof OrganizationScalarFieldEnum)[keyof typeof OrganizationScalarFieldEnum];
 
+export const CrmAccountScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  name: 'name',
+  normalizedName: 'normalizedName',
+  websiteUrl: 'websiteUrl',
+  domain: 'domain',
+  country: 'country',
+  customerType: 'customerType',
+  status: 'status',
+  sourceTaskId: 'sourceTaskId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmAccountScalarFieldEnum = (typeof CrmAccountScalarFieldEnum)[keyof typeof CrmAccountScalarFieldEnum];
+
+export const CrmContactScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  accountId: 'accountId',
+  ownerUserId: 'ownerUserId',
+  fullName: 'fullName',
+  title: 'title',
+  email: 'email',
+  emailHash: 'emailHash',
+  maskedEmail: 'maskedEmail',
+  isPublicEmail: 'isPublicEmail',
+  emailStatus: 'emailStatus',
+  sourceTaskId: 'sourceTaskId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmContactScalarFieldEnum = (typeof CrmContactScalarFieldEnum)[keyof typeof CrmContactScalarFieldEnum];
+
+export const CrmTimelineEventScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  ownerUserId: 'ownerUserId',
+  eventType: 'eventType',
+  title: 'title',
+  content: 'content',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+} as const;
+
+export type CrmTimelineEventScalarFieldEnum =
+  (typeof CrmTimelineEventScalarFieldEnum)[keyof typeof CrmTimelineEventScalarFieldEnum];
+
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
   promptKey: 'promptKey',
@@ -1452,6 +1733,8 @@ export const AiLeadSearchTaskScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   userName: 'userName',
+  organizationId: 'organizationId',
+  organizationRole: 'organizationRole',
   requirement: 'requirement',
   targetLeadCount: 'targetLeadCount',
   keywordPlan: 'keywordPlan',
@@ -1628,6 +1911,11 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>;
 
 /**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>;
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>;
@@ -1757,6 +2045,9 @@ export type GlobalOmitConfig = {
   systemLog?: Prisma.SystemLogOmit;
   systemUser?: Prisma.SystemUserOmit;
   organization?: Prisma.OrganizationOmit;
+  crmAccount?: Prisma.CrmAccountOmit;
+  crmContact?: Prisma.CrmContactOmit;
+  crmTimelineEvent?: Prisma.CrmTimelineEventOmit;
   aiPromptConfig?: Prisma.AiPromptConfigOmit;
   aiModelConfig?: Prisma.AiModelConfigOmit;
   serperConfig?: Prisma.SerperConfigOmit;

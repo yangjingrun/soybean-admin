@@ -32,6 +32,21 @@ export type SystemUser = Prisma.SystemUserModel;
  */
 export type Organization = Prisma.OrganizationModel;
 /**
+ * Model CrmAccount
+ *
+ */
+export type CrmAccount = Prisma.CrmAccountModel;
+/**
+ * Model CrmContact
+ *
+ */
+export type CrmContact = Prisma.CrmContactModel;
+/**
+ * Model CrmTimelineEvent
+ *
+ */
+export type CrmTimelineEvent = Prisma.CrmTimelineEventModel;
+/**
  * Model AiPromptConfig
  *
  */

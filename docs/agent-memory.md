@@ -45,6 +45,32 @@
 - 相关文件：`apps/server/src/modules/ai-leads/ai-lead-search-task.service.ts`、`apps/server/src/modules/system-notification/system-notification.service.ts`、`apps/server/src/modules/system-notification/store/prisma-system-notification.store.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-search-task.service.spec.ts apps/server/src/modules/system-notification/system-notification.service.spec.ts`，确认任务确认会调用 target 维度通知已读。
 
+### 2026-06-18 新增前端 CRM 一级菜单要走 elegant-router 和 i18n 链路
+
+- 场景：新增独立 CRM 一级菜单，包含线索库、邮件序列、收件箱、CRM 配置等子页面。
+- 坑点：本项目菜单不是单独维护的静态菜单，而是由 `@elegant-router/vue` 根据 `src/views` 和 route meta 生成；只建页面、只改生成文件或只补 i18n 都会导致菜单、标题、全局搜索、标签页或类型不完整。当前 `.env` 使用 `VITE_AUTH_ROUTE_MODE=static`，静态模式下 `meta.roles` 会影响菜单过滤和路由守卫；动态模式则会走后端 route 接口。
+- 正确做法：多子页一级菜单参考 `manage` 路由形态，页面放 `src/views/crm/<page>/index.vue`，路由 key 预期为 `crm`、`crm_leads`、`crm_email-sequences`、`crm_inbox`、`crm_settings`；在 `build/plugins/router.ts` 的 `onRouteMetaGen` 为父子路由配置 `icon/order/roles`，再运行 `pnpm gen-route` 更新 `src/router/elegant/routes.ts`、`imports.ts`、`transform.ts` 和 `src/typings/elegant-router.d.ts`；菜单标题补 `src/locales/langs/zh-cn.ts` 和 `src/locales/langs/en-us.ts` 的 `route` 节点。
+- 页面组织：列表页优先参考 `src/views/manage/system-log` 的薄 `index.vue` + `modules/FilterPanel.vue` + `modules/LogTable.vue` + `modules/shared.ts`；复杂 CRUD 再参考 `src/views/manage/user` 的 `useNaivePaginatedTable` 写法。占位页可先用 `src/components/custom/look-forward.vue` 或空 `NCard`/`NDataTable`，不要提前接不存在的接口。
+- API 和类型：前端接口放 `src/service/api/crm.ts` 并从 `src/service/api/index.ts` 导出；接口类型放 `src/typings/api/crm.d.ts` 的 `declare namespace Api.Crm` 下；分页沿用 `Api.Common.PaginatingQueryRecord<T>` 和 `current/size/total/records`。后端未完成前不要写会请求 404 的正式调用。
+- 相关文件：`build/plugins/router.ts`、`src/router/elegant/routes.ts`、`src/router/guard/route.ts`、`src/store/modules/route/shared.ts`、`src/typings/router.d.ts`、`src/locales/langs/zh-cn.ts`、`src/locales/langs/en-us.ts`、`src/service/api/index.ts`、`src/typings/api/common.d.ts`、`src/views/manage/system-log/index.vue`、`src/views/manage/user/index.vue`。
+- 验证方式：新增页面和 meta 后运行 `pnpm gen-route`；若新增 API 类型或路由类型引用，再运行 `pnpm typecheck`。按项目规则不需要运行 `npm run build`。
+
+### 2026-06-18 AI 获客后台任务必须持久化组织上下文
+
+- 场景：AI 获客任务由前端用户创建，但实际采集和完成后 CRM 导入发生在后台 worker 中。
+- 坑点：worker 只能从任务表恢复 `userId/userName`，不能依赖前端 token，也不能在后台猜默认组织；如果任务没有保存 `organizationId/organizationRole`，完成后导入 CRM 会丢失租户隔离上下文。
+- 正确做法：创建 `AiLeadSearchTask` 时从 `UserInfo` 固化 `organizationId/organizationRole`，Prisma store 写入并映射回 `AiLeadSearchTaskRecord`；worker 重建上下文或导入 CRM 时使用任务快照里的组织字段。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-search-task.service.ts`、`apps/server/src/modules/ai-leads/prisma-ai-lead-search-task.store.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-search-task.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts`，确认任务创建保存组织字段、worker 导入 CRM 使用任务组织上下文。
+
+### 2026-06-18 CRM 成员私有线索不能用组织级唯一查重
+
+- 场景：第一期 CRM 普通成员只能看自己的线索和邮件正文，组织管理员才可看组织内整体。
+- 坑点：如果 Account/Contact 按 `organizationId + domain/emailHash` 全组织查重，普通成员导入同组织其他成员已有的客户时会拿到或更新对方记录，造成成员隔离泄漏。
+- 正确做法：第一期成员私有数据的 Account/Contact 查重和唯一索引使用 `organizationId + ownerUserId + domain/emailHash`；组织级历史去重后续用归档指纹、提醒或管理员视图处理，不直接复用其他成员的私有 CRM 主记录。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`、`prisma/migrations/20260618230000_create_crm_foundation/migration.sql`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认同组织不同成员同域名不会复用对方 Account，并发唯一冲突会重读已有记录。
+
 ### 记录模板
 
 ```md

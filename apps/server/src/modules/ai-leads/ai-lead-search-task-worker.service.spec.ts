@@ -284,6 +284,97 @@ describe('AiLeadSearchTaskWorkerService', () => {
     assert.deepEqual(notifications[0].metadata, { taskId: task.id });
   });
 
+  it('imports completed AI lead candidates into CRM with task organization context', async () => {
+    const imports: Array<{ input: { name: string; websiteUrl?: string | null }; context: { organizationId: string } }> =
+      [];
+    const task = createTask({ status: 'queued', organizationId: 'org-1', organizationRole: 'member' });
+    const store = createTaskStore({ task, queries: [] });
+    const orchestrator = {
+      async searchWithKeywordPlan() {
+        return {
+          ...createSearchResult(),
+          candidates: [{ title: 'ABC Bearing', website: 'https://abc.example' }]
+        };
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const notificationService = {
+      async create() {}
+    };
+    const crmService = {
+      async importAccountFromLead(
+        input: { name: string; websiteUrl?: string | null },
+        context: { organizationId: string }
+      ) {
+        imports.push({ input, context });
+      }
+    };
+    const worker = new AiLeadSearchTaskWorkerService(
+      store,
+      orchestrator,
+      notificationService as never,
+      crmService as never
+    );
+
+    await worker.processTaskJob({ taskId: task.id, runVersion: task.runVersion, priority: 0 });
+
+    assert.equal(task.status, 'completed');
+    assert.equal(imports.length, 1);
+    assert.equal(imports[0].input.name, 'ABC Bearing');
+    assert.equal(imports[0].input.websiteUrl, 'https://abc.example');
+    assert.equal(imports[0].context.organizationId, 'org-1');
+  });
+
+  it('keeps completion notification when CRM import fails', async () => {
+    const notifications: Array<{ type: string }> = [];
+    const events: string[] = [];
+    const importedNames: string[] = [];
+    const task = createTask({ status: 'queued', organizationId: 'org-1', organizationRole: 'member' });
+    const store = createTaskStore({
+      task,
+      queries: [],
+      onEvent(eventType) {
+        events.push(eventType);
+      }
+    });
+    const orchestrator = {
+      async searchWithKeywordPlan() {
+        return {
+          ...createSearchResult(),
+          candidates: [
+            { title: 'ABC Bearing', website: 'https://abc.example' },
+            { title: 'XYZ Trading', website: 'https://xyz.example' }
+          ]
+        };
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const notificationService = {
+      async create(input: { type: string }) {
+        notifications.push(input);
+      }
+    };
+    const crmService = {
+      async importAccountFromLead(input: { name: string }) {
+        if (input.name === 'ABC Bearing') {
+          throw new Error('crm unavailable');
+        }
+        importedNames.push(input.name);
+      }
+    };
+    const worker = new AiLeadSearchTaskWorkerService(
+      store,
+      orchestrator,
+      notificationService as never,
+      crmService as never
+    );
+
+    await worker.processTaskJob({ taskId: task.id, runVersion: task.runVersion, priority: 0 });
+
+    assert.equal(task.status, 'completed');
+    assert.equal(notifications[0].type, 'task_completed');
+    assert.deepEqual(importedNames, ['XYZ Trading']);
+    assert.equal(events.includes('crm_import_failed'), true);
+  });
+
   it('creates the failure notification and keeps the original failure when the task failure event cannot be written', async () => {
     const notifications: Array<{ type: string; title: string; content: string }> = [];
     const task = createTask({ status: 'queued' });
@@ -461,6 +552,7 @@ function createTaskStore(options: {
   onRecover?: (activeJobIds: string[]) => void;
   failEventTypes?: string[];
   failProgressUpdate?: boolean;
+  onEvent?: (eventType: string) => void;
 }): AiLeadSearchTaskStore {
   return {
     async createTask() {
@@ -511,6 +603,7 @@ function createTaskStore(options: {
       if (options.failEventTypes?.includes(input.eventType)) {
         throw new Error(`${input.eventType} event unavailable`);
       }
+      options.onEvent?.(input.eventType);
 
       return undefined;
     },
@@ -559,6 +652,8 @@ function createTask(overrides: Partial<AiLeadSearchTaskRecord>): AiLeadSearchTas
     id: 'task-1',
     userId: 'u-1',
     userName: 'Soybean',
+    organizationId: 'org-1',
+    organizationRole: 'admin',
     requirement: '找沙特轴承进口商',
     targetLeadCount: 20,
     keywordPlan: { serperSearchQueries: [] },

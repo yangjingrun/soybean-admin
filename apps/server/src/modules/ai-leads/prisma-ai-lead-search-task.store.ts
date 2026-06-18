@@ -76,10 +76,11 @@ export class PrismaAiLeadSearchTaskStore implements AiLeadSearchTaskStore {
   }
 
   /** Reads the task that should be restored for the current user. */
-  async findCurrentTaskForUser(userId: string) {
+  async findCurrentTaskForUser(userId: string, organizationId: string) {
     const records = await this.prisma.aiLeadSearchTask.findMany({
       where: {
         userId,
+        organizationId,
         ...currentTaskWhere
       },
       orderBy: { updatedAt: 'desc' },
@@ -95,9 +96,9 @@ export class PrismaAiLeadSearchTaskStore implements AiLeadSearchTaskStore {
     return record ? toTaskRecord(record) : null;
   }
 
-  async findTaskByIdForUser(id: string, userId: string) {
+  async findTaskByIdForUser(id: string, userId: string, organizationId: string) {
     const record = await this.prisma.aiLeadSearchTask.findFirst({
-      where: { id, userId }
+      where: { id, userId, organizationId }
     });
 
     return record ? toTaskRecord(record) : null;
@@ -218,13 +219,15 @@ function isPrismaConcurrentCreateConflict(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2034' || error.code === 'P2002');
 }
 
-function toTaskCreateData(input: AiLeadSearchTaskCreateInput): Prisma.AiLeadSearchTaskCreateInput {
+function toTaskCreateData(input: AiLeadSearchTaskCreateInput): Prisma.AiLeadSearchTaskUncheckedCreateInput {
   return {
     userId: input.userId,
     userName: input.userName,
+    organizationId: input.organizationId,
+    organizationRole: input.organizationRole,
     requirement: input.requirement,
     targetLeadCount: input.targetLeadCount,
-    keywordPlan: input.keywordPlan as Prisma.AiLeadSearchTaskCreateInput['keywordPlan'],
+    keywordPlan: input.keywordPlan as Prisma.AiLeadSearchTaskUncheckedCreateInput['keywordPlan'],
     status: 'queued',
     priority: input.priority
   };
@@ -269,6 +272,8 @@ function toTaskRecord(record: AiLeadSearchTaskModel): AiLeadSearchTaskRecord {
     id: record.id,
     userId: record.userId,
     userName: record.userName,
+    organizationId: record.organizationId,
+    organizationRole: record.organizationRole as AiLeadSearchTaskRecord['organizationRole'],
     requirement: record.requirement,
     targetLeadCount: record.targetLeadCount,
     keywordPlan: record.keywordPlan,

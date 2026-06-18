@@ -16,11 +16,15 @@ const user: UserInfo = {
   userId: 'u-1',
   userName: 'Soybean',
   roles: ['R_SUPER'],
-  buttons: []
+  buttons: [],
+  organizationId: 'org-1',
+  organizationName: 'Org One',
+  organizationRole: 'admin'
 };
 const ordinaryUser: UserInfo = {
   ...user,
-  roles: []
+  roles: [],
+  organizationRole: 'member'
 };
 
 describe('AiLeadSearchTaskService', () => {
@@ -54,6 +58,34 @@ describe('AiLeadSearchTaskService', () => {
     assert.equal(task.bullJobId, 'job-task-1');
     assert.deepEqual(enqueued, [{ taskId: 'task-1', runVersion: 1, priority: 0 }]);
     assert.deepEqual(appliedConcurrency, [3]);
+  });
+
+  it('persists the current organization context on created tasks', async () => {
+    const capturedInputs: Array<Record<string, unknown>> = [];
+    const taskStore = createTaskStore({
+      onCreate(input) {
+        capturedInputs.push(input as unknown as Record<string, unknown>);
+      }
+    });
+    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        return { jobId: `job-${input.taskId}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await service.createTask(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20,
+        keywordPlan: { serperSearchQueries: [] }
+      },
+      { user }
+    );
+
+    assert.equal(capturedInputs[0].organizationId, 'org-1');
+    assert.equal(capturedInputs[0].organizationRole, 'admin');
   });
 
   it('rejects creating another task while current user has an active task', async () => {
@@ -531,6 +563,36 @@ describe('AiLeadSearchTaskService', () => {
     assert.deepEqual(task.result, rawResult);
   });
 
+  it('does not read tasks from another organization even when user id matches', async () => {
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'completed' })]
+    });
+    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('not used');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await assert.rejects(() => service.getTaskById('task-foreign-org', { user }), /采集任务不存在/);
+  });
+
+  it('does not restore current tasks from another organization', async () => {
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'running' })]
+    });
+    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('not used');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    assert.equal(await service.getCurrentTask({ user }), null);
+  });
+
   it('records a business log when saving queue concurrency config', async () => {
     const logRecorder = createLogRecorder();
     const taskStore = createTaskStore();
@@ -575,6 +637,7 @@ function createTaskStore(
   options: {
     activeTask?: AiLeadSearchTaskRecord | null;
     records?: AiLeadSearchTaskRecord[];
+    onCreate?: (input: AiLeadSearchTaskCreateInput) => void;
     onEvent?: (eventType: string) => void;
     failEventTypes?: string[];
   } = {}
@@ -583,10 +646,13 @@ function createTaskStore(
 
   return {
     async createTask(input: AiLeadSearchTaskCreateInput) {
+      options.onCreate?.(input);
       const record = createTask({
         id: 'task-1',
         userId: input.userId,
         userName: input.userName ?? null,
+        organizationId: input.organizationId,
+        organizationRole: input.organizationRole,
         requirement: input.requirement,
         targetLeadCount: input.targetLeadCount,
         keywordPlan: input.keywordPlan,
@@ -603,18 +669,37 @@ function createTaskStore(
         return null;
       }
 
-      const current = records.find(record => ['queued', 'running', 'interrupted', 'failed'].includes(record.status));
+      const current = records.find(
+        record =>
+          record.userId === input.userId &&
+          record.organizationId === input.organizationId &&
+          ['queued', 'running', 'interrupted', 'failed'].includes(record.status)
+      );
 
       return current ? null : this.createTask(input);
     },
-    async findCurrentTaskForUser() {
-      return options.activeTask ?? null;
+    async findCurrentTaskForUser(userId, organizationId) {
+      if (options.activeTask?.userId === userId && options.activeTask.organizationId === organizationId) {
+        return options.activeTask;
+      }
+
+      return (
+        records.find(
+          record =>
+            record.userId === userId &&
+            record.organizationId === organizationId &&
+            ['queued', 'running', 'interrupted', 'failed'].includes(record.status)
+        ) ?? null
+      );
     },
     async findTaskById(id: string) {
       return records.find(record => record.id === id) ?? null;
     },
-    async findTaskByIdForUser(id: string, userId: string) {
-      return records.find(record => record.id === id && record.userId === userId) ?? null;
+    async findTaskByIdForUser(id: string, userId: string, organizationId: string) {
+      return (
+        records.find(record => record.id === id && record.userId === userId && record.organizationId === organizationId) ??
+        null
+      );
     },
     async updateTask(id, patch, guard) {
       const record = records.find(item => item.id === id);
@@ -703,6 +788,8 @@ function createTask(overrides: Partial<AiLeadSearchTaskRecord>): AiLeadSearchTas
     id: 'task-1',
     userId: 'u-1',
     userName: 'Soybean',
+    organizationId: 'org-1',
+    organizationRole: 'admin',
     requirement: '找沙特轴承进口商',
     targetLeadCount: 20,
     keywordPlan: {},

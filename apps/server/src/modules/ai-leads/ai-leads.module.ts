@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AiGatewayModule } from '../ai-gateway/ai-gateway.module';
 import { AuthModule } from '../auth/auth.module';
+import { CrmModule } from '../crm/crm.module';
 import { DatabaseModule } from '../database/database.module';
 import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
@@ -22,7 +23,7 @@ import { PrismaAiLeadKeywordHistoryStore } from './prisma-ai-lead-keyword-histor
 import { PrismaAiLeadSearchTaskStore } from './prisma-ai-lead-search-task.store';
 
 @Module({
-  imports: [AiGatewayModule, AuthModule, DatabaseModule, SystemLogModule, SystemNotificationModule],
+  imports: [AiGatewayModule, AuthModule, CrmModule, DatabaseModule, SystemLogModule, SystemNotificationModule],
   controllers: [AiLeadsController],
   providers: [
     AiLeadsService,

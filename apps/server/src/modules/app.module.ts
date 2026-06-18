@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AiGatewayModule } from './ai-gateway/ai-gateway.module';
 import { AiLeadsModule } from './ai-leads/ai-leads.module';
 import { AuthModule } from './auth/auth.module';
+import { CrmModule } from './crm/crm.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { SystemLogModule } from './system-log/system-log.module';
@@ -24,6 +25,7 @@ import { SystemUserModule } from './system-user/system-user.module';
     AiGatewayModule,
     AiLeadsModule,
     AuthModule,
+    CrmModule,
     SystemLogModule,
     SystemNotificationModule,
     SystemUserModule,

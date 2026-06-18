@@ -51,6 +51,9 @@ export const ModelName = {
   SystemLog: 'SystemLog',
   SystemUser: 'SystemUser',
   Organization: 'Organization',
+  CrmAccount: 'CrmAccount',
+  CrmContact: 'CrmContact',
+  CrmTimelineEvent: 'CrmTimelineEvent',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -131,6 +134,59 @@ export const OrganizationScalarFieldEnum = {
 export type OrganizationScalarFieldEnum =
   (typeof OrganizationScalarFieldEnum)[keyof typeof OrganizationScalarFieldEnum];
 
+export const CrmAccountScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  name: 'name',
+  normalizedName: 'normalizedName',
+  websiteUrl: 'websiteUrl',
+  domain: 'domain',
+  country: 'country',
+  customerType: 'customerType',
+  status: 'status',
+  sourceTaskId: 'sourceTaskId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmAccountScalarFieldEnum = (typeof CrmAccountScalarFieldEnum)[keyof typeof CrmAccountScalarFieldEnum];
+
+export const CrmContactScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  accountId: 'accountId',
+  ownerUserId: 'ownerUserId',
+  fullName: 'fullName',
+  title: 'title',
+  email: 'email',
+  emailHash: 'emailHash',
+  maskedEmail: 'maskedEmail',
+  isPublicEmail: 'isPublicEmail',
+  emailStatus: 'emailStatus',
+  sourceTaskId: 'sourceTaskId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmContactScalarFieldEnum = (typeof CrmContactScalarFieldEnum)[keyof typeof CrmContactScalarFieldEnum];
+
+export const CrmTimelineEventScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  ownerUserId: 'ownerUserId',
+  eventType: 'eventType',
+  title: 'title',
+  content: 'content',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+} as const;
+
+export type CrmTimelineEventScalarFieldEnum =
+  (typeof CrmTimelineEventScalarFieldEnum)[keyof typeof CrmTimelineEventScalarFieldEnum];
+
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
   promptKey: 'promptKey',
@@ -195,6 +251,8 @@ export const AiLeadSearchTaskScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   userName: 'userName',
+  organizationId: 'organizationId',
+  organizationRole: 'organizationRole',
   requirement: 'requirement',
   targetLeadCount: 'targetLeadCount',
   keywordPlan: 'keywordPlan',

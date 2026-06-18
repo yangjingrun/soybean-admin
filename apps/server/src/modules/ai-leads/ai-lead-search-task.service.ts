@@ -58,6 +58,8 @@ export class AiLeadSearchTaskService {
     const task = await this.taskStore.createTaskIfNoCurrent({
       userId: user.userId,
       userName: user.userName,
+      organizationId: user.organizationId,
+      organizationRole: user.organizationRole,
       requirement,
       targetLeadCount,
       keywordPlan: dto.keywordPlan,
@@ -172,7 +174,7 @@ export class AiLeadSearchTaskService {
   async getCurrentTask(context: AiLeadSearchTaskContext = {}) {
     const user = this.requireUser(context);
 
-    const task = await this.taskStore.findCurrentTaskForUser(user.userId);
+    const task = await this.taskStore.findCurrentTaskForUser(user.userId, user.organizationId);
 
     return task ? this.toVisibleTask(task, context) : null;
   }
@@ -220,7 +222,7 @@ export class AiLeadSearchTaskService {
 
   private async getOwnedTaskOrThrow(id: string, context: AiLeadSearchTaskContext) {
     const user = this.requireUser(context);
-    const task = await this.taskStore.findTaskByIdForUser(id, user.userId);
+    const task = await this.taskStore.findTaskByIdForUser(id, user.userId, user.organizationId);
 
     if (!task) {
       throw new NotFoundException('采集任务不存在');
@@ -293,7 +295,10 @@ export class AiLeadSearchTaskService {
         { bullJobId: job.jobId },
         this.taskGuard(nextTask, 'queued')
       );
-      finalTask = updatedTask ?? (await this.taskStore.findTaskByIdForUser(task.id, task.userId)) ?? nextTask;
+      finalTask =
+        updatedTask ??
+        (await this.taskStore.findTaskByIdForUser(task.id, task.userId, task.organizationId)) ??
+        nextTask;
     } catch (error) {
       await this.markTaskFailedAfterEnqueueError(nextTask, error);
       throw error;

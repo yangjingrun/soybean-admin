@@ -1,8 +1,10 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { CrmService } from '../crm/crm.service';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { SearchRequestTrace } from './ai-lead-search-orchestrator.service';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
+import { mapAiLeadTaskResultToCrmImportInputs } from './ai-lead-crm-import.adapter';
 import { createLeadSearchProgressEmitter, type LeadSearchProgressEvent } from './ai-lead-search-progress';
 import { AI_LEAD_SEARCH_TASK_STORE } from './ai-leads.tokens';
 import type { AiLeadSearchTaskQueueJob } from './ai-lead-search-task-queue.service';
@@ -24,7 +26,8 @@ export class AiLeadSearchTaskWorkerService {
   constructor(
     @Inject(AI_LEAD_SEARCH_TASK_STORE) private readonly taskStore: AiLeadSearchTaskStore,
     @Inject(AiLeadSearchOrchestrator) private readonly orchestrator: AiLeadSearchOrchestrator,
-    @Optional() @Inject(SystemNotificationService) private readonly notificationService?: SystemNotificationService
+    @Optional() @Inject(SystemNotificationService) private readonly notificationService?: SystemNotificationService,
+    @Optional() @Inject(CrmService) private readonly crmService?: CrmService
   ) {}
 
   /** Interrupts tasks left running by a previous process before accepting new jobs. */
@@ -82,7 +85,10 @@ export class AiLeadSearchTaskWorkerService {
             userId: task.userId,
             userName: task.userName || '',
             roles: [],
-            buttons: []
+            buttons: [],
+            organizationId: task.organizationId,
+            organizationName: '',
+            organizationRole: task.organizationRole
           }
         },
         reporter,
@@ -197,6 +203,7 @@ export class AiLeadSearchTaskWorkerService {
       throw new AiLeadSearchTaskInterruptedError();
     }
 
+    await this.importCrmLeadsSafely(completedTask, result);
     await this.createTaskEventSafely({
       taskId: task.id,
       eventType: 'task_completed',
@@ -205,6 +212,48 @@ export class AiLeadSearchTaskWorkerService {
       title: '采集任务已完成'
     });
     await this.createTaskNotificationSafely(task, 'task_completed', '采集任务已完成', 'AI 获客采集任务已完成');
+  }
+
+  /** Imports completed search candidates into CRM without blocking task completion. */
+  private async importCrmLeadsSafely(task: AiLeadSearchTaskRecord, result: unknown) {
+    const inputs = mapAiLeadTaskResultToCrmImportInputs(task.id, result);
+
+    if (!this.crmService || inputs.length === 0) {
+      return;
+    }
+
+    let successCount = 0;
+    let failureCount = 0;
+    let firstErrorMessage: string | null = null;
+
+    for (const input of inputs) {
+      try {
+        await this.crmService.importAccountFromLead(input, {
+          userId: task.userId,
+          userName: task.userName || '',
+          roles: [],
+          organizationId: task.organizationId,
+          organizationRole: task.organizationRole
+        });
+        successCount += 1;
+      } catch (error) {
+        failureCount += 1;
+        firstErrorMessage ||= error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    if (failureCount > 0) {
+      await this.createTaskEventSafely({
+        taskId: task.id,
+        eventType: 'crm_import_failed',
+        title: 'CRM 线索导入失败',
+        message: firstErrorMessage,
+        metadata: {
+          successCount,
+          failureCount
+        }
+      });
+    }
   }
 
   private async failTask(task: AiLeadSearchTaskRecord, error: unknown) {

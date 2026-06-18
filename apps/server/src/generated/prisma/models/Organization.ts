@@ -179,6 +179,10 @@ export type OrganizationWhereInput = {
   createdAt?: Prisma.DateTimeFilter<'Organization'> | Date | string;
   updatedAt?: Prisma.DateTimeFilter<'Organization'> | Date | string;
   users?: Prisma.SystemUserListRelationFilter;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskListRelationFilter;
+  crmAccounts?: Prisma.CrmAccountListRelationFilter;
+  crmContacts?: Prisma.CrmContactListRelationFilter;
+  crmTimelineEvents?: Prisma.CrmTimelineEventListRelationFilter;
 };
 
 export type OrganizationOrderByWithRelationInput = {
@@ -188,6 +192,10 @@ export type OrganizationOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder;
   updatedAt?: Prisma.SortOrder;
   users?: Prisma.SystemUserOrderByRelationAggregateInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskOrderByRelationAggregateInput;
+  crmAccounts?: Prisma.CrmAccountOrderByRelationAggregateInput;
+  crmContacts?: Prisma.CrmContactOrderByRelationAggregateInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventOrderByRelationAggregateInput;
 };
 
 export type OrganizationWhereUniqueInput = Prisma.AtLeast<
@@ -201,6 +209,10 @@ export type OrganizationWhereUniqueInput = Prisma.AtLeast<
     createdAt?: Prisma.DateTimeFilter<'Organization'> | Date | string;
     updatedAt?: Prisma.DateTimeFilter<'Organization'> | Date | string;
     users?: Prisma.SystemUserListRelationFilter;
+    aiLeadSearchTasks?: Prisma.AiLeadSearchTaskListRelationFilter;
+    crmAccounts?: Prisma.CrmAccountListRelationFilter;
+    crmContacts?: Prisma.CrmContactListRelationFilter;
+    crmTimelineEvents?: Prisma.CrmTimelineEventListRelationFilter;
   },
   'id'
 >;
@@ -234,6 +246,10 @@ export type OrganizationCreateInput = {
   createdAt?: Date | string;
   updatedAt?: Date | string;
   users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput;
 };
 
 export type OrganizationUncheckedCreateInput = {
@@ -243,6 +259,10 @@ export type OrganizationUncheckedCreateInput = {
   createdAt?: Date | string;
   updatedAt?: Date | string;
   users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput;
 };
 
 export type OrganizationUpdateInput = {
@@ -252,6 +272,10 @@ export type OrganizationUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput;
 };
 
 export type OrganizationUncheckedUpdateInput = {
@@ -261,6 +285,10 @@ export type OrganizationUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput;
 };
 
 export type OrganizationCreateManyInput = {
@@ -333,12 +361,120 @@ export type OrganizationUpdateOneRequiredWithoutUsersNestedInput = {
   >;
 };
 
+export type OrganizationCreateNestedOneWithoutCrmAccountsInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmAccountsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmAccountsInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmAccountsInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+};
+
+export type OrganizationUpdateOneRequiredWithoutCrmAccountsNestedInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmAccountsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmAccountsInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmAccountsInput;
+  upsert?: Prisma.OrganizationUpsertWithoutCrmAccountsInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+  update?: Prisma.XOR<
+    Prisma.XOR<
+      Prisma.OrganizationUpdateToOneWithWhereWithoutCrmAccountsInput,
+      Prisma.OrganizationUpdateWithoutCrmAccountsInput
+    >,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmAccountsInput
+  >;
+};
+
+export type OrganizationCreateNestedOneWithoutCrmContactsInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmContactsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmContactsInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmContactsInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+};
+
+export type OrganizationUpdateOneRequiredWithoutCrmContactsNestedInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmContactsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmContactsInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmContactsInput;
+  upsert?: Prisma.OrganizationUpsertWithoutCrmContactsInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+  update?: Prisma.XOR<
+    Prisma.XOR<
+      Prisma.OrganizationUpdateToOneWithWhereWithoutCrmContactsInput,
+      Prisma.OrganizationUpdateWithoutCrmContactsInput
+    >,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmContactsInput
+  >;
+};
+
+export type OrganizationCreateNestedOneWithoutCrmTimelineEventsInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmTimelineEventsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmTimelineEventsInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmTimelineEventsInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+};
+
+export type OrganizationUpdateOneRequiredWithoutCrmTimelineEventsNestedInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmTimelineEventsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmTimelineEventsInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmTimelineEventsInput;
+  upsert?: Prisma.OrganizationUpsertWithoutCrmTimelineEventsInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+  update?: Prisma.XOR<
+    Prisma.XOR<
+      Prisma.OrganizationUpdateToOneWithWhereWithoutCrmTimelineEventsInput,
+      Prisma.OrganizationUpdateWithoutCrmTimelineEventsInput
+    >,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmTimelineEventsInput
+  >;
+};
+
+export type OrganizationCreateNestedOneWithoutAiLeadSearchTasksInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutAiLeadSearchTasksInput,
+    Prisma.OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutAiLeadSearchTasksInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+};
+
+export type OrganizationUpdateOneRequiredWithoutAiLeadSearchTasksNestedInput = {
+  create?: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutAiLeadSearchTasksInput,
+    Prisma.OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput
+  >;
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutAiLeadSearchTasksInput;
+  upsert?: Prisma.OrganizationUpsertWithoutAiLeadSearchTasksInput;
+  connect?: Prisma.OrganizationWhereUniqueInput;
+  update?: Prisma.XOR<
+    Prisma.XOR<
+      Prisma.OrganizationUpdateToOneWithWhereWithoutAiLeadSearchTasksInput,
+      Prisma.OrganizationUpdateWithoutAiLeadSearchTasksInput
+    >,
+    Prisma.OrganizationUncheckedUpdateWithoutAiLeadSearchTasksInput
+  >;
+};
+
 export type OrganizationCreateWithoutUsersInput = {
   id?: string;
   name: string;
   status?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput;
 };
 
 export type OrganizationUncheckedCreateWithoutUsersInput = {
@@ -347,6 +483,10 @@ export type OrganizationUncheckedCreateWithoutUsersInput = {
   status?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput;
 };
 
 export type OrganizationCreateOrConnectWithoutUsersInput = {
@@ -371,6 +511,10 @@ export type OrganizationUpdateWithoutUsersInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput;
 };
 
 export type OrganizationUncheckedUpdateWithoutUsersInput = {
@@ -379,6 +523,314 @@ export type OrganizationUncheckedUpdateWithoutUsersInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationCreateWithoutCrmAccountsInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationUncheckedCreateWithoutCrmAccountsInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationCreateOrConnectWithoutCrmAccountsInput = {
+  where: Prisma.OrganizationWhereUniqueInput;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmAccountsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmAccountsInput
+  >;
+};
+
+export type OrganizationUpsertWithoutCrmAccountsInput = {
+  update: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutCrmAccountsInput,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmAccountsInput
+  >;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmAccountsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmAccountsInput
+  >;
+  where?: Prisma.OrganizationWhereInput;
+};
+
+export type OrganizationUpdateToOneWithWhereWithoutCrmAccountsInput = {
+  where?: Prisma.OrganizationWhereInput;
+  data: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutCrmAccountsInput,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmAccountsInput
+  >;
+};
+
+export type OrganizationUpdateWithoutCrmAccountsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationUncheckedUpdateWithoutCrmAccountsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationCreateWithoutCrmContactsInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationUncheckedCreateWithoutCrmContactsInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationCreateOrConnectWithoutCrmContactsInput = {
+  where: Prisma.OrganizationWhereUniqueInput;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmContactsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmContactsInput
+  >;
+};
+
+export type OrganizationUpsertWithoutCrmContactsInput = {
+  update: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutCrmContactsInput,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmContactsInput
+  >;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmContactsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmContactsInput
+  >;
+  where?: Prisma.OrganizationWhereInput;
+};
+
+export type OrganizationUpdateToOneWithWhereWithoutCrmContactsInput = {
+  where?: Prisma.OrganizationWhereInput;
+  data: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutCrmContactsInput,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmContactsInput
+  >;
+};
+
+export type OrganizationUpdateWithoutCrmContactsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationUncheckedUpdateWithoutCrmContactsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationCreateWithoutCrmTimelineEventsInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationUncheckedCreateWithoutCrmTimelineEventsInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationCreateOrConnectWithoutCrmTimelineEventsInput = {
+  where: Prisma.OrganizationWhereUniqueInput;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmTimelineEventsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmTimelineEventsInput
+  >;
+};
+
+export type OrganizationUpsertWithoutCrmTimelineEventsInput = {
+  update: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutCrmTimelineEventsInput,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmTimelineEventsInput
+  >;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutCrmTimelineEventsInput,
+    Prisma.OrganizationUncheckedCreateWithoutCrmTimelineEventsInput
+  >;
+  where?: Prisma.OrganizationWhereInput;
+};
+
+export type OrganizationUpdateToOneWithWhereWithoutCrmTimelineEventsInput = {
+  where?: Prisma.OrganizationWhereInput;
+  data: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutCrmTimelineEventsInput,
+    Prisma.OrganizationUncheckedUpdateWithoutCrmTimelineEventsInput
+  >;
+};
+
+export type OrganizationUpdateWithoutCrmTimelineEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationUncheckedUpdateWithoutCrmTimelineEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput;
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationCreateWithoutAiLeadSearchTasksInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput = {
+  id?: string;
+  name: string;
+  status?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput;
+};
+
+export type OrganizationCreateOrConnectWithoutAiLeadSearchTasksInput = {
+  where: Prisma.OrganizationWhereUniqueInput;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutAiLeadSearchTasksInput,
+    Prisma.OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput
+  >;
+};
+
+export type OrganizationUpsertWithoutAiLeadSearchTasksInput = {
+  update: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutAiLeadSearchTasksInput,
+    Prisma.OrganizationUncheckedUpdateWithoutAiLeadSearchTasksInput
+  >;
+  create: Prisma.XOR<
+    Prisma.OrganizationCreateWithoutAiLeadSearchTasksInput,
+    Prisma.OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput
+  >;
+  where?: Prisma.OrganizationWhereInput;
+};
+
+export type OrganizationUpdateToOneWithWhereWithoutAiLeadSearchTasksInput = {
+  where?: Prisma.OrganizationWhereInput;
+  data: Prisma.XOR<
+    Prisma.OrganizationUpdateWithoutAiLeadSearchTasksInput,
+    Prisma.OrganizationUncheckedUpdateWithoutAiLeadSearchTasksInput
+  >;
+};
+
+export type OrganizationUpdateWithoutAiLeadSearchTasksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput;
+};
+
+export type OrganizationUncheckedUpdateWithoutAiLeadSearchTasksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  name?: Prisma.StringFieldUpdateOperationsInput | string;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput;
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput;
 };
 
 /**
@@ -387,12 +839,20 @@ export type OrganizationUncheckedUpdateWithoutUsersInput = {
 
 export type OrganizationCountOutputType = {
   users: number;
+  aiLeadSearchTasks: number;
+  crmAccounts: number;
+  crmContacts: number;
+  crmTimelineEvents: number;
 };
 
 export type OrganizationCountOutputTypeSelect<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > = {
   users?: boolean | OrganizationCountOutputTypeCountUsersArgs;
+  aiLeadSearchTasks?: boolean | OrganizationCountOutputTypeCountAiLeadSearchTasksArgs;
+  crmAccounts?: boolean | OrganizationCountOutputTypeCountCrmAccountsArgs;
+  crmContacts?: boolean | OrganizationCountOutputTypeCountCrmContactsArgs;
+  crmTimelineEvents?: boolean | OrganizationCountOutputTypeCountCrmTimelineEventsArgs;
 };
 
 /**
@@ -416,6 +876,42 @@ export type OrganizationCountOutputTypeCountUsersArgs<
   where?: Prisma.SystemUserWhereInput;
 };
 
+/**
+ * OrganizationCountOutputType without action
+ */
+export type OrganizationCountOutputTypeCountAiLeadSearchTasksArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  where?: Prisma.AiLeadSearchTaskWhereInput;
+};
+
+/**
+ * OrganizationCountOutputType without action
+ */
+export type OrganizationCountOutputTypeCountCrmAccountsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  where?: Prisma.CrmAccountWhereInput;
+};
+
+/**
+ * OrganizationCountOutputType without action
+ */
+export type OrganizationCountOutputTypeCountCrmContactsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  where?: Prisma.CrmContactWhereInput;
+};
+
+/**
+ * OrganizationCountOutputType without action
+ */
+export type OrganizationCountOutputTypeCountCrmTimelineEventsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  where?: Prisma.CrmTimelineEventWhereInput;
+};
+
 export type OrganizationSelect<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > = runtime.Types.Extensions.GetSelect<
@@ -426,6 +922,10 @@ export type OrganizationSelect<
     createdAt?: boolean;
     updatedAt?: boolean;
     users?: boolean | Prisma.Organization$usersArgs<ExtArgs>;
+    aiLeadSearchTasks?: boolean | Prisma.Organization$aiLeadSearchTasksArgs<ExtArgs>;
+    crmAccounts?: boolean | Prisma.Organization$crmAccountsArgs<ExtArgs>;
+    crmContacts?: boolean | Prisma.Organization$crmContactsArgs<ExtArgs>;
+    crmTimelineEvents?: boolean | Prisma.Organization$crmTimelineEventsArgs<ExtArgs>;
     _count?: boolean | Prisma.OrganizationCountOutputTypeDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['organization']
@@ -475,6 +975,10 @@ export type OrganizationInclude<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > = {
   users?: boolean | Prisma.Organization$usersArgs<ExtArgs>;
+  aiLeadSearchTasks?: boolean | Prisma.Organization$aiLeadSearchTasksArgs<ExtArgs>;
+  crmAccounts?: boolean | Prisma.Organization$crmAccountsArgs<ExtArgs>;
+  crmContacts?: boolean | Prisma.Organization$crmContactsArgs<ExtArgs>;
+  crmTimelineEvents?: boolean | Prisma.Organization$crmTimelineEventsArgs<ExtArgs>;
   _count?: boolean | Prisma.OrganizationCountOutputTypeDefaultArgs<ExtArgs>;
 };
 export type OrganizationIncludeCreateManyAndReturn<
@@ -490,6 +994,10 @@ export type $OrganizationPayload<
   name: 'Organization';
   objects: {
     users: Prisma.$SystemUserPayload<ExtArgs>[];
+    aiLeadSearchTasks: Prisma.$AiLeadSearchTaskPayload<ExtArgs>[];
+    crmAccounts: Prisma.$CrmAccountPayload<ExtArgs>[];
+    crmContacts: Prisma.$CrmContactPayload<ExtArgs>[];
+    crmTimelineEvents: Prisma.$CrmTimelineEventPayload<ExtArgs>[];
   };
   scalars: runtime.Types.Extensions.GetPayloadResult<
     {
@@ -978,6 +1486,26 @@ export interface Prisma__OrganizationClient<
   ): Prisma.PrismaPromise<
     runtime.Types.Result.GetResult<Prisma.$SystemUserPayload<ExtArgs>, T, 'findMany', GlobalOmitOptions> | Null
   >;
+  aiLeadSearchTasks<T extends Prisma.Organization$aiLeadSearchTasksArgs<ExtArgs> = {}>(
+    args?: Prisma.Subset<T, Prisma.Organization$aiLeadSearchTasksArgs<ExtArgs>>
+  ): Prisma.PrismaPromise<
+    runtime.Types.Result.GetResult<Prisma.$AiLeadSearchTaskPayload<ExtArgs>, T, 'findMany', GlobalOmitOptions> | Null
+  >;
+  crmAccounts<T extends Prisma.Organization$crmAccountsArgs<ExtArgs> = {}>(
+    args?: Prisma.Subset<T, Prisma.Organization$crmAccountsArgs<ExtArgs>>
+  ): Prisma.PrismaPromise<
+    runtime.Types.Result.GetResult<Prisma.$CrmAccountPayload<ExtArgs>, T, 'findMany', GlobalOmitOptions> | Null
+  >;
+  crmContacts<T extends Prisma.Organization$crmContactsArgs<ExtArgs> = {}>(
+    args?: Prisma.Subset<T, Prisma.Organization$crmContactsArgs<ExtArgs>>
+  ): Prisma.PrismaPromise<
+    runtime.Types.Result.GetResult<Prisma.$CrmContactPayload<ExtArgs>, T, 'findMany', GlobalOmitOptions> | Null
+  >;
+  crmTimelineEvents<T extends Prisma.Organization$crmTimelineEventsArgs<ExtArgs> = {}>(
+    args?: Prisma.Subset<T, Prisma.Organization$crmTimelineEventsArgs<ExtArgs>>
+  ): Prisma.PrismaPromise<
+    runtime.Types.Result.GetResult<Prisma.$CrmTimelineEventPayload<ExtArgs>, T, 'findMany', GlobalOmitOptions> | Null
+  >;
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1457,6 +1985,110 @@ export type Organization$usersArgs<
   take?: number;
   skip?: number;
   distinct?: Prisma.SystemUserScalarFieldEnum | Prisma.SystemUserScalarFieldEnum[];
+};
+
+/**
+ * Organization.aiLeadSearchTasks
+ */
+export type Organization$aiLeadSearchTasksArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  /**
+   * Select specific fields to fetch from the AiLeadSearchTask
+   */
+  select?: Prisma.AiLeadSearchTaskSelect<ExtArgs> | null;
+  /**
+   * Omit specific fields from the AiLeadSearchTask
+   */
+  omit?: Prisma.AiLeadSearchTaskOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AiLeadSearchTaskInclude<ExtArgs> | null;
+  where?: Prisma.AiLeadSearchTaskWhereInput;
+  orderBy?: Prisma.AiLeadSearchTaskOrderByWithRelationInput | Prisma.AiLeadSearchTaskOrderByWithRelationInput[];
+  cursor?: Prisma.AiLeadSearchTaskWhereUniqueInput;
+  take?: number;
+  skip?: number;
+  distinct?: Prisma.AiLeadSearchTaskScalarFieldEnum | Prisma.AiLeadSearchTaskScalarFieldEnum[];
+};
+
+/**
+ * Organization.crmAccounts
+ */
+export type Organization$crmAccountsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  /**
+   * Select specific fields to fetch from the CrmAccount
+   */
+  select?: Prisma.CrmAccountSelect<ExtArgs> | null;
+  /**
+   * Omit specific fields from the CrmAccount
+   */
+  omit?: Prisma.CrmAccountOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmAccountInclude<ExtArgs> | null;
+  where?: Prisma.CrmAccountWhereInput;
+  orderBy?: Prisma.CrmAccountOrderByWithRelationInput | Prisma.CrmAccountOrderByWithRelationInput[];
+  cursor?: Prisma.CrmAccountWhereUniqueInput;
+  take?: number;
+  skip?: number;
+  distinct?: Prisma.CrmAccountScalarFieldEnum | Prisma.CrmAccountScalarFieldEnum[];
+};
+
+/**
+ * Organization.crmContacts
+ */
+export type Organization$crmContactsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  /**
+   * Select specific fields to fetch from the CrmContact
+   */
+  select?: Prisma.CrmContactSelect<ExtArgs> | null;
+  /**
+   * Omit specific fields from the CrmContact
+   */
+  omit?: Prisma.CrmContactOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmContactInclude<ExtArgs> | null;
+  where?: Prisma.CrmContactWhereInput;
+  orderBy?: Prisma.CrmContactOrderByWithRelationInput | Prisma.CrmContactOrderByWithRelationInput[];
+  cursor?: Prisma.CrmContactWhereUniqueInput;
+  take?: number;
+  skip?: number;
+  distinct?: Prisma.CrmContactScalarFieldEnum | Prisma.CrmContactScalarFieldEnum[];
+};
+
+/**
+ * Organization.crmTimelineEvents
+ */
+export type Organization$crmTimelineEventsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  /**
+   * Select specific fields to fetch from the CrmTimelineEvent
+   */
+  select?: Prisma.CrmTimelineEventSelect<ExtArgs> | null;
+  /**
+   * Omit specific fields from the CrmTimelineEvent
+   */
+  omit?: Prisma.CrmTimelineEventOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmTimelineEventInclude<ExtArgs> | null;
+  where?: Prisma.CrmTimelineEventWhereInput;
+  orderBy?: Prisma.CrmTimelineEventOrderByWithRelationInput | Prisma.CrmTimelineEventOrderByWithRelationInput[];
+  cursor?: Prisma.CrmTimelineEventWhereUniqueInput;
+  take?: number;
+  skip?: number;
+  distinct?: Prisma.CrmTimelineEventScalarFieldEnum | Prisma.CrmTimelineEventScalarFieldEnum[];
 };
 
 /**

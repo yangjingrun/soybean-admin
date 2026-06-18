@@ -65,9 +65,86 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users SystemUser[]
+  users             SystemUser[]
+  aiLeadSearchTasks AiLeadSearchTask[]
+  crmAccounts       CrmAccount[]
+  crmContacts       CrmContact[]
+  crmTimelineEvents CrmTimelineEvent[]
 
   @@index([status])
+}
+
+model CrmAccount {
+  id             String   @id @default(uuid())
+  organizationId String
+  ownerUserId    String
+  name           String
+  normalizedName String
+  websiteUrl     String?
+  domain         String?
+  country        String?
+  customerType   String?
+  status         String   @default("candidate")
+  sourceTaskId   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  contacts     CrmContact[]
+  events       CrmTimelineEvent[]
+
+  @@unique([organizationId, ownerUserId, domain])
+  @@index([organizationId, ownerUserId, updatedAt])
+  @@index([organizationId, status, updatedAt])
+  @@index([sourceTaskId])
+}
+
+model CrmContact {
+  id             String   @id @default(uuid())
+  organizationId String
+  accountId      String
+  ownerUserId    String
+  fullName       String?
+  title          String?
+  email          String
+  emailHash      String
+  maskedEmail    String
+  isPublicEmail  Boolean  @default(false)
+  emailStatus    String   @default("unchecked")
+  sourceTaskId   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  account      CrmAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  events       CrmTimelineEvent[]
+
+  @@unique([organizationId, ownerUserId, emailHash])
+  @@index([organizationId, accountId])
+  @@index([organizationId, ownerUserId, updatedAt])
+  @@index([organizationId, emailStatus])
+  @@index([sourceTaskId])
+}
+
+model CrmTimelineEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+  accountId      String
+  contactId      String?
+  ownerUserId    String
+  eventType      String
+  title          String
+  content        String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  account      CrmAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, accountId, createdAt])
+  @@index([organizationId, contactId, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model AiPromptConfig {
@@ -125,6 +202,8 @@ model AiLeadSearchTask {
   id              String   @id @default(uuid())
   userId          String
   userName        String?
+  organizationId  String   @default("org-default")
+  organizationRole String  @default("member")
   requirement     String
   targetLeadCount Int
   keywordPlan     Json
@@ -144,8 +223,10 @@ model AiLeadSearchTask {
 
   queries AiLeadSearchTaskQuery[]
   events  AiLeadSearchTaskEvent[]
+  organization Organization @relation(fields: [organizationId], references: [id])
 
   @@index([userId, status, updatedAt])
+  @@index([organizationId, status, updatedAt])
   @@index([status, createdAt])
   @@index([bullJobId])
 }

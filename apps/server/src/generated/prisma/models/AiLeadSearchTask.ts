@@ -41,6 +41,8 @@ export type AiLeadSearchTaskMinAggregateOutputType = {
   id: string | null;
   userId: string | null;
   userName: string | null;
+  organizationId: string | null;
+  organizationRole: string | null;
   requirement: string | null;
   targetLeadCount: number | null;
   status: string | null;
@@ -60,6 +62,8 @@ export type AiLeadSearchTaskMaxAggregateOutputType = {
   id: string | null;
   userId: string | null;
   userName: string | null;
+  organizationId: string | null;
+  organizationRole: string | null;
   requirement: string | null;
   targetLeadCount: number | null;
   status: string | null;
@@ -79,6 +83,8 @@ export type AiLeadSearchTaskCountAggregateOutputType = {
   id: number;
   userId: number;
   userName: number;
+  organizationId: number;
+  organizationRole: number;
   requirement: number;
   targetLeadCount: number;
   keywordPlan: number;
@@ -114,6 +120,8 @@ export type AiLeadSearchTaskMinAggregateInputType = {
   id?: true;
   userId?: true;
   userName?: true;
+  organizationId?: true;
+  organizationRole?: true;
   requirement?: true;
   targetLeadCount?: true;
   status?: true;
@@ -133,6 +141,8 @@ export type AiLeadSearchTaskMaxAggregateInputType = {
   id?: true;
   userId?: true;
   userName?: true;
+  organizationId?: true;
+  organizationRole?: true;
   requirement?: true;
   targetLeadCount?: true;
   status?: true;
@@ -152,6 +162,8 @@ export type AiLeadSearchTaskCountAggregateInputType = {
   id?: true;
   userId?: true;
   userName?: true;
+  organizationId?: true;
+  organizationRole?: true;
   requirement?: true;
   targetLeadCount?: true;
   keywordPlan?: true;
@@ -262,6 +274,8 @@ export type AiLeadSearchTaskGroupByOutputType = {
   id: string;
   userId: string;
   userName: string | null;
+  organizationId: string;
+  organizationRole: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: runtime.JsonValue;
@@ -304,6 +318,8 @@ export type AiLeadSearchTaskWhereInput = {
   id?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   userId?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   userName?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+  organizationId?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+  organizationRole?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   requirement?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   targetLeadCount?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
   keywordPlan?: Prisma.JsonFilter<'AiLeadSearchTask'>;
@@ -322,12 +338,15 @@ export type AiLeadSearchTaskWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<'AiLeadSearchTask'> | Date | string;
   queries?: Prisma.AiLeadSearchTaskQueryListRelationFilter;
   events?: Prisma.AiLeadSearchTaskEventListRelationFilter;
+  organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>;
 };
 
 export type AiLeadSearchTaskOrderByWithRelationInput = {
   id?: Prisma.SortOrder;
   userId?: Prisma.SortOrder;
   userName?: Prisma.SortOrderInput | Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
   keywordPlan?: Prisma.SortOrder;
@@ -346,6 +365,7 @@ export type AiLeadSearchTaskOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder;
   queries?: Prisma.AiLeadSearchTaskQueryOrderByRelationAggregateInput;
   events?: Prisma.AiLeadSearchTaskEventOrderByRelationAggregateInput;
+  organization?: Prisma.OrganizationOrderByWithRelationInput;
 };
 
 export type AiLeadSearchTaskWhereUniqueInput = Prisma.AtLeast<
@@ -356,6 +376,8 @@ export type AiLeadSearchTaskWhereUniqueInput = Prisma.AtLeast<
     NOT?: Prisma.AiLeadSearchTaskWhereInput | Prisma.AiLeadSearchTaskWhereInput[];
     userId?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
     userName?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+    organizationId?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+    organizationRole?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
     requirement?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
     targetLeadCount?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
     keywordPlan?: Prisma.JsonFilter<'AiLeadSearchTask'>;
@@ -374,6 +396,7 @@ export type AiLeadSearchTaskWhereUniqueInput = Prisma.AtLeast<
     updatedAt?: Prisma.DateTimeFilter<'AiLeadSearchTask'> | Date | string;
     queries?: Prisma.AiLeadSearchTaskQueryListRelationFilter;
     events?: Prisma.AiLeadSearchTaskEventListRelationFilter;
+    organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>;
   },
   'id'
 >;
@@ -382,6 +405,8 @@ export type AiLeadSearchTaskOrderByWithAggregationInput = {
   id?: Prisma.SortOrder;
   userId?: Prisma.SortOrder;
   userName?: Prisma.SortOrderInput | Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
   keywordPlan?: Prisma.SortOrder;
@@ -412,6 +437,8 @@ export type AiLeadSearchTaskScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<'AiLeadSearchTask'> | string;
   userId?: Prisma.StringWithAggregatesFilter<'AiLeadSearchTask'> | string;
   userName?: Prisma.StringNullableWithAggregatesFilter<'AiLeadSearchTask'> | string | null;
+  organizationId?: Prisma.StringWithAggregatesFilter<'AiLeadSearchTask'> | string;
+  organizationRole?: Prisma.StringWithAggregatesFilter<'AiLeadSearchTask'> | string;
   requirement?: Prisma.StringWithAggregatesFilter<'AiLeadSearchTask'> | string;
   targetLeadCount?: Prisma.IntWithAggregatesFilter<'AiLeadSearchTask'> | number;
   keywordPlan?: Prisma.JsonWithAggregatesFilter<'AiLeadSearchTask'>;
@@ -434,6 +461,7 @@ export type AiLeadSearchTaskCreateInput = {
   id?: string;
   userId: string;
   userName?: string | null;
+  organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -452,12 +480,15 @@ export type AiLeadSearchTaskCreateInput = {
   updatedAt?: Date | string;
   queries?: Prisma.AiLeadSearchTaskQueryCreateNestedManyWithoutTaskInput;
   events?: Prisma.AiLeadSearchTaskEventCreateNestedManyWithoutTaskInput;
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAiLeadSearchTasksInput;
 };
 
 export type AiLeadSearchTaskUncheckedCreateInput = {
   id?: string;
   userId: string;
   userName?: string | null;
+  organizationId?: string;
+  organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -482,6 +513,7 @@ export type AiLeadSearchTaskUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -500,12 +532,15 @@ export type AiLeadSearchTaskUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   queries?: Prisma.AiLeadSearchTaskQueryUpdateManyWithoutTaskNestedInput;
   events?: Prisma.AiLeadSearchTaskEventUpdateManyWithoutTaskNestedInput;
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutAiLeadSearchTasksNestedInput;
 };
 
 export type AiLeadSearchTaskUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -530,6 +565,8 @@ export type AiLeadSearchTaskCreateManyInput = {
   id?: string;
   userId: string;
   userName?: string | null;
+  organizationId?: string;
+  organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -552,6 +589,7 @@ export type AiLeadSearchTaskUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -574,6 +612,8 @@ export type AiLeadSearchTaskUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -592,10 +632,22 @@ export type AiLeadSearchTaskUncheckedUpdateManyInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
 };
 
+export type AiLeadSearchTaskListRelationFilter = {
+  every?: Prisma.AiLeadSearchTaskWhereInput;
+  some?: Prisma.AiLeadSearchTaskWhereInput;
+  none?: Prisma.AiLeadSearchTaskWhereInput;
+};
+
+export type AiLeadSearchTaskOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder;
+};
+
 export type AiLeadSearchTaskCountOrderByAggregateInput = {
   id?: Prisma.SortOrder;
   userId?: Prisma.SortOrder;
   userName?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
   keywordPlan?: Prisma.SortOrder;
@@ -624,6 +676,8 @@ export type AiLeadSearchTaskMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder;
   userId?: Prisma.SortOrder;
   userName?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
@@ -643,6 +697,8 @@ export type AiLeadSearchTaskMinOrderByAggregateInput = {
   id?: Prisma.SortOrder;
   userId?: Prisma.SortOrder;
   userName?: Prisma.SortOrder;
+  organizationId?: Prisma.SortOrder;
+  organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
@@ -667,6 +723,92 @@ export type AiLeadSearchTaskSumOrderByAggregateInput = {
 export type AiLeadSearchTaskScalarRelationFilter = {
   is?: Prisma.AiLeadSearchTaskWhereInput;
   isNot?: Prisma.AiLeadSearchTaskWhereInput;
+};
+
+export type AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput,
+        Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput[]
+    | Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput[];
+  createMany?: Prisma.AiLeadSearchTaskCreateManyOrganizationInputEnvelope;
+  connect?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+};
+
+export type AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput,
+        Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput[]
+    | Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput[];
+  createMany?: Prisma.AiLeadSearchTaskCreateManyOrganizationInputEnvelope;
+  connect?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+};
+
+export type AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput,
+        Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput[]
+    | Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput[];
+  upsert?:
+    | Prisma.AiLeadSearchTaskUpsertWithWhereUniqueWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskUpsertWithWhereUniqueWithoutOrganizationInput[];
+  createMany?: Prisma.AiLeadSearchTaskCreateManyOrganizationInputEnvelope;
+  set?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  disconnect?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  delete?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  connect?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  update?:
+    | Prisma.AiLeadSearchTaskUpdateWithWhereUniqueWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskUpdateWithWhereUniqueWithoutOrganizationInput[];
+  updateMany?:
+    | Prisma.AiLeadSearchTaskUpdateManyWithWhereWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskUpdateManyWithWhereWithoutOrganizationInput[];
+  deleteMany?: Prisma.AiLeadSearchTaskScalarWhereInput | Prisma.AiLeadSearchTaskScalarWhereInput[];
+};
+
+export type AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput = {
+  create?:
+    | Prisma.XOR<
+        Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput,
+        Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput
+      >
+    | Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput[]
+    | Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput[];
+  connectOrCreate?:
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput[];
+  upsert?:
+    | Prisma.AiLeadSearchTaskUpsertWithWhereUniqueWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskUpsertWithWhereUniqueWithoutOrganizationInput[];
+  createMany?: Prisma.AiLeadSearchTaskCreateManyOrganizationInputEnvelope;
+  set?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  disconnect?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  delete?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  connect?: Prisma.AiLeadSearchTaskWhereUniqueInput | Prisma.AiLeadSearchTaskWhereUniqueInput[];
+  update?:
+    | Prisma.AiLeadSearchTaskUpdateWithWhereUniqueWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskUpdateWithWhereUniqueWithoutOrganizationInput[];
+  updateMany?:
+    | Prisma.AiLeadSearchTaskUpdateManyWithWhereWithoutOrganizationInput
+    | Prisma.AiLeadSearchTaskUpdateManyWithWhereWithoutOrganizationInput[];
+  deleteMany?: Prisma.AiLeadSearchTaskScalarWhereInput | Prisma.AiLeadSearchTaskScalarWhereInput[];
 };
 
 export type AiLeadSearchTaskCreateNestedOneWithoutQueriesInput = {
@@ -721,10 +863,129 @@ export type AiLeadSearchTaskUpdateOneRequiredWithoutEventsNestedInput = {
   >;
 };
 
+export type AiLeadSearchTaskCreateWithoutOrganizationInput = {
+  id?: string;
+  userId: string;
+  userName?: string | null;
+  organizationRole?: string;
+  requirement: string;
+  targetLeadCount: number;
+  keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
+  status?: string;
+  priority?: number;
+  runVersion?: number;
+  progressState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  errorMessage?: string | null;
+  bullJobId?: string | null;
+  readAt?: Date | string | null;
+  notifiedAt?: Date | string | null;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  queries?: Prisma.AiLeadSearchTaskQueryCreateNestedManyWithoutTaskInput;
+  events?: Prisma.AiLeadSearchTaskEventCreateNestedManyWithoutTaskInput;
+};
+
+export type AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput = {
+  id?: string;
+  userId: string;
+  userName?: string | null;
+  organizationRole?: string;
+  requirement: string;
+  targetLeadCount: number;
+  keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
+  status?: string;
+  priority?: number;
+  runVersion?: number;
+  progressState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  errorMessage?: string | null;
+  bullJobId?: string | null;
+  readAt?: Date | string | null;
+  notifiedAt?: Date | string | null;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  queries?: Prisma.AiLeadSearchTaskQueryUncheckedCreateNestedManyWithoutTaskInput;
+  events?: Prisma.AiLeadSearchTaskEventUncheckedCreateNestedManyWithoutTaskInput;
+};
+
+export type AiLeadSearchTaskCreateOrConnectWithoutOrganizationInput = {
+  where: Prisma.AiLeadSearchTaskWhereUniqueInput;
+  create: Prisma.XOR<
+    Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput,
+    Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput
+  >;
+};
+
+export type AiLeadSearchTaskCreateManyOrganizationInputEnvelope = {
+  data: Prisma.AiLeadSearchTaskCreateManyOrganizationInput | Prisma.AiLeadSearchTaskCreateManyOrganizationInput[];
+  skipDuplicates?: boolean;
+};
+
+export type AiLeadSearchTaskUpsertWithWhereUniqueWithoutOrganizationInput = {
+  where: Prisma.AiLeadSearchTaskWhereUniqueInput;
+  update: Prisma.XOR<
+    Prisma.AiLeadSearchTaskUpdateWithoutOrganizationInput,
+    Prisma.AiLeadSearchTaskUncheckedUpdateWithoutOrganizationInput
+  >;
+  create: Prisma.XOR<
+    Prisma.AiLeadSearchTaskCreateWithoutOrganizationInput,
+    Prisma.AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput
+  >;
+};
+
+export type AiLeadSearchTaskUpdateWithWhereUniqueWithoutOrganizationInput = {
+  where: Prisma.AiLeadSearchTaskWhereUniqueInput;
+  data: Prisma.XOR<
+    Prisma.AiLeadSearchTaskUpdateWithoutOrganizationInput,
+    Prisma.AiLeadSearchTaskUncheckedUpdateWithoutOrganizationInput
+  >;
+};
+
+export type AiLeadSearchTaskUpdateManyWithWhereWithoutOrganizationInput = {
+  where: Prisma.AiLeadSearchTaskScalarWhereInput;
+  data: Prisma.XOR<
+    Prisma.AiLeadSearchTaskUpdateManyMutationInput,
+    Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationInput
+  >;
+};
+
+export type AiLeadSearchTaskScalarWhereInput = {
+  AND?: Prisma.AiLeadSearchTaskScalarWhereInput | Prisma.AiLeadSearchTaskScalarWhereInput[];
+  OR?: Prisma.AiLeadSearchTaskScalarWhereInput[];
+  NOT?: Prisma.AiLeadSearchTaskScalarWhereInput | Prisma.AiLeadSearchTaskScalarWhereInput[];
+  id?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+  userId?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+  userName?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+  organizationId?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+  organizationRole?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+  requirement?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+  targetLeadCount?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
+  keywordPlan?: Prisma.JsonFilter<'AiLeadSearchTask'>;
+  status?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
+  priority?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
+  runVersion?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
+  progressState?: Prisma.JsonNullableFilter<'AiLeadSearchTask'>;
+  result?: Prisma.JsonNullableFilter<'AiLeadSearchTask'>;
+  errorMessage?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+  bullJobId?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+  readAt?: Prisma.DateTimeNullableFilter<'AiLeadSearchTask'> | Date | string | null;
+  notifiedAt?: Prisma.DateTimeNullableFilter<'AiLeadSearchTask'> | Date | string | null;
+  startedAt?: Prisma.DateTimeNullableFilter<'AiLeadSearchTask'> | Date | string | null;
+  finishedAt?: Prisma.DateTimeNullableFilter<'AiLeadSearchTask'> | Date | string | null;
+  createdAt?: Prisma.DateTimeFilter<'AiLeadSearchTask'> | Date | string;
+  updatedAt?: Prisma.DateTimeFilter<'AiLeadSearchTask'> | Date | string;
+};
+
 export type AiLeadSearchTaskCreateWithoutQueriesInput = {
   id?: string;
   userId: string;
   userName?: string | null;
+  organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -742,12 +1003,15 @@ export type AiLeadSearchTaskCreateWithoutQueriesInput = {
   createdAt?: Date | string;
   updatedAt?: Date | string;
   events?: Prisma.AiLeadSearchTaskEventCreateNestedManyWithoutTaskInput;
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAiLeadSearchTasksInput;
 };
 
 export type AiLeadSearchTaskUncheckedCreateWithoutQueriesInput = {
   id?: string;
   userId: string;
   userName?: string | null;
+  organizationId?: string;
+  organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -799,6 +1063,7 @@ export type AiLeadSearchTaskUpdateWithoutQueriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -816,12 +1081,15 @@ export type AiLeadSearchTaskUpdateWithoutQueriesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   events?: Prisma.AiLeadSearchTaskEventUpdateManyWithoutTaskNestedInput;
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutAiLeadSearchTasksNestedInput;
 };
 
 export type AiLeadSearchTaskUncheckedUpdateWithoutQueriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -845,6 +1113,7 @@ export type AiLeadSearchTaskCreateWithoutEventsInput = {
   id?: string;
   userId: string;
   userName?: string | null;
+  organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -862,12 +1131,15 @@ export type AiLeadSearchTaskCreateWithoutEventsInput = {
   createdAt?: Date | string;
   updatedAt?: Date | string;
   queries?: Prisma.AiLeadSearchTaskQueryCreateNestedManyWithoutTaskInput;
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAiLeadSearchTasksInput;
 };
 
 export type AiLeadSearchTaskUncheckedCreateWithoutEventsInput = {
   id?: string;
   userId: string;
   userName?: string | null;
+  organizationId?: string;
+  organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -919,6 +1191,7 @@ export type AiLeadSearchTaskUpdateWithoutEventsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -936,12 +1209,15 @@ export type AiLeadSearchTaskUpdateWithoutEventsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   queries?: Prisma.AiLeadSearchTaskQueryUpdateManyWithoutTaskNestedInput;
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutAiLeadSearchTasksNestedInput;
 };
 
 export type AiLeadSearchTaskUncheckedUpdateWithoutEventsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string;
   userId?: Prisma.StringFieldUpdateOperationsInput | string;
   userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
@@ -959,6 +1235,102 @@ export type AiLeadSearchTaskUncheckedUpdateWithoutEventsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
   queries?: Prisma.AiLeadSearchTaskQueryUncheckedUpdateManyWithoutTaskNestedInput;
+};
+
+export type AiLeadSearchTaskCreateManyOrganizationInput = {
+  id?: string;
+  userId: string;
+  userName?: string | null;
+  organizationRole?: string;
+  requirement: string;
+  targetLeadCount: number;
+  keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
+  status?: string;
+  priority?: number;
+  runVersion?: number;
+  progressState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  errorMessage?: string | null;
+  bullJobId?: string | null;
+  readAt?: Date | string | null;
+  notifiedAt?: Date | string | null;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+};
+
+export type AiLeadSearchTaskUpdateWithoutOrganizationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  userId?: Prisma.StringFieldUpdateOperationsInput | string;
+  userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
+  requirement?: Prisma.StringFieldUpdateOperationsInput | string;
+  targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  priority?: Prisma.IntFieldUpdateOperationsInput | number;
+  runVersion?: Prisma.IntFieldUpdateOperationsInput | number;
+  progressState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  notifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  queries?: Prisma.AiLeadSearchTaskQueryUpdateManyWithoutTaskNestedInput;
+  events?: Prisma.AiLeadSearchTaskEventUpdateManyWithoutTaskNestedInput;
+};
+
+export type AiLeadSearchTaskUncheckedUpdateWithoutOrganizationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  userId?: Prisma.StringFieldUpdateOperationsInput | string;
+  userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
+  requirement?: Prisma.StringFieldUpdateOperationsInput | string;
+  targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  priority?: Prisma.IntFieldUpdateOperationsInput | number;
+  runVersion?: Prisma.IntFieldUpdateOperationsInput | number;
+  progressState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  notifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  queries?: Prisma.AiLeadSearchTaskQueryUncheckedUpdateManyWithoutTaskNestedInput;
+  events?: Prisma.AiLeadSearchTaskEventUncheckedUpdateManyWithoutTaskNestedInput;
+};
+
+export type AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  userId?: Prisma.StringFieldUpdateOperationsInput | string;
+  userName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
+  requirement?: Prisma.StringFieldUpdateOperationsInput | string;
+  targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
+  status?: Prisma.StringFieldUpdateOperationsInput | string;
+  priority?: Prisma.IntFieldUpdateOperationsInput | number;
+  runVersion?: Prisma.IntFieldUpdateOperationsInput | number;
+  progressState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  notifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
 };
 
 /**
@@ -1014,6 +1386,8 @@ export type AiLeadSearchTaskSelect<
     id?: boolean;
     userId?: boolean;
     userName?: boolean;
+    organizationId?: boolean;
+    organizationRole?: boolean;
     requirement?: boolean;
     targetLeadCount?: boolean;
     keywordPlan?: boolean;
@@ -1032,6 +1406,7 @@ export type AiLeadSearchTaskSelect<
     updatedAt?: boolean;
     queries?: boolean | Prisma.AiLeadSearchTask$queriesArgs<ExtArgs>;
     events?: boolean | Prisma.AiLeadSearchTask$eventsArgs<ExtArgs>;
+    organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
     _count?: boolean | Prisma.AiLeadSearchTaskCountOutputTypeDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['aiLeadSearchTask']
@@ -1044,6 +1419,8 @@ export type AiLeadSearchTaskSelectCreateManyAndReturn<
     id?: boolean;
     userId?: boolean;
     userName?: boolean;
+    organizationId?: boolean;
+    organizationRole?: boolean;
     requirement?: boolean;
     targetLeadCount?: boolean;
     keywordPlan?: boolean;
@@ -1060,6 +1437,7 @@ export type AiLeadSearchTaskSelectCreateManyAndReturn<
     finishedAt?: boolean;
     createdAt?: boolean;
     updatedAt?: boolean;
+    organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['aiLeadSearchTask']
 >;
@@ -1071,6 +1449,8 @@ export type AiLeadSearchTaskSelectUpdateManyAndReturn<
     id?: boolean;
     userId?: boolean;
     userName?: boolean;
+    organizationId?: boolean;
+    organizationRole?: boolean;
     requirement?: boolean;
     targetLeadCount?: boolean;
     keywordPlan?: boolean;
@@ -1087,6 +1467,7 @@ export type AiLeadSearchTaskSelectUpdateManyAndReturn<
     finishedAt?: boolean;
     createdAt?: boolean;
     updatedAt?: boolean;
+    organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['aiLeadSearchTask']
 >;
@@ -1095,6 +1476,8 @@ export type AiLeadSearchTaskSelectScalar = {
   id?: boolean;
   userId?: boolean;
   userName?: boolean;
+  organizationId?: boolean;
+  organizationRole?: boolean;
   requirement?: boolean;
   targetLeadCount?: boolean;
   keywordPlan?: boolean;
@@ -1119,6 +1502,8 @@ export type AiLeadSearchTaskOmit<
   | 'id'
   | 'userId'
   | 'userName'
+  | 'organizationId'
+  | 'organizationRole'
   | 'requirement'
   | 'targetLeadCount'
   | 'keywordPlan'
@@ -1142,14 +1527,19 @@ export type AiLeadSearchTaskInclude<
 > = {
   queries?: boolean | Prisma.AiLeadSearchTask$queriesArgs<ExtArgs>;
   events?: boolean | Prisma.AiLeadSearchTask$eventsArgs<ExtArgs>;
+  organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
   _count?: boolean | Prisma.AiLeadSearchTaskCountOutputTypeDefaultArgs<ExtArgs>;
 };
 export type AiLeadSearchTaskIncludeCreateManyAndReturn<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
-> = {};
+> = {
+  organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
+};
 export type AiLeadSearchTaskIncludeUpdateManyAndReturn<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
-> = {};
+> = {
+  organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>;
+};
 
 export type $AiLeadSearchTaskPayload<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
@@ -1158,12 +1548,15 @@ export type $AiLeadSearchTaskPayload<
   objects: {
     queries: Prisma.$AiLeadSearchTaskQueryPayload<ExtArgs>[];
     events: Prisma.$AiLeadSearchTaskEventPayload<ExtArgs>[];
+    organization: Prisma.$OrganizationPayload<ExtArgs>;
   };
   scalars: runtime.Types.Extensions.GetPayloadResult<
     {
       id: string;
       userId: string;
       userName: string | null;
+      organizationId: string;
+      organizationRole: string;
       requirement: string;
       targetLeadCount: number;
       keywordPlan: runtime.JsonValue;
@@ -1677,6 +2070,15 @@ export interface Prisma__AiLeadSearchTaskClient<
     | runtime.Types.Result.GetResult<Prisma.$AiLeadSearchTaskEventPayload<ExtArgs>, T, 'findMany', GlobalOmitOptions>
     | Null
   >;
+  organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(
+    args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>
+  ): Prisma.Prisma__OrganizationClient<
+    | runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, 'findUniqueOrThrow', GlobalOmitOptions>
+    | Null,
+    Null,
+    ExtArgs,
+    GlobalOmitOptions
+  >;
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1711,6 +2113,8 @@ export interface AiLeadSearchTaskFieldRefs {
   readonly id: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
   readonly userId: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
   readonly userName: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
+  readonly organizationId: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
+  readonly organizationRole: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
   readonly requirement: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
   readonly targetLeadCount: Prisma.FieldRef<'AiLeadSearchTask', 'Int'>;
   readonly keywordPlan: Prisma.FieldRef<'AiLeadSearchTask', 'Json'>;
@@ -1996,6 +2400,10 @@ export type AiLeadSearchTaskCreateManyAndReturnArgs<
    */
   data: Prisma.AiLeadSearchTaskCreateManyInput | Prisma.AiLeadSearchTaskCreateManyInput[];
   skipDuplicates?: boolean;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AiLeadSearchTaskIncludeCreateManyAndReturn<ExtArgs> | null;
 };
 
 /**
@@ -2072,6 +2480,10 @@ export type AiLeadSearchTaskUpdateManyAndReturnArgs<
    * Limit how many AiLeadSearchTasks to update.
    */
   limit?: number;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AiLeadSearchTaskIncludeUpdateManyAndReturn<ExtArgs> | null;
 };
 
 /**
