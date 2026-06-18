@@ -2,7 +2,7 @@ import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsISO8601, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 const logLevels = ['info', 'warn', 'error'] as const;
-const logStatuses = ['success', 'failed'] as const;
+const logStatuses = ['processing', 'success', 'failed'] as const;
 
 export class SystemLogQueryDto {
   @IsOptional()

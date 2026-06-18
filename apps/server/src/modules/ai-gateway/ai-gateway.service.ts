@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -102,9 +103,25 @@ export class AiGatewayService {
 
   /** Generates text through the configured model and injects saved prompt rules when promptKey is provided. */
   async generateText(dto: GenerateAiTextDto, context: GenerateAiTextContext = {}) {
-    const params = await this.toGenerateParams(dto);
+    const requestId = randomUUID();
+
+    await this.recordProgressLog(
+      'AI 文本生成开始',
+      context,
+      this.toRequestLogMetadata(dto, 'request-received', requestId)
+    );
+
+    let params: AiTextGenerateParams | null = null;
 
     try {
+      params = await this.toGenerateParams(dto);
+
+      await this.recordProgressLog(
+        'AI 模型调用中',
+        context,
+        this.toLogMetadata(params, undefined, 'calling-model', requestId)
+      );
+
       const result = await this.textGenerator.generateText(params);
 
       await this.systemLogService.record({
@@ -115,7 +132,7 @@ export class AiGatewayService {
         message: 'AI 文本生成成功',
         userId: context.user?.userId,
         userName: context.user?.userName,
-        metadata: this.toLogMetadata(params, result)
+        metadata: this.toLogMetadata(params, result, 'completed', requestId)
       });
 
       return result;
@@ -129,7 +146,9 @@ export class AiGatewayService {
         userId: context.user?.userId,
         userName: context.user?.userName,
         errorMessage: error instanceof Error ? error.message : String(error),
-        metadata: this.toLogMetadata(params)
+        metadata: params
+          ? this.toLogMetadata(params, undefined, 'failed', requestId)
+          : this.toRequestLogMetadata(dto, 'failed-before-model-call', requestId)
       });
 
       throw error;
@@ -182,12 +201,44 @@ export class AiGatewayService {
     return this.getModelConfig(dto.modelConfigKey || defaultAiModelConfigKey);
   }
 
-  private toLogMetadata(params: AiTextGenerateParams, result?: Awaited<ReturnType<AiTextGenerator['generateText']>>) {
+  /** Record a visible processing stage for long-running AI requests. */
+  private recordProgressLog(message: string, context: GenerateAiTextContext, metadata: Record<string, unknown>) {
+    return this.systemLogService.record({
+      level: 'info',
+      status: 'processing',
+      module: 'ai-gateway',
+      action: 'generate-text-progress',
+      message,
+      userId: context.user?.userId,
+      userName: context.user?.userName,
+      metadata
+    });
+  }
+
+  private toLogMetadata(
+    params: AiTextGenerateParams,
+    result?: Awaited<ReturnType<AiTextGenerator['generateText']>>,
+    stage?: string,
+    requestId?: string
+  ) {
     return {
+      ...(requestId ? { requestId } : {}),
+      ...(stage ? { stage } : {}),
       providerName: params.providerName,
       model: params.model,
       ...(params.promptKey ? { promptKey: params.promptKey } : {}),
       ...(result ? { usage: result.usage } : {})
+    };
+  }
+
+  private toRequestLogMetadata(dto: GenerateAiTextDto, stage: string, requestId: string) {
+    return {
+      requestId,
+      stage,
+      ...(dto.modelConfigKey ? { modelConfigKey: dto.modelConfigKey } : {}),
+      ...(dto.promptKey ? { promptKey: dto.promptKey } : {}),
+      ...(dto.maxOutputTokens ? { maxOutputTokens: dto.maxOutputTokens } : {}),
+      hasInlineModelConfig: Boolean(dto.apiBase?.trim() && dto.apiKey?.trim() && dto.model?.trim())
     };
   }
 }

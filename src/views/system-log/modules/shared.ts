@@ -7,6 +7,7 @@ export const logLevelOptions = [
 ] satisfies Array<{ label: string; value: Api.SystemLog.LogLevel }>;
 
 export const logStatusOptions = [
+  { label: '处理中', value: 'processing' },
   { label: '成功', value: 'success' },
   { label: '失败', value: 'failed' }
 ] satisfies Array<{ label: string; value: Api.SystemLog.LogStatus }>;
@@ -33,11 +34,13 @@ export const logLevelTagTypeMap: Record<Api.SystemLog.LogLevel, NaiveUI.ThemeCol
 };
 
 export const logStatusLabelMap: Record<Api.SystemLog.LogStatus, string> = {
+  processing: '处理中',
   success: '成功',
   failed: '失败'
 };
 
 export const logStatusTagTypeMap: Record<Api.SystemLog.LogStatus, NaiveUI.ThemeColor> = {
+  processing: 'warning',
   success: 'success',
   failed: 'error'
 };

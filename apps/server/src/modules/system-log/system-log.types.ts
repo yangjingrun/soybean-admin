@@ -1,5 +1,5 @@
 export type SystemLogLevel = 'info' | 'warn' | 'error';
-export type SystemLogStatus = 'success' | 'failed';
+export type SystemLogStatus = 'processing' | 'success' | 'failed';
 
 export interface SystemLogRecord {
   id: string;

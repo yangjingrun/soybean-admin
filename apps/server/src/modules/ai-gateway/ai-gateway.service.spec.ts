@@ -168,8 +168,40 @@ describe('AiGatewayService', () => {
       }
     );
 
-    assert.equal(logRecorder.records.length, 1);
+    assert.equal(logRecorder.records.length, 3);
+    const successRequestId = (logRecorder.records[0].metadata as { requestId: string }).requestId;
+
+    assert.match(successRequestId, /^[0-9a-f-]{36}$/);
     assert.deepEqual(logRecorder.records[0], {
+      level: 'info',
+      status: 'processing',
+      module: 'ai-gateway',
+      action: 'generate-text-progress',
+      message: 'AI 文本生成开始',
+      userId: 'u-1',
+      userName: 'Super',
+      metadata: {
+        requestId: successRequestId,
+        stage: 'request-received',
+        hasInlineModelConfig: true
+      }
+    });
+    assert.deepEqual(logRecorder.records[1], {
+      level: 'info',
+      status: 'processing',
+      module: 'ai-gateway',
+      action: 'generate-text-progress',
+      message: 'AI 模型调用中',
+      userId: 'u-1',
+      userName: 'Super',
+      metadata: {
+        requestId: successRequestId,
+        stage: 'calling-model',
+        providerName: 'openrouter',
+        model: 'openai/gpt-4o-mini'
+      }
+    });
+    assert.deepEqual(logRecorder.records[2], {
       level: 'info',
       status: 'success',
       module: 'ai-gateway',
@@ -178,6 +210,8 @@ describe('AiGatewayService', () => {
       userId: 'u-1',
       userName: 'Super',
       metadata: {
+        requestId: successRequestId,
+        stage: 'completed',
         providerName: 'openrouter',
         model: 'openai/gpt-4o-mini',
         usage: {
@@ -223,8 +257,40 @@ describe('AiGatewayService', () => {
       cause
     );
 
-    assert.equal(logRecorder.records.length, 1);
+    assert.equal(logRecorder.records.length, 3);
+    const failedRequestId = (logRecorder.records[0].metadata as { requestId: string }).requestId;
+
+    assert.match(failedRequestId, /^[0-9a-f-]{36}$/);
     assert.deepEqual(logRecorder.records[0], {
+      level: 'info',
+      status: 'processing',
+      module: 'ai-gateway',
+      action: 'generate-text-progress',
+      message: 'AI 文本生成开始',
+      userId: 'u-1',
+      userName: 'Super',
+      metadata: {
+        requestId: failedRequestId,
+        stage: 'request-received',
+        hasInlineModelConfig: true
+      }
+    });
+    assert.deepEqual(logRecorder.records[1], {
+      level: 'info',
+      status: 'processing',
+      module: 'ai-gateway',
+      action: 'generate-text-progress',
+      message: 'AI 模型调用中',
+      userId: 'u-1',
+      userName: 'Super',
+      metadata: {
+        requestId: failedRequestId,
+        stage: 'calling-model',
+        providerName: 'openrouter',
+        model: 'openai/gpt-4o-mini'
+      }
+    });
+    assert.deepEqual(logRecorder.records[2], {
       level: 'error',
       status: 'failed',
       module: 'ai-gateway',
@@ -234,6 +300,8 @@ describe('AiGatewayService', () => {
       userName: 'Super',
       errorMessage: 'upstream failed',
       metadata: {
+        requestId: failedRequestId,
+        stage: 'failed',
         providerName: 'openrouter',
         model: 'openai/gpt-4o-mini'
       }

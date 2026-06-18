@@ -22,6 +22,7 @@
 
 当前日志状态：
 
+- `processing`：长任务处理中或阶段进度。
 - `success`：操作成功。
 - `failed`：操作失败。
 
@@ -68,7 +69,7 @@
 - `module`：业务模块，例如 `ai-gateway`。
 - `action`：动作，例如 `generate-text`。
 - `level`：`info`、`warn` 或 `error`。
-- `status`：`success` 或 `failed`。
+- `status`：`processing`、`success` 或 `failed`。
 - `message`：面向排查的简短中文说明。
 - `userId`、`userName`：能拿到当前用户时必须带上。
 - `errorMessage`：失败时记录错误原因。
@@ -88,6 +89,7 @@
   - 用户主动退出时记录 `info + success`。
   - `metadata` 会记录 `ip` 和 `userAgent`。
 - `ai-gateway/generate-text`
+  - 长任务开始和调用模型中记录 `info + processing`，动作使用 `generate-text-progress`。
   - 成功时记录 `info + success`。
   - 大模型调用失败时记录 `error + failed`，并继续抛出原错误。
 

@@ -2,7 +2,7 @@ declare namespace Api {
   namespace SystemLog {
     type LogLevel = 'info' | 'warn' | 'error';
 
-    type LogStatus = 'success' | 'failed';
+    type LogStatus = 'processing' | 'success' | 'failed';
 
     interface SystemLogRecord {
       id: string;
