@@ -7,12 +7,11 @@ export class SearchOrchestrateDto {
   @MaxLength(12000)
   requirement!: string;
 
-  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(200)
   @Type(() => Number)
-  targetLeadCountOverride?: number;
+  targetLeadCount!: number;
 
   @IsOptional()
   @IsInt()

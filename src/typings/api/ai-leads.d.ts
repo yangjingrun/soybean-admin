@@ -125,7 +125,7 @@ declare namespace Api {
 
     interface SearchOrchestratePayload {
       requirement: string;
-      targetLeadCountOverride?: number;
+      targetLeadCount: number;
       maxSearchRequests?: number;
     }
 

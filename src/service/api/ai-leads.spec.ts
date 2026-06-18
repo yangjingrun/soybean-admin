@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   aiLeadKeywordOptimizeTimeout,
+  aiLeadSearchOrchestrateTimeout,
   buildDeleteLeadKeywordHistoryRequestConfig,
   buildLeadKeywordHistoryListRequestConfig,
   buildLeadKeywordOptimizeRequestConfig,
+  buildLeadSearchOrchestrateRequestConfig,
   buildUpdateLeadKeywordHistoryRequestConfig
 } from './ai-leads.shared';
 
@@ -62,5 +64,19 @@ describe('ai leads api helpers', () => {
 
     assert.equal(config.url, '/ai-leads/keyword-histories/history-1');
     assert.equal(config.method, 'delete');
+  });
+
+  it('builds search orchestration request with required target lead count', () => {
+    const payload = {
+      requirement: '找韩国轴承进口商',
+      targetLeadCount: 20
+    };
+
+    const config = buildLeadSearchOrchestrateRequestConfig(payload);
+
+    assert.equal(config.url, '/ai-leads/search-orchestrate');
+    assert.equal(config.method, 'post');
+    assert.equal(config.timeout, aiLeadSearchOrchestrateTimeout);
+    assert.deepEqual(config.data, payload);
   });
 });

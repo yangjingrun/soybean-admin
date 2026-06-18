@@ -77,7 +77,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    const result = await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
+    const result = await service.search({ requirement: '找轴承进口商', targetLeadCount: 20 }, { user: createUser() });
 
     assert.deepEqual(
       serper.calls.map(call => call.request.page),
@@ -90,6 +90,137 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.equal(result.serperRequests.length, 2);
     assert.equal(result.candidates.length, 2);
     assert.equal(result.stopReason, '所有查询已完成');
+  });
+
+  it('uses the required target lead count from the request instead of the keyword plan', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 10,
+          serperSearchQueries: [
+            {
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      { organic: [{ title: 'A', link: 'https://a.example.com', snippet: 'bearing importer' }] }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+    const dto = { requirement: '找轴承进口商', targetLeadCount: 1 };
+
+    const result = await service.search(dto, { user: createUser() });
+
+    assert.equal(serper.calls.length, 1);
+    assert.equal(aiGateway.calls.length, 1);
+    assert.equal(result.candidates.length, 1);
+    assert.equal(result.stopReason, '已达到目标线索数量');
+  });
+
+  it('continues one initial query at most two extra rounds', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing distributor',
+          resolvedTargetLeadCount: null,
+          serperSearchQueries: [
+            {
+              q: '6204 bearing Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'low',
+          nextAction: 'requery',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '6204 bearing distributor Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'low',
+          nextAction: 'requery',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: 'industrial bearing stockist Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'low',
+          nextAction: 'requery',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: 'bearing wholesaler Riyadh',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Riyadh, Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([{ organic: [] }, { organic: [] }, { organic: [] }, { organic: [] }]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+    const dto = { requirement: '找轴承经销商', targetLeadCount: 20 };
+
+    await service.search(dto, { user: createUser() });
+
+    assert.deepEqual(
+      serper.calls.map(call => call.request.q),
+      ['6204 bearing Saudi Arabia', '6204 bearing distributor Saudi Arabia', 'industrial bearing stockist Saudi Arabia']
+    );
+    assert.equal(aiGateway.calls.length, 4);
   });
 
   it('adds generic local-language query requirements before search orchestration keyword optimization', async () => {
@@ -157,7 +288,11 @@ describe('AiLeadSearchOrchestrator', () => {
     );
 
     await service.search(
-      { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国和墨西哥进口商和经销商', maxSearchRequests: 0 },
+      {
+        requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国和墨西哥进口商和经销商',
+        targetLeadCount: 20,
+        maxSearchRequests: 0
+      },
       { user: createUser() }
     );
 
@@ -223,7 +358,7 @@ describe('AiLeadSearchOrchestrator', () => {
     );
 
     const result = await service.search(
-      { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国进口商和经销商' },
+      { requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找韩国进口商和经销商', targetLeadCount: 20 },
       { user: createUser() }
     );
 
@@ -356,7 +491,7 @@ describe('AiLeadSearchOrchestrator', () => {
     );
 
     const result = await service.search(
-      { requirement: '我是河北卖轴承的，找格鲁吉亚进口商和经销商' },
+      { requirement: '我是河北卖轴承的，找格鲁吉亚进口商和经销商', targetLeadCount: 20 },
       { user: createUser() }
     );
 
@@ -430,7 +565,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
+    await service.search({ requirement: '找轴承进口商', targetLeadCount: 20 }, { user: createUser() });
 
     assert.deepEqual(
       serper.calls.map(call => call.request),
@@ -542,7 +677,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
+    await service.search({ requirement: '找轴承进口商', targetLeadCount: 20 }, { user: createUser() });
 
     assert.deepEqual(
       serper.calls.map(call => call.endpoint),
@@ -613,7 +748,7 @@ describe('AiLeadSearchOrchestrator', () => {
       createLogRecorder()
     );
 
-    const result = await service.search({ requirement: '找轴承进口商' }, { user: createUser() });
+    const result = await service.search({ requirement: '找轴承进口商', targetLeadCount: 20 }, { user: createUser() });
 
     assert.equal(serper.calls.length, 1);
     assert.equal(result.stopReason, '所有查询已完成');

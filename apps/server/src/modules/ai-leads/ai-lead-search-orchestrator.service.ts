@@ -20,6 +20,7 @@ import {
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
 const defaultMaxSearchRequests = 20;
+const maxRepeatRounds = 2;
 const maxSearchPages = 3;
 const maxPlacesPages = 2;
 
@@ -106,10 +107,13 @@ export class AiLeadSearchOrchestrator {
   async search(dto: SearchOrchestrateDto, context: AiLeadSearchContext = {}) {
     const requirement = dto.requirement.trim();
     const maxRequests = dto.maxSearchRequests ?? defaultMaxSearchRequests;
+    const targetLeadCount = dto.targetLeadCount;
     const serperConfig = await this.aiGatewayService.getSerperConfig(defaultSerperConfigKey);
 
     await this.recordLog('processing', 'AI 获客搜索编排开始', context, {
-      maxRequests
+      maxRequests,
+      targetLeadCount,
+      maxRepeatRounds
     });
 
     const {
@@ -117,7 +121,6 @@ export class AiLeadSearchOrchestrator {
       keywordOptimization,
       qualityWarnings
     } = await this.generateKeywordPlanWithRepair(requirement, context);
-    const targetLeadCount = dto.targetLeadCountOverride ?? keywordOptimization.resolvedTargetLeadCount ?? null;
     const queryQueue = this.toInitialRequests(keywordOptimization);
     const executedKeys = new Set<string>();
     const serperRequests: SearchRequestTrace[] = [];
@@ -136,6 +139,7 @@ export class AiLeadSearchOrchestrator {
     for (const initialRequest of queryQueue) {
       let currentRequest: SearchRequestTrace | null = initialRequest;
       let currentQuery = initialRequest.requestBody;
+      let repeatedRounds = 0;
 
       while (currentRequest) {
         if (serperRequests.length >= maxRequests) {
@@ -187,6 +191,8 @@ export class AiLeadSearchOrchestrator {
           serperResult,
           serperRequests,
           collectedLeadCount: candidates.length,
+          targetLeadCount,
+          maxRepeatRounds,
           context
         });
         decisions.push({ request: currentRequest, decision });
@@ -199,7 +205,16 @@ export class AiLeadSearchOrchestrator {
           pageQuality: decision.pageQuality
         });
 
-        currentRequest = this.toNextRequest(decision, currentRequest);
+        const nextRequest = this.toNextRequest(decision, currentRequest);
+
+        if (!nextRequest || repeatedRounds >= maxRepeatRounds) {
+          currentRequest = null;
+          break;
+        }
+
+        // 同一个初始查询最多让 AI 继续两轮，避免低质结果反复重搜。
+        repeatedRounds += 1;
+        currentRequest = nextRequest;
         currentQuery = currentRequest?.requestBody ?? currentQuery;
       }
 
@@ -312,6 +327,8 @@ export class AiLeadSearchOrchestrator {
     serperResult: unknown;
     serperRequests: SearchRequestTrace[];
     collectedLeadCount: number;
+    targetLeadCount: number;
+    maxRepeatRounds: number;
     context: AiLeadSearchContext;
   }) {
     const result = await this.aiGatewayService.generateText(
@@ -322,7 +339,8 @@ export class AiLeadSearchOrchestrator {
           resolvedProductKeywords: input.keywordOptimization.resolvedProductKeywords || '',
           resolvedTargetRegions: input.keywordOptimization.resolvedTargetRegions || '',
           resolvedTargetCustomerProfile: input.keywordOptimization.resolvedTargetCustomerProfile || '',
-          resolvedTargetLeadCount: input.keywordOptimization.resolvedTargetLeadCount ?? null,
+          resolvedTargetLeadCount: input.targetLeadCount,
+          maxRepeatRounds: input.maxRepeatRounds,
           currentQuery: input.currentQuery,
           endpoint: input.currentRequest.endpoint,
           currentPage: input.currentRequest.requestBody.page ?? 1,

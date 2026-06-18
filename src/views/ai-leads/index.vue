@@ -23,10 +23,18 @@ import {
 
 const message = useMessage();
 const authStore = useAuthStore();
+const defaultTargetLeadCount = 20;
+const maxLeadSearchRepeatRounds = 2;
 
-const form = reactive({
+interface LeadSearchForm {
+  requirement: string;
+  targetLeadCount: number | null;
+}
+
+const form = reactive<LeadSearchForm>({
   requirement:
-    '我是中国河北卖轴承的，主打 6204 bearing，想找沙特阿拉伯进口商和经销商，产品优势是供货稳定、价格有竞争力。'
+    '我是中国河北卖轴承的，主打 6204 bearing，想找沙特阿拉伯进口商和经销商，产品优势是供货稳定、价格有竞争力。',
+  targetLeadCount: defaultTargetLeadCount
 });
 
 const isGenerating = shallowRef(false);
@@ -45,6 +53,15 @@ const editingKeywordPlanSnapshot = ref<Api.AiLeads.OptimizedKeywordPlan | null>(
 const selectedHistoryId = shallowRef('');
 
 const canGenerate = computed(() => Boolean(form.requirement.trim()));
+const isTargetLeadCountValid = computed(
+  () =>
+    typeof form.targetLeadCount === 'number' &&
+    Number.isInteger(form.targetLeadCount) &&
+    form.targetLeadCount >= 1 &&
+    form.targetLeadCount <= 200
+);
+const targetLeadCountValidationStatus = computed(() => (isTargetLeadCountValid.value ? undefined : 'error'));
+const targetLeadCountFeedback = computed(() => (isTargetLeadCountValid.value ? undefined : '请输入 1-200 的采集数量'));
 const canSaveHistory = computed(() =>
   Boolean(selectedHistoryId.value && editableKeywordPlan.value && form.requirement.trim())
 );
@@ -64,7 +81,9 @@ const parsedAiKeywordPlan = computed(() => {
 });
 const keywordOptimizationPlan = computed(() => editableKeywordPlan.value || parsedAiKeywordPlan.value);
 const hasKeywordPlan = computed(() => Boolean(keywordOptimizationPlan.value));
-const canSearchCustomers = computed(() => canGenerate.value && hasKeywordPlan.value && !isGenerating.value);
+const canSearchCustomers = computed(
+  () => canGenerate.value && hasKeywordPlan.value && isTargetLeadCountValid.value && !isGenerating.value
+);
 const keywordOptimizationViewModel = computed(() =>
   keywordOptimizationPlan.value
     ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, isSuperAdmin.value)
@@ -81,6 +100,7 @@ onMounted(() => {
 
 /** Calls the AI leads keyword optimization workflow. */
 async function handleGenerate() {
+  const targetLeadCount = form.targetLeadCount;
   isGenerating.value = true;
   searchResult.value = null;
 
@@ -97,6 +117,7 @@ async function handleGenerate() {
     keywordQualityWarnings.value = result.qualityWarnings ?? [];
     upsertHistoryRecord(result.historyRecord);
     applyKeywordHistoryRecord(result.historyRecord);
+    form.targetLeadCount = normalizeTargetLeadCount(targetLeadCount);
     message.success('生成完成');
   } finally {
     isGenerating.value = false;
@@ -115,12 +136,19 @@ async function handleSearchCustomers() {
     return;
   }
 
+  const targetLeadCount = getRequiredTargetLeadCount();
+  if (!targetLeadCount) {
+    message.warning('请输入 1-200 的采集数量');
+    return;
+  }
+
   isSearching.value = true;
   searchResult.value = null;
 
   try {
     const { data: result, error } = await searchLeadCustomers({
-      requirement: form.requirement.trim()
+      requirement: form.requirement.trim(),
+      targetLeadCount
     });
 
     if (error) {
@@ -138,6 +166,7 @@ async function handleSearchCustomers() {
 
 function handleClear() {
   form.requirement = '';
+  form.targetLeadCount = defaultTargetLeadCount;
   aiResult.value = null;
   searchResult.value = null;
   keywordQualityWarnings.value = [];
@@ -278,6 +307,7 @@ async function handleSaveHistory() {
 function applyKeywordHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   selectedHistoryId.value = record.id;
   form.requirement = record.requirement;
+  form.targetLeadCount = normalizeTargetLeadCount(record.keywordPlan.resolvedTargetLeadCount);
   aiResult.value = createAiResultFromKeywordHistory(record);
   keywordQualityWarnings.value = [];
   editableKeywordPlan.value = cloneKeywordPlan(record.keywordPlan);
@@ -301,19 +331,34 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
 
   historyRecords.value = [record, ...nextRecords].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
+
+/** Reads the required target lead count after form validation has passed. */
+function getRequiredTargetLeadCount() {
+  return isTargetLeadCountValid.value ? form.targetLeadCount : null;
+}
+
+/** Uses old keyword-history target counts when available, otherwise keeps the product default. */
+function normalizeTargetLeadCount(value: number | null) {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 200
+    ? value
+    : defaultTargetLeadCount;
+}
 </script>
 
 <template>
   <NSpace vertical :size="14" class="ai-leads-page">
     <NCard :bordered="false" size="small" class="card-wrapper lead-search-card">
       <div class="card-title">
-        <span class="card-title-text">获客需求</span>
-        <NTag size="small" type="info" :bordered="false">当前步骤：关键词优化</NTag>
+        <div class="card-title-main">
+          <span class="card-title-text">获客需求</span>
+          <NTag size="small" type="info" :bordered="false">当前步骤：关键词优化</NTag>
+          <NTag size="small" type="warning" :bordered="false">最多重复 {{ maxLeadSearchRepeatRounds }} 轮</NTag>
+        </div>
       </div>
 
-      <NForm :model="form" label-placement="left" label-width="72" size="small" class="lead-form">
+      <NForm :model="form" label-placement="left" label-width="78" size="small" class="lead-form">
         <NGrid :x-gap="18" :y-gap="12" responsive="screen" item-responsive>
-          <NGi span="24 l:18">
+          <NGi span="24 l:15">
             <NFormItem label="">
               <NInput
                 v-model:value="form.requirement"
@@ -324,7 +369,25 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
             </NFormItem>
           </NGi>
 
-          <NGi span="24 l:6" class="lead-actions">
+          <NGi span="24 m:8 l:4" class="lead-count-field">
+            <NFormItem
+              label="采集数量"
+              required
+              :validation-status="targetLeadCountValidationStatus"
+              :feedback="targetLeadCountFeedback"
+            >
+              <NInputNumber
+                v-model:value="form.targetLeadCount"
+                class="lead-count-input"
+                placeholder="20"
+                :min="1"
+                :max="200"
+                :precision="0"
+              />
+            </NFormItem>
+          </NGi>
+
+          <NGi span="24 m:16 l:5" class="lead-actions">
             <NSpace :size="8" class="lead-action-group">
               <NButton
                 :disabled="isGenerating || isSearching || isHistorySaving || isHistoryDeleting"
@@ -510,6 +573,14 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   border-bottom: 1px solid #edf1f7;
 }
 
+.card-title-main {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .card-title-text,
 .result-title {
   position: relative;
@@ -556,6 +627,10 @@ function upsertHistoryRecord(record: Api.AiLeads.KeywordHistoryRecord) {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+}
+
+.lead-count-field :deep(.n-input-number) {
+  width: 100%;
 }
 
 .lead-action-group {
