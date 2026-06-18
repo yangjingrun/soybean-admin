@@ -370,6 +370,8 @@ function createTaskRecord(overrides: Partial<Api.AiLeads.TaskRecord> = {}): Api.
     id: 'task-1',
     userId: 'u-1',
     userName: 'Soybean',
+    organizationId: 'org-1',
+    organizationRole: 'admin',
     requirement: '找沙特轴承进口商',
     targetLeadCount: 20,
     keywordPlan: createKeywordPlan(),

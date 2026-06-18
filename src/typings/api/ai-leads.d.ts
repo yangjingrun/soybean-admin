@@ -142,6 +142,8 @@ declare namespace Api {
 
     type TaskStatus = 'queued' | 'running' | 'interrupted' | 'failed' | 'completed' | 'discarded';
 
+    type OrganizationRole = import('@soybean/shared').OrganizationRole;
+
     interface CreateSearchTaskPayload {
       requirement: string;
       targetLeadCount: number;
@@ -152,6 +154,8 @@ declare namespace Api {
       id: string;
       userId: string;
       userName: string | null;
+      organizationId: string;
+      organizationRole: OrganizationRole;
       requirement: string;
       targetLeadCount: number;
       keywordPlan: OptimizedKeywordPlan;
