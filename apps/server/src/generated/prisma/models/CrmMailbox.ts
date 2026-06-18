@@ -327,6 +327,8 @@ export type CrmMailboxWhereInput = {
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
   messages?: Prisma.CrmMessageListRelationFilter
+  inboxThreads?: Prisma.CrmInboxThreadListRelationFilter
+  inboxMessages?: Prisma.CrmInboxMessageListRelationFilter
 }
 
 export type CrmMailboxOrderByWithRelationInput = {
@@ -351,6 +353,8 @@ export type CrmMailboxOrderByWithRelationInput = {
   organization?: Prisma.OrganizationOrderByWithRelationInput
   enrollments?: Prisma.CrmSequenceEnrollmentOrderByRelationAggregateInput
   messages?: Prisma.CrmMessageOrderByRelationAggregateInput
+  inboxThreads?: Prisma.CrmInboxThreadOrderByRelationAggregateInput
+  inboxMessages?: Prisma.CrmInboxMessageOrderByRelationAggregateInput
 }
 
 export type CrmMailboxWhereUniqueInput = Prisma.AtLeast<{
@@ -379,6 +383,8 @@ export type CrmMailboxWhereUniqueInput = Prisma.AtLeast<{
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
   messages?: Prisma.CrmMessageListRelationFilter
+  inboxThreads?: Prisma.CrmInboxThreadListRelationFilter
+  inboxMessages?: Prisma.CrmInboxMessageListRelationFilter
 }, "id" | "provider_emailHash">
 
 export type CrmMailboxOrderByWithAggregationInput = {
@@ -452,6 +458,8 @@ export type CrmMailboxCreateInput = {
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMailboxesInput
   enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutMailboxInput
   messages?: Prisma.CrmMessageCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxUncheckedCreateInput = {
@@ -475,6 +483,8 @@ export type CrmMailboxUncheckedCreateInput = {
   updatedAt?: Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutMailboxInput
   messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxUpdateInput = {
@@ -498,6 +508,8 @@ export type CrmMailboxUpdateInput = {
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMailboxesNestedInput
   enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutMailboxNestedInput
   messages?: Prisma.CrmMessageUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxUncheckedUpdateInput = {
@@ -521,6 +533,8 @@ export type CrmMailboxUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutMailboxNestedInput
   messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxCreateManyInput = {
@@ -752,6 +766,38 @@ export type CrmMailboxUpdateOneWithoutMessagesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.CrmMailboxUpdateToOneWithWhereWithoutMessagesInput, Prisma.CrmMailboxUpdateWithoutMessagesInput>, Prisma.CrmMailboxUncheckedUpdateWithoutMessagesInput>
 }
 
+export type CrmMailboxCreateNestedOneWithoutInboxThreadsInput = {
+  create?: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxThreadsInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxThreadsInput>
+  connectOrCreate?: Prisma.CrmMailboxCreateOrConnectWithoutInboxThreadsInput
+  connect?: Prisma.CrmMailboxWhereUniqueInput
+}
+
+export type CrmMailboxUpdateOneWithoutInboxThreadsNestedInput = {
+  create?: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxThreadsInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxThreadsInput>
+  connectOrCreate?: Prisma.CrmMailboxCreateOrConnectWithoutInboxThreadsInput
+  upsert?: Prisma.CrmMailboxUpsertWithoutInboxThreadsInput
+  disconnect?: Prisma.CrmMailboxWhereInput | boolean
+  delete?: Prisma.CrmMailboxWhereInput | boolean
+  connect?: Prisma.CrmMailboxWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CrmMailboxUpdateToOneWithWhereWithoutInboxThreadsInput, Prisma.CrmMailboxUpdateWithoutInboxThreadsInput>, Prisma.CrmMailboxUncheckedUpdateWithoutInboxThreadsInput>
+}
+
+export type CrmMailboxCreateNestedOneWithoutInboxMessagesInput = {
+  create?: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxMessagesInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxMessagesInput>
+  connectOrCreate?: Prisma.CrmMailboxCreateOrConnectWithoutInboxMessagesInput
+  connect?: Prisma.CrmMailboxWhereUniqueInput
+}
+
+export type CrmMailboxUpdateOneWithoutInboxMessagesNestedInput = {
+  create?: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxMessagesInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxMessagesInput>
+  connectOrCreate?: Prisma.CrmMailboxCreateOrConnectWithoutInboxMessagesInput
+  upsert?: Prisma.CrmMailboxUpsertWithoutInboxMessagesInput
+  disconnect?: Prisma.CrmMailboxWhereInput | boolean
+  delete?: Prisma.CrmMailboxWhereInput | boolean
+  connect?: Prisma.CrmMailboxWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CrmMailboxUpdateToOneWithWhereWithoutInboxMessagesInput, Prisma.CrmMailboxUpdateWithoutInboxMessagesInput>, Prisma.CrmMailboxUncheckedUpdateWithoutInboxMessagesInput>
+}
+
 export type CrmMailboxCreateWithoutOrganizationInput = {
   id?: string
   ownerUserId: string
@@ -772,6 +818,8 @@ export type CrmMailboxCreateWithoutOrganizationInput = {
   updatedAt?: Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutMailboxInput
   messages?: Prisma.CrmMessageCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxUncheckedCreateWithoutOrganizationInput = {
@@ -794,6 +842,8 @@ export type CrmMailboxUncheckedCreateWithoutOrganizationInput = {
   updatedAt?: Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutMailboxInput
   messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxCreateOrConnectWithoutOrganizationInput = {
@@ -866,6 +916,8 @@ export type CrmMailboxCreateWithoutEnrollmentsInput = {
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMailboxesInput
   messages?: Prisma.CrmMessageCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxUncheckedCreateWithoutEnrollmentsInput = {
@@ -888,6 +940,8 @@ export type CrmMailboxUncheckedCreateWithoutEnrollmentsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxCreateOrConnectWithoutEnrollmentsInput = {
@@ -926,6 +980,8 @@ export type CrmMailboxUpdateWithoutEnrollmentsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMailboxesNestedInput
   messages?: Prisma.CrmMessageUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxUncheckedUpdateWithoutEnrollmentsInput = {
@@ -948,6 +1004,8 @@ export type CrmMailboxUncheckedUpdateWithoutEnrollmentsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxCreateWithoutMessagesInput = {
@@ -970,6 +1028,8 @@ export type CrmMailboxCreateWithoutMessagesInput = {
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMailboxesInput
   enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxUncheckedCreateWithoutMessagesInput = {
@@ -992,6 +1052,8 @@ export type CrmMailboxUncheckedCreateWithoutMessagesInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutMailboxInput
 }
 
 export type CrmMailboxCreateOrConnectWithoutMessagesInput = {
@@ -1030,6 +1092,8 @@ export type CrmMailboxUpdateWithoutMessagesInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMailboxesNestedInput
   enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxUncheckedUpdateWithoutMessagesInput = {
@@ -1052,6 +1116,232 @@ export type CrmMailboxUncheckedUpdateWithoutMessagesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutMailboxNestedInput
+}
+
+export type CrmMailboxCreateWithoutInboxThreadsInput = {
+  id?: string
+  ownerUserId: string
+  ownerUserName?: string | null
+  provider?: string
+  emailAddress: string
+  emailHash: string
+  maskedEmail: string
+  status?: string
+  dailyLimit?: number
+  hourlyLimit?: number
+  warmupStage?: string
+  watchExpiration?: Date | string | null
+  lastHistoryId?: string | null
+  authorizedAt: Date | string
+  pausedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization: Prisma.OrganizationCreateNestedOneWithoutCrmMailboxesInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutMailboxInput
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutMailboxInput
+}
+
+export type CrmMailboxUncheckedCreateWithoutInboxThreadsInput = {
+  id?: string
+  organizationId: string
+  ownerUserId: string
+  ownerUserName?: string | null
+  provider?: string
+  emailAddress: string
+  emailHash: string
+  maskedEmail: string
+  status?: string
+  dailyLimit?: number
+  hourlyLimit?: number
+  warmupStage?: string
+  watchExpiration?: Date | string | null
+  lastHistoryId?: string | null
+  authorizedAt: Date | string
+  pausedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutMailboxInput
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutMailboxInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutMailboxInput
+}
+
+export type CrmMailboxCreateOrConnectWithoutInboxThreadsInput = {
+  where: Prisma.CrmMailboxWhereUniqueInput
+  create: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxThreadsInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxThreadsInput>
+}
+
+export type CrmMailboxUpsertWithoutInboxThreadsInput = {
+  update: Prisma.XOR<Prisma.CrmMailboxUpdateWithoutInboxThreadsInput, Prisma.CrmMailboxUncheckedUpdateWithoutInboxThreadsInput>
+  create: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxThreadsInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxThreadsInput>
+  where?: Prisma.CrmMailboxWhereInput
+}
+
+export type CrmMailboxUpdateToOneWithWhereWithoutInboxThreadsInput = {
+  where?: Prisma.CrmMailboxWhereInput
+  data: Prisma.XOR<Prisma.CrmMailboxUpdateWithoutInboxThreadsInput, Prisma.CrmMailboxUncheckedUpdateWithoutInboxThreadsInput>
+}
+
+export type CrmMailboxUpdateWithoutInboxThreadsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  emailAddress?: Prisma.StringFieldUpdateOperationsInput | string
+  emailHash?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pausedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMailboxesNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutMailboxNestedInput
+  messages?: Prisma.CrmMessageUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutMailboxNestedInput
+}
+
+export type CrmMailboxUncheckedUpdateWithoutInboxThreadsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  emailAddress?: Prisma.StringFieldUpdateOperationsInput | string
+  emailHash?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pausedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutMailboxNestedInput
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutMailboxNestedInput
+}
+
+export type CrmMailboxCreateWithoutInboxMessagesInput = {
+  id?: string
+  ownerUserId: string
+  ownerUserName?: string | null
+  provider?: string
+  emailAddress: string
+  emailHash: string
+  maskedEmail: string
+  status?: string
+  dailyLimit?: number
+  hourlyLimit?: number
+  warmupStage?: string
+  watchExpiration?: Date | string | null
+  lastHistoryId?: string | null
+  authorizedAt: Date | string
+  pausedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization: Prisma.OrganizationCreateNestedOneWithoutCrmMailboxesInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutMailboxInput
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutMailboxInput
+}
+
+export type CrmMailboxUncheckedCreateWithoutInboxMessagesInput = {
+  id?: string
+  organizationId: string
+  ownerUserId: string
+  ownerUserName?: string | null
+  provider?: string
+  emailAddress: string
+  emailHash: string
+  maskedEmail: string
+  status?: string
+  dailyLimit?: number
+  hourlyLimit?: number
+  warmupStage?: string
+  watchExpiration?: Date | string | null
+  lastHistoryId?: string | null
+  authorizedAt: Date | string
+  pausedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutMailboxInput
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutMailboxInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutMailboxInput
+}
+
+export type CrmMailboxCreateOrConnectWithoutInboxMessagesInput = {
+  where: Prisma.CrmMailboxWhereUniqueInput
+  create: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxMessagesInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxMessagesInput>
+}
+
+export type CrmMailboxUpsertWithoutInboxMessagesInput = {
+  update: Prisma.XOR<Prisma.CrmMailboxUpdateWithoutInboxMessagesInput, Prisma.CrmMailboxUncheckedUpdateWithoutInboxMessagesInput>
+  create: Prisma.XOR<Prisma.CrmMailboxCreateWithoutInboxMessagesInput, Prisma.CrmMailboxUncheckedCreateWithoutInboxMessagesInput>
+  where?: Prisma.CrmMailboxWhereInput
+}
+
+export type CrmMailboxUpdateToOneWithWhereWithoutInboxMessagesInput = {
+  where?: Prisma.CrmMailboxWhereInput
+  data: Prisma.XOR<Prisma.CrmMailboxUpdateWithoutInboxMessagesInput, Prisma.CrmMailboxUncheckedUpdateWithoutInboxMessagesInput>
+}
+
+export type CrmMailboxUpdateWithoutInboxMessagesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  emailAddress?: Prisma.StringFieldUpdateOperationsInput | string
+  emailHash?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pausedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMailboxesNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutMailboxNestedInput
+  messages?: Prisma.CrmMessageUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutMailboxNestedInput
+}
+
+export type CrmMailboxUncheckedUpdateWithoutInboxMessagesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  emailAddress?: Prisma.StringFieldUpdateOperationsInput | string
+  emailHash?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pausedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutMailboxNestedInput
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxCreateManyOrganizationInput = {
@@ -1094,6 +1384,8 @@ export type CrmMailboxUpdateWithoutOrganizationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutMailboxNestedInput
   messages?: Prisma.CrmMessageUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxUncheckedUpdateWithoutOrganizationInput = {
@@ -1116,6 +1408,8 @@ export type CrmMailboxUncheckedUpdateWithoutOrganizationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutMailboxNestedInput
   messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutMailboxNestedInput
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutMailboxNestedInput
 }
 
 export type CrmMailboxUncheckedUpdateManyWithoutOrganizationInput = {
@@ -1146,11 +1440,15 @@ export type CrmMailboxUncheckedUpdateManyWithoutOrganizationInput = {
 export type CrmMailboxCountOutputType = {
   enrollments: number
   messages: number
+  inboxThreads: number
+  inboxMessages: number
 }
 
 export type CrmMailboxCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   enrollments?: boolean | CrmMailboxCountOutputTypeCountEnrollmentsArgs
   messages?: boolean | CrmMailboxCountOutputTypeCountMessagesArgs
+  inboxThreads?: boolean | CrmMailboxCountOutputTypeCountInboxThreadsArgs
+  inboxMessages?: boolean | CrmMailboxCountOutputTypeCountInboxMessagesArgs
 }
 
 /**
@@ -1177,6 +1475,20 @@ export type CrmMailboxCountOutputTypeCountMessagesArgs<ExtArgs extends runtime.T
   where?: Prisma.CrmMessageWhereInput
 }
 
+/**
+ * CrmMailboxCountOutputType without action
+ */
+export type CrmMailboxCountOutputTypeCountInboxThreadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmInboxThreadWhereInput
+}
+
+/**
+ * CrmMailboxCountOutputType without action
+ */
+export type CrmMailboxCountOutputTypeCountInboxMessagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmInboxMessageWhereInput
+}
+
 
 export type CrmMailboxSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1200,6 +1512,8 @@ export type CrmMailboxSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   enrollments?: boolean | Prisma.CrmMailbox$enrollmentsArgs<ExtArgs>
   messages?: boolean | Prisma.CrmMailbox$messagesArgs<ExtArgs>
+  inboxThreads?: boolean | Prisma.CrmMailbox$inboxThreadsArgs<ExtArgs>
+  inboxMessages?: boolean | Prisma.CrmMailbox$inboxMessagesArgs<ExtArgs>
   _count?: boolean | Prisma.CrmMailboxCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["crmMailbox"]>
 
@@ -1273,6 +1587,8 @@ export type CrmMailboxInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   enrollments?: boolean | Prisma.CrmMailbox$enrollmentsArgs<ExtArgs>
   messages?: boolean | Prisma.CrmMailbox$messagesArgs<ExtArgs>
+  inboxThreads?: boolean | Prisma.CrmMailbox$inboxThreadsArgs<ExtArgs>
+  inboxMessages?: boolean | Prisma.CrmMailbox$inboxMessagesArgs<ExtArgs>
   _count?: boolean | Prisma.CrmMailboxCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CrmMailboxIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1288,6 +1604,8 @@ export type $CrmMailboxPayload<ExtArgs extends runtime.Types.Extensions.Internal
     organization: Prisma.$OrganizationPayload<ExtArgs>
     enrollments: Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>[]
     messages: Prisma.$CrmMessagePayload<ExtArgs>[]
+    inboxThreads: Prisma.$CrmInboxThreadPayload<ExtArgs>[]
+    inboxMessages: Prisma.$CrmInboxMessagePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1705,6 +2023,8 @@ export interface Prisma__CrmMailboxClient<T, Null = never, ExtArgs extends runti
   organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>): Prisma.Prisma__OrganizationClient<runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   enrollments<T extends Prisma.CrmMailbox$enrollmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmMailbox$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   messages<T extends Prisma.CrmMailbox$messagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmMailbox$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  inboxThreads<T extends Prisma.CrmMailbox$inboxThreadsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmMailbox$inboxThreadsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmInboxThreadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  inboxMessages<T extends Prisma.CrmMailbox$inboxMessagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmMailbox$inboxMessagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmInboxMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2198,6 +2518,54 @@ export type CrmMailbox$messagesArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.CrmMessageScalarFieldEnum | Prisma.CrmMessageScalarFieldEnum[]
+}
+
+/**
+ * CrmMailbox.inboxThreads
+ */
+export type CrmMailbox$inboxThreadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmInboxThread
+   */
+  select?: Prisma.CrmInboxThreadSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmInboxThread
+   */
+  omit?: Prisma.CrmInboxThreadOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmInboxThreadInclude<ExtArgs> | null
+  where?: Prisma.CrmInboxThreadWhereInput
+  orderBy?: Prisma.CrmInboxThreadOrderByWithRelationInput | Prisma.CrmInboxThreadOrderByWithRelationInput[]
+  cursor?: Prisma.CrmInboxThreadWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmInboxThreadScalarFieldEnum | Prisma.CrmInboxThreadScalarFieldEnum[]
+}
+
+/**
+ * CrmMailbox.inboxMessages
+ */
+export type CrmMailbox$inboxMessagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmInboxMessage
+   */
+  select?: Prisma.CrmInboxMessageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmInboxMessage
+   */
+  omit?: Prisma.CrmInboxMessageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmInboxMessageInclude<ExtArgs> | null
+  where?: Prisma.CrmInboxMessageWhereInput
+  orderBy?: Prisma.CrmInboxMessageOrderByWithRelationInput | Prisma.CrmInboxMessageOrderByWithRelationInput[]
+  cursor?: Prisma.CrmInboxMessageWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmInboxMessageScalarFieldEnum | Prisma.CrmInboxMessageScalarFieldEnum[]
 }
 
 /**

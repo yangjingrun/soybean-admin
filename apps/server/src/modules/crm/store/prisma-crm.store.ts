@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
+import type { CrmInboxMessageModel } from '../../../generated/prisma/models/CrmInboxMessage';
+import type { CrmInboxThreadModel } from '../../../generated/prisma/models/CrmInboxThread';
 import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
 import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
 import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
@@ -21,7 +23,16 @@ import type {
   CrmContactCreateInput,
   CrmContactRecord,
   CrmContactUpdateInput,
+  CrmCustomerReplyIngestInput,
+  CrmCustomerReplyIngestRecord,
   CrmEmailStatus,
+  CrmInboxThreadDetailRecord,
+  CrmInboxThreadListRecord,
+  CrmInboxMessageRecord,
+  CrmInboxThreadRecord,
+  CrmInboxThreadStatus,
+  CrmInboxThreadStatusUpdateInput,
+  CrmInboxThreadStatusUpdateRecord,
   CrmProductLineCreateInput,
   CrmProductLineRecord,
   CrmProductLineStatus,
@@ -45,6 +56,8 @@ import type {
   CrmSendFailureRecord,
   CrmSendStartInput,
   CrmSendStartRecord,
+  CrmSequenceStopInput,
+  CrmSequenceStopRecord,
   CrmStore,
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
@@ -534,6 +547,29 @@ export class PrismaCrmStore implements CrmStore {
 
   async approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null> {
     return this.prisma.$transaction(async tx => {
+      const [targetMessage, targetEnrollment] = await Promise.all([
+        tx.crmMessage.findFirst({
+          where: {
+            id: input.messageId,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            status: input.fromMessageStatus
+          }
+        }),
+        tx.crmSequenceEnrollment.findFirst({
+          where: {
+            id: input.enrollmentId,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            status: input.fromEnrollmentStatus
+          }
+        })
+      ]);
+
+      if (!targetMessage || !targetEnrollment) {
+        return null;
+      }
+
       const messages = await tx.crmMessage.updateManyAndReturn({
         where: {
           id: input.messageId,
@@ -599,6 +635,37 @@ export class PrismaCrmStore implements CrmStore {
 
   async startFirstMessageSend(input: CrmSendStartInput): Promise<CrmSendStartRecord | null> {
     return this.prisma.$transaction(async tx => {
+      const targetEnrollment = await tx.crmSequenceEnrollment.findFirst({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: input.fromEnrollmentStatus
+        }
+      });
+
+      if (!targetEnrollment?.mailboxId) {
+        return null;
+      }
+
+      const [targetMessage, contact, mailbox] = await Promise.all([
+        tx.crmMessage.findFirst({
+          where: {
+            enrollmentId: targetEnrollment.id,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            stepIndex: 1,
+            status: input.fromMessageStatus
+          }
+        }),
+        tx.crmContact.findUnique({ where: { id: targetEnrollment.contactId } }),
+        tx.crmMailbox.findUnique({ where: { id: targetEnrollment.mailboxId } })
+      ]);
+
+      if (!targetMessage || !contact || !mailbox || mailbox.status !== 'active') {
+        return null;
+      }
+
       const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
         where: {
           id: input.enrollmentId,
@@ -611,7 +678,7 @@ export class PrismaCrmStore implements CrmStore {
       });
       const enrollment = enrollments[0];
 
-      if (!enrollment?.mailboxId) {
+      if (!enrollment) {
         return null;
       }
 
@@ -635,13 +702,11 @@ export class PrismaCrmStore implements CrmStore {
         return null;
       }
 
-      const [account, contact, mailbox, event] = await Promise.all([
+      const [account, event] = await Promise.all([
         tx.crmAccount.update({
           where: { id: enrollment.accountId },
           data: { status: input.accountStatus }
         }),
-        tx.crmContact.findUnique({ where: { id: enrollment.contactId } }),
-        tx.crmMailbox.findUnique({ where: { id: enrollment.mailboxId } }),
         tx.crmTimelineEvent.create({
           data: {
             organizationId: input.organizationId,
@@ -660,16 +725,78 @@ export class PrismaCrmStore implements CrmStore {
         })
       ]);
 
-      if (!contact || !mailbox || mailbox.status !== 'active') {
-        return null;
-      }
-
       return {
         enrollment: toSequenceEnrollmentRecord(enrollment),
         message: toMessageRecord(message),
         account: toAccountRecord(account),
         contact: toContactRecord(contact),
         mailbox: toMailboxRecord(mailbox),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async stopSequenceEnrollment(input: CrmSequenceStopInput): Promise<CrmSequenceStopRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          status: { in: input.fromStatuses }
+        },
+        data: {
+          status: 'stopped',
+          runVersion: { increment: 1 }
+        },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const skippedMessages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          stepIndex: 1,
+          status: 'queued'
+        },
+        data: {
+          status: 'skipped',
+          bullJobId: null
+        },
+        limit: 1
+      });
+      const [account, event] = await Promise.all([
+        tx.crmAccount.update({
+          where: { id: enrollment.accountId },
+          data: { status: input.accountStatus }
+        }),
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: enrollment.accountId,
+            contactId: enrollment.contactId,
+            ownerUserId: input.actorUserId,
+            eventType: 'sequence_stopped',
+            title: '开发信序列已停止',
+            content: enrollment.name,
+            metadata: {
+              enrollmentId: enrollment.id,
+              fromStatuses: input.fromStatuses,
+              toStatus: 'stopped',
+              runVersion: enrollment.runVersion
+            }
+          }
+        })
+      ]);
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: skippedMessages[0] ? toMessageRecord(skippedMessages[0]) : null,
+        account: toAccountRecord(account),
         event: toTimelineEventRecord(event)
       };
     });
@@ -812,6 +939,249 @@ export class PrismaCrmStore implements CrmStore {
       };
     });
   }
+
+  async ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const outboundMessage = await tx.crmMessage.findFirst({
+        where: {
+          id: input.outboundMessageId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: 'sent'
+        },
+        include: {
+          account: true,
+          contact: true,
+          enrollment: true,
+          mailbox: true
+        }
+      });
+
+      if (!outboundMessage) {
+        return null;
+      }
+
+      const providerThreadId = input.providerThreadId ?? outboundMessage.enrollmentId;
+      const threadIdentity = {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        accountId: outboundMessage.accountId,
+        contactId: outboundMessage.contactId,
+        enrollmentId: outboundMessage.enrollmentId,
+        mailboxId: outboundMessage.mailboxId
+      };
+      const existingThread = await tx.crmInboxThread.findFirst({
+        where: input.providerThreadId
+          ? {
+              mailboxId: outboundMessage.mailboxId,
+              providerThreadId: input.providerThreadId
+            }
+          : threadIdentity
+      });
+      const thread =
+        existingThread ??
+        (await tx.crmInboxThread.create({
+          data: {
+            ...threadIdentity,
+            provider: 'gmail',
+            providerThreadId,
+            subject: input.subject,
+            status: 'pending',
+            lastInboundAt: input.receivedAt,
+            unreadCount: 0,
+            messageCount: 0
+          } as Prisma.CrmInboxThreadUncheckedCreateInput
+        }));
+      const inboxMessage = await tx.crmInboxMessage.create({
+        data: {
+          threadId: thread.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          accountId: outboundMessage.accountId,
+          contactId: outboundMessage.contactId,
+          enrollmentId: outboundMessage.enrollmentId,
+          mailboxId: outboundMessage.mailboxId,
+          provider: 'gmail',
+          providerMessageId: input.providerMessageId ?? null,
+          replyToMessageId: outboundMessage.id,
+          fromEmail: outboundMessage.contact.email,
+          fromEmailHash: outboundMessage.contact.emailHash,
+          maskedFromEmail: outboundMessage.contact.maskedEmail,
+          subject: input.subject,
+          snippet: toSnippet(input.bodyText),
+          bodyText: input.bodyText,
+          receivedAt: input.receivedAt,
+          messageType: input.messageType ?? 'customer_reply'
+        } as Prisma.CrmInboxMessageUncheckedCreateInput
+      });
+      const updatedThread = await tx.crmInboxThread.update({
+        where: { id: thread.id },
+        data: {
+          subject: input.subject,
+          status: 'pending',
+          lastInboundAt: input.receivedAt,
+          unreadCount: { increment: 1 },
+          messageCount: { increment: 1 }
+        }
+      });
+
+      await tx.crmSequenceEnrollment.updateMany({
+        where: {
+          id: outboundMessage.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
+        },
+        data: {
+          status: 'replied',
+          runVersion: { increment: 1 }
+        }
+      });
+      const account = await tx.crmAccount.update({
+        where: { id: outboundMessage.accountId },
+        data: { status: 'replied_pending' }
+      });
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          organizationId: input.organizationId,
+          accountId: outboundMessage.accountId,
+          contactId: outboundMessage.contactId,
+          ownerUserId: input.ownerUserId,
+          eventType: 'customer_replied',
+          title: '客户回信',
+          content: input.subject,
+          metadata: {
+            enrollmentId: outboundMessage.enrollmentId,
+            outboundMessageId: outboundMessage.id,
+            inboxThreadId: updatedThread.id,
+            inboxMessageId: inboxMessage.id
+          }
+        }
+      });
+
+      return {
+        thread: toInboxThreadRecord(updatedThread),
+        message: toInboxMessageRecord(inboxMessage),
+        account: toAccountRecord(account),
+        contact: toContactRecord(outboundMessage.contact),
+        mailbox: outboundMessage.mailbox ? toMailboxRecord(outboundMessage.mailbox) : null,
+        enrollment: outboundMessage.enrollment ? toSequenceEnrollmentRecord(outboundMessage.enrollment) : null,
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async listInboxThreads(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmInboxThreadStatus;
+    mailboxId?: string;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmInboxThreadListRecord[]; total: number }> {
+    const where = toInboxThreadListWhere(args);
+    const [records, total] = await Promise.all([
+      this.prisma.crmInboxThread.findMany({
+        where,
+        skip: args.skip,
+        take: args.take,
+        orderBy: { lastInboundAt: 'desc' },
+        include: toInboxThreadListInclude()
+      }),
+      this.prisma.crmInboxThread.count({ where })
+    ]);
+
+    return {
+      records: records.map(toInboxThreadListRecord),
+      total
+    };
+  }
+
+  async getInboxThread(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmInboxThreadDetailRecord | null> {
+    const record = await this.prisma.crmInboxThread.findFirst({
+      where: toInboxThreadIdentityWhere(args),
+      include: toInboxThreadDetailInclude()
+    });
+
+    if (!record) {
+      return null;
+    }
+
+    const timelineEvents = await this.prisma.crmTimelineEvent.findMany({
+      where: {
+        organizationId: args.organizationId,
+        accountId: record.accountId
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return toInboxThreadDetailRecord(record, timelineEvents);
+  }
+
+  async updateInboxThreadStatus(
+    input: CrmInboxThreadStatusUpdateInput
+  ): Promise<CrmInboxThreadStatusUpdateRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const data: Prisma.CrmInboxThreadUpdateManyMutationInput = {
+        status: input.toStatus,
+        ...(input.toStatus === 'pending' ? {} : { unreadCount: 0 })
+      };
+      const threads = await tx.crmInboxThread.updateManyAndReturn({
+        where: {
+          id: input.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          ...(input.fromStatus ? { status: input.fromStatus } : {})
+        },
+        data,
+        limit: 1
+      });
+      const thread = threads[0];
+
+      if (!thread) {
+        return null;
+      }
+
+      const account = input.accountStatus
+        ? await tx.crmAccount.update({
+            where: { id: thread.accountId },
+            data: { status: input.accountStatus }
+          })
+        : await tx.crmAccount.findUnique({ where: { id: thread.accountId } });
+
+      if (!account) {
+        return null;
+      }
+
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          organizationId: input.organizationId,
+          accountId: thread.accountId,
+          contactId: thread.contactId,
+          ownerUserId: input.ownerUserId,
+          eventType: 'inbox_status_changed',
+          title: '收件箱处理状态变更',
+          content: thread.subject,
+          metadata: {
+            threadId: thread.id,
+            fromStatus: input.fromStatus ?? null,
+            toStatus: input.toStatus
+          }
+        }
+      });
+
+      return {
+        thread: toInboxThreadRecord(thread),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
 }
 
 /** Builds the scoped account identity filter used before detail reads and writes. */
@@ -887,6 +1257,19 @@ function toMessageIdentityWhere(args: {
   };
 }
 
+/** Builds the scoped inbox thread identity filter used before inbox detail and writes. */
+function toInboxThreadIdentityWhere(args: {
+  id: string;
+  organizationId: string;
+  ownerUserId?: string;
+}): Prisma.CrmInboxThreadWhereInput {
+  return {
+    id: args.id,
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+  };
+}
+
 /** Builds the Prisma account list scope and optional UI filters. */
 function toAccountListWhere(args: {
   organizationId: string;
@@ -953,6 +1336,25 @@ function toSequenceEnrollmentListWhere(args: {
   };
 }
 
+/** Builds the inbox thread list scope and optional UI filters. */
+function toInboxThreadListWhere(args: {
+  organizationId: string;
+  ownerUserId?: string;
+  keyword?: string;
+  status?: CrmInboxThreadStatus;
+  mailboxId?: string;
+}): Prisma.CrmInboxThreadWhereInput {
+  const keywordFilter = args.keyword ? toInboxThreadKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
+    ...(args.status ? { status: args.status } : {}),
+    ...(args.mailboxId ? { mailboxId: args.mailboxId } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 function toAccountKeywordFilter(keyword: string): Prisma.CrmAccountWhereInput[] {
   return ['name', 'domain', 'websiteUrl', 'country', 'customerType'].map(field => ({
     [field]: {
@@ -1000,6 +1402,17 @@ function toSequenceEnrollmentKeywordFilter(keyword: string): Prisma.CrmSequenceE
   ];
 }
 
+function toInboxThreadKeywordFilter(keyword: string): Prisma.CrmInboxThreadWhereInput[] {
+  return [
+    { subject: { contains: keyword, mode: 'insensitive' } },
+    { account: { name: { contains: keyword, mode: 'insensitive' } } },
+    { account: { domain: { contains: keyword, mode: 'insensitive' } } },
+    { contact: { fullName: { contains: keyword, mode: 'insensitive' } } },
+    { contact: { title: { contains: keyword, mode: 'insensitive' } } },
+    { contact: { maskedEmail: { contains: keyword, mode: 'insensitive' } } }
+  ];
+}
+
 function toSequenceReviewInclude() {
   return {
     account: true,
@@ -1010,6 +1423,31 @@ function toSequenceReviewInclude() {
       where: { stepIndex: 1 },
       take: 1,
       orderBy: { createdAt: 'asc' as const }
+    }
+  };
+}
+
+function toInboxThreadListInclude() {
+  return {
+    account: true,
+    contact: true,
+    mailbox: true,
+    enrollment: true,
+    messages: {
+      take: 1,
+      orderBy: { receivedAt: 'desc' as const }
+    }
+  };
+}
+
+function toInboxThreadDetailInclude() {
+  return {
+    account: true,
+    contact: true,
+    mailbox: true,
+    enrollment: true,
+    messages: {
+      orderBy: { receivedAt: 'asc' as const }
     }
   };
 }
@@ -1063,6 +1501,22 @@ function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
   };
 }
 
+function toInboxThreadRecord(record: CrmInboxThreadModel): CrmInboxThreadRecord {
+  return {
+    ...record,
+    provider: record.provider as CrmInboxThreadRecord['provider'],
+    status: record.status as CrmInboxThreadRecord['status']
+  };
+}
+
+function toInboxMessageRecord(record: CrmInboxMessageModel): CrmInboxMessageRecord {
+  return {
+    ...record,
+    provider: record.provider as CrmInboxMessageRecord['provider'],
+    messageType: record.messageType as CrmInboxMessageRecord['messageType']
+  };
+}
+
 function toSequenceReviewRecord(
   record: CrmSequenceEnrollmentModel & {
     account: CrmAccountModel;
@@ -1080,6 +1534,47 @@ function toSequenceReviewRecord(
     mailbox: record.mailbox ? toMailboxRecord(record.mailbox) : null,
     firstMessage: record.messages[0] ? toMessageRecord(record.messages[0]) : null
   };
+}
+
+function toInboxThreadListRecord(
+  record: CrmInboxThreadModel & {
+    account: CrmAccountModel;
+    contact: CrmContactModel;
+    mailbox: CrmMailboxModel | null;
+    enrollment: CrmSequenceEnrollmentModel | null;
+    messages: CrmInboxMessageModel[];
+  }
+): CrmInboxThreadListRecord {
+  return {
+    thread: toInboxThreadRecord(record),
+    account: toAccountRecord(record.account),
+    contact: toContactRecord(record.contact),
+    mailbox: record.mailbox ? toMailboxRecord(record.mailbox) : null,
+    enrollment: record.enrollment ? toSequenceEnrollmentRecord(record.enrollment) : null,
+    lastMessage: record.messages[0] ? toInboxMessageRecord(record.messages[0]) : null
+  };
+}
+
+function toInboxThreadDetailRecord(
+  record: CrmInboxThreadModel & {
+    account: CrmAccountModel;
+    contact: CrmContactModel;
+    mailbox: CrmMailboxModel | null;
+    enrollment: CrmSequenceEnrollmentModel | null;
+    messages: CrmInboxMessageModel[];
+  },
+  timelineEvents: CrmTimelineEventModel[]
+): CrmInboxThreadDetailRecord {
+  return {
+    ...toInboxThreadListRecord(record),
+    messages: record.messages.map(toInboxMessageRecord),
+    timelineEvents: timelineEvents.map(toTimelineEventRecord)
+  };
+}
+
+function toSnippet(bodyText: string) {
+  const normalized = bodyText.replace(/\s+/g, ' ').trim();
+  return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
 }
 
 function isPrismaUniqueConflict(error: unknown) {

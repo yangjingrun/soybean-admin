@@ -394,6 +394,8 @@ export const ModelName = {
   CrmProductLine: 'CrmProductLine',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
+  CrmInboxThread: 'CrmInboxThread',
+  CrmInboxMessage: 'CrmInboxMessage',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -418,7 +420,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1159,6 +1161,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmMessageCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmMessageCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmInboxThread: {
+      payload: Prisma.$CrmInboxThreadPayload<ExtArgs>
+      fields: Prisma.CrmInboxThreadFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmInboxThreadFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmInboxThreadFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmInboxThreadFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmInboxThreadFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>
+        }
+        findMany: {
+          args: Prisma.CrmInboxThreadFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>[]
+        }
+        create: {
+          args: Prisma.CrmInboxThreadCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>
+        }
+        createMany: {
+          args: Prisma.CrmInboxThreadCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmInboxThreadCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmInboxThreadDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>
+        }
+        update: {
+          args: Prisma.CrmInboxThreadUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmInboxThreadDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmInboxThreadUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmInboxThreadUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmInboxThreadUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxThreadPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmInboxThreadAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmInboxThread>
+        }
+        groupBy: {
+          args: Prisma.CrmInboxThreadGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmInboxThreadGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmInboxThreadCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmInboxThreadCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmInboxMessage: {
+      payload: Prisma.$CrmInboxMessagePayload<ExtArgs>
+      fields: Prisma.CrmInboxMessageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmInboxMessageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmInboxMessageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>
+        }
+        findFirst: {
+          args: Prisma.CrmInboxMessageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmInboxMessageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>
+        }
+        findMany: {
+          args: Prisma.CrmInboxMessageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>[]
+        }
+        create: {
+          args: Prisma.CrmInboxMessageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>
+        }
+        createMany: {
+          args: Prisma.CrmInboxMessageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmInboxMessageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>[]
+        }
+        delete: {
+          args: Prisma.CrmInboxMessageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>
+        }
+        update: {
+          args: Prisma.CrmInboxMessageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmInboxMessageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmInboxMessageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmInboxMessageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmInboxMessageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmInboxMessagePayload>
+        }
+        aggregate: {
+          args: Prisma.CrmInboxMessageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmInboxMessage>
+        }
+        groupBy: {
+          args: Prisma.CrmInboxMessageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmInboxMessageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmInboxMessageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmInboxMessageCountAggregateOutputType> | number
         }
       }
     }
@@ -2070,6 +2220,54 @@ export const CrmMessageScalarFieldEnum = {
 export type CrmMessageScalarFieldEnum = (typeof CrmMessageScalarFieldEnum)[keyof typeof CrmMessageScalarFieldEnum]
 
 
+export const CrmInboxThreadScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  mailboxId: 'mailboxId',
+  provider: 'provider',
+  providerThreadId: 'providerThreadId',
+  subject: 'subject',
+  status: 'status',
+  lastInboundAt: 'lastInboundAt',
+  unreadCount: 'unreadCount',
+  messageCount: 'messageCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmInboxThreadScalarFieldEnum = (typeof CrmInboxThreadScalarFieldEnum)[keyof typeof CrmInboxThreadScalarFieldEnum]
+
+
+export const CrmInboxMessageScalarFieldEnum = {
+  id: 'id',
+  threadId: 'threadId',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  mailboxId: 'mailboxId',
+  provider: 'provider',
+  providerMessageId: 'providerMessageId',
+  replyToMessageId: 'replyToMessageId',
+  fromEmail: 'fromEmail',
+  fromEmailHash: 'fromEmailHash',
+  maskedFromEmail: 'maskedFromEmail',
+  subject: 'subject',
+  snippet: 'snippet',
+  bodyText: 'bodyText',
+  receivedAt: 'receivedAt',
+  messageType: 'messageType',
+  createdAt: 'createdAt'
+} as const
+
+export type CrmInboxMessageScalarFieldEnum = (typeof CrmInboxMessageScalarFieldEnum)[keyof typeof CrmInboxMessageScalarFieldEnum]
+
+
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
   promptKey: 'promptKey',
@@ -2475,6 +2673,8 @@ export type GlobalOmitConfig = {
   crmProductLine?: Prisma.CrmProductLineOmit
   crmSequenceEnrollment?: Prisma.CrmSequenceEnrollmentOmit
   crmMessage?: Prisma.CrmMessageOmit
+  crmInboxThread?: Prisma.CrmInboxThreadOmit
+  crmInboxMessage?: Prisma.CrmInboxMessageOmit
   aiPromptConfig?: Prisma.AiPromptConfigOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
   serperConfig?: Prisma.SerperConfigOmit

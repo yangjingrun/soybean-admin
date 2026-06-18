@@ -61,6 +61,8 @@ export const ModelName = {
   CrmProductLine: 'CrmProductLine',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
+  CrmInboxThread: 'CrmInboxThread',
+  CrmInboxMessage: 'CrmInboxMessage',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -289,6 +291,54 @@ export const CrmMessageScalarFieldEnum = {
 } as const
 
 export type CrmMessageScalarFieldEnum = (typeof CrmMessageScalarFieldEnum)[keyof typeof CrmMessageScalarFieldEnum]
+
+
+export const CrmInboxThreadScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  mailboxId: 'mailboxId',
+  provider: 'provider',
+  providerThreadId: 'providerThreadId',
+  subject: 'subject',
+  status: 'status',
+  lastInboundAt: 'lastInboundAt',
+  unreadCount: 'unreadCount',
+  messageCount: 'messageCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmInboxThreadScalarFieldEnum = (typeof CrmInboxThreadScalarFieldEnum)[keyof typeof CrmInboxThreadScalarFieldEnum]
+
+
+export const CrmInboxMessageScalarFieldEnum = {
+  id: 'id',
+  threadId: 'threadId',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  mailboxId: 'mailboxId',
+  provider: 'provider',
+  providerMessageId: 'providerMessageId',
+  replyToMessageId: 'replyToMessageId',
+  fromEmail: 'fromEmail',
+  fromEmailHash: 'fromEmailHash',
+  maskedFromEmail: 'maskedFromEmail',
+  subject: 'subject',
+  snippet: 'snippet',
+  bodyText: 'bodyText',
+  receivedAt: 'receivedAt',
+  messageType: 'messageType',
+  createdAt: 'createdAt'
+} as const
+
+export type CrmInboxMessageScalarFieldEnum = (typeof CrmInboxMessageScalarFieldEnum)[keyof typeof CrmInboxMessageScalarFieldEnum]
 
 
 export const AiPromptConfigScalarFieldEnum = {

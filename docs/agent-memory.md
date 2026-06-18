@@ -127,6 +127,22 @@
 - 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-send-worker.service.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认旧 runVersion job 跳过、owner-only 生效、入队失败回退、成功发送写入 sent。
 
+### 2026-06-19 CRM 发送控制事务要先校验可用资源再改状态
+
+- 场景：CRM 首封发送启动和停止序列都跨 `CrmSequenceEnrollment`、`CrmMessage`、`CrmAccount`、`CrmTimelineEvent` 多表写入。
+- 坑点：如果在发送启动事务里先把 enrollment/message/account 改成运行中和 queued，再检查 mailbox/contact 是否仍可用，邮箱刚好被暂停时会返回失败但事务已经提交半状态；停止序列如果不 bump `runVersion`，旧 BullMQ job 仍可能按旧快照继续执行。
+- 正确做法：`startFirstMessageSend` 在事务内先按当前状态读取 enrollment、首封 message、contact、active mailbox，确认资源可用后再做状态更新和 timeline；`stopSequenceEnrollment` 要把 active 状态改为 `stopped`、`runVersion + 1`，并把 queued 首封改为 `skipped`、清空 `bullJobId`，让旧 job 执行前 guard 自动失效。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.controller.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认邮箱暂停时不写半状态、管理员可停止成员序列、旧 queued message 被标记为 skipped。
+
+### 2026-06-19 扩展 CrmStore 接口要同步测试 fake store
+
+- 场景：CRM 模块新增收件箱、回信入库或序列控制这类 store 方法时，`CrmService` 单元测试使用内存 fake store 覆盖大量业务路径。
+- 坑点：只改 `CrmStore` 接口和 `PrismaCrmStore`，不补 `crm.service.spec.ts` 里的 fake store 方法和测试 record 类型，`pnpm --filter @soybean/server typecheck` 会报 fake store 不满足接口；如果用 `ReturnType<CrmStore['ingestCustomerReply']>` 推导 nullable 返回里的子对象，也容易变成 `never` 或重复类型别名。
+- 正确做法：新增 store 方法后同步给 service spec 的 fake store 添加最小实现或明确空实现；测试数据类型优先复用正式 `CrmInboxThreadRecord`、`CrmInboxMessageRecord` 这类 record 类型，避免从可空操作结果里反推。
+- 相关文件：`apps/server/src/modules/crm/crm.types.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`。
+- 验证方式：运行 `pnpm --filter @soybean/server typecheck` 和 CRM service/controller/store 测试，确认 fake store 与正式 store 接口一致。
+
 ### 记录模板
 
 ```md

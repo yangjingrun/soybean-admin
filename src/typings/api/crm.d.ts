@@ -338,6 +338,7 @@ declare namespace Api {
       mailbox: MailboxRecord | null;
       firstMessage: MessageRecord | null;
       canOperateDraft: boolean;
+      canControlSequence: boolean;
       checklist: SequenceReviewChecklistItem[];
     }
 
@@ -408,6 +409,13 @@ declare namespace Api {
     interface MessageSendStartResult {
       enrollment: SequenceEnrollmentRecord;
       message: MessageRecord;
+      account: LeadRecord;
+      event: LeadTimelineEvent;
+    }
+
+    interface SequenceStopResult {
+      enrollment: SequenceEnrollmentRecord;
+      message: MessageRecord | null;
       account: LeadRecord;
       event: LeadTimelineEvent;
     }

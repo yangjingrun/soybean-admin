@@ -17,6 +17,7 @@ import { CrmService } from './crm.service';
 import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
+import { CrmInboxThreadQueryDto } from './dto/crm-inbox-thread-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
 import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
 import { CrmSequenceReviewQueryDto } from './dto/crm-sequence-review-query.dto';
@@ -24,7 +25,9 @@ import { CreateCrmSequenceReviewItemDto } from './dto/create-crm-sequence-review
 import { CreateCrmProductLineDto } from './dto/create-crm-product-line.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
+import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
+import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
 import { UpdateCrmProductLineDto } from './dto/update-crm-product-line.dto';
 import type { CrmUserContext } from './crm.types';
@@ -170,6 +173,39 @@ export class CrmController {
   @Post('sequence-review-items/:id/start-send')
   async startFirstMessageSend(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.startFirstMessageSend(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('sequence-review-items/:id/stop')
+  async stopSequenceEnrollment(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.stopSequenceEnrollment(id, this.requireUserContext(authorization)));
+  }
+
+  @Get('inbox-threads')
+  async listInboxThreads(@Headers('authorization') authorization = '', @Query() query: CrmInboxThreadQueryDto) {
+    return ok(await this.crmService.listInboxThreads(this.requireUserContext(authorization), query));
+  }
+
+  @Get('inbox-threads/:id')
+  async getInboxThread(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.getInboxThread(id, this.requireUserContext(authorization)));
+  }
+
+  @Patch('inbox-threads/:id/status')
+  async updateInboxThreadStatus(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmInboxThreadStatusDto
+  ) {
+    return ok(await this.crmService.updateInboxThreadStatus(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('messages/:id/mock-reply')
+  async mockCustomerReply(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: MockCrmReplyDto
+  ) {
+    return ok(await this.crmService.mockCustomerReply(id, dto, this.requireUserContext(authorization)));
   }
 
   private requireUserContext(authorization: string): CrmUserContext {

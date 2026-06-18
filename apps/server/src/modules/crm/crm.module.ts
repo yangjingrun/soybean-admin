@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { RedisModule } from '../redis/redis.module';
 import { SystemLogModule } from '../system-log/system-log.module';
+import { SystemNotificationModule } from '../system-notification/system-notification.module';
 import { MockCrmEmailSendGateway } from './crm-email-send.gateway';
 import { CrmController } from './crm.controller';
 import { CrmSendQueueService } from './crm-send-queue.service';
@@ -14,7 +15,7 @@ import { CRM_EMAIL_DNS_RESOLVER, CRM_EMAIL_SEND_GATEWAY, CRM_SEND_QUEUE, CRM_STO
 import { PrismaCrmStore } from './store/prisma-crm.store';
 
 @Module({
-  imports: [AuthModule, DatabaseModule, RedisModule, SystemLogModule],
+  imports: [AuthModule, DatabaseModule, RedisModule, SystemLogModule, SystemNotificationModule],
   controllers: [CrmController],
   providers: [
     CrmService,

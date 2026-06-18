@@ -504,6 +504,123 @@ describe('PrismaCrmStore', () => {
     });
     assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'message_queued');
   });
+
+  it('does not mutate sending state when active mailbox guard fails inside transaction', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    prisma.crmMailbox.findUniqueResult = { status: 'paused' };
+
+    const result = await store.startFirstMessageSend({
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      fromEnrollmentStatus: 'ready_to_send',
+      toEnrollmentStatus: 'sequence_running',
+      fromMessageStatus: 'draft_ready',
+      toMessageStatus: 'queued',
+      accountStatus: 'sequence_running',
+      scheduledAt: new Date('2026-06-18T10:00:00.000Z')
+    });
+
+    assert.equal(result, null);
+    assert.equal(prisma.crmSequenceEnrollment.updateManyAndReturnCalls.length, 0);
+    assert.equal(prisma.crmMessage.updateManyAndReturnCalls.length, 0);
+    assert.equal(prisma.crmTimelineEvent.createCalls.length, 0);
+  });
+
+  it('stops one sequence and skips queued first message with status guard', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.stopSequenceEnrollment({
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      fromStatuses: ['ready_to_send', 'sequence_running', 'paused'],
+      accountStatus: 'paused',
+      actorUserId: 'admin-1'
+    });
+
+    assert.equal(result?.enrollment.status, 'stopped');
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyAndReturnCalls[0].where, {
+      id: 'enrollment-1',
+      organizationId: 'org-1',
+      status: { in: ['ready_to_send', 'sequence_running', 'paused'] }
+    });
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyAndReturnCalls[0].data, {
+      status: 'stopped',
+      runVersion: { increment: 1 }
+    });
+    assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls[0].where, {
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      stepIndex: 1,
+      status: 'queued'
+    });
+    assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls[0].data, {
+      status: 'skipped',
+      bullJobId: null
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'sequence_stopped');
+  });
+
+  it('lists inbox threads with scoped filters and include data', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.listInboxThreads({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      keyword: 'reply',
+      status: 'pending',
+      mailboxId: 'mailbox-1',
+      skip: 0,
+      take: 20
+    });
+
+    assert.equal(result.total, 1);
+    assert.equal(result.records[0].thread.id, 'inbox-thread-1');
+    assert.deepEqual(prisma.crmInboxThread.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'pending',
+      mailboxId: 'mailbox-1',
+      OR: [
+        { subject: { contains: 'reply', mode: 'insensitive' } },
+        { account: { name: { contains: 'reply', mode: 'insensitive' } } },
+        { account: { domain: { contains: 'reply', mode: 'insensitive' } } },
+        { contact: { fullName: { contains: 'reply', mode: 'insensitive' } } },
+        { contact: { title: { contains: 'reply', mode: 'insensitive' } } },
+        { contact: { maskedEmail: { contains: 'reply', mode: 'insensitive' } } }
+      ]
+    });
+  });
+
+  it('updates inbox thread status and writes timeline event', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.updateInboxThreadStatus({
+      id: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      fromStatus: 'pending',
+      toStatus: 'handled',
+      accountStatus: 'followed_up'
+    });
+
+    assert.equal(result?.thread.status, 'handled');
+    assert.deepEqual(prisma.crmInboxThread.updateManyAndReturnCalls[0].where, {
+      id: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'pending'
+    });
+    assert.deepEqual(prisma.crmInboxThread.updateManyAndReturnCalls[0].data, {
+      status: 'handled',
+      unreadCount: 0
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'inbox_status_changed');
+  });
 });
 
 function createPrisma() {
@@ -618,6 +735,51 @@ function createPrisma() {
     productLine,
     mailbox,
     messages: [message]
+  };
+  const inboxMessage = {
+    id: 'inbox-message-1',
+    threadId: 'inbox-thread-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    enrollmentId: 'enrollment-1',
+    mailboxId: 'mailbox-1',
+    provider: 'gmail',
+    providerMessageId: null,
+    replyToMessageId: 'message-1',
+    fromEmail: 'ali@example.com',
+    fromEmailHash: 'hash-1',
+    maskedFromEmail: 'a***@example.com',
+    subject: 'Re: Bearing Series for ABC Trading',
+    snippet: 'Please send details.',
+    bodyText: 'Please send details.',
+    receivedAt: new Date('2026-06-18T11:00:00.000Z'),
+    messageType: 'customer_reply',
+    createdAt: new Date('2026-06-18T11:00:00.000Z')
+  };
+  const inboxThread = {
+    id: 'inbox-thread-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    enrollmentId: 'enrollment-1',
+    mailboxId: 'mailbox-1',
+    provider: 'gmail',
+    providerThreadId: 'enrollment-1',
+    subject: 'Re: Bearing Series for ABC Trading',
+    status: 'pending',
+    lastInboundAt: new Date('2026-06-18T11:00:00.000Z'),
+    unreadCount: 1,
+    messageCount: 1,
+    createdAt: new Date('2026-06-18T11:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T11:00:00.000Z'),
+    account,
+    contact,
+    mailbox,
+    enrollment,
+    messages: [inboxMessage]
   };
 
   return {
@@ -798,6 +960,7 @@ function createPrisma() {
         limit: number;
       }>,
       createError: null as Error | null,
+      findUniqueResult: null as Partial<typeof mailbox> | null,
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
         if (this.createError) throw this.createError;
@@ -805,7 +968,7 @@ function createPrisma() {
       },
       async findUnique(args: { where: Record<string, unknown> }) {
         this.findUniqueCalls.push(args);
-        return mailbox;
+        return this.findUniqueResult ? { ...mailbox, ...this.findUniqueResult } : mailbox;
       },
       async findFirst(args: { where: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
@@ -934,6 +1097,59 @@ function createPrisma() {
       async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...message, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+      }
+    },
+    crmInboxThread: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+        include: Record<string, unknown>;
+      }>,
+      updateCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return inboxThread;
+      },
+      async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return args.include ? inboxThread : { ...inboxThread, account: undefined, contact: undefined, mailbox: undefined, enrollment: undefined, messages: undefined };
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+        include: Record<string, unknown>;
+      }) {
+        this.findManyCalls.push(args);
+        return [inboxThread];
+      },
+      async count() {
+        return 1;
+      },
+      async update(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+        this.updateCalls.push(args);
+        return { ...inboxThread, ...args.data, updatedAt: new Date('2026-06-18T12:00:00.000Z') };
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [{ ...inboxThread, ...args.data, updatedAt: new Date('2026-06-18T12:00:00.000Z') }];
+      }
+    },
+    crmInboxMessage: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return inboxMessage;
       }
     }
   };

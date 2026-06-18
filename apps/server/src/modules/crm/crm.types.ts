@@ -35,6 +35,8 @@ export const crmSequenceEnrollmentStatuses = [
 ] as const;
 export const crmMessageStatuses = ['draft_pending_review', 'draft_ready', 'queued', 'sent', 'failed', 'skipped'] as const;
 export const crmMessageThreadModes = ['new_subject', 'same_thread'] as const;
+export const crmInboxThreadStatuses = ['pending', 'handled', 'archived'] as const;
+export const crmInboxMessageTypes = ['customer_reply', 'bounce', 'unsubscribe_hint'] as const;
 
 export type CrmMailboxProvider = 'gmail';
 export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
@@ -43,6 +45,8 @@ export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
 export type CrmSequenceEnrollmentStatus = (typeof crmSequenceEnrollmentStatuses)[number];
 export type CrmMessageStatus = (typeof crmMessageStatuses)[number];
 export type CrmMessageThreadMode = (typeof crmMessageThreadModes)[number];
+export type CrmInboxThreadStatus = (typeof crmInboxThreadStatuses)[number];
+export type CrmInboxMessageType = (typeof crmInboxMessageTypes)[number];
 
 export interface CrmUserContext {
   userId: string;
@@ -191,6 +195,48 @@ export interface CrmMessageRecord {
   updatedAt: Date;
 }
 
+export interface CrmInboxThreadRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId: string | null;
+  mailboxId: string | null;
+  provider: CrmMailboxProvider;
+  providerThreadId: string | null;
+  subject: string;
+  status: CrmInboxThreadStatus;
+  lastInboundAt: Date;
+  unreadCount: number;
+  messageCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmInboxMessageRecord {
+  id: string;
+  threadId: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId: string | null;
+  mailboxId: string | null;
+  provider: CrmMailboxProvider;
+  providerMessageId: string | null;
+  replyToMessageId: string | null;
+  fromEmail: string;
+  fromEmailHash: string;
+  maskedFromEmail: string;
+  subject: string;
+  snippet: string | null;
+  bodyText: string;
+  receivedAt: Date;
+  messageType: CrmInboxMessageType;
+  createdAt: Date;
+}
+
 export interface CrmSequenceReviewRecord {
   enrollment: CrmSequenceEnrollmentRecord;
   account: CrmAccountRecord;
@@ -198,6 +244,20 @@ export interface CrmSequenceReviewRecord {
   productLine: CrmProductLineRecord | null;
   mailbox: CrmMailboxRecord | null;
   firstMessage: CrmMessageRecord | null;
+}
+
+export interface CrmInboxThreadListRecord {
+  thread: CrmInboxThreadRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  mailbox: CrmMailboxRecord | null;
+  enrollment: CrmSequenceEnrollmentRecord | null;
+  lastMessage: CrmInboxMessageRecord | null;
+}
+
+export interface CrmInboxThreadDetailRecord extends CrmInboxThreadListRecord {
+  messages: CrmInboxMessageRecord[];
+  timelineEvents: CrmTimelineEventRecord[];
 }
 
 export interface CrmAccountDetailRecord {
@@ -469,6 +529,21 @@ export interface CrmSendStartRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmSequenceStopInput {
+  enrollmentId: string;
+  organizationId: string;
+  fromStatuses: CrmSequenceEnrollmentStatus[];
+  accountStatus: CrmAccountStatus;
+  actorUserId: string;
+}
+
+export interface CrmSequenceStopRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord | null;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
 export interface CrmSendCompletionInput {
   enrollmentId: string;
   messageId: string;
@@ -497,6 +572,64 @@ export interface CrmSendFailureInput {
 export interface CrmSendFailureRecord {
   enrollment: CrmSequenceEnrollmentRecord;
   message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmInboxMessageCreateInput {
+  threadId: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId?: string | null;
+  mailboxId?: string | null;
+  provider: CrmMailboxProvider;
+  providerMessageId?: string | null;
+  replyToMessageId?: string | null;
+  fromEmail: string;
+  fromEmailHash: string;
+  maskedFromEmail: string;
+  subject: string;
+  snippet?: string | null;
+  bodyText: string;
+  receivedAt: Date;
+  messageType: CrmInboxMessageType;
+}
+
+export interface CrmCustomerReplyIngestInput {
+  outboundMessageId: string;
+  organizationId: string;
+  ownerUserId: string;
+  subject: string;
+  bodyText: string;
+  receivedAt: Date;
+  providerThreadId?: string | null;
+  providerMessageId?: string | null;
+  messageType?: CrmInboxMessageType;
+}
+
+export interface CrmCustomerReplyIngestRecord {
+  thread: CrmInboxThreadRecord;
+  message: CrmInboxMessageRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  mailbox: CrmMailboxRecord | null;
+  enrollment: CrmSequenceEnrollmentRecord | null;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmInboxThreadStatusUpdateInput {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  fromStatus?: CrmInboxThreadStatus;
+  toStatus: CrmInboxThreadStatus;
+  accountStatus?: CrmAccountStatus;
+}
+
+export interface CrmInboxThreadStatusUpdateRecord {
+  thread: CrmInboxThreadRecord;
   account: CrmAccountRecord;
   event: CrmTimelineEventRecord;
 }
@@ -606,6 +739,25 @@ export interface CrmStore {
   ): Promise<CrmMessageRecord | null>;
   approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null>;
   startFirstMessageSend(input: CrmSendStartInput): Promise<CrmSendStartRecord | null>;
+  stopSequenceEnrollment(input: CrmSequenceStopInput): Promise<CrmSequenceStopRecord | null>;
   completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null>;
   failFirstMessageSend(input: CrmSendFailureInput): Promise<CrmSendFailureRecord | null>;
+  ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null>;
+  listInboxThreads(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmInboxThreadStatus;
+    mailboxId?: string;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmInboxThreadListRecord[]; total: number }>;
+  getInboxThread(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmInboxThreadDetailRecord | null>;
+  updateInboxThreadStatus(
+    input: CrmInboxThreadStatusUpdateInput
+  ): Promise<CrmInboxThreadStatusUpdateRecord | null>;
 }

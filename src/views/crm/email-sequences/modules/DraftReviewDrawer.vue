@@ -14,15 +14,19 @@ const props = defineProps<{
   approving?: boolean;
   item: Api.Crm.SequenceReviewItem | null;
   loading?: boolean;
+  refreshing?: boolean;
   saving?: boolean;
   sendStarting?: boolean;
   show: boolean;
+  stopping?: boolean;
 }>();
 
 const emit = defineEmits<{
   approve: [];
+  refresh: [];
   save: [payload: Api.Crm.MessageDraftPayload];
   startSend: [];
+  stop: [];
   'update:show': [show: boolean];
 }>();
 
@@ -48,13 +52,24 @@ const canStartSend = computed(() =>
       currentMessage.value?.status === 'draft_ready'
   )
 );
+const canRefreshSequence = computed(() =>
+  Boolean(props.item && ['sequence_running', 'paused', 'stopped'].includes(props.item.enrollment.status))
+);
+const canStopSequence = computed(() =>
+  Boolean(
+    props.item?.canControlSequence &&
+      ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(props.item.enrollment.status)
+  )
+);
 const statusTip = computed(() => {
+  if (props.item?.enrollment.status === 'stopped') return '序列已停止，旧发送任务会在执行前跳过';
   if (!props.item?.firstMessage) return '暂无首封草稿';
   if (props.item.firstMessage.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
   if (props.item.firstMessage.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
   if (props.item.firstMessage.status === 'queued') return '首封开发信已进入发送队列';
   if (props.item.firstMessage.status === 'sent') return '首封开发信已发送';
   if (props.item.firstMessage.status === 'failed') return '首封发送失败，可刷新后重新处理';
+  if (props.item.firstMessage.status === 'skipped') return '首封开发信已跳过，不会继续发送';
   return '当前邮件不可发送';
 });
 
@@ -116,6 +131,17 @@ function handleSave() {
             <NDescriptionsItem label="更新时间">{{ formatSequenceDate(item.enrollment.updatedAt) }}</NDescriptionsItem>
           </NDescriptions>
 
+          <NDescriptions :column="2" bordered size="small" label-placement="left">
+            <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
+            <NDescriptionsItem label="队列 Job">{{ formatNullableText(currentMessage?.bullJobId) }}</NDescriptionsItem>
+            <NDescriptionsItem label="计划发送">
+              {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem label="实际发送">
+              {{ currentMessage?.sentAt ? formatSequenceDate(currentMessage.sentAt) : '-' }}
+            </NDescriptionsItem>
+          </NDescriptions>
+
           <div class="drawer-section">
             <div class="section-title">发送前检查</div>
             <NSpace vertical :size="8">
@@ -160,14 +186,38 @@ function handleSave() {
         <NSpace justify="end">
           <NButton @click="drawerVisible = false">关闭</NButton>
           <NButton
-            :disabled="loading || approving || sendStarting || !item?.firstMessage || !canEdit"
+            :disabled="loading || saving || approving || sendStarting || stopping || !canRefreshSequence"
+            :loading="refreshing"
+            @click="emit('refresh')"
+          >
+            刷新状态
+          </NButton>
+          <NPopconfirm
+            positive-text="停止"
+            negative-text="取消"
+            @positive-click="emit('stop')"
+          >
+            <template #trigger>
+              <NButton
+                type="error"
+                secondary
+                :disabled="loading || saving || approving || sendStarting || refreshing || !canStopSequence"
+                :loading="stopping"
+              >
+                停止序列
+              </NButton>
+            </template>
+            停止后当前序列不会继续发送，队列中的旧任务也会失效。
+          </NPopconfirm>
+          <NButton
+            :disabled="loading || approving || refreshing || sendStarting || stopping || !item?.firstMessage || !canEdit"
             :loading="saving"
             @click="handleSave"
           >
             保存草稿
           </NButton>
           <NButton
-            :disabled="loading || saving || sendStarting || !item?.firstMessage || !canApprove"
+            :disabled="loading || saving || refreshing || sendStarting || stopping || !item?.firstMessage || !canApprove"
             :loading="approving"
             @click="emit('approve')"
           >
@@ -175,7 +225,7 @@ function handleSave() {
           </NButton>
           <NButton
             type="primary"
-            :disabled="loading || saving || approving || !item?.firstMessage || !canStartSend"
+            :disabled="loading || saving || approving || refreshing || stopping || !item?.firstMessage || !canStartSend"
             :loading="sendStarting"
             @click="emit('startSend')"
           >

@@ -10,6 +10,7 @@ import {
   fetchCrmSequenceReviewItem,
   fetchCrmSequenceReviewItems,
   startCrmFirstMessageSend,
+  stopCrmSequenceEnrollment,
   updateCrmMessageDraft
 } from '@/service/api';
 import {
@@ -36,7 +37,9 @@ export function useEmailSequenceTable() {
   const drawerLoading = shallowRef(false);
   const draftSaving = shallowRef(false);
   const draftApproving = shallowRef(false);
+  const detailRefreshing = shallowRef(false);
   const sendStarting = shallowRef(false);
+  const sequenceStopping = shallowRef(false);
   const selectedEnrollmentId = shallowRef<string | null>(null);
   const selectedMessageId = shallowRef<string | null>(null);
   let latestListRequestId = 0;
@@ -343,6 +346,57 @@ export function useEmailSequenceTable() {
     }
   }
 
+  async function handleRefreshCurrentSequence() {
+    const enrollmentId = selectedEnrollmentId.value;
+
+    if (!enrollmentId) {
+      return;
+    }
+
+    detailRefreshing.value = true;
+
+    try {
+      await loadSequenceDetail(enrollmentId);
+      await loadSequences();
+    } finally {
+      detailRefreshing.value = false;
+    }
+  }
+
+  async function handleStopSequence() {
+    const enrollmentId = selectedEnrollmentId.value;
+
+    if (!enrollmentId || !currentItem.value) {
+      return;
+    }
+
+    sequenceStopping.value = true;
+
+    try {
+      const { data, error } = await stopCrmSequenceEnrollment(enrollmentId);
+
+      if (error) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || !currentItem.value) {
+        return;
+      }
+
+      message.success('开发信序列已停止');
+      currentItem.value = {
+        ...currentItem.value,
+        account: data.account,
+        enrollment: data.enrollment,
+        firstMessage: data.message ?? currentItem.value.firstMessage
+      };
+      await loadSequenceDetail(data.enrollment.id);
+      await loadSequences();
+    } finally {
+      sequenceStopping.value = false;
+    }
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadSequences();
@@ -383,6 +437,7 @@ export function useEmailSequenceTable() {
     createSubmitting,
     createVisible,
     currentItem,
+    detailRefreshing,
     draftApproving,
     draftSaving,
     drawerLoading,
@@ -396,9 +451,11 @@ export function useEmailSequenceTable() {
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
+    handleRefreshCurrentSequence,
     handleSaveDraft,
     handleSearch,
     handleStartSend,
+    handleStopSequence,
     loadCreateResources,
     loadSequences,
     loading,
@@ -409,6 +466,7 @@ export function useEmailSequenceTable() {
     productLineSelectOptions,
     records,
     resourceLoading,
-    sendStarting
+    sendStarting,
+    sequenceStopping
   };
 }

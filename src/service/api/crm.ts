@@ -172,6 +172,14 @@ export function startCrmFirstMessageSend(enrollmentId: string) {
   });
 }
 
+/** Stop one sequence and invalidate queued CRM send jobs. */
+export function stopCrmSequenceEnrollment(enrollmentId: string) {
+  return request<Api.Crm.SequenceStopResult>({
+    url: `/crm/sequence-review-items/${enrollmentId}/stop`,
+    method: 'post'
+  });
+}
+
 /** List CRM inbound reply threads by filters and pagination. */
 export function fetchCrmInboxThreads(params: Api.Crm.InboxThreadSearchParams) {
   return request<Api.Crm.InboxThreadList>({

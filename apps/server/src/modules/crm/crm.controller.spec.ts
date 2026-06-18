@@ -14,6 +14,9 @@ type CrmSequenceReviewItemView = Awaited<ReturnType<CrmService['getSequenceRevie
 type CrmEnrollmentView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['enrollment'];
 type CrmMessageView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['message'];
 type CrmSendStartView = Awaited<ReturnType<CrmService['startFirstMessageSend']>>;
+type CrmSequenceStopView = Awaited<ReturnType<CrmService['stopSequenceEnrollment']>>;
+type CrmInboxThreadView = Awaited<ReturnType<CrmService['listInboxThreads']>>['records'][number];
+type CrmInboxThreadDetailView = Awaited<ReturnType<CrmService['getInboxThread']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -410,7 +413,7 @@ describe('CrmController', () => {
     );
   });
 
-  it('updates, approves and starts message drafts with the current user context', async () => {
+  it('updates, approves, starts and stops message drafts with the current user context', async () => {
     const calls: Array<{ action: string; id: string; payload?: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
       createAuthService(),
@@ -432,6 +435,11 @@ describe('CrmController', () => {
           calls.push({ action: 'start-send', id, context });
 
           return createSendStartView({ id });
+        },
+        async stopSequenceEnrollment(id, context) {
+          calls.push({ action: 'stop', id, context });
+
+          return createSequenceStopView({ id });
         }
       })
     );
@@ -442,16 +450,76 @@ describe('CrmController', () => {
     });
     const approved = await controller.approveMessageDraft('Bearer token', 'message-1');
     const queued = await controller.startFirstMessageSend('Bearer token', 'enrollment-1');
+    const stopped = await controller.stopSequenceEnrollment('Bearer token', 'enrollment-1');
 
     assert.equal(updated.data.message.subject, 'Hello');
     assert.equal(approved.data.enrollment.status, 'ready_to_send');
     assert.equal(queued.data.message.status, 'queued');
+    assert.equal(stopped.data.enrollment.status, 'stopped');
     assert.deepEqual(
       calls.map(call => [call.action, call.id, call.context.organizationId]),
       [
         ['update', 'message-1', 'org-1'],
         ['approve', 'message-1', 'org-1'],
-        ['start-send', 'enrollment-1', 'org-1']
+        ['start-send', 'enrollment-1', 'org-1'],
+        ['stop', 'enrollment-1', 'org-1']
+      ]
+    );
+  });
+
+  it('lists, reads, updates and mock-ingests inbox replies with the current user context', async () => {
+    const calls: Array<{ action: string; id?: string; payload?: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listInboxThreads(context, query) {
+          calls.push({ action: 'list-inbox', payload: query, context });
+
+          return {
+            current: 1,
+            size: 20,
+            total: 1,
+            records: [createInboxThreadView()]
+          };
+        },
+        async getInboxThread(id, context) {
+          calls.push({ action: 'detail-inbox', id, context });
+
+          return createInboxThreadDetailView({ id });
+        },
+        async updateInboxThreadStatus(id, dto, context) {
+          calls.push({ action: 'status-inbox', id, payload: dto, context });
+
+          return {
+            thread: createInboxThreadView({ id, status: dto.status }),
+            account: createAccountView({ status: dto.status === 'handled' ? 'followed_up' : 'replied_pending' }),
+            event: createTimelineEventView({ eventType: 'inbox_status_changed' })
+          };
+        },
+        async mockCustomerReply(id, dto, context) {
+          calls.push({ action: 'mock-reply', id, payload: dto, context });
+
+          return createInboxThreadDetailView({ id: 'inbox-thread-1' });
+        }
+      })
+    );
+
+    const listed = await controller.listInboxThreads('Bearer token', { current: '1', size: '20', status: 'pending' });
+    const detail = await controller.getInboxThread('Bearer token', 'inbox-thread-1');
+    const status = await controller.updateInboxThreadStatus('Bearer token', 'inbox-thread-1', { status: 'handled' });
+    const reply = await controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' });
+
+    assert.equal(listed.data.records[0].id, 'inbox-thread-1');
+    assert.equal(detail.data.thread.id, 'inbox-thread-1');
+    assert.equal(status.data.thread.status, 'handled');
+    assert.equal(reply.data.messages[0].direction, 'inbound');
+    assert.deepEqual(
+      calls.map(call => [call.action, call.id ?? null, call.context.organizationId]),
+      [
+        ['list-inbox', null, 'org-1'],
+        ['detail-inbox', 'inbox-thread-1', 'org-1'],
+        ['status-inbox', 'inbox-thread-1', 'org-1'],
+        ['mock-reply', 'message-1', 'org-1']
       ]
     );
   });
@@ -657,6 +725,84 @@ function createSendStartView(overrides: { id?: string } = {}): CrmSendStartView 
   };
 }
 
+function createSequenceStopView(overrides: { id?: string } = {}): CrmSequenceStopView {
+  return {
+    enrollment: createEnrollmentView({ id: overrides.id ?? 'enrollment-1', status: 'stopped' }),
+    message: createMessageView({ status: 'skipped' }),
+    account: createAccountView({ status: 'paused' }),
+    event: createTimelineEventView({ eventType: 'sequence_stopped' })
+  };
+}
+
+function createInboxThreadView(overrides: Partial<CrmInboxThreadView> = {}): CrmInboxThreadView {
+  return {
+    id: 'inbox-thread-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    enrollmentId: 'enrollment-1',
+    mailboxId: 'mailbox-1',
+    providerThreadId: 'enrollment-1',
+    subject: 'Re: Bearing Series for ABC Trading',
+    status: 'pending',
+    lastInboundAt: '2026-06-18T11:00:00.000Z',
+    unreadCount: 1,
+    messageCount: 1,
+    createdAt: '2026-06-18T11:00:00.000Z',
+    updatedAt: '2026-06-18T11:00:00.000Z',
+    account: createAccountView({ status: 'replied_pending' }),
+    contact: createContactView(),
+    mailbox: createMailboxView(),
+    enrollment: createEnrollmentView({ status: 'replied' }),
+    lastMessageSnippet: 'Please send details.',
+    canOperate: true,
+    ...overrides,
+    provider: 'gmail'
+  };
+}
+
+function createInboxThreadDetailView(overrides: Partial<CrmInboxThreadView> = {}): CrmInboxThreadDetailView {
+  const thread = createInboxThreadView(overrides);
+
+  return {
+    thread,
+    account: thread.account,
+    contact: thread.contact,
+    mailbox: thread.mailbox,
+    enrollment: thread.enrollment,
+    messages: [
+      {
+        id: 'inbox-message-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        enrollmentId: 'enrollment-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        providerMessageId: null,
+        replyToMessageId: 'message-1',
+        fromEmail: 'ali@example.com',
+        fromEmailHash: 'hash-1',
+        maskedFromEmail: 'a***@example.com',
+        threadId: thread.id,
+        direction: 'inbound',
+        subject: thread.subject,
+        snippet: 'Please send details.',
+        bodyText: 'Please send details.',
+        messageType: 'customer_reply',
+        sentAt: null,
+        receivedAt: '2026-06-18T11:00:00.000Z',
+        createdAt: '2026-06-18T11:00:00.000Z',
+        updatedAt: '2026-06-18T11:00:00.000Z'
+      }
+    ],
+    timelineEvents: [createTimelineEventView({ eventType: 'customer_replied' })],
+    canOperate: true
+  };
+}
+
 function createSequenceReviewItemView(overrides: { id?: string } = {}): CrmSequenceReviewItemView {
   return {
     enrollment: createEnrollmentView({ id: overrides.id ?? 'enrollment-1' }),
@@ -666,6 +812,7 @@ function createSequenceReviewItemView(overrides: { id?: string } = {}): CrmSeque
     mailbox: createMailboxView(),
     firstMessage: createMessageView(),
     canOperateDraft: true,
+    canControlSequence: true,
     checklist: [
       {
         key: 'draft_content',
@@ -789,6 +936,30 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async startFirstMessageSend() {
       return createSendStartView();
+    },
+    async stopSequenceEnrollment() {
+      return createSequenceStopView();
+    },
+    async listInboxThreads() {
+      return {
+        current: 1,
+        size: 20,
+        total: 0,
+        records: []
+      };
+    },
+    async getInboxThread() {
+      return createInboxThreadDetailView();
+    },
+    async updateInboxThreadStatus() {
+      return {
+        thread: createInboxThreadView(),
+        account: createAccountView(),
+        event: createTimelineEventView({ eventType: 'inbox_status_changed' })
+      };
+    },
+    async mockCustomerReply() {
+      return createInboxThreadDetailView();
     },
     ...partial
   } as unknown as CrmService;

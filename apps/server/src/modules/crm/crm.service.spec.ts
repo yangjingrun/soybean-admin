@@ -6,6 +6,8 @@ import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import { CrmService } from './crm.service';
 import type {
+  CrmInboxMessageRecord,
+  CrmInboxThreadRecord,
   CrmMailboxRecord,
   CrmSendQueueJob,
   CrmSendQueuePort,
@@ -986,6 +988,188 @@ describe('CrmService', () => {
     assert.equal(store.accounts[0].status, 'ready');
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'message_send_failed');
   });
+
+  it('lets organization admins stop member sequences without editing or sending drafts', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2', status: 'sequence_running' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1', ownerUserId: 'user-2' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          ownerUserId: 'user-2',
+          status: 'sequence_running',
+          runVersion: 3
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          ownerUserId: 'user-2',
+          status: 'queued',
+          bullJobId: 'send-job-1'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.stopSequenceEnrollment('enrollment-1', createContext({ organizationRole: 'admin' }));
+
+    assert.equal(result.enrollment.status, 'stopped');
+    assert.equal(result.enrollment.runVersion, 4);
+    assert.equal(result.message?.status, 'skipped');
+    assert.equal(result.message?.bullJobId, null);
+    assert.equal(result.account.status, 'paused');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_stopped');
+  });
+
+  it('rejects stopping already terminal sequences', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'paused' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          status: 'stopped'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.stopSequenceEnrollment('enrollment-1', createContext()), BadRequestException);
+  });
+
+  it('mock-ingests a customer reply and stops the current sequence', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 3
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'sent',
+          sentAt: new Date('2026-06-18T10:00:00.000Z')
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.mockCustomerReply(
+      'message-1',
+      {
+        subject: ' Interested ',
+        bodyText: ' Please send details. ',
+        receivedAt: '2026-06-18T11:00:00.000Z'
+      },
+      createContext()
+    );
+
+    assert.equal(result.thread.status, 'pending');
+    assert.equal(result.messages[0].bodyText, 'Please send details.');
+    assert.equal(store.accounts[0].status, 'replied_pending');
+    assert.equal(store.enrollments[0].status, 'replied');
+    assert.equal(store.enrollments[0].runVersion, 4);
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_replied');
+  });
+
+  it('lists inbox threads with member ownership isolation', async () => {
+    const store = createStore(
+      [
+        createAccount({ id: 'own-account', ownerUserId: 'user-1', name: 'Own Account' }),
+        createAccount({ id: 'peer-account', ownerUserId: 'user-2', name: 'Peer Account' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'own-contact', accountId: 'own-account', ownerUserId: 'user-1' }),
+          createContact({ id: 'peer-contact', accountId: 'peer-account', ownerUserId: 'user-2' })
+        ],
+        inboxThreads: [
+          createInboxThread({
+            id: 'own-thread',
+            accountId: 'own-account',
+            contactId: 'own-contact',
+            ownerUserId: 'user-1',
+            subject: 'Own reply'
+          }),
+          createInboxThread({
+            id: 'peer-thread',
+            accountId: 'peer-account',
+            contactId: 'peer-contact',
+            ownerUserId: 'user-2',
+            subject: 'Peer reply'
+          })
+        ],
+        inboxMessages: [
+          createInboxMessage({
+            id: 'own-message',
+            threadId: 'own-thread',
+            accountId: 'own-account',
+            contactId: 'own-contact'
+          }),
+          createInboxMessage({
+            id: 'peer-message',
+            threadId: 'peer-thread',
+            accountId: 'peer-account',
+            contactId: 'peer-contact',
+            ownerUserId: 'user-2'
+          })
+        ]
+      }
+    );
+    const service = new CrmService(store);
+
+    const memberResult = await service.listInboxThreads(createContext());
+    const adminResult = await service.listInboxThreads(createContext({ organizationRole: 'admin' }));
+
+    assert.deepEqual(
+      memberResult.records.map(record => record.id),
+      ['own-thread']
+    );
+    assert.deepEqual(
+      adminResult.records.map(record => record.id),
+      ['own-thread', 'peer-thread']
+    );
+  });
+
+  it('rejects member handling inbox threads owned by another user', async () => {
+    const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'peer-contact', accountId: 'peer-account', ownerUserId: 'user-2' })],
+      inboxThreads: [
+        createInboxThread({
+          id: 'peer-thread',
+          accountId: 'peer-account',
+          contactId: 'peer-contact',
+          ownerUserId: 'user-2'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.updateInboxThreadStatus('peer-thread', { status: 'handled' }, createContext()),
+      NotFoundException
+    );
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -1008,6 +1192,8 @@ function createStore(
     productLines?: TestProductLine[];
     enrollments?: TestEnrollment[];
     messages?: TestMessage[];
+    inboxThreads?: TestInboxThread[];
+    inboxMessages?: TestInboxMessage[];
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
@@ -1017,6 +1203,8 @@ function createStore(
   productLines: TestProductLine[];
   enrollments: TestEnrollment[];
   messages: TestMessage[];
+  inboxThreads: TestInboxThread[];
+  inboxMessages: TestInboxMessage[];
   mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
   productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }>;
   enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }>;
@@ -1045,6 +1233,8 @@ function createStore(
   const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
   const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
   const messages: TestMessage[] = [...(initialData.messages ?? [])];
+  const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
+  const inboxMessages: TestInboxMessage[] = [...(initialData.inboxMessages ?? [])];
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
   const productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }> = [];
   const enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }> = [];
@@ -1058,6 +1248,8 @@ function createStore(
     productLines,
     enrollments,
     messages,
+    inboxThreads,
+    inboxMessages,
     mailboxUpdateCalls,
     productLineUpdateCalls,
     enrollmentUpdateCalls,
@@ -1489,6 +1681,60 @@ function createStore(
 
       return { enrollment, message, account, contact, mailbox, event };
     },
+    async stopSequenceEnrollment(input) {
+      const enrollment = enrollments.find(
+        item =>
+          item.id === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          input.fromStatuses.includes(item.status)
+      );
+      const account = enrollment ? accounts.find(item => item.id === enrollment.accountId) : null;
+
+      if (!enrollment || !account) return null;
+
+      const previousRunVersion = enrollment.runVersion;
+      Object.assign(enrollment, {
+        status: 'stopped',
+        runVersion: previousRunVersion + 1,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+      Object.assign(account, { status: input.accountStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+
+      const message =
+        messages.find(
+          item =>
+            item.enrollmentId === enrollment.id &&
+            item.organizationId === input.organizationId &&
+            item.stepIndex === 1 &&
+            item.status === 'queued'
+        ) ?? null;
+
+      if (message) {
+        Object.assign(message, {
+          status: 'skipped',
+          bullJobId: null,
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        });
+      }
+
+      const event = createTimelineEvent({
+        accountId: enrollment.accountId,
+        contactId: enrollment.contactId,
+        ownerUserId: input.actorUserId,
+        eventType: 'sequence_stopped',
+        title: '开发信序列已停止',
+        content: enrollment.name,
+        metadata: {
+          enrollmentId: enrollment.id,
+          fromStatuses: input.fromStatuses,
+          toStatus: 'stopped',
+          runVersion: enrollment.runVersion
+        }
+      });
+      timelineEvents.push(event);
+
+      return { enrollment, message, account, event };
+    },
     async completeFirstMessageSend(input) {
       const enrollment = enrollments.find(
         item =>
@@ -1560,6 +1806,188 @@ function createStore(
       timelineEvents.push(event);
 
       return { enrollment, message, account, event };
+    },
+    async ingestCustomerReply(input) {
+      const outboundMessage = messages.find(
+        message =>
+          message.id === input.outboundMessageId &&
+          message.organizationId === input.organizationId &&
+          message.ownerUserId === input.ownerUserId &&
+          message.status === 'sent'
+      );
+      const enrollment = outboundMessage ? enrollments.find(item => item.id === outboundMessage.enrollmentId) : null;
+      const account = outboundMessage ? accounts.find(item => item.id === outboundMessage.accountId) : null;
+      const contact = outboundMessage ? contacts.find(item => item.id === outboundMessage.contactId) : null;
+      const mailbox = outboundMessage?.mailboxId ? mailboxes.find(item => item.id === outboundMessage.mailboxId) : null;
+
+      if (!outboundMessage || !account || !contact) return null;
+
+      const existingThread = inboxThreads.find(
+        thread =>
+          thread.organizationId === input.organizationId &&
+          thread.ownerUserId === input.ownerUserId &&
+          thread.accountId === outboundMessage.accountId &&
+          thread.contactId === outboundMessage.contactId &&
+          thread.enrollmentId === outboundMessage.enrollmentId
+      );
+      const thread =
+        existingThread ??
+        createInboxThread({
+          id: `inbox-thread-${inboxThreads.length + 1}`,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          accountId: outboundMessage.accountId,
+          contactId: outboundMessage.contactId,
+          enrollmentId: outboundMessage.enrollmentId,
+          mailboxId: outboundMessage.mailboxId,
+          providerThreadId: outboundMessage.enrollmentId,
+          subject: input.subject,
+          unreadCount: 0,
+          messageCount: 0,
+          lastInboundAt: input.receivedAt
+        });
+
+      if (!existingThread) {
+        inboxThreads.push(thread);
+      }
+
+      Object.assign(thread, {
+        subject: input.subject,
+        status: 'pending',
+        lastInboundAt: input.receivedAt,
+        unreadCount: thread.unreadCount + 1,
+        messageCount: thread.messageCount + 1,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      const inboxMessage = createInboxMessage({
+        id: `inbox-message-${inboxMessages.length + 1}`,
+        threadId: thread.id,
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        accountId: outboundMessage.accountId,
+        contactId: outboundMessage.contactId,
+        enrollmentId: outboundMessage.enrollmentId,
+        mailboxId: outboundMessage.mailboxId,
+        replyToMessageId: outboundMessage.id,
+        fromEmail: contact.email,
+        fromEmailHash: contact.emailHash,
+        maskedFromEmail: contact.maskedEmail,
+        subject: input.subject,
+        snippet: input.bodyText,
+        bodyText: input.bodyText,
+        receivedAt: input.receivedAt,
+        messageType: input.messageType ?? 'customer_reply'
+      });
+      inboxMessages.push(inboxMessage);
+      Object.assign(account, { status: 'replied_pending', updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+
+      if (enrollment && ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(enrollment.status)) {
+        Object.assign(enrollment, {
+          status: 'replied',
+          runVersion: enrollment.runVersion + 1,
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        });
+      }
+
+      const event = createTimelineEvent({
+        accountId: outboundMessage.accountId,
+        contactId: outboundMessage.contactId,
+        ownerUserId: input.ownerUserId,
+        eventType: 'customer_replied',
+        title: '客户回信',
+        content: input.subject,
+        metadata: {
+          enrollmentId: outboundMessage.enrollmentId,
+          outboundMessageId: outboundMessage.id,
+          inboxThreadId: thread.id,
+          inboxMessageId: inboxMessage.id
+        }
+      });
+      timelineEvents.push(event);
+
+      return { thread, message: inboxMessage, account, contact, mailbox: mailbox ?? null, enrollment: enrollment ?? null, event };
+    },
+    async listInboxThreads(args) {
+      const records = inboxThreads
+        .filter(thread => {
+          if (thread.organizationId !== args.organizationId) return false;
+          if (args.ownerUserId && thread.ownerUserId !== args.ownerUserId) return false;
+          if (args.status && thread.status !== args.status) return false;
+          if (args.mailboxId && thread.mailboxId !== args.mailboxId) return false;
+          if (!args.keyword) return true;
+          const account = accounts.find(item => item.id === thread.accountId);
+          const contact = contacts.find(item => item.id === thread.contactId);
+          const keyword = args.keyword.toLowerCase();
+          return [thread.subject, account?.name, account?.domain, contact?.fullName, contact?.title, contact?.maskedEmail].some(
+            value => value?.toLowerCase().includes(keyword)
+          );
+        })
+        .toSorted((left, right) => right.lastInboundAt.getTime() - left.lastInboundAt.getTime());
+
+      return {
+        records: records.slice(args.skip, args.skip + args.take).map(thread =>
+          buildInboxThreadListRecord(thread, { accounts, contacts, mailboxes, enrollments, inboxMessages })
+        ),
+        total: records.length
+      };
+    },
+    async getInboxThread(args) {
+      const thread = inboxThreads.find(item => {
+        if (item.id !== args.id) return false;
+        if (item.organizationId !== args.organizationId) return false;
+        if (args.ownerUserId && item.ownerUserId !== args.ownerUserId) return false;
+        return true;
+      });
+
+      if (!thread) return null;
+
+      return {
+        ...buildInboxThreadListRecord(thread, { accounts, contacts, mailboxes, enrollments, inboxMessages }),
+        messages: inboxMessages
+          .filter(message => message.threadId === thread.id)
+          .toSorted((left, right) => left.receivedAt.getTime() - right.receivedAt.getTime()),
+        timelineEvents: timelineEvents.filter(event => event.accountId === thread.accountId)
+      };
+    },
+    async updateInboxThreadStatus(input) {
+      const thread = inboxThreads.find(item => {
+        if (item.id !== input.id) return false;
+        if (item.organizationId !== input.organizationId) return false;
+        if (item.ownerUserId !== input.ownerUserId) return false;
+        if (input.fromStatus && item.status !== input.fromStatus) return false;
+        return true;
+      });
+      const account = thread ? accounts.find(item => item.id === thread.accountId) : null;
+
+      if (!thread || !account) return null;
+
+      Object.assign(thread, {
+        status: input.toStatus,
+        unreadCount: input.toStatus === 'pending' ? thread.unreadCount : 0,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      if (input.accountStatus) {
+        Object.assign(account, { status: input.accountStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      }
+
+      const event = createTimelineEvent({
+        accountId: thread.accountId,
+        contactId: thread.contactId,
+        ownerUserId: input.ownerUserId,
+        eventType: 'inbox_status_changed',
+        title: '收件箱处理状态变更',
+        content: thread.subject,
+        metadata: {
+          threadId: thread.id,
+          fromStatus: input.fromStatus ?? null,
+          toStatus: input.toStatus
+        }
+      });
+      timelineEvents.push(event);
+
+      return { thread, account, event };
     }
   };
 }
@@ -1704,6 +2132,52 @@ function createMessage(input: Partial<TestMessage> = {}): TestMessage {
   };
 }
 
+function createInboxThread(input: Partial<TestInboxThread> = {}): TestInboxThread {
+  return {
+    id: input.id || 'inbox-thread-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    accountId: input.accountId || 'account-1',
+    contactId: input.contactId || 'contact-1',
+    enrollmentId: input.enrollmentId ?? 'enrollment-1',
+    mailboxId: input.mailboxId ?? 'mailbox-1',
+    provider: input.provider || 'gmail',
+    providerThreadId: input.providerThreadId ?? 'enrollment-1',
+    subject: input.subject || 'Re: Bearing Series for Account',
+    status: input.status || 'pending',
+    lastInboundAt: input.lastInboundAt || new Date('2026-06-18T11:00:00.000Z'),
+    unreadCount: input.unreadCount ?? 1,
+    messageCount: input.messageCount ?? 1,
+    createdAt: input.createdAt || new Date('2026-06-18T11:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T11:00:00.000Z')
+  };
+}
+
+function createInboxMessage(input: Partial<TestInboxMessage> = {}): TestInboxMessage {
+  return {
+    id: input.id || 'inbox-message-1',
+    threadId: input.threadId || 'inbox-thread-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    accountId: input.accountId || 'account-1',
+    contactId: input.contactId || 'contact-1',
+    enrollmentId: input.enrollmentId ?? 'enrollment-1',
+    mailboxId: input.mailboxId ?? 'mailbox-1',
+    provider: input.provider || 'gmail',
+    providerMessageId: input.providerMessageId ?? null,
+    replyToMessageId: input.replyToMessageId ?? 'message-1',
+    fromEmail: input.fromEmail || 'ali@example.com',
+    fromEmailHash: input.fromEmailHash || hashTestEmail('ali@example.com'),
+    maskedFromEmail: input.maskedFromEmail || 'a***@example.com',
+    subject: input.subject || 'Re: Bearing Series for Account',
+    snippet: input.snippet ?? 'Please send details.',
+    bodyText: input.bodyText || 'Please send details.',
+    receivedAt: input.receivedAt || new Date('2026-06-18T11:00:00.000Z'),
+    messageType: input.messageType || 'customer_reply',
+    createdAt: input.createdAt || new Date('2026-06-18T11:00:00.000Z')
+  };
+}
+
 function buildSequenceReviewRecords(
   enrollments: TestEnrollment[],
   data: {
@@ -1727,12 +2201,39 @@ function buildSequenceReviewRecords(
   }));
 }
 
+function buildInboxThreadListRecord(
+  thread: TestInboxThread,
+  data: {
+    accounts: TestAccount[];
+    contacts: TestContact[];
+    mailboxes: TestMailbox[];
+    enrollments: TestEnrollment[];
+    inboxMessages: TestInboxMessage[];
+  }
+) {
+  return {
+    thread,
+    account: data.accounts.find(account => account.id === thread.accountId) || createAccount({ id: thread.accountId }),
+    contact: data.contacts.find(contact => contact.id === thread.contactId) || createContact({ id: thread.contactId }),
+    mailbox: thread.mailboxId ? data.mailboxes.find(mailbox => mailbox.id === thread.mailboxId) || null : null,
+    enrollment: thread.enrollmentId
+      ? data.enrollments.find(enrollment => enrollment.id === thread.enrollmentId) || null
+      : null,
+    lastMessage:
+      data.inboxMessages
+        .filter(message => message.threadId === thread.id)
+        .toSorted((left, right) => right.receivedAt.getTime() - left.receivedAt.getTime())[0] ?? null
+  };
+}
+
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
 type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
 type TestMessage = Awaited<ReturnType<CrmStore['createMessage']>>;
+type TestInboxThread = CrmInboxThreadRecord;
+type TestInboxMessage = CrmInboxMessageRecord;
 
 interface TestProductLine {
   id: string;

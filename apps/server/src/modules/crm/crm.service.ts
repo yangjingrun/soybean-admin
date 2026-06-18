@@ -4,6 +4,7 @@ import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
+import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CRM_EMAIL_DNS_RESOLVER, CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
 import type {
   CrmAccountDetailRecord,
@@ -14,6 +15,12 @@ import type {
   CrmMailboxStatus,
   CrmContactRecord,
   CrmEmailStatus,
+  CrmCustomerReplyIngestRecord,
+  CrmInboxThreadDetailRecord,
+  CrmInboxThreadListRecord,
+  CrmInboxMessageRecord,
+  CrmInboxThreadRecord,
+  CrmInboxThreadStatus,
   CrmMessageRecord,
   CrmMessageStatus,
   CrmProductLineRecord,
@@ -48,6 +55,8 @@ const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
 const queuedMessageStatus: CrmMessageStatus = 'queued';
+const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
+const inboxNotificationTargetType = 'crmInboxThread';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 const publicEmailPrefixes = new Set([
   'admin',
@@ -119,7 +128,10 @@ export class CrmService {
     private readonly systemLogService?: SystemLogRecorder,
     @Optional()
     @Inject(CRM_SEND_QUEUE)
-    private readonly sendQueue?: CrmSendQueuePort
+    private readonly sendQueue?: CrmSendQueuePort,
+    @Optional()
+    @Inject(SystemNotificationService)
+    private readonly systemNotificationService?: SystemNotificationService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -789,6 +801,194 @@ export class CrmService {
     };
   }
 
+  /** Stops a sequence and invalidates queued jobs by bumping runVersion. */
+  async stopSequenceEnrollment(id: string, context: CrmUserContext) {
+    const item = await this.requireScopedSequenceReviewItem(id, context);
+
+    if (!stoppableSequenceStatuses.includes(item.enrollment.status)) {
+      throw new BadRequestException('当前序列状态不能停止');
+    }
+
+    const stopped = await this.store.stopSequenceEnrollment({
+      enrollmentId: item.enrollment.id,
+      organizationId: context.organizationId,
+      fromStatuses: stoppableSequenceStatuses,
+      accountStatus: 'paused',
+      actorUserId: context.userId
+    });
+
+    if (!stopped) {
+      throw new BadRequestException('当前序列状态已变化，请刷新后重试');
+    }
+
+    await this.recordCrmLog('sequence-stopped', 'CRM 开发信序列已停止', context, {
+      organizationId: context.organizationId,
+      accountId: stopped.account.id,
+      contactId: stopped.enrollment.contactId,
+      enrollmentId: stopped.enrollment.id,
+      messageId: stopped.message?.id ?? item.firstMessage?.id ?? null,
+      fromStatus: item.enrollment.status,
+      toStatus: stopped.enrollment.status,
+      runVersion: stopped.enrollment.runVersion
+    });
+
+    return {
+      enrollment: toSequenceEnrollmentView(stopped.enrollment),
+      message: stopped.message ? toMessageView(stopped.message) : null,
+      account: toAccountView(stopped.account),
+      event: toTimelineEventView(stopped.event)
+    };
+  }
+
+  /** Lists customer reply inbox threads in the current organization scope. */
+  async listInboxThreads(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: CrmInboxThreadStatus;
+      mailboxId?: string;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const mailboxId = normalizeNullableString(query.mailboxId);
+    const result = await this.store.listInboxThreads({
+      organizationId: context.organizationId,
+      ...toOwnerScope(context),
+      ...(keyword ? { keyword } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(mailboxId ? { mailboxId } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(record => toInboxThreadListView(record, context))
+    };
+  }
+
+  /** Returns one customer reply inbox thread with messages and timeline. */
+  async getInboxThread(id: string, context: CrmUserContext) {
+    const thread = await this.store.getInboxThread({
+      id,
+      organizationId: context.organizationId,
+      ...toOwnerScope(context)
+    });
+
+    if (!thread) {
+      throw new NotFoundException('收件箱会话不存在');
+    }
+
+    return toInboxThreadDetailView(thread, context);
+  }
+
+  /** Updates one owner-scoped inbox thread processing status. */
+  async updateInboxThreadStatus(
+    id: string,
+    input: {
+      status: CrmInboxThreadStatus;
+    },
+    context: CrmUserContext
+  ) {
+    const currentThread = await this.requireOwnedInboxThread(id, context);
+    const updated = await this.store.updateInboxThreadStatus({
+      id: currentThread.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      fromStatus: currentThread.status,
+      toStatus: input.status,
+      accountStatus: input.status === 'handled' ? 'followed_up' : input.status === 'pending' ? 'replied_pending' : undefined
+    });
+
+    if (!updated) {
+      throw new BadRequestException('当前收件箱状态已变化，请刷新后重试');
+    }
+
+    if (input.status === 'handled') {
+      await this.systemNotificationService?.markTargetReadForUser(inboxNotificationTargetType, updated.thread.id, context.userId);
+    }
+
+    await this.recordCrmLog('inbox-thread-status-update', 'CRM 收件箱处理状态更新', context, {
+      organizationId: context.organizationId,
+      accountId: updated.thread.accountId,
+      contactId: updated.thread.contactId,
+      threadId: updated.thread.id,
+      fromStatus: currentThread.status,
+      toStatus: updated.thread.status
+    });
+
+    return {
+      thread: toInboxThreadView(updated.thread),
+      account: toAccountView(updated.account),
+      event: toTimelineEventView(updated.event)
+    };
+  }
+
+  /** Mock-ingests a customer reply for a sent outbound message before Gmail sync is wired. */
+  async mockCustomerReply(
+    outboundMessageId: string,
+    input: {
+      subject?: string | null;
+      bodyText: string;
+      receivedAt?: string | null;
+    },
+    context: CrmUserContext
+  ) {
+    const outboundMessage = await this.store.findMessageById({
+      id: outboundMessageId,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!outboundMessage) {
+      throw new NotFoundException('邮件不存在');
+    }
+
+    if (outboundMessage.status !== 'sent') {
+      throw new BadRequestException('只能为已发送邮件模拟客户回信');
+    }
+
+    const receivedAt = parseOptionalDate(input.receivedAt) ?? new Date();
+    const subject = normalizeNullableString(input.subject) ?? `Re: ${outboundMessage.subject}`;
+    const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
+    const ingested = await this.store.ingestCustomerReply({
+      outboundMessageId: outboundMessage.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      subject,
+      bodyText,
+      receivedAt
+    });
+
+    if (!ingested) {
+      throw new BadRequestException('客户回信入库失败，请刷新后重试');
+    }
+
+    await this.notifyCustomerReply(ingested.thread, ingested.account, ingested.contact, context);
+    await this.recordCrmLog('inbox-reply-ingest', 'CRM 客户回信已入库', context, {
+      organizationId: context.organizationId,
+      accountId: ingested.account.id,
+      contactId: ingested.contact.id,
+      enrollmentId: ingested.enrollment?.id ?? null,
+      threadId: ingested.thread.id,
+      inboxMessageId: ingested.message.id
+    });
+
+    const detail = await this.store.getInboxThread({
+      id: ingested.thread.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    return detail ? toInboxThreadDetailView(detail, context) : toInboxReplyIngestView(ingested, context);
+  }
+
   private async importContactIfPresent(
     account: CrmAccountRecord,
     input: ImportCrmLeadInput,
@@ -1072,6 +1272,55 @@ export class CrmService {
     return message;
   }
 
+  private async requireOwnedInboxThread(id: string, context: CrmUserContext) {
+    const thread = await this.store.getInboxThread({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!thread) {
+      throw new NotFoundException('收件箱会话不存在');
+    }
+
+    return thread.thread;
+  }
+
+  private async notifyCustomerReply(
+    thread: CrmInboxThreadRecord,
+    account: CrmAccountRecord,
+    contact: CrmContactRecord,
+    context: CrmUserContext
+  ) {
+    try {
+      await this.systemNotificationService?.create({
+        userId: thread.ownerUserId,
+        userName: context.userName,
+        module: 'crm',
+        type: 'crm_customer_reply',
+        title: '收到客户回信',
+        content: `${account.name} / ${contact.maskedEmail} 回复了开发信`,
+        targetType: inboxNotificationTargetType,
+        targetId: thread.id,
+        routePath: '/crm/inbox',
+        metadata: {
+          organizationId: thread.organizationId,
+          accountId: thread.accountId,
+          contactId: thread.contactId,
+          threadId: thread.id
+        }
+      });
+    } catch (error) {
+      await this.recordCrmLog('inbox-reply-notification-failed', 'CRM 客户回信通知创建失败', context, {
+        organizationId: thread.organizationId,
+        accountId: thread.accountId,
+        contactId: thread.contactId,
+        threadId: thread.id,
+        reason: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
   private async enqueueFirstMessage(enrollment: CrmSequenceEnrollmentRecord, message: CrmMessageRecord) {
     if (!this.sendQueue) {
       throw new BadRequestException('CRM 邮件发送队列未启用');
@@ -1233,6 +1482,76 @@ function toMessageView(record: CrmMessageRecord) {
   };
 }
 
+function toInboxThreadView(record: CrmInboxThreadRecord) {
+  return {
+    ...record,
+    lastInboundAt: record.lastInboundAt.toISOString(),
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toInboxMessageView(record: CrmInboxMessageRecord) {
+  return {
+    ...record,
+    direction: 'inbound',
+    sentAt: null,
+    receivedAt: record.receivedAt.toISOString(),
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.createdAt.toISOString()
+  };
+}
+
+function toInboxThreadListView(record: CrmInboxThreadListRecord, context: CrmUserContext) {
+  return {
+    ...toInboxThreadView(record.thread),
+    account: toAccountView(record.account),
+    contact: toContactView(record.contact),
+    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
+    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
+    lastMessageSnippet: record.lastMessage?.snippet ?? '',
+    canOperate: record.thread.ownerUserId === context.userId
+  };
+}
+
+function toInboxThreadDetailView(record: CrmInboxThreadDetailRecord, context: CrmUserContext) {
+  const thread = toInboxThreadListView(record, context);
+
+  return {
+    thread,
+    account: thread.account,
+    contact: thread.contact,
+    mailbox: thread.mailbox,
+    enrollment: thread.enrollment,
+    messages: record.messages.map(toInboxMessageView),
+    timelineEvents: record.timelineEvents.map(toTimelineEventView),
+    canOperate: thread.canOperate
+  };
+}
+
+function toInboxReplyIngestView(record: CrmCustomerReplyIngestRecord, context: CrmUserContext) {
+  const thread = {
+    ...toInboxThreadView(record.thread),
+    account: toAccountView(record.account),
+    contact: toContactView(record.contact),
+    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
+    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
+    lastMessageSnippet: record.message.snippet ?? '',
+    canOperate: record.thread.ownerUserId === context.userId
+  };
+
+  return {
+    thread,
+    account: thread.account,
+    contact: thread.contact,
+    mailbox: thread.mailbox,
+    enrollment: thread.enrollment,
+    messages: [toInboxMessageView(record.message)],
+    timelineEvents: [toTimelineEventView(record.event)],
+    canOperate: thread.canOperate
+  };
+}
+
 function toAccountDetailView(detail: CrmAccountDetailRecord) {
   return {
     account: toAccountView(detail.account),
@@ -1250,6 +1569,7 @@ function toSequenceReviewView(record: CrmSequenceReviewRecord, context: CrmUserC
     mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
     firstMessage: record.firstMessage ? toMessageView(record.firstMessage) : null,
     canOperateDraft: record.enrollment.ownerUserId === context.userId,
+    canControlSequence: record.enrollment.ownerUserId === context.userId || isOrganizationAdmin(context),
     checklist: buildReviewChecklist(record)
   };
 }
@@ -1325,18 +1645,34 @@ function normalizeNullableString(value?: string | null) {
   return normalized || null;
 }
 
-function normalizeLimitedContent(value: string, emptyMessage: string) {
+function normalizeLimitedContent(value: string, emptyMessage: string, maxLength = maxNoteLength) {
   const normalized = value.trim();
 
   if (!normalized) {
     throw new BadRequestException(emptyMessage);
   }
 
-  if (normalized.length > maxNoteLength) {
-    throw new BadRequestException(`内容不能超过 ${maxNoteLength} 个字符`);
+  if (normalized.length > maxLength) {
+    throw new BadRequestException(`内容不能超过 ${maxLength} 个字符`);
   }
 
   return normalized;
+}
+
+function parseOptionalDate(value?: string | null) {
+  const normalized = normalizeNullableString(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException('时间格式不正确');
+  }
+
+  return date;
 }
 
 function normalizeProductLineCreateInput(input: ProductLineCreateInput) {
