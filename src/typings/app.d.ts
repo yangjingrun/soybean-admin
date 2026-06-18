@@ -585,6 +585,10 @@ declare namespace App {
               title: string;
               usage: string;
             };
+            leadSearchResultDecide: {
+              title: string;
+              usage: string;
+            };
             leadMatchAnalyze: {
               title: string;
               usage: string;
