@@ -1,4 +1,5 @@
 import { request } from '../request';
+import { buildGenerateAiTextRequestConfig } from './ai-gateway.shared';
 
 /** Save one fixed system prompt for later model calls. */
 export function saveAiPrompt(data: Api.AiGateway.SavePromptPayload) {
@@ -34,9 +35,5 @@ export function getAiModelConfig(configKey = 'default') {
 
 /** Generate text through the backend AI gateway. */
 export function generateAiText(data: Api.AiGateway.GenerateTextPayload) {
-  return request<Api.AiGateway.AiTextResult>({
-    url: '/ai-gateway/generate-text',
-    method: 'post',
-    data
-  });
+  return request<Api.AiGateway.AiTextResult>(buildGenerateAiTextRequestConfig(data));
 }
