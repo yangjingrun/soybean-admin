@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { SystemLogModule } from './system-log/system-log.module';
+import { SystemNotificationModule } from './system-notification/system-notification.module';
 import { SystemUserModule } from './system-user/system-user.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { SystemUserModule } from './system-user/system-user.module';
     AiLeadsModule,
     AuthModule,
     SystemLogModule,
+    SystemNotificationModule,
     SystemUserModule,
     HealthModule
   ],

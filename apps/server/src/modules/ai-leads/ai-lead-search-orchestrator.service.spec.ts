@@ -9,6 +9,178 @@ import type { LeadSearchProgressEventInput } from './ai-lead-search-progress';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 
 describe('AiLeadSearchOrchestrator', () => {
+  it('runs a bound keyword plan through a query executor without regenerating keywords', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([{ organic: [{ title: 'A', link: 'https://a.example.com' }] }]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+    const executedKeys: string[] = [];
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '找轴承进口商',
+        targetLeadCount: 20,
+        keywordPlan: {
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 20,
+          serperSearchQueries: [
+            {
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        }
+      },
+      { user: createUser() },
+      undefined,
+      {
+        async executeQuery({ requestKey }, runDefault) {
+          executedKeys.push(requestKey);
+
+          return runDefault();
+        }
+      }
+    );
+
+    assert.deepEqual(
+      aiGateway.calls.map(call => call.promptKey),
+      [leadSearchResultDecidePromptKey]
+    );
+    assert.deepEqual(executedKeys, ['search|6204 bearing importer Saudi Arabia|sa|en|Saudi Arabia|10|1|']);
+    assert.equal(result.serperRequests.length, 1);
+  });
+
+  it('keeps checkpoint keys distinct for the same query with different time ranges', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      { organic: [{ title: 'Any time', link: 'https://any.example.com' }] },
+      { organic: [{ title: 'Past year', link: 'https://year.example.com' }] }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+    const executedKeys: string[] = [];
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '找轴承进口商',
+        targetLeadCount: 20,
+        keywordPlan: {
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 20,
+          serperSearchQueries: [
+            {
+              requestBody: {
+                q: '6204 bearing importer Saudi Arabia',
+                gl: 'sa',
+                hl: 'en',
+                location: 'Saudi Arabia',
+                num: 10,
+                page: 1
+              },
+              priority: '高'
+            },
+            {
+              requestBody: {
+                q: '6204 bearing importer Saudi Arabia',
+                gl: 'sa',
+                hl: 'en',
+                location: 'Saudi Arabia',
+                num: 10,
+                page: 1,
+                tbs: 'qdr:y'
+              },
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        }
+      },
+      { user: createUser() },
+      undefined,
+      {
+        async executeQuery({ requestKey }, runDefault) {
+          executedKeys.push(requestKey);
+
+          return runDefault();
+        }
+      }
+    );
+
+    assert.equal(result.serperRequests.length, 2);
+    assert.equal(new Set(executedKeys).size, 2);
+    assert.match(executedKeys[1], /qdr:y/);
+  });
+
   it('continues to the next Search page when the decision action is paginate', async () => {
     const aiGateway = createAiGateway([
       {
@@ -289,7 +461,7 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.equal(completed?.result?.summary.actionCount, 1);
     assert.equal(completed?.result?.summary.candidateCount, 1);
     assert.equal(completed?.result?.candidates[0].sourceLabel, '公开线索');
-    assert.doesNotMatch(JSON.stringify(events), /Serper|endpoint|Places|Search|6204 bearing importer Saudi Arabia/);
+    assert.deepEqual(completed?.result?.serperResults, []);
   });
 
   it('continues one initial query at most two extra rounds', async () => {

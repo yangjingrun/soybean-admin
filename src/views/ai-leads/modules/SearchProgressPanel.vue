@@ -8,18 +8,21 @@ import type { LeadSearchProgressState } from './search-progress';
 const props = defineProps<{
   state: LeadSearchProgressState;
   loading?: boolean;
+  showSerperDetails?: boolean;
 }>();
 
 const statusTextMap: Record<LeadSearchProgressState['status'], string> = {
   idle: '等待开始',
   running: '采集中',
+  interrupted: '已中断',
   completed: '已完成',
   failed: '失败'
 };
 
-const statusTypeMap: Record<LeadSearchProgressState['status'], 'default' | 'info' | 'success' | 'error'> = {
+const statusTypeMap: Record<LeadSearchProgressState['status'], 'default' | 'info' | 'success' | 'warning' | 'error'> = {
   idle: 'default',
   running: 'info',
+  interrupted: 'warning',
   completed: 'success',
   failed: 'error'
 };
@@ -53,6 +56,14 @@ const summaryItems = computed(() => {
   ];
 });
 const candidateRows = computed(() => props.state.result?.candidates ?? []);
+const serperResultRows = computed(() =>
+  (props.showSerperDetails ? (props.state.result?.serperResults ?? []) : []).map((item, index) => ({
+    key: `${item.endpoint}-${index}`,
+    title: getSerperResultTitle(item, index),
+    requestCode: formatJson(item.requestBody),
+    resultCode: formatJson(item.result)
+  }))
+);
 const candidateColumns: DataTableColumns<Api.AiLeads.LeadSearchCandidateView> = [
   {
     title: '线索名称',
@@ -121,6 +132,18 @@ const candidateColumns: DataTableColumns<Api.AiLeads.LeadSearchCandidateView> = 
 function getStepIndex(index: number) {
   return String(index + 1).padStart(2, '0');
 }
+
+/** Formats Serper JSON for direct inspection in the result panel. */
+function formatJson(value: unknown) {
+  return JSON.stringify(value, null, 2);
+}
+
+/** Builds a compact title for one Serper response block. */
+function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, index: number) {
+  const q = typeof item.requestBody.q === 'string' ? item.requestBody.q : '';
+
+  return q ? `${getStepIndex(index)} ${item.endpoint} · ${q}` : `${getStepIndex(index)} ${item.endpoint}`;
+}
 </script>
 
 <template>
@@ -159,12 +182,7 @@ function getStepIndex(index: number) {
     </NAlert>
 
     <section v-if="state.steps.length" class="progress-steps">
-      <div
-        v-for="(step, index) in state.steps"
-        :key="step.key"
-        class="progress-step"
-        :class="`is-${step.status}`"
-      >
+      <div v-for="(step, index) in state.steps" :key="step.key" class="progress-step" :class="`is-${step.status}`">
         <div class="step-marker">{{ getStepIndex(index) }}</div>
         <div class="step-body">
           <div class="step-title-row">
@@ -209,6 +227,24 @@ function getStepIndex(index: number) {
       />
       <NEmpty v-else description="暂未采集到候选客户" />
     </section>
+
+    <section v-if="serperResultRows.length" class="serper-section">
+      <div class="section-title">Serper 原始返回</div>
+      <NCollapse accordion>
+        <NCollapseItem v-for="item in serperResultRows" :key="item.key" :title="item.title" :name="item.key">
+          <div class="serper-json-grid">
+            <div class="serper-json-block">
+              <NText depth="3" class="serper-json-title">请求参数</NText>
+              <NCode :code="item.requestCode" language="json" word-wrap />
+            </div>
+            <div class="serper-json-block">
+              <NText depth="3" class="serper-json-title">返回内容</NText>
+              <NCode :code="item.resultCode" language="json" word-wrap />
+            </div>
+          </div>
+        </NCollapseItem>
+      </NCollapse>
+    </section>
   </NSpace>
 </template>
 
@@ -226,7 +262,8 @@ function getStepIndex(index: number) {
 .workflow-panel,
 .progress-steps,
 .result-summary,
-.candidate-section {
+.candidate-section,
+.serper-section {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -407,6 +444,31 @@ function getStepIndex(index: number) {
   text-decoration: underline;
 }
 
+.serper-json-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: 12px;
+}
+
+.serper-json-block {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e8eef8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.serper-json-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.serper-section :deep(.n-code) {
+  max-height: 420px;
+  overflow: auto;
+}
+
 @media (max-width: 640px) {
   .workflow-header {
     flex-direction: column;
@@ -418,6 +480,10 @@ function getStepIndex(index: number) {
 
   .progress-step {
     grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .serper-json-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

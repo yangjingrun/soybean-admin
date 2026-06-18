@@ -22,6 +22,12 @@ export interface LeadSearchCandidateView {
   sourceLabel: string;
 }
 
+export interface LeadSearchSerperResultView {
+  endpoint: string;
+  requestBody: unknown;
+  result: unknown;
+}
+
 export interface LeadSearchPublicResult {
   summary: {
     actionCount: number;
@@ -30,6 +36,7 @@ export interface LeadSearchPublicResult {
     stopReason: string;
   };
   candidates: LeadSearchCandidateView[];
+  serperResults: LeadSearchSerperResultView[];
   warnings?: string[];
 }
 
@@ -57,6 +64,7 @@ export interface LeadSearchProgressReporter {
 interface InternalSearchResult {
   qualityWarnings?: string[];
   serperRequests: unknown[];
+  serperResults: LeadSearchSerperResultView[];
   decisions: unknown[];
   candidates: InternalCandidateSummary[];
   stopReason: string;
@@ -108,6 +116,7 @@ export function toLeadSearchPublicResult(result: InternalSearchResult): LeadSear
       stopReason: toPublicText(result.stopReason)
     },
     candidates: result.candidates.map(toCandidateView),
+    serperResults: [],
     warnings: result.qualityWarnings?.length ? result.qualityWarnings.map(toPublicText) : undefined
   };
 }

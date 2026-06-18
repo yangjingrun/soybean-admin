@@ -142,7 +142,8 @@ describe('SystemUserService', () => {
     const service = createService(createPrismaStub(users));
 
     await assert.rejects(
-      () => service.update('u-super', { roles: ['R_ADMIN'] }, { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }),
+      () =>
+        service.update('u-super', { roles: ['R_ADMIN'] }, { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }),
       /不能移除自己的超级管理员角色/
     );
   });
@@ -182,7 +183,11 @@ describe('SystemUserService', () => {
     const service = createService(createPrismaStub(users), createLogServiceStub(), authService);
 
     await service.updateStatus('u-admin', 'disabled', { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] });
-    const resetResult = await service.resetPassword('u-admin', { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] });
+    const resetResult = await service.resetPassword('u-admin', {
+      userId: 'u-super',
+      userName: 'Super',
+      roles: ['R_SUPER']
+    });
 
     assert.deepEqual(authService.revokedUserIds, ['u-admin', 'u-admin']);
     assert.equal(users[1].lockedUntil, null);
@@ -196,7 +201,11 @@ function createService(
   logService = createLogServiceStub(),
   authService = createAuthServiceStub()
 ) {
-  return new SystemUserService(prisma as unknown as PrismaService, authService, logService as unknown as SystemLogService);
+  return new SystemUserService(
+    prisma as unknown as PrismaService,
+    authService,
+    logService as unknown as SystemLogService
+  );
 }
 
 function createPrismaStub(users: TestSystemUser[]) {

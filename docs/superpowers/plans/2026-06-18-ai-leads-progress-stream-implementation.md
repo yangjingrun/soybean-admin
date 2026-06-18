@@ -38,6 +38,7 @@
 ## Task 1: Backend Progress Protocol
 
 **Files:**
+
 - Create: `apps/server/src/modules/ai-leads/ai-lead-search-progress.ts`
 - Create: `apps/server/src/modules/ai-leads/ai-lead-search-progress.spec.ts`
 
@@ -135,6 +136,7 @@ Expected: PASS.
 ## Task 2: Orchestrator Progress Emission
 
 **Files:**
+
 - Modify: `apps/server/src/modules/ai-leads/ai-lead-search-orchestrator.service.ts`
 - Modify: `apps/server/src/modules/ai-leads/ai-lead-search-orchestrator.service.spec.ts`
 
@@ -181,6 +183,7 @@ Expected: PASS.
 ## Task 3: Backend Stream Endpoint
 
 **Files:**
+
 - Modify: `apps/server/src/modules/ai-leads/ai-leads.service.ts`
 - Modify: `apps/server/src/modules/ai-leads/ai-leads.controller.ts`
 
@@ -211,6 +214,7 @@ Expected: PASS.
 ## Task 4: Frontend Stream API And Parser
 
 **Files:**
+
 - Modify: `src/typings/api/ai-leads.d.ts`
 - Modify: `src/service/api/ai-leads.shared.ts`
 - Create: `src/service/api/ai-leads.stream.ts`
@@ -249,6 +253,7 @@ Expected: PASS.
 ## Task 5: Frontend Progress State And Panel
 
 **Files:**
+
 - Create: `src/views/ai-leads/modules/search-progress.ts`
 - Create: `src/views/ai-leads/modules/search-progress.spec.ts`
 - Create: `src/views/ai-leads/modules/SearchProgressPanel.vue`
@@ -293,6 +298,7 @@ Expected: PASS.
 ## Task 6: Page Integration
 
 **Files:**
+
 - Modify: `src/views/ai-leads/index.vue`
 
 - [ ] **Step 1: Replace search action with stream action**

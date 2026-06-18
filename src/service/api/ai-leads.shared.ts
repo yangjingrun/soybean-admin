@@ -4,6 +4,8 @@ export const aiLeadKeywordOptimizeTimeout = 120 * 1000;
 export const aiLeadSearchOrchestrateTimeout = 180 * 1000;
 export const aiLeadSearchOrchestrateStreamUrl = '/ai-leads/search-orchestrate/stream';
 
+export type LeadSearchTaskAction = 'interrupt' | 'resume' | 'retry' | 'discard' | 'read';
+
 /** Build the request config for the long-running AI leads keyword optimization task. */
 export function buildLeadKeywordOptimizeRequestConfig(
   data: Api.AiLeads.KeywordOptimizePayload
@@ -57,5 +59,62 @@ export function buildLeadSearchOrchestrateRequestConfig(
     method: 'post',
     data,
     timeout: aiLeadSearchOrchestrateTimeout
+  };
+}
+
+/** Build the request config for creating one background AI leads search task. */
+export function buildCreateLeadSearchTaskRequestConfig(
+  data: Api.AiLeads.CreateSearchTaskPayload
+): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-leads/search-tasks',
+    method: 'post',
+    data
+  };
+}
+
+/** Build the request config for restoring the current user's active or unread search task. */
+export function buildCurrentLeadSearchTaskRequestConfig(): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-leads/search-tasks/current',
+    method: 'get'
+  };
+}
+
+/** Build the request config for reading one AI leads search task by id. */
+export function buildLeadSearchTaskRequestConfig(id: string): CustomAxiosRequestConfig {
+  return {
+    url: `/ai-leads/search-tasks/${id}`,
+    method: 'get'
+  };
+}
+
+/** Build the request config for one state transition action on a search task. */
+export function buildLeadSearchTaskActionRequestConfig(
+  id: string,
+  action: LeadSearchTaskAction
+): CustomAxiosRequestConfig {
+  return {
+    url: `/ai-leads/search-tasks/${id}/${action}`,
+    method: 'post'
+  };
+}
+
+/** Build the request config for reading global AI leads queue settings. */
+export function buildLeadQueueConfigRequestConfig(): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-leads/queue-config',
+    method: 'get'
+  };
+}
+
+/** Build the request config for saving global AI leads queue settings. */
+export function buildSaveLeadQueueConfigRequestConfig(
+  data: Api.AiLeads.SaveQueueConfigPayload
+): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-leads/queue-config',
+    method: 'post',
+    data
   };
 }

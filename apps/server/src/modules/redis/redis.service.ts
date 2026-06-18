@@ -5,9 +5,10 @@ import type { Redis as RedisClient } from 'ioredis';
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private readonly client: RedisClient;
+  private readonly redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
   constructor() {
-    this.client = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
+    this.client = new Redis(this.redisUrl, {
       maxRetriesPerRequest: 1,
       lazyConnect: true
     });
@@ -15,6 +16,23 @@ export class RedisService implements OnModuleDestroy {
 
   getClient() {
     return this.client;
+  }
+
+  /** Creates an isolated Redis connection for BullMQ queue/worker internals. */
+  createBullMqConnectionOptions() {
+    const url = new URL(this.redisUrl);
+    const db = url.pathname.replace('/', '');
+
+    return {
+      host: url.hostname,
+      port: url.port ? Number(url.port) : 6379,
+      username: url.username ? decodeURIComponent(url.username) : undefined,
+      password: url.password ? decodeURIComponent(url.password) : undefined,
+      db: db ? Number(db) : 0,
+      maxRetriesPerRequest: null,
+      lazyConnect: true,
+      tls: url.protocol === 'rediss:' ? {} : undefined
+    };
   }
 
   async onModuleDestroy() {

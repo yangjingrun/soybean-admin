@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { UnauthorizedException } from '@nestjs/common';
 import type { UserInfo } from '../auth/auth.types';
 import type { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { GenerateAiTextDto } from '../ai-gateway/dto/generate-ai-text.dto';
@@ -210,6 +211,12 @@ describe('AiLeadsService', () => {
     userId: 'u-1',
     userName: 'Super',
     roles: ['R_SUPER'],
+    buttons: []
+  };
+  const ordinaryUser: UserInfo = {
+    userId: 'u-2',
+    userName: 'Operator',
+    roles: ['R_USER'],
     buttons: []
   };
 
@@ -574,6 +581,99 @@ describe('AiLeadsService', () => {
     assert.equal(capturedReporter, reporter);
     assert.deepEqual(result, { stopReason: '所有查询已完成' });
   });
+
+  it('requires login before running the synchronous search orchestrator', async () => {
+    let called = false;
+    const searchOrchestrator = {
+      async search() {
+        called = true;
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const service = new AiLeadsService(createAiGatewayService(), createHistoryStore(), undefined, searchOrchestrator);
+
+    await assert.rejects(
+      () =>
+        service.searchOrchestrate({
+          requirement: '找沙特轴承进口商',
+          targetLeadCount: 20
+        }),
+      UnauthorizedException
+    );
+    assert.equal(called, false);
+  });
+
+  it('requires login before running the stream search orchestrator', async () => {
+    let called = false;
+    const searchOrchestrator = {
+      async search() {
+        called = true;
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const service = new AiLeadsService(createAiGatewayService(), createHistoryStore(), undefined, searchOrchestrator);
+
+    await assert.rejects(
+      () =>
+        service.searchOrchestrateStream({
+          requirement: '找沙特轴承进口商',
+          targetLeadCount: 20
+        }),
+      UnauthorizedException
+    );
+    assert.equal(called, false);
+  });
+
+  it('returns public synchronous search result without raw traces for ordinary users', async () => {
+    const rawResult = createRawSearchResult();
+    const searchOrchestrator = {
+      async search() {
+        return rawResult;
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const service = new AiLeadsService(createAiGatewayService(), createHistoryStore(), undefined, searchOrchestrator);
+
+    const result = (await service.searchOrchestrate(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20
+      },
+      { user: ordinaryUser }
+    )) as {
+      summary: { actionCount: number; qualityCheckCount: number; candidateCount: number };
+      candidates: Array<{ sourceLabel: string }>;
+      serperResults: unknown[];
+      decisions?: unknown[];
+    };
+
+    assert.deepEqual(result.summary, {
+      actionCount: 1,
+      qualityCheckCount: 1,
+      candidateCount: 1,
+      stopReason: '所有查询已完成'
+    });
+    assert.equal(result.candidates[0].sourceLabel, '公开线索');
+    assert.deepEqual(result.serperResults, []);
+    assert.equal('decisions' in result, false);
+  });
+
+  it('keeps raw synchronous search result visible for super admins', async () => {
+    const rawResult = createRawSearchResult();
+    const searchOrchestrator = {
+      async search() {
+        return rawResult;
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const service = new AiLeadsService(createAiGatewayService(), createHistoryStore(), undefined, searchOrchestrator);
+
+    const result = await service.searchOrchestrate(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20
+      },
+      { user }
+    );
+
+    assert.deepEqual(result, rawResult);
+  });
 });
 
 function createAiGatewayService() {
@@ -622,5 +722,45 @@ function createHistoryRecord(input: Partial<AiLeadKeywordHistoryRecord> = {}): A
     totalTokens: input.totalTokens ?? 20,
     createdAt: input.createdAt || new Date('2026-06-18T00:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T00:00:00.000Z')
+  };
+}
+
+function createRawSearchResult() {
+  return {
+    keywordOptimization: keywordPlan,
+    keywordOptimizationText: JSON.stringify(keywordPlan),
+    qualityWarnings: [],
+    serperRequests: [
+      {
+        endpoint: 'search',
+        requestBody: {
+          q: '6204 bearing importer Saudi Arabia',
+          gl: 'sa',
+          hl: 'en',
+          location: 'Saudi Arabia',
+          num: 10,
+          page: 1
+        }
+      }
+    ],
+    serperResults: [
+      {
+        endpoint: 'search',
+        requestBody: {
+          q: '6204 bearing importer Saudi Arabia',
+          gl: 'sa',
+          hl: 'en',
+          location: 'Saudi Arabia',
+          num: 10,
+          page: 1
+        },
+        result: {
+          organic: [{ title: 'A', link: 'https://a.example.com', snippet: 'bearing importer' }]
+        }
+      }
+    ],
+    decisions: [{ decision: { nextAction: 'stop' } }],
+    candidates: [{ sourceType: 'organic', title: 'A', url: 'https://a.example.com', snippet: 'bearing importer' }],
+    stopReason: '所有查询已完成'
   };
 }

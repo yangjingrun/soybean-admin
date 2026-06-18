@@ -31,7 +31,7 @@ export interface AiLeadSearchContext {
   user?: UserInfo | null;
 }
 
-interface OptimizedKeywordPlan {
+export interface OptimizedKeywordPlan {
   resolvedProductKeywords?: string;
   resolvedTargetRegions?: string;
   resolvedTargetCustomerProfile?: string;
@@ -71,9 +71,13 @@ interface SerperQueryMeta extends Record<string, unknown> {
   tbs?: string | null;
 }
 
-interface SearchRequestTrace {
+export interface SearchRequestTrace {
   endpoint: SerperEndpoint;
   requestBody: SerperRequestBody;
+}
+
+interface SerperResultTrace extends SearchRequestTrace {
+  result: unknown;
 }
 
 interface SearchDecision {
@@ -98,6 +102,22 @@ interface CandidateSummary {
   phoneNumber?: string;
 }
 
+export interface LeadSearchQueryExecutionInput {
+  request: SearchRequestTrace;
+  requestKey: string;
+  requestIndex: number;
+}
+
+export interface LeadSearchExecutionOptions {
+  executeQuery?: (input: LeadSearchQueryExecutionInput, runDefault: () => Promise<unknown>) => Promise<unknown>;
+}
+
+export interface BoundKeywordSearchDto extends SearchOrchestrateDto {
+  keywordPlan: OptimizedKeywordPlan;
+  keywordOptimizationText?: string;
+  qualityWarnings?: string[];
+}
+
 @Injectable()
 export class AiLeadSearchOrchestrator {
   constructor(
@@ -107,30 +127,14 @@ export class AiLeadSearchOrchestrator {
   ) {}
 
   /** Runs keyword optimization, Serper search, and search-result decisions as one backend workflow. */
-  async search(
-    dto: SearchOrchestrateDto,
-    context: AiLeadSearchContext = {},
-    reporter?: LeadSearchProgressReporter
-  ) {
+  async search(dto: SearchOrchestrateDto, context: AiLeadSearchContext = {}, reporter?: LeadSearchProgressReporter) {
     const requirement = dto.requirement.trim();
-    const maxRequests = dto.maxSearchRequests ?? defaultMaxSearchRequests;
-    const targetLeadCount = dto.targetLeadCount;
-    const candidatePoolTargetCount = toCandidatePoolTargetCount(targetLeadCount);
 
     await reporter?.emit({
       type: 'workflow_started',
       title: '开始搜索采集',
       description: '正在准备采集任务',
       progressPercent: 0
-    });
-
-    const serperConfig = await this.aiGatewayService.getSerperConfig(defaultSerperConfigKey);
-
-    await this.recordLog('processing', 'AI 获客搜索编排开始', context, {
-      maxRequests,
-      targetLeadCount,
-      candidatePoolTargetCount,
-      maxRepeatRounds
     });
 
     await reporter?.emit({
@@ -146,12 +150,72 @@ export class AiLeadSearchOrchestrator {
       keywordOptimization,
       qualityWarnings
     } = await this.generateKeywordPlanWithRepair(requirement, context);
+
+    return this.runSearchWithPlan(
+      {
+        ...dto,
+        requirement,
+        keywordPlan: keywordOptimization,
+        keywordOptimizationText: keywordOptimizationText.text,
+        qualityWarnings
+      },
+      context,
+      reporter,
+      {
+        shouldCompleteRequirementStep: true
+      }
+    );
+  }
+
+  /** Runs search collection from a keyword plan that has already been saved on the task. */
+  async searchWithKeywordPlan(
+    dto: BoundKeywordSearchDto,
+    context: AiLeadSearchContext = {},
+    reporter?: LeadSearchProgressReporter,
+    options: LeadSearchExecutionOptions = {}
+  ) {
+    await reporter?.emit({
+      type: 'workflow_started',
+      title: '开始搜索采集',
+      description: '正在准备采集任务',
+      progressPercent: 0
+    });
+
+    return this.runSearchWithPlan(dto, context, reporter, {
+      ...options,
+      shouldCompleteRequirementStep: false
+    });
+  }
+
+  private async runSearchWithPlan(
+    dto: BoundKeywordSearchDto,
+    context: AiLeadSearchContext,
+    reporter?: LeadSearchProgressReporter,
+    options: LeadSearchExecutionOptions & { shouldCompleteRequirementStep: boolean } = {
+      shouldCompleteRequirementStep: false
+    }
+  ) {
+    const requirement = dto.requirement.trim();
+    const maxRequests = dto.maxSearchRequests ?? defaultMaxSearchRequests;
+    const targetLeadCount = dto.targetLeadCount;
+    const candidatePoolTargetCount = toCandidatePoolTargetCount(targetLeadCount);
+    const keywordOptimization = dto.keywordPlan;
     const queryQueue = this.toInitialRequests(keywordOptimization);
     const executedKeys = new Set<string>();
     const serperRequests: SearchRequestTrace[] = [];
+    const serperResults: SerperResultTrace[] = [];
     const decisions: Array<{ request: SearchRequestTrace; decision: SearchDecision }> = [];
     const candidates: CandidateSummary[] = [];
     const candidateKeys = new Set<string>();
+    const serperConfig = await this.aiGatewayService.getSerperConfig(defaultSerperConfigKey);
+
+    await this.recordLog('processing', 'AI 获客搜索编排开始', context, {
+      requirement,
+      maxRequests,
+      targetLeadCount,
+      candidatePoolTargetCount,
+      maxRepeatRounds
+    });
 
     await this.recordLog('processing', '关键词优化完成', context, {
       searchQueryCount: keywordOptimization.serperSearchQueries?.length ?? 0,
@@ -162,13 +226,15 @@ export class AiLeadSearchOrchestrator {
 
     let stopReason = '所有查询已完成';
 
-    await reporter?.emit({
-      type: 'step_completed',
-      stepKey: 'understand_requirement',
-      title: '理解获客需求',
-      description: '已完成需求理解和采集方向规划',
-      progressPercent: 20
-    });
+    if (options.shouldCompleteRequirementStep) {
+      await reporter?.emit({
+        type: 'step_completed',
+        stepKey: 'understand_requirement',
+        title: '理解获客需求',
+        description: '已完成需求理解和采集方向规划',
+        progressPercent: 20
+      });
+    }
 
     await reporter?.emit({
       type: 'step_started',
@@ -211,7 +277,18 @@ export class AiLeadSearchOrchestrator {
 
         executedKeys.add(requestKey);
         serperRequests.push(currentRequest);
-        const serperResult = await this.callSerper(serperConfig, currentRequest);
+        const serperResult = await this.executeSerperRequest(
+          serperConfig,
+          currentRequest,
+          requestKey,
+          serperRequests.length,
+          options
+        );
+        serperResults.push({
+          endpoint: currentRequest.endpoint,
+          requestBody: currentRequest.requestBody,
+          result: serperResult
+        });
 
         this.addCandidates(serperResult, candidates, candidateKeys);
         await this.recordLog('processing', 'Serper 搜索完成', context, {
@@ -310,9 +387,10 @@ export class AiLeadSearchOrchestrator {
 
     const result = {
       keywordOptimization,
-      keywordOptimizationText: keywordOptimizationText.text,
-      qualityWarnings,
+      keywordOptimizationText: dto.keywordOptimizationText ?? JSON.stringify(keywordOptimization),
+      qualityWarnings: dto.qualityWarnings ?? [],
       serperRequests,
+      serperResults,
       decisions,
       candidates,
       stopReason
@@ -410,6 +488,20 @@ export class AiLeadSearchOrchestrator {
       : this.serperClient.search(config, request.requestBody);
   }
 
+  private executeSerperRequest(
+    config: Awaited<ReturnType<AiGatewayService['getSerperConfig']>>,
+    request: SearchRequestTrace,
+    requestKey: string,
+    requestIndex: number,
+    options: LeadSearchExecutionOptions
+  ) {
+    const runDefault = () => this.callSerper(config, request);
+
+    return options.executeQuery
+      ? options.executeQuery({ request, requestKey, requestIndex }, runDefault)
+      : runDefault();
+  }
+
   private async decideNextStep(input: {
     keywordOptimization: OptimizedKeywordPlan;
     currentQuery: SerperRequestBody;
@@ -503,7 +595,12 @@ export class AiLeadSearchOrchestrator {
     }
   }
 
-  private toProgressMetrics(actionCount: number, actionTotal: number, candidateCount: number, qualityCheckCount: number) {
+  private toProgressMetrics(
+    actionCount: number,
+    actionTotal: number,
+    candidateCount: number,
+    qualityCheckCount: number
+  ) {
     return [
       { key: 'actionCount', label: '采集动作', value: actionCount, total: actionTotal },
       { key: 'candidateCount', label: '候选线索', value: candidateCount },
@@ -592,7 +689,16 @@ function toProgressPercent(done: number, total: number) {
 function toRequestKey(request: SearchRequestTrace) {
   const body = request.requestBody;
 
-  return [request.endpoint, body.q, body.gl || '', body.hl || '', body.location || '', body.page || 1].join('|');
+  return [
+    request.endpoint,
+    body.q,
+    body.gl || '',
+    body.hl || '',
+    body.location || '',
+    body.num || 10,
+    body.page || 1,
+    body.tbs || ''
+  ].join('|');
 }
 
 function extractCandidates(result: unknown): CandidateSummary[] {

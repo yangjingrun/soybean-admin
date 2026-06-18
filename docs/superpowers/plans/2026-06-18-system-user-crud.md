@@ -13,6 +13,7 @@
 ### Task 1: Database And Password Foundation
 
 **Files:**
+
 - Modify: `prisma/schema.prisma`
 - Create: `prisma/migrations/20260618190000_create_system_users/migration.sql`
 - Create: `apps/server/src/modules/auth/password.ts`
@@ -30,6 +31,7 @@
 ### Task 2: AuthService Database Login And Token Revocation
 
 **Files:**
+
 - Modify: `apps/server/src/modules/auth/auth.service.ts`
 - Modify: `apps/server/src/modules/auth/auth.controller.ts`
 - Modify: `apps/server/src/modules/auth/auth.module.ts`
@@ -50,6 +52,7 @@
 ### Task 3: System User Backend CRUD
 
 **Files:**
+
 - Modify: `apps/server/src/modules/system-user/system-user.types.ts`
 - Modify: `apps/server/src/modules/system-user/dto/system-user-query.dto.ts`
 - Create DTO files under `apps/server/src/modules/system-user/dto`
@@ -71,6 +74,7 @@
 ### Task 4: Frontend API, Types, And Helpers
 
 **Files:**
+
 - Modify: `src/typings/api/system-user.d.ts`
 - Modify: `src/service/api/system-user.ts`
 - Modify: `src/views/manage/user/modules/shared.ts`
@@ -84,6 +88,7 @@
 ### Task 5: Frontend User Management UI
 
 **Files:**
+
 - Modify: `src/views/manage/user/index.vue`
 - Modify: `src/views/manage/user/modules/UserSearch.vue`
 - Create: `src/views/manage/user/modules/UserOperateDrawer.vue`
@@ -99,6 +104,7 @@
 ### Task 6: Integration Verification
 
 **Files:**
+
 - Update tests only if directly required by changed contracts.
 
 - [ ] Run backend system-user/auth focused tests.

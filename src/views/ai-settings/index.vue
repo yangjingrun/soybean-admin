@@ -5,9 +5,11 @@ import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { defaultAiModelConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
 import {
+  fetchAiLeadQueueConfig,
   generateAiText,
   getAiModelConfig,
   getSerperConfig,
+  saveAiLeadQueueConfig,
   saveAiModelConfig,
   saveSerperConfig,
   testSerperConfig
@@ -24,6 +26,10 @@ const providerOptions = computed(() => [
   { label: t('page.aiSettings.providers.dashscope'), value: 'dashscope' }
 ]);
 
+interface QueueConfigForm {
+  workerConcurrency: number | null;
+}
+
 const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
   configKey: defaultAiModelConfigKey,
   title: '默认模型',
@@ -38,6 +44,9 @@ const serperForm = reactive<Api.AiGateway.SaveSerperConfigPayload>({
   apiBase: 'https://google.serper.dev',
   apiKey: ''
 });
+const queueConfigForm = reactive<QueueConfigForm>({
+  workerConcurrency: 2
+});
 
 const isModelLoading = shallowRef(false);
 const isModelSaving = shallowRef(false);
@@ -45,8 +54,11 @@ const isModelTesting = shallowRef(false);
 const isSerperLoading = shallowRef(false);
 const isSerperSaving = shallowRef(false);
 const isSerperTesting = shallowRef(false);
+const isQueueConfigLoading = shallowRef(false);
+const isQueueConfigSaving = shallowRef(false);
 const modelUpdatedAt = shallowRef('');
 const serperUpdatedAt = shallowRef('');
+const queueConfigUpdatedAt = shallowRef<string | null>(null);
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
 
@@ -68,10 +80,19 @@ const formattedSerperUpdatedAt = computed(() =>
     ? dayjs(serperUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
+const canSaveQueueConfig = computed(() => isValidWorkerConcurrency(queueConfigForm.workerConcurrency));
+const formattedQueueConfigUpdatedAt = computed(() => {
+  const updatedAt = queueConfigUpdatedAt.value;
+
+  return isSavedUpdatedAt(updatedAt)
+    ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')
+    : t('page.aiSettings.status.notSaved');
+});
 
 onMounted(() => {
   void handleLoadModelConfig(false);
   void handleLoadSerperConfig(false);
+  void handleLoadQueueConfig(false);
 });
 
 /** Loads the default backend model config into the settings form. */
@@ -180,6 +201,65 @@ async function handleSaveSerperConfig() {
   } finally {
     isSerperSaving.value = false;
   }
+}
+
+/** Loads the global AI leads BullMQ worker concurrency. */
+async function handleLoadQueueConfig(showMessage = true) {
+  isQueueConfigLoading.value = true;
+
+  try {
+    const { data: record, error } = await fetchAiLeadQueueConfig();
+
+    if (error) {
+      return;
+    }
+
+    queueConfigForm.workerConcurrency = record.workerConcurrency;
+    queueConfigUpdatedAt.value = record.updatedAt;
+
+    if (showMessage) {
+      message.success('AI 获客任务配置已加载');
+    }
+  } finally {
+    isQueueConfigLoading.value = false;
+  }
+}
+
+/** Saves the global AI leads BullMQ worker concurrency. */
+async function handleSaveQueueConfig() {
+  const workerConcurrency = queueConfigForm.workerConcurrency;
+
+  if (!isValidWorkerConcurrency(workerConcurrency)) {
+    message.warning('请输入 1-10 的并发数');
+    return;
+  }
+
+  isQueueConfigSaving.value = true;
+
+  try {
+    const { data: record, error } = await saveAiLeadQueueConfig({
+      workerConcurrency
+    });
+
+    if (error) {
+      return;
+    }
+
+    queueConfigForm.workerConcurrency = record.workerConcurrency;
+    queueConfigUpdatedAt.value = record.updatedAt;
+    message.success('AI 获客任务配置已保存');
+  } finally {
+    isQueueConfigSaving.value = false;
+  }
+}
+
+function isValidWorkerConcurrency(value: number | null): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10;
+}
+
+/** Checks whether a saved timestamp should be displayed to users. */
+function isSavedUpdatedAt(value: string | null): value is string {
+  return Boolean(value && dayjs(value).valueOf() > 0);
 }
 
 /** Copies the current model service key for quick reuse. */
@@ -437,6 +517,48 @@ async function handleTestSerperConfig() {
         </div>
       </NSpace>
     </NCard>
+
+    <NCard :bordered="false" class="card-wrapper">
+      <NSpace vertical :size="14">
+        <div class="page-heading">
+          <div>
+            <h2 class="page-title">AI 获客后台任务</h2>
+            <p class="panel-desc">配置全局 BullMQ worker 并发，默认 2。</p>
+          </div>
+          <NTag type="info" :bordered="false">BullMQ</NTag>
+        </div>
+
+        <NForm :model="queueConfigForm" label-placement="top" size="small">
+          <NFormItem label="Worker 并发数">
+            <NInputNumber
+              v-model:value="queueConfigForm.workerConcurrency"
+              :min="1"
+              :max="10"
+              :precision="0"
+              class="queue-concurrency-input"
+            />
+          </NFormItem>
+        </NForm>
+
+        <div class="form-footer">
+          <NText depth="3" class="updated-time">配置时间：{{ formattedQueueConfigUpdatedAt }}</NText>
+          <NSpace :size="8">
+            <NButton size="small" :loading="isQueueConfigLoading" @click="handleLoadQueueConfig()">
+              {{ $t('page.aiSettings.actions.reload') }}
+            </NButton>
+            <NButton
+              size="small"
+              type="primary"
+              :loading="isQueueConfigSaving"
+              :disabled="!canSaveQueueConfig"
+              @click="handleSaveQueueConfig"
+            >
+              {{ $t('page.aiSettings.actions.save') }}
+            </NButton>
+          </NSpace>
+        </div>
+      </NSpace>
+    </NCard>
   </NSpace>
 </template>
 
@@ -467,6 +589,10 @@ async function handleTestSerperConfig() {
 
 .api-key-copy-button {
   width: 34px;
+}
+
+.queue-concurrency-input {
+  width: 180px;
 }
 
 .updated-time {

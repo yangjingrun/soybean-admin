@@ -10,18 +10,18 @@ defineProps<{
 const keywordPlan = defineModel<Api.AiLeads.OptimizedKeywordPlan | null>('keywordPlan', { required: true });
 
 const searchQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
-  { title: '客户类型', key: 'buyerType', width: 130 },
-  { title: '意图', key: 'intent', width: 140 },
+  { title: '客户类型', key: 'buyerType', width: 160 },
+  { title: '意图', key: 'intent', width: 160 },
   { title: 'Search 查询词', key: 'q', minWidth: 260, ellipsis: { tooltip: true } },
   { title: '地区', key: 'location', width: 130 },
   { title: '优先级', key: 'priority', width: 90 }
 ];
 
 const placesQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
-  { title: '客户类型', key: 'buyerType', width: 150 },
-  { title: '意图', key: 'intent', width: 150 },
+  { title: '客户类型', key: 'buyerType', width: 160 },
+  { title: '意图', key: 'intent', width: 160 },
   { title: 'Places 查询词', key: 'q', minWidth: 240, ellipsis: { tooltip: true } },
-  { title: '城市', key: 'city', width: 120 },
+  { title: '城市', key: 'city', width: 130 },
   { title: '优先级', key: 'priority', width: 90 }
 ];
 
@@ -55,12 +55,17 @@ function updateSegmentList(
     .map(item => item.trim())
     .filter(Boolean);
 }
-
 </script>
 
 <template>
   <NSpace vertical :size="14" class="keyword-result">
-    <NForm v-if="editable && keywordPlan" :model="keywordPlan" label-placement="top" size="small" class="keyword-editor">
+    <NForm
+      v-if="editable && keywordPlan"
+      :model="keywordPlan"
+      label-placement="top"
+      size="small"
+      class="keyword-editor"
+    >
       <NGrid :x-gap="12" :y-gap="10" responsive="screen" item-responsive class="summary-editor-grid">
         <NGi span="24 m:12">
           <NFormItem label="需求归纳">
@@ -268,9 +273,7 @@ function updateSegmentList(
   border: 1px solid var(--keyword-border);
   border-left: 4px solid var(--keyword-primary);
   border-radius: 8px;
-  background:
-    linear-gradient(90deg, rgb(91 117 255 / 10%) 0%, rgb(124 92 255 / 5%) 34%, #ffffff 72%),
-    #ffffff;
+  background: linear-gradient(90deg, rgb(91 117 255 / 10%) 0%, rgb(124 92 255 / 5%) 34%, #ffffff 72%), #ffffff;
   box-shadow: 0 6px 18px rgb(15 23 42 / 4%);
 }
 
@@ -284,9 +287,7 @@ function updateSegmentList(
 
 .buyer-segment.editor {
   min-height: auto;
-  background:
-    linear-gradient(90deg, rgb(91 117 255 / 12%) 0%, rgb(124 92 255 / 5%) 30%, #ffffff 68%),
-    #ffffff;
+  background: linear-gradient(90deg, rgb(91 117 255 / 12%) 0%, rgb(124 92 255 / 5%) 30%, #ffffff 68%), #ffffff;
 }
 
 .buyer-segment-header {

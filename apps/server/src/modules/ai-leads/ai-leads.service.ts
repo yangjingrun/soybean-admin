@@ -15,7 +15,7 @@ import type { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
 import type { KeywordHistoryQueryDto, UpdateKeywordHistoryDto } from './dto/keyword-history.dto';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
-import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
+import { toLeadSearchPublicResult, type LeadSearchProgressReporter } from './ai-lead-search-progress';
 import { AI_LEAD_KEYWORD_HISTORY_STORE } from './ai-leads.tokens';
 import type { AiLeadKeywordHistoryRecord, AiLeadKeywordHistoryStore } from './ai-leads.types';
 import {
@@ -153,38 +153,46 @@ export class AiLeadsService {
   }
 
   /** Runs the backend AI leads Search + Places orchestration workflow. */
-  searchOrchestrate(dto: SearchOrchestrateDto, context: AiLeadsContext = {}) {
+  async searchOrchestrate(dto: SearchOrchestrateDto, context: AiLeadsContext = {}) {
+    const user = this.requireUser(context);
+
     if (!this.searchOrchestrator) {
       throw new NotFoundException('AI 获客搜索编排服务未初始化');
     }
 
-    return this.searchOrchestrator.search(
+    const result = await this.searchOrchestrator.search(
       {
         ...dto,
         requirement: dto.requirement.trim()
       },
-      context
+      { ...context, user }
     );
+
+    return this.toVisibleSearchResult(result, user);
   }
 
   /** Runs the backend AI leads orchestration workflow and reports business progress events. */
-  searchOrchestrateStream(
+  async searchOrchestrateStream(
     dto: SearchOrchestrateDto,
     context: AiLeadsContext = {},
     reporter?: LeadSearchProgressReporter
   ) {
+    const user = this.requireUser(context);
+
     if (!this.searchOrchestrator) {
       throw new NotFoundException('AI 获客搜索编排服务未初始化');
     }
 
-    return this.searchOrchestrator.search(
+    const result = await this.searchOrchestrator.search(
       {
         ...dto,
         requirement: dto.requirement.trim()
       },
-      context,
+      { ...context, user },
       reporter
     );
+
+    return this.toVisibleSearchResult(result, user);
   }
 
   private requireUser(context: AiLeadsContext) {
@@ -210,6 +218,15 @@ export class AiLeadsService {
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString()
     };
+  }
+
+  /** Keeps super-admin diagnostics raw while hiding search traces from ordinary users. */
+  private toVisibleSearchResult<T extends Parameters<typeof toLeadSearchPublicResult>[0]>(result: T, user: UserInfo) {
+    if (user.roles.includes('R_SUPER')) {
+      return result;
+    }
+
+    return toLeadSearchPublicResult(result);
   }
 
   private recordLog(action: string, message: string, context: AiLeadsContext, metadata: Record<string, unknown>) {

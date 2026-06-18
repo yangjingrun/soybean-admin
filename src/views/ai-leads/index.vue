@@ -3,10 +3,17 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 
 import { useMessage } from 'naive-ui';
 import { useAuthStore } from '@/store/modules/auth';
 import {
+  createLeadSearchTask,
   deleteLeadKeywordHistory,
+  discardLeadSearchTask,
   fetchLeadKeywordHistories,
+  fetchCurrentLeadSearchTask,
+  fetchLeadSearchTask,
+  interruptLeadSearchTask,
+  markLeadSearchTaskRead,
   optimizeLeadKeywords,
-  streamLeadCustomerSearch,
+  resumeLeadSearchTask,
+  retryLeadSearchTask,
   updateLeadKeywordHistory
 } from '@/service/api';
 import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
@@ -14,10 +21,13 @@ import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
 import SearchProgressPanel from './modules/SearchProgressPanel.vue';
 import {
   canReturnToKeywordOptimizationStep,
+  createLeadSearchProgressStateFromTask,
   createLeadSearchProgressState,
-  reduceLeadSearchProgressEvent
+  getLeadSearchTaskActionState,
+  isLeadSearchTaskPending,
+  shouldClearSearchTaskAfterAction
 } from './modules/search-progress';
-import type { LeadSearchProgressState } from './modules/search-progress';
+import type { LeadSearchProgressState, LeadSearchTaskAction } from './modules/search-progress';
 import {
   buildKeywordHistoryUpdatePayload,
   cloneKeywordPlan,
@@ -34,6 +44,33 @@ const message = useMessage();
 const authStore = useAuthStore();
 const defaultTargetLeadCount = 20;
 const maxLeadSearchRepeatRounds = 2;
+const searchTaskPollIntervalMs = 3000;
+
+const searchTaskStatusTextMap: Record<Api.AiLeads.TaskStatus, string> = {
+  queued: '排队中',
+  running: '采集中',
+  interrupted: '已中断',
+  failed: '失败',
+  completed: '已完成',
+  discarded: '已放弃'
+};
+
+const searchTaskStatusTypeMap: Record<Api.AiLeads.TaskStatus, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
+  queued: 'warning',
+  running: 'info',
+  interrupted: 'warning',
+  failed: 'error',
+  completed: 'success',
+  discarded: 'default'
+};
+
+const searchTaskActionSuccessTextMap: Record<LeadSearchTaskAction, string> = {
+  interrupt: '采集任务已中断',
+  resume: '采集任务已继续',
+  retry: '采集任务已重试',
+  discard: '采集任务已放弃',
+  read: '结果已确认，可以开始新的采集'
+};
 
 interface LeadSearchForm {
   requirement: string;
@@ -47,15 +84,17 @@ const form = reactive<LeadSearchForm>({
 });
 
 const isGenerating = shallowRef(false);
-const isSearching = shallowRef(false);
+const isSearchTaskSubmitting = shallowRef(false);
+const isSearchTaskActionLoading = shallowRef(false);
 const isHistoryLoading = shallowRef(false);
 const isHistorySaving = shallowRef(false);
 const isHistoryDrawerVisible = shallowRef(false);
 const isEditingResult = shallowRef(false);
-const searchAbortController = shallowRef<AbortController | null>(null);
+const searchTaskPollTimer = shallowRef<ReturnType<typeof setInterval> | null>(null);
 const deletingKeywordHistoryId = shallowRef('');
 const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const searchProgress = ref<LeadSearchProgressState>(createLeadSearchProgressState());
+const currentSearchTask = shallowRef<Api.AiLeads.TaskRecord | null>(null);
 const keywordQualityWarnings = ref<string[]>([]);
 const historyRecords = ref<Api.AiLeads.KeywordHistoryRecord[]>([]);
 const editableKeywordPlan = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
@@ -72,6 +111,16 @@ const canSaveHistory = computed(() =>
 );
 const isHistoryDeleting = computed(() => Boolean(deletingKeywordHistoryId.value));
 const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
+const isSearchTaskPending = computed(() => isLeadSearchTaskPending(currentSearchTask.value?.status));
+const isSearching = computed(() => isSearchTaskSubmitting.value || isSearchTaskPending.value);
+const canCreateSearchTask = computed(() => {
+  if (!currentSearchTask.value) {
+    return true;
+  }
+
+  return currentSearchTask.value.status === 'discarded' || Boolean(currentSearchTask.value.readAt);
+});
+const isSearchTaskBlockingForm = computed(() => Boolean(currentSearchTask.value) && !canCreateSearchTask.value);
 const parsedAiKeywordPlan = computed(() => {
   if (!aiResult.value?.text) {
     return null;
@@ -91,7 +140,9 @@ const canSearchCustomers = computed(
     hasKeywordPlan.value &&
     isTargetLeadCountValid.value &&
     !isGenerating.value &&
-    !isSearching.value
+    !isSearching.value &&
+    !isSearchTaskActionLoading.value &&
+    canCreateSearchTask.value
 );
 const keywordOptimizationViewModel = computed(() =>
   keywordOptimizationPlan.value
@@ -103,23 +154,50 @@ const currentHistoryRecord = computed(
   () => historyRecords.value.find(record => record.id === selectedHistoryId.value) || null
 );
 const hasSearchProgress = computed(
-  () => isSearching.value || searchProgress.value.status !== 'idle' || Boolean(searchProgress.value.result)
+  () =>
+    Boolean(currentSearchTask.value) ||
+    isSearching.value ||
+    searchProgress.value.status !== 'idle' ||
+    Boolean(searchProgress.value.result)
 );
-const canReturnToKeywordStep = computed(() =>
-  canReturnToKeywordOptimizationStep(searchProgress.value, isSearching.value)
+const canReturnToKeywordStep = computed(
+  () =>
+    canReturnToKeywordOptimizationStep(searchProgress.value, isSearching.value) &&
+    (!currentSearchTask.value ||
+      currentSearchTask.value.status === 'discarded' ||
+      Boolean(currentSearchTask.value.readAt))
 );
 const currentWorkflowStepLabel = computed(() => (hasSearchProgress.value ? '搜索采集' : '关键词优化'));
+const searchTaskActionState = computed(() =>
+  getLeadSearchTaskActionState(currentSearchTask.value?.status, currentSearchTask.value?.readAt)
+);
+const currentSearchTaskStatusLabel = computed(() =>
+  currentSearchTask.value ? searchTaskStatusTextMap[currentSearchTask.value.status] : ''
+);
+const currentSearchTaskStatusType = computed(() =>
+  currentSearchTask.value ? searchTaskStatusTypeMap[currentSearchTask.value.status] : 'default'
+);
 
 onMounted(() => {
-  void loadKeywordHistories();
+  void initPage();
 });
 
 onBeforeUnmount(() => {
-  cancelSearchStream();
+  stopSearchTaskPolling();
 });
+
+async function initPage() {
+  await loadKeywordHistories();
+  await restoreCurrentSearchTask();
+}
 
 /** Calls the AI leads keyword optimization workflow. */
 async function handleGenerate() {
+  if (isSearchTaskBlockingForm.value) {
+    message.warning('请先处理当前采集任务');
+    return;
+  }
+
   const targetLeadCount = form.targetLeadCount;
   const isTargetLeadCountManuallyEdited = isTargetLeadCountTouched.value;
   isGenerating.value = true;
@@ -151,7 +229,7 @@ async function handleGenerate() {
   }
 }
 
-/** Starts the backend search collection workflow and consumes streamed progress events. */
+/** Creates a background search task and restores its persisted progress state. */
 async function handleSearchCustomers() {
   if (isSearching.value) {
     return;
@@ -167,58 +245,81 @@ async function handleSearchCustomers() {
     return;
   }
 
+  const keywordPlan = keywordOptimizationPlan.value;
+  if (!keywordPlan) {
+    message.warning('请先优化关键词，再开始采集');
+    return;
+  }
+
   const targetLeadCount = getRequiredTargetLeadCount();
   if (!targetLeadCount) {
     message.warning('请输入 1-200 的采集数量');
     return;
   }
 
-  isSearching.value = true;
+  isSearchTaskSubmitting.value = true;
   keywordQualityWarnings.value = [];
   searchProgress.value = createStartingSearchProgressState();
 
-  const abortController = new AbortController();
-  searchAbortController.value = abortController;
+  try {
+    const { data: task, error } = await createLeadSearchTask({
+      requirement: form.requirement.trim(),
+      targetLeadCount,
+      keywordPlan: cloneKeywordPlan(keywordPlan)
+    });
+
+    if (error) {
+      await syncCurrentSearchTaskAfterRequestError({ clearWhenEmpty: true });
+      return;
+    }
+
+    applySearchTaskRecord(task, { notifyStatusChange: false });
+    message.success('采集任务已创建，后台执行中');
+  } finally {
+    isSearchTaskSubmitting.value = false;
+  }
+}
+
+async function handleSearchTaskAction(action: LeadSearchTaskAction) {
+  const task = currentSearchTask.value;
+
+  if (!task) {
+    return;
+  }
+
+  isSearchTaskActionLoading.value = true;
 
   try {
-    await streamLeadCustomerSearch(
-      {
-        requirement: form.requirement.trim(),
-        targetLeadCount
-      },
-      {
-        onEvent(event) {
-          searchProgress.value = reduceLeadSearchProgressEvent(searchProgress.value, event);
-        }
-      },
-      { signal: abortController.signal }
-    );
+    const { data: nextTask, error } = await runSearchTaskAction(action, task.id);
 
-    if (searchProgress.value.status === 'completed') {
-      message.success('搜索采集完成');
-    } else if (searchProgress.value.status === 'failed') {
-      message.error(searchProgress.value.errorMessage || '搜索采集失败，请稍后重试');
+    if (error) {
+      await syncCurrentSearchTaskAfterRequestError();
+      return;
     }
-  } catch (error) {
-    if (!isAbortError(error)) {
-      searchProgress.value = reduceLeadSearchProgressEvent(searchProgress.value, createClientFailureEvent());
-      message.error('搜索采集失败，请稍后重试');
+
+    if (shouldClearSearchTaskAfterAction(action)) {
+      clearHandledSearchTaskContext(action);
+    } else {
+      applySearchTaskRecord(nextTask, { notifyStatusChange: false });
     }
+
+    message.success(searchTaskActionSuccessTextMap[action]);
   } finally {
-    isSearching.value = false;
-    if (searchAbortController.value === abortController) {
-      searchAbortController.value = null;
-    }
+    isSearchTaskActionLoading.value = false;
   }
 }
 
 function handleClear() {
-  cancelSearchStream();
+  if (isSearchTaskBlockingForm.value) {
+    message.warning('请先处理当前采集任务');
+    return;
+  }
+
+  resetSearchProgress();
   form.requirement = '';
   form.targetLeadCount = defaultTargetLeadCount;
   isTargetLeadCountTouched.value = false;
   aiResult.value = null;
-  searchProgress.value = createLeadSearchProgressState();
   keywordQualityWarnings.value = [];
   editableKeywordPlan.value = null;
   editingKeywordPlanSnapshot.value = null;
@@ -238,6 +339,17 @@ async function handleCopyResult() {
 
   await navigator.clipboard.writeText(copyText);
   message.success('结果已复制');
+}
+
+/** Restores the task that should keep showing when the user enters the page. */
+async function restoreCurrentSearchTask() {
+  const { data: task, error } = await fetchCurrentLeadSearchTask();
+
+  if (error || !task) {
+    return;
+  }
+
+  applySearchTaskRecord(task, { notifyStatusChange: false });
 }
 
 /** Loads keyword histories and selects the newest one by default. */
@@ -368,6 +480,31 @@ function applyKeywordHistoryRecord(
   isEditingResult.value = false;
 }
 
+function applySearchTaskRecord(task: Api.AiLeads.TaskRecord, options: { notifyStatusChange?: boolean } = {}) {
+  const previousStatus = currentSearchTask.value?.status ?? null;
+
+  currentSearchTask.value = task;
+  form.requirement = task.requirement;
+  form.targetLeadCount = task.targetLeadCount;
+  isTargetLeadCountTouched.value = false;
+  aiResult.value = createAiResultFromSearchTask(task);
+  keywordQualityWarnings.value = [];
+  editableKeywordPlan.value = cloneKeywordPlan(task.keywordPlan);
+  editingKeywordPlanSnapshot.value = null;
+  searchProgress.value = createLeadSearchProgressStateFromTask(task);
+  isEditingResult.value = false;
+
+  if (isLeadSearchTaskPending(task.status)) {
+    startSearchTaskPolling(task.id);
+  } else {
+    stopSearchTaskPolling();
+  }
+
+  if (options.notifyStatusChange !== false && previousStatus && previousStatus !== task.status) {
+    notifySearchTaskStatusChange(task);
+  }
+}
+
 function resetKeywordHistorySelection() {
   selectedHistoryId.value = '';
   isTargetLeadCountTouched.value = false;
@@ -401,15 +538,112 @@ function handleReturnToKeywordOptimization() {
   resetSearchProgress();
 }
 
-/** Clears previous search progress and aborts an active stream if one exists. */
+/** Clears previous local search progress and stops frontend polling. */
 function resetSearchProgress() {
-  cancelSearchStream();
+  stopSearchTaskPolling();
+  currentSearchTask.value = null;
   searchProgress.value = createLeadSearchProgressState();
 }
 
-function cancelSearchStream() {
-  searchAbortController.value?.abort();
-  searchAbortController.value = null;
+/** Refreshes persisted task state after a failed request may have changed backend status. */
+async function syncCurrentSearchTaskAfterRequestError(options: { clearWhenEmpty?: boolean } = {}) {
+  const { data: task, error } = await fetchCurrentLeadSearchTask();
+
+  if (error) {
+    return;
+  }
+
+  if (task) {
+    applySearchTaskRecord(task, { notifyStatusChange: false });
+    return;
+  }
+
+  if (options.clearWhenEmpty) {
+    resetSearchProgress();
+  }
+}
+
+/** Clears handled task state; read tasks require fresh keyword optimization before another collection. */
+function clearHandledSearchTaskContext(action: LeadSearchTaskAction) {
+  resetSearchProgress();
+
+  if (action !== 'read') {
+    return;
+  }
+
+  aiResult.value = null;
+  keywordQualityWarnings.value = [];
+  editableKeywordPlan.value = null;
+  editingKeywordPlanSnapshot.value = null;
+  selectedHistoryId.value = '';
+  isEditingResult.value = false;
+}
+
+function startSearchTaskPolling(taskId: string) {
+  if (searchTaskPollTimer.value) {
+    return;
+  }
+
+  searchTaskPollTimer.value = setInterval(() => {
+    void refreshSearchTask(taskId);
+  }, searchTaskPollIntervalMs);
+}
+
+function stopSearchTaskPolling() {
+  if (!searchTaskPollTimer.value) {
+    return;
+  }
+
+  clearInterval(searchTaskPollTimer.value);
+  searchTaskPollTimer.value = null;
+}
+
+async function refreshSearchTask(taskId: string) {
+  const { data: task, error } = await fetchLeadSearchTask(taskId);
+
+  if (error) {
+    return;
+  }
+
+  if (currentSearchTask.value?.id !== taskId) {
+    return;
+  }
+
+  applySearchTaskRecord(task);
+}
+
+function runSearchTaskAction(action: LeadSearchTaskAction, taskId: string) {
+  const actionMap = {
+    interrupt: interruptLeadSearchTask,
+    resume: resumeLeadSearchTask,
+    retry: retryLeadSearchTask,
+    discard: discardLeadSearchTask,
+    read: markLeadSearchTaskRead
+  };
+
+  return actionMap[action](taskId);
+}
+
+function notifySearchTaskStatusChange(task: Api.AiLeads.TaskRecord) {
+  if (task.status === 'completed') {
+    message.success('搜索采集完成');
+  }
+
+  if (task.status === 'failed') {
+    message.error(task.errorMessage || '搜索采集失败，请稍后重试');
+  }
+}
+
+function createAiResultFromSearchTask(task: Api.AiLeads.TaskRecord): Api.AiGateway.AiTextResult {
+  return {
+    text: JSON.stringify(task.keywordPlan, null, 2),
+    finishReason: task.status,
+    usage: {
+      inputTokens: null,
+      outputTokens: null,
+      totalTokens: null
+    }
+  };
 }
 
 function createStartingSearchProgressState(): LeadSearchProgressState {
@@ -421,21 +655,6 @@ function createStartingSearchProgressState(): LeadSearchProgressState {
     progressPercent: 3
   };
 }
-
-function createClientFailureEvent(): Api.AiLeads.LeadSearchProgressEvent {
-  return {
-    type: 'workflow_failed',
-    runId: 'client',
-    sequence: Date.now(),
-    emittedAt: new Date().toISOString(),
-    title: '搜索采集失败',
-    errorMessage: '搜索采集失败，请稍后重试'
-  };
-}
-
-function isAbortError(error: unknown) {
-  return error instanceof Error && error.name === 'AbortError';
-}
 </script>
 
 <template>
@@ -445,17 +664,21 @@ function isAbortError(error: unknown) {
         <div class="card-title-main">
           <span class="card-title-text">获客需求</span>
           <NTag size="small" type="info" :bordered="false">当前步骤：{{ currentWorkflowStepLabel }}</NTag>
+          <NTag v-if="currentSearchTask" size="small" :type="currentSearchTaskStatusType" :bordered="false">
+            任务：{{ currentSearchTaskStatusLabel }}
+          </NTag>
           <NTag size="small" type="warning" :bordered="false">最多重复 {{ maxLeadSearchRepeatRounds }} 轮</NTag>
         </div>
       </div>
 
-      <NForm :model="form" label-placement="left" label-width="78" size="small" class="lead-form">
+      <NForm :model="form" label-placement="left" label-width="90" size="small" class="lead-form">
         <NGrid :x-gap="18" :y-gap="12" responsive="screen" item-responsive>
           <NGi span="24 l:15">
             <NFormItem label="">
               <NInput
                 v-model:value="form.requirement"
                 type="textarea"
+                :disabled="isSearchTaskBlockingForm"
                 :autosize="{ minRows: 4, maxRows: 7 }"
                 placeholder="描述你的产品、地区、目标市场、客户类型、产品优势等。例如：我是中国河北卖轴承的，主打 6204 bearing，想找沙特阿拉伯进口商和经销商，产品优势是供货稳定、价格有竞争力。"
               />
@@ -476,6 +699,7 @@ function isAbortError(error: unknown) {
                 :min="1"
                 :max="200"
                 :precision="0"
+                :disabled="isSearchTaskBlockingForm"
                 @update:value="handleTargetLeadCountUpdate"
               />
             </NFormItem>
@@ -484,26 +708,93 @@ function isAbortError(error: unknown) {
           <NGi span="24 m:16 l:5" class="lead-actions">
             <NSpace :size="8" class="lead-action-group">
               <NButton
-                :disabled="isGenerating || isSearching || isHistorySaving || isHistoryDeleting"
+                :disabled="
+                  isGenerating ||
+                  isSearching ||
+                  isSearchTaskActionLoading ||
+                  isHistorySaving ||
+                  isHistoryDeleting ||
+                  isSearchTaskBlockingForm
+                "
                 @click="handleClear"
               >
                 清空
               </NButton>
               <NButton
                 :loading="isGenerating"
-                :disabled="!canGenerate || isSearching || isHistorySaving || isHistoryDeleting"
+                :disabled="
+                  !canGenerate ||
+                  isSearching ||
+                  isSearchTaskActionLoading ||
+                  isHistorySaving ||
+                  isHistoryDeleting ||
+                  isSearchTaskBlockingForm
+                "
                 @click="handleGenerate"
               >
                 优化关键词
               </NButton>
               <NButton
                 type="primary"
-                :loading="isSearching"
+                :loading="isSearchTaskSubmitting"
                 :disabled="!canSearchCustomers || isHistorySaving || isHistoryDeleting"
                 @click="handleSearchCustomers"
               >
                 开始搜索采集
               </NButton>
+              <NButton
+                v-if="searchTaskActionState.canInterrupt"
+                type="warning"
+                secondary
+                :loading="isSearchTaskActionLoading"
+                :disabled="isHistorySaving || isHistoryDeleting"
+                @click="handleSearchTaskAction('interrupt')"
+              >
+                中断
+              </NButton>
+              <NButton
+                v-if="searchTaskActionState.canResume"
+                type="primary"
+                secondary
+                :loading="isSearchTaskActionLoading"
+                :disabled="isHistorySaving || isHistoryDeleting"
+                @click="handleSearchTaskAction('resume')"
+              >
+                继续
+              </NButton>
+              <NButton
+                v-if="searchTaskActionState.canRetry"
+                type="primary"
+                secondary
+                :loading="isSearchTaskActionLoading"
+                :disabled="isHistorySaving || isHistoryDeleting"
+                @click="handleSearchTaskAction('retry')"
+              >
+                重试
+              </NButton>
+              <NButton
+                v-if="searchTaskActionState.canMarkRead"
+                type="success"
+                secondary
+                :loading="isSearchTaskActionLoading"
+                :disabled="isHistorySaving || isHistoryDeleting"
+                @click="handleSearchTaskAction('read')"
+              >
+                确认结果
+              </NButton>
+              <NPopconfirm v-if="searchTaskActionState.canDiscard" @positive-click="handleSearchTaskAction('discard')">
+                <template #trigger>
+                  <NButton
+                    type="error"
+                    secondary
+                    :loading="isSearchTaskActionLoading"
+                    :disabled="isHistorySaving || isHistoryDeleting"
+                  >
+                    放弃
+                  </NButton>
+                </template>
+                放弃后该采集任务将不再恢复，确认放弃？
+              </NPopconfirm>
             </NSpace>
           </NGi>
         </NGrid>
@@ -532,7 +823,13 @@ function isAbortError(error: unknown) {
               </template>
               返回关键词
             </NButton>
-            <NButton size="small" secondary :loading="isHistoryLoading" @click="isHistoryDrawerVisible = true">
+            <NButton
+              size="small"
+              secondary
+              :loading="isHistoryLoading"
+              :disabled="isSearchTaskBlockingForm"
+              @click="isHistoryDrawerVisible = true"
+            >
               <template #icon>
                 <SvgIcon icon="material-symbols:history" />
               </template>
@@ -592,7 +889,11 @@ function isAbortError(error: unknown) {
       </template>
 
       <div v-if="hasSearchProgress" class="result-panel">
-        <SearchProgressPanel :state="searchProgress" :loading="isSearching" />
+        <SearchProgressPanel
+          :state="searchProgress"
+          :loading="isSearchTaskPending"
+          :show-serper-details="isSuperAdmin"
+        />
       </div>
       <div v-else-if="aiResult" class="result-panel">
         <NAlert v-if="keywordQualityWarnings.length" type="warning" :bordered="false">

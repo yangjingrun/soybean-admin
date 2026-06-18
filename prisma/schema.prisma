@@ -102,3 +102,101 @@ model AiLeadKeywordHistory {
   @@index([userId, updatedAt])
   @@index([createdAt])
 }
+
+model AiLeadSearchTask {
+  id              String   @id @default(uuid())
+  userId          String
+  userName        String?
+  requirement     String
+  targetLeadCount Int
+  keywordPlan     Json
+  status          String   @default("queued")
+  priority        Int      @default(0)
+  runVersion      Int      @default(1)
+  progressState   Json?
+  result          Json?
+  errorMessage    String?
+  bullJobId       String?
+  readAt          DateTime?
+  notifiedAt      DateTime?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  queries AiLeadSearchTaskQuery[]
+  events  AiLeadSearchTaskEvent[]
+
+  @@index([userId, status, updatedAt])
+  @@index([status, createdAt])
+  @@index([bullJobId])
+}
+
+model AiLeadSearchTaskQuery {
+  id           String   @id @default(uuid())
+  taskId       String
+  requestKey   String
+  endpoint     String
+  requestBody  Json
+  status       String   @default("pending")
+  result       Json?
+  errorMessage String?
+  orderIndex   Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  task AiLeadSearchTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, requestKey])
+  @@index([taskId, status, orderIndex])
+}
+
+model AiLeadSearchTaskEvent {
+  id         String   @id @default(uuid())
+  taskId     String
+  eventType  String
+  fromStatus String?
+  toStatus   String?
+  title      String
+  message    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  task AiLeadSearchTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model SystemNotification {
+  id         String   @id @default(uuid())
+  userId     String
+  userName   String?
+  module     String
+  type       String
+  title      String
+  content    String
+  targetType String?
+  targetId   String?
+  routePath  String?
+  status     String   @default("pending")
+  shownAt    DateTime?
+  readAt     DateTime?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([targetType, targetId])
+}
+
+model AiLeadQueueConfig {
+  id                String   @id @default(uuid())
+  configKey         String   @unique
+  workerConcurrency Int      @default(2)
+  priorityStrategy  String   @default("fifo")
+  updatedById       String?
+  updatedByName     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

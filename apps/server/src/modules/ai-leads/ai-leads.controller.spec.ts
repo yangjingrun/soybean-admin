@@ -1,14 +1,72 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { UnauthorizedException } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
 import type { AuthService } from '../auth/auth.service';
 import { AiLeadsController } from './ai-leads.controller';
 import type { AiLeadsContext } from './ai-leads.service';
 import type { AiLeadsService } from './ai-leads.service';
+import type { AiLeadSearchTaskService } from './ai-lead-search-task.service';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 
 describe('AiLeadsController', () => {
+  it('rejects anonymous synchronous search orchestration before calling the service', async () => {
+    let called = false;
+    const controller = new AiLeadsController(
+      {
+        async searchOrchestrate() {
+          called = true;
+        }
+      } as unknown as AiLeadsService,
+      createAuthService(),
+      {} as unknown as AiLeadSearchTaskService
+    );
+
+    await assert.rejects(
+      () =>
+        controller.searchOrchestrate(
+          {
+            requirement: '找沙特轴承进口商',
+            targetLeadCount: 20
+          },
+          ''
+        ),
+      UnauthorizedException
+    );
+    assert.equal(called, false);
+  });
+
+  it('rejects anonymous stream search orchestration before opening the stream', async () => {
+    const reply = createReply();
+    let called = false;
+    const controller = new AiLeadsController(
+      {
+        async searchOrchestrateStream() {
+          called = true;
+        }
+      } as unknown as AiLeadsService,
+      createAuthService(),
+      {} as unknown as AiLeadSearchTaskService
+    );
+
+    await assert.rejects(
+      () =>
+        controller.searchOrchestrateStream(
+          {
+            requirement: '找沙特轴承进口商',
+            targetLeadCount: 20
+          },
+          '',
+          reply.reply
+        ),
+      UnauthorizedException
+    );
+    assert.equal(called, false);
+    assert.equal(reply.statusCode, 0);
+    assert.equal(reply.ended, false);
+  });
+
   it('writes search progress as NDJSON stream events', async () => {
     const reply = createReply();
     const controller = new AiLeadsController(
@@ -27,7 +85,8 @@ describe('AiLeadsController', () => {
           return { stopReason: '所有查询已完成' };
         }
       } as unknown as AiLeadsService,
-      createAuthService()
+      createAuthService(),
+      {} as unknown as AiLeadSearchTaskService
     );
 
     await controller.searchOrchestrateStream(

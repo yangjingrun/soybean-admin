@@ -133,10 +133,7 @@ function resolveProductCategory(plan: Api.AiLeads.OptimizedKeywordPlan) {
 }
 
 function resolveCustomerTypes(plan: Api.AiLeads.OptimizedKeywordPlan) {
-  const customerText = [
-    plan.resolvedTargetCustomerProfile,
-    ...plan.buyerSegments.map(segment => segment.buyerType)
-  ]
+  const customerText = [plan.resolvedTargetCustomerProfile, ...plan.buyerSegments.map(segment => segment.buyerType)]
     .filter(Boolean)
     .join(' ');
 

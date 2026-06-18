@@ -134,9 +134,51 @@ declare namespace Api {
       keywordOptimizationText: string;
       qualityWarnings?: string[];
       serperRequests: Array<Record<string, unknown>>;
+      serperResults: LeadSearchSerperResultView[];
       decisions: Array<Record<string, unknown>>;
       candidates: Array<Record<string, unknown>>;
       stopReason: string;
+    }
+
+    type TaskStatus = 'queued' | 'running' | 'interrupted' | 'failed' | 'completed' | 'discarded';
+
+    interface CreateSearchTaskPayload {
+      requirement: string;
+      targetLeadCount: number;
+      keywordPlan: OptimizedKeywordPlan;
+    }
+
+    interface TaskRecord {
+      id: string;
+      userId: string;
+      userName: string | null;
+      requirement: string;
+      targetLeadCount: number;
+      keywordPlan: OptimizedKeywordPlan;
+      status: TaskStatus;
+      priority: number;
+      runVersion: number;
+      progressState: LeadSearchProgressEvent | null;
+      result: SearchOrchestrateResult | LeadSearchPublicResult | null;
+      errorMessage: string | null;
+      bullJobId: string | null;
+      readAt: string | null;
+      notifiedAt: string | null;
+      startedAt: string | null;
+      finishedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface QueueConfig {
+      configKey: string;
+      workerConcurrency: number;
+      priorityStrategy: 'fifo';
+      updatedAt: string | null;
+    }
+
+    interface SaveQueueConfigPayload {
+      workerConcurrency: number;
     }
 
     type LeadSearchProgressEventType =
@@ -163,6 +205,12 @@ declare namespace Api {
       sourceLabel: string;
     }
 
+    interface LeadSearchSerperResultView {
+      endpoint: string;
+      requestBody: Record<string, unknown>;
+      result: Record<string, unknown>;
+    }
+
     interface LeadSearchPublicResult {
       summary: {
         actionCount: number;
@@ -171,6 +219,7 @@ declare namespace Api {
         stopReason: string;
       };
       candidates: LeadSearchCandidateView[];
+      serperResults: LeadSearchSerperResultView[];
       warnings?: string[];
     }
 

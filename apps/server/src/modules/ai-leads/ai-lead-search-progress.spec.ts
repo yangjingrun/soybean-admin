@@ -52,6 +52,24 @@ describe('ai lead search progress helpers', () => {
     const result = toLeadSearchPublicResult({
       qualityWarnings: ['本地语言查询不足'],
       serperRequests: [{ endpoint: 'search' }],
+      serperResults: [
+        {
+          endpoint: 'search',
+          requestBody: { q: 'bearing distributor Saudi Arabia', page: 1 },
+          result: {
+            organic: [
+              {
+                title: 'Bearing House',
+                link: 'https://bearing.example.com',
+                snippet: 'bearing distributor',
+                position: 1,
+                sitelinks: [{ title: 'Products', link: 'https://bearing.example.com/products' }]
+              }
+            ],
+            relatedSearches: [{ query: 'bearing supplier Saudi Arabia' }]
+          }
+        }
+      ],
       decisions: [{ decision: { nextAction: 'stop' } }],
       candidates: [
         {
@@ -68,7 +86,7 @@ describe('ai lead search progress helpers', () => {
     assert.equal(result.summary.qualityCheckCount, 1);
     assert.equal(result.summary.candidateCount, 1);
     assert.equal(result.candidates[0].sourceLabel, '公开线索');
-    assert.equal(JSON.stringify(result).includes('serper'), false);
-    assert.equal(JSON.stringify(result).includes('endpoint'), false);
+    assert.deepEqual(result.serperResults, []);
+    assert.equal(JSON.stringify(result).includes('apiKey'), false);
   });
 });

@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common';
 import type { Prisma, SystemUser } from '../../generated/prisma/client';
 import { hashPassword, generateTemporaryPassword } from '../auth/password';
 import { AuthService } from '../auth/auth.service';
@@ -160,18 +167,24 @@ export class SystemUserService {
       this.authService.revokeUserTokens(id);
     }
 
-    await this.recordUserLog(status === 'enabled' ? 'enable' : 'disable', status === 'enabled' ? '启用用户' : '禁用用户', operator, updated, {
-      targetUserId: updated.id,
-      targetUserName: updated.userName,
-      status
-    });
+    await this.recordUserLog(
+      status === 'enabled' ? 'enable' : 'disable',
+      status === 'enabled' ? '启用用户' : '禁用用户',
+      operator,
+      updated,
+      {
+        targetUserId: updated.id,
+        targetUserName: updated.userName,
+        status
+      }
+    );
 
     return this.toListItem(updated);
   }
 
   /** Reset one user password and return a one-time temporary password. */
   async resetPassword(id: string, operator: OperatorContext) {
-    const user = await this.findByIdOrThrow(id);
+    await this.findByIdOrThrow(id);
     const temporaryPassword = generateTemporaryPassword();
     const password = await hashPassword(temporaryPassword);
     const updated = await this.prisma.systemUser.update({
@@ -291,7 +304,9 @@ export class SystemUserService {
     nextExpireAt: Date | null
   ) {
     const willRemainActiveSuper =
-      nextStatus === 'enabled' && nextRoles.includes(superRole) && (!nextExpireAt || nextExpireAt.getTime() > Date.now());
+      nextStatus === 'enabled' &&
+      nextRoles.includes(superRole) &&
+      (!nextExpireAt || nextExpireAt.getTime() > Date.now());
 
     if (willRemainActiveSuper) {
       return;

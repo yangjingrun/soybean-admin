@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, h, onBeforeUnmount, onMounted, watch } from 'vue';
+import { NButton, useNotification } from 'naive-ui';
 import { AdminLayout, LAYOUT_SCROLL_EL_ID } from '@sa/materials';
 import type { LayoutMode } from '@sa/materials';
+import { router } from '@/router';
 import { useAppStore } from '@/store/modules/app';
+import { useAiLeadsTaskNotificationStore } from '@/store/modules/ai-leads-task';
 import { useThemeStore } from '@/store/modules/theme';
 import GlobalHeader from '../modules/global-header/index.vue';
 import GlobalSider from '../modules/global-sider/index.vue';
@@ -18,6 +21,9 @@ defineOptions({
 
 const appStore = useAppStore();
 const themeStore = useThemeStore();
+const notification = useNotification();
+const taskNotificationStore = useAiLeadsTaskNotificationStore();
+const activeNotificationIds = new Set<string>();
 const { secondLevelMenus, childLevelMenus, isActiveFirstLevelMenuHasChildren } = provideMixMenuContext();
 
 const GlobalMenu = defineAsyncComponent(() => import('../modules/global-menu/index.vue'));
@@ -113,6 +119,68 @@ function getSiderAndCollapsedWidth(isCollapsed: boolean) {
   }
 
   return finalWidth;
+}
+
+onMounted(() => {
+  taskNotificationStore.start();
+});
+
+onBeforeUnmount(() => {
+  taskNotificationStore.stop();
+});
+
+watch(
+  () => taskNotificationStore.notifications,
+  notifications => {
+    notifications.forEach(showSystemNotification);
+  },
+  { immediate: true }
+);
+
+/** Shows one task notification while keeping unread reminders eligible for later polling. */
+function showSystemNotification(item: Api.SystemNotification.SystemNotification) {
+  if (activeNotificationIds.has(item.id)) {
+    return;
+  }
+
+  activeNotificationIds.add(item.id);
+
+  let destroyNotice: (() => void) | null = null;
+  const options = {
+    title: item.title,
+    content: item.content,
+    meta: '系统通知',
+    duration: 8000,
+    keepAliveOnHover: true,
+    onAfterLeave: () => {
+      activeNotificationIds.delete(item.id);
+    },
+    action: item.routePath
+      ? () =>
+          h(
+            NButton,
+            {
+              size: 'small',
+              type: 'primary',
+              onClick: async () => {
+                destroyNotice?.();
+                // 查看只跳转；任务结果确认才会标记已读。
+                await router.push(item.routePath || '/ai-leads');
+              }
+            },
+            { default: () => '查看' }
+          )
+      : undefined
+  };
+  const notice =
+    item.type === 'task_failed'
+      ? notification.error(options)
+      : item.type === 'task_completed'
+        ? notification.success(options)
+        : notification.info(options);
+
+  destroyNotice = () => notice.destroy();
+  void taskNotificationStore.markShown(item.id);
 }
 </script>
 
