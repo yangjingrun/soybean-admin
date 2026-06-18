@@ -55,6 +55,13 @@ function formatTime(value: string) {
 
 <style scoped>
 .history-list {
+  --history-item-bg: #ffffff;
+  --history-item-bg-hover: #f3f6ff;
+  --history-item-border: #dbe5f3;
+  --history-item-text: #1f2937;
+  --history-item-text-secondary: #475569;
+  --history-item-text-tertiary: #64748b;
+
   min-width: 0;
 }
 
@@ -65,10 +72,11 @@ function formatTime(value: string) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid var(--n-border-color);
+  border: 1px solid var(--history-item-border);
   border-radius: 8px;
-  background: var(--n-color);
+  background: var(--history-item-bg);
   cursor: pointer;
+  font: inherit;
   padding: 12px;
   text-align: left;
   transition:
@@ -79,7 +87,7 @@ function formatTime(value: string) {
 .history-item:hover,
 .history-item.active {
   border-color: var(--n-primary-color);
-  background: var(--n-color-hover);
+  background: var(--history-item-bg-hover);
 }
 
 .history-item-main {
@@ -92,7 +100,7 @@ function formatTime(value: string) {
 
 .history-item-title {
   overflow: hidden;
-  color: var(--n-text-color);
+  color: var(--history-item-text);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -101,7 +109,7 @@ function formatTime(value: string) {
 .history-item-desc {
   display: -webkit-box;
   overflow: hidden;
-  color: var(--n-text-color-2);
+  color: var(--history-item-text-secondary);
   line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -112,7 +120,7 @@ function formatTime(value: string) {
   flex-shrink: 0;
   align-items: center;
   gap: 8px;
-  color: var(--n-text-color-3);
+  color: var(--history-item-text-tertiary);
   font-size: 12px;
 }
 </style>
