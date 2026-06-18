@@ -1,6 +1,6 @@
 import type { CustomAxiosRequestConfig } from '@sa/axios';
 
-export const aiLeadKeywordOptimizeTimeout = 60 * 1000;
+export const aiLeadKeywordOptimizeTimeout = 120 * 1000;
 
 /** Build the request config for the long-running AI leads keyword optimization task. */
 export function buildLeadKeywordOptimizeRequestConfig(

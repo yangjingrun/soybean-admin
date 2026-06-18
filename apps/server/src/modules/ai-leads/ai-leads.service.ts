@@ -4,6 +4,8 @@ import { defaultAiModelConfigKey, leadKeywordOptimizePromptKey } from '../ai-gat
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
 
+const keywordOptimizeMaxOutputTokens = 1200;
+
 export interface AiLeadsContext {
   user?: UserInfo | null;
 }
@@ -18,7 +20,9 @@ export class AiLeadsService {
       {
         modelConfigKey: defaultAiModelConfigKey,
         promptKey: leadKeywordOptimizePromptKey,
-        prompt: dto.requirement.trim()
+        prompt: dto.requirement.trim(),
+        // 关键词优化只需要结构化建议，限制输出长度避免长时间阻塞请求。
+        maxOutputTokens: keywordOptimizeMaxOutputTokens
       },
       context
     );

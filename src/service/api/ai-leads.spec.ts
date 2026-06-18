@@ -13,7 +13,7 @@ describe('ai leads api helpers', () => {
     assert.equal(config.url, '/ai-leads/keyword-optimize');
     assert.equal(config.method, 'post');
     assert.equal(config.timeout, aiLeadKeywordOptimizeTimeout);
-    assert.equal(config.timeout, 60 * 1000);
+    assert.equal(config.timeout, 120 * 1000);
     assert.deepEqual(config.data, payload);
   });
 });
