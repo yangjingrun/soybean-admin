@@ -344,7 +344,7 @@ const local: App.I18n.Schema = {
       prompts: {
         leadKeywordOptimize: {
           title: '关键词优化',
-          usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Maps 查询包。'
+          usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Places 查询包。'
         },
         leadSearchResultDecide: {
           title: '搜索结果决策',

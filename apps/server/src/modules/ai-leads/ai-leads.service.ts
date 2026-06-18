@@ -6,7 +6,7 @@ import type { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 
-const keywordOptimizeMaxOutputTokens = 1200;
+const keywordOptimizeMaxOutputTokens = 3600;
 
 export interface AiLeadsContext {
   user?: UserInfo | null;

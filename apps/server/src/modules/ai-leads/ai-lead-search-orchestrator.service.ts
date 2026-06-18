@@ -12,7 +12,7 @@ import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 
-const keywordOptimizeMaxOutputTokens = 1200;
+const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
 const defaultMaxSearchRequests = 20;
 const maxSearchPages = 3;
@@ -34,6 +34,9 @@ interface OptimizedKeywordPlan {
 }
 
 interface SerperQuery extends Record<string, unknown> {
+  endpoint?: SerperEndpoint;
+  requestBody?: SerperQueryRequestBody;
+  meta?: SerperQueryMeta;
   buyerType?: string;
   intent?: string;
   q?: string;
@@ -42,6 +45,21 @@ interface SerperQuery extends Record<string, unknown> {
   gl?: string;
   hl?: string;
   priority?: string;
+}
+
+interface SerperQueryRequestBody extends Record<string, unknown> {
+  q?: string;
+  gl?: string;
+  hl?: string;
+  location?: string;
+  num?: number;
+  page?: number;
+  tbs?: string | null;
+}
+
+interface SerperQueryMeta extends Record<string, unknown> {
+  priority?: string;
+  tbs?: string | null;
 }
 
 interface SearchRequestTrace {
@@ -222,23 +240,29 @@ export class AiLeadSearchOrchestrator {
   }
 
   private toRequest(endpoint: SerperEndpoint, query: SerperQuery): SearchRequestTrace | null {
-    const q = query.q?.trim();
+    const requestBody = query.requestBody;
+    const q = trimOptional(requestBody?.q || query.q);
 
     if (!q) {
       return null;
     }
 
     return {
-      endpoint,
+      endpoint: this.toQueryEndpoint(endpoint, query.endpoint),
       requestBody: {
         q,
-        gl: trimOptional(query.gl),
-        hl: trimOptional(query.hl),
-        location: trimOptional(query.location || query.city),
-        num: 10,
-        page: 1
+        gl: trimOptional(requestBody?.gl || query.gl),
+        hl: trimOptional(requestBody?.hl || query.hl),
+        location: trimOptional(requestBody?.location || query.location || query.city),
+        num: readPositiveNumber(requestBody?.num) || 10,
+        page: readPositiveNumber(requestBody?.page) || 1,
+        ...readTbs(requestBody?.tbs || query.meta?.tbs)
       }
     };
+  }
+
+  private toQueryEndpoint(defaultEndpoint: SerperEndpoint, endpoint: SerperEndpoint | undefined) {
+    return endpoint === 'search' || endpoint === 'places' ? endpoint : defaultEndpoint;
   }
 
   private callSerper(config: Awaited<ReturnType<AiGatewayService['getSerperConfig']>>, request: SearchRequestTrace) {
@@ -371,7 +395,13 @@ function parseJsonObject<T>(text: string, label: string): T {
 }
 
 function sortQueries(queries: SerperQuery[]) {
-  return [...queries].sort((left, right) => getPriorityWeight(left.priority) - getPriorityWeight(right.priority));
+  return [...queries].sort(
+    (left, right) => getPriorityWeight(getQueryPriority(left)) - getPriorityWeight(getQueryPriority(right))
+  );
+}
+
+function getQueryPriority(query: SerperQuery) {
+  return query.priority || query.meta?.priority;
 }
 
 function getPriorityWeight(priority?: string) {
@@ -385,6 +415,16 @@ function getPriorityWeight(priority?: string) {
 
 function trimOptional(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readPositiveNumber(value: unknown) {
+  return typeof value === 'number' && value > 0 ? value : undefined;
+}
+
+function readTbs(value: unknown) {
+  const tbs = trimOptional(value);
+
+  return tbs ? { tbs } : {};
 }
 
 function toRequestKey(request: SearchRequestTrace) {

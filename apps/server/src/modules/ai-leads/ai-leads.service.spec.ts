@@ -45,7 +45,7 @@ describe('AiLeadsService', () => {
       modelConfigKey: defaultAiModelConfigKey,
       promptKey: leadKeywordOptimizePromptKey,
       prompt: '我是河北卖轴承的，想找沙特进口商',
-      maxOutputTokens: 1200
+      maxOutputTokens: 3600
     });
     assert.deepEqual(capturedContext, { user });
     assert.equal(result.text, '关键词优化结果');

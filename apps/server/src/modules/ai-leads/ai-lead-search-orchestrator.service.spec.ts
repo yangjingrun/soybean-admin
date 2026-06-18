@@ -181,6 +181,118 @@ describe('AiLeadSearchOrchestrator', () => {
     );
   });
 
+  it('reads nested Serper request bodies from keyword optimization queries', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: null,
+          serperSearchQueries: [
+            {
+              endpoint: 'search',
+              requestBody: {
+                q: '6204 bearing importer Saudi Arabia',
+                gl: 'sa',
+                hl: 'en',
+                location: 'Saudi Arabia',
+                num: 10,
+                page: 1,
+                tbs: 'qdr:y'
+              },
+              meta: {
+                priority: '中'
+              }
+            }
+          ],
+          serperPlacesQueries: [
+            {
+              endpoint: 'places',
+              requestBody: {
+                q: 'bearing supplier Riyadh',
+                gl: 'sa',
+                hl: 'en',
+                location: 'Riyadh, Saudi Arabia',
+                num: 10,
+                page: 1
+              },
+              meta: {
+                priority: '高'
+              }
+            }
+          ]
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'places',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Riyadh, Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([{ organic: [] }, { places: [] }]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    await service.search({ requirement: '找沙特轴承进口商' }, { user: createUser() });
+
+    assert.deepEqual(
+      serper.calls.map(call => call.endpoint),
+      ['search', 'places']
+    );
+    assert.deepEqual(serper.calls[0].request, {
+      q: '6204 bearing importer Saudi Arabia',
+      gl: 'sa',
+      hl: 'en',
+      location: 'Saudi Arabia',
+      num: 10,
+      page: 1,
+      tbs: 'qdr:y'
+    });
+    assert.deepEqual(serper.calls[1].request, {
+      q: 'bearing supplier Riyadh',
+      gl: 'sa',
+      hl: 'en',
+      location: 'Riyadh, Saudi Arabia',
+      num: 10,
+      page: 1
+    });
+  });
+
   it('stops the current query when the next request repeats an executed request', async () => {
     const aiGateway = createAiGateway([
       {

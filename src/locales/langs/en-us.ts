@@ -349,7 +349,7 @@ const local: App.I18n.Schema = {
       prompts: {
         leadKeywordOptimize: {
           title: 'Keyword Optimization',
-          usage: 'Optimize natural-language lead requirements into a Serper Search / Maps query package.'
+          usage: 'Optimize natural-language lead requirements into a Serper Search / Places query package.'
         },
         leadSearchResultDecide: {
           title: 'Search Result Decision',

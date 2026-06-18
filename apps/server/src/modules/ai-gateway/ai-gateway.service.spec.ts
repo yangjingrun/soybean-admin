@@ -117,7 +117,7 @@ describe('AiGatewayService', () => {
         captured = params;
 
         return {
-          text: '{"serperSearchQueries":[],"serperMapsQueries":[]}',
+          text: '{"serperSearchQueries":[],"serperPlacesQueries":[]}',
           finishReason: 'stop',
           usage: {
             inputTokens: 10,
@@ -152,7 +152,7 @@ describe('AiGatewayService', () => {
 
     assert.ok(generatedParams);
     assert.match(generatedParams.systemPrompt || '', /serperSearchQueries/);
-    assert.match(generatedParams.systemPrompt || '', /serperMapsQueries/);
+    assert.match(generatedParams.systemPrompt || '', /serperPlacesQueries/);
     assert.match(generatedParams.systemPrompt || '', /严禁生成真实公司名/);
   });
 

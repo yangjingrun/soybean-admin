@@ -55,6 +55,20 @@
 - 后端不要直接依赖 `src` 前端目录下的类型。
 - 业务数据、系统配置和用户配置默认持久化到 PostgreSQL；Redis 最多用于缓存、会话、验证码、短期队列等临时数据，不作为唯一数据源。
 
+## Serper API 规则
+
+- Serper 细节以官方站点和 Playground 为准，官方入口：`https://serper.dev/`。
+- 当前项目后端通过 `SerperClient` 调用 Serper，默认 base 为 `https://google.serper.dev`，只使用 `POST` JSON 请求，Header 必须包含 `Content-Type: application/json` 和 `X-API-KEY`。
+- 当前项目 AI 获客只使用 `search` 和 `places` 两个 endpoint：`/search` 用于 Google Search 结果，`/places` 用于本地商家/地点结果；不要默认使用 Maps，除非需求明确要求地图扫点。
+- Search 请求体按项目约定包含 `q`、`gl`、`hl`、`location`、`num`、`page`，可选 `tbs`；`q` 必须是可直接执行的搜索词，不能为了展示翻译而加入中文括号备注。
+- Places 请求体按项目约定包含 `q`、`gl`、`hl`、`location`、`num`、`page`；`q` 必须是自然本地商家搜索短语，例如 `bearing supplier Riyadh`，不要使用 `site:`、`inurl:` 或复杂 Boolean。
+- `num` 默认 10，`page` 默认 1；普通官网、进口商、经销商、批发商、库存商、供应商查询使用 Any time，不传 `tbs`。
+- 只有近期展会、新闻、招标、采购动态、新增代理、近期项目等时效型查询才使用 `tbs`：`past_hour=qdr:h`、`past_24_hours=qdr:d`、`past_week=qdr:w`、`past_month=qdr:m`、`past_year=qdr:y`。
+- KeywordOptimize 提示词输出 Serper 查询时，优先使用 `endpoint + requestBody + meta` 嵌套结构：`requestBody` 只放 Serper 可执行字段，`meta` 放 `buyerType`、`intent`、`priority`、`dateRange`、`reason` 等人读字段。
+- 前后端需要兼容历史平铺结构（例如 `q/gl/hl/location/priority` 直接在 query 对象上），但新增提示词和新代码优先按嵌套结构实现。
+- Search 响应主要读取 `organic[]` 的 `title/link/snippet`；Places 响应主要读取 `places[]` 或 `localResults[]` 的 `title/website/address/phoneNumber/cid/placeId` 等字段。
+- 非中文术语的中文备注只放在结构化回显字段或 `meta.reason` 等展示字段里，不要污染 `requestBody.q`、`gl`、`hl`、`location`、`num`、`page`。
+
 ## 日志规则
 
 - 关键业务动作、AI/外部服务调用、配置变更、登录/权限异常、重要错误边界必须记录业务日志，便于超级管理员追踪问题。

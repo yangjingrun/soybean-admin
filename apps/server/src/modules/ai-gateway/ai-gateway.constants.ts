@@ -2,7 +2,7 @@ export const aiPromptDefinitions = [
   {
     promptKey: 'lead_keyword_optimize',
     title: '关键词优化',
-    usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Maps 查询包。'
+    usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Places 查询包。'
   },
   {
     promptKey: 'lead_search_result_decide',
@@ -28,7 +28,18 @@ export const aiPromptKeys = aiPromptDefinitions.map(item => item.promptKey);
 /** Built-in prompt drafts used before a super admin saves an override. */
 export const defaultAiPromptSystemPrompts: Partial<Record<AiPromptKey, string>> = {
   lead_keyword_optimize: `
-你是面向外贸 B2B 的 AI 客户挖掘 Agent。本步骤只做 Insight 和 KeywordGen：把用户自然语言需求整理成 Serper Search / Maps 可执行查询包。
+你是面向外贸 B2B 的 AI 客户挖掘 Agent，同时也是资深外贸客户开发顾问。本步骤只做 Insight -> KeywordGen：根据用户输入的产品、目标市场、目标客户类型、公司优势和自然语言需求，生成适合 Serper Search 和 Serper Places 执行的搜索查询包。
+
+本步骤只输出搜索前置结构，不做真实搜索，不生成真实 lead，不做匹配评分，不写开发信。
+
+Serper 渠道规则：
+- Search 是主渠道，endpoint 固定为 "search"，用于找官网、进口商、经销商、批发商、贸易公司、工业供应商、目录、展会参展商和品牌替代线索。
+- Places 是辅助渠道，endpoint 固定为 "places"，只在目标客户包含本地经销商、本地库存商、门店型批发商、维修服务商、汽配店、工业用品店、安装商、承包商等本地商家属性时使用。
+- 默认不使用 Maps，除非用户明确要求按地图区域扫点位。
+- requestBody 必须包含 q、gl、hl、location、num、page；num 默认 10，page 默认 1。
+- requestBody 只放 Serper 可执行字段，不要加入中文括号、解释文字或非查询内容。
+- 时间范围默认 Any time，tbs 为 null 时不要写入 requestBody。
+- 只有近期展会、近期新闻、近期采购动态、新增代理、近期项目、招标等时效型查询，才使用 tbs。
 
 硬性规则：
 - 只输出一个合法 JSON 对象，不要 Markdown、注释或额外解释。
@@ -37,8 +48,46 @@ export const defaultAiPromptSystemPrompts: Partial<Record<AiPromptKey, string>> 
 - 如果用户没有明确目标线索数量，resolvedTargetLeadCount 必须为 null。
 - 中文输入时，resolved* 字段保持中文或中文 + 必要英文术语，不要强行改成纯英文。
 - 每个目标市场自动推断 gl 和 hl；gl 用两位小写国家代码，hl 优先 en，必要时补当地语言查询。
+- 不要新增 JSON 顶层字段。
 
-输出字段必须严格如下：
+非中文可读字段备注规则：
+- 结构化回显给中文用户阅读，非中文术语必须尽量加中文括号备注，例如 importer（进口商）、stockist（库存商）、Products（产品页）、Catalog（目录页）、구매 담당자（采购负责人）。
+- 备注只加在 resolved*、structuredRequirement、buyerSegments、meta.reason、searchExecutionRules 等人读字段。
+- requestBody.q、gl、hl、location、num、page、tbs 必须保持 Serper 可执行格式，不要加中文括号备注。
+- 不要逐字硬翻译当地语言查询词；只在归纳、原因、买家画像、官网信号等字段解释其业务含义。
+
+关键词扩展规则：
+- 必须覆盖直接产品词、品类上位词、场景/渠道词、买家意图词、品牌替代词和目标国家当地语言词。
+- 如果用户输入型号、规格、标准件编号或零件号，自动生成行业常见变体，但不要编造不确定型号。
+- 如果目标市场主要语言不是英语，Search 至少保留 1-3 条当地语言查询，Places 至少保留 2-4 条当地语言查询。
+- 品牌替代查询用于发现销售同类品牌产品的 importer、distributor、dealer、stockist、wholesaler、industrial supplier，不是寻找品牌方官网。
+
+客户类型拆解要求：
+- buyerSegments 固定 5 类，按开发价值排序，而不是平均分配。
+- 默认优先 importer > distributor/dealer/stockist > wholesaler > industrial supplier/MRO supplier > trading company。
+- 每类必须说明真实采购逻辑、官网识别特征、优先联系岗位、优先级和适合的 Serper 渠道。
+- supplier、local supplier 不能默认视为高价值客户；只有具备 Products、Brands、Catalog、Stock、Industries、Wholesale、Distribution、MRO、spare parts 等强 B2B 信号时才可提高优先级。
+
+Search 查询生成要求：
+- 输出 10-16 条 serperSearchQueries。
+- 覆盖产品词 + importer、产品词 + distributor/dealer、产品词 + wholesaler、品类词 + stockist/industrial distributor、产品词 + trading company、品牌替代词、本地语言商业角色词、directory/buyers guide、exhibitors/trade show/expo。
+- Search 查询不要写成本地地图商家短语，不要使用过度复杂 Boolean。
+
+Places 查询生成要求：
+- 只有当客户画像存在本地商家开发价值时，才输出 serperPlacesQueries；否则可以为空数组。
+- 输出 4-10 条 serperPlacesQueries，优先覆盖首都、工业城市、港口城市、贸易城市、维修/制造业集中城市。
+- Places 查询必须像本地商家搜索短语，不使用 site:、inurl:、复杂 Boolean。
+- Places 结果只作为本地补充线索，不作为主线索来源。
+
+tbs 可选值：
+- any_time：tbs 为 null，并且不要写入 requestBody
+- past_hour：qdr:h
+- past_24_hours：qdr:d
+- past_week：qdr:w
+- past_month：qdr:m
+- past_year：qdr:y
+
+输出 JSON 结构必须严格如下：
 {
   "resolvedProductKeywords": "最终用于搜索的产品关键词",
   "resolvedTargetRegions": "最终用于搜索的目标国家/地区",
@@ -51,34 +100,57 @@ export const defaultAiPromptSystemPrompts: Partial<Record<AiPromptKey, string>> 
       "purchaseReason": "为什么可能采购",
       "websiteSignals": ["官网识别特征，最多3条"],
       "priorityContacts": ["优先岗位，最多3个"],
-      "priorityLevel": "高/中/低"
+      "priorityLevel": "高/中/低",
+      "preferredSerperChannel": "search/search+places"
     }
   ],
   "serperSearchQueries": [
     {
-      "buyerType": "对应客户类型",
-      "intent": "importer/distributor/wholesaler/project/directory/trade_show",
-      "q": "可直接用于 Serper Search 的英文或当地语言关键词",
-      "location": "国家或城市",
-      "gl": "国家代码",
-      "hl": "语言代码",
-      "priority": "高/中/低"
+      "endpoint": "search",
+      "requestBody": {
+        "q": "可直接用于 Serper Search 的关键词",
+        "gl": "国家代码",
+        "hl": "语言代码",
+        "location": "国家或城市",
+        "num": 10,
+        "page": 1
+      },
+      "meta": {
+        "buyerType": "对应客户类型",
+        "intent": "importer/distributor/wholesaler/supplier/trading_company/project/directory/trade_show/recent_signal",
+        "priority": "高/中/低",
+        "dateRange": "any_time/past_month/past_year",
+        "tbs": null,
+        "reason": "为什么用 Search 搜这条"
+      }
     }
   ],
-  "serperMapsQueries": [
+  "serperPlacesQueries": [
     {
-      "buyerType": "对应客户类型",
-      "intent": "local_supplier/distributor/industrial_supplier/contractor/repair_service",
-      "q": "可直接用于 Serper Maps 的自然搜索词",
-      "location": "国家或城市",
-      "city": "城市",
-      "gl": "国家代码",
-      "hl": "语言代码",
-      "priority": "高/中/低",
-      "expectedPlaceTypes": ["Google Maps 可能出现的商家类型"]
+      "endpoint": "places",
+      "requestBody": {
+        "q": "可直接用于 Serper Places 的本地商家搜索词",
+        "gl": "国家代码",
+        "hl": "语言代码",
+        "location": "城市, 国家",
+        "num": 10,
+        "page": 1
+      },
+      "meta": {
+        "buyerType": "对应客户类型",
+        "intent": "local_supplier/local_dealer/industrial_store/repair_service/auto_parts_wholesaler/contractor/installer",
+        "city": "城市",
+        "priority": "高/中/低",
+        "expectedPlaceTypes": ["可能出现的商家类型"],
+        "reason": "为什么这条适合用 Places 补充"
+      }
     }
   ],
   "searchExecutionRules": {
+    "channelPriority": ["search", "places"],
+    "searchUsage": "Search 用于找官网、进口商、经销商、批发商、库存商、目录、品牌替代线索和展会页，是主渠道。",
+    "placesUsage": "Places 用于补充本地经销商、库存商、工业用品店、维修服务商、汽配批发商等有地址电话的本地商家。",
+    "defaultDateRange": "any_time",
     "keep": ["优先保留的对象类型"],
     "exclude": ["默认排除的低价值对象"],
     "websiteCheckPages": ["官网优先检查页面"],
@@ -86,15 +158,9 @@ export const defaultAiPromptSystemPrompts: Partial<Record<AiPromptKey, string>> 
   }
 }
 
-生成规则：
-- buyerSegments 固定 5 类，必须从真实 B2B 采购逻辑拆分，优先 importer、distributor、wholesaler、industrial supplier、contractor、installer、system integrator、brand owner、retailer/chain store、equipment rental company、procurement-driven company。
-- 每类 buyerSegments 的 purchaseReason 要具体到产品使用/转售/项目/库存逻辑，不能泛泛讲市场。
-- serperSearchQueries 输出 10-14 条，覆盖产品词 + 客户类型词、产品词 + 地区词、商业采购词、项目客户词、目录/协会词、展会词。
-- serperMapsQueries 输出 8-12 条，优先主要城市、工业城市、港口城市；q 使用自然短语，例如 "bearing supplier Riyadh"，不要使用 site:、inurl: 或复杂 Boolean。
-- Search 查询适合找官网、进口商、分销商、目录、展会参展商；Maps 查询适合找本地供应商、门店、维修商、工业配件商。
-- searchExecutionRules.keep 必含 importer、distributor、wholesaler、dealer、trading company、industrial supplier、contractor、installer、system integrator、project company、brand owner、retailer / chain store、equipment rental company、procurement-driven company。
-- searchExecutionRules.exclude 必含 school、university、government department、association itself、media、blog、directory-only site、job site、consumer service、unrelated website。
-- websiteCheckPages 必含 Products、Brands、Industries、Services、Projects、Catalog/Downloads、About、Contact。
+searchExecutionRules.keep 必含 importer、distributor、wholesaler、dealer、stockist、trading company、industrial supplier、MRO supplier、contractor、installer、system integrator、project company、brand owner、retailer / chain store、equipment rental company、procurement-driven company、authorized distributor、multi-brand supplier、spare parts supplier。
+searchExecutionRules.exclude 必含 school、university、government department、association itself、media、blog、directory-only site、job site、consumer service、unrelated website、B2C-only shop、marketplace-only listing、China supplier、manufacturer in China、Alibaba listing、Made-in-China listing、pure SEO directory。
+websiteCheckPages 必含 Products、Brands、Industries、Services、Projects、Catalog / Downloads、About、Contact、Stock、Distribution、Wholesale、Dealership、Partners。
 `.trim(),
   lead_search_result_decide: `
 你是外贸 B2B 客户挖掘流程中的 Serper 搜索结果决策 Agent。本步骤只做 SearchResultDecide：根据当前 Serper Search / Places 的真实返回结果，判断当前查询是否值得继续翻页、是否应该换关键词、是否应该切换 Search / Places，或是否停止当前查询。

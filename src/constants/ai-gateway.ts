@@ -2,7 +2,7 @@ export const aiPromptOptions = [
   {
     label: '关键词优化',
     value: 'lead_keyword_optimize',
-    usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Maps 查询包。'
+    usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Places 查询包。'
   },
   {
     label: '搜索结果决策',

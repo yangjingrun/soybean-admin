@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { DataTableColumns } from 'naive-ui';
-import type { KeywordOptimizationViewModel } from './shared';
+import type { KeywordOptimizationQueryRow, KeywordOptimizationViewModel } from './shared';
 
 defineProps<{
   viewModel: KeywordOptimizationViewModel;
 }>();
 
-const searchQueryColumns: DataTableColumns<Api.AiLeads.SerperSearchQuery> = [
+const searchQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
   { title: '客户类型', key: 'buyerType', width: 130 },
   { title: '意图', key: 'intent', width: 140 },
   { title: 'Search 查询词', key: 'q', minWidth: 260, ellipsis: { tooltip: true } },
@@ -14,10 +14,10 @@ const searchQueryColumns: DataTableColumns<Api.AiLeads.SerperSearchQuery> = [
   { title: '优先级', key: 'priority', width: 90 }
 ];
 
-const mapsQueryColumns: DataTableColumns<Api.AiLeads.SerperMapsQuery> = [
+const placesQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
   { title: '客户类型', key: 'buyerType', width: 150 },
   { title: '意图', key: 'intent', width: 150 },
-  { title: 'Maps 查询词', key: 'q', minWidth: 240, ellipsis: { tooltip: true } },
+  { title: 'Places 查询词', key: 'q', minWidth: 240, ellipsis: { tooltip: true } },
   { title: '城市', key: 'city', width: 120 },
   { title: '优先级', key: 'priority', width: 90 }
 ];
@@ -65,11 +65,11 @@ const mapsQueryColumns: DataTableColumns<Api.AiLeads.SerperMapsQuery> = [
       </section>
 
       <section class="keyword-section">
-        <div class="section-title">Maps 查询词</div>
+        <div class="section-title">Places 查询词</div>
         <NDataTable
           size="small"
-          :columns="mapsQueryColumns"
-          :data="viewModel.mapsQueries"
+          :columns="placesQueryColumns"
+          :data="viewModel.placesQueries"
           :bordered="false"
           :pagination="{ pageSize: 6 }"
         />
