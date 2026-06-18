@@ -39,6 +39,10 @@ declare namespace Api {
 
     type MessageThreadMode = 'new_subject' | 'same_thread';
 
+    type InboxThreadStatus = 'pending' | 'handled' | 'archived';
+
+    type InboxMessageDirection = 'inbound' | 'outbound';
+
     interface LeadRecord {
       id: string;
       organizationId: string;
@@ -269,6 +273,56 @@ declare namespace Api {
       updatedAt: string;
     }
 
+    interface InboxThreadRecord {
+      id: string;
+      organizationId: string;
+      ownerUserId: string;
+      accountId: string;
+      contactId: string | null;
+      enrollmentId: string | null;
+      mailboxId: string | null;
+      subject: string;
+      status: InboxThreadStatus;
+      lastInboundAt: string;
+      unreadCount: number;
+      createdAt: string;
+      updatedAt: string;
+      account: LeadRecord;
+      contact: LeadContact | null;
+      mailbox: MailboxRecord | null;
+      enrollment: SequenceEnrollmentRecord | null;
+      messageCount: number;
+      lastMessageSnippet: string;
+    }
+
+    interface InboxMessageRecord {
+      id: string;
+      organizationId: string;
+      ownerUserId: string;
+      accountId: string;
+      contactId: string | null;
+      enrollmentId: string | null;
+      mailboxId: string | null;
+      threadId: string;
+      direction: InboxMessageDirection;
+      subject: string;
+      bodyText: string;
+      sentAt: string | null;
+      receivedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface InboxThreadDetail {
+      thread: InboxThreadRecord;
+      account: LeadRecord;
+      contact: LeadContact | null;
+      mailbox: MailboxRecord | null;
+      enrollment: SequenceEnrollmentRecord | null;
+      messages: InboxMessageRecord[];
+      canOperate: boolean;
+    }
+
     interface SequenceReviewChecklistItem {
       key: string;
       label: string;
@@ -292,9 +346,21 @@ declare namespace Api {
       status?: SequenceEnrollmentStatus;
     }
 
+    interface InboxThreadSearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+      status?: InboxThreadStatus;
+      mailboxId?: string;
+    }
+
     interface SequenceReviewFilterModel {
       keyword: string;
       status: SequenceEnrollmentStatus | null;
+    }
+
+    interface InboxThreadFilterModel {
+      keyword: string;
+      status: InboxThreadStatus | null;
+      mailboxId: string | null;
     }
 
     interface SequenceReviewCreatePayload {
@@ -314,6 +380,16 @@ declare namespace Api {
     interface MessageDraftPayload {
       subject: string;
       bodyText: string;
+    }
+
+    interface InboxThreadStatusPayload {
+      status: InboxThreadStatus;
+    }
+
+    interface MessageMockReplyPayload {
+      subject?: string;
+      bodyText: string;
+      receivedAt?: string;
     }
 
     interface SequenceReviewOperateResult {
@@ -336,6 +412,14 @@ declare namespace Api {
       event: LeadTimelineEvent;
     }
 
+    interface InboxThreadStatusResult {
+      thread: InboxThreadRecord;
+      account: LeadRecord;
+      event: LeadTimelineEvent;
+    }
+
     type SequenceReviewList = Api.Common.PaginatingQueryRecord<SequenceReviewItem>;
+
+    type InboxThreadList = Api.Common.PaginatingQueryRecord<InboxThreadRecord>;
   }
 }

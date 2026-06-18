@@ -171,3 +171,38 @@ export function startCrmFirstMessageSend(enrollmentId: string) {
     method: 'post'
   });
 }
+
+/** List CRM inbound reply threads by filters and pagination. */
+export function fetchCrmInboxThreads(params: Api.Crm.InboxThreadSearchParams) {
+  return request<Api.Crm.InboxThreadList>({
+    url: '/crm/inbox-threads',
+    method: 'get',
+    params
+  });
+}
+
+/** Get one CRM inbound reply thread with messages and related CRM records. */
+export function fetchCrmInboxThreadDetail(id: string) {
+  return request<Api.Crm.InboxThreadDetail>({
+    url: `/crm/inbox-threads/${id}`,
+    method: 'get'
+  });
+}
+
+/** Update the handling status of one inbound reply thread. */
+export function updateCrmInboxThreadStatus(id: string, data: Api.Crm.InboxThreadStatusPayload) {
+  return request<Api.Crm.InboxThreadStatusResult>({
+    url: `/crm/inbox-threads/${id}/status`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Create a development-only mocked inbound reply for one CRM message. */
+export function mockReplyCrmMessage(id: string, data: Api.Crm.MessageMockReplyPayload) {
+  return request<Api.Crm.InboxThreadDetail>({
+    url: `/crm/messages/${id}/mock-reply`,
+    method: 'post',
+    data
+  });
+}
