@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { SystemLogModule } from './system-log/system-log.module';
+import { SystemUserModule } from './system-user/system-user.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SystemLogModule } from './system-log/system-log.module';
     AiLeadsModule,
     AuthModule,
     SystemLogModule,
+    SystemUserModule,
     HealthModule
   ],
   providers: [

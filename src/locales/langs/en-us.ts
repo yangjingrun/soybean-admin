@@ -232,6 +232,8 @@ const local: App.I18n.Schema = {
     'ai-leads': 'AI Leads',
     'ai-settings': 'Model Config',
     'ai-prompt-settings': 'Prompt Config',
+    manage: 'System Manage',
+    manage_user: 'User Manage',
     'system-log': 'System Logs',
     home: 'Home'
   },

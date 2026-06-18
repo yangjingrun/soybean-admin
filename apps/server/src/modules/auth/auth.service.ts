@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import * as svgCaptcha from 'svg-captcha';
 import { RedisService } from '../redis/redis.service';
 import type { DemoUser, ImageCaptchaResult, LoginToken, UserInfo } from './auth.types';
+import type { SystemUserList, SystemUserSearchParams } from '../system-user/system-user.types';
 
 const demoUsers: DemoUser[] = [
   {
@@ -126,6 +127,40 @@ export class AuthService {
     return this.toUserInfo(this.getUserById(userId));
   }
 
+  /** List demo users for the lightweight user management page. */
+  listUsers(params: SystemUserSearchParams = {}): SystemUserList {
+    const current = normalizePositiveInteger(params.current, 1);
+    const size = normalizePositiveInteger(params.size, 10);
+    const keyword = params.keyword?.trim().toLowerCase() || '';
+    const role = params.role?.trim() || '';
+
+    const filteredUsers = demoUsers.filter(user => {
+      const matchesKeyword =
+        !keyword ||
+        user.userName.toLowerCase().includes(keyword) ||
+        user.userId.toLowerCase().includes(keyword) ||
+        user.roles.some(item => item.toLowerCase().includes(keyword));
+      const matchesRole = !role || user.roles.includes(role);
+
+      return matchesKeyword && matchesRole;
+    });
+    const start = (current - 1) * size;
+    const records = filteredUsers.slice(start, start + size).map(({ userId, userName, roles, buttons }) => ({
+      userId,
+      userName,
+      roles,
+      buttons,
+      status: 'enabled' as const
+    }));
+
+    return {
+      current,
+      size,
+      total: filteredUsers.length,
+      records
+    };
+  }
+
   /** Rotate access and refresh tokens from an existing refresh token. */
   refresh(refreshToken: string): LoginToken | null {
     if (this.isDevAuth() && refreshToken === devRefreshToken) {
@@ -194,4 +229,8 @@ export class AuthService {
   private isDevAuth() {
     return process.env.NODE_ENV !== 'production';
   }
+}
+
+function normalizePositiveInteger(value: number | undefined, defaultValue: number) {
+  return Number.isInteger(value) && value && value > 0 ? value : defaultValue;
 }

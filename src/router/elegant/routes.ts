@@ -111,6 +111,32 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'manage',
+    path: '/manage',
+    component: 'layout.base',
+    meta: {
+      title: 'manage',
+      i18nKey: 'route.manage',
+      icon: 'carbon:cloud-service-management',
+      order: 6,
+      roles: ['R_SUPER']
+    },
+    children: [
+      {
+        name: 'manage_user',
+        path: '/manage/user',
+        component: 'view.manage_user',
+        meta: {
+          title: 'manage_user',
+          i18nKey: 'route.manage_user',
+          icon: 'ic:round-manage-accounts',
+          order: 1,
+          roles: ['R_SUPER']
+        }
+      }
+    ]
+  },
+  {
     name: 'system-log',
     path: '/system-log',
     component: 'layout.base$view.system-log',
