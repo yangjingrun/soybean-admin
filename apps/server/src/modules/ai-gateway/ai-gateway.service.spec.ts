@@ -110,6 +110,52 @@ describe('AiGatewayService', () => {
     assert.equal(generatedParams.systemPrompt, '固定只输出 JSON，不要编造客户。');
   });
 
+  it('uses the default Serper keyword prompt when no fixed prompt is saved', async () => {
+    let captured: AiTextGenerateParams | null = null;
+    const generator: AiTextGenerator = {
+      async generateText(params) {
+        captured = params;
+
+        return {
+          text: '{"serperSearchQueries":[],"serperMapsQueries":[]}',
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 10,
+            outputTokens: 5,
+            totalTokens: 15
+          }
+        };
+      }
+    };
+    const service = new AiGatewayService(
+      generator,
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await service.saveModelConfig({
+      configKey: 'default',
+      title: '默认模型',
+      providerName: 'openai',
+      apiBase: 'https://api.openai.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-4o-mini'
+    });
+    await service.generateText({
+      promptKey: 'lead_keyword_optimize',
+      modelConfigKey: 'default',
+      prompt: '我是河北卖轴承的，想找沙特进口商'
+    });
+
+    const generatedParams = captured as AiTextGenerateParams | null;
+
+    assert.ok(generatedParams);
+    assert.match(generatedParams.systemPrompt || '', /serperSearchQueries/);
+    assert.match(generatedParams.systemPrompt || '', /serperMapsQueries/);
+    assert.match(generatedParams.systemPrompt || '', /严禁生成真实公司名/);
+  });
+
   it('uses stable temperature and no output limit for saved model config by default', async () => {
     const service = new AiGatewayService(
       createMemoryTextGenerator(),

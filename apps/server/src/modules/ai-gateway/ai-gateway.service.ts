@@ -6,6 +6,7 @@ import type { UserInfo } from '../auth/auth.types';
 import {
   aiPromptDefinitions,
   aiPromptKeys,
+  defaultAiPromptSystemPrompts,
   defaultAiModelConfigKey,
   defaultAiTemperature
 } from './ai-gateway.constants';
@@ -269,11 +270,12 @@ function normalizeModelConfigKey(configKey?: string) {
 
 function createPromptDraft(promptKey: string): AiPromptRecord {
   const definition = aiPromptDefinitions.find(item => item.promptKey === promptKey);
+  const systemPrompt = defaultAiPromptSystemPrompts[promptKey as keyof typeof defaultAiPromptSystemPrompts] || '';
 
   return {
     promptKey,
     title: definition?.title || promptKey,
-    systemPrompt: '',
+    systemPrompt,
     updatedAt: ''
   };
 }
