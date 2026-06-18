@@ -16,7 +16,13 @@ export class AuthController {
   @Post('login')
   @Throttle({ default: { limit: 8, ttl: 60000 } })
   async login(@Body() dto: LoginDto, @Req() request: AuthRequestLike) {
-    const token = await this.authService.login(dto.userName, dto.password, dto.captchaId, dto.captchaCode);
+    const token = await this.authService.login(
+      dto.userName,
+      dto.password,
+      dto.captchaId,
+      dto.captchaCode,
+      getClientIp(request)
+    );
 
     if (!token) {
       await this.recordAuthLog({

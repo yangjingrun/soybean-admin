@@ -45,6 +45,11 @@ export { Prisma }
  */
 export type SystemLog = Prisma.SystemLogModel
 /**
+ * Model SystemUser
+ * 
+ */
+export type SystemUser = Prisma.SystemUserModel
+/**
  * Model AiPromptConfig
  * 
  */

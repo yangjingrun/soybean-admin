@@ -9,7 +9,18 @@ import type {
   SystemLogWhereInput
 } from './system-log.types';
 
-const secretKeys = new Set(['apikey', 'api_key', 'token', 'password']);
+const secretKeys = new Set([
+  'apikey',
+  'api_key',
+  'access_token',
+  'accesstoken',
+  'refresh_token',
+  'refreshtoken',
+  'token',
+  'password',
+  'passwordhash',
+  'passwordsalt'
+]);
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;

@@ -385,6 +385,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   SystemLog: 'SystemLog',
+  SystemUser: 'SystemUser',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -404,7 +405,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory"
+    modelProps: "systemLog" | "systemUser" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -479,6 +480,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.SystemLogCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.SystemLogCountAggregateOutputType> | number
+        }
+      }
+    }
+    SystemUser: {
+      payload: Prisma.$SystemUserPayload<ExtArgs>
+      fields: Prisma.SystemUserFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SystemUserFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SystemUserFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>
+        }
+        findFirst: {
+          args: Prisma.SystemUserFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SystemUserFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>
+        }
+        findMany: {
+          args: Prisma.SystemUserFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>[]
+        }
+        create: {
+          args: Prisma.SystemUserCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>
+        }
+        createMany: {
+          args: Prisma.SystemUserCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SystemUserCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>[]
+        }
+        delete: {
+          args: Prisma.SystemUserDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>
+        }
+        update: {
+          args: Prisma.SystemUserUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>
+        }
+        deleteMany: {
+          args: Prisma.SystemUserDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SystemUserUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SystemUserUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>[]
+        }
+        upsert: {
+          args: Prisma.SystemUserUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemUserPayload>
+        }
+        aggregate: {
+          args: Prisma.SystemUserAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSystemUser>
+        }
+        groupBy: {
+          args: Prisma.SystemUserGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SystemUserGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SystemUserCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SystemUserCountAggregateOutputType> | number
         }
       }
     }
@@ -835,6 +910,31 @@ export const SystemLogScalarFieldEnum = {
 export type SystemLogScalarFieldEnum = (typeof SystemLogScalarFieldEnum)[keyof typeof SystemLogScalarFieldEnum]
 
 
+export const SystemUserScalarFieldEnum = {
+  id: 'id',
+  userName: 'userName',
+  nickName: 'nickName',
+  phone: 'phone',
+  email: 'email',
+  roles: 'roles',
+  status: 'status',
+  companyName: 'companyName',
+  expireAt: 'expireAt',
+  remark: 'remark',
+  passwordHash: 'passwordHash',
+  passwordSalt: 'passwordSalt',
+  lastLoginAt: 'lastLoginAt',
+  lastLoginIp: 'lastLoginIp',
+  failedLoginCount: 'failedLoginCount',
+  lockedUntil: 'lockedUntil',
+  passwordResetAt: 'passwordResetAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SystemUserScalarFieldEnum = (typeof SystemUserScalarFieldEnum)[keyof typeof SystemUserScalarFieldEnum]
+
+
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
   promptKey: 'promptKey',
@@ -992,20 +1092,6 @@ export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
 
 
 /**
- * Reference to a field of type 'Float'
- */
-export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
-    
-
-
-/**
- * Reference to a field of type 'Float[]'
- */
-export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
-    
-
-
-/**
  * Reference to a field of type 'Int'
  */
 export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -1016,6 +1102,20 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Float'
+ */
+export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
+
+
+/**
+ * Reference to a field of type 'Float[]'
+ */
+export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
     
 
 /**
@@ -1129,6 +1229,7 @@ export type PrismaClientOptions = ({
 }
 export type GlobalOmitConfig = {
   systemLog?: Prisma.SystemLogOmit
+  systemUser?: Prisma.SystemUserOmit
   aiPromptConfig?: Prisma.AiPromptConfigOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
   serperConfig?: Prisma.SerperConfigOmit

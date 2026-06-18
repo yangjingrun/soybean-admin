@@ -50,9 +50,9 @@ export function setupElegantRouter() {
         meta.order = 3;
       }
 
-      if (key === 'system-log') {
+      if (key === 'manage_system-log') {
         meta.icon = 'mdi:clipboard-text-clock-outline';
-        meta.order = 4;
+        meta.order = 2;
         meta.roles = ['R_SUPER'];
       }
 

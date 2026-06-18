@@ -23,6 +23,11 @@ export * from './enums';
  */
 export type SystemLog = Prisma.SystemLogModel
 /**
+ * Model SystemUser
+ * 
+ */
+export type SystemUser = Prisma.SystemUserModel
+/**
  * Model AiPromptConfig
  * 
  */

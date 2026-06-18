@@ -27,8 +27,8 @@ declare module "@elegant-router/types" {
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "manage": "/manage";
+    "manage_system-log": "/manage/system-log";
     "manage_user": "/manage/user";
-    "system-log": "/system-log";
   };
 
   /**
@@ -70,7 +70,6 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "login"
     | "manage"
-    | "system-log"
   >;
 
   /**
@@ -96,8 +95,8 @@ declare module "@elegant-router/types" {
     | "ai-prompt-settings"
     | "ai-settings"
     | "home"
+    | "manage_system-log"
     | "manage_user"
-    | "system-log"
   >;
 
   /**

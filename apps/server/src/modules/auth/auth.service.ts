@@ -1,59 +1,38 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import * as svgCaptcha from 'svg-captcha';
+import type { SystemUser } from '../../generated/prisma/client';
+import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
-import type { DemoUser, ImageCaptchaResult, LoginToken, UserInfo } from './auth.types';
-import type { SystemUserList, SystemUserSearchParams } from '../system-user/system-user.types';
-
-const demoUsers: DemoUser[] = [
-  {
-    userId: '1',
-    userName: 'Super',
-    password: '123456',
-    roles: ['R_SUPER'],
-    buttons: ['B_CODE1', 'B_CODE2', 'B_CODE3']
-  },
-  {
-    userId: '2',
-    userName: 'Admin',
-    password: '123456',
-    roles: ['R_ADMIN'],
-    buttons: ['B_CODE1', 'B_CODE2']
-  },
-  {
-    userId: '3',
-    userName: 'User',
-    password: '123456',
-    roles: ['R_USER'],
-    buttons: ['B_CODE1']
-  },
-  {
-    userId: '4',
-    userName: 'Soybean',
-    password: '123456',
-    roles: ['R_SUPER'],
-    buttons: ['B_CODE1', 'B_CODE2', 'B_CODE3']
-  }
-];
+import type { ImageCaptchaResult, LoginToken, UserInfo } from './auth.types';
+import { verifyPassword } from './password';
 
 const captchaExpiresIn = 300;
 const devAccessToken = 'dev_access_soybean';
 const devRefreshToken = 'dev_refresh_soybean';
 const devUserId = '4';
+const maxFailedLoginCount = 5;
+const lockDurationMs = 15 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
-  private readonly accessTokens = new Map<string, string>();
-  private readonly refreshTokens = new Map<string, string>();
+  private readonly accessTokens = new Map<string, UserInfoWithSession>();
+  private readonly refreshTokens = new Map<string, UserInfoWithSession>();
+  private readonly userAccessTokens = new Map<string, Set<string>>();
+  private readonly userRefreshTokens = new Map<string, Set<string>>();
 
-  constructor(@Inject(RedisService) private readonly redisService: RedisService) {}
+  constructor(
+    @Inject(RedisService) private readonly redisService: RedisService,
+    @Inject(PrismaService) private readonly prisma: PrismaService
+  ) {}
 
-  /** Validate captcha and demo credentials, then issue frontend-compatible tokens. */
+  /** Validate captcha and database credentials, then issue frontend-compatible tokens. */
   async login(
     userName: string,
     password: string,
     captchaId?: string,
-    captchaCode?: string
+    captchaCode?: string,
+    loginIp?: string
   ): Promise<LoginToken | null> {
     const captchaPassed = this.isDevAuth() || (await this.verifyCaptcha(captchaId, captchaCode));
 
@@ -61,13 +40,30 @@ export class AuthService {
       return null;
     }
 
-    const user = demoUsers.find(item => item.userName.toLowerCase() === userName.toLowerCase());
+    const user = await this.findUserByUserName(userName);
 
-    if (!user || user.password !== password) {
+    if (!user || !this.isUserEnabled(user) || this.isUserExpired(user) || this.isUserLocked(user)) {
       return null;
     }
 
-    return this.issueTokens(user.userId);
+    const passwordPassed = await verifyPassword(password, user.passwordSalt, user.passwordHash);
+
+    if (!passwordPassed) {
+      await this.recordFailedLogin(user);
+      return null;
+    }
+
+    await this.prisma.systemUser.update({
+      where: { id: user.id },
+      data: {
+        failedLoginCount: 0,
+        lockedUntil: null,
+        lastLoginAt: new Date(),
+        ...(loginIp ? { lastLoginIp: loginIp } : {})
+      }
+    });
+
+    return this.issueTokens(this.toUserInfo(user));
   }
 
   /** Create a short-lived image captcha for password login. */
@@ -114,81 +110,68 @@ export class AuthService {
 
   /** Resolve the current user from the Authorization header token. */
   getUserByAccessToken(token: string): UserInfo | null {
-    if (this.isDevAuth() && token === devAccessToken) {
-      return this.toUserInfo(this.getUserById(devUserId));
-    }
+    const user = this.accessTokens.get(token);
 
-    const userId = this.accessTokens.get(token);
-
-    if (!userId) {
+    if (!user || this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
       return null;
     }
 
-    return this.toUserInfo(this.getUserById(userId));
-  }
-
-  /** List demo users for the lightweight user management page. */
-  listUsers(params: SystemUserSearchParams = {}): SystemUserList {
-    const current = normalizePositiveInteger(params.current, 1);
-    const size = normalizePositiveInteger(params.size, 10);
-    const keyword = params.keyword?.trim().toLowerCase() || '';
-    const role = params.role?.trim() || '';
-
-    const filteredUsers = demoUsers.filter(user => {
-      const matchesKeyword =
-        !keyword ||
-        user.userName.toLowerCase().includes(keyword) ||
-        user.userId.toLowerCase().includes(keyword) ||
-        user.roles.some(item => item.toLowerCase().includes(keyword));
-      const matchesRole = !role || user.roles.includes(role);
-
-      return matchesKeyword && matchesRole;
-    });
-    const start = (current - 1) * size;
-    const records = filteredUsers.slice(start, start + size).map(({ userId, userName, roles, buttons }) => ({
-      userId,
-      userName,
-      roles,
-      buttons,
-      status: 'enabled' as const
-    }));
-
     return {
-      current,
-      size,
-      total: filteredUsers.length,
-      records
+      userId: user.userId,
+      userName: user.userName,
+      roles: user.roles,
+      buttons: user.buttons
     };
   }
 
   /** Rotate access and refresh tokens from an existing refresh token. */
   refresh(refreshToken: string): LoginToken | null {
     if (this.isDevAuth() && refreshToken === devRefreshToken) {
-      return this.issueTokens(devUserId);
+      const user = this.accessTokens.get(devAccessToken);
+      return user ? this.issueTokens(user) : null;
     }
 
-    const userId = this.refreshTokens.get(refreshToken);
+    const user = this.refreshTokens.get(refreshToken);
 
-    if (!userId) {
+    if (!user || this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
       return null;
     }
 
-    this.refreshTokens.delete(refreshToken);
+    this.deleteRefreshToken(refreshToken);
 
-    return this.issueTokens(userId);
+    return this.issueTokens(user);
   }
 
-  /** Revoke one access token for an explicit logout action. */
+  /** Revoke tokens for an explicit logout action. */
   logout(token: string) {
     if (this.isDevAuth() && token === devAccessToken) {
+      this.revokeUserTokens(devUserId);
       return;
     }
 
-    this.accessTokens.delete(token);
+    const user = this.accessTokens.get(token);
+
+    if (!user) {
+      return;
+    }
+
+    this.deleteAccessToken(token);
+    this.clearRefreshTokens(user.userId);
   }
 
-  private issueTokens(userId: string): LoginToken {
-    if (this.isDevAuth() && userId === devUserId) {
+  /** Revoke every issued token for one user. */
+  revokeUserTokens(userId: string) {
+    this.clearAccessTokens(userId);
+    this.clearRefreshTokens(userId);
+  }
+
+  private issueTokens(user: UserInfoWithSession): LoginToken {
+    if (this.isDevAuth() && user.userId === devUserId) {
+      this.accessTokens.set(devAccessToken, user);
+      this.refreshTokens.set(devRefreshToken, user);
+      this.trackAccessToken(user.userId, devAccessToken);
+      this.trackRefreshToken(user.userId, devRefreshToken);
+
       return {
         token: devAccessToken,
         refreshToken: devRefreshToken
@@ -198,8 +181,10 @@ export class AuthService {
     const token = `access_${randomUUID()}`;
     const refreshToken = `refresh_${randomUUID()}`;
 
-    this.accessTokens.set(token, userId);
-    this.refreshTokens.set(refreshToken, userId);
+    this.accessTokens.set(token, user);
+    this.refreshTokens.set(refreshToken, user);
+    this.trackAccessToken(user.userId, token);
+    this.trackRefreshToken(user.userId, refreshToken);
 
     return {
       token,
@@ -207,23 +192,120 @@ export class AuthService {
     };
   }
 
-  private getUserById(userId: string) {
-    return demoUsers.find(item => item.userId === userId) || null;
-  }
+  private async findUserByUserName(userName: string) {
+    const trimUserName = userName.trim();
 
-  private toUserInfo(user: DemoUser | null): UserInfo | null {
-    if (!user) {
+    if (!trimUserName) {
       return null;
     }
 
-    const { userId, userName, roles, buttons } = user;
+    return this.prisma.systemUser.findFirst({
+      where: {
+        userName: {
+          equals: trimUserName,
+          mode: 'insensitive'
+        }
+      }
+    });
+  }
 
+  private async recordFailedLogin(user: SystemUser) {
+    const now = new Date();
+    const shouldResetExpiredLock = user.lockedUntil && user.lockedUntil.getTime() <= now.getTime();
+    const failedLoginCount = shouldResetExpiredLock ? 1 : user.failedLoginCount + 1;
+    const lockedUntil = failedLoginCount >= maxFailedLoginCount ? new Date(now.getTime() + lockDurationMs) : null;
+
+    await this.prisma.systemUser.update({
+      where: { id: user.id },
+      data: {
+        failedLoginCount,
+        lockedUntil
+      }
+    });
+  }
+
+  private toUserInfo(user: SystemUser): UserInfoWithSession {
     return {
-      userId,
-      userName,
-      roles,
-      buttons
+      userId: user.id,
+      userName: user.userName,
+      roles: user.roles,
+      buttons: getButtonsByRoles(user.roles),
+      status: user.status,
+      expireAt: user.expireAt?.toISOString() || null,
+      lockedUntil: user.lockedUntil?.toISOString() || null
     };
+  }
+
+  private isUserEnabled(user: SystemUser) {
+    return user.status === 'enabled';
+  }
+
+  private isUserExpired(user: SystemUser) {
+    return Boolean(user.expireAt && user.expireAt.getTime() <= Date.now());
+  }
+
+  private isUserLocked(user: SystemUser) {
+    return Boolean(user.lockedUntil && user.lockedUntil.getTime() > Date.now());
+  }
+
+  private isSnapshotExpired(user: UserInfoWithSession) {
+    return Boolean(user.expireAt && new Date(user.expireAt).getTime() <= Date.now());
+  }
+
+  private isSnapshotLocked(user: UserInfoWithSession) {
+    return Boolean(user.lockedUntil && new Date(user.lockedUntil).getTime() > Date.now());
+  }
+
+  private trackAccessToken(userId: string, token: string) {
+    const tokens = this.userAccessTokens.get(userId) || new Set<string>();
+    tokens.add(token);
+    this.userAccessTokens.set(userId, tokens);
+  }
+
+  private trackRefreshToken(userId: string, token: string) {
+    const tokens = this.userRefreshTokens.get(userId) || new Set<string>();
+    tokens.add(token);
+    this.userRefreshTokens.set(userId, tokens);
+  }
+
+  private clearAccessTokens(userId: string) {
+    const tokens = this.userAccessTokens.get(userId);
+
+    if (!tokens) {
+      return;
+    }
+
+    tokens.forEach(token => this.accessTokens.delete(token));
+    this.userAccessTokens.delete(userId);
+  }
+
+  private clearRefreshTokens(userId: string) {
+    const tokens = this.userRefreshTokens.get(userId);
+
+    if (!tokens) {
+      return;
+    }
+
+    tokens.forEach(token => this.refreshTokens.delete(token));
+    this.userRefreshTokens.delete(userId);
+  }
+
+  private deleteAccessToken(token: string) {
+    const user = this.accessTokens.get(token);
+    this.accessTokens.delete(token);
+
+    if (user) {
+      this.userAccessTokens.get(user.userId)?.delete(token);
+    }
+  }
+
+  private deleteRefreshToken(token: string) {
+    const user = this.refreshTokens.get(token);
+    this.refreshTokens.delete(token);
+
+    if (user) {
+      this.userRefreshTokens.get(user.userId)?.delete(token);
+    }
   }
 
   private isDevAuth() {
@@ -231,6 +313,20 @@ export class AuthService {
   }
 }
 
-function normalizePositiveInteger(value: number | undefined, defaultValue: number) {
-  return Number.isInteger(value) && value && value > 0 ? value : defaultValue;
+function getButtonsByRoles(roles: string[]) {
+  if (roles.includes('R_SUPER')) {
+    return ['B_CODE1', 'B_CODE2', 'B_CODE3'];
+  }
+
+  if (roles.includes('R_ADMIN')) {
+    return ['B_CODE1', 'B_CODE2'];
+  }
+
+  return ['B_CODE1'];
+}
+
+interface UserInfoWithSession extends UserInfo {
+  status: string;
+  expireAt: string | null;
+  lockedUntil: string | null;
 }

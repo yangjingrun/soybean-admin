@@ -123,6 +123,18 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'manage_system-log',
+        path: '/manage/system-log',
+        component: 'view.manage_system-log',
+        meta: {
+          title: 'manage_system-log',
+          i18nKey: 'route.manage_system-log',
+          icon: 'mdi:clipboard-text-clock-outline',
+          order: 2,
+          roles: ['R_SUPER']
+        }
+      },
+      {
         name: 'manage_user',
         path: '/manage/user',
         component: 'view.manage_user',
@@ -135,17 +147,5 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       }
     ]
-  },
-  {
-    name: 'system-log',
-    path: '/system-log',
-    component: 'layout.base$view.system-log',
-    meta: {
-      title: 'system-log',
-      i18nKey: 'route.system-log',
-      icon: 'mdi:clipboard-text-clock-outline',
-      order: 5,
-      roles: ['R_SUPER']
-    }
   }
 ];

@@ -3,10 +3,11 @@ import { describe, it } from 'node:test';
 import { ForbiddenException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { SystemUserController } from './system-user.controller';
+import type { SystemUserService } from './system-user.service';
 
 describe('SystemUserController', () => {
   it('allows super administrators to list users', async () => {
-    const controller = new SystemUserController(createAuthService(['R_SUPER']));
+    const controller = new SystemUserController(createAuthService(['R_SUPER']), createSystemUserService());
 
     const result = await controller.list('Bearer token', {
       current: 1,
@@ -23,11 +24,23 @@ describe('SystemUserController', () => {
         total: 1,
         records: [
           {
-            userId: '1',
+            id: '1',
             userName: 'Super',
+            nickName: 'Super',
+            phone: null,
+            email: null,
             roles: ['R_SUPER'],
-            buttons: ['B_CODE1'],
-            status: 'enabled'
+            status: 'enabled',
+            companyName: null,
+            expireAt: null,
+            remark: null,
+            lastLoginAt: null,
+            lastLoginIp: null,
+            lockedUntil: null,
+            expired: false,
+            locked: false,
+            createdAt: '2026-06-18T01:00:00.000Z',
+            updatedAt: '2026-06-18T01:00:00.000Z'
           }
         ]
       }
@@ -35,28 +48,48 @@ describe('SystemUserController', () => {
   });
 
   it('rejects non-super administrators', async () => {
-    const controller = new SystemUserController(createAuthService(['R_ADMIN']));
+    const controller = new SystemUserController(createAuthService(['R_ADMIN']), createSystemUserService());
 
     await assert.rejects(() => controller.list('Bearer token', {}), ForbiddenException);
   });
 });
 
-function createAuthService(roles: string[]): AuthService {
-  const users = [
-    {
-      userId: '1',
-      userName: 'Super',
-      roles: ['R_SUPER'],
-      buttons: ['B_CODE1']
-    },
-    {
-      userId: '2',
-      userName: 'Admin',
-      roles: ['R_ADMIN'],
-      buttons: []
-    }
-  ];
+function createSystemUserService(): SystemUserService {
+  return {
+    async list(params: { current?: number; size?: number; keyword?: string }) {
+      const records = [
+        {
+          id: '1',
+          userName: 'Super',
+          nickName: 'Super',
+          phone: null,
+          email: null,
+          roles: ['R_SUPER'],
+          status: 'enabled',
+          companyName: null,
+          expireAt: null,
+          remark: null,
+          lastLoginAt: null,
+          lastLoginIp: null,
+          lockedUntil: null,
+          expired: false,
+          locked: false,
+          createdAt: '2026-06-18T01:00:00.000Z',
+          updatedAt: '2026-06-18T01:00:00.000Z'
+        }
+      ];
 
+      return {
+        current: params.current || 1,
+        size: params.size || 10,
+        total: records.length,
+        records
+      };
+    }
+  } as unknown as SystemUserService;
+}
+
+function createAuthService(roles: string[]): AuthService {
   return {
     getUserByAccessToken() {
       return {
@@ -64,20 +97,6 @@ function createAuthService(roles: string[]): AuthService {
         userName: 'tester',
         roles,
         buttons: []
-      };
-    },
-    listUsers(params: { current?: number; size?: number; keyword?: string }) {
-      const keyword = params.keyword?.trim().toLowerCase() || '';
-      const records = keyword ? users.filter(user => user.userName.toLowerCase().includes(keyword)) : users;
-
-      return {
-        current: params.current || 1,
-        size: params.size || 10,
-        total: records.length,
-        records: records.map(user => ({
-          ...user,
-          status: 'enabled'
-        }))
       };
     }
   } as unknown as AuthService;

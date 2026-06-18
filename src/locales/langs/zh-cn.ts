@@ -229,8 +229,8 @@ const local: App.I18n.Schema = {
     'ai-settings': '模型配置',
     'ai-prompt-settings': '提示词配置',
     manage: '系统管理',
+    'manage_system-log': '日志管理',
     manage_user: '用户管理',
-    'system-log': '日志管理',
     home: '首页'
   },
   page: {

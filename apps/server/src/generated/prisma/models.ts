@@ -9,6 +9,7 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/SystemLog'
+export type * from './models/SystemUser'
 export type * from './models/AiPromptConfig'
 export type * from './models/AiModelConfig'
 export type * from './models/SerperConfig'

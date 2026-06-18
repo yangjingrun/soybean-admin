@@ -26,6 +26,32 @@ model SystemLog {
   @@index([userId])
 }
 
+model SystemUser {
+  id               String    @id @default(uuid())
+  userName         String    @unique
+  nickName         String?
+  phone            String?
+  email            String?
+  roles            String[]
+  status           String    @default("enabled")
+  companyName      String?
+  expireAt         DateTime?
+  remark           String?
+  passwordHash     String
+  passwordSalt     String
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  passwordResetAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status])
+  @@index([expireAt])
+  @@index([lockedUntil])
+}
+
 model AiPromptConfig {
   id           String   @id @default(uuid())
   promptKey    String   @unique

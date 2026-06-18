@@ -1,5 +1,6 @@
 import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import type { SystemUserExpirationStatus, SystemUserRole, SystemUserStatus } from '../system-user.types';
 
 export class SystemUserQueryDto {
   @IsOptional()
@@ -21,5 +22,13 @@ export class SystemUserQueryDto {
 
   @IsOptional()
   @IsString()
-  role?: string;
+  role?: SystemUserRole;
+
+  @IsOptional()
+  @IsString()
+  status?: SystemUserStatus;
+
+  @IsOptional()
+  @IsString()
+  expirationStatus?: SystemUserExpirationStatus;
 }
