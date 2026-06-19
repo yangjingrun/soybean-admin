@@ -1240,6 +1240,17 @@ describe('CrmService', () => {
           ownerUserId: 'user-2',
           status: 'queued',
           bullJobId: 'send-job-1'
+        }),
+        createMessage({
+          id: 'message-2',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          ownerUserId: 'user-2',
+          status: 'queued',
+          stepIndex: 2,
+          bullJobId: 'send-job-2'
         })
       ]
     });
@@ -1251,6 +1262,8 @@ describe('CrmService', () => {
     assert.equal(result.enrollment.runVersion, 4);
     assert.equal(result.message?.status, 'skipped');
     assert.equal(result.message?.bullJobId, null);
+    assert.equal(store.messages[1].status, 'skipped');
+    assert.equal(store.messages[1].bullJobId, null);
     assert.equal(result.account.status, 'paused');
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_stopped');
   });
@@ -2258,22 +2271,18 @@ function createStore(
       });
       Object.assign(account, { status: input.accountStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
 
-      const message =
-        messages.find(
-          item =>
-            item.enrollmentId === enrollment.id &&
-            item.organizationId === input.organizationId &&
-            item.stepIndex === 1 &&
-            item.status === 'queued'
-        ) ?? null;
+      const skippedMessages = messages.filter(
+        item => item.enrollmentId === enrollment.id && item.organizationId === input.organizationId && item.status === 'queued'
+      );
 
-      if (message) {
+      for (const message of skippedMessages) {
         Object.assign(message, {
           status: 'skipped',
           bullJobId: null,
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         });
       }
+      const message = skippedMessages[0] ?? null;
 
       const event = createTimelineEvent({
         accountId: enrollment.accountId,

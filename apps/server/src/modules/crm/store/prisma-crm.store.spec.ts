@@ -877,7 +877,6 @@ describe('PrismaCrmStore', () => {
     assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls[0].where, {
       enrollmentId: 'enrollment-1',
       organizationId: 'org-1',
-      stepIndex: 1,
       status: 'queued'
     });
     assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls[0].data, {
@@ -1335,7 +1334,7 @@ function createPrisma(
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
         data: Record<string, unknown>;
-        limit: number;
+        limit?: number;
       }>,
       async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
         this.findManyCalls.push(args);
@@ -1471,7 +1470,7 @@ function createPrisma(
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
         data: Record<string, unknown>;
-        limit: number;
+        limit?: number;
       }>,
       createError: null as Error | null,
       findUniqueResult: null as Partial<typeof mailbox> | null,
@@ -1542,7 +1541,7 @@ function createPrisma(
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
         data: Record<string, unknown>;
-        limit: number;
+        limit?: number;
       }>,
       createError: null as Error | null,
       async create(args: { data: Record<string, unknown> }) {
@@ -1588,7 +1587,7 @@ function createPrisma(
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
         data: Record<string, unknown>;
-        limit: number;
+        limit?: number;
       }>,
       updateManyCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -1622,7 +1621,7 @@ function createPrisma(
       async count() {
         return 1;
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit?: number }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...enrollment, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       },
@@ -1637,7 +1636,7 @@ function createPrisma(
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
         data: Record<string, unknown>;
-        limit: number;
+        limit?: number;
       }>,
       updateManyCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -1669,7 +1668,7 @@ function createPrisma(
         }
         return message;
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit?: number }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...(options.sentMessageResult ?? message), ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       },

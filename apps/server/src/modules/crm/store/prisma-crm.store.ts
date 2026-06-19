@@ -871,14 +871,12 @@ export class PrismaCrmStore implements CrmStore {
         where: {
           enrollmentId: enrollment.id,
           organizationId: input.organizationId,
-          stepIndex: 1,
           status: 'queued'
         },
         data: {
           status: 'skipped',
           bullJobId: null
-        },
-        limit: 1
+        }
       });
       const [account, event] = await Promise.all([
         tx.crmAccount.update({
