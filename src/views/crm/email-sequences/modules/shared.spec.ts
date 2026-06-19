@@ -4,11 +4,13 @@ import {
   buildDraftReviewOperationPayload,
   createDefaultSequenceCreateForm,
   getCurrentSequenceMessage,
+  getFailedSequenceMessages,
   getNextScheduledReviewMessage,
   getPendingReviewMessage,
   getSequenceChecklistSummary,
   getSequenceNextAction,
   getSequenceProgressText,
+  getSequenceSendAuditSummary,
   normalizeSequenceCreatePayload
 } from './shared';
 
@@ -202,6 +204,47 @@ describe('email sequence review shared helpers', () => {
       passedCount: 1,
       total: 2
     });
+  });
+
+  it('prioritizes failed messages in the send audit summary', () => {
+    const item = createSequenceItem({
+      firstMessage: createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({ id: 'message-3', stepIndex: 3, status: 'failed' }),
+        createMessage({ id: 'message-2', stepIndex: 2, status: 'failed' })
+      ],
+      checklist: [
+        { key: 'mailbox', label: '邮箱', passed: true, message: '邮箱可用' },
+        { key: 'content', label: '正文', passed: false, message: '正文需复核' }
+      ]
+    });
+
+    assert.deepEqual(
+      getFailedSequenceMessages(item.messages).map(message => message.id),
+      ['message-2', 'message-3']
+    );
+    assert.equal(getSequenceSendAuditSummary(item).label, '发送失败');
+    assert.equal(getSequenceSendAuditSummary(item).failedMessageCount, 2);
+    assert.equal(getSequenceSendAuditSummary(item).failedCheckCount, 1);
+    assert.equal(getCurrentSequenceMessage(item)?.id, 'message-2');
+  });
+
+  it('describes checklist-only send audit warnings before sending', () => {
+    const warning = createSequenceItem({
+      checklist: [
+        { key: 'mailbox', label: '邮箱', passed: true, message: '邮箱可用' },
+        { key: 'risk', label: '风险', passed: false, message: '公共邮箱需确认' }
+      ]
+    });
+    const passed = createSequenceItem({
+      checklist: [{ key: 'mailbox', label: '邮箱', passed: true, message: '邮箱可用' }]
+    });
+
+    assert.equal(getSequenceSendAuditSummary(warning).label, '1 项待确认');
+    assert.equal(getSequenceSendAuditSummary(warning).tagType, 'warning');
+    assert.equal(getSequenceSendAuditSummary(passed).label, '1 项通过');
+    assert.equal(getSequenceSendAuditSummary(passed).tagType, 'success');
   });
 
   it('describes the next sequence action from current message and enrollment state', () => {

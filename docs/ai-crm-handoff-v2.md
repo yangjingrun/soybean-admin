@@ -771,6 +771,16 @@ Hunter 原始长结果
       - `apps/server/src/modules/crm/store/prisma-crm.store.ts`
       - `apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
 
+55. 真实 Gmail 预发验收与 runbook
+    - `docs/crm-gmail-deployment-checklist.md` 已扩展为真实 Gmail 验收矩阵。
+    - 验收覆盖 OAuth、watch 创建/续订、Pub/Sub push secret + OIDC、History 增量拉取、真实发送、客户回复、系统内回复、外部 Gmail 手动回复、label/delete 同步和 history expired 恢复。
+    - `history_expired` runbook 明确：旧 checkpoint 不静默推进，恢复同步会续订 watch 并以新 `historyId` 重新初始化 checkpoint；过期窗口内可能漏掉的回复需要人工复核，不做无边界全量扫描。
+    - `docs/ai-crm-handoff-v2.md` 已同步旧状态口径：Pub/Sub OIDC、SequencePolicy/全局 follow-up 延迟、history expired 恢复入口等代码链路已实现或已有基础，剩余重点是真实环境验收/复核和后续增强。
+    - 本次只改文档，未运行构建或测试，未提交代码。
+    - 涉及文件：
+      - `docs/crm-gmail-deployment-checklist.md`
+      - `docs/ai-crm-handoff-v2.md`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -790,8 +800,12 @@ Hunter 原始长结果
 - 同 Gmail 地址全局唯一，禁止跨组织重复绑定。
 - Gmail watch 手动续订和手动同步。
 - Gmail Pub/Sub webhook。
+- Gmail Pub/Sub push secret 校验和配置化 OIDC tokeninfo 校验。
 - Gmail History sync queue 和 worker。
 - Gmail message parsing。
+- Gmail History label/delete 轻量同步。
+- Gmail 外部手动发送回复按 outbound 写时间线。
+- Gmail History expired 告警和恢复同步入口。
 - 回信入库幂等。
 - 首封草稿生成、编辑、确认、发送队列。
 - BullMQ worker guard、runVersion、防旧 job。
@@ -813,7 +827,7 @@ Hunter 原始长结果
 - 线索库支持远程分页/筛选、详情抽屉、状态修改、备注、归档、联系人邮箱验证、从联系人创建序列。
 - 邮件序列支持列表、创建首封草稿、跨页面预填、审核抽屉、保存/确认草稿、启动发送、停止序列、查看后续邮件。
 - 收件箱支持列表、筛选、详情、待处理统计、正文查看、状态更新、纯文本回复。
-- CRM 配置支持 Gmail 授权、OAuth 回调、邮箱列表、暂停/恢复、续订 watch、立即同步、产品线 CRUD、邮件模板库 CRUD/默认模板设置、全局邮箱验证冷却期配置。
+- CRM 配置支持 Gmail 授权、OAuth 回调、邮箱列表、暂停/恢复、续订 watch、立即同步 / history expired 恢复同步、产品线 CRUD、邮件模板库 CRUD/默认模板设置、全局邮箱验证冷却期配置。
 - CRM 配置支持退订黑名单分页管理和带原因审计的解除操作。
 - CRM 配置支持发送队列和 Gmail 同步/续订只读运维概览。
 - CRM 全局配置支持第 2-5 封 follow-up 延迟策略，发送 worker 按配置生成下一封草稿。
@@ -911,23 +925,22 @@ Hunter 原始长结果
 - mock watch gateway 返回模拟 history/expiration。
 - mock send gateway 返回 `mock:*` provider id。
 - mock HTTP 调试接口仍保留，但默认关闭且限制 R_SUPER。
-- Gmail History 已开始同步 Gmail 侧 label/delete 边界：`UNREAD` 去除会把 CRM thread 标为 `handled` 并清零未读；`UNREAD` 新增会标为 `pending`；`INBOX` 去除、`TRASH` 新增或 `messageDeleted` 会把 CRM thread 标为 `archived`；本地已同步正文和历史不删除。
+- Gmail History 已支持同步 Gmail 侧 label/delete 边界：`UNREAD` 去除会把 CRM thread 标为 `handled` 并清零未读；`UNREAD` 新增会标为 `pending`；`INBOX` 去除、`TRASH` 新增或 `messageDeleted` 会把 CRM thread 标为 `archived`；本地已同步正文和历史不删除。该链路仍需真实 Gmail/预发环境验收。
 - Gmail 外部手动发送回复已支持本地代码链路：History 不再跳过 `SENT` 且非 `INBOX` 消息，parser 标记 `direction: outbound`，worker 会按 Gmail thread 匹配原 CRM 已发送邮件并写入 `external_gmail_reply_sent` 时间线事件；仍需真实 Gmail/预发环境验收。
 
 ### 当前未完成
 
-- Google Pub/Sub push OIDC/JWT 验证。
 - Gmail watch 自动续订真实环境验收和生命周期/env 开关测试补强。
-- History checkpoint expired 后的正式恢复操作入口、runbook 和更完整补偿同步。
+- Pub/Sub push secret + OIDC 在真实 Google Pub/Sub push subscription 下的预发验收。
+- History checkpoint expired 恢复入口已实现，仍需真实 Gmail 环境验证过期窗口人工补偿流程。
 - Gmail 已读/未读、label change、删除/归档的真实 Gmail/预发环境验收。
 - CRM 侧状态反向写回 Gmail label 的双向同步和 UI 明确入口。
-- auth_expired 邮箱行级重新授权交互。
 - Gmail webhook/history 同步日志和失败重试可视化页面。
 
 ### 风险点
 
-- Pub/Sub webhook 当前先用自定义 secret 硬化，尚未实现 Google Pub/Sub push OIDC/JWT 验证。
-- History 过期时已不推进 checkpoint，并会记录日志、通知 owner、写 mailbox 同步问题供管理员在设置/运维页查看；但正式恢复操作入口、runbook 和自动补偿同步仍未闭环。
+- Pub/Sub webhook 已有自定义 secret 和配置化 Google OIDC tokeninfo 校验；仍需在真实 Pub/Sub push authentication 下复核 audience、service account、issuer、过期时间等 claim 是否与 Google 实际投递一致。
+- History 过期时已不推进 checkpoint，并会记录日志、通知 owner、写 mailbox 同步问题供管理员在设置/运维页查看；邮箱行“恢复同步/立即同步”会重新初始化 checkpoint。过期窗口内是否漏同步仍需人工复核，不做无边界全量扫描。
 - Gmail label/delete 同步和外部手动发送回复当前主要依赖 `providerThreadId` 匹配；`In-Reply-To/References` 支持需确认。
 - 系统内回复是先 Gmail 发送再 DB 入库，DB 失败会出现 Gmail 已发但 CRM 无记录。
 - 非 production 配置不完整时使用 mock gateway，预发环境可能误以为真实 Gmail 已接通。
@@ -1046,6 +1059,8 @@ Hunter 原始长结果
 - 产品线前端 CRUD/归档已实现。
 - 首封草稿生成会引用 account/contact/productLine/context 的基础字段。
 - 首封和发送后生成的后续 follow-up 草稿会优先使用组织默认模板组的对应 step，没有默认模板或缺少 step 时保持内置确定性模板兜底。
+- SequencePolicy 数据模型、后端 CRUD、默认策略、归档、前端管理入口和创建序列时绑定策略已实现。
+- 发送 worker 生成后续 follow-up 草稿时会读取 enrollment 绑定策略的 step 延迟和线程模式。
 - AI 不能编造价格、MOQ、交期、认证等约束在设计中已明确，但实际 AI 生成尚未完整接入。
 
 ### 当前半成品
@@ -1054,10 +1069,10 @@ Hunter 原始长结果
 - 多语言职位别名未看到完整 CRUD。
 - 产品资料库只是结构化表单，没有文件上传/PDF/表格解析。
 - 邮件生成是确定性模板拼接，不是 AI 根据模板和产品资料优化。
+- SequencePolicy 目前是基础策略配置，低风险自动发送、同公司多联系人策略的完整运行效果仍需结合真实发送流程复核和增强。
 
 ### 当前未完成
 
-- SequencePolicy 数据模型和 CRUD。
 - Persona 数据模型和平台超管维护页。
 - 多语言职位别名维护。
 - 组织复制全局模板组作为初始化种子。
@@ -1502,26 +1517,25 @@ git diff --check
 2. 读本 handoff。
 3. 执行 `git status --short`，确认当前未提交文件。
 4. 不要 revert 用户或子 Agent 改动。
-5. 如果继续实现，P0 本地可做项已完成；真实 Gmail 全链路需要外部环境。下一步优先做 P1。
+5. 如果继续实现，P0 本地代码可做项基本完成；真实 Gmail 全链路需要外部环境。下一步优先按 `docs/crm-gmail-deployment-checklist.md` 做预发验收，再排 P1 增强。
 6. 适合多 Agent 的拆分方式：
-   - Agent A：模板库 CRUD 和序列策略配置。
-   - Agent B：黑名单/退订管理页已完成分页列表和带原因审计的解除操作。
-   - Agent C：发送队列/同步日志运维薄视图已完成；完整队列历史可后续增强。
-   - Agent D：前端 auth_expired 行级重新授权和邮箱同步状态 UI。
+   - Agent A：真实 Gmail 验收执行与证据记录，不改代码。
+   - Agent B：完整队列历史、系统日志详情和失败重试运维增强。
+   - Agent C：模板初始化种子、多语言模板和 Persona 维护。
+   - Agent D：前端组件测试补强。
 7. 子 Agent 必须明确：不要提交代码，不要修改同一批文件，完成后只汇报 changed files。
 8. 主 Agent 统一集成和跑测试。
 
 ## 15. 推荐下一步任务拆分
 
-### 任务 1：Google Pub/Sub OIDC/JWT 验证
+### 任务 1：真实 Pub/Sub OIDC/JWT 预发验收
 
 目标：
 
 - 已在现有 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 基础上增加 Google Pub/Sub push 身份验证。
 - 当前实现使用 Google `tokeninfo` 端点校验 OIDC token 的 audience、service account email、email_verified、issuer 和过期时间，未新增生产依赖。
-- 优先使用成熟官方库或框架能力，不手写半安全 JWT 校验。
 - 配置 `CRM_GMAIL_PUBSUB_AUTH_AUDIENCE` 和 `CRM_GMAIL_PUBSUB_AUTH_SERVICE_ACCOUNT` 后，校验失败会拒绝 `/crm/gmail/pubsub/push`。
-- 部署清单已补 Google Cloud push auth 配置步骤。
+- 部署清单已补 Google Cloud push auth 配置步骤；下一步是在真实 Pub/Sub push subscription 下验证 secret、audience、service account 和 token claim。
 
 需要注意：
 
@@ -1539,9 +1553,10 @@ git diff --check
 
 目标：
 
-- 在现有“不推进 checkpoint + 系统日志 + owner 通知 + mailbox 可见态”基础上，补恢复操作闭环。
-- 提供明确恢复操作入口或 runbook，例如重新授权、手动同步、重新初始化 checkpoint 的受控流程。
+- 代码已提供“不推进 checkpoint + 系统日志 + owner 通知 + mailbox 可见态 + 恢复同步入口”的闭环。
+- checklist 已补 runbook：恢复同步会续订 watch 并用新 `historyId` 重新初始化 checkpoint。
 - 保留当前不自动推进 checkpoint 的安全行为。
+- 下一步是在真实 Gmail 环境验证过期窗口人工补偿流程，确认运维人员能按 runbook 处理。
 
 可能涉及文件：
 
@@ -1659,7 +1674,7 @@ AI 获客 / Hunter：
 
 最值得先补的是：
 
-1. Google Pub/Sub push OIDC/JWT 验证。
+1. 真实 Gmail 全链路和预发/生产部署演练。
 2. History expired 真实 Gmail 环境恢复验收和过期窗口人工补偿流程。
 3. Gmail 已读/未读、label change、删除/归档和外部 SENT 回复做真实 Gmail 验收；CRM 反向写 Gmail label 另列设计。
 4. webhook/history/watch/send 的运维可视化增强。
@@ -1672,3 +1687,11 @@ AI 获客 / Hunter：
 3. 模板初始化种子、多语言模板和 Persona 维护。
 4. 前端组件测试补强。
 5. 第二期 AI 回复草稿、资料解析、Hunter Finder 等。
+
+## 19. Agent E：SequencePolicy 下一阶段设计补充
+
+详见 `docs/crm-sequence-policy-next-stage-design.md`。
+
+核对结论：当前 `CrmSequencePolicy` 已具备数据模型、CRUD、默认策略、5 步延迟/线程模式、`linkPolicy`、`allowLowRiskAutoSend`、`sameCompanyContactStrategy`，并已在首封草稿创建和 follow-up 草稿生成中读取策略；但它仍是“配置和绑定层”，不是完整调度策略引擎。
+
+下一阶段建议只补策略执行层，不重写现有发送链路：新增纯函数 policy engine、轻量 sequence scheduler、待发候选查询和事务化调度 claim；现有 worker claim 继续作为最终安全边界。设计覆盖首封池/follow-up 池 40/60、同公司单日最多 2 人、第 3 封后第二联系人、暂停/继续、重复度检查、超期优先级、质量分排序和客户地区工作时间。

@@ -4,6 +4,19 @@ const MAILBOX_WATCH_EXPIRING_SOON_HOURS = 24;
 
 export type MailboxWatchStatus = 'not_started' | 'expired' | 'expiring_soon' | 'normal';
 export type OperationMessageStatus = Extract<Api.Crm.MessageStatus, 'queued' | 'failed'>;
+export type OperationLogCategory = 'webhook' | 'history' | 'watch' | 'send';
+
+interface OperationLogEvent {
+  category: OperationLogCategory;
+  action: string;
+  summary: string;
+  failureReason: string;
+  maskedEmail: string;
+  jobId: string;
+  statusLabel: string;
+  tagType: NaiveUI.ThemeColor;
+  rawTime: string | null;
+}
 
 export interface OperationQueueRow {
   id: string;
@@ -26,6 +39,21 @@ export interface OperationQueueRow {
 export interface OperationDetailItem {
   label: string;
   value: string;
+}
+
+export interface OperationLogSummaryRow {
+  category: OperationLogCategory;
+  categoryLabel: string;
+  statusLabel: string;
+  tagType: NaiveUI.ThemeColor;
+  summary: string;
+  failureReason: string;
+  time: string;
+  maskedEmail: string;
+  jobId: string;
+  action: string;
+  count: number;
+  empty: boolean;
 }
 
 export interface MailboxSyncHealthSummary {
@@ -113,6 +141,47 @@ export const operationLogStatusTagTypeMap: Record<Api.SystemLog.LogStatus, Naive
   success: 'success',
   failed: 'error'
 };
+
+export const operationLogCategoryLabelMap: Record<OperationLogCategory, string> = {
+  webhook: 'Webhook',
+  history: 'History',
+  watch: 'Watch',
+  send: 'Send'
+};
+
+export const operationLogCategoryEmptyTextMap: Record<OperationLogCategory, string> = {
+  webhook: '暂无 webhook system-log，当前仅可从 History 入队结果侧面观察',
+  history: '暂无 History 同步异常或日志',
+  watch: '暂无 Watch 续订或授权日志',
+  send: '暂无发送队列或发送 worker 日志'
+};
+
+const operationLogCategoryOrder: OperationLogCategory[] = ['webhook', 'history', 'watch', 'send'];
+
+const sensitiveMetadataKeys = new Set([
+  'apikey',
+  'api_key',
+  'authorization',
+  'authheader',
+  'access_token',
+  'accesstoken',
+  'client_secret',
+  'clientsecret',
+  'cookie',
+  'setcookie',
+  'refresh_token',
+  'refreshtoken',
+  'secret',
+  'token',
+  'password',
+  'passwordhash',
+  'passwordsalt',
+  'body',
+  'bodytext',
+  'bodyhtml',
+  'emailbody',
+  'messagebody'
+]);
 
 export const productLineStatusOptions = [
   { label: '启用', value: 'active' },
@@ -655,6 +724,56 @@ export function buildOperationLogDetailItems(row: Api.SystemLog.SystemLogRecord)
   ];
 }
 
+/** Build a four-category operations summary from existing CRM/system-log data only. */
+export function buildOperationLogSummaryRows(options: {
+  logs: Api.SystemLog.SystemLogRecord[];
+  mailboxes: Api.Crm.MailboxRecord[];
+  queueRows: OperationQueueRow[];
+}): OperationLogSummaryRow[] {
+  const events = [
+    ...options.logs.map(toOperationLogEvent).filter((event): event is OperationLogEvent => Boolean(event)),
+    ...options.mailboxes.flatMap(toMailboxHistoryEvents),
+    ...options.queueRows.map(toQueueOperationEvent)
+  ].toSorted(compareOperationLogEvents);
+
+  return operationLogCategoryOrder.map(category => {
+    const categoryEvents = events.filter(event => event.category === category);
+    const latest = categoryEvents[0];
+
+    if (!latest) {
+      return {
+        category,
+        categoryLabel: operationLogCategoryLabelMap[category],
+        statusLabel: '暂无',
+        tagType: 'default',
+        summary: operationLogCategoryEmptyTextMap[category],
+        failureReason: '-',
+        time: '-',
+        maskedEmail: '-',
+        jobId: '-',
+        action: '-',
+        count: 0,
+        empty: true
+      };
+    }
+
+    return {
+      category,
+      categoryLabel: operationLogCategoryLabelMap[category],
+      statusLabel: latest.statusLabel,
+      tagType: latest.tagType,
+      summary: latest.summary,
+      failureReason: latest.failureReason,
+      time: formatOperationDate(latest.rawTime),
+      maskedEmail: latest.maskedEmail,
+      jobId: latest.jobId,
+      action: latest.action,
+      count: categoryEvents.length,
+      empty: false
+    };
+  });
+}
+
 /** Join MOQ and lead time into one compact table cell. */
 export function formatProductLineSupply(row: Pick<Api.Crm.ProductLineRecord, 'moq' | 'leadTime'>) {
   return [row.moq, row.leadTime].filter(Boolean).join(' / ') || '-';
@@ -753,5 +872,129 @@ function compareOperationQueueRows(left: OperationQueueRow, right: OperationQueu
 }
 
 function formatOperationMetadata(metadata: Record<string, unknown> | null) {
-  return metadata ? JSON.stringify(metadata, null, 2) : '';
+  const safeMetadata = sanitizeOperationMetadata(metadata);
+
+  return safeMetadata ? JSON.stringify(safeMetadata, null, 2) : '';
+}
+
+function toOperationLogEvent(record: Api.SystemLog.SystemLogRecord): OperationLogEvent | null {
+  const category = resolveOperationLogCategory(record);
+
+  if (!category) {
+    return null;
+  }
+
+  return {
+    category,
+    action: record.action,
+    summary: record.message,
+    failureReason: resolveOperationFailureReason(record),
+    maskedEmail: getMetadataString(record.metadata, 'maskedEmail'),
+    jobId: resolveOperationJobId(record.metadata),
+    statusLabel: operationLogStatusLabelMap[record.status],
+    tagType: operationLogStatusTagTypeMap[record.status],
+    rawTime: record.createdAt
+  };
+}
+
+function toMailboxHistoryEvents(mailbox: Api.Crm.MailboxRecord): OperationLogEvent[] {
+  if (!mailbox.lastSyncIssue) {
+    return [];
+  }
+
+  return [
+    {
+      category: 'history',
+      action: mailbox.lastSyncIssue.type,
+      summary: mailbox.lastSyncIssue.message,
+      failureReason: mailbox.lastSyncIssue.message,
+      maskedEmail: mailbox.maskedEmail,
+      jobId: '-',
+      statusLabel: '失败',
+      tagType: 'error',
+      rawTime: mailbox.lastSyncIssue.happenedAt
+    }
+  ];
+}
+
+function toQueueOperationEvent(row: OperationQueueRow): OperationLogEvent {
+  return {
+    category: 'send',
+    action: `message-${row.status}`,
+    summary: `${row.accountName} / ${row.contactName}`,
+    failureReason: row.status === 'failed' ? operationMessageStatusLabelMap[row.status] : '-',
+    maskedEmail: row.mailboxLabel,
+    jobId: row.bullJobId || '-',
+    statusLabel: operationMessageStatusLabelMap[row.status],
+    tagType: operationMessageStatusTagTypeMap[row.status],
+    rawTime: row.updatedAt
+  };
+}
+
+function resolveOperationLogCategory(record: Api.SystemLog.SystemLogRecord): OperationLogCategory | null {
+  const text = `${record.action} ${record.message}`.toLowerCase();
+
+  if (text.includes('webhook') || text.includes('pubsub')) {
+    return 'webhook';
+  }
+
+  if (text.includes('history')) {
+    return 'history';
+  }
+
+  if (text.includes('watch') || text.includes('auth')) {
+    return 'watch';
+  }
+
+  if (text.includes('send') || text.includes('worker') || text.includes('job')) {
+    return 'send';
+  }
+
+  return null;
+}
+
+function resolveOperationFailureReason(record: Api.SystemLog.SystemLogRecord) {
+  if (record.errorMessage || record.errorCode) {
+    return record.errorMessage || record.errorCode || '-';
+  }
+
+  const reason = getMetadataString(record.metadata, 'reason');
+
+  if (reason !== '-') {
+    return reason;
+  }
+
+  return record.status === 'failed' ? record.message : '-';
+}
+
+function resolveOperationJobId(metadata: Record<string, unknown> | null) {
+  const jobId = getMetadataString(metadata, 'jobId');
+
+  return jobId !== '-' ? jobId : getMetadataString(metadata, 'pubsubMessageId');
+}
+
+function getMetadataString(metadata: Record<string, unknown> | null, key: string) {
+  const value = metadata?.[key];
+
+  return typeof value === 'string' && value ? value : '-';
+}
+
+function compareOperationLogEvents(left: OperationLogEvent, right: OperationLogEvent) {
+  return (right.rawTime ?? '').localeCompare(left.rawTime ?? '');
+}
+
+function sanitizeOperationMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeOperationMetadata(item));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => !sensitiveMetadataKeys.has(key.toLowerCase()))
+    .map(([key, item]) => [key, sanitizeOperationMetadata(item)]);
+
+  return Object.fromEntries(entries);
 }

@@ -64,6 +64,16 @@ export interface SequenceNextActionView {
   tagType: NaiveUI.ThemeColor;
 }
 
+export interface SequenceSendAuditSummary {
+  label: string;
+  description: string;
+  failedCheckCount: number;
+  failedMessageCount: number;
+  passedCheckCount: number;
+  tagType: NaiveUI.ThemeColor;
+  totalCheckCount: number;
+}
+
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
   return {
@@ -167,11 +177,18 @@ export function getNextScheduledReviewMessage(messages: Api.Crm.MessageRecord[])
     .sort((left, right) => left.scheduledAt!.localeCompare(right.scheduledAt!))[0];
 }
 
+/** Return failed sequence messages ordered by step for audit and retry UX. */
+export function getFailedSequenceMessages(messages: Api.Crm.MessageRecord[]) {
+  return messages
+    .filter(message => message.status === 'failed')
+    .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt));
+}
+
 /** Pick the message that best represents the row's current operational state. */
 export function getCurrentSequenceMessage(item: Api.Crm.SequenceReviewItem) {
   return (
     getPendingReviewMessage(item.messages) ??
-    item.messages.find(message => message.status === 'failed') ??
+    getFailedSequenceMessages(item.messages)[0] ??
     getNextScheduledReviewMessage(item.messages) ??
     item.messages.find(message => message.stepIndex === item.enrollment.currentStep) ??
     item.firstMessage
@@ -186,6 +203,58 @@ export function getSequenceChecklistSummary(item: Api.Crm.SequenceReviewItem) {
     failedCount,
     passedCount: item.checklist.length - failedCount,
     total: item.checklist.length
+  };
+}
+
+/** Build a compact send-audit summary for table rows and drawer panels. */
+export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): SequenceSendAuditSummary {
+  const checklist = getSequenceChecklistSummary(item);
+  const failedMessages = getFailedSequenceMessages(item.messages);
+
+  if (failedMessages.length > 0) {
+    return {
+      label: '发送失败',
+      description: `第 ${failedMessages.map(message => message.stepIndex).join('、')} 封发送失败，当前仅支持查看状态`,
+      failedCheckCount: checklist.failedCount,
+      failedMessageCount: failedMessages.length,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'error',
+      totalCheckCount: checklist.total
+    };
+  }
+
+  if (checklist.failedCount > 0) {
+    return {
+      label: `${checklist.failedCount} 项待确认`,
+      description: '发送前审核未全部通过，请先确认预警项',
+      failedCheckCount: checklist.failedCount,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'warning',
+      totalCheckCount: checklist.total
+    };
+  }
+
+  if (checklist.total > 0) {
+    return {
+      label: `${checklist.total} 项通过`,
+      description: '发送前审核已通过，可继续处理当前邮件',
+      failedCheckCount: 0,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'success',
+      totalCheckCount: checklist.total
+    };
+  }
+
+  return {
+    label: '待补充检查',
+    description: '暂无发送前审核项',
+    failedCheckCount: 0,
+    failedMessageCount: 0,
+    passedCheckCount: 0,
+    tagType: 'default',
+    totalCheckCount: 0
   };
 }
 

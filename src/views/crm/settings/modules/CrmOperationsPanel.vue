@@ -22,11 +22,13 @@ import {
   operationMessageStatusLabelMap,
   operationMessageStatusTagTypeMap,
   type OperationDetailItem,
+  type OperationLogSummaryRow,
   type OperationQueueRow
 } from './shared';
 import { useCrmOperationsPanel } from './useCrmOperationsPanel';
 
-const { isSuperAdmin, loadOperations, loading, logRows, mailboxHealth, mailboxes, queueRows } = useCrmOperationsPanel();
+const { isSuperAdmin, loadOperations, loading, logRows, mailboxHealth, mailboxes, operationSummaryRows, queueRows } =
+  useCrmOperationsPanel();
 const selectedLog = shallowRef<Api.SystemLog.SystemLogRecord | null>(null);
 const selectedQueueRow = shallowRef<OperationQueueRow | null>(null);
 const selectedMailbox = shallowRef<Api.Crm.MailboxRecord | null>(null);
@@ -157,6 +159,28 @@ function renderLogOperator(row: Api.SystemLog.SystemLogRecord) {
   return row.userName || row.userId || '-';
 }
 
+function renderOperationSummaryStatus(row: OperationLogSummaryRow) {
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h('span', { class: 'mailbox-primary-text' }, row.categoryLabel),
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: row.tagType
+      },
+      { default: () => row.statusLabel }
+    )
+  ]);
+}
+
+function renderOperationSummaryText(row: OperationLogSummaryRow) {
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h('span', { class: 'mailbox-primary-text' }, row.summary),
+    h('span', { class: 'mailbox-secondary-text' }, row.action)
+  ]);
+}
+
 const queueColumns = computed<DataTableColumns<OperationQueueRow>>(() => [
   {
     key: 'target',
@@ -225,6 +249,51 @@ const queueColumns = computed<DataTableColumns<OperationQueueRow>>(() => [
         },
         { default: () => '详情' }
       )
+  }
+]);
+
+const operationSummaryColumns = computed<DataTableColumns<OperationLogSummaryRow>>(() => [
+  {
+    key: 'category',
+    title: '类型',
+    width: 120,
+    render: row => renderOperationSummaryStatus(row)
+  },
+  {
+    key: 'summary',
+    title: '日志摘要',
+    minWidth: 240,
+    render: row => renderOperationSummaryText(row)
+  },
+  {
+    key: 'failureReason',
+    title: '失败原因',
+    minWidth: 180,
+    render: row => row.failureReason
+  },
+  {
+    key: 'maskedEmail',
+    title: '脱敏邮箱',
+    minWidth: 150,
+    render: row => row.maskedEmail
+  },
+  {
+    key: 'jobId',
+    title: 'jobId',
+    minWidth: 160,
+    render: row => row.jobId
+  },
+  {
+    key: 'time',
+    title: '时间',
+    minWidth: 170,
+    render: row => row.time
+  },
+  {
+    key: 'count',
+    title: '条数',
+    width: 80,
+    render: row => row.count
   }
 ]);
 
@@ -375,6 +444,19 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
           <NStatistic label="同步需处理" :value="mailboxHealth.syncIssues" />
         </NGi>
       </NGrid>
+
+      <NSpace vertical :size="8">
+        <NText strong>Webhook / History / Watch / Send 摘要</NText>
+        <NDataTable
+          size="small"
+          :columns="operationSummaryColumns"
+          :data="operationSummaryRows"
+          :loading="loading"
+          :pagination="false"
+          :row-key="row => row.category"
+          scroll-x="1100"
+        />
+      </NSpace>
 
       <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1 l:2">
         <NGi>

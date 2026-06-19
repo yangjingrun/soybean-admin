@@ -7,9 +7,9 @@ import {
   formatSequenceDate,
   getCurrentSequenceMessage,
   getNextScheduledReviewMessage,
-  getSequenceChecklistSummary,
   getSequenceNextAction,
   getSequenceProgressText,
+  getSequenceSendAuditSummary,
   messageStatusLabelMap,
   messageStatusTagTypeMap,
   sequenceStatusLabelMap,
@@ -91,17 +91,19 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
   },
   {
     key: 'checklist',
-    title: '检查',
-    width: 120,
+    title: '发送审核',
+    minWidth: 180,
     render: row => {
-      const summary = getSequenceChecklistSummary(row);
-      const hasWarning = summary.failedCount > 0;
+      const summary = getSequenceSendAuditSummary(row);
 
-      return h(
-        NTag,
-        { bordered: false, size: 'small', type: hasWarning ? 'warning' : 'success' },
-        { default: () => (hasWarning ? `${summary.failedCount} 项预警` : `${summary.total} 项通过`) }
-      );
+      return h('div', { class: 'sequence-cell' }, [
+        h(
+          NTag,
+          { bordered: false, size: 'small', type: summary.tagType },
+          { default: () => summary.label }
+        ),
+        h('span', { class: 'sequence-secondary-text' }, summary.description)
+      ]);
     }
   },
   {

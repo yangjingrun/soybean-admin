@@ -5,6 +5,7 @@ import {
   buildMailboxOperationDetailItems,
   buildOperationLogDetailItems,
   buildOperationQueueDetailItems,
+  buildOperationLogSummaryRows,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
   buildSequencePolicySearchParams,
@@ -279,6 +280,139 @@ describe('crm settings shared helpers', () => {
       { label: 'Metadata', value: '{\n  "mailboxId": "mailbox-1",\n  "maskedEmail": "a***@gmail.com"\n}' },
       { label: '时间', value: '2026-06-19 18:00:00' }
     ]);
+  });
+
+  it('builds webhook history watch and send operation summaries from existing data', () => {
+    const rows = buildOperationLogSummaryRows({
+      logs: [
+        createSystemLog({
+          id: 'log-webhook',
+          action: 'gmail-pubsub-webhook',
+          createdAt: '2026-06-19T09:00:00.000Z',
+          message: 'Pub/Sub push 已入队',
+          metadata: {
+            jobId: 'history-job-1',
+            maskedEmail: 'w***@gmail.com',
+            pubsubMessageId: 'pubsub-1'
+          }
+        }),
+        createSystemLog({
+          id: 'log-history',
+          action: 'gmail-history-expired',
+          createdAt: '2026-06-19T10:00:00.000Z',
+          errorMessage: 'checkpoint expired',
+          level: 'warn',
+          status: 'failed',
+          metadata: {
+            maskedEmail: 'h***@gmail.com',
+            pubsubMessageId: 'pubsub-2'
+          }
+        }),
+        createSystemLog({
+          id: 'log-watch',
+          action: 'gmail-watch-auto-renew-failed',
+          createdAt: '2026-06-19T11:00:00.000Z',
+          errorMessage: 'authorization expired',
+          level: 'warn',
+          status: 'failed',
+          metadata: {
+            maskedEmail: 'a***@gmail.com'
+          }
+        })
+      ],
+      mailboxes: [],
+      queueRows: [
+        {
+          accountName: 'Acme',
+          bullJobId: 'send-job-1',
+          contactName: 'buyer@example.com',
+          id: 'msg-failed',
+          mailboxLabel: 's***@gmail.com',
+          providerMessageId: null,
+          providerThreadId: null,
+          runVersion: 4,
+          scheduledAt: '2026-06-19T11:30:00.000Z',
+          sentAt: null,
+          status: 'failed',
+          stepIndex: 1,
+          subject: 'Private subject',
+          threadMode: 'new_subject',
+          updatedAt: '2026-06-19T12:00:00.000Z'
+        }
+      ]
+    });
+
+    assert.deepEqual(
+      rows.map(row => ({
+        category: row.category,
+        failureReason: row.failureReason,
+        jobId: row.jobId,
+        maskedEmail: row.maskedEmail,
+        summary: row.summary,
+        time: row.time
+      })),
+      [
+        {
+          category: 'webhook',
+          failureReason: '-',
+          jobId: 'history-job-1',
+          maskedEmail: 'w***@gmail.com',
+          summary: 'Pub/Sub push 已入队',
+          time: '2026-06-19 17:00:00'
+        },
+        {
+          category: 'history',
+          failureReason: 'checkpoint expired',
+          jobId: 'pubsub-2',
+          maskedEmail: 'h***@gmail.com',
+          summary: 'CRM operation',
+          time: '2026-06-19 18:00:00'
+        },
+        {
+          category: 'watch',
+          failureReason: 'authorization expired',
+          jobId: '-',
+          maskedEmail: 'a***@gmail.com',
+          summary: 'CRM operation',
+          time: '2026-06-19 19:00:00'
+        },
+        {
+          category: 'send',
+          failureReason: '发送失败',
+          jobId: 'send-job-1',
+          maskedEmail: 's***@gmail.com',
+          summary: 'Acme / buyer@example.com',
+          time: '2026-06-19 20:00:00'
+        }
+      ]
+    );
+  });
+
+  it('does not expose email body or secrets in operation log metadata details', () => {
+    const items = buildOperationLogDetailItems(
+      createSystemLog({
+        id: 'log-sensitive',
+        metadata: {
+          apiKey: 'sk-live-secret',
+          bodyText: 'Full email body',
+          maskedEmail: 'a***@gmail.com',
+          nested: {
+            refreshToken: 'refresh-secret',
+            subject: 'Visible subject'
+          },
+          token: 'access-secret'
+        }
+      })
+    );
+
+    const metadata = items.find(item => item.label === 'Metadata')?.value ?? '';
+
+    assert.equal(metadata.includes('a***@gmail.com'), true);
+    assert.equal(metadata.includes('Visible subject'), true);
+    assert.equal(metadata.includes('Full email body'), false);
+    assert.equal(metadata.includes('sk-live-secret'), false);
+    assert.equal(metadata.includes('refresh-secret'), false);
+    assert.equal(metadata.includes('access-secret'), false);
   });
 
   it('summarizes mailbox watch and sync health', () => {

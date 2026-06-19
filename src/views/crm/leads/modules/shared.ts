@@ -75,9 +75,26 @@ export const leadTimelineEventLabelMap: Record<string, string> = {
   status_changed: '状态变更',
   note_added: '备注',
   account_archived: '归档',
+  archived_fingerprint_matched: '历史触达提醒',
   customer_unsubscribed: '客户退订',
   email_bounced: '邮件退信'
 };
+
+export type ArchivedFingerprintType = 'domain' | 'email_hash';
+
+export interface ArchivedFingerprintMatch {
+  fingerprintType: ArchivedFingerprintType;
+  maskedValue: string | null;
+  archivedAt: string;
+  accountName: string | null;
+}
+
+const archivedFingerprintTypeLabelMap: Record<ArchivedFingerprintType, string> = {
+  domain: '域名',
+  email_hash: '邮箱'
+};
+
+const archivedFingerprintMatchedEventType = 'archived_fingerprint_matched';
 
 /** Create the default lead filter object for initial load and reset. */
 export function createDefaultLeadFilterModel(): Api.Crm.LeadFilterModel {
@@ -170,6 +187,32 @@ export function formatLeadText(value: string | null | undefined) {
 /** Read the timeline label from known event types, falling back to the backend title. */
 export function formatLeadTimelineTitle(event: Api.Crm.LeadTimelineEvent) {
   return event.title || leadTimelineEventLabelMap[event.eventType] || event.eventType;
+}
+
+/** Read only the backend archived-fingerprint reminder event from account timeline. */
+export function getArchivedFingerprintMatchEvents(events: Api.Crm.LeadTimelineEvent[]) {
+  return events.filter(event => event.eventType === archivedFingerprintMatchedEventType);
+}
+
+/** Read archived fingerprint metadata that is already returned on the timeline event. */
+export function readArchivedFingerprintMatches(event: Api.Crm.LeadTimelineEvent): ArchivedFingerprintMatch[] {
+  const metadata = event.metadata as { matchedFingerprints?: ArchivedFingerprintMatch[] } | null;
+
+  if (!metadata?.matchedFingerprints) {
+    return [];
+  }
+
+  return metadata.matchedFingerprints;
+}
+
+/** Format an archived fingerprint type for compact reminder chips. */
+export function formatArchivedFingerprintTypeLabel(type: ArchivedFingerprintType) {
+  return archivedFingerprintTypeLabelMap[type];
+}
+
+/** Highlight product-critical reminder events in the lead timeline. */
+export function getLeadTimelineItemType(event: Api.Crm.LeadTimelineEvent) {
+  return event.eventType === archivedFingerprintMatchedEventType ? 'warning' : 'default';
 }
 
 /** Normalize website text into a clickable href without changing displayed backend data. */

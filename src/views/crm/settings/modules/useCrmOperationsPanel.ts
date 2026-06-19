@@ -1,7 +1,12 @@
 import { computed, onMounted, shallowRef } from 'vue';
 import { fetchCrmMailboxes, fetchCrmSequenceReviewItems, fetchSystemLogs } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
-import { collectOperationQueueRows, collectRecentCrmOperationLogs, summarizeMailboxSyncHealth } from './shared';
+import {
+  buildOperationLogSummaryRows,
+  collectOperationQueueRows,
+  collectRecentCrmOperationLogs,
+  summarizeMailboxSyncHealth
+} from './shared';
 
 const OPERATIONS_PAGE_SIZE = 50;
 const OPERATION_LOG_PAGE_SIZE = 20;
@@ -19,6 +24,13 @@ export function useCrmOperationsPanel() {
   const logRows = computed(() => collectRecentCrmOperationLogs(operationLogs.value));
   const queueRows = computed(() => collectOperationQueueRows(sequenceItems.value));
   const mailboxHealth = computed(() => summarizeMailboxSyncHealth(mailboxes.value));
+  const operationSummaryRows = computed(() =>
+    buildOperationLogSummaryRows({
+      logs: operationLogs.value,
+      mailboxes: mailboxes.value,
+      queueRows: queueRows.value
+    })
+  );
 
   onMounted(() => {
     void loadOperations();
@@ -60,6 +72,7 @@ export function useCrmOperationsPanel() {
     loading,
     mailboxHealth,
     mailboxes,
+    operationSummaryRows,
     queueRows
   };
 }

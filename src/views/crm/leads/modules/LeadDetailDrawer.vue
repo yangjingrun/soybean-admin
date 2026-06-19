@@ -5,16 +5,20 @@ import type { DataTableColumns } from 'naive-ui';
 import {
   createDefaultLeadNoteForm,
   createDefaultLeadStatusForm,
+  formatArchivedFingerprintTypeLabel,
   formatLeadDate,
   formatLeadText,
   formatLeadTimelineTitle,
+  getArchivedFingerprintMatchEvents,
+  getLeadTimelineItemType,
   getWebsiteHref,
   leadEmailStatusLabelMap,
   leadEmailStatusTagTypeMap,
   leadStatusLabelMap,
   leadStatusOptions,
   leadStatusTagTypeMap,
-  leadTimelineEventLabelMap
+  leadTimelineEventLabelMap,
+  readArchivedFingerprintMatches
 } from './shared';
 
 const props = defineProps<{
@@ -49,6 +53,15 @@ const account = computed(() => props.detail?.account ?? null);
 const contacts = computed(() => props.detail?.contacts ?? []);
 const timelineEvents = computed(() => props.detail?.timelineEvents ?? []);
 const websiteHref = computed(() => (account.value?.websiteUrl ? getWebsiteHref(account.value.websiteUrl) : ''));
+const archivedMatchGroups = computed(() =>
+  getArchivedFingerprintMatchEvents(timelineEvents.value).map(event => ({
+    event,
+    matches: readArchivedFingerprintMatches(event)
+  }))
+);
+const archivedMatchCount = computed(() =>
+  archivedMatchGroups.value.reduce((total, group) => total + group.matches.length, 0)
+);
 
 /** Check whether the current contact already has an email verification request in flight. */
 function isContactVerifying(contactId: string) {
@@ -207,6 +220,36 @@ function handleSubmitStatus() {
             <span v-else class="lead-secondary-text">暂无官网</span>
           </div>
 
+          <NAlert
+            v-if="archivedMatchGroups.length"
+            type="warning"
+            title="历史触达提醒"
+            class="historical-touch-alert"
+          >
+            <NSpace vertical :size="8">
+              <div class="historical-touch-content">
+                {{ archivedMatchGroups[0].event.content || '该线索命中过往归档记录，请确认是否需要重新开发。' }}
+              </div>
+              <NTag v-if="archivedMatchCount" size="small" type="warning" :bordered="false">
+                命中 {{ archivedMatchCount }} 条组织归档指纹
+              </NTag>
+              <div v-for="group in archivedMatchGroups" :key="group.event.id" class="historical-match-list">
+                <div
+                  v-for="match in group.matches"
+                  :key="`${group.event.id}-${match.fingerprintType}-${match.maskedValue}-${match.archivedAt}`"
+                  class="historical-match-item"
+                >
+                  <NTag size="small" type="warning" :bordered="false">
+                    {{ formatArchivedFingerprintTypeLabel(match.fingerprintType) }}
+                  </NTag>
+                  <span class="historical-match-value">{{ formatLeadText(match.maskedValue) }}</span>
+                  <span class="lead-secondary-text">归档于 {{ formatLeadDate(match.archivedAt) }}</span>
+                  <span v-if="match.accountName" class="lead-secondary-text">原线索：{{ match.accountName }}</span>
+                </div>
+              </div>
+            </NSpace>
+          </NAlert>
+
           <div class="drawer-section">
             <div class="section-title">账户信息</div>
             <NDescriptions :column="1" label-placement="left" bordered size="small">
@@ -275,6 +318,7 @@ function handleSubmitStatus() {
               <NTimelineItem
                 v-for="event in timelineEvents"
                 :key="event.id"
+                :type="getLeadTimelineItemType(event)"
                 :title="formatLeadTimelineTitle(event)"
                 :content="event.content || leadTimelineEventLabelMap[event.eventType] || event.eventType"
                 :time="formatLeadDate(event.createdAt)"
@@ -326,6 +370,35 @@ function handleSubmitStatus() {
 
 .lead-summary-link:hover {
   text-decoration: underline;
+}
+
+.historical-touch-alert {
+  margin-top: -4px;
+}
+
+.historical-touch-content {
+  color: var(--n-text-color);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.historical-match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.historical-match-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.historical-match-value {
+  color: var(--n-text-color);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .section-title {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, shallowRef, watch } from 'vue';
 import { useMessage } from 'naive-ui';
+import SendAuditPanel from './SendAuditPanel.vue';
 import {
   formatNullableText,
   formatSequenceDate,
@@ -87,7 +88,7 @@ const statusTip = computed(() => {
   if (currentMessage.value.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
   if (currentMessage.value.status === 'queued') return '开发信已进入发送队列';
   if (currentMessage.value.status === 'sent') return '开发信已发送';
-  if (currentMessage.value.status === 'failed') return '发送失败，可刷新后重新处理';
+  if (currentMessage.value.status === 'failed') return '发送失败，重试操作暂未开放';
   if (currentMessage.value.status === 'skipped') return '开发信已跳过，不会继续发送';
   return '当前邮件不可发送';
 });
@@ -196,20 +197,7 @@ function handleApprove() {
             </NRadioGroup>
           </div>
 
-          <div class="drawer-section">
-            <div class="section-title">发送前检查</div>
-            <NSpace vertical :size="8">
-              <NAlert
-                v-for="check in item.checklist"
-                :key="check.key"
-                :type="check.passed ? 'success' : 'warning'"
-                :bordered="false"
-              >
-                <span class="check-label">{{ check.label }}</span>
-                <span>{{ check.message }}</span>
-              </NAlert>
-            </NSpace>
-          </div>
+          <SendAuditPanel :item="item" :current-message="currentMessage" />
 
           <div class="drawer-section">
             <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封草稿</div>
@@ -330,8 +318,4 @@ function handleApprove() {
   justify-content: flex-start;
 }
 
-.check-label {
-  margin-right: 8px;
-  font-weight: 600;
-}
 </style>
