@@ -70,6 +70,17 @@ function renderWatchStatus(row: Api.Crm.MailboxRecord) {
   ]);
 }
 
+function renderSyncCheckpoint(row: Api.Crm.MailboxRecord) {
+  if (row.lastSyncIssue) {
+    return h('div', { class: 'mailbox-stack-cell' }, [
+      h(NTag, { bordered: false, size: 'small', type: 'error' }, { default: () => '需处理' }),
+      h('span', { class: 'mailbox-secondary-text' }, row.lastSyncIssue.message)
+    ]);
+  }
+
+  return formatMailboxHistoryId(row.lastHistoryId);
+}
+
 const queueColumns = computed<DataTableColumns<OperationQueueRow>>(() => [
   {
     key: 'target',
@@ -151,7 +162,7 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
     key: 'lastHistoryId',
     title: '同步检查点',
     minWidth: 150,
-    render: row => formatMailboxHistoryId(row.lastHistoryId)
+    render: row => renderSyncCheckpoint(row)
   },
   {
     key: 'updatedAt',
@@ -169,7 +180,7 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
     </template>
 
     <NSpace vertical :size="12">
-      <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="2 s:2 m:4">
+      <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="2 s:2 m:5">
         <NGi>
           <NStatistic label="待关注消息" :value="queueRows.length" />
         </NGi>
@@ -181,6 +192,9 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
         </NGi>
         <NGi>
           <NStatistic label="Watch 待处理" :value="mailboxHealth.watchNeedsAttention" />
+        </NGi>
+        <NGi>
+          <NStatistic label="同步需处理" :value="mailboxHealth.syncIssues" />
         </NGi>
       </NGrid>
 

@@ -945,7 +945,14 @@ describe('CrmService', () => {
     const store = createStore([], {
       mailboxes: [
         createMailbox({ id: 'own-mailbox', ownerUserId: 'user-1', emailAddress: 'own@gmail.com' }),
-        createMailbox({ id: 'peer-mailbox', ownerUserId: 'user-2', emailAddress: 'peer@gmail.com' })
+        createMailbox({
+          id: 'peer-mailbox',
+          ownerUserId: 'user-2',
+          emailAddress: 'peer@gmail.com',
+          syncIssueType: 'history_expired',
+          syncIssueAt: new Date('2026-06-19T08:00:00.000Z'),
+          syncIssueMessage: 'Gmail History checkpoint 已过期，需要人工处理'
+        } as Partial<CrmMailboxRecord>)
       ]
     });
     const service = new CrmService(store);
@@ -971,6 +978,11 @@ describe('CrmService', () => {
       adminResult.records.map(record => record.id),
       ['own-mailbox', 'peer-mailbox']
     );
+    assert.deepEqual(adminResult.records[1].lastSyncIssue, {
+      type: 'history_expired',
+      message: 'Gmail History checkpoint 已过期，需要人工处理',
+      happenedAt: '2026-06-19T08:00:00.000Z'
+    });
   });
 
   it('pauses and resumes mailboxes after scoped reads with sanitized logs', async () => {
@@ -3717,6 +3729,9 @@ function createMailbox(input: Partial<TestMailbox> = {}): TestMailbox {
     encryptedRefreshToken: input.encryptedRefreshToken ?? null,
     watchExpiration: input.watchExpiration ?? null,
     lastHistoryId: input.lastHistoryId ?? null,
+    syncIssueType: input.syncIssueType ?? null,
+    syncIssueAt: input.syncIssueAt ?? null,
+    syncIssueMessage: input.syncIssueMessage ?? null,
     authorizedAt: input.authorizedAt || new Date('2026-06-18T09:00:00.000Z'),
     pausedAt: input.pausedAt ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),

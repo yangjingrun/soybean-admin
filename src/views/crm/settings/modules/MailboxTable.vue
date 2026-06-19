@@ -86,6 +86,22 @@ function renderWatchStatus(row: Api.Crm.MailboxRecord) {
 }
 
 function renderSyncCheckpoint(row: Api.Crm.MailboxRecord) {
+  if (row.lastSyncIssue) {
+    return h('div', { class: 'mailbox-stack-cell' }, [
+      h(
+        NTag,
+        {
+          bordered: false,
+          size: 'small',
+          type: 'error'
+        },
+        { default: () => '需人工处理' }
+      ),
+      h('span', { class: 'mailbox-secondary-text' }, row.lastSyncIssue.message),
+      h('span', { class: 'mailbox-secondary-text' }, `发生于 ${formatMailboxDate(row.lastSyncIssue.happenedAt)}`)
+    ]);
+  }
+
   const hasSynced = Boolean(row.lastHistoryId);
 
   return h('div', { class: 'mailbox-stack-cell' }, [

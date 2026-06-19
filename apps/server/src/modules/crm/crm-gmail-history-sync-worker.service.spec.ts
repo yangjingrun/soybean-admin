@@ -153,6 +153,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
   it('keeps the checkpoint and notifies the owner when Gmail history checkpoint expired', async () => {
     const mailbox = createMailbox({ lastHistoryId: '100' });
     const advanceCalls: CrmMailboxHistoryAdvanceInput[] = [];
+    const updateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
     const logs = createLogRecorder();
     const notifications = createNotificationRecorder();
     const service = new CrmGmailHistorySyncWorkerService(
@@ -162,6 +163,11 @@ describe('CrmGmailHistorySyncWorkerService', () => {
           advanceCalls.push(input);
 
           return { ...mailbox, lastHistoryId: input.toHistoryId };
+        },
+        async updateMailbox(id, input) {
+          updateCalls.push({ id, input });
+
+          return { ...mailbox, ...input };
         }
       }),
       {
@@ -185,6 +191,16 @@ describe('CrmGmailHistorySyncWorkerService', () => {
       skippedMessageCount: 0
     });
     assert.deepEqual(advanceCalls, []);
+    assert.deepEqual(updateCalls, [
+      {
+        id: 'mailbox-1',
+        input: {
+          syncIssueType: 'history_expired',
+          syncIssueAt: new Date('2026-06-19T08:00:00.000Z'),
+          syncIssueMessage: 'Gmail History checkpoint 已过期，需要重新授权、手动同步或联系管理员处理'
+        }
+      }
+    ]);
     assert.deepEqual(logs.records[0], {
       level: 'warn',
       status: 'failed',
@@ -496,6 +512,7 @@ function createStore(options: {
   markMailboxAuthorizationExpired?: (
     input: CrmMailboxAuthorizationExpiredInput
   ) => ReturnType<CrmStore['markMailboxAuthorizationExpired']>;
+  updateMailbox?: (id: string, input: Parameters<CrmStore['updateMailbox']>[1]) => ReturnType<CrmStore['updateMailbox']>;
   advanceMailboxHistoryId?: (input: CrmMailboxHistoryAdvanceInput) => Promise<CrmMailboxRecord | null>;
   ingestCustomerReply?: (input: Parameters<CrmStore['ingestCustomerReply']>[0]) => ReturnType<CrmStore['ingestCustomerReply']>;
 }) {
@@ -539,6 +556,9 @@ function createStore(options: {
     async advanceMailboxHistoryId(input) {
       return options.advanceMailboxHistoryId ? options.advanceMailboxHistoryId(input) : options.mailbox;
     },
+    async updateMailbox(id, input) {
+      return options.updateMailbox ? options.updateMailbox(id, input) : options.mailbox;
+    },
     async markMailboxAuthorizationExpired(input) {
       return options.markMailboxAuthorizationExpired ? options.markMailboxAuthorizationExpired(input) : null;
     },
@@ -551,6 +571,7 @@ function createStore(options: {
     | 'findSentMessageByProviderId'
     | 'findSentMessageByProviderThreadId'
     | 'markMailboxAuthorizationExpired'
+    | 'updateMailbox'
     | 'advanceMailboxHistoryId'
     | 'ingestCustomerReply'
   > as CrmStore;

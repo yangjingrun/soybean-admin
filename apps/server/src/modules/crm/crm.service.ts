@@ -2290,15 +2290,34 @@ function toTimelineEventView(record: CrmTimelineEventRecord) {
 }
 
 function toMailboxView(record: CrmMailboxRecord) {
-  const { encryptedRefreshToken: _encryptedRefreshToken, ...safeRecord } = record;
+  const {
+    encryptedRefreshToken: _encryptedRefreshToken,
+    syncIssueType: _syncIssueType,
+    syncIssueAt: _syncIssueAt,
+    syncIssueMessage: _syncIssueMessage,
+    ...safeRecord
+  } = record;
 
   return {
     ...safeRecord,
     authorizedAt: record.authorizedAt.toISOString(),
     watchExpiration: record.watchExpiration?.toISOString() ?? null,
+    lastSyncIssue: toMailboxSyncIssueView(record),
     pausedAt: record.pausedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toMailboxSyncIssueView(record: CrmMailboxRecord) {
+  if (!record.syncIssueType || !record.syncIssueAt) {
+    return null;
+  }
+
+  return {
+    type: record.syncIssueType,
+    message: record.syncIssueMessage ?? 'Gmail 同步需要人工处理',
+    happenedAt: record.syncIssueAt.toISOString()
   };
 }
 

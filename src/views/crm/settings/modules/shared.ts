@@ -22,6 +22,7 @@ export interface OperationQueueRow {
 export interface MailboxSyncHealthSummary {
   total: number;
   authExpired: number;
+  syncIssues: number;
   watchNeedsAttention: number;
   synced: number;
 }
@@ -495,10 +496,15 @@ export function summarizeMailboxSyncHealth(
         summary.synced += 1;
       }
 
+      if (record.lastSyncIssue) {
+        summary.syncIssues += 1;
+      }
+
       return summary;
     },
     {
       authExpired: 0,
+      syncIssues: 0,
       synced: 0,
       total: 0,
       watchNeedsAttention: 0

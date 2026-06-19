@@ -625,7 +625,12 @@ describe('PrismaCrmStore', () => {
         ownerUserId: 'user-1',
         lastHistoryId: '100'
       },
-      data: { lastHistoryId: '120' },
+      data: {
+        lastHistoryId: '120',
+        syncIssueType: null,
+        syncIssueAt: null,
+        syncIssueMessage: null
+      },
       limit: 1
     });
   });

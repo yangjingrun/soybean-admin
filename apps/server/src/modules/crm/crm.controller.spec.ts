@@ -999,6 +999,7 @@ function createMailboxView(overrides: Partial<CrmMailboxView> = {}) {
     warmupStage: 'new' as const,
     watchExpiration: null,
     lastHistoryId: null,
+    lastSyncIssue: null,
     authorizedAt: '2026-06-18T09:00:00.000Z',
     pausedAt: null,
     createdAt: '2026-06-18T09:00:00.000Z',

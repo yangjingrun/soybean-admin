@@ -24,6 +24,8 @@ declare namespace Api {
 
     type MailboxWarmupStage = 'new' | 'warming' | 'ready';
 
+    type MailboxSyncIssueType = 'history_expired';
+
     type ProductLineStatus = 'active' | 'archived';
 
     type EmailTemplateStatus = 'active' | 'archived';
@@ -240,10 +242,17 @@ declare namespace Api {
       warmupStage: MailboxWarmupStage;
       watchExpiration: string | null;
       lastHistoryId: string | null;
+      lastSyncIssue: MailboxSyncIssue | null;
       authorizedAt: string | null;
       pausedAt: string | null;
       createdAt: string;
       updatedAt: string;
+    }
+
+    interface MailboxSyncIssue {
+      type: MailboxSyncIssueType;
+      message: string;
+      happenedAt: string;
     }
 
     interface MailboxSearchParams extends Api.Common.CommonSearchParams {

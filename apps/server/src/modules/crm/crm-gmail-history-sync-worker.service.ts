@@ -171,7 +171,14 @@ export class CrmGmailHistorySyncWorkerService {
   }
 
   private async recordHistoryExpired(mailbox: CrmMailboxRecord, job: CrmGmailHistorySyncQueueJob) {
+    const syncIssueMessage = 'Gmail History checkpoint 已过期，需要重新授权、手动同步或联系管理员处理';
+
     await Promise.all([
+      this.store.updateMailbox(mailbox.id, {
+        syncIssueType: 'history_expired',
+        syncIssueAt: toSyncIssueDate(job.publishTime),
+        syncIssueMessage
+      }),
       this.systemLogService?.record({
         level: 'warn',
         status: 'failed',
@@ -280,4 +287,12 @@ function isHistoryIdAtOrBefore(historyId: string, lastHistoryId: string | null) 
   if (!lastHistoryId) return false;
 
   return BigInt(historyId) <= BigInt(lastHistoryId);
+}
+
+function toSyncIssueDate(value?: string | null) {
+  if (!value) return new Date();
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }

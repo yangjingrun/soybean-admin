@@ -143,9 +143,32 @@ describe('crm settings shared helpers', () => {
       ),
       {
         authExpired: 1,
+        syncIssues: 0,
         synced: 1,
         total: 3,
         watchNeedsAttention: 2
+      }
+    );
+  });
+
+  it('counts mailbox history sync issues as operation attention', () => {
+    assert.deepEqual(
+      summarizeMailboxSyncHealth([
+        createMailbox({
+          id: 'mailbox-history-expired',
+          lastSyncIssue: {
+            type: 'history_expired',
+            message: 'Gmail History checkpoint 已过期，需要人工处理',
+            happenedAt: '2026-06-19T08:00:00.000Z'
+          }
+        } as Partial<Api.Crm.MailboxRecord> & { id: string })
+      ]),
+      {
+        authExpired: 0,
+        syncIssues: 1,
+        synced: 0,
+        total: 1,
+        watchNeedsAttention: 0
       }
     );
   });

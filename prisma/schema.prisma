@@ -263,6 +263,9 @@ model CrmMailbox {
   encryptedRefreshToken String?
   watchExpiration DateTime?
   lastHistoryId   String?
+  syncIssueType   String?
+  syncIssueAt     DateTime?
+  syncIssueMessage String?
   authorizedAt    DateTime
   pausedAt        DateTime?
   createdAt       DateTime  @default(now())

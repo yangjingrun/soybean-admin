@@ -600,7 +600,10 @@ export class PrismaCrmStore implements CrmStore {
         lastHistoryId: input.fromHistoryId
       },
       data: {
-        lastHistoryId: input.toHistoryId
+        lastHistoryId: input.toHistoryId,
+        syncIssueType: null,
+        syncIssueAt: null,
+        syncIssueMessage: null
       },
       limit: 1
     });
@@ -2439,7 +2442,8 @@ function toMailboxRecord(record: CrmMailboxModel): CrmMailboxRecord {
     ...record,
     provider: record.provider as CrmMailboxRecord['provider'],
     status: record.status as CrmMailboxRecord['status'],
-    warmupStage: record.warmupStage as CrmMailboxRecord['warmupStage']
+    warmupStage: record.warmupStage as CrmMailboxRecord['warmupStage'],
+    syncIssueType: record.syncIssueType as CrmMailboxRecord['syncIssueType']
   };
 }
 

@@ -576,16 +576,28 @@ Hunter 原始长结果
 46. Gmail History expired 补偿告警
     - 修改 Gmail History sync worker：遇到 `CrmGmailHistoryExpiredError` 时不再静默推进 mailbox checkpoint。
     - 保持原 `lastHistoryId` 不动，返回 `history_expired` 跳过结果，避免把未同步历史误标为已处理。
+    - 已新增 mailbox 级同步问题字段 `syncIssueType/syncIssueAt/syncIssueMessage`，History expired 时写入 `history_expired`，成功推进 checkpoint 后自动清空。
     - 新增系统日志 `gmail-history-expired`，记录 mailbox、maskedEmail、fromHistoryId、toHistoryId、pubsubMessageId。
     - 新增站内通知 `crm_gmail_history_expired`，提醒邮箱 owner 需要重新授权、手动同步或联系管理员处理。
+    - 邮箱设置表和运维概览会展示“同步需处理”提示，组织管理员可见。
     - 已补测试：
       - `apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`
+      - `apps/server/src/modules/crm/crm.service.spec.ts`
+      - `apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
+      - `src/views/crm/settings/modules/shared.spec.ts`
     - 已通过验证：
-      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`
+      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
+      - `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`
       - `pnpm --filter @soybean/server typecheck`
     - 涉及文件：
+      - `prisma/schema.prisma`
+      - `prisma/migrations/20260619220000_add_crm_mailbox_sync_issue/migration.sql`
       - `apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`
       - `apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`
+      - `apps/server/src/modules/crm/crm.service.ts`
+      - `apps/server/src/modules/crm/store/prisma-crm.store.ts`
+      - `src/views/crm/settings/modules/MailboxTable.vue`
+      - `src/views/crm/settings/modules/CrmOperationsPanel.vue`
 
 47. 生产部署配置补齐
     - `.env.example` 补充前端 API 地址：
@@ -907,7 +919,7 @@ Hunter 原始长结果
 
 - Google Pub/Sub push OIDC/JWT 验证。
 - Gmail watch 自动续订真实环境验收和生命周期/env 开关测试补强。
-- History checkpoint expired 后的管理员可见态、人工恢复入口和更完整补偿同步。
+- History checkpoint expired 后的正式恢复操作入口、runbook 和更完整补偿同步。
 - Gmail 已读/未读双向同步完整实现和 UI。
 - Gmail label change 处理。
 - Gmail 删除/归档状态同步策略的完整测试。
@@ -918,7 +930,7 @@ Hunter 原始长结果
 ### 风险点
 
 - Pub/Sub webhook 当前先用自定义 secret 硬化，尚未实现 Google Pub/Sub push OIDC/JWT 验证。
-- History 过期时已不推进 checkpoint，并会记录日志和通知 owner；但管理员可见态、人工恢复入口和自动补偿同步仍未闭环。
+- History 过期时已不推进 checkpoint，并会记录日志、通知 owner、写 mailbox 同步问题供管理员在设置/运维页查看；但正式恢复操作入口、runbook 和自动补偿同步仍未闭环。
 - Gmail message parser 主要依赖 `providerThreadId` 匹配，`In-Reply-To/References` 支持需确认。
 - 系统内回复是先 Gmail 发送再 DB 入库，DB 失败会出现 Gmail 已发但 CRM 无记录。
 - 非 production 配置不完整时使用 mock gateway，预发环境可能误以为真实 Gmail 已接通。
@@ -1366,10 +1378,10 @@ Hunter 原始长结果
    - 后续仍可增强 Google OIDC/JWT 验证。
 
 3. Gmail History expired 补偿
-   - 状态：已完成告警型补偿，本批复核确认还缺管理员可见态和恢复入口。
+   - 状态：已完成告警型补偿和 mailbox 级管理员可见态，仍缺正式恢复操作入口和补偿同步策略。
    - 过期时不再推进 `lastHistoryId`，避免静默跳过历史回信。
-   - 已写系统日志和站内通知，提醒邮箱 owner 人工处理。
-   - 后续仍需在邮箱设置/运维页显式展示处理提示，并继续设计更完整的补偿同步策略。
+   - 已写系统日志、站内通知和 mailbox 同步问题字段，提醒邮箱 owner/管理员人工处理。
+   - 后续仍需补明确恢复操作入口或 runbook，并继续设计更完整的补偿同步策略。
 
 4. 真实 Gmail 全链路联调
    - 状态：需要外部 Google Cloud/PubSub/Gmail 真实环境，当前本地线程无法直接完成。
@@ -1522,12 +1534,11 @@ git diff --check
 - `apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts`
 - `docs/crm-gmail-deployment-checklist.md`
 
-### 任务 2：History expired 管理员可见态和恢复入口
+### 任务 2：History expired 恢复入口和补偿同步
 
 目标：
 
-- 在现有“不推进 checkpoint + 系统日志 + owner 通知”基础上，补 mailbox 级可见处理提示。
-- 管理员能在邮箱设置或运维页看到 `history_expired` 需要人工处理。
+- 在现有“不推进 checkpoint + 系统日志 + owner 通知 + mailbox 可见态”基础上，补恢复操作闭环。
 - 提供明确恢复操作入口或 runbook，例如重新授权、手动同步、重新初始化 checkpoint 的受控流程。
 - 保留当前不自动推进 checkpoint 的安全行为。
 
@@ -1648,7 +1659,7 @@ AI 获客 / Hunter：
 最值得先补的是：
 
 1. Google Pub/Sub push OIDC/JWT 验证。
-2. History expired 管理员可见态、恢复入口和补偿同步策略。
+2. History expired 恢复入口、runbook 和补偿同步策略。
 3. Gmail 已读/未读、label change、删除/归档与外部 SENT 回复验收。
 4. webhook/history/watch/send 的运维可视化增强。
 5. 真实 Gmail 全链路和预发/生产部署演练。

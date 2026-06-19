@@ -31,6 +31,7 @@ export type CrmEmailVerificationReason =
 
 export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
+export const crmMailboxSyncIssueTypes = ['history_expired'] as const;
 export const crmProductLineStatuses = ['active', 'archived'] as const;
 export const crmEmailTemplateStatuses = ['active', 'archived'] as const;
 export const crmSequenceEnrollmentStatuses = [
@@ -51,6 +52,7 @@ export type CrmMailboxProvider = 'gmail';
 export type CrmArchivedFingerprintType = 'domain' | 'email_hash';
 export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
 export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
+export type CrmMailboxSyncIssueType = (typeof crmMailboxSyncIssueTypes)[number];
 export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
 export type CrmEmailTemplateStatus = (typeof crmEmailTemplateStatuses)[number];
 export type CrmSequenceEnrollmentStatus = (typeof crmSequenceEnrollmentStatuses)[number];
@@ -261,6 +263,9 @@ export interface CrmMailboxRecord {
   encryptedRefreshToken: string | null;
   watchExpiration: Date | null;
   lastHistoryId: string | null;
+  syncIssueType?: CrmMailboxSyncIssueType | null;
+  syncIssueAt?: Date | null;
+  syncIssueMessage?: string | null;
   authorizedAt: Date;
   pausedAt: Date | null;
   createdAt: Date;
@@ -486,6 +491,9 @@ export interface CrmMailboxCreateInput {
   encryptedRefreshToken?: string | null;
   watchExpiration?: Date | null;
   lastHistoryId?: string | null;
+  syncIssueType?: CrmMailboxSyncIssueType | null;
+  syncIssueAt?: Date | null;
+  syncIssueMessage?: string | null;
   authorizedAt: Date;
   pausedAt?: Date | null;
 }
@@ -498,6 +506,9 @@ export interface CrmMailboxUpdateInput {
   encryptedRefreshToken?: string | null;
   watchExpiration?: Date | null;
   lastHistoryId?: string | null;
+  syncIssueType?: CrmMailboxSyncIssueType | null;
+  syncIssueAt?: Date | null;
+  syncIssueMessage?: string | null;
   authorizedAt?: Date;
   pausedAt?: Date | null;
 }
