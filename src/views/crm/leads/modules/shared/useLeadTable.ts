@@ -6,10 +6,11 @@ import {
   createCrmAccountNote,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
+  importCrmLead,
   updateCrmAccountStatus,
   verifyCrmContactEmail
 } from '@/service/api';
-import { buildLeadSearchParams, createDefaultLeadFilterModel } from '../shared';
+import { buildLeadSearchParams, createDefaultLeadFilterModel, createDefaultLeadImportForm } from '../shared';
 
 /** Manage CRM lead list request state, pagination and current-page derived stats. */
 export function useLeadTable() {
@@ -20,6 +21,8 @@ export function useLeadTable() {
   const loading = shallowRef(false);
   const detailVisible = shallowRef(false);
   const detailLoading = shallowRef(false);
+  const importVisible = shallowRef(false);
+  const importSubmitting = shallowRef(false);
   const leadDetail = shallowRef<Api.Crm.LeadDetail | null>(null);
   const selectedLeadId = shallowRef<string | null>(null);
   const noteSubmitting = shallowRef(false);
@@ -36,6 +39,7 @@ export function useLeadTable() {
   });
 
   const filterModel = reactive<Api.Crm.LeadFilterModel>(createDefaultLeadFilterModel());
+  const importForm = reactive<Api.Crm.LeadImportFormModel>(createDefaultLeadImportForm());
 
   onMounted(() => {
     void loadLeads();
@@ -121,6 +125,36 @@ export function useLeadTable() {
       leadDetail.value = null;
       detailLoading.value = false;
       latestDetailRequestId += 1;
+    }
+  }
+
+  function openImportModal() {
+    Object.assign(importForm, createDefaultLeadImportForm());
+    importVisible.value = true;
+  }
+
+  function handleImportVisibleUpdate(show: boolean) {
+    importVisible.value = show;
+  }
+
+  /** Import one manually entered CRM lead, then refresh and open the new detail drawer. */
+  async function handleImportLead(payload: Api.Crm.LeadImportPayload) {
+    importSubmitting.value = true;
+
+    try {
+      const { data, error } = await importCrmLead(payload);
+
+      if (error) {
+        return;
+      }
+
+      message.success(data.contact ? '线索和联系人已导入' : '线索已导入');
+      importVisible.value = false;
+      pagination.current = 1;
+      await loadLeads();
+      openLeadDetail(data.account);
+    } finally {
+      importSubmitting.value = false;
     }
   }
 
@@ -287,6 +321,8 @@ export function useLeadTable() {
     detailVisible,
     filterModel,
     handleArchiveLead,
+    handleImportLead,
+    handleImportVisibleUpdate,
     handleCreateSequenceFromContact,
     handleCreateNote,
     handleDetailVisibleUpdate,
@@ -296,6 +332,9 @@ export function useLeadTable() {
     handleSearch,
     handleUpdateStatus,
     handleVerifyContactEmail,
+    importForm,
+    importSubmitting,
+    importVisible,
     leadDetail,
     loadLeads,
     loadLeadDetail,
@@ -304,6 +343,7 @@ export function useLeadTable() {
     pagination,
     records,
     openLeadDetail,
+    openImportModal,
     statusSubmitting,
     verifyingContactIds
   };

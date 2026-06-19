@@ -105,6 +105,30 @@ declare namespace Api {
       status: CrmAccountStatus | null;
     }
 
+    interface LeadImportContactPayload {
+      fullName?: string;
+      title?: string;
+      email?: string;
+    }
+
+    interface LeadImportPayload {
+      name: string;
+      websiteUrl?: string;
+      country?: string;
+      customerType?: string;
+      contact?: LeadImportContactPayload;
+    }
+
+    interface LeadImportFormModel {
+      name: string;
+      websiteUrl: string;
+      country: string;
+      customerType: string;
+      contactFullName: string;
+      contactTitle: string;
+      contactEmail: string;
+    }
+
     interface LeadStatusPayload {
       status: CrmAccountStatus;
       remark?: string;
@@ -149,6 +173,11 @@ declare namespace Api {
     interface LeadArchiveResult {
       account: LeadRecord;
       event: LeadTimelineEvent;
+    }
+
+    interface LeadImportResult {
+      account: LeadRecord;
+      contact: LeadContact | null;
     }
 
     type LeadList = Api.Common.PaginatingQueryRecord<LeadRecord>;

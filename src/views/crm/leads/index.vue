@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import FilterPanel from './modules/FilterPanel.vue';
 import LeadDetailDrawer from './modules/LeadDetailDrawer.vue';
+import LeadImportModal from './modules/LeadImportModal.vue';
 import LeadStats from './modules/LeadStats.vue';
 import LeadTable from './modules/LeadTable.vue';
 import { useLeadTable } from './modules/shared/useLeadTable';
@@ -14,16 +15,22 @@ const {
   handleCreateSequenceFromContact,
   handleCreateNote,
   handleDetailVisibleUpdate,
+  handleImportLead,
+  handleImportVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
   handleReset,
   handleSearch,
   handleUpdateStatus,
   handleVerifyContactEmail,
+  importForm,
+  importSubmitting,
+  importVisible,
   leadDetail,
   loadLeadDetail,
   loading,
   noteSubmitting,
+  openImportModal,
   openLeadDetail,
   pagination,
   records,
@@ -34,6 +41,10 @@ const {
 
 <template>
   <NSpace vertical :size="12">
+    <div class="lead-page-actions">
+      <NButton type="primary" @click="openImportModal">新增线索</NButton>
+    </div>
+
     <FilterPanel v-model="filterModel" :loading="loading" @search="handleSearch" @reset="handleReset" />
 
     <LeadStats :records="records" :total="pagination.total" />
@@ -66,5 +77,20 @@ const {
       @submit-status="handleUpdateStatus"
       @verify-contact-email="handleVerifyContactEmail"
     />
+
+    <LeadImportModal
+      v-model:visible="importVisible"
+      v-model="importForm"
+      :submitting="importSubmitting"
+      @update:visible="handleImportVisibleUpdate"
+      @submit="handleImportLead"
+    />
   </NSpace>
 </template>
+
+<style scoped>
+.lead-page-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

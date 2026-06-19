@@ -615,6 +615,24 @@ Hunter 原始长结果
       - `src/views/crm/settings/modules/MailboxManager.vue`
       - `src/views/crm/settings/modules/MailboxTable.vue`
 
+49. 手动新增/导入 CRM 线索入口
+    - 线索库新增“新增线索”入口，打开手动导入弹窗。
+    - 弹窗支持录入公司名称、官网、国家/地区、客户类型和一个联系人。
+    - 前端复用既有 `/crm/accounts/import-lead` 后端接口；导入成功后刷新列表并打开新线索详情。
+    - payload 会 trim 表单字段；联系人字段为空时不传 `contact`，避免创建空联系人。
+    - 已通过验证：
+      - `pnpm typecheck`
+      - `pnpm exec tsx --test src/views/crm/leads/modules/shared.spec.ts`
+      - `pnpm exec oxlint src/views/crm/leads/index.vue src/views/crm/leads/modules/LeadImportModal.vue src/views/crm/leads/modules/shared/useLeadTable.ts src/views/crm/leads/modules/shared.ts src/service/api/crm.ts src/typings/api/crm.d.ts`
+    - 涉及文件：
+      - `src/service/api/crm.ts`
+      - `src/typings/api/crm.d.ts`
+      - `src/views/crm/leads/index.vue`
+      - `src/views/crm/leads/modules/LeadImportModal.vue`
+      - `src/views/crm/leads/modules/shared.ts`
+      - `src/views/crm/leads/modules/shared.spec.ts`
+      - `src/views/crm/leads/modules/shared/useLeadTable.ts`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -1257,7 +1275,7 @@ Hunter 原始长结果
 - 黑名单/退订管理页。
 - 发送队列/同步日志运维页。
 - auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。
-- 手动新增/导入 CRM 线索入口。
+- 手动新增/导入 CRM 线索入口已完成。
 - 归档恢复和自动瘦身任务。
 - 前端组件测试。
 

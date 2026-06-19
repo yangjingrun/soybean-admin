@@ -9,6 +9,15 @@ export function fetchCrmAccounts(params: Api.Crm.LeadSearchParams) {
   });
 }
 
+/** Manually import one CRM lead into the current user's private lead library. */
+export function importCrmLead(data: Api.Crm.LeadImportPayload) {
+  return request<Api.Crm.LeadImportResult>({
+    url: '/crm/accounts/import-lead',
+    method: 'post',
+    data
+  });
+}
+
 /** Get one CRM account with contacts and timeline events. */
 export function fetchCrmAccountDetail(id: string) {
   return request<Api.Crm.LeadDetail>({

@@ -87,6 +87,19 @@ export function createDefaultLeadFilterModel(): Api.Crm.LeadFilterModel {
   };
 }
 
+/** Create the default manual lead import form model. */
+export function createDefaultLeadImportForm(): Api.Crm.LeadImportFormModel {
+  return {
+    name: '',
+    websiteUrl: '',
+    country: '',
+    customerType: '',
+    contactFullName: '',
+    contactTitle: '',
+    contactEmail: ''
+  };
+}
+
 /** Create a status form model from the current backend status. */
 export function createDefaultLeadStatusForm(status?: Api.Crm.CrmAccountStatus) {
   return {
@@ -99,6 +112,24 @@ export function createDefaultLeadStatusForm(status?: Api.Crm.CrmAccountStatus) {
 export function createDefaultLeadNoteForm() {
   return {
     content: ''
+  };
+}
+
+/** Convert the manual lead form into the backend import payload. */
+export function normalizeLeadImportPayload(formModel: Api.Crm.LeadImportFormModel): Api.Crm.LeadImportPayload {
+  const contact = {
+    fullName: formModel.contactFullName.trim(),
+    title: formModel.contactTitle.trim(),
+    email: formModel.contactEmail.trim()
+  };
+  const hasContact = Boolean(contact.fullName || contact.title || contact.email);
+
+  return {
+    name: formModel.name.trim(),
+    websiteUrl: formModel.websiteUrl.trim(),
+    country: formModel.country.trim(),
+    customerType: formModel.customerType.trim(),
+    ...(hasContact ? { contact } : {})
   };
 }
 
