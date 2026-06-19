@@ -1,3 +1,5 @@
+import type { CrmFollowUpDelayDays } from './crm-global-config';
+
 export type OrganizationRole = 'member' | 'admin';
 
 export const crmAccountStatuses = [
@@ -139,11 +141,13 @@ export interface CrmEmailVerificationCacheUpsertInput {
 export interface CrmGlobalConfigRecord {
   configKey: string;
   emailVerificationCooldownDays: number;
+  followUpDelayDays: CrmFollowUpDelayDays;
   updatedAt: Date;
 }
 
 export interface CrmGlobalConfigInput {
   emailVerificationCooldownDays: number;
+  followUpDelayDays?: CrmFollowUpDelayDays;
   updatedById?: string | null;
   updatedByName?: string | null;
 }

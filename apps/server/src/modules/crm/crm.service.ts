@@ -500,15 +500,23 @@ export class CrmService {
   }
 
   /** Saves platform-wide CRM settings maintained by super administrators. */
-  async saveGlobalConfig(input: { emailVerificationCooldownDays: number }, context: CrmUserContext) {
+  async saveGlobalConfig(
+    input: {
+      emailVerificationCooldownDays: number;
+      followUpDelayDays?: CrmGlobalConfigRecord['followUpDelayDays'];
+    },
+    context: CrmUserContext
+  ) {
     const record = await this.store.saveGlobalConfig({
       emailVerificationCooldownDays: input.emailVerificationCooldownDays,
+      followUpDelayDays: input.followUpDelayDays,
       updatedById: context.userId,
       updatedByName: context.userName
     });
 
     await this.recordCrmLog('save-global-config', 'CRM 全局配置已保存', context, {
-      emailVerificationCooldownDays: record.emailVerificationCooldownDays
+      emailVerificationCooldownDays: record.emailVerificationCooldownDays,
+      followUpDelayDays: record.followUpDelayDays
     });
 
     return toGlobalConfigView(record);
@@ -820,7 +828,9 @@ export class CrmService {
   }
 
   /** Returns the read-only default template and persona rules used by first-draft generation. */
-  getTemplateDefaults(_context: CrmUserContext) {
+  async getTemplateDefaults(_context: CrmUserContext) {
+    const globalConfig = await this.store.getGlobalConfig();
+
     return {
       templateGroup: {
         id: 'global-first-touch',
@@ -828,7 +838,10 @@ export class CrmService {
         scope: 'global' as const,
         language: 'en',
         variables: defaultTemplateVariables.map(variable => ({ ...variable })),
-        steps: defaultTemplateSteps.map(step => ({ ...step }))
+        steps: defaultTemplateSteps.map(step => ({
+          ...step,
+          delayDays: getTemplateStepDelayDays(step.stepIndex, globalConfig.followUpDelayDays)
+        }))
       },
       personas: personaProfiles.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
     };
@@ -2526,6 +2539,21 @@ function normalizeRequiredString(value: string, emptyMessage: string) {
   }
 
   return normalized;
+}
+
+function getTemplateStepDelayDays(stepIndex: number, followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']) {
+  if (stepIndex === initialDraftStepIndex) {
+    return 0;
+  }
+
+  const delayDaysByStep = new Map([
+    [2, followUpDelayDays.step2Days],
+    [3, followUpDelayDays.step3Days],
+    [4, followUpDelayDays.step4Days],
+    [5, followUpDelayDays.step5Days]
+  ]);
+
+  return delayDaysByStep.get(stepIndex) ?? 0;
 }
 
 /** Builds a conservative first-touch draft from verified CRM fields only. */

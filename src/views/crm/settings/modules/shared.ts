@@ -102,7 +102,18 @@ export const blacklistReasonLabelMap: Record<Api.Crm.BlacklistRecord['reason'], 
 /** Create the default platform-wide CRM config form. */
 export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
   return {
-    emailVerificationCooldownDays: 30
+    emailVerificationCooldownDays: 30,
+    followUpDelayDays: createDefaultFollowUpDelayDays()
+  };
+}
+
+/** Create the default sequence follow-up delay policy in days for steps 2-5. */
+export function createDefaultFollowUpDelayDays(): Api.Crm.FollowUpDelayDays {
+  return {
+    step2Days: 3,
+    step3Days: 7,
+    step4Days: 14,
+    step5Days: 21
   };
 }
 
@@ -248,6 +259,11 @@ export function normalizeProductLinePayload(formModel: Api.Crm.ProductLineFormMo
 /** Check whether the platform email verification cache cooldown can be saved. */
 export function isValidEmailVerificationCooldownDays(value: number | null): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 365;
+}
+
+/** Check whether all follow-up delay days can be saved. */
+export function isValidFollowUpDelayDays(value: Api.Crm.FollowUpDelayDays) {
+  return Object.values(value).every(day => Number.isInteger(day) && day >= 1 && day <= 90);
 }
 
 /** Format nullable backend ISO datetime for mailbox table display. */

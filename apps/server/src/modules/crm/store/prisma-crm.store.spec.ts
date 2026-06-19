@@ -141,10 +141,13 @@ describe('PrismaCrmStore', () => {
     });
 
     assert.equal(current.emailVerificationCooldownDays, 30);
+    assert.deepEqual(current.followUpDelayDays, { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 });
     assert.equal(saved.emailVerificationCooldownDays, 45);
+    assert.deepEqual(saved.followUpDelayDays, { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 });
     assert.deepEqual(prisma.crmGlobalConfig.findUniqueCalls[0].where, { configKey: 'default' });
     assert.deepEqual(prisma.crmGlobalConfig.upsertCalls[0].where, { configKey: 'default' });
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.emailVerificationCooldownDays, 45);
+    assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.followUpDelayDaysText, '3,7,14,21');
   });
 
   it('finds organization blacklist entries by organization and email hash', async () => {
@@ -1816,6 +1819,7 @@ function createPrisma(
           id: 'crm-global-config-1',
           configKey: 'default',
           emailVerificationCooldownDays: args.update.emailVerificationCooldownDays ?? 30,
+          followUpDelayDaysText: args.update.followUpDelayDaysText ?? '3,7,14,21',
           updatedById: args.update.updatedById ?? null,
           updatedByName: args.update.updatedByName ?? null,
           createdAt: new Date('2026-06-18T09:00:00.000Z'),

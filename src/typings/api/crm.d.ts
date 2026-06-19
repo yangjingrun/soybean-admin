@@ -159,15 +159,25 @@ declare namespace Api {
     interface GlobalConfig {
       configKey: string;
       emailVerificationCooldownDays: number;
+      followUpDelayDays: FollowUpDelayDays;
       updatedAt: string;
+    }
+
+    interface FollowUpDelayDays {
+      step2Days: number;
+      step3Days: number;
+      step4Days: number;
+      step5Days: number;
     }
 
     interface SaveGlobalConfigPayload {
       emailVerificationCooldownDays: number;
+      followUpDelayDays: FollowUpDelayDays;
     }
 
     interface GlobalConfigFormModel {
       emailVerificationCooldownDays: number | null;
+      followUpDelayDays: FollowUpDelayDays;
     }
 
     interface BlacklistRecord {

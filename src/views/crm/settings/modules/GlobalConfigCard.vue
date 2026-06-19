@@ -4,7 +4,11 @@ import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { fetchCrmGlobalConfig, saveCrmGlobalConfig } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
-import { createDefaultGlobalConfigForm, isValidEmailVerificationCooldownDays } from './shared';
+import {
+  createDefaultGlobalConfigForm,
+  isValidEmailVerificationCooldownDays,
+  isValidFollowUpDelayDays
+} from './shared';
 
 const message = useMessage();
 const authStore = useAuthStore();
@@ -16,7 +20,10 @@ const updatedAt = shallowRef<string | null>(null);
 
 const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
 const canSave = computed(
-  () => isSuperAdmin.value && isValidEmailVerificationCooldownDays(formModel.emailVerificationCooldownDays)
+  () =>
+    isSuperAdmin.value &&
+    isValidEmailVerificationCooldownDays(formModel.emailVerificationCooldownDays) &&
+    isValidFollowUpDelayDays(formModel.followUpDelayDays)
 );
 const formattedUpdatedAt = computed(() => {
   if (!updatedAt.value || dayjs(updatedAt.value).valueOf() <= 0) {
@@ -48,6 +55,7 @@ async function loadGlobalConfig(showMessage = true) {
     }
 
     formModel.emailVerificationCooldownDays = data.emailVerificationCooldownDays;
+    formModel.followUpDelayDays = { ...data.followUpDelayDays };
     updatedAt.value = data.updatedAt;
 
     if (showMessage) {
@@ -67,11 +75,17 @@ async function saveGlobalConfig() {
     return;
   }
 
+  if (!isValidFollowUpDelayDays(formModel.followUpDelayDays)) {
+    message.warning('请输入 1-90 的跟进间隔天数');
+    return;
+  }
+
   saving.value = true;
 
   try {
     const { data, error } = await saveCrmGlobalConfig({
-      emailVerificationCooldownDays
+      emailVerificationCooldownDays,
+      followUpDelayDays: formModel.followUpDelayDays
     });
 
     if (error) {
@@ -79,6 +93,7 @@ async function saveGlobalConfig() {
     }
 
     formModel.emailVerificationCooldownDays = data.emailVerificationCooldownDays;
+    formModel.followUpDelayDays = { ...data.followUpDelayDays };
     updatedAt.value = data.updatedAt;
     message.success('CRM 全局配置已保存');
   } finally {
@@ -88,7 +103,7 @@ async function saveGlobalConfig() {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="邮箱验证冷却期">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="CRM 全局配置">
     <NSpace vertical :size="12">
       <NAlert type="info" :bordered="false">
         邮箱验证结果是全平台共享缓存。冷却期内同一 email 不会重复做 DNS / MX 等验证，不属于某个组织的私有配置。
@@ -100,17 +115,77 @@ async function saveGlobalConfig() {
 
       <template v-else>
         <NForm :model="formModel" label-placement="top" size="small">
-          <NFormItem label="冷却天数">
-            <NInputNumber
-              v-model:value="formModel.emailVerificationCooldownDays"
-              :min="1"
-              :max="365"
-              :precision="0"
-              class="cooldown-days-input"
-            >
-              <template #suffix>天</template>
-            </NInputNumber>
-          </NFormItem>
+          <NGrid responsive="screen" :x-gap="12" :y-gap="4" cols="1 s:2 m:5">
+            <NGi>
+              <NFormItem label="验证冷却">
+                <NInputNumber
+                  v-model:value="formModel.emailVerificationCooldownDays"
+                  :min="1"
+                  :max="365"
+                  :precision="0"
+                  class="config-number-input"
+                >
+                  <template #suffix>天</template>
+                </NInputNumber>
+              </NFormItem>
+            </NGi>
+
+            <NGi>
+              <NFormItem label="第 2 封">
+                <NInputNumber
+                  v-model:value="formModel.followUpDelayDays.step2Days"
+                  :min="1"
+                  :max="90"
+                  :precision="0"
+                  class="config-number-input"
+                >
+                  <template #suffix>天后</template>
+                </NInputNumber>
+              </NFormItem>
+            </NGi>
+
+            <NGi>
+              <NFormItem label="第 3 封">
+                <NInputNumber
+                  v-model:value="formModel.followUpDelayDays.step3Days"
+                  :min="1"
+                  :max="90"
+                  :precision="0"
+                  class="config-number-input"
+                >
+                  <template #suffix>天后</template>
+                </NInputNumber>
+              </NFormItem>
+            </NGi>
+
+            <NGi>
+              <NFormItem label="第 4 封">
+                <NInputNumber
+                  v-model:value="formModel.followUpDelayDays.step4Days"
+                  :min="1"
+                  :max="90"
+                  :precision="0"
+                  class="config-number-input"
+                >
+                  <template #suffix>天后</template>
+                </NInputNumber>
+              </NFormItem>
+            </NGi>
+
+            <NGi>
+              <NFormItem label="第 5 封">
+                <NInputNumber
+                  v-model:value="formModel.followUpDelayDays.step5Days"
+                  :min="1"
+                  :max="90"
+                  :precision="0"
+                  class="config-number-input"
+                >
+                  <template #suffix>天后</template>
+                </NInputNumber>
+              </NFormItem>
+            </NGi>
+          </NGrid>
         </NForm>
 
         <div class="global-config-footer">
@@ -128,8 +203,8 @@ async function saveGlobalConfig() {
 </template>
 
 <style scoped>
-.cooldown-days-input {
-  width: 180px;
+.config-number-input {
+  width: 100%;
 }
 
 .global-config-footer {

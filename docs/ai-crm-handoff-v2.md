@@ -678,6 +678,33 @@ Hunter 原始长结果
       - `src/views/crm/settings/modules/shared.spec.ts`
       - `src/views/crm/settings/modules/useCrmOperationsPanel.ts`
 
+52. 序列策略配置和后续 follow-up 延迟策略
+    - `CrmGlobalConfig` 新增 `followUpDelayDaysText`，迁移默认值为 `3,7,14,21`。
+    - 超管可在 CRM 全局配置中调整第 2/3/4/5 封 follow-up 延迟天数，范围 1-90 天。
+    - 后端读取配置后返回结构化 `followUpDelayDays`，默认模板只读接口也会展示当前策略延迟。
+    - 发送 worker 生成下一封 follow-up 草稿时读取全局配置，不再使用硬编码延迟 map。
+    - 当前完成的是全局序列延迟策略；完整模板库 CRUD、每组织/每序列独立策略仍属于后续增强。
+    - 已通过验证：
+      - `pnpm exec prisma generate`
+      - `pnpm --filter @soybean/server typecheck`
+      - `pnpm typecheck`
+      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`
+      - `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`
+      - `pnpm exec oxlint apps/server/src/modules/crm/crm-global-config.ts apps/server/src/modules/crm/crm-send-worker.service.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts apps/server/src/modules/crm/crm.service.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/dto/save-crm-global-config.dto.ts src/views/crm/settings/modules/GlobalConfigCard.vue src/views/crm/settings/modules/shared.ts src/views/crm/settings/modules/shared.spec.ts src/typings/api/crm.d.ts`
+      - `pnpm exec eslint --max-warnings=0 .`
+    - 涉及文件：
+      - `prisma/schema.prisma`
+      - `prisma/migrations/20260619213000_add_crm_sequence_policy_config/migration.sql`
+      - `apps/server/src/modules/crm/crm-global-config.ts`
+      - `apps/server/src/modules/crm/crm-send-worker.service.ts`
+      - `apps/server/src/modules/crm/crm.service.ts`
+      - `apps/server/src/modules/crm/crm.types.ts`
+      - `apps/server/src/modules/crm/dto/save-crm-global-config.dto.ts`
+      - `apps/server/src/modules/crm/store/prisma-crm.store.ts`
+      - `src/typings/api/crm.d.ts`
+      - `src/views/crm/settings/modules/GlobalConfigCard.vue`
+      - `src/views/crm/settings/modules/shared.ts`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -721,6 +748,7 @@ Hunter 原始长结果
 - CRM 配置支持 Gmail 授权、OAuth 回调、邮箱列表、暂停/恢复、续订 watch、立即同步、产品线 CRUD、默认模板只读展示、全局邮箱验证冷却期配置。
 - CRM 配置支持退订黑名单只读分页管理。
 - CRM 配置支持发送队列和 Gmail 同步/续订只读运维概览。
+- CRM 全局配置支持第 2-5 封 follow-up 延迟策略，发送 worker 按配置生成下一封草稿。
 - AI 设置页支持模型、Serper、Hunter 配置。
 
 ## 5. 第一期 1A 对照：组织体系 + CRM 线索库
@@ -1316,8 +1344,8 @@ Hunter 原始长结果
 ### P1：第一版体验补强
 
 - 模板库 CRUD。
-- 序列策略配置。
-- 后续 follow-up 自动策略。
+- 序列策略配置已完成全局 follow-up 延迟策略；每组织/每序列策略仍可后续增强。
+- 后续 follow-up 自动策略已按全局延迟配置接入 worker。
 - 黑名单/退订管理页已完成只读列表；解除黑名单需后续结合审计和权限设计。
 - 发送队列/同步日志运维页已完成薄视图；完整队列历史和系统日志详情可后续增强。
 - auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。

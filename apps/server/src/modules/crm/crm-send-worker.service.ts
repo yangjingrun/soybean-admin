@@ -4,6 +4,7 @@ import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_STORE } from './crm.tokens';
 import type {
   CrmEmailSendGateway,
+  CrmGlobalConfigRecord,
   CrmMailboxRecord,
   CrmSendDeliveryClaimRecord,
   CrmSendQueueJob,
@@ -11,12 +12,6 @@ import type {
 } from './crm.types';
 
 const oneDayMs = 24 * 60 * 60 * 1000;
-const followUpDelayMsByStep = new Map([
-  [2, 3 * oneDayMs],
-  [3, 7 * oneDayMs],
-  [4, 14 * oneDayMs],
-  [5, 21 * oneDayMs]
-]);
 
 @Injectable()
 export class CrmSendWorkerService {
@@ -48,6 +43,7 @@ export class CrmSendWorkerService {
         mailbox: item.mailbox
       });
       const sentAt = new Date();
+      const globalConfig = await this.store.getGlobalConfig();
       await this.store.completeFirstMessageSend({
         enrollmentId: job.enrollmentId,
         messageId: job.messageId,
@@ -57,7 +53,7 @@ export class CrmSendWorkerService {
         sentAt,
         providerMessageId: sent.providerMessageId ?? null,
         providerThreadId: sent.providerThreadId ?? null,
-        nextMessage: buildNextFollowUpDraft(item, sent.providerThreadId ?? null, sentAt)
+        nextMessage: buildNextFollowUpDraft(item, sent.providerThreadId ?? null, sentAt, globalConfig.followUpDelayDays)
       });
     } catch (error) {
       if (error instanceof CrmGmailAuthorizationExpiredError) {
@@ -117,7 +113,8 @@ export class CrmSendWorkerService {
 function buildNextFollowUpDraft(
   item: CrmSendDeliveryClaimRecord,
   providerThreadId: string | null,
-  sentAt: Date
+  sentAt: Date,
+  followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']
 ): Parameters<CrmStore['completeFirstMessageSend']>[0]['nextMessage'] {
   const nextStepIndex = item.firstMessage.stepIndex + 1;
 
@@ -125,7 +122,7 @@ function buildNextFollowUpDraft(
     return null;
   }
 
-  const delayMs = followUpDelayMsByStep.get(nextStepIndex);
+  const delayMs = getFollowUpDelayMs(nextStepIndex, followUpDelayDays);
 
   if (!delayMs) {
     return null;
@@ -148,4 +145,16 @@ function buildNextFollowUpDraft(
     scheduledAt: new Date(sentAt.getTime() + delayMs),
     providerThreadId
   };
+}
+
+function getFollowUpDelayMs(stepIndex: number, followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']) {
+  const delayDaysByStep = new Map([
+    [2, followUpDelayDays.step2Days],
+    [3, followUpDelayDays.step3Days],
+    [4, followUpDelayDays.step4Days],
+    [5, followUpDelayDays.step5Days]
+  ]);
+  const delayDays = delayDaysByStep.get(stepIndex);
+
+  return delayDays ? delayDays * oneDayMs : null;
 }

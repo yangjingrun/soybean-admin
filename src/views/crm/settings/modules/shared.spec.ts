@@ -5,16 +5,37 @@ import {
   buildBlacklistSearchParams,
   collectOperationQueueRows,
   createDefaultBlacklistFilterModel,
+  createDefaultFollowUpDelayDays,
   createDefaultGlobalConfigForm,
   isValidEmailVerificationCooldownDays,
+  isValidFollowUpDelayDays,
   summarizeMailboxSyncHealth
 } from './shared';
 
 describe('crm settings shared helpers', () => {
   it('creates the platform global config form with the documented cooldown default', () => {
     assert.deepEqual(createDefaultGlobalConfigForm(), {
-      emailVerificationCooldownDays: 30
+      emailVerificationCooldownDays: 30,
+      followUpDelayDays: {
+        step2Days: 3,
+        step3Days: 7,
+        step4Days: 14,
+        step5Days: 21
+      }
     });
+  });
+
+  it('validates follow-up delay days for sequence policy config', () => {
+    assert.deepEqual(createDefaultFollowUpDelayDays(), {
+      step2Days: 3,
+      step3Days: 7,
+      step4Days: 14,
+      step5Days: 21
+    });
+    assert.equal(isValidFollowUpDelayDays({ step2Days: 1, step3Days: 7, step4Days: 14, step5Days: 90 }), true);
+    assert.equal(isValidFollowUpDelayDays({ step2Days: 0, step3Days: 7, step4Days: 14, step5Days: 21 }), false);
+    assert.equal(isValidFollowUpDelayDays({ step2Days: 3, step3Days: 7.5, step4Days: 14, step5Days: 21 }), false);
+    assert.equal(isValidFollowUpDelayDays({ step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 91 }), false);
   });
 
   it('accepts only integer email verification cooldown days in the supported range', () => {

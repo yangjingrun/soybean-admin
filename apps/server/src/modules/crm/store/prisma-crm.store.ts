@@ -87,7 +87,10 @@ import type {
 import {
   crmGlobalConfigKey,
   defaultEmailVerificationCooldownDays,
-  normalizeEmailVerificationCooldownDays
+  defaultFollowUpDelayDays,
+  normalizeEmailVerificationCooldownDays,
+  normalizeFollowUpDelayDays,
+  serializeFollowUpDelayDays
 } from '../crm-global-config';
 
 @Injectable()
@@ -243,16 +246,19 @@ export class PrismaCrmStore implements CrmStore {
     const emailVerificationCooldownDays = normalizeEmailVerificationCooldownDays(
       input.emailVerificationCooldownDays
     );
+    const followUpDelayDaysText = serializeFollowUpDelayDays(input.followUpDelayDays);
     const record = await this.prisma.crmGlobalConfig.upsert({
       where: { configKey: crmGlobalConfigKey },
       create: {
         configKey: crmGlobalConfigKey,
         emailVerificationCooldownDays,
+        followUpDelayDaysText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
       },
       update: {
         emailVerificationCooldownDays,
+        followUpDelayDaysText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
       }
@@ -2169,6 +2175,7 @@ function createDefaultGlobalConfig(): CrmGlobalConfigRecord {
   return {
     configKey: crmGlobalConfigKey,
     emailVerificationCooldownDays: defaultEmailVerificationCooldownDays,
+    followUpDelayDays: { ...defaultFollowUpDelayDays },
     updatedAt: new Date(0)
   };
 }
@@ -2177,6 +2184,7 @@ function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalConfigReco
   return {
     configKey: record.configKey,
     emailVerificationCooldownDays: normalizeEmailVerificationCooldownDays(record.emailVerificationCooldownDays),
+    followUpDelayDays: normalizeFollowUpDelayDays(record.followUpDelayDaysText),
     updatedAt: record.updatedAt
   };
 }

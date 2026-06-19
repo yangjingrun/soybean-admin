@@ -1137,15 +1137,30 @@ describe('CrmService', () => {
     assert.equal(store.productLineUpdateCalls.length, 0);
   });
 
-  it('returns read-only default templates and persona profiles', () => {
-    const service = new CrmService(createStore());
+  it('returns read-only default templates and persona profiles', async () => {
+    const service = new CrmService(
+      createStore([], {
+        globalConfig: createGlobalConfig({
+          followUpDelayDays: {
+            step2Days: 2,
+            step3Days: 4,
+            step4Days: 8,
+            step5Days: 16
+          }
+        })
+      })
+    );
 
-    const result = service.getTemplateDefaults(createContext());
+    const result = await service.getTemplateDefaults(createContext());
 
     assert.equal(result.templateGroup.scope, 'global');
     assert.equal(result.templateGroup.steps.length, 5);
     assert.equal(result.templateGroup.steps[0].stepIndex, 1);
     assert.equal(result.templateGroup.steps[0].threadMode, 'new_subject');
+    assert.deepEqual(
+      result.templateGroup.steps.map(step => step.delayDays),
+      [0, 2, 4, 8, 16]
+    );
     assert.match(result.templateGroup.steps[0].bodyTemplate, /{{persona.focus}}/);
     assert.equal(result.personas.some(persona => persona.label === 'Purchasing Manager'), true);
   });
@@ -2367,6 +2382,7 @@ function createStore(
     async saveGlobalConfig(input) {
       Object.assign(globalConfig, {
         emailVerificationCooldownDays: input.emailVerificationCooldownDays,
+        followUpDelayDays: input.followUpDelayDays ?? globalConfig.followUpDelayDays,
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
       return globalConfig;
@@ -3457,6 +3473,12 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
   return {
     configKey: input.configKey || 'default',
     emailVerificationCooldownDays: input.emailVerificationCooldownDays ?? 30,
+    followUpDelayDays: input.followUpDelayDays ?? {
+      step2Days: 3,
+      step3Days: 7,
+      step4Days: 14,
+      step5Days: 21
+    },
     updatedAt: input.updatedAt || new Date(0)
   };
 }

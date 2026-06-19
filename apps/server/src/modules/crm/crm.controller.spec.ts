@@ -537,7 +537,7 @@ describe('CrmController', () => {
     const controller = new CrmController(
       createAuthService(),
       createCrmService({
-        getTemplateDefaults(context) {
+        async getTemplateDefaults(context) {
           calls.push(context);
 
           return createTemplateDefaultsView();
@@ -747,7 +747,13 @@ describe('CrmController', () => {
   });
 
   it('lets super admins read and save CRM global config', async () => {
-    const calls: Array<{ dto?: { emailVerificationCooldownDays: number }; context?: CrmUserContext }> = [];
+    const calls: Array<{
+      dto?: {
+        emailVerificationCooldownDays: number;
+        followUpDelayDays?: CrmGlobalConfigView['followUpDelayDays'];
+      };
+      context?: CrmUserContext;
+    }> = [];
     const controller = new CrmController(
       createAuthService(createUser({ roles: ['R_SUPER'] })),
       createCrmService({
@@ -763,10 +769,19 @@ describe('CrmController', () => {
     );
 
     const loaded = await controller.getGlobalConfig('Bearer token');
-    const saved = await controller.saveGlobalConfig('Bearer token', { emailVerificationCooldownDays: 45 });
+    const saved = await controller.saveGlobalConfig('Bearer token', {
+      emailVerificationCooldownDays: 45,
+      followUpDelayDays: {
+        step2Days: 2,
+        step3Days: 4,
+        step4Days: 8,
+        step5Days: 16
+      }
+    });
 
     assert.equal(loaded.data.emailVerificationCooldownDays, 30);
     assert.equal(saved.data.emailVerificationCooldownDays, 45);
+    assert.deepEqual(calls[0].dto?.followUpDelayDays, { step2Days: 2, step3Days: 4, step4Days: 8, step5Days: 16 });
     assert.equal(calls[0].context?.roles.includes('R_SUPER'), true);
   });
 
@@ -1131,6 +1146,12 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
   return {
     configKey: 'default',
     emailVerificationCooldownDays: 30,
+    followUpDelayDays: {
+      step2Days: 3,
+      step3Days: 7,
+      step4Days: 14,
+      step5Days: 21
+    },
     updatedAt: '1970-01-01T00:00:00.000Z',
     ...overrides
   };

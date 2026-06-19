@@ -213,6 +213,7 @@ export const CrmGlobalConfigScalarFieldEnum = {
   id: 'id',
   configKey: 'configKey',
   emailVerificationCooldownDays: 'emailVerificationCooldownDays',
+  followUpDelayDaysText: 'followUpDelayDaysText',
   updatedById: 'updatedById',
   updatedByName: 'updatedByName',
   createdAt: 'createdAt',

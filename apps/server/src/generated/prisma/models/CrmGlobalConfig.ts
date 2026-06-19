@@ -38,6 +38,7 @@ export type CrmGlobalConfigMinAggregateOutputType = {
   id: string | null
   configKey: string | null
   emailVerificationCooldownDays: number | null
+  followUpDelayDaysText: string | null
   updatedById: string | null
   updatedByName: string | null
   createdAt: Date | null
@@ -48,6 +49,7 @@ export type CrmGlobalConfigMaxAggregateOutputType = {
   id: string | null
   configKey: string | null
   emailVerificationCooldownDays: number | null
+  followUpDelayDaysText: string | null
   updatedById: string | null
   updatedByName: string | null
   createdAt: Date | null
@@ -58,6 +60,7 @@ export type CrmGlobalConfigCountAggregateOutputType = {
   id: number
   configKey: number
   emailVerificationCooldownDays: number
+  followUpDelayDaysText: number
   updatedById: number
   updatedByName: number
   createdAt: number
@@ -78,6 +81,7 @@ export type CrmGlobalConfigMinAggregateInputType = {
   id?: true
   configKey?: true
   emailVerificationCooldownDays?: true
+  followUpDelayDaysText?: true
   updatedById?: true
   updatedByName?: true
   createdAt?: true
@@ -88,6 +92,7 @@ export type CrmGlobalConfigMaxAggregateInputType = {
   id?: true
   configKey?: true
   emailVerificationCooldownDays?: true
+  followUpDelayDaysText?: true
   updatedById?: true
   updatedByName?: true
   createdAt?: true
@@ -98,6 +103,7 @@ export type CrmGlobalConfigCountAggregateInputType = {
   id?: true
   configKey?: true
   emailVerificationCooldownDays?: true
+  followUpDelayDaysText?: true
   updatedById?: true
   updatedByName?: true
   createdAt?: true
@@ -195,6 +201,7 @@ export type CrmGlobalConfigGroupByOutputType = {
   id: string
   configKey: string
   emailVerificationCooldownDays: number
+  followUpDelayDaysText: string
   updatedById: string | null
   updatedByName: string | null
   createdAt: Date
@@ -228,6 +235,7 @@ export type CrmGlobalConfigWhereInput = {
   id?: Prisma.StringFilter<"CrmGlobalConfig"> | string
   configKey?: Prisma.StringFilter<"CrmGlobalConfig"> | string
   emailVerificationCooldownDays?: Prisma.IntFilter<"CrmGlobalConfig"> | number
+  followUpDelayDaysText?: Prisma.StringFilter<"CrmGlobalConfig"> | string
   updatedById?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
   updatedByName?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmGlobalConfig"> | Date | string
@@ -238,6 +246,7 @@ export type CrmGlobalConfigOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
+  followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -251,6 +260,7 @@ export type CrmGlobalConfigWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.CrmGlobalConfigWhereInput[]
   NOT?: Prisma.CrmGlobalConfigWhereInput | Prisma.CrmGlobalConfigWhereInput[]
   emailVerificationCooldownDays?: Prisma.IntFilter<"CrmGlobalConfig"> | number
+  followUpDelayDaysText?: Prisma.StringFilter<"CrmGlobalConfig"> | string
   updatedById?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
   updatedByName?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmGlobalConfig"> | Date | string
@@ -261,6 +271,7 @@ export type CrmGlobalConfigOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
+  followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -279,6 +290,7 @@ export type CrmGlobalConfigScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"CrmGlobalConfig"> | string
   configKey?: Prisma.StringWithAggregatesFilter<"CrmGlobalConfig"> | string
   emailVerificationCooldownDays?: Prisma.IntWithAggregatesFilter<"CrmGlobalConfig"> | number
+  followUpDelayDaysText?: Prisma.StringWithAggregatesFilter<"CrmGlobalConfig"> | string
   updatedById?: Prisma.StringNullableWithAggregatesFilter<"CrmGlobalConfig"> | string | null
   updatedByName?: Prisma.StringNullableWithAggregatesFilter<"CrmGlobalConfig"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CrmGlobalConfig"> | Date | string
@@ -289,6 +301,7 @@ export type CrmGlobalConfigCreateInput = {
   id?: string
   configKey: string
   emailVerificationCooldownDays?: number
+  followUpDelayDaysText?: string
   updatedById?: string | null
   updatedByName?: string | null
   createdAt?: Date | string
@@ -299,6 +312,7 @@ export type CrmGlobalConfigUncheckedCreateInput = {
   id?: string
   configKey: string
   emailVerificationCooldownDays?: number
+  followUpDelayDaysText?: string
   updatedById?: string | null
   updatedByName?: string | null
   createdAt?: Date | string
@@ -309,6 +323,7 @@ export type CrmGlobalConfigUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
+  followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -319,6 +334,7 @@ export type CrmGlobalConfigUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
+  followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -329,6 +345,7 @@ export type CrmGlobalConfigCreateManyInput = {
   id?: string
   configKey: string
   emailVerificationCooldownDays?: number
+  followUpDelayDaysText?: string
   updatedById?: string | null
   updatedByName?: string | null
   createdAt?: Date | string
@@ -339,6 +356,7 @@ export type CrmGlobalConfigUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
+  followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -349,6 +367,7 @@ export type CrmGlobalConfigUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
+  followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -359,6 +378,7 @@ export type CrmGlobalConfigCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
+  followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedByName?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -373,6 +393,7 @@ export type CrmGlobalConfigMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
+  followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedByName?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -383,6 +404,7 @@ export type CrmGlobalConfigMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
+  followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedByName?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -399,6 +421,7 @@ export type CrmGlobalConfigSelect<ExtArgs extends runtime.Types.Extensions.Inter
   id?: boolean
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
+  followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
   createdAt?: boolean
@@ -409,6 +432,7 @@ export type CrmGlobalConfigSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   id?: boolean
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
+  followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
   createdAt?: boolean
@@ -419,6 +443,7 @@ export type CrmGlobalConfigSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   id?: boolean
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
+  followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
   createdAt?: boolean
@@ -429,13 +454,14 @@ export type CrmGlobalConfigSelectScalar = {
   id?: boolean
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
+  followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CrmGlobalConfigOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "configKey" | "emailVerificationCooldownDays" | "updatedById" | "updatedByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmGlobalConfig"]>
+export type CrmGlobalConfigOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "configKey" | "emailVerificationCooldownDays" | "followUpDelayDaysText" | "updatedById" | "updatedByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmGlobalConfig"]>
 
 export type $CrmGlobalConfigPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "CrmGlobalConfig"
@@ -444,6 +470,7 @@ export type $CrmGlobalConfigPayload<ExtArgs extends runtime.Types.Extensions.Int
     id: string
     configKey: string
     emailVerificationCooldownDays: number
+    followUpDelayDaysText: string
     updatedById: string | null
     updatedByName: string | null
     createdAt: Date
@@ -874,6 +901,7 @@ export interface CrmGlobalConfigFieldRefs {
   readonly id: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly configKey: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly emailVerificationCooldownDays: Prisma.FieldRef<"CrmGlobalConfig", 'Int'>
+  readonly followUpDelayDaysText: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly updatedById: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly updatedByName: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly createdAt: Prisma.FieldRef<"CrmGlobalConfig", 'DateTime'>

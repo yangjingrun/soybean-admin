@@ -6,6 +6,7 @@ import type {
   CrmAccountRecord,
   CrmContactRecord,
   CrmEmailSendGateway,
+  CrmGlobalConfigRecord,
   CrmMailboxRecord,
   CrmMessageRecord,
   CrmSendDeliveryClaimRecord,
@@ -105,6 +106,41 @@ describe('CrmSendWorkerService', () => {
     });
   });
 
+  it('uses the global follow-up delay policy when scheduling the next draft', async () => {
+    const store = createWorkerStore(
+      {
+        enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2, currentStep: 1 }),
+        message: createMessage({
+          id: 'message-2',
+          status: 'queued',
+          stepIndex: 2,
+          threadMode: 'same_thread',
+          providerThreadId: 'mock-thread:enrollment-1'
+        }),
+        mailbox: createMailbox({ status: 'active' })
+      },
+      {
+        globalConfig: createGlobalConfig({
+          followUpDelayDays: {
+            step2Days: 2,
+            step3Days: 4,
+            step4Days: 8,
+            step5Days: 16
+          }
+        })
+      }
+    );
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store as never, gateway);
+
+    await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
+
+    assert.equal(
+      store.completed[0].nextMessage?.scheduledAt?.getTime(),
+      store.completed[0].sentAt.getTime() + 4 * 24 * 60 * 60 * 1000
+    );
+  });
+
   it('skips sending when delivery claim cannot reserve mailbox quota', async () => {
     const store = createWorkerStore(
       {
@@ -183,7 +219,13 @@ interface WorkerStoreInput extends Partial<CrmSequenceReviewRecord> {
   message?: CrmMessageRecord;
 }
 
-function createWorkerStore(input: WorkerStoreInput, options: { claimResult?: CrmSendDeliveryClaimRecord | null } = {}) {
+function createWorkerStore(
+  input: WorkerStoreInput,
+  options: {
+    claimResult?: CrmSendDeliveryClaimRecord | null;
+    globalConfig?: CrmGlobalConfigRecord;
+  } = {}
+) {
   const item: CrmSequenceReviewRecord = {
     enrollment: input.enrollment ?? createEnrollment(),
     account: input.account ?? createAccount(),
@@ -211,6 +253,9 @@ function createWorkerStore(input: WorkerStoreInput, options: { claimResult?: Crm
     authExpired,
     async getSequenceReviewItem() {
       return item;
+    },
+    async getGlobalConfig() {
+      return options.globalConfig ?? createGlobalConfig();
     },
     async claimFirstMessageSendDelivery(args) {
       claims.push(args);
@@ -376,6 +421,20 @@ function createMailbox(input: Partial<CrmMailboxRecord> = {}): CrmMailboxRecord 
     pausedAt: input.pausedAt ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createGlobalConfig(input: Partial<CrmGlobalConfigRecord> = {}): CrmGlobalConfigRecord {
+  return {
+    configKey: input.configKey || 'default',
+    emailVerificationCooldownDays: input.emailVerificationCooldownDays ?? 30,
+    followUpDelayDays: input.followUpDelayDays ?? {
+      step2Days: 3,
+      step3Days: 7,
+      step4Days: 14,
+      step5Days: 21
+    },
+    updatedAt: input.updatedAt || new Date(0)
   };
 }
 
