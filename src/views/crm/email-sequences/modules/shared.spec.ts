@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDraftReviewOperationPayload,
+  buildDraftVersionListItems,
   buildSequenceMessageTimelineItems,
   buildSequenceReviewSearchParams,
   buildSequencePolicyReviewHints,
@@ -17,6 +18,8 @@ import {
   getSequenceProgressText,
   getSequenceSendAuditSummary,
   canGenerateNextSequenceDraft,
+  canStopSequenceInBatch,
+  summarizeSequenceBatchSelection,
   normalizeSequenceCreatePayload
 } from './shared';
 
@@ -212,6 +215,68 @@ describe('email sequence review shared helpers', () => {
         bodyText: 'Hi'
       }
     });
+  });
+
+  it('builds draft version list items newest first with subject summaries', () => {
+    const versions: Api.Crm.MessageDraftVersionRecord[] = [
+      {
+        id: 'draft-version-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        enrollmentId: 'enrollment-1',
+        messageId: 'message-1',
+        mailboxId: null,
+        stepIndex: 1,
+        versionNo: 1,
+        subject: '  First saved subject  ',
+        bodyText: 'First body',
+        editorId: 'user-1',
+        editorName: 'Alice',
+        createdAt: '2026-06-18T10:00:00.000Z'
+      },
+      {
+        id: 'draft-version-2',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        enrollmentId: 'enrollment-1',
+        messageId: 'message-1',
+        mailboxId: null,
+        stepIndex: 1,
+        versionNo: 2,
+        subject: 'Second saved subject that should be shortened for the compact version panel',
+        bodyText: 'Second body',
+        editorId: 'user-1',
+        editorName: null,
+        createdAt: '2026-06-18T11:00:00.000Z'
+      }
+    ];
+
+    assert.deepEqual(
+      buildDraftVersionListItems(versions).map(item => ({
+        id: item.id,
+        editorName: item.editorName,
+        subjectSummary: item.subjectSummary,
+        versionLabel: item.versionLabel
+      })),
+      [
+        {
+          id: 'draft-version-2',
+          editorName: '-',
+          subjectSummary: 'Second saved subject that should be shortened for the compact...',
+          versionLabel: '版本 2'
+        },
+        {
+          id: 'draft-version-1',
+          editorName: 'Alice',
+          subjectSummary: 'First saved subject',
+          versionLabel: '版本 1'
+        }
+      ]
+    );
   });
 
   it('selects the current pending review message instead of always using the first message', () => {
@@ -472,6 +537,37 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canGenerateNextSequenceDraft(reachedLastStep), false);
     assert.equal(canGenerateNextSequenceDraft(stopped), false);
     assert.equal(canGenerateNextSequenceDraft(forbidden), false);
+  });
+
+  it('summarizes selected rows for owner-only batch actions', () => {
+    const generateReady = createSequenceItem({
+      enrollment: { id: 'enrollment-1', status: 'sequence_running', totalSteps: 5 },
+      messages: [createMessage({ id: 'message-1', status: 'sent', stepIndex: 1 })]
+    });
+    const stoppable = createSequenceItem({
+      enrollment: { id: 'enrollment-2', status: 'paused' },
+      messages: [createMessage({ id: 'message-2', enrollmentId: 'enrollment-2', status: 'queued' })]
+    });
+    const adminVisibleMember = createSequenceItem({
+      enrollment: { id: 'enrollment-3', status: 'sequence_running' },
+      messages: [createMessage({ id: 'message-3', enrollmentId: 'enrollment-3', status: 'sent' })]
+    });
+    adminVisibleMember.canOperateDraft = false;
+    adminVisibleMember.canControlSequence = true;
+    const terminal = createSequenceItem({
+      enrollment: { id: 'enrollment-4', status: 'stopped' },
+      messages: [createMessage({ id: 'message-4', enrollmentId: 'enrollment-4', status: 'sent' })]
+    });
+
+    assert.equal(canStopSequenceInBatch(stoppable), true);
+    assert.equal(canStopSequenceInBatch(adminVisibleMember), false);
+    assert.equal(canStopSequenceInBatch(terminal), false);
+    assert.deepEqual(summarizeSequenceBatchSelection([generateReady, stoppable, adminVisibleMember, terminal]), {
+      selectedCount: 4,
+      generateNextDraftCount: 1,
+      stopCount: 2,
+      skippedCount: 2
+    });
   });
 
   it('builds policy review hints for blocked links and manual-only sending', () => {

@@ -40,6 +40,7 @@ export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
 export const crmMailboxSyncIssueTypes = ['history_expired'] as const;
 export const crmProductLineStatuses = ['active', 'archived'] as const;
 export const crmEmailTemplateStatuses = ['active', 'archived'] as const;
+export const crmPersonaProfileStatuses = ['active', 'archived'] as const;
 export const crmSequenceEnrollmentStatuses = [
   'draft_review_pending',
   'ready_to_send',
@@ -76,6 +77,7 @@ export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
 export type CrmMailboxSyncIssueType = (typeof crmMailboxSyncIssueTypes)[number];
 export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
 export type CrmEmailTemplateStatus = (typeof crmEmailTemplateStatuses)[number];
+export type CrmPersonaProfileStatus = (typeof crmPersonaProfileStatuses)[number];
 export type CrmSequenceEnrollmentStatus = (typeof crmSequenceEnrollmentStatuses)[number];
 export type CrmSequenceReviewTodoType = (typeof crmSequenceReviewTodoTypes)[number];
 export type CrmMessageStatus = (typeof crmMessageStatuses)[number];
@@ -375,6 +377,24 @@ export interface CrmSequencePolicyRecord {
   updatedAt: Date;
 }
 
+export interface CrmPersonaProfileRecord {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string | null;
+  titleKeywordsText: string | null;
+  customerTypeKeywordsText: string | null;
+  painPoints: string | null;
+  focusText: string | null;
+  avoidText: string | null;
+  status: CrmPersonaProfileStatus;
+  isDefault: boolean;
+  createdById: string;
+  createdByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface CrmMessageRecord {
   id: string;
   organizationId: string;
@@ -395,6 +415,24 @@ export interface CrmMessageRecord {
   providerThreadId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CrmMessageDraftVersionRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId: string;
+  messageId: string;
+  mailboxId: string | null;
+  stepIndex: number;
+  versionNo: number;
+  subject: string;
+  bodyText: string;
+  editorId: string;
+  editorName: string | null;
+  createdAt: Date;
 }
 
 export interface CrmInboxThreadRecord {
@@ -615,6 +653,41 @@ export interface CrmProductLineUpdateInput {
   status?: CrmProductLineStatus;
 }
 
+export interface CrmPersonaProfileCreateInput {
+  organizationId: string;
+  name: string;
+  description?: string | null;
+  titleKeywordsText?: string | null;
+  customerTypeKeywordsText?: string | null;
+  painPoints?: string | null;
+  focusText?: string | null;
+  avoidText?: string | null;
+  status: CrmPersonaProfileStatus;
+  isDefault: boolean;
+  createdById: string;
+  createdByName?: string | null;
+}
+
+export interface CrmPersonaProfileUpdateInput {
+  name?: string;
+  description?: string | null;
+  titleKeywordsText?: string | null;
+  customerTypeKeywordsText?: string | null;
+  painPoints?: string | null;
+  focusText?: string | null;
+  avoidText?: string | null;
+  status?: CrmPersonaProfileStatus;
+  isDefault?: boolean;
+}
+
+export interface CrmPersonaProfileListInput {
+  organizationId: string;
+  keyword?: string;
+  status?: CrmPersonaProfileStatus;
+  skip: number;
+  take: number;
+}
+
 export interface CrmEmailTemplateStepInput {
   stepIndex: number;
   name: string;
@@ -769,6 +842,28 @@ export interface CrmMessageUpdateInput {
   providerThreadId?: string | null;
 }
 
+export interface CrmMessageDraftVersionCreateInput {
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId: string;
+  messageId: string;
+  mailboxId?: string | null;
+  stepIndex: number;
+  subject: string;
+  bodyText: string;
+  editorId: string;
+  editorName?: string | null;
+}
+
+export interface CrmMessageDraftVersionRestoreInput {
+  messageId: string;
+  versionId: string;
+  organizationId: string;
+  ownerUserId: string;
+}
+
 export interface CrmSequenceDraftBundleCreateInput {
   enrollment: CrmSequenceEnrollmentCreateInput;
   message: Omit<CrmMessageCreateInput, 'enrollmentId'>;
@@ -777,6 +872,8 @@ export interface CrmSequenceDraftBundleCreateInput {
       productLineId: string | null;
       mailboxId: string | null;
       policyId?: string | null;
+      personaProfileId?: string | null;
+      personaProfileName?: string | null;
     };
   };
   accountStatus: CrmAccountStatus;
@@ -982,6 +1079,7 @@ export interface CrmSendDeliveryClaimRecord extends Omit<CrmSequenceReviewRecord
 export interface CrmSequenceStopInput {
   enrollmentId: string;
   organizationId: string;
+  ownerUserId?: string;
   fromStatuses: CrmSequenceEnrollmentStatus[];
   accountStatus: CrmAccountStatus;
   actorUserId: string;
@@ -1202,6 +1300,19 @@ export interface CrmStore {
     organizationId: string,
     input: CrmProductLineUpdateInput
   ): Promise<CrmProductLineRecord | null>;
+  listPersonaProfiles(
+    input: CrmPersonaProfileListInput
+  ): Promise<{ records: CrmPersonaProfileRecord[]; total: number }>;
+  listActivePersonaProfiles(organizationId: string): Promise<CrmPersonaProfileRecord[]>;
+  findPersonaProfileByName(organizationId: string, name: string): Promise<CrmPersonaProfileRecord | null>;
+  findPersonaProfileById(args: { id: string; organizationId: string }): Promise<CrmPersonaProfileRecord | null>;
+  createPersonaProfile(input: CrmPersonaProfileCreateInput): Promise<CrmPersonaProfileRecord>;
+  updatePersonaProfile(
+    id: string,
+    organizationId: string,
+    input: CrmPersonaProfileUpdateInput
+  ): Promise<CrmPersonaProfileRecord | null>;
+  setDefaultPersonaProfile(id: string, organizationId: string): Promise<CrmPersonaProfileRecord | null>;
   listEmailTemplateGroups(
     input: CrmEmailTemplateGroupListInput
   ): Promise<{ records: CrmEmailTemplateGroupRecord[]; total: number }>;
@@ -1282,6 +1393,13 @@ export interface CrmStore {
     input: CrmMessageUpdateInput,
     guard?: CrmMessageDraftUpdateGuard
   ): Promise<CrmMessageRecord | null>;
+  createMessageDraftVersion(input: CrmMessageDraftVersionCreateInput): Promise<CrmMessageDraftVersionRecord>;
+  listMessageDraftVersions(args: {
+    messageId: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmMessageDraftVersionRecord[]>;
+  restoreMessageDraftVersion(input: CrmMessageDraftVersionRestoreInput): Promise<CrmMessageRecord | null>;
   approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null>;
   startFirstMessageSend(input: CrmSendStartInput): Promise<CrmSendStartRecord | null>;
   claimFirstMessageSendDelivery(input: CrmSendDeliveryClaimInput): Promise<CrmSendDeliveryClaimRecord | null>;

@@ -76,11 +76,13 @@ model Organization {
   crmMailboxes      CrmMailbox[]
   crmMailboxSendUsages CrmMailboxSendUsage[]
   crmProductLines   CrmProductLine[]
+  crmPersonaProfiles CrmPersonaProfile[]
   crmEmailTemplateGroups CrmEmailTemplateGroup[]
   crmEmailTemplateSteps  CrmEmailTemplateStep[]
   crmSequencePolicies CrmSequencePolicy[]
   crmEnrollments     CrmSequenceEnrollment[]
   crmMessages        CrmMessage[]
+  crmMessageDraftVersions CrmMessageDraftVersion[]
   crmInboxThreads    CrmInboxThread[]
   crmInboxMessages   CrmInboxMessage[]
 
@@ -110,6 +112,7 @@ model CrmAccount {
   events       CrmTimelineEvent[]
   enrollments  CrmSequenceEnrollment[]
   messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
 
@@ -141,6 +144,7 @@ model CrmContact {
   events       CrmTimelineEvent[]
   enrollments  CrmSequenceEnrollment[]
   messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
 
@@ -290,6 +294,7 @@ model CrmMailbox {
   organization Organization              @relation(fields: [organizationId], references: [id])
   enrollments  CrmSequenceEnrollment[]
   messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
   sendUsages   CrmMailboxSendUsage[]
@@ -342,6 +347,30 @@ model CrmProductLine {
   @@unique([organizationId, name])
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, updatedAt])
+}
+
+model CrmPersonaProfile {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  name               String
+  description        String?
+  titleKeywordsText  String?
+  customerTypeKeywordsText String?
+  painPoints         String?
+  focusText          String?
+  avoidText          String?
+  status             String   @default("active")
+  isDefault          Boolean  @default(false)
+  createdById        String
+  createdByName      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, isDefault])
 }
 
 model CrmEmailTemplateGroup {
@@ -437,6 +466,7 @@ model CrmSequenceEnrollment {
   mailbox      CrmMailbox?     @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
   policy       CrmSequencePolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
   messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
 
@@ -473,6 +503,7 @@ model CrmMessage {
   contact      CrmContact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
   enrollment   CrmSequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   mailbox      CrmMailbox?           @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  draftVersions CrmMessageDraftVersion[]
 
   @@unique([enrollmentId, stepIndex])
   @@index([organizationId, ownerUserId, status, updatedAt])
@@ -481,6 +512,36 @@ model CrmMessage {
   @@index([organizationId, bullJobId])
   @@index([organizationId, ownerUserId, mailboxId, providerThreadId])
   @@unique([organizationId, ownerUserId, mailboxId, providerMessageId])
+}
+
+model CrmMessageDraftVersion {
+  id             String   @id @default(uuid())
+  organizationId String
+  ownerUserId    String
+  accountId      String
+  contactId      String
+  enrollmentId   String
+  messageId      String
+  mailboxId      String?
+  stepIndex      Int
+  versionNo      Int
+  subject        String
+  bodyText       String
+  editorId       String
+  editorName     String?
+  createdAt      DateTime @default(now())
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  account      CrmAccount            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enrollment   CrmSequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  message      CrmMessage            @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  mailbox      CrmMailbox?           @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, versionNo])
+  @@index([organizationId, ownerUserId, messageId, versionNo])
+  @@index([organizationId, enrollmentId, stepIndex])
+  @@index([createdAt])
 }
 
 model CrmInboxThread {

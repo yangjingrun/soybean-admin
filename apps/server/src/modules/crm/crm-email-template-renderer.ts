@@ -6,10 +6,14 @@ import type {
 } from './crm.types';
 
 export interface PersonaProfile {
+  id?: string;
   label: string;
   aliases: string[];
   focusText: string;
   draftFocusText: string;
+  painPoints?: string | null;
+  avoidText?: string | null;
+  source?: 'built_in' | 'organization';
 }
 
 export interface TemplateVariable {
@@ -93,7 +97,9 @@ export const defaultTemplateVariables: TemplateVariable[] = [
   { key: 'product.name', label: '产品线名称', source: '产品资料' },
   { key: 'product.sellingPoint', label: '核心卖点', source: '产品资料' },
   { key: 'product.supplyInfo', label: 'MOQ/交期/认证', source: '产品资料' },
-  { key: 'persona.focus', label: '职位画像侧重点', source: '内置职位画像' },
+  { key: 'persona.focus', label: '职位画像侧重点', source: '职位/客户画像库' },
+  { key: 'persona.painPoints', label: '画像痛点', source: '职位/客户画像库' },
+  { key: 'persona.avoidText', label: '避让说明', source: '职位/客户画像库' },
   { key: 'sender.name', label: '发送人姓名', source: '当前用户' }
 ];
 
@@ -180,6 +186,8 @@ function buildEmailTemplateReplacements(options: EmailTemplateRenderOptions) {
     'product.sellingPoint': productLine?.coreSellingPoints || `supporting ${account.customerType || 'B2B'} customers`,
     'product.supplyInfo': supplyInfo.length ? `For reference, ${supplyInfo.join(', ')}.` : '',
     'persona.focus': persona?.draftFocusText ?? '',
+    'persona.painPoints': persona?.painPoints ?? '',
+    'persona.avoidText': persona?.avoidText ?? '',
     'sender.name': senderName || 'Sales team'
   };
 

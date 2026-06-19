@@ -19,6 +19,7 @@ import type { UserInfo } from '../auth/auth.types';
 import { CrmService } from './crm.service';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
+import { BatchCrmSequenceReviewItemsDto } from './dto/batch-crm-sequence-review-items.dto';
 import { CompleteCrmGmailOAuthDto } from './dto/complete-crm-gmail-oauth.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
@@ -26,10 +27,12 @@ import { CrmBlacklistQueryDto } from './dto/crm-blacklist-query.dto';
 import { CrmInboxThreadQueryDto } from './dto/crm-inbox-thread-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
 import { CrmEmailTemplateQueryDto } from './dto/crm-email-template-query.dto';
+import { CrmPersonaProfileQueryDto } from './dto/crm-persona-profile-query.dto';
 import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
 import { CrmSequencePolicyQueryDto } from './dto/crm-sequence-policy-query.dto';
 import { CrmSequenceReviewQueryDto } from './dto/crm-sequence-review-query.dto';
 import { CreateCrmEmailTemplateDto } from './dto/create-crm-email-template.dto';
+import { CreateCrmPersonaProfileDto } from './dto/create-crm-persona-profile.dto';
 import { CreateCrmSequenceReviewItemDto } from './dto/create-crm-sequence-review-item.dto';
 import { CreateCrmProductLineDto } from './dto/create-crm-product-line.dto';
 import { CreateCrmSequencePolicyDto } from './dto/create-crm-sequence-policy.dto';
@@ -44,6 +47,7 @@ import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
 import { UpdateCrmEmailTemplateDto } from './dto/update-crm-email-template.dto';
+import { UpdateCrmPersonaProfileDto } from './dto/update-crm-persona-profile.dto';
 import { UpdateCrmProductLineDto } from './dto/update-crm-product-line.dto';
 import { UpdateCrmSequencePolicyDto } from './dto/update-crm-sequence-policy.dto';
 import type { CrmUserContext } from './crm.types';
@@ -224,6 +228,35 @@ export class CrmController {
     return ok(await this.crmService.archiveProductLine(id, this.requireUserContext(authorization)));
   }
 
+  @Get('persona-profiles')
+  async listPersonaProfiles(@Headers('authorization') authorization = '', @Query() query: CrmPersonaProfileQueryDto) {
+    return ok(await this.crmService.listPersonaProfiles(this.requireUserContext(authorization), query));
+  }
+
+  @Post('persona-profiles')
+  async createPersonaProfile(@Headers('authorization') authorization = '', @Body() dto: CreateCrmPersonaProfileDto) {
+    return ok(await this.crmService.createPersonaProfile(dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('persona-profiles/:id')
+  async updatePersonaProfile(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmPersonaProfileDto
+  ) {
+    return ok(await this.crmService.updatePersonaProfile(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('persona-profiles/:id/archive')
+  async archivePersonaProfile(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.archivePersonaProfile(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('persona-profiles/:id/default')
+  async setDefaultPersonaProfile(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.setDefaultPersonaProfile(id, this.requireUserContext(authorization)));
+  }
+
   @Get('email-template-groups')
   async listEmailTemplateGroups(
     @Headers('authorization') authorization = '',
@@ -311,6 +344,22 @@ export class CrmController {
     return ok(await this.crmService.getSequenceReviewItem(id, this.requireUserContext(authorization)));
   }
 
+  @Post('sequence-review-items/batch-generate-next-draft')
+  async batchGenerateNextDrafts(
+    @Headers('authorization') authorization = '',
+    @Body() dto: BatchCrmSequenceReviewItemsDto
+  ) {
+    return ok(await this.crmService.batchGenerateNextDrafts(dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('sequence-review-items/batch-stop')
+  async batchStopSequenceEnrollments(
+    @Headers('authorization') authorization = '',
+    @Body() dto: BatchCrmSequenceReviewItemsDto
+  ) {
+    return ok(await this.crmService.batchStopSequenceEnrollments(dto, this.requireUserContext(authorization)));
+  }
+
   @Patch('messages/:id/draft')
   async updateMessageDraft(
     @Headers('authorization') authorization = '',
@@ -323,6 +372,20 @@ export class CrmController {
   @Post('messages/:id/approve')
   async approveMessageDraft(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.approveMessageDraft(id, this.requireUserContext(authorization)));
+  }
+
+  @Get('messages/:id/draft-versions')
+  async listMessageDraftVersions(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.listMessageDraftVersions(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('messages/:id/draft-versions/:versionId/restore')
+  async restoreMessageDraftVersion(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Param('versionId') versionId: string
+  ) {
+    return ok(await this.crmService.restoreMessageDraftVersion(id, versionId, this.requireUserContext(authorization)));
   }
 
   @Post('sequence-review-items/:id/start-send')

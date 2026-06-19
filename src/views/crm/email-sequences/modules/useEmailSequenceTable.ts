@@ -3,15 +3,19 @@ import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
   approveCrmMessageDraft,
+  batchGenerateCrmNextSequenceDrafts,
+  batchStopCrmSequenceEnrollments,
   createCrmSequenceReviewItem,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
   fetchCrmMailboxes,
+  fetchCrmMessageDraftVersions,
   fetchCrmProductLines,
   fetchCrmSequencePolicies,
   fetchCrmSequenceReviewItem,
   fetchCrmSequenceReviewItems,
   generateCrmNextSequenceDraft,
+  restoreCrmMessageDraftVersion,
   startCrmFirstMessageSend,
   stopCrmSequenceEnrollment,
   updateCrmMessageDraft
@@ -19,6 +23,7 @@ import {
 import {
   buildSequenceReviewSearchParams,
   canGenerateNextSequenceDraft,
+  canStopSequenceInBatch,
   createDefaultSequenceCreateForm,
   createDefaultSequenceFilterModel,
   getPendingReviewMessage,
@@ -38,6 +43,8 @@ export function useEmailSequenceTable() {
   const productLineOptions = shallowRef<Api.Crm.ProductLineRecord[]>([]);
   const sequencePolicyOptions = shallowRef<Api.Crm.SequencePolicyRecord[]>([]);
   const currentItem = shallowRef<Api.Crm.SequenceReviewItem | null>(null);
+  const draftVersions = shallowRef<Api.Crm.MessageDraftVersionRecord[]>([]);
+  const checkedRowKeys = shallowRef<string[]>([]);
   const loading = shallowRef(false);
   const createResourceLoading = shallowRef(false);
   const contactLoading = shallowRef(false);
@@ -47,8 +54,12 @@ export function useEmailSequenceTable() {
   const drawerLoading = shallowRef(false);
   const draftSaving = shallowRef(false);
   const draftApproving = shallowRef(false);
+  const draftVersionLoading = shallowRef(false);
+  const draftVersionRestoring = shallowRef(false);
   const detailRefreshing = shallowRef(false);
   const nextDraftGenerating = shallowRef(false);
+  const batchNextDraftGenerating = shallowRef(false);
+  const batchSequenceStopping = shallowRef(false);
   const sendStarting = shallowRef(false);
   const sequenceStopping = shallowRef(false);
   const selectedEnrollmentId = shallowRef<string | null>(null);
@@ -57,6 +68,8 @@ export function useEmailSequenceTable() {
   let latestDetailRequestId = 0;
   let latestDraftApproveRequestId = 0;
   let latestDraftSaveRequestId = 0;
+  let latestDraftVersionRequestId = 0;
+  let latestDraftVersionRestoreRequestId = 0;
   let latestNextDraftGenerateRequestId = 0;
   let latestResourceRequestId = 0;
   let latestContactRequestId = 0;
@@ -100,6 +113,11 @@ export function useEmailSequenceTable() {
     }))
   );
   const resourceLoading = computed(() => createResourceLoading.value || contactLoading.value);
+  const checkedRows = computed(() => {
+    const checkedSet = new Set(checkedRowKeys.value);
+
+    return records.value.filter(record => checkedSet.has(record.enrollment.id));
+  });
 
   onMounted(() => {
     void loadSequences();
@@ -138,6 +156,9 @@ export function useEmailSequenceTable() {
       pagination.current = data.current;
       pagination.size = data.size;
       pagination.total = data.total;
+      checkedRowKeys.value = checkedRowKeys.value.filter(id =>
+        data.records.some(record => record.enrollment.id === id)
+      );
     } finally {
       if (requestId === latestListRequestId) {
         loading.value = false;
@@ -275,9 +296,12 @@ export function useEmailSequenceTable() {
   async function openDraftDrawer(row: Api.Crm.SequenceReviewItem) {
     latestDraftApproveRequestId += 1;
     latestDraftSaveRequestId += 1;
+    latestDraftVersionRequestId += 1;
+    latestDraftVersionRestoreRequestId += 1;
     selectedEnrollmentId.value = row.enrollment.id;
     selectedMessageId.value = getPendingReviewMessage(row.messages)?.id ?? row.firstMessage?.id ?? null;
     currentItem.value = null;
+    draftVersions.value = [];
     drawerVisible.value = true;
     await loadSequenceDetail(row.enrollment.id);
   }
@@ -303,6 +327,9 @@ export function useEmailSequenceTable() {
         data.messages.find(reviewMessage => reviewMessage.id === selectedMessageId.value)?.id ??
         data.firstMessage?.id ??
         null;
+      if (selectedMessageId.value) {
+        void loadDraftVersions(selectedMessageId.value);
+      }
     } finally {
       if (requestId === latestDetailRequestId) {
         drawerLoading.value = false;
@@ -342,10 +369,82 @@ export function useEmailSequenceTable() {
 
       message.success('草稿已保存');
       currentItem.value = replaceReviewMessage(currentItem.value, data.message);
+      await loadDraftVersions(messageId);
       await loadSequences();
     } finally {
       if (requestId === latestDraftSaveRequestId) {
         draftSaving.value = false;
+      }
+    }
+  }
+
+  /** Load saved draft versions for one selected owner message. */
+  async function loadDraftVersions(messageId: string | null) {
+    draftVersions.value = [];
+
+    if (!messageId) {
+      return;
+    }
+
+    const requestId = latestDraftVersionRequestId + 1;
+    latestDraftVersionRequestId = requestId;
+    draftVersionLoading.value = true;
+
+    try {
+      const { data, error } = await fetchCrmMessageDraftVersions(messageId);
+
+      if (error || requestId !== latestDraftVersionRequestId) {
+        return;
+      }
+
+      if (selectedMessageId.value !== messageId) {
+        return;
+      }
+
+      draftVersions.value = data.versions;
+    } finally {
+      if (requestId === latestDraftVersionRequestId) {
+        draftVersionLoading.value = false;
+      }
+    }
+  }
+
+  async function handleRestoreDraftVersion(payload: { messageId: string; versionId: string }) {
+    const enrollmentId = selectedEnrollmentId.value;
+
+    if (!enrollmentId || !currentItem.value) {
+      return;
+    }
+
+    const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === payload.messageId);
+
+    if (targetMessage?.status !== 'draft_pending_review') {
+      return;
+    }
+
+    selectedMessageId.value = payload.messageId;
+    const requestId = latestDraftVersionRestoreRequestId + 1;
+    latestDraftVersionRestoreRequestId = requestId;
+    draftVersionRestoring.value = true;
+
+    try {
+      const { data, error } = await restoreCrmMessageDraftVersion(payload.messageId, payload.versionId);
+
+      if (error || requestId !== latestDraftVersionRestoreRequestId) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== payload.messageId || !currentItem.value) {
+        return;
+      }
+
+      message.success('草稿历史版本已恢复');
+      currentItem.value = replaceReviewMessage(currentItem.value, data.message);
+      await loadDraftVersions(payload.messageId);
+      await loadSequences();
+    } finally {
+      if (requestId === latestDraftVersionRestoreRequestId) {
+        draftVersionRestoring.value = false;
       }
     }
   }
@@ -435,6 +534,37 @@ export function useEmailSequenceTable() {
       if (requestId === latestNextDraftGenerateRequestId) {
         nextDraftGenerating.value = false;
       }
+    }
+  }
+
+  async function handleBatchGenerateNextDrafts() {
+    const executableCount = checkedRows.value.filter(canGenerateNextSequenceDraft).length;
+    const ids = checkedRows.value.map(item => item.enrollment.id);
+
+    if (executableCount === 0) {
+      message.warning('当前选中序列没有可生成下一封的记录');
+      return;
+    }
+
+    batchNextDraftGenerating.value = true;
+
+    try {
+      const { data, error } = await batchGenerateCrmNextSequenceDrafts({ ids });
+
+      if (error) {
+        return;
+      }
+
+      const resultText = formatBatchResultText('批量生成下一封草稿', data);
+      if (data.failedCount > 0) {
+        message.warning(resultText);
+      } else {
+        message.success(resultText);
+      }
+      checkedRowKeys.value = [];
+      await loadSequences();
+    } finally {
+      batchNextDraftGenerating.value = false;
     }
   }
 
@@ -534,6 +664,37 @@ export function useEmailSequenceTable() {
     }
   }
 
+  async function handleBatchStopSequences() {
+    const executableCount = checkedRows.value.filter(canStopSequenceInBatch).length;
+    const ids = checkedRows.value.map(item => item.enrollment.id);
+
+    if (executableCount === 0) {
+      message.warning('当前选中序列没有可停止的记录');
+      return;
+    }
+
+    batchSequenceStopping.value = true;
+
+    try {
+      const { data, error } = await batchStopCrmSequenceEnrollments({ ids });
+
+      if (error) {
+        return;
+      }
+
+      const resultText = formatBatchResultText('批量停止序列', data);
+      if (data.failedCount > 0) {
+        message.warning(resultText);
+      } else {
+        message.success(resultText);
+      }
+      checkedRowKeys.value = [];
+      await loadSequences();
+    } finally {
+      batchSequenceStopping.value = false;
+    }
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadSequences();
@@ -552,10 +713,13 @@ export function useEmailSequenceTable() {
       latestDetailRequestId += 1;
       latestDraftApproveRequestId += 1;
       latestDraftSaveRequestId += 1;
+      latestDraftVersionRequestId += 1;
+      latestDraftVersionRestoreRequestId += 1;
       latestNextDraftGenerateRequestId += 1;
       selectedEnrollmentId.value = null;
       selectedMessageId.value = null;
       currentItem.value = null;
+      draftVersions.value = [];
     }
   }
 
@@ -570,8 +734,15 @@ export function useEmailSequenceTable() {
     void loadSequences();
   }
 
+  function handleCheckedRowKeysUpdate(keys: Array<string | number>) {
+    checkedRowKeys.value = keys.map(String);
+  }
+
   return {
     accountSelectOptions,
+    batchNextDraftGenerating,
+    batchSequenceStopping,
+    checkedRowKeys,
     contactSelectOptions,
     createForm,
     createSubmitting,
@@ -580,11 +751,17 @@ export function useEmailSequenceTable() {
     detailRefreshing,
     draftApproving,
     draftSaving,
+    draftVersionLoading,
+    draftVersionRestoring,
+    draftVersions,
     drawerLoading,
     drawerVisible,
     filterModel,
     handleAccountChange,
     handleApproveDraft,
+    handleBatchGenerateNextDrafts,
+    handleBatchStopSequences,
+    handleCheckedRowKeysUpdate,
     handleCreateReviewItem,
     handleCreateVisibleUpdate,
     handleDrawerVisibleUpdate,
@@ -593,11 +770,13 @@ export function useEmailSequenceTable() {
     handlePageUpdate,
     handleReset,
     handleRefreshCurrentSequence,
+    handleRestoreDraftVersion,
     handleSaveDraft,
     handleSearch,
     handleStartSend,
     handleStopSequence,
     loadCreateResources,
+    loadDraftVersions,
     loadSequences,
     loading,
     mailboxSelectOptions,
@@ -637,4 +816,8 @@ function getRouteQueryString(value: unknown) {
   if (typeof value === 'string') return value;
   if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
   return '';
+}
+
+function formatBatchResultText(action: string, result: Api.Crm.SequenceBatchOperateResult) {
+  return `${action}完成：成功 ${result.successCount} 条，跳过 ${result.skippedCount} 条，失败 ${result.failedCount} 条`;
 }

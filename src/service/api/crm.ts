@@ -214,6 +214,49 @@ export function archiveCrmProductLine(id: string) {
   });
 }
 
+/** List organization persona profiles by filters and pagination. */
+export function fetchCrmPersonaProfiles(params: Api.Crm.PersonaProfileSearchParams) {
+  return request<Api.Crm.PersonaProfileList>({
+    url: '/crm/persona-profiles',
+    method: 'get',
+    params
+  });
+}
+
+/** Create one organization persona profile. */
+export function createCrmPersonaProfile(data: Api.Crm.PersonaProfilePayload) {
+  return request<Api.Crm.PersonaProfileOperateResult>({
+    url: '/crm/persona-profiles',
+    method: 'post',
+    data
+  });
+}
+
+/** Update one organization persona profile. */
+export function updateCrmPersonaProfile(id: string, data: Partial<Api.Crm.PersonaProfilePayload>) {
+  return request<Api.Crm.PersonaProfileOperateResult>({
+    url: `/crm/persona-profiles/${id}`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Archive one organization persona profile. */
+export function archiveCrmPersonaProfile(id: string) {
+  return request<Api.Crm.PersonaProfileOperateResult>({
+    url: `/crm/persona-profiles/${id}/archive`,
+    method: 'patch'
+  });
+}
+
+/** Mark one active organization persona profile as the default drafting profile. */
+export function setDefaultCrmPersonaProfile(id: string) {
+  return request<Api.Crm.PersonaProfileOperateResult>({
+    url: `/crm/persona-profiles/${id}/default`,
+    method: 'post'
+  });
+}
+
 /** List organization email template groups by filters and pagination. */
 export function fetchCrmEmailTemplateGroups(params: Api.Crm.EmailTemplateSearchParams) {
   return request<Api.Crm.EmailTemplateList>({
@@ -343,6 +386,22 @@ export function updateCrmMessageDraft(id: string, data: Api.Crm.MessageDraftPayl
   });
 }
 
+/** List saved version snapshots for one owner draft message. */
+export function fetchCrmMessageDraftVersions(id: string) {
+  return request<Api.Crm.MessageDraftVersionListResult>({
+    url: `/crm/messages/${id}/draft-versions`,
+    method: 'get'
+  });
+}
+
+/** Restore one saved version snapshot into the current pending-review draft. */
+export function restoreCrmMessageDraftVersion(id: string, versionId: string) {
+  return request<Api.Crm.MessageDraftVersionRestoreResult>({
+    url: `/crm/messages/${id}/draft-versions/${versionId}/restore`,
+    method: 'post'
+  });
+}
+
 /** Approve one reviewed draft without queueing or sending it. */
 export function approveCrmMessageDraft(id: string) {
   return request<Api.Crm.MessageDraftApproveResult>({
@@ -359,6 +418,15 @@ export function generateCrmNextSequenceDraft(enrollmentId: string) {
   });
 }
 
+/** Generate next local follow-up drafts for selected sequences without queueing Gmail sends. */
+export function batchGenerateCrmNextSequenceDrafts(data: Api.Crm.SequenceReviewBatchPayload) {
+  return request<Api.Crm.SequenceBatchOperateResult>({
+    url: '/crm/sequence-review-items/batch-generate-next-draft',
+    method: 'post',
+    data
+  });
+}
+
 /** Start the first approved message by putting it into the CRM send queue. */
 export function startCrmFirstMessageSend(enrollmentId: string) {
   return request<Api.Crm.MessageSendStartResult>({
@@ -372,6 +440,15 @@ export function stopCrmSequenceEnrollment(enrollmentId: string) {
   return request<Api.Crm.SequenceStopResult>({
     url: `/crm/sequence-review-items/${enrollmentId}/stop`,
     method: 'post'
+  });
+}
+
+/** Stop selected owner sequences and invalidate their queued CRM send jobs. */
+export function batchStopCrmSequenceEnrollments(data: Api.Crm.SequenceReviewBatchPayload) {
+  return request<Api.Crm.SequenceBatchOperateResult>({
+    url: '/crm/sequence-review-items/batch-stop',
+    method: 'post',
+    data
   });
 }
 

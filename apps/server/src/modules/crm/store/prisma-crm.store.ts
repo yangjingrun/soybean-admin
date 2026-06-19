@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
 import type { CrmArchivedFingerprintModel } from '../../../generated/prisma/models/CrmArchivedFingerprint';
@@ -13,6 +14,7 @@ import type { CrmInboxThreadModel } from '../../../generated/prisma/models/CrmIn
 import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
 import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
 import type { CrmOrganizationConfigModel } from '../../../generated/prisma/models/CrmOrganizationConfig';
+import type { CrmPersonaProfileModel } from '../../../generated/prisma/models/CrmPersonaProfile';
 import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
 import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
 import type { CrmSequencePolicyModel } from '../../../generated/prisma/models/CrmSequencePolicy';
@@ -73,10 +75,17 @@ import type {
   CrmProductLineUpdateInput,
   CrmMessageCreateInput,
   CrmMessageDraftUpdateGuard,
+  CrmMessageDraftVersionCreateInput,
+  CrmMessageDraftVersionRecord,
+  CrmMessageDraftVersionRestoreInput,
   CrmMessageRecord,
   CrmMessageUpdateInput,
   CrmOrganizationConfigInput,
   CrmOrganizationConfigRecord,
+  CrmPersonaProfileCreateInput,
+  CrmPersonaProfileListInput,
+  CrmPersonaProfileRecord,
+  CrmPersonaProfileUpdateInput,
   CrmDraftApprovalInput,
   CrmDraftApprovalRecord,
   CrmFollowUpDraftBundleCreateInput,
@@ -744,6 +753,135 @@ export class PrismaCrmStore implements CrmStore {
     return records[0] ? toProductLineRecord(records[0]) : null;
   }
 
+  async listPersonaProfiles(input: CrmPersonaProfileListInput) {
+    const where = toPersonaProfileListWhere(input);
+    const [records, total] = await Promise.all([
+      this.prisma.crmPersonaProfile.findMany({
+        where,
+        skip: input.skip,
+        take: input.take,
+        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
+      }),
+      this.prisma.crmPersonaProfile.count({ where })
+    ]);
+
+    return {
+      records: records.map(toPersonaProfileRecord),
+      total
+    };
+  }
+
+  listActivePersonaProfiles(organizationId: string) {
+    return this.prisma.crmPersonaProfile
+      .findMany({
+        where: {
+          organizationId,
+          status: 'active'
+        },
+        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
+      })
+      .then(records => records.map(toPersonaProfileRecord));
+  }
+
+  findPersonaProfileByName(organizationId: string, name: string) {
+    return this.prisma.crmPersonaProfile
+      .findUnique({
+        where: {
+          organizationId_name: {
+            organizationId,
+            name
+          }
+        }
+      })
+      .then(record => (record ? toPersonaProfileRecord(record) : null));
+  }
+
+  findPersonaProfileById(args: { id: string; organizationId: string }) {
+    return this.prisma.crmPersonaProfile
+      .findFirst({
+        where: {
+          id: args.id,
+          organizationId: args.organizationId
+        }
+      })
+      .then(record => (record ? toPersonaProfileRecord(record) : null));
+  }
+
+  async createPersonaProfile(input: CrmPersonaProfileCreateInput) {
+    return this.prisma.$transaction(async tx => {
+      if (input.isDefault) {
+        await tx.crmPersonaProfile.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            isDefault: true
+          },
+          data: { isDefault: false }
+        });
+      }
+
+      const record = await tx.crmPersonaProfile.create({
+        data: toPersonaProfileCreateInput(input)
+      });
+
+      return toPersonaProfileRecord(record);
+    });
+  }
+
+  async updatePersonaProfile(id: string, organizationId: string, input: CrmPersonaProfileUpdateInput) {
+    return this.prisma.$transaction(async tx => {
+      if (input.isDefault) {
+        await tx.crmPersonaProfile.updateMany({
+          where: {
+            organizationId,
+            id: { not: id },
+            isDefault: true
+          },
+          data: { isDefault: false }
+        });
+      }
+
+      const records = await tx.crmPersonaProfile.updateManyAndReturn({
+        where: {
+          id,
+          organizationId
+        },
+        data: toPersonaProfileUpdateInput(input),
+        limit: 1
+      });
+
+      return records[0] ? toPersonaProfileRecord(records[0]) : null;
+    });
+  }
+
+  async setDefaultPersonaProfile(id: string, organizationId: string) {
+    return this.prisma.$transaction(async tx => {
+      const records = await tx.crmPersonaProfile.updateManyAndReturn({
+        where: {
+          id,
+          organizationId,
+          status: 'active'
+        },
+        data: { isDefault: true },
+        limit: 1
+      });
+
+      if (!records[0]) {
+        return null;
+      }
+
+      await tx.crmPersonaProfile.updateMany({
+        where: {
+          organizationId,
+          id: { not: id },
+          isDefault: true
+        },
+        data: { isDefault: false }
+      });
+
+      return toPersonaProfileRecord(records[0]);
+    });
+  }
+
   async listEmailTemplateGroups(input: CrmEmailTemplateGroupListInput) {
     const where = toEmailTemplateGroupListWhere(input);
     const [records, total] = await Promise.all([
@@ -1287,6 +1425,113 @@ export class PrismaCrmStore implements CrmStore {
     return records[0] ? toMessageRecord(records[0]) : null;
   }
 
+  async createMessageDraftVersion(input: CrmMessageDraftVersionCreateInput) {
+    const records = await this.prisma.$queryRaw<CrmMessageDraftVersionRaw[]>`
+      WITH next_version AS (
+        SELECT COALESCE(MAX("versionNo"), 0) + 1 AS "versionNo"
+        FROM "CrmMessageDraftVersion"
+        WHERE "messageId" = ${input.messageId}
+      )
+      INSERT INTO "CrmMessageDraftVersion" (
+        "id",
+        "organizationId",
+        "ownerUserId",
+        "accountId",
+        "contactId",
+        "enrollmentId",
+        "messageId",
+        "mailboxId",
+        "stepIndex",
+        "versionNo",
+        "subject",
+        "bodyText",
+        "editorId",
+        "editorName"
+      )
+      SELECT
+        ${randomUUID()},
+        ${input.organizationId},
+        ${input.ownerUserId},
+        ${input.accountId},
+        ${input.contactId},
+        ${input.enrollmentId},
+        ${input.messageId},
+        ${input.mailboxId ?? null},
+        ${input.stepIndex},
+        next_version."versionNo",
+        ${input.subject},
+        ${input.bodyText},
+        ${input.editorId},
+        ${input.editorName ?? null}
+      FROM next_version
+      RETURNING *
+    `;
+
+    const record = records[0];
+
+    if (!record) {
+      throw new Error('CRM draft version insert returned no record');
+    }
+
+    return toMessageDraftVersionRecord(record);
+  }
+
+  async listMessageDraftVersions(args: { messageId: string; organizationId: string; ownerUserId?: string }) {
+    const records = args.ownerUserId
+      ? await this.prisma.$queryRaw<CrmMessageDraftVersionRaw[]>`
+          SELECT *
+          FROM "CrmMessageDraftVersion"
+          WHERE "messageId" = ${args.messageId}
+            AND "organizationId" = ${args.organizationId}
+            AND "ownerUserId" = ${args.ownerUserId}
+          ORDER BY "versionNo" DESC, "createdAt" DESC
+        `
+      : await this.prisma.$queryRaw<CrmMessageDraftVersionRaw[]>`
+          SELECT *
+          FROM "CrmMessageDraftVersion"
+          WHERE "messageId" = ${args.messageId}
+            AND "organizationId" = ${args.organizationId}
+          ORDER BY "versionNo" DESC, "createdAt" DESC
+        `;
+
+    return records.map(toMessageDraftVersionRecord);
+  }
+
+  async restoreMessageDraftVersion(input: CrmMessageDraftVersionRestoreInput) {
+    return this.prisma.$transaction(async tx => {
+      const versions = await tx.$queryRaw<CrmMessageDraftVersionRaw[]>`
+        SELECT *
+        FROM "CrmMessageDraftVersion"
+        WHERE "id" = ${input.versionId}
+          AND "messageId" = ${input.messageId}
+          AND "organizationId" = ${input.organizationId}
+          AND "ownerUserId" = ${input.ownerUserId}
+        LIMIT 1
+      `;
+      const version = versions[0];
+
+      if (!version) {
+        return null;
+      }
+
+      const records = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          id: input.messageId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: 'draft_pending_review'
+        },
+        data: {
+          subject: version.subject,
+          bodyText: version.bodyText
+        },
+        limit: 1
+      });
+
+      return records[0] ? toMessageRecord(records[0]) : null;
+    });
+  }
+
   async approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null> {
     return this.prisma.$transaction(async tx => {
       const [targetMessage, targetEnrollment] = await Promise.all([
@@ -1574,6 +1819,7 @@ export class PrismaCrmStore implements CrmStore {
         where: {
           id: input.enrollmentId,
           organizationId: input.organizationId,
+          ...(input.ownerUserId ? { ownerUserId: input.ownerUserId } : {}),
           status: { in: input.fromStatuses }
         },
         data: {
@@ -2540,6 +2786,17 @@ function toProductLineListWhere(args: {
   };
 }
 
+/** Builds the Prisma persona profile list scope and optional UI filters. */
+function toPersonaProfileListWhere(args: CrmPersonaProfileListInput): Prisma.CrmPersonaProfileWhereInput {
+  const keywordFilter = args.keyword ? toPersonaProfileKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(args.status ? { status: args.status } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 /** Builds the Prisma email template group list scope and optional UI filters. */
 function toEmailTemplateGroupListWhere(args: CrmEmailTemplateGroupListInput): Prisma.CrmEmailTemplateGroupWhereInput {
   const keywordFilter = args.keyword ? toEmailTemplateKeywordFilter(args.keyword) : undefined;
@@ -2677,6 +2934,23 @@ function toProductLineKeywordFilter(keyword: string): Prisma.CrmProductLineWhere
     'paymentTerms',
     'certifications',
     'commonModelsText'
+  ].map(field => ({
+    [field]: {
+      contains: keyword,
+      mode: 'insensitive'
+    }
+  }));
+}
+
+function toPersonaProfileKeywordFilter(keyword: string): Prisma.CrmPersonaProfileWhereInput[] {
+  return [
+    'name',
+    'description',
+    'titleKeywordsText',
+    'customerTypeKeywordsText',
+    'painPoints',
+    'focusText',
+    'avoidText'
   ].map(field => ({
     [field]: {
       contains: keyword,
@@ -2859,6 +3133,26 @@ function toProductLineRecord(record: CrmProductLineModel): CrmProductLineRecord 
   };
 }
 
+function toPersonaProfileRecord(record: CrmPersonaProfileModel): CrmPersonaProfileRecord {
+  return {
+    id: record.id,
+    organizationId: record.organizationId,
+    name: record.name,
+    description: record.description,
+    titleKeywordsText: record.titleKeywordsText,
+    customerTypeKeywordsText: record.customerTypeKeywordsText,
+    painPoints: record.painPoints,
+    focusText: record.focusText,
+    avoidText: record.avoidText,
+    status: record.status as CrmPersonaProfileRecord['status'],
+    isDefault: record.isDefault,
+    createdById: record.createdById,
+    createdByName: record.createdByName,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  };
+}
+
 function toEmailTemplateStepRecord(record: CrmEmailTemplateStepModel): CrmEmailTemplateStepRecord {
   return {
     ...record,
@@ -2907,6 +3201,37 @@ function toSequencePolicyRecord(record: CrmSequencePolicyModel): CrmSequencePoli
     createdByName: record.createdByName,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt
+  };
+}
+
+function toPersonaProfileCreateInput(input: CrmPersonaProfileCreateInput): Prisma.CrmPersonaProfileUncheckedCreateInput {
+  return {
+    organizationId: input.organizationId,
+    name: input.name,
+    description: input.description ?? null,
+    titleKeywordsText: input.titleKeywordsText ?? null,
+    customerTypeKeywordsText: input.customerTypeKeywordsText ?? null,
+    painPoints: input.painPoints ?? null,
+    focusText: input.focusText ?? null,
+    avoidText: input.avoidText ?? null,
+    status: input.status,
+    isDefault: input.isDefault,
+    createdById: input.createdById,
+    createdByName: input.createdByName ?? null
+  };
+}
+
+function toPersonaProfileUpdateInput(input: CrmPersonaProfileUpdateInput): Prisma.CrmPersonaProfileUncheckedUpdateInput {
+  return {
+    name: input.name,
+    description: input.description,
+    titleKeywordsText: input.titleKeywordsText,
+    customerTypeKeywordsText: input.customerTypeKeywordsText,
+    painPoints: input.painPoints,
+    focusText: input.focusText,
+    avoidText: input.avoidText,
+    status: input.status,
+    isDefault: input.isDefault
   };
 }
 
@@ -2984,6 +3309,28 @@ function toInboxMessageRecord(record: CrmInboxMessageModel): CrmInboxMessageReco
     ...record,
     provider: record.provider as CrmInboxMessageRecord['provider'],
     messageType: record.messageType as CrmInboxMessageRecord['messageType']
+  };
+}
+
+type CrmMessageDraftVersionRaw = CrmMessageDraftVersionRecord;
+
+function toMessageDraftVersionRecord(record: CrmMessageDraftVersionRaw): CrmMessageDraftVersionRecord {
+  return {
+    id: record.id,
+    organizationId: record.organizationId,
+    ownerUserId: record.ownerUserId,
+    accountId: record.accountId,
+    contactId: record.contactId,
+    enrollmentId: record.enrollmentId,
+    messageId: record.messageId,
+    mailboxId: record.mailboxId,
+    stepIndex: record.stepIndex,
+    versionNo: record.versionNo,
+    subject: record.subject,
+    bodyText: record.bodyText,
+    editorId: record.editorId,
+    editorName: record.editorName,
+    createdAt: new Date(record.createdAt)
   };
 }
 

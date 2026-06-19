@@ -28,6 +28,8 @@ declare namespace Api {
 
     type ProductLineStatus = 'active' | 'archived';
 
+    type PersonaProfileStatus = 'active' | 'archived';
+
     type EmailTemplateStatus = 'active' | 'archived';
 
     type SequencePolicyStatus = 'active' | 'archived';
@@ -387,6 +389,53 @@ declare namespace Api {
 
     type ProductLineList = Api.Common.PaginatingQueryRecord<ProductLineRecord>;
 
+    interface PersonaProfileRecord {
+      id: string;
+      organizationId: string;
+      name: string;
+      description: string | null;
+      titleKeywordsText: string | null;
+      customerTypeKeywordsText: string | null;
+      painPoints: string | null;
+      focusText: string | null;
+      avoidText: string | null;
+      status: PersonaProfileStatus;
+      isDefault: boolean;
+      createdById: string;
+      createdByName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface PersonaProfileSearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+      status?: PersonaProfileStatus;
+    }
+
+    interface PersonaProfileFilterModel {
+      keyword: string;
+      status: PersonaProfileStatus | null;
+    }
+
+    interface PersonaProfilePayload {
+      name: string;
+      description: string;
+      titleKeywordsText: string;
+      customerTypeKeywordsText: string;
+      painPoints: string;
+      focusText: string;
+      avoidText: string;
+      isDefault: boolean;
+    }
+
+    type PersonaProfileFormModel = PersonaProfilePayload;
+
+    interface PersonaProfileOperateResult {
+      personaProfile: PersonaProfileRecord;
+    }
+
+    type PersonaProfileList = Api.Common.PaginatingQueryRecord<PersonaProfileRecord>;
+
     interface EmailTemplateStepRecord {
       id: string;
       organizationId: string;
@@ -517,10 +566,14 @@ declare namespace Api {
     }
 
     interface PersonaProfile {
+      id?: string;
       label: string;
       aliases: string[];
       focusText: string;
       draftFocusText: string;
+      painPoints?: string | null;
+      avoidText?: string | null;
+      source?: 'built_in' | 'organization';
     }
 
     interface TemplateDefaults {
@@ -577,6 +630,24 @@ declare namespace Api {
       providerThreadId: string | null;
       createdAt: string;
       updatedAt: string;
+    }
+
+    interface MessageDraftVersionRecord {
+      id: string;
+      organizationId: string;
+      ownerUserId: string;
+      accountId: string;
+      contactId: string;
+      enrollmentId: string;
+      messageId: string;
+      mailboxId: string | null;
+      stepIndex: number;
+      versionNo: number;
+      subject: string;
+      bodyText: string;
+      editorId: string;
+      editorName: string | null;
+      createdAt: string;
     }
 
     interface InboxThreadRecord {
@@ -698,6 +769,10 @@ declare namespace Api {
       policyId?: string;
     }
 
+    interface SequenceReviewBatchPayload {
+      ids: string[];
+    }
+
     interface SequenceReviewCreateFormModel {
       accountId: string | null;
       contactId: string | null;
@@ -723,6 +798,14 @@ declare namespace Api {
       message: MessageRecord;
     }
 
+    interface MessageDraftVersionListResult {
+      versions: MessageDraftVersionRecord[];
+    }
+
+    interface MessageDraftVersionRestoreResult {
+      message: MessageRecord;
+    }
+
     interface MessageDraftApproveResult {
       enrollment: SequenceEnrollmentRecord;
       message: MessageRecord;
@@ -745,6 +828,25 @@ declare namespace Api {
       message: MessageRecord | null;
       account: LeadRecord;
       event: LeadTimelineEvent;
+    }
+
+    type SequenceBatchItemStatus = 'success' | 'skipped' | 'failed';
+
+    interface SequenceBatchItemResult {
+      id: string;
+      status: SequenceBatchItemStatus;
+      message: string;
+      enrollmentId?: string;
+      messageId?: string;
+      stepIndex?: number;
+    }
+
+    interface SequenceBatchOperateResult {
+      totalCount: number;
+      successCount: number;
+      skippedCount: number;
+      failedCount: number;
+      results: SequenceBatchItemResult[];
     }
 
     interface InboxThreadStatusResult {

@@ -7,6 +7,9 @@ import { useEmailSequenceTable } from './useEmailSequenceTable';
 
 const {
   accountSelectOptions,
+  batchNextDraftGenerating,
+  batchSequenceStopping,
+  checkedRowKeys,
   contactSelectOptions,
   createForm,
   createSubmitting,
@@ -15,11 +18,17 @@ const {
   detailRefreshing,
   draftApproving,
   draftSaving,
+  draftVersionLoading,
+  draftVersionRestoring,
+  draftVersions,
   drawerLoading,
   drawerVisible,
   filterModel,
   handleAccountChange,
   handleApproveDraft,
+  handleBatchGenerateNextDrafts,
+  handleBatchStopSequences,
+  handleCheckedRowKeysUpdate,
   handleCreateReviewItem,
   handleCreateVisibleUpdate,
   handleDrawerVisibleUpdate,
@@ -28,10 +37,12 @@ const {
   handlePageUpdate,
   handleReset,
   handleRefreshCurrentSequence,
+  handleRestoreDraftVersion,
   handleSaveDraft,
   handleSearch,
   handleStartSend,
   handleStopSequence,
+  loadDraftVersions,
   loadSequences,
   loading,
   mailboxSelectOptions,
@@ -66,10 +77,16 @@ const {
     />
 
     <EmailSequenceTable
+      :batch-next-draft-generating="batchNextDraftGenerating"
+      :batch-sequence-stopping="batchSequenceStopping"
+      :checked-row-keys="checkedRowKeys"
       :loading="loading"
       :pagination="pagination"
       :records="records"
+      @batch-generate-next-drafts="handleBatchGenerateNextDrafts"
+      @batch-stop-sequences="handleBatchStopSequences"
       @review="openDraftDrawer"
+      @update-checked-row-keys="handleCheckedRowKeysUpdate"
       @update-page="handlePageUpdate"
       @update-page-size="handlePageSizeUpdate"
     />
@@ -99,9 +116,14 @@ const {
       :saving="draftSaving"
       :send-starting="sendStarting"
       :stopping="sequenceStopping"
+      :version-loading="draftVersionLoading"
+      :version-restoring="draftVersionRestoring"
+      :versions="draftVersions"
       @approve-draft="handleApproveDraft"
       @generate-next-draft="handleGenerateNextDraft"
+      @load-draft-versions="loadDraftVersions"
       @refresh="handleRefreshCurrentSequence"
+      @restore-draft-version="handleRestoreDraftVersion"
       @save-draft="handleSaveDraft"
       @start-send="handleStartSend"
       @stop="handleStopSequence"

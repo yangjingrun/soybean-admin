@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import type { DataTableColumns } from 'naive-ui';
+import type { DataTableColumns, DataTableRowKey } from 'naive-ui';
 import {
   formatNullableText,
   formatSequenceDate,
@@ -13,10 +13,23 @@ import {
   messageStatusLabelMap,
   messageStatusTagTypeMap,
   sequenceStatusLabelMap,
-  sequenceStatusTagTypeMap
+  sequenceStatusTagTypeMap,
+  summarizeSequenceBatchSelection
 } from './shared';
 
-defineProps<{
+const emit = defineEmits<{
+  batchGenerateNextDrafts: [];
+  batchStopSequences: [];
+  review: [record: Api.Crm.SequenceReviewItem];
+  updateCheckedRowKeys: [keys: DataTableRowKey[]];
+  updatePage: [page: number];
+  updatePageSize: [pageSize: number];
+}>();
+
+const props = defineProps<{
+  batchNextDraftGenerating?: boolean;
+  batchSequenceStopping?: boolean;
+  checkedRowKeys: DataTableRowKey[];
   loading?: boolean;
   pagination: {
     current: number;
@@ -26,13 +39,19 @@ defineProps<{
   records: Api.Crm.SequenceReviewItem[];
 }>();
 
-const emit = defineEmits<{
-  review: [record: Api.Crm.SequenceReviewItem];
-  updatePage: [page: number];
-  updatePageSize: [pageSize: number];
-}>();
+const batchBusy = computed(() => Boolean(props.loading || props.batchNextDraftGenerating || props.batchSequenceStopping));
+const batchSelectionSummary = computed(() => {
+  const checkedSet = new Set(props.checkedRowKeys.map(String));
+  const selectedRecords = props.records.filter(record => checkedSet.has(record.enrollment.id));
+
+  return summarizeSequenceBatchSelection(selectedRecords);
+});
 
 const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
+  {
+    type: 'selection',
+    width: 48
+  },
   {
     key: 'account',
     title: '线索',
@@ -168,7 +187,36 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
 
 <template>
   <NCard :bordered="false" size="small" class="card-wrapper" title="序列审核清单">
+    <template #header-extra>
+      <NSpace align="center" :size="8">
+        <NText v-if="batchSelectionSummary.selectedCount > 0" depth="3">
+          已选 {{ batchSelectionSummary.selectedCount }} 条
+        </NText>
+        <NButton
+          size="small"
+          type="success"
+          secondary
+          :disabled="batchSelectionSummary.generateNextDraftCount === 0 || batchBusy"
+          :loading="batchNextDraftGenerating"
+          @click="emit('batchGenerateNextDrafts')"
+        >
+          生成下一封
+        </NButton>
+        <NButton
+          size="small"
+          type="warning"
+          secondary
+          :disabled="batchSelectionSummary.stopCount === 0 || batchBusy"
+          :loading="batchSequenceStopping"
+          @click="emit('batchStopSequences')"
+        >
+          停止序列
+        </NButton>
+      </NSpace>
+    </template>
+
     <NDataTable
+      :checked-row-keys="checkedRowKeys"
       :columns="columns"
       :data="records"
       :loading="loading"
@@ -183,6 +231,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
         showSizePicker: true,
         pageSizes: [10, 20, 50]
       }"
+      @update:checked-row-keys="emit('updateCheckedRowKeys', $event)"
       @update:page="emit('updatePage', $event)"
       @update:page-size="emit('updatePageSize', $event)"
     >

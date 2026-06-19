@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Inject,
   Injectable,
   NotFoundException,
@@ -29,7 +30,8 @@ import {
   defaultTemplateVariables,
   findPersonaProfile,
   personaProfiles,
-  renderEmailTemplateText
+  renderEmailTemplateText,
+  type PersonaProfile
 } from './crm-email-template-renderer';
 import {
   CRM_EMAIL_DNS_RESOLVER,
@@ -66,10 +68,14 @@ import type {
   CrmInboxThreadReplyRecord,
   CrmInboxThreadRecord,
   CrmInboxThreadStatus,
+  CrmMessageDraftVersionRecord,
   CrmMessageRecord,
   CrmMessageStatus,
   CrmMessageThreadMode,
   CrmOrganizationConfigRecord,
+  CrmPersonaProfileRecord,
+  CrmPersonaProfileStatus,
+  CrmPersonaProfileUpdateInput,
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmProductLineUpdateInput,
@@ -94,6 +100,7 @@ const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
 const defaultProductLineStatus: CrmProductLineStatus = 'active';
 const defaultEmailTemplateStatus: CrmEmailTemplateStatus = 'active';
+const defaultPersonaProfileStatus: CrmPersonaProfileStatus = 'active';
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex = 1;
 const accountArchiveRecoveryDays = 30;
@@ -154,6 +161,21 @@ interface ProductLineUpdateInput extends Partial<ProductLineCreateInput> {
   status?: CrmProductLineStatus;
 }
 
+interface PersonaProfileCreateInput {
+  name: string;
+  description?: string | null;
+  titleKeywordsText?: string | null;
+  customerTypeKeywordsText?: string | null;
+  painPoints?: string | null;
+  focusText?: string | null;
+  avoidText?: string | null;
+  isDefault?: boolean;
+}
+
+interface PersonaProfileUpdateInput extends Partial<PersonaProfileCreateInput> {
+  status?: CrmPersonaProfileStatus;
+}
+
 interface EmailTemplateStepInput {
   stepIndex: number;
   name: string;
@@ -182,6 +204,29 @@ interface SequenceReviewCreateInput {
   productLineId?: string | null;
   mailboxId?: string | null;
   policyId?: string | null;
+}
+
+interface SequenceBatchOperationInput {
+  ids: string[];
+}
+
+type SequenceBatchItemStatus = 'success' | 'skipped' | 'failed';
+
+interface SequenceBatchItemResult {
+  id: string;
+  status: SequenceBatchItemStatus;
+  message: string;
+  enrollmentId?: string;
+  messageId?: string;
+  stepIndex?: number;
+}
+
+interface SequenceBatchOperateResult {
+  totalCount: number;
+  successCount: number;
+  skippedCount: number;
+  failedCount: number;
+  results: SequenceBatchItemResult[];
 }
 
 interface SequencePolicyWriteInput {
@@ -884,6 +929,155 @@ export class CrmService {
     return { productLine: toProductLineView(productLine) };
   }
 
+  /** Lists organization-level persona profiles used by CRM draft generation. */
+  async listPersonaProfiles(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: CrmPersonaProfileStatus;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const result = await this.store.listPersonaProfiles({
+      organizationId: context.organizationId,
+      ...(keyword ? { keyword } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(toPersonaProfileView)
+    };
+  }
+
+  /** Creates an organization-level persona profile after checking manager permission. */
+  async createPersonaProfile(input: PersonaProfileCreateInput, context: CrmUserContext) {
+    this.requireOrganizationConfigManager(context);
+    const data = normalizePersonaProfileCreateInput(input);
+    await this.assertPersonaProfileNameAvailable(context.organizationId, data.name);
+    const personaProfile = await this.runPersonaProfileWrite(() =>
+      this.store.createPersonaProfile({
+        organizationId: context.organizationId,
+        ...data,
+        status: defaultPersonaProfileStatus,
+        isDefault: Boolean(input.isDefault),
+        createdById: context.userId,
+        createdByName: context.userName
+      })
+    );
+
+    await this.recordPersonaProfileLog(
+      'persona-profile-create',
+      'CRM 职位/客户画像新建',
+      context,
+      personaProfile,
+      null,
+      personaProfile.status
+    );
+
+    return { personaProfile: toPersonaProfileView(personaProfile) };
+  }
+
+  /** Updates one organization persona profile through scoped reads and writes. */
+  async updatePersonaProfile(id: string, input: PersonaProfileUpdateInput, context: CrmUserContext) {
+    this.requireOrganizationConfigManager(context);
+    const currentPersonaProfile = await this.requireScopedPersonaProfile(id, context);
+    const fromStatus = currentPersonaProfile.status;
+    const data = normalizePersonaProfileUpdateInput(input);
+    const nextStatus = data.status ?? currentPersonaProfile.status;
+
+    if (data.name && data.name !== currentPersonaProfile.name) {
+      await this.assertPersonaProfileNameAvailable(context.organizationId, data.name, currentPersonaProfile.id);
+    }
+
+    if (data.isDefault && nextStatus !== 'active') {
+      throw new BadRequestException('只能将启用画像设为默认');
+    }
+
+    if (data.status === 'archived') {
+      data.isDefault = false;
+    }
+
+    const personaProfile = await this.runPersonaProfileWrite(() =>
+      this.store.updatePersonaProfile(currentPersonaProfile.id, context.organizationId, data)
+    );
+
+    if (!personaProfile) {
+      throw new NotFoundException('画像不存在');
+    }
+
+    await this.recordPersonaProfileLog(
+      'persona-profile-update',
+      'CRM 职位/客户画像更新',
+      context,
+      personaProfile,
+      fromStatus,
+      personaProfile.status
+    );
+
+    return { personaProfile: toPersonaProfileView(personaProfile) };
+  }
+
+  /** Archives one persona profile instead of deleting it. */
+  async archivePersonaProfile(id: string, context: CrmUserContext) {
+    this.requireOrganizationConfigManager(context);
+    const currentPersonaProfile = await this.requireScopedPersonaProfile(id, context);
+    const personaProfile = await this.store.updatePersonaProfile(currentPersonaProfile.id, context.organizationId, {
+      status: 'archived',
+      isDefault: false
+    });
+
+    if (!personaProfile) {
+      throw new NotFoundException('画像不存在');
+    }
+
+    await this.recordPersonaProfileLog(
+      'persona-profile-archive',
+      'CRM 职位/客户画像归档',
+      context,
+      personaProfile,
+      currentPersonaProfile.status,
+      personaProfile.status
+    );
+
+    return { personaProfile: toPersonaProfileView(personaProfile) };
+  }
+
+  /** Marks one active persona profile as the organization default. */
+  async setDefaultPersonaProfile(id: string, context: CrmUserContext) {
+    this.requireOrganizationConfigManager(context);
+    const currentPersonaProfile = await this.requireScopedPersonaProfile(id, context);
+
+    if (currentPersonaProfile.status !== 'active') {
+      throw new BadRequestException('只能将启用画像设为默认');
+    }
+
+    const personaProfile = await this.store.setDefaultPersonaProfile(currentPersonaProfile.id, context.organizationId);
+
+    if (!personaProfile) {
+      throw new NotFoundException('画像不存在');
+    }
+
+    await this.recordPersonaProfileLog(
+      'persona-profile-default',
+      'CRM 默认职位/客户画像更新',
+      context,
+      personaProfile,
+      currentPersonaProfile.status,
+      personaProfile.status
+    );
+
+    return { personaProfile: toPersonaProfileView(personaProfile) };
+  }
+
   /** Lists organization-level email template groups for CRM sequence drafting. */
   async listEmailTemplateGroups(
     context: CrmUserContext,
@@ -1023,7 +1217,14 @@ export class CrmService {
 
   /** Returns the read-only default template and persona rules used by first-draft generation. */
   async getTemplateDefaults(context: CrmUserContext) {
-    const defaultTemplateGroup = await this.store.findDefaultEmailTemplateGroup(context.organizationId);
+    const [defaultTemplateGroup, activePersonaProfiles] = await Promise.all([
+      this.store.findDefaultEmailTemplateGroup(context.organizationId),
+      this.store.listActivePersonaProfiles(context.organizationId)
+    ]);
+    const templatePersonas = activePersonaProfiles.length
+      ? activePersonaProfiles.map(toTemplatePersonaProfile)
+      : personaProfiles.map(profile => ({ ...profile, aliases: [...profile.aliases] }));
+
     if (defaultTemplateGroup) {
       return {
         templateGroup: {
@@ -1031,7 +1232,7 @@ export class CrmService {
           scope: 'organization' as const,
           variables: defaultTemplateVariables.map(variable => ({ ...variable }))
         },
-        personas: personaProfiles.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
+        personas: templatePersonas.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
       };
     }
 
@@ -1049,7 +1250,7 @@ export class CrmService {
           delayDays: getTemplateStepDelayDays(step.stepIndex, globalConfig.followUpDelayDays)
         }))
       },
-      personas: personaProfiles.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
+      personas: templatePersonas.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
     };
   }
 
@@ -1207,8 +1408,18 @@ export class CrmService {
     ]);
     const policy = selectedPolicy ?? defaultPolicy;
     await this.assertSameCompanySequencePolicy(account, contact, policy, context);
-    const defaultTemplateGroup = await this.store.findDefaultEmailTemplateGroup(context.organizationId);
-    const draft = generateFirstDraft({ account, contact, productLine, context, templateGroup: defaultTemplateGroup });
+    const [defaultTemplateGroup, personaProfile] = await Promise.all([
+      this.store.findDefaultEmailTemplateGroup(context.organizationId),
+      this.resolvePersonaProfile(account, contact, context)
+    ]);
+    const draft = generateFirstDraft({
+      account,
+      contact,
+      productLine,
+      context,
+      personaProfile,
+      templateGroup: defaultTemplateGroup
+    });
     const bundle = await this.runSequenceWrite(() =>
       this.store.createSequenceDraftBundle({
         enrollment: {
@@ -1250,7 +1461,9 @@ export class CrmService {
           metadata: {
             productLineId: productLine?.id ?? null,
             mailboxId: mailbox?.id ?? null,
-            policyId: policy?.id ?? null
+            policyId: policy?.id ?? null,
+            personaProfileId: personaProfile?.id ?? null,
+            personaProfileName: personaProfile?.label ?? null
           }
         },
         accountStatus: 'manual_review_pending'
@@ -1344,6 +1557,21 @@ export class CrmService {
       throw new NotFoundException('邮件草稿不存在');
     }
 
+    await this.store.createMessageDraftVersion({
+      organizationId: updatedMessage.organizationId,
+      ownerUserId: updatedMessage.ownerUserId,
+      accountId: updatedMessage.accountId,
+      contactId: updatedMessage.contactId,
+      enrollmentId: updatedMessage.enrollmentId,
+      messageId: updatedMessage.id,
+      mailboxId: updatedMessage.mailboxId,
+      stepIndex: updatedMessage.stepIndex,
+      subject: updatedMessage.subject,
+      bodyText: updatedMessage.bodyText,
+      editorId: context.userId,
+      editorName: context.userName
+    });
+
     await this.store.createTimelineEvent({
       organizationId: updatedMessage.organizationId,
       accountId: updatedMessage.accountId,
@@ -1360,6 +1588,60 @@ export class CrmService {
 
     return {
       message: toMessageView(updatedMessage)
+    };
+  }
+
+  /** Lists saved snapshots for one owner draft message. */
+  async listMessageDraftVersions(id: string, context: CrmUserContext) {
+    await this.requireOwnedMessage(id, context);
+    const versions = await this.store.listMessageDraftVersions({
+      messageId: id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    return {
+      versions: versions.map(toMessageDraftVersionView)
+    };
+  }
+
+  /** Restores one saved draft snapshot into the current pending-review message. */
+  async restoreMessageDraftVersion(id: string, versionId: string, context: CrmUserContext) {
+    const message = await this.requireOwnedEditableMessage(id, context);
+    const restoredMessage = await this.store.restoreMessageDraftVersion({
+      messageId: message.id,
+      versionId,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!restoredMessage) {
+      throw new NotFoundException('草稿版本不存在');
+    }
+
+    await this.store.createTimelineEvent({
+      organizationId: restoredMessage.organizationId,
+      accountId: restoredMessage.accountId,
+      contactId: restoredMessage.contactId,
+      ownerUserId: context.userId,
+      eventType: 'draft_version_restored',
+      title: '恢复开发信草稿历史版本',
+      content: restoredMessage.subject,
+      metadata: {
+        enrollmentId: restoredMessage.enrollmentId,
+        messageId: restoredMessage.id,
+        versionId
+      }
+    });
+
+    await this.recordCrmLog('draft-version-restore', 'CRM 开发信草稿恢复历史版本', context, {
+      enrollmentId: restoredMessage.enrollmentId,
+      messageId: restoredMessage.id,
+      versionId
+    });
+
+    return {
+      message: toMessageView(restoredMessage)
     };
   }
 
@@ -1434,9 +1716,10 @@ export class CrmService {
       throw new BadRequestException('已存在下一步草稿或待发送消息，请先处理后再生成');
     }
 
-    const [globalConfig, defaultTemplateGroup] = await Promise.all([
+    const [globalConfig, defaultTemplateGroup, personaProfile] = await Promise.all([
       this.store.getGlobalConfig(),
-      this.store.findDefaultEmailTemplateGroup(context.organizationId)
+      this.store.findDefaultEmailTemplateGroup(context.organizationId),
+      this.resolvePersonaProfile(item.account, item.contact, context)
     ]);
     const nextMessage = buildNextFollowUpDraft({
       item,
@@ -1444,6 +1727,7 @@ export class CrmService {
       providerThreadId: sourceMessage.providerThreadId,
       baseTime: new Date(),
       followUpDelayDays: globalConfig.followUpDelayDays,
+      personaProfile,
       templateGroup: defaultTemplateGroup,
       senderName: context.userName
     });
@@ -1468,6 +1752,8 @@ export class CrmService {
           content: nextMessage.subject,
           metadata: {
             enrollmentId: item.enrollment.id,
+            personaProfileId: personaProfile?.id ?? null,
+            personaProfileName: personaProfile?.label ?? null,
             stepIndex: nextMessage.stepIndex
           }
         }
@@ -1491,6 +1777,44 @@ export class CrmService {
       enrollment: toSequenceEnrollmentView(bundle.enrollment),
       message: toMessageView(bundle.message)
     };
+  }
+
+  /** Generates follow-up drafts for eligible owner sequences while returning per-item outcomes. */
+  async batchGenerateNextDrafts(
+    input: SequenceBatchOperationInput,
+    context: CrmUserContext
+  ): Promise<SequenceBatchOperateResult> {
+    return this.runSequenceBatch(input.ids, async id => {
+      const item = await this.store.getSequenceReviewItem({
+        id,
+        organizationId: context.organizationId,
+        ownerUserId: context.userId
+      });
+
+      if (!item) {
+        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
+      }
+
+      const skipMessage = this.getNextDraftSkipMessage(item);
+
+      if (skipMessage) {
+        return this.createSequenceBatchResult(id, 'skipped', skipMessage, {
+          enrollmentId: item.enrollment.id
+        });
+      }
+
+      try {
+        const generated = await this.generateNextDraft(id, context);
+
+        return this.createSequenceBatchResult(id, 'success', `第 ${generated.message.stepIndex} 封草稿已生成`, {
+          enrollmentId: generated.enrollment.id,
+          messageId: generated.message.id,
+          stepIndex: generated.message.stepIndex
+        });
+      } catch (error) {
+        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
+      }
+    });
   }
 
   /** Confirms a follow-up draft locally, or schedules it when the sequence is already sending. */
@@ -1719,6 +2043,66 @@ export class CrmService {
       account: toAccountView(stopped.account),
       event: toTimelineEventView(stopped.event)
     };
+  }
+
+  /** Stops eligible owner sequences in isolation so one failure does not abort the whole batch. */
+  async batchStopSequenceEnrollments(
+    input: SequenceBatchOperationInput,
+    context: CrmUserContext
+  ): Promise<SequenceBatchOperateResult> {
+    return this.runSequenceBatch(input.ids, async id => {
+      const item = await this.store.getSequenceReviewItem({
+        id,
+        organizationId: context.organizationId,
+        ownerUserId: context.userId
+      });
+
+      if (!item) {
+        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
+      }
+
+      if (!stoppableSequenceStatuses.includes(item.enrollment.status)) {
+        return this.createSequenceBatchResult(id, 'skipped', '当前序列状态不能停止', {
+          enrollmentId: item.enrollment.id
+        });
+      }
+
+      try {
+        const stopped = await this.store.stopSequenceEnrollment({
+          enrollmentId: item.enrollment.id,
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          fromStatuses: stoppableSequenceStatuses,
+          accountStatus: 'paused',
+          actorUserId: context.userId
+        });
+
+        if (!stopped) {
+          return this.createSequenceBatchResult(id, 'skipped', '当前序列状态已变化，请刷新后重试', {
+            enrollmentId: item.enrollment.id
+          });
+        }
+
+        await this.recordCrmLog('sequence-stopped', 'CRM 开发信序列已停止', context, {
+          organizationId: context.organizationId,
+          accountId: stopped.account.id,
+          contactId: stopped.enrollment.contactId,
+          enrollmentId: stopped.enrollment.id,
+          messageId: stopped.message?.id ?? item.firstMessage?.id ?? null,
+          fromStatus: item.enrollment.status,
+          toStatus: stopped.enrollment.status,
+          runVersion: stopped.enrollment.runVersion
+        });
+
+        return this.createSequenceBatchResult(id, 'success', '开发信序列已停止', {
+          enrollmentId: stopped.enrollment.id,
+          messageId: stopped.message?.id,
+          stepIndex: stopped.message?.stepIndex
+        });
+      } catch (error) {
+        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
+      }
+    });
   }
 
   /** Lists customer reply inbox threads in the current organization scope. */
@@ -2327,6 +2711,34 @@ export class CrmService {
     return productLine;
   }
 
+  private async requireScopedPersonaProfile(id: string, context: CrmUserContext) {
+    const personaProfile = await this.store.findPersonaProfileById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!personaProfile) {
+      throw new NotFoundException('画像不存在');
+    }
+
+    return personaProfile;
+  }
+
+  private async resolvePersonaProfile(
+    account: Pick<CrmAccountRecord, 'customerType'>,
+    contact: Pick<CrmContactRecord, 'title'>,
+    context: CrmUserContext
+  ): Promise<PersonaProfile | null> {
+    const organizationProfiles = await this.store.listActivePersonaProfiles(context.organizationId);
+    const matchedProfile = selectOrganizationPersonaProfile(organizationProfiles, account, contact);
+
+    if (matchedProfile) {
+      return toTemplatePersonaProfile(matchedProfile);
+    }
+
+    return findPersonaProfile(contact.title);
+  }
+
   private async requireScopedEmailTemplateGroup(id: string, context: CrmUserContext) {
     const templateGroup = await this.store.findEmailTemplateGroupById({
       id,
@@ -2453,6 +2865,74 @@ export class CrmService {
     return item;
   }
 
+  /** Runs a sequence batch with per-item isolation and computes the summary counters. */
+  private async runSequenceBatch(
+    ids: string[],
+    operate: (id: string) => Promise<SequenceBatchItemResult>
+  ): Promise<SequenceBatchOperateResult> {
+    const results: SequenceBatchItemResult[] = [];
+
+    for (const id of ids) {
+      results.push(await operate(id));
+    }
+
+    return {
+      totalCount: ids.length,
+      successCount: results.filter(item => item.status === 'success').length,
+      skippedCount: results.filter(item => item.status === 'skipped').length,
+      failedCount: results.filter(item => item.status === 'failed').length,
+      results
+    };
+  }
+
+  private createSequenceBatchResult(
+    id: string,
+    status: SequenceBatchItemStatus,
+    message: string,
+    extra: Omit<SequenceBatchItemResult, 'id' | 'status' | 'message'> = {}
+  ): SequenceBatchItemResult {
+    return {
+      id,
+      status,
+      message,
+      ...extra
+    };
+  }
+
+  private createSequenceBatchExceptionResult(
+    id: string,
+    error: unknown,
+    enrollmentId?: string
+  ): SequenceBatchItemResult {
+    const message = error instanceof Error ? error.message : String(error);
+    const status: SequenceBatchItemStatus =
+      error instanceof HttpException && error.getStatus() < 500 ? 'skipped' : 'failed';
+
+    return this.createSequenceBatchResult(id, status, message, { enrollmentId });
+  }
+
+  private getNextDraftSkipMessage(item: CrmSequenceReviewRecord) {
+    if (!nextDraftEnrollmentStatuses.includes(item.enrollment.status)) {
+      return '当前序列状态不能生成下一封草稿';
+    }
+
+    const sourceMessage = item.messages.at(-1);
+
+    if (!sourceMessage) {
+      return '当前序列还没有可参考的开发信';
+    }
+
+    if (sourceMessage.stepIndex >= item.enrollment.totalSteps) {
+      return '当前序列已达到最大步骤数';
+    }
+
+    if (item.messages.some(message => blockingNextDraftMessageStatuses.includes(message.status))) {
+      return '已存在下一步草稿或待发送消息，请先处理后再生成';
+    }
+
+    return null;
+  }
+
   private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
     const item = await this.store.getSequenceReviewItem({
       id,
@@ -2465,6 +2945,20 @@ export class CrmService {
     }
 
     return item;
+  }
+
+  private async requireOwnedMessage(id: string, context: CrmUserContext) {
+    const message = await this.store.findMessageById({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!message) {
+      throw new NotFoundException('邮件草稿不存在');
+    }
+
+    return message;
   }
 
   private async requireOwnedEditableMessage(id: string, context: CrmUserContext) {
@@ -2574,6 +3068,14 @@ export class CrmService {
     }
   }
 
+  private async assertPersonaProfileNameAvailable(organizationId: string, name: string, ignoredId?: string) {
+    const existingProfile = await this.store.findPersonaProfileByName(organizationId, name);
+
+    if (existingProfile && existingProfile.id !== ignoredId) {
+      throw new BadRequestException('画像名称已存在');
+    }
+  }
+
   private async runProductLineWrite<T>(operation: () => Promise<T>) {
     try {
       return await operation();
@@ -2592,6 +3094,18 @@ export class CrmService {
     } catch (error) {
       if (isPrismaUniqueConflict(error)) {
         throw new BadRequestException('邮件模板名称已存在');
+      }
+
+      throw error;
+    }
+  }
+
+  private async runPersonaProfileWrite<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        throw new BadRequestException('画像名称已存在');
       }
 
       throw error;
@@ -2736,6 +3250,25 @@ export class CrmService {
     });
   }
 
+  private recordPersonaProfileLog(
+    action: string,
+    message: string,
+    context: CrmUserContext,
+    personaProfile: CrmPersonaProfileRecord,
+    fromStatus: CrmPersonaProfileStatus | null,
+    toStatus: CrmPersonaProfileStatus
+  ) {
+    return this.recordCrmLog(action, message, context, {
+      organizationId: personaProfile.organizationId,
+      personaProfileId: personaProfile.id,
+      name: personaProfile.name,
+      status: personaProfile.status,
+      isDefault: personaProfile.isDefault,
+      fromStatus,
+      toStatus
+    });
+  }
+
   private recordSequencePolicyLog(
     action: string,
     message: string,
@@ -2850,6 +3383,14 @@ function toProductLineView(record: CrmProductLineRecord) {
   };
 }
 
+function toPersonaProfileView(record: CrmPersonaProfileRecord) {
+  return {
+    ...record,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
 function toEmailTemplateGroupView(record: CrmEmailTemplateGroupRecord) {
   return {
     ...record,
@@ -2887,6 +3428,13 @@ function toMessageView(record: CrmMessageRecord) {
     sentAt: record.sentAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
+  return {
+    ...record,
+    createdAt: record.createdAt.toISOString()
   };
 }
 
@@ -3257,6 +3805,38 @@ function normalizeProductLineUpdateInput(input: ProductLineUpdateInput): CrmProd
   return data;
 }
 
+function normalizePersonaProfileCreateInput(input: PersonaProfileCreateInput) {
+  const name = normalizeRequiredString(input.name, '画像名称不能为空');
+
+  return {
+    name,
+    description: normalizeNullableString(input.description),
+    titleKeywordsText: normalizeNullableString(input.titleKeywordsText),
+    customerTypeKeywordsText: normalizeNullableString(input.customerTypeKeywordsText),
+    painPoints: normalizeNullableString(input.painPoints),
+    focusText: normalizeNullableString(input.focusText),
+    avoidText: normalizeNullableString(input.avoidText)
+  };
+}
+
+function normalizePersonaProfileUpdateInput(input: PersonaProfileUpdateInput): CrmPersonaProfileUpdateInput {
+  const data: CrmPersonaProfileUpdateInput = {};
+
+  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '画像名称不能为空');
+  if (hasOwn(input, 'description')) data.description = normalizeNullableString(input.description);
+  if (hasOwn(input, 'titleKeywordsText')) data.titleKeywordsText = normalizeNullableString(input.titleKeywordsText);
+  if (hasOwn(input, 'customerTypeKeywordsText')) {
+    data.customerTypeKeywordsText = normalizeNullableString(input.customerTypeKeywordsText);
+  }
+  if (hasOwn(input, 'painPoints')) data.painPoints = normalizeNullableString(input.painPoints);
+  if (hasOwn(input, 'focusText')) data.focusText = normalizeNullableString(input.focusText);
+  if (hasOwn(input, 'avoidText')) data.avoidText = normalizeNullableString(input.avoidText);
+  if (hasOwn(input, 'isDefault')) data.isDefault = Boolean(input.isDefault);
+  if (hasOwn(input, 'status')) data.status = input.status;
+
+  return data;
+}
+
 function normalizeEmailTemplateCreateInput(input: EmailTemplateCreateInput) {
   return {
     name: normalizeRequiredString(input.name, '邮件模板名称不能为空'),
@@ -3423,20 +4003,82 @@ function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex
   return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
 }
 
+function selectOrganizationPersonaProfile(
+  profiles: CrmPersonaProfileRecord[],
+  account: Pick<CrmAccountRecord, 'customerType'>,
+  contact: Pick<CrmContactRecord, 'title'>
+) {
+  const normalizedTitle = contact.title?.trim().toLowerCase() ?? '';
+  const normalizedCustomerType = account.customerType?.trim().toLowerCase() ?? '';
+  const titleMatchedProfile = normalizedTitle
+    ? profiles.find(profile =>
+        splitPersonaKeywords(profile.titleKeywordsText).some(keyword => normalizedTitle.includes(keyword.toLowerCase()))
+      )
+    : null;
+
+  if (titleMatchedProfile) {
+    return titleMatchedProfile;
+  }
+
+  const customerTypeMatchedProfile = normalizedCustomerType
+    ? profiles.find(profile =>
+        splitPersonaKeywords(profile.customerTypeKeywordsText).some(keyword =>
+          normalizedCustomerType.includes(keyword.toLowerCase())
+        )
+      )
+    : null;
+
+  return customerTypeMatchedProfile ?? findDefaultPersonaProfile(profiles);
+}
+
+function findDefaultPersonaProfile(profiles: CrmPersonaProfileRecord[]) {
+  return profiles.find(profile => profile.isDefault) ?? null;
+}
+
+function toTemplatePersonaProfile(record: CrmPersonaProfileRecord): PersonaProfile {
+  const titleKeywords = splitPersonaKeywords(record.titleKeywordsText);
+  const customerTypeKeywords = splitPersonaKeywords(record.customerTypeKeywordsText);
+  const focusText = record.focusText || record.painPoints || record.description || record.name;
+
+  return {
+    id: record.id,
+    label: record.name,
+    aliases: [...titleKeywords, ...customerTypeKeywords],
+    focusText,
+    draftFocusText: focusText,
+    painPoints: record.painPoints,
+    avoidText: record.avoidText,
+    source: 'organization'
+  };
+}
+
+/** Splits persisted persona keyword text for lightweight title/customer-type matching. */
+function splitPersonaKeywords(value?: string | null) {
+  return [
+    ...new Set(
+      (value ?? '')
+        .split(/[\n,，;；]+/)
+        .map(item => item.trim())
+        .filter(Boolean)
+    )
+  ];
+}
+
 /** Builds a conservative first-touch draft from verified CRM fields only. */
 function generateFirstDraft(options: {
   account: CrmAccountRecord;
   contact: CrmContactRecord;
   productLine: CrmProductLineRecord | null;
   context: CrmUserContext;
+  personaProfile?: PersonaProfile | null;
   templateGroup?: CrmEmailTemplateGroupRecord | null;
 }): GeneratedDraft {
-  const { account, contact, context, productLine, templateGroup } = options;
+  const { account, contact, context, personaProfile, productLine, templateGroup } = options;
   const templateStep = templateGroup?.steps.find(step => step.stepIndex === initialDraftStepIndex);
   const greetingName = contact.fullName || contact.title || 'there';
   const productName = productLine?.name || 'our product line';
   const sellingPoint = productLine?.coreSellingPoints || `supporting ${account.customerType || 'B2B'} customers`;
-  const persona = findPersonaProfile(contact.title);
+  const persona = personaProfile ?? findPersonaProfile(contact.title);
 
   if (templateGroup?.status === 'active' && templateStep) {
     return {

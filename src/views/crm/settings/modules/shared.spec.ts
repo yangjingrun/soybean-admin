@@ -8,6 +8,7 @@ import {
   buildOperationLogSummaryRows,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
+  buildPersonaProfileSearchParams,
   buildSequencePolicySearchParams,
   collectOperationQueueRows,
   collectRecentCrmOperationLogs,
@@ -16,14 +17,18 @@ import {
   createDefaultEmailTemplateForm,
   createDefaultFollowUpDelayDays,
   createDefaultGlobalConfigForm,
+  createDefaultPersonaProfileFilterModel,
+  createDefaultPersonaProfileForm,
   createDefaultSequencePolicyFilterModel,
   createDefaultSequencePolicyForm,
   createEmailTemplateFormFromRecord,
+  createPersonaProfileFormFromRecord,
   createSequencePolicyFormFromRecord,
   formatMailboxSyncActionLabel,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
   normalizeEmailTemplatePayload,
+  normalizePersonaProfilePayload,
   normalizeSequencePolicyPayload,
   summarizeMailboxSyncHealth
 } from './shared';
@@ -144,6 +149,46 @@ describe('crm settings shared helpers', () => {
     assert.equal(normalizeSequencePolicyPayload(form).steps[1].delayDays, 2);
     assert.equal(normalizeSequencePolicyPayload(form).steps[2].threadMode, 'same_thread');
     assert.equal(createSequencePolicyFormFromRecord(createSequencePolicy()).linkPolicy, 'block_new_links');
+  });
+
+  it('creates and normalizes persona profile forms for organization settings', () => {
+    const form = createDefaultPersonaProfileForm();
+    form.name = '  Procurement lead  ';
+    form.description = '  Distributor buyer profile  ';
+    form.titleKeywordsText = '  procurement\nbuyer  ';
+    form.customerTypeKeywordsText = '  distributor  ';
+    form.painPoints = '  price volatility  ';
+    form.focusText = '  MOQ and lead time  ';
+    form.avoidText = '  avoid overpromising delivery dates  ';
+
+    assert.deepEqual(createDefaultPersonaProfileFilterModel(), {
+      keyword: '',
+      status: null
+    });
+    assert.deepEqual(
+      buildPersonaProfileSearchParams({
+        current: 1,
+        size: 10,
+        filterModel: { keyword: '  procurement  ', status: 'active' }
+      }),
+      {
+        current: 1,
+        size: 10,
+        keyword: 'procurement',
+        status: 'active'
+      }
+    );
+    assert.deepEqual(normalizePersonaProfilePayload(form), {
+      name: 'Procurement lead',
+      description: 'Distributor buyer profile',
+      titleKeywordsText: 'procurement\nbuyer',
+      customerTypeKeywordsText: 'distributor',
+      painPoints: 'price volatility',
+      focusText: 'MOQ and lead time',
+      avoidText: 'avoid overpromising delivery dates',
+      isDefault: false
+    });
+    assert.equal(createPersonaProfileFormFromRecord(createPersonaProfile()).focusText, 'MOQ and lead time');
   });
 
   it('collects queued and failed messages for the operations queue', () => {
@@ -589,6 +634,26 @@ function createSequencePolicy(): Api.Crm.SequencePolicyRecord {
     linkPolicy: 'block_new_links',
     allowLowRiskAutoSend: false,
     sameCompanyContactStrategy: 'single_active_per_company',
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z'
+  };
+}
+
+function createPersonaProfile(): Api.Crm.PersonaProfileRecord {
+  return {
+    id: 'persona-1',
+    organizationId: 'org-1',
+    name: 'Procurement lead',
+    description: 'Distributor buyer profile',
+    titleKeywordsText: 'procurement\nbuyer',
+    customerTypeKeywordsText: 'distributor',
+    painPoints: 'price volatility',
+    focusText: 'MOQ and lead time',
+    avoidText: 'avoid overpromising delivery dates',
+    status: 'active',
+    isDefault: false,
     createdById: 'user-1',
     createdByName: 'Alice',
     createdAt: '2026-06-18T09:00:00.000Z',

@@ -16,10 +16,12 @@ type CrmEnrollmentView = Awaited<ReturnType<CrmService['approveMessageDraft']>>[
 type CrmMessageView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['message'];
 type CrmSendStartView = Awaited<ReturnType<CrmService['startFirstMessageSend']>>;
 type CrmSequenceStopView = Awaited<ReturnType<CrmService['stopSequenceEnrollment']>>;
+type CrmSequenceBatchOperateView = Awaited<ReturnType<CrmService['batchStopSequenceEnrollments']>>;
 type CrmInboxThreadView = Awaited<ReturnType<CrmService['listInboxThreads']>>['records'][number];
 type CrmInboxThreadDetailView = Awaited<ReturnType<CrmService['getInboxThread']>>;
 type CrmGlobalConfigView = Awaited<ReturnType<CrmService['getGlobalConfig']>>;
 type CrmOrganizationConfigView = Awaited<ReturnType<CrmService['getOrganizationConfig']>>;
+type CrmPersonaProfileView = Awaited<ReturnType<CrmService['listPersonaProfiles']>>['records'][number];
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -589,6 +591,76 @@ describe('CrmController', () => {
     );
   });
 
+  it('manages persona profiles with the current organization context', async () => {
+    const calls: Array<{ action: string; id?: string; dto?: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listPersonaProfiles(context, query) {
+          calls.push({ action: 'list', dto: query, context });
+
+          return {
+            current: 1,
+            size: 20,
+            total: 1,
+            records: [createPersonaProfileView()]
+          };
+        },
+        async createPersonaProfile(dto, context) {
+          calls.push({ action: 'create', dto, context });
+
+          return { personaProfile: createPersonaProfileView({ name: dto.name }) };
+        },
+        async updatePersonaProfile(id, dto, context) {
+          calls.push({ action: 'update', id, dto, context });
+
+          return { personaProfile: createPersonaProfileView({ id, name: dto.name ?? 'Purchasing Manager' }) };
+        },
+        async archivePersonaProfile(id, context) {
+          calls.push({ action: 'archive', id, context });
+
+          return { personaProfile: createPersonaProfileView({ id, status: 'archived' }) };
+        },
+        async setDefaultPersonaProfile(id, context) {
+          calls.push({ action: 'default', id, context });
+
+          return { personaProfile: createPersonaProfileView({ id, isDefault: true }) };
+        }
+      })
+    );
+
+    const payload = {
+      name: 'Procurement lead',
+      description: 'Default buyer profile',
+      titleKeywordsText: 'procurement',
+      customerTypeKeywordsText: 'distributor',
+      painPoints: 'price pressure',
+      focusText: 'MOQ and lead time',
+      avoidText: 'do not overpromise'
+    };
+    const listed = await controller.listPersonaProfiles('Bearer token', { current: 1, size: 20, keyword: 'buyer' });
+    const created = await controller.createPersonaProfile('Bearer token', payload);
+    const updated = await controller.updatePersonaProfile('Bearer token', 'persona-1', { name: 'Buyer lead' });
+    const archived = await controller.archivePersonaProfile('Bearer token', 'persona-1');
+    const defaulted = await controller.setDefaultPersonaProfile('Bearer token', 'persona-1');
+
+    assert.equal(listed.data.records.length, 1);
+    assert.equal(created.data.personaProfile.name, 'Procurement lead');
+    assert.equal(updated.data.personaProfile.name, 'Buyer lead');
+    assert.equal(archived.data.personaProfile.status, 'archived');
+    assert.equal(defaulted.data.personaProfile.isDefault, true);
+    assert.deepEqual(
+      calls.map(call => ({ action: call.action, id: call.id, organizationId: call.context.organizationId })),
+      [
+        { action: 'list', id: undefined, organizationId: 'org-1' },
+        { action: 'create', id: undefined, organizationId: 'org-1' },
+        { action: 'update', id: 'persona-1', organizationId: 'org-1' },
+        { action: 'archive', id: 'persona-1', organizationId: 'org-1' },
+        { action: 'default', id: 'persona-1', organizationId: 'org-1' }
+      ]
+    );
+  });
+
   it('gets read-only template defaults with the current organization context', async () => {
     const calls: CrmUserContext[] = [];
     const controller = new CrmController(
@@ -802,6 +874,106 @@ describe('CrmController', () => {
         ['start-send', 'enrollment-1', 'org-1'],
         ['generate-next-draft', 'enrollment-1', 'org-1'],
         ['stop', 'enrollment-1', 'org-1']
+      ]
+    );
+  });
+
+  it('lists and restores message draft versions with the current user context', async () => {
+    const calls: Array<{ action: string; id: string; versionId?: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listMessageDraftVersions(id, context) {
+          calls.push({ action: 'list-versions', id, context });
+
+          return {
+            versions: [
+              {
+                id: 'draft-version-1',
+                organizationId: context.organizationId,
+                ownerUserId: context.userId,
+                accountId: 'account-1',
+                contactId: 'contact-1',
+                enrollmentId: 'enrollment-1',
+                messageId: id,
+                mailboxId: null,
+                stepIndex: 1,
+                versionNo: 1,
+                subject: 'Historic subject',
+                bodyText: 'Historic body',
+                editorId: context.userId,
+                editorName: context.userName,
+                createdAt: '2026-06-18T10:00:00.000Z'
+              }
+            ]
+          };
+        },
+        async restoreMessageDraftVersion(id, versionId, context) {
+          calls.push({ action: 'restore-version', id, versionId, context });
+
+          return {
+            message: createMessageView({ id, subject: 'Historic subject', bodyText: 'Historic body' })
+          };
+        }
+      })
+    );
+
+    const versions = await controller.listMessageDraftVersions('Bearer token', 'message-1');
+    const restored = await controller.restoreMessageDraftVersion('Bearer token', 'message-1', 'draft-version-1');
+
+    assert.equal(versions.data.versions[0].versionNo, 1);
+    assert.equal(restored.data.message.subject, 'Historic subject');
+    assert.deepEqual(
+      calls.map(call => [call.action, call.id, call.versionId ?? null, call.context.userId]),
+      [
+        ['list-versions', 'message-1', null, 'user-1'],
+        ['restore-version', 'message-1', 'draft-version-1', 'user-1']
+      ]
+    );
+  });
+
+  it('routes sequence batch operations with ids and current user context', async () => {
+    const calls: Array<{ action: string; ids: string[]; context: CrmUserContext }> = [];
+    const batchResult: CrmSequenceBatchOperateView = {
+      totalCount: 2,
+      successCount: 1,
+      skippedCount: 1,
+      failedCount: 0,
+      results: [
+        { id: 'enrollment-1', status: 'success', message: '已处理' },
+        { id: 'enrollment-2', status: 'skipped', message: '已跳过' }
+      ]
+    };
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async batchGenerateNextDrafts(dto, context) {
+          calls.push({ action: 'batch-generate-next-draft', ids: dto.ids, context });
+
+          return batchResult;
+        },
+        async batchStopSequenceEnrollments(dto, context) {
+          calls.push({ action: 'batch-stop', ids: dto.ids, context });
+
+          return batchResult;
+        }
+      })
+    );
+
+    const generated = await controller.batchGenerateNextDrafts('Bearer token', {
+      ids: ['enrollment-1', 'enrollment-2']
+    });
+    const stopped = await controller.batchStopSequenceEnrollments('Bearer token', {
+      ids: ['enrollment-1', 'enrollment-2']
+    });
+
+    assert.equal(generated.data.successCount, 1);
+    assert.equal(stopped.data.skippedCount, 1);
+    assert.deepEqual(
+      calls.map(call => [call.action, call.ids, call.context.userId]),
+      [
+        ['batch-generate-next-draft', ['enrollment-1', 'enrollment-2'], 'user-1'],
+        ['batch-stop', ['enrollment-1', 'enrollment-2'], 'user-1']
       ]
     );
   });
@@ -1133,6 +1305,27 @@ function createProductLineView(
   };
 }
 
+function createPersonaProfileView(overrides: Partial<CrmPersonaProfileView> = {}): CrmPersonaProfileView {
+  return {
+    id: 'persona-1',
+    organizationId: 'org-1',
+    name: 'Purchasing Manager',
+    description: 'Default buyer profile',
+    titleKeywordsText: 'purchasing manager\nbuyer',
+    customerTypeKeywordsText: 'distributor',
+    painPoints: 'price and delivery uncertainty',
+    focusText: 'price, MOQ, lead time, and payment terms',
+    avoidText: null,
+    status: 'active',
+    isDefault: false,
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
 function createTemplateDefaultsView() {
   return {
     templateGroup: {
@@ -1284,6 +1477,16 @@ function createSequenceStopView(overrides: { id?: string } = {}): CrmSequenceSto
     message: createMessageView({ status: 'skipped' }),
     account: createAccountView({ status: 'paused' }),
     event: createTimelineEventView({ eventType: 'sequence_stopped' })
+  };
+}
+
+function createSequenceBatchOperateView(): CrmSequenceBatchOperateView {
+  return {
+    totalCount: 1,
+    successCount: 1,
+    skippedCount: 0,
+    failedCount: 0,
+    results: [{ id: 'enrollment-1', status: 'success', message: '已处理' }]
   };
 }
 
@@ -1583,6 +1786,26 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     async archiveProductLine() {
       return { productLine: createProductLineView({ status: 'archived' }) };
     },
+    async listPersonaProfiles() {
+      return {
+        current: 1,
+        size: 20,
+        total: 0,
+        records: []
+      };
+    },
+    async createPersonaProfile() {
+      return { personaProfile: createPersonaProfileView() };
+    },
+    async updatePersonaProfile() {
+      return { personaProfile: createPersonaProfileView() };
+    },
+    async archivePersonaProfile() {
+      return { personaProfile: createPersonaProfileView({ status: 'archived' }) };
+    },
+    async setDefaultPersonaProfile() {
+      return { personaProfile: createPersonaProfileView({ isDefault: true }) };
+    },
     async createSequenceReviewItem() {
       return { item: createSequenceReviewItemView() };
     },
@@ -1609,8 +1832,14 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     async startFirstMessageSend() {
       return createSendStartView();
     },
+    async batchGenerateNextDrafts() {
+      return createSequenceBatchOperateView();
+    },
     async stopSequenceEnrollment() {
       return createSequenceStopView();
+    },
+    async batchStopSequenceEnrollments() {
+      return createSequenceBatchOperateView();
     },
     async listInboxThreads() {
       return {

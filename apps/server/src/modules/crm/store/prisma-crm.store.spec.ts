@@ -834,6 +834,65 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('creates, lists, updates and defaults persona profiles with organization scope', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    await store.createPersonaProfile({
+      organizationId: 'org-1',
+      name: 'Procurement lead',
+      titleKeywordsText: 'procurement\nbuyer',
+      customerTypeKeywordsText: 'distributor',
+      painPoints: 'price volatility',
+      focusText: 'MOQ and lead time',
+      avoidText: 'cheap',
+      status: 'active',
+      isDefault: false,
+      createdById: 'user-1',
+      createdByName: 'Alice'
+    });
+    const listed = await store.listPersonaProfiles({
+      organizationId: 'org-1',
+      keyword: 'procurement',
+      status: 'active',
+      skip: 0,
+      take: 20
+    });
+    const found = await store.findPersonaProfileById({ id: 'persona-profile-1', organizationId: 'org-1' });
+    const updated = await store.updatePersonaProfile('persona-profile-1', 'org-1', {
+      name: 'Senior buyer',
+      isDefault: true
+    });
+    const defaulted = await store.setDefaultPersonaProfile('persona-profile-1', 'org-1');
+
+    assert.equal(prisma.crmPersonaProfile.createCalls[0].data.organizationId, 'org-1');
+    assert.deepEqual(prisma.crmPersonaProfile.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      status: 'active',
+      OR: [
+        { name: { contains: 'procurement', mode: 'insensitive' } },
+        { description: { contains: 'procurement', mode: 'insensitive' } },
+        { titleKeywordsText: { contains: 'procurement', mode: 'insensitive' } },
+        { customerTypeKeywordsText: { contains: 'procurement', mode: 'insensitive' } },
+        { painPoints: { contains: 'procurement', mode: 'insensitive' } },
+        { focusText: { contains: 'procurement', mode: 'insensitive' } },
+        { avoidText: { contains: 'procurement', mode: 'insensitive' } }
+      ]
+    });
+    assert.equal(listed.records[0].titleKeywordsText, 'procurement\nbuyer');
+    assert.equal(found?.id, 'persona-profile-1');
+    assert.equal(updated?.isDefault, true);
+    assert.equal(defaulted?.isDefault, true);
+    assert.deepEqual(prisma.crmPersonaProfile.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        id: { not: 'persona-profile-1' },
+        isDefault: true
+      },
+      data: { isDefault: false }
+    });
+  });
+
   it('creates and lists sequence review items with scoped include data', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -971,6 +1030,95 @@ describe('PrismaCrmStore', () => {
       mailboxId: 'mailbox-1',
       providerMessageId: 'gmail-sent-1',
       status: 'sent'
+    });
+  });
+
+  it('creates, lists and restores message draft versions with owner scoped raw queries', async () => {
+    const prisma = createPrisma({
+      draftVersionResults: [
+        [
+          createPrismaDraftVersion({
+            id: 'draft-version-1',
+            versionNo: 1,
+            subject: 'Saved subject',
+            bodyText: 'Saved body'
+          })
+        ],
+        [
+          createPrismaDraftVersion({
+            id: 'draft-version-2',
+            versionNo: 2,
+            subject: 'Newer subject',
+            bodyText: 'Newer body'
+          }),
+          createPrismaDraftVersion({
+            id: 'draft-version-1',
+            versionNo: 1,
+            subject: 'Saved subject',
+            bodyText: 'Saved body'
+          })
+        ],
+        [
+          createPrismaDraftVersion({
+            id: 'draft-version-1',
+            versionNo: 1,
+            subject: 'Saved subject',
+            bodyText: 'Saved body'
+          })
+        ]
+      ]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const created = await store.createMessageDraftVersion({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      mailboxId: null,
+      stepIndex: 1,
+      subject: 'Saved subject',
+      bodyText: 'Saved body',
+      editorId: 'user-1',
+      editorName: 'Alice'
+    });
+    const versions = await store.listMessageDraftVersions({
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    const restored = await store.restoreMessageDraftVersion({
+      messageId: 'message-1',
+      versionId: 'draft-version-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+
+    assert.equal(created.versionNo, 1);
+    assert.deepEqual(
+      versions.map(version => [version.versionNo, version.subject]),
+      [
+        [2, 'Newer subject'],
+        [1, 'Saved subject']
+      ]
+    );
+    assert.equal(restored?.subject, 'Saved subject');
+    assert.equal(restored?.bodyText, 'Saved body');
+    assert.equal(prisma.queryRawCalls.length, 3);
+    assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls.at(-1), {
+      where: {
+        id: 'message-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        status: 'draft_pending_review'
+      },
+      data: {
+        subject: 'Saved subject',
+        bodyText: 'Saved body'
+      },
+      limit: 1
     });
   });
 
@@ -1370,7 +1518,10 @@ describe('PrismaCrmStore', () => {
       ownerUserId: 'user-1',
       stepIndex: 2
     });
-    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata.nextMessageId, 'message-local-2');
+    const metadata = prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata as
+      | { nextMessageId?: string }
+      | undefined;
+    assert.equal(metadata?.nextMessageId, 'message-local-2');
   });
 
   it('records the sent follow-up step when completing a later queued message', async () => {
@@ -1882,6 +2033,27 @@ function createPrismaMessage(input: Record<string, unknown> = {}) {
   };
 }
 
+function createPrismaDraftVersion(input: Record<string, unknown> = {}) {
+  return {
+    id: 'draft-version-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    enrollmentId: 'enrollment-1',
+    messageId: 'message-1',
+    mailboxId: null,
+    stepIndex: 1,
+    versionNo: 1,
+    subject: 'Bearing Series for ABC Trading',
+    bodyText: 'Hi Ali',
+    editorId: 'user-1',
+    editorName: 'Alice',
+    createdAt: new Date('2026-06-18T10:00:00.000Z'),
+    ...input
+  };
+}
+
 function createPrismaBlacklist(input: Record<string, unknown> = {}) {
   return {
     id: 'blacklist-1',
@@ -1949,6 +2121,7 @@ function createPrisma(
   options: {
     archivedFingerprintResults?: ReturnType<typeof createPrismaArchivedFingerprint>[];
     blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
+    draftVersionResults?: ReturnType<typeof createPrismaDraftVersion>[][];
     existingNextMessage?: ReturnType<typeof createPrismaMessage> | null;
     organizationConfig?: ReturnType<typeof createPrismaOrganizationConfig> | null;
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
@@ -2005,6 +2178,23 @@ function createPrisma(
     websiteUrl: 'https://example.com/bearing',
     commonModelsText: '6204, 6205',
     status: 'active',
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
+  const personaProfile = {
+    id: 'persona-profile-1',
+    organizationId: 'org-1',
+    name: 'Procurement lead',
+    description: null,
+    titleKeywordsText: 'procurement\nbuyer',
+    customerTypeKeywordsText: 'distributor',
+    painPoints: 'price volatility',
+    focusText: 'MOQ and lead time',
+    avoidText: 'cheap',
+    status: 'active',
+    isDefault: false,
     createdById: 'user-1',
     createdByName: 'Alice',
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
@@ -2151,10 +2341,16 @@ function createPrisma(
     enrollment,
     messages: [inboxMessage]
   };
+  const queryRawResults = [...(options.draftVersionResults ?? [])];
 
   return {
+    queryRawCalls: [] as unknown[][],
     async $transaction<T>(operation: (tx: unknown) => Promise<T>) {
       return operation(this);
+    },
+    async $queryRaw(...args: unknown[]) {
+      this.queryRawCalls.push(args);
+      return queryRawResults.shift() ?? [];
     },
     crmAccount: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
@@ -2720,6 +2916,62 @@ function createPrisma(
       }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...productLine, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+      }
+    },
+    crmPersonaProfile: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        skip?: number;
+        take?: number;
+        orderBy?: unknown;
+      }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
+      updateManyCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit?: number;
+      }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return { ...personaProfile, ...args.data };
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return personaProfile;
+      },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return personaProfile;
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        skip?: number;
+        take?: number;
+        orderBy?: unknown;
+      }) {
+        this.findManyCalls.push(args);
+        return [personaProfile];
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
+      },
+      async updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+        this.updateManyCalls.push(args);
+        return { count: 1 };
+      },
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
+        this.updateManyAndReturnCalls.push(args);
+        Object.assign(personaProfile, args.data, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+        return [personaProfile];
       }
     },
     crmSequenceEnrollment: {

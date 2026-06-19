@@ -1,4 +1,4 @@
-import { findPersonaProfile, renderEmailTemplateText } from './crm-email-template-renderer';
+import { findPersonaProfile, renderEmailTemplateText, type PersonaProfile } from './crm-email-template-renderer';
 import type {
   CrmEmailTemplateGroupRecord,
   CrmGlobalConfigRecord,
@@ -19,6 +19,7 @@ interface BuildNextFollowUpDraftInput {
   providerThreadId: string | null;
   baseTime: Date;
   followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays'];
+  personaProfile?: PersonaProfile | null;
   templateGroup: CrmEmailTemplateGroupRecord | null;
   senderName?: string | null;
 }
@@ -30,6 +31,7 @@ export function buildNextFollowUpDraft({
   providerThreadId,
   baseTime,
   followUpDelayDays,
+  personaProfile,
   templateGroup,
   senderName: inputSenderName
 }: BuildNextFollowUpDraftInput): Omit<CrmMessageCreateInput, 'enrollmentId'> | null {
@@ -51,7 +53,7 @@ export function buildNextFollowUpDraft({
 
   const contactName = item.contact.fullName || item.contact.title || 'there';
   const senderName = inputSenderName || item.mailbox?.ownerUserName || 'there';
-  const persona = findPersonaProfile(item.contact.title);
+  const persona = personaProfile ?? findPersonaProfile(item.contact.title);
   const renderVars = {
     account: item.account,
     contact: item.contact,

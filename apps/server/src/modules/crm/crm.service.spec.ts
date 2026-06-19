@@ -18,6 +18,7 @@ import type {
   CrmMailboxRecord,
   CrmEmailSendGateway,
   CrmOrganizationConfigRecord,
+  CrmPersonaProfileRecord,
   CrmSendQueueJob,
   CrmSendQueuePort,
   CrmSequencePolicyRecord,
@@ -1266,6 +1267,63 @@ describe('CrmService', () => {
     );
   });
 
+  it('lets organization admins manage persona profiles while members can only read them', async () => {
+    const store = createStore([], {
+      personaProfiles: [
+        createPersonaProfile({
+          id: 'persona-1',
+          name: 'Procurement profile',
+          titleKeywordsText: 'procurement\nbuyer',
+          customerTypeKeywordsText: 'distributor',
+          isDefault: true
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+    const adminContext = createContext({ organizationRole: 'admin' });
+
+    const list = await service.listPersonaProfiles(createContext(), {
+      keyword: ' procurement ',
+      status: 'active'
+    });
+    const created = await service.createPersonaProfile(
+      {
+        name: '  Operations buyer  ',
+        titleKeywordsText: '  ops\nsupply chain  ',
+        customerTypeKeywordsText: '  wholesaler  ',
+        painPoints: '  stockouts and late replenishment  ',
+        focusText: '  replenishment speed and supply stability  ',
+        avoidText: '  avoid overpromising delivery dates  '
+      },
+      adminContext
+    );
+    const defaulted = await service.setDefaultPersonaProfile(created.personaProfile.id, adminContext);
+    const archived = await service.archivePersonaProfile(created.personaProfile.id, adminContext);
+
+    assert.deepEqual(list.records.map(record => record.id), ['persona-1']);
+    assert.deepEqual(store.lastPersonaProfileListArgs, {
+      organizationId: 'org-1',
+      skip: 0,
+      take: 20,
+      keyword: 'procurement',
+      status: 'active'
+    });
+    assert.equal(created.personaProfile.name, 'Operations buyer');
+    assert.equal(created.personaProfile.titleKeywordsText, 'ops\nsupply chain');
+    assert.equal(defaulted.personaProfile.isDefault, true);
+    assert.equal(archived.personaProfile.status, 'archived');
+    assert.equal(archived.personaProfile.isDefault, false);
+    assert.deepEqual(
+      logs.records.map(record => record.action),
+      ['persona-profile-create', 'persona-profile-default', 'persona-profile-archive']
+    );
+    await assert.rejects(
+      () => service.createPersonaProfile({ name: 'Member profile' }, createContext()),
+      ForbiddenException
+    );
+  });
+
   it('creates, lists, updates, defaults and archives organization email template groups', async () => {
     const store = createStore([], {
       emailTemplateGroups: [createEmailTemplateGroup({ id: 'template-1', name: 'Distributor follow-up' })]
@@ -1415,6 +1473,56 @@ describe('CrmService', () => {
 
     assert.equal(result.item.firstMessage?.subject, 'Bearing Series for ABC Trading');
     assert.match(result.item.firstMessage?.bodyText || '', /Template says price, MOQ, lead time, and payment terms/);
+  });
+
+  it('uses organization persona profiles before built-in persona rules when generating drafts', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          fullName: 'Ali Hassan',
+          title: 'Head of Procurement',
+          emailStatus: 'valid'
+        })
+      ],
+      emailTemplateGroups: [
+        createEmailTemplateGroup({
+          isDefault: true,
+          steps: createEmailTemplateSteps({
+            subjectTemplate: '{{account.name}} supplier option',
+            bodyTemplate:
+              'Hi {{contact.name}},\n\nPersona focus: {{persona.focus}}\nPain points: {{persona.painPoints}}\nAvoid: {{persona.avoidText}}'
+          })
+        })
+      ],
+      personaProfiles: [
+        createPersonaProfile({
+          id: 'persona-procurement',
+          name: 'Procurement lead',
+          titleKeywordsText: 'procurement',
+          customerTypeKeywordsText: 'distributor',
+          painPoints: 'price volatility and supplier risk',
+          focusText: 'landed cost, MOQ, lead time, payment terms',
+          avoidText: 'avoid saying cheapest'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.createSequenceReviewItem(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1'
+      },
+      createContext()
+    );
+
+    assert.match(result.item.firstMessage?.bodyText ?? '', /landed cost, MOQ, lead time, payment terms/);
+    assert.match(result.item.firstMessage?.bodyText ?? '', /price volatility and supplier risk/);
+    assert.match(result.item.firstMessage?.bodyText ?? '', /avoid saying cheapest/);
+    const metadata = store.timelineEvents.at(-1)?.metadata as { personaProfileId?: string } | undefined;
+    assert.equal(metadata?.personaProfileId, 'persona-procurement');
   });
 
   it('creates first draft review items with scoped resources and sanitized logs', async () => {
@@ -1796,6 +1904,117 @@ describe('CrmService', () => {
     assert.equal((logs.records[0].metadata as Record<string, unknown>).messageId, 'message-1');
   });
 
+  it('keeps draft version snapshots on each owner save and lists newest versions first', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'manual_review_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          subject: 'Initial subject',
+          bodyText: 'Initial body'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await service.updateMessageDraft('message-1', { subject: 'First update', bodyText: 'First body' }, createContext());
+    await service.updateMessageDraft(
+      'message-1',
+      { subject: 'Second update', bodyText: 'Second body' },
+      createContext({ userName: 'Alice B' })
+    );
+
+    const result = await service.listMessageDraftVersions('message-1', createContext());
+
+    assert.deepEqual(
+      result.versions.map(version => [version.versionNo, version.subject, version.editorName]),
+      [
+        [2, 'Second update', 'Alice B'],
+        [1, 'First update', 'Alice']
+      ]
+    );
+    assert.equal(store.draftVersions[0].bodyText, 'First body');
+    assert.equal(store.draftVersions[0].enrollmentId, 'enrollment-1');
+    assert.equal(store.draftVersions[0].stepIndex, 1);
+  });
+
+  it('restores an owner draft version only when the current message is still pending review', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'manual_review_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          subject: 'Current subject',
+          bodyText: 'Current body'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await service.updateMessageDraft('message-1', { subject: 'Saved subject', bodyText: 'Saved body' }, createContext());
+    await service.updateMessageDraft('message-1', { subject: 'Changed subject', bodyText: 'Changed body' }, createContext());
+    const restored = await service.restoreMessageDraftVersion('message-1', 'draft-version-1', createContext());
+
+    assert.equal(restored.message.subject, 'Saved subject');
+    assert.equal(restored.message.bodyText, 'Saved body');
+    assert.equal(store.messages[0].status, 'draft_pending_review');
+
+    store.messages[0].status = 'draft_ready';
+    await assert.rejects(
+      () => service.restoreMessageDraftVersion('message-1', 'draft-version-2', createContext()),
+      BadRequestException
+    );
+    assert.equal(store.messages[0].subject, 'Saved subject');
+  });
+
+  it('rejects admin attempts to restore another member draft version', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2',
+          subject: 'Member subject'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    store.draftVersions.push(
+      createDraftVersion(store.messages[0], {
+        id: 'draft-version-1',
+        subject: 'Historic subject',
+        versionNo: 1
+      })
+    );
+
+    await assert.rejects(
+      () =>
+        service.restoreMessageDraftVersion(
+          'message-1',
+          'draft-version-1',
+          createContext({ organizationRole: 'admin' })
+        ),
+      NotFoundException
+    );
+    assert.equal(store.messages[0].subject, 'Member subject');
+  });
+
   it('approves follow-up drafts by queueing their scheduled send jobs', async () => {
     const scheduledAt = new Date('2030-06-21T10:00:00.000Z');
     const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
@@ -2071,6 +2290,110 @@ describe('CrmService', () => {
     assert.equal(store.messages.length, 2);
   });
 
+  it('batch-generates next drafts for eligible owner sequences and skips the rest', async () => {
+    const store = createStore(
+      [
+        createAccount({ id: 'account-ready', name: 'Ready Co', status: 'ready' }),
+        createAccount({ id: 'account-blocked', name: 'Blocked Co', status: 'ready' }),
+        createAccount({ id: 'account-member', name: 'Member Co', ownerUserId: 'user-2', status: 'ready' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'contact-ready', accountId: 'account-ready', fullName: 'Ready Buyer' }),
+          createContact({ id: 'contact-blocked', accountId: 'account-blocked', fullName: 'Blocked Buyer' }),
+          createContact({
+            id: 'contact-member',
+            accountId: 'account-member',
+            ownerUserId: 'user-2',
+            fullName: 'Member Buyer'
+          })
+        ],
+        emailTemplateGroups: [createEmailTemplateGroup({ isDefault: true })],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-ready',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            status: 'sequence_running',
+            totalSteps: 5
+          }),
+          createEnrollment({
+            id: 'enrollment-blocked',
+            accountId: 'account-blocked',
+            contactId: 'contact-blocked',
+            status: 'sequence_running',
+            totalSteps: 5
+          }),
+          createEnrollment({
+            id: 'enrollment-member',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            ownerUserId: 'user-2',
+            status: 'sequence_running',
+            totalSteps: 5
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-ready-1',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            enrollmentId: 'enrollment-ready',
+            status: 'sent',
+            stepIndex: 1
+          }),
+          createMessage({
+            id: 'message-blocked-1',
+            accountId: 'account-blocked',
+            contactId: 'contact-blocked',
+            enrollmentId: 'enrollment-blocked',
+            status: 'sent',
+            stepIndex: 1
+          }),
+          createMessage({
+            id: 'message-blocked-2',
+            accountId: 'account-blocked',
+            contactId: 'contact-blocked',
+            enrollmentId: 'enrollment-blocked',
+            status: 'draft_pending_review',
+            stepIndex: 2
+          }),
+          createMessage({
+            id: 'message-member-1',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            enrollmentId: 'enrollment-member',
+            ownerUserId: 'user-2',
+            status: 'sent',
+            stepIndex: 1
+          })
+        ]
+      }
+    );
+    const service = new CrmService(store);
+
+    const result = await service.batchGenerateNextDrafts(
+      { ids: ['enrollment-ready', 'enrollment-blocked', 'enrollment-member'] },
+      createContext({ organizationRole: 'admin' })
+    );
+
+    assert.deepEqual(
+      result.results.map(item => [item.id, item.status]),
+      [
+        ['enrollment-ready', 'success'],
+        ['enrollment-blocked', 'skipped'],
+        ['enrollment-member', 'skipped']
+      ]
+    );
+    assert.equal(result.totalCount, 3);
+    assert.equal(result.successCount, 1);
+    assert.equal(result.skippedCount, 2);
+    assert.equal(result.failedCount, 0);
+    assert.ok(store.messages.some(message => message.enrollmentId === 'enrollment-ready' && message.stepIndex === 2));
+    assert.equal(store.messages.filter(message => message.enrollmentId === 'enrollment-blocked').length, 2);
+    assert.equal(store.messages.filter(message => message.enrollmentId === 'enrollment-member').length, 1);
+  });
+
   it('rejects admin attempts to edit or approve another member draft', async () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
@@ -2332,6 +2655,88 @@ describe('CrmService', () => {
     assert.equal(store.messages[1].bullJobId, null);
     assert.equal(result.account.status, 'paused');
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_stopped');
+  });
+
+  it('batch-stops only owner sequences and returns per-item skipped results', async () => {
+    const store = createStore(
+      [
+        createAccount({ id: 'account-owned', status: 'sequence_running' }),
+        createAccount({ id: 'account-terminal', status: 'ready' }),
+        createAccount({ id: 'account-member', ownerUserId: 'user-2', status: 'sequence_running' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'contact-owned', accountId: 'account-owned' }),
+          createContact({ id: 'contact-terminal', accountId: 'account-terminal' }),
+          createContact({ id: 'contact-member', accountId: 'account-member', ownerUserId: 'user-2' })
+        ],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-owned',
+            accountId: 'account-owned',
+            contactId: 'contact-owned',
+            status: 'sequence_running',
+            runVersion: 2
+          }),
+          createEnrollment({
+            id: 'enrollment-terminal',
+            accountId: 'account-terminal',
+            contactId: 'contact-terminal',
+            status: 'stopped',
+            runVersion: 1
+          }),
+          createEnrollment({
+            id: 'enrollment-member',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            ownerUserId: 'user-2',
+            status: 'sequence_running',
+            runVersion: 4
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-owned-1',
+            accountId: 'account-owned',
+            contactId: 'contact-owned',
+            enrollmentId: 'enrollment-owned',
+            status: 'queued',
+            bullJobId: 'job-owned'
+          }),
+          createMessage({
+            id: 'message-member-1',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            enrollmentId: 'enrollment-member',
+            ownerUserId: 'user-2',
+            status: 'queued',
+            bullJobId: 'job-member'
+          })
+        ]
+      }
+    );
+    const service = new CrmService(store);
+
+    const result = await service.batchStopSequenceEnrollments(
+      { ids: ['enrollment-owned', 'enrollment-terminal', 'enrollment-member'] },
+      createContext({ organizationRole: 'admin' })
+    );
+
+    assert.deepEqual(
+      result.results.map(item => [item.id, item.status]),
+      [
+        ['enrollment-owned', 'success'],
+        ['enrollment-terminal', 'skipped'],
+        ['enrollment-member', 'skipped']
+      ]
+    );
+    assert.equal(result.successCount, 1);
+    assert.equal(result.skippedCount, 2);
+    assert.equal(store.enrollments.find(item => item.id === 'enrollment-owned')?.status, 'stopped');
+    assert.equal(store.enrollments.find(item => item.id === 'enrollment-owned')?.runVersion, 3);
+    assert.equal(store.messages.find(item => item.id === 'message-owned-1')?.status, 'skipped');
+    assert.equal(store.enrollments.find(item => item.id === 'enrollment-member')?.status, 'sequence_running');
+    assert.equal(store.messages.find(item => item.id === 'message-member-1')?.status, 'queued');
   });
 
   it('rejects stopping already terminal sequences', async () => {
@@ -2872,11 +3277,13 @@ function createStore(
     sequencePolicies?: TestSequencePolicy[];
     enrollments?: TestEnrollment[];
     messages?: TestMessage[];
+    draftVersions?: TestDraftVersion[];
     inboxThreads?: TestInboxThread[];
     inboxMessages?: TestInboxMessage[];
     emailVerificationCaches?: TestEmailVerificationCache[];
     globalConfig?: TestGlobalConfig;
     organizationConfig?: TestOrganizationConfig | null;
+    personaProfiles?: TestPersonaProfile[];
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
@@ -2891,10 +3298,12 @@ function createStore(
   sequencePolicies: TestSequencePolicy[];
   enrollments: TestEnrollment[];
   messages: TestMessage[];
+  draftVersions: TestDraftVersion[];
   inboxThreads: TestInboxThread[];
   inboxMessages: TestInboxMessage[];
   globalConfig: TestGlobalConfig;
   organizationConfig: TestOrganizationConfig | null;
+  personaProfiles: TestPersonaProfile[];
   mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
   productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }>;
   emailTemplateUpdateCalls: Array<{
@@ -2917,6 +3326,8 @@ function createStore(
     take: number;
   };
   lastProductLineDetailArgs?: { id: string; organizationId: string };
+  lastPersonaProfileListArgs?: Parameters<CrmStore['listPersonaProfiles']>[0];
+  lastPersonaProfileDetailArgs?: { id: string; organizationId: string };
   lastEmailTemplateListArgs?: Parameters<CrmStore['listEmailTemplateGroups']>[0];
   lastEmailTemplateDetailArgs?: { id: string; organizationId: string };
   lastSequencePolicyListArgs?: Parameters<CrmStore['listSequencePolicies']>[0];
@@ -2938,10 +3349,12 @@ function createStore(
   const sequencePolicies: TestSequencePolicy[] = [...(initialData.sequencePolicies ?? [])];
   const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
   const messages: TestMessage[] = [...(initialData.messages ?? [])];
+  const draftVersions: TestDraftVersion[] = [...(initialData.draftVersions ?? [])];
   const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
   const inboxMessages: TestInboxMessage[] = [...(initialData.inboxMessages ?? [])];
   const globalConfig = initialData.globalConfig ?? createGlobalConfig();
   let organizationConfig = initialData.organizationConfig ?? null;
+  const personaProfiles: TestPersonaProfile[] = [...(initialData.personaProfiles ?? [])];
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
   const productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }> = [];
   const emailTemplateUpdateCalls: Array<{
@@ -2963,8 +3376,10 @@ function createStore(
     productLines,
     emailTemplateGroups,
     sequencePolicies,
+    personaProfiles,
     enrollments,
     messages,
+    draftVersions,
     inboxThreads,
     inboxMessages,
     globalConfig,
@@ -3337,6 +3752,75 @@ function createStore(
       Object.assign(productLine, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return productLine;
     },
+    async listPersonaProfiles(args) {
+      this.lastPersonaProfileListArgs = args;
+      const records = personaProfiles.filter(profile => {
+        if (profile.organizationId !== args.organizationId) return false;
+        if (args.status && profile.status !== args.status) return false;
+        if (!args.keyword) return true;
+        const keyword = args.keyword.toLowerCase();
+        return [
+          profile.name,
+          profile.description,
+          profile.titleKeywordsText,
+          profile.customerTypeKeywordsText,
+          profile.painPoints,
+          profile.focusText,
+          profile.avoidText
+        ].some(value => value?.toLowerCase().includes(keyword));
+      });
+
+      return {
+        records: records.slice(args.skip, args.skip + args.take),
+        total: records.length
+      };
+    },
+    async listActivePersonaProfiles(organizationId) {
+      return personaProfiles.filter(profile => profile.organizationId === organizationId && profile.status === 'active');
+    },
+    async findPersonaProfileByName(organizationId, name) {
+      return personaProfiles.find(profile => profile.organizationId === organizationId && profile.name === name) ?? null;
+    },
+    async findPersonaProfileById(args) {
+      this.lastPersonaProfileDetailArgs = args;
+      return (
+        personaProfiles.find(profile => profile.id === args.id && profile.organizationId === args.organizationId) ??
+        null
+      );
+    },
+    async createPersonaProfile(input) {
+      const profile = createPersonaProfile({
+        ...input,
+        id: `persona-profile-${personaProfiles.length + 1}`
+      });
+      personaProfiles.push(profile);
+      return profile;
+    },
+    async updatePersonaProfile(id, organizationId, input) {
+      const profile = personaProfiles.find(item => item.id === id && item.organizationId === organizationId);
+      if (!profile) return null;
+      Object.assign(profile, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      if (input.isDefault) {
+        for (const item of personaProfiles) {
+          if (item.organizationId === organizationId && item.id !== id) {
+            item.isDefault = false;
+          }
+        }
+      }
+      return profile;
+    },
+    async setDefaultPersonaProfile(id, organizationId) {
+      const profile = personaProfiles.find(item => item.id === id && item.organizationId === organizationId);
+      if (!profile || profile.status !== 'active') return null;
+
+      for (const item of personaProfiles) {
+        if (item.organizationId === organizationId) {
+          item.isDefault = item.id === id;
+        }
+      }
+
+      return profile;
+    },
     async listEmailTemplateGroups(args) {
       this.lastEmailTemplateListArgs = args;
       const records = emailTemplateGroups.filter(group => {
@@ -3667,6 +4151,50 @@ function createStore(
       Object.assign(message, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return message;
     },
+    async createMessageDraftVersion(input) {
+      const version = createDraftVersion(input, {
+        id: `draft-version-${draftVersions.length + 1}`,
+        versionNo: draftVersions.filter(item => item.messageId === input.messageId).length + 1
+      });
+      draftVersions.push(version);
+      return version;
+    },
+    async listMessageDraftVersions(args) {
+      return draftVersions
+        .filter(version => {
+          if (version.messageId !== args.messageId) return false;
+          if (version.organizationId !== args.organizationId) return false;
+          if (args.ownerUserId && version.ownerUserId !== args.ownerUserId) return false;
+          return true;
+        })
+        .sort((left, right) => right.versionNo - left.versionNo || right.createdAt.getTime() - left.createdAt.getTime());
+    },
+    async restoreMessageDraftVersion(args) {
+      const message = messages.find(item => {
+        if (item.id !== args.messageId) return false;
+        if (item.organizationId !== args.organizationId) return false;
+        if (item.ownerUserId !== args.ownerUserId) return false;
+        if (item.status !== 'draft_pending_review') return false;
+        return true;
+      });
+      const version = draftVersions.find(item => {
+        if (item.id !== args.versionId) return false;
+        if (item.messageId !== args.messageId) return false;
+        if (item.organizationId !== args.organizationId) return false;
+        if (item.ownerUserId !== args.ownerUserId) return false;
+        return true;
+      });
+
+      if (!message || !version) return null;
+
+      Object.assign(message, {
+        subject: version.subject,
+        bodyText: version.bodyText,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      return message;
+    },
     async approveMessageDraft(input) {
       const message = messages.find(
         item =>
@@ -3792,6 +4320,7 @@ function createStore(
         item =>
           item.id === input.enrollmentId &&
           item.organizationId === input.organizationId &&
+          (!input.ownerUserId || item.ownerUserId === input.ownerUserId) &&
           input.fromStatuses.includes(item.status)
       );
       const account = enrollment ? accounts.find(item => item.id === enrollment.accountId) : null;
@@ -4543,6 +5072,26 @@ function createProductLine(input: Partial<TestProductLine> = {}): TestProductLin
   };
 }
 
+function createPersonaProfile(input: Partial<TestPersonaProfile> = {}): TestPersonaProfile {
+  return {
+    id: input.id || 'persona-profile-1',
+    organizationId: input.organizationId || 'org-1',
+    name: input.name || 'Purchasing Manager',
+    description: input.description ?? null,
+    titleKeywordsText: input.titleKeywordsText ?? 'purchasing manager\nbuyer',
+    customerTypeKeywordsText: input.customerTypeKeywordsText ?? 'distributor',
+    painPoints: input.painPoints ?? 'price and delivery uncertainty',
+    focusText: input.focusText ?? 'price, MOQ, lead time, and payment terms',
+    avoidText: input.avoidText ?? null,
+    status: input.status || 'active',
+    isDefault: input.isDefault ?? false,
+    createdById: input.createdById || 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
 function createEmailTemplateStep(
   input: Partial<TestEmailTemplateGroup['steps'][number]> = {},
   templateGroupId = 'template-1',
@@ -4675,6 +5224,49 @@ function createMessage(input: Partial<TestMessage> = {}): TestMessage {
   };
 }
 
+function createDraftVersion(
+  message: {
+    id?: string;
+    messageId?: string;
+    organizationId: string;
+    ownerUserId: string;
+    accountId: string;
+    contactId: string;
+    enrollmentId: string;
+    mailboxId?: string | null;
+    stepIndex: number;
+    subject: string;
+    bodyText: string;
+    editorId?: string;
+    editorName?: string | null;
+  },
+  input: Partial<TestDraftVersion> = {}
+): TestDraftVersion {
+  const messageId = input.messageId ?? message.messageId ?? message.id;
+
+  if (!messageId) {
+    throw new Error('Draft version test data requires a message id');
+  }
+
+  return {
+    id: input.id || 'draft-version-1',
+    organizationId: input.organizationId || message.organizationId,
+    ownerUserId: input.ownerUserId || message.ownerUserId,
+    accountId: input.accountId || message.accountId,
+    contactId: input.contactId || message.contactId,
+    enrollmentId: input.enrollmentId || message.enrollmentId,
+    messageId,
+    mailboxId: input.mailboxId ?? message.mailboxId ?? null,
+    stepIndex: input.stepIndex ?? message.stepIndex,
+    versionNo: input.versionNo ?? 1,
+    subject: input.subject || message.subject,
+    bodyText: input.bodyText || message.bodyText,
+    editorId: input.editorId ?? message.editorId ?? 'user-1',
+    editorName: input.editorName ?? message.editorName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T10:00:00.000Z')
+  };
+}
+
 function createInboxThread(input: Partial<TestInboxThread> = {}): TestInboxThread {
   return {
     id: input.id || 'inbox-thread-1',
@@ -4795,9 +5387,27 @@ type TestOrganizationConfig = CrmOrganizationConfigRecord;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
 type TestEmailTemplateGroup = CrmEmailTemplateGroupRecord;
+type TestPersonaProfile = CrmPersonaProfileRecord;
 type TestSequencePolicy = CrmSequencePolicyRecord;
 type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
 type TestMessage = Awaited<ReturnType<CrmStore['createMessage']>>;
+type TestDraftVersion = {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string;
+  contactId: string;
+  enrollmentId: string;
+  messageId: string;
+  mailboxId: string | null;
+  stepIndex: number;
+  versionNo: number;
+  subject: string;
+  bodyText: string;
+  editorId: string;
+  editorName: string | null;
+  createdAt: Date;
+};
 type TestInboxThread = CrmInboxThreadRecord;
 type TestInboxMessage = CrmInboxMessageRecord;
 

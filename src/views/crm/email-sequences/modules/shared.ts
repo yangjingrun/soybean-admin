@@ -102,6 +102,22 @@ export interface SequenceMessageTimelineItem {
   title: string;
 }
 
+export interface DraftVersionListItem {
+  createdAtText: string;
+  editorName: string;
+  id: string;
+  subjectSummary: string;
+  versionLabel: string;
+  versionNo: number;
+}
+
+export interface SequenceBatchSelectionSummary {
+  generateNextDraftCount: number;
+  selectedCount: number;
+  skippedCount: number;
+  stopCount: number;
+}
+
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
   return {
@@ -196,6 +212,20 @@ export function buildDraftReviewOperationPayload(
   };
 }
 
+/** Build compact draft version rows for the review drawer. */
+export function buildDraftVersionListItems(versions: Api.Crm.MessageDraftVersionRecord[]): DraftVersionListItem[] {
+  return [...versions]
+    .sort((left, right) => right.versionNo - left.versionNo || right.createdAt.localeCompare(left.createdAt))
+    .map(version => ({
+      createdAtText: formatSequenceDate(version.createdAt),
+      editorName: formatNullableText(version.editorName),
+      id: version.id,
+      subjectSummary: truncateText(version.subject.trim() || '-', 61),
+      versionLabel: `版本 ${version.versionNo}`,
+      versionNo: version.versionNo
+    }));
+}
+
 /** Return the current pending review message ordered by sequence step. */
 export function getPendingReviewMessage(messages: Api.Crm.MessageRecord[]) {
   return [...messages]
@@ -254,6 +284,27 @@ export function canGenerateNextSequenceDraft(item: Api.Crm.SequenceReviewItem) {
     !hasBlockingMessage &&
     getMaxSequenceMessageStep(item.messages) < item.enrollment.totalSteps
   );
+}
+
+/** Check whether one selected row can be stopped by an owner-only batch action. */
+export function canStopSequenceInBatch(item: Api.Crm.SequenceReviewItem) {
+  return (
+    item.canOperateDraft &&
+    ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(item.enrollment.status)
+  );
+}
+
+/** Summarize currently selected sequence rows for the batch toolbar. */
+export function summarizeSequenceBatchSelection(items: Api.Crm.SequenceReviewItem[]): SequenceBatchSelectionSummary {
+  const generateNextDraftCount = items.filter(canGenerateNextSequenceDraft).length;
+  const stopCount = items.filter(canStopSequenceInBatch).length;
+
+  return {
+    generateNextDraftCount,
+    selectedCount: items.length,
+    skippedCount: items.length - Math.max(generateNextDraftCount, stopCount),
+    stopCount
+  };
 }
 
 /** Build strategy hints for the draft review drawer. */
@@ -320,6 +371,11 @@ function formatSequenceMessageTimelineMeta(message: Api.Crm.MessageRecord) {
   if (message.sentAt) return `已发送 ${formatSequenceDate(message.sentAt)}`;
   if (message.scheduledAt) return `计划发送 ${formatSequenceDate(message.scheduledAt)}`;
   return `更新于 ${formatSequenceDate(message.updatedAt)}`;
+}
+
+function truncateText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}...`;
 }
 
 /** Summarize the row checklist for dense table scanning. */

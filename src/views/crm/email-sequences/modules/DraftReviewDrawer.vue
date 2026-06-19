@@ -6,6 +6,7 @@ import {
   formatNullableText,
   formatSequenceDate,
   buildDraftReviewOperationPayload,
+  buildDraftVersionListItems,
   buildSequenceMessageTimelineItems,
   buildSequencePolicyReviewHints,
   canGenerateNextSequenceDraft,
@@ -27,12 +28,17 @@ const props = defineProps<{
   sendStarting?: boolean;
   show: boolean;
   stopping?: boolean;
+  versionLoading?: boolean;
+  versionRestoring?: boolean;
+  versions?: Api.Crm.MessageDraftVersionRecord[];
 }>();
 
 const emit = defineEmits<{
   approveDraft: [payload: DraftReviewApprovePayload];
   generateNextDraft: [];
+  loadDraftVersions: [messageId: string | null];
   refresh: [];
+  restoreDraftVersion: [payload: { messageId: string; versionId: string }];
   saveDraft: [payload: DraftReviewSavePayload];
   startSend: [];
   stop: [];
@@ -70,6 +76,7 @@ const canEdit = computed(() => {
   return canOperateSelectedDraft.value;
 });
 const canApprove = computed(() => canOperateSelectedDraft.value);
+const draftVersionItems = computed(() => buildDraftVersionListItems(props.versions ?? []));
 const canStartSend = computed(() =>
   Boolean(
     props.item?.canOperateDraft &&
@@ -127,6 +134,14 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => currentMessage.value?.id ?? null,
+  messageId => {
+    emit('loadDraftVersions', messageId);
+  },
+  { immediate: true }
+);
+
 function handleSave() {
   const messageId = currentMessage.value?.id;
 
@@ -161,6 +176,16 @@ function handleApprove() {
   }
 
   emit('approveDraft', { messageId });
+}
+
+function handleRestoreVersion(versionId: string) {
+  const messageId = currentMessage.value?.id;
+
+  if (!messageId || !canEdit.value) {
+    return;
+  }
+
+  emit('restoreDraftVersion', { messageId, versionId });
 }
 </script>
 
@@ -264,6 +289,38 @@ function handleApprove() {
               </NFormItem>
             </NForm>
           </div>
+
+          <div class="drawer-section">
+            <div class="section-title">历史版本</div>
+            <NSpin :show="versionLoading">
+              <NSpace v-if="draftVersionItems.length" vertical :size="8">
+                <div v-for="version in draftVersionItems" :key="version.id" class="draft-version-row">
+                  <div class="draft-version-main">
+                    <NSpace align="center" :size="8">
+                      <NTag size="small" :bordered="false" type="info">{{ version.versionLabel }}</NTag>
+                      <span class="draft-version-time">{{ version.createdAtText }}</span>
+                    </NSpace>
+                    <div class="draft-version-subject">{{ version.subjectSummary }}</div>
+                    <div class="draft-version-editor">编辑人：{{ version.editorName }}</div>
+                  </div>
+                  <NPopconfirm positive-text="恢复" negative-text="取消" @positive-click="handleRestoreVersion(version.id)">
+                    <template #trigger>
+                      <NButton
+                        size="small"
+                        secondary
+                        :disabled="!canEdit || versionRestoring"
+                        :loading="versionRestoring"
+                      >
+                        恢复
+                      </NButton>
+                    </template>
+                    恢复后会覆盖当前待审草稿内容。
+                  </NPopconfirm>
+                </div>
+              </NSpace>
+              <NEmpty v-else description="暂无历史版本" />
+            </NSpin>
+          </div>
         </NSpace>
         <NEmpty v-else description="请选择审核项" />
       </NSpin>
@@ -308,6 +365,7 @@ function handleApprove() {
                 refreshing ||
                 sendStarting ||
                 stopping ||
+                versionRestoring ||
                 nextDraftGenerating ||
                 !currentMessage ||
                 !canEdit
@@ -324,6 +382,7 @@ function handleApprove() {
                 refreshing ||
                 sendStarting ||
                 stopping ||
+                versionRestoring ||
                 nextDraftGenerating ||
                 !currentMessage ||
                 !canApprove
@@ -460,5 +519,34 @@ function handleApprove() {
 .message-step-meta {
   color: var(--n-text-color-3);
   font-size: 12px;
+}
+
+.draft-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.draft-version-main {
+  min-width: 0;
+}
+
+.draft-version-time,
+.draft-version-editor {
+  color: var(--n-text-color-3);
+  font-size: 12px;
+}
+
+.draft-version-subject {
+  overflow: hidden;
+  margin-top: 6px;
+  color: var(--n-text-color-2);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

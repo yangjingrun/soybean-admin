@@ -9,6 +9,7 @@ import GlobalConfigCard from './GlobalConfigCard.vue';
 import MailboxTable from './MailboxTable.vue';
 import MailboxToolbar from './MailboxToolbar.vue';
 import OrganizationPermissionCard from './OrganizationPermissionCard.vue';
+import PersonaProfileManager from './PersonaProfileManager.vue';
 import ProductLineManager from './ProductLineManager.vue';
 import SequencePolicyManager from './SequencePolicyManager.vue';
 import { useMailboxTable } from './useMailboxTable';
@@ -70,6 +71,10 @@ const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults
 
       <NGi>
         <SequencePolicyManager />
+      </NGi>
+
+      <NGi>
+        <PersonaProfileManager />
       </NGi>
 
       <NGi>
