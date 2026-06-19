@@ -191,6 +191,22 @@
 - 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`、`apps/server/src/modules/crm/crm-send-worker.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认 step 2 queued job 能 claim、发送并生成 step 3 草稿。
 
+### 2026-06-19 CRM 客户回信必须停止同公司当前所有序列
+
+- 场景：同一个 Account 下可能同时开发多个联系人，A 联系人回信时，B 联系人的后续开发信可能已经在队列中等待发送。
+- 坑点：只把 `outboundMessage.enrollmentId` 对应的单条 enrollment 改成 `replied` 不够；同公司其他 active enrollment 的 `runVersion` 不变，旧 BullMQ job 仍可能通过发送前 guard，UI 也会继续显示 queued。
+- 正确做法：`ingestCustomerReply` 必须在同一个事务内按 `organizationId + ownerUserId + accountId` 把 `draft_review_pending/ready_to_send/sequence_running/paused` 的 enrollment 批量改成 `replied` 并 `runVersion + 1`，同时把同公司 `queued` message 改成 `skipped` 并清空 `bullJobId`。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认同公司两个联系人各有运行中序列时，任一回信会让两条 enrollment 都变 `replied`，queued follow-up 变 `skipped`。
+
+### 2026-06-19 Gmail Pub/Sub 和 History 同步要先做来源与邮箱状态 guard
+
+- 场景：Gmail Pub/Sub push 会公开打到后端 webhook；邮箱也可能已经 `paused/auth_expired`，但 Google 仍可能继续推送历史通知。
+- 坑点：webhook 不校验来源会允许伪造 push 触发同步队列；非 active mailbox 继续入队会制造无效同步；History worker 遇到 `CrmGmailAuthorizationExpiredError` 如果只抛给 BullMQ，会反复重试而不暂停邮箱或通知用户。
+- 正确做法：配置 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 时，controller 必须校验 `x-crm-gmail-pubsub-secret`，且不能记录完整 secret；webhook service 和 History worker 都要跳过非 `active` mailbox；History worker 捕获 `CrmGmailAuthorizationExpiredError` 后调用 `markMailboxAuthorizationExpired`，返回 `authorization_expired` 跳过结果。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-webhook.controller.ts`、`apps/server/src/modules/crm/crm-gmail-webhook.service.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts apps/server/src/modules/crm/crm-gmail-webhook.service.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认错误 secret 拒绝、非 active 邮箱不入队/不调 Gmail、授权失效会标记邮箱并跳过重试。
+
 ### 记录模板
 
 ```md

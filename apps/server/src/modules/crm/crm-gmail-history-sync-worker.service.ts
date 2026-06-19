@@ -1,10 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CRM_GMAIL_HISTORY_GATEWAY, CRM_STORE } from './crm.tokens';
+import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type {
   CrmGmailHistoryGateway,
   CrmGmailHistoryMessage,
   CrmGmailHistorySyncQueueJob,
   CrmGmailHistorySyncResult,
+  CrmMailboxRecord,
   CrmMessageRecord,
   CrmStore
 } from './crm.types';
@@ -36,6 +38,18 @@ export class CrmGmailHistorySyncWorkerService {
       };
     }
 
+    if (mailbox.status !== 'active') {
+      return {
+        status: 'skipped',
+        reason: 'mailbox_not_active',
+        mailboxId: mailbox.id,
+        fromHistoryId: mailbox.lastHistoryId,
+        toHistoryId: job.historyId,
+        ingestedCount: 0,
+        skippedMessageCount: 0
+      };
+    }
+
     if (isHistoryIdAtOrBefore(job.historyId, mailbox.lastHistoryId)) {
       return {
         status: 'skipped',
@@ -48,11 +62,20 @@ export class CrmGmailHistorySyncWorkerService {
       };
     }
 
-    const history = await this.gmailHistoryGateway.listHistory({
-      mailbox,
-      startHistoryId: mailbox.lastHistoryId,
-      targetHistoryId: job.historyId
-    });
+    const history = await this.listHistoryOrMarkAuthorizationExpired(job, mailbox);
+
+    if (!history) {
+      return {
+        status: 'skipped',
+        reason: 'authorization_expired',
+        mailboxId: mailbox.id,
+        fromHistoryId: mailbox.lastHistoryId,
+        toHistoryId: job.historyId,
+        ingestedCount: 0,
+        skippedMessageCount: 0
+      };
+    }
+
     const ingestResult = await this.ingestHistoryMessages(job, history.messages);
     const advancedMailbox = await this.store.advanceMailboxHistoryId({
       mailboxId: mailbox.id,
@@ -82,6 +105,31 @@ export class CrmGmailHistorySyncWorkerService {
       ingestedCount: ingestResult.ingestedCount,
       skippedMessageCount: ingestResult.skippedMessageCount
     };
+  }
+
+  /** Returns null after converting Gmail auth expiry into mailbox state. */
+  private async listHistoryOrMarkAuthorizationExpired(job: CrmGmailHistorySyncQueueJob, mailbox: CrmMailboxRecord) {
+    try {
+      return await this.gmailHistoryGateway.listHistory({
+        mailbox,
+        startHistoryId: mailbox.lastHistoryId,
+        targetHistoryId: job.historyId
+      });
+    } catch (error) {
+      if (!(error instanceof CrmGmailAuthorizationExpiredError)) {
+        throw error;
+      }
+
+      await this.store.markMailboxAuthorizationExpired({
+        mailboxId: mailbox.id,
+        organizationId: job.organizationId,
+        ownerUserId: job.ownerUserId,
+        reason: error.message,
+        expiredAt: new Date()
+      });
+
+      return null;
+    }
   }
 
   private async ingestHistoryMessages(

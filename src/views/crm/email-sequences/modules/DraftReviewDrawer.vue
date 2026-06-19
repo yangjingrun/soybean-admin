@@ -4,6 +4,9 @@ import { useMessage } from 'naive-ui';
 import {
   formatNullableText,
   formatSequenceDate,
+  buildDraftReviewOperationPayload,
+  type DraftReviewApprovePayload,
+  type DraftReviewSavePayload,
   messageStatusLabelMap,
   messageStatusTagTypeMap,
   sequenceStatusLabelMap,
@@ -22,9 +25,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  approve: [];
+  approveDraft: [payload: DraftReviewApprovePayload];
   refresh: [];
-  save: [payload: Api.Crm.MessageDraftPayload];
+  saveDraft: [payload: DraftReviewSavePayload];
   startSend: [];
   stop: [];
   'update:show': [show: boolean];
@@ -110,6 +113,12 @@ watch(
 );
 
 function handleSave() {
+  const messageId = currentMessage.value?.id;
+
+  if (!messageId || !canEdit.value) {
+    return;
+  }
+
   if (!draftForm.subject.trim() || !draftForm.bodyText.trim()) {
     message.warning('请填写主题和正文');
     return;
@@ -120,10 +129,20 @@ function handleSave() {
     return;
   }
 
-  emit('save', {
+  emit('saveDraft', buildDraftReviewOperationPayload(messageId, {
     subject: draftForm.subject.trim(),
     bodyText: draftForm.bodyText.trim()
-  });
+  }));
+}
+
+function handleApprove() {
+  const messageId = currentMessage.value?.id;
+
+  if (!messageId || !canApprove.value) {
+    return;
+  }
+
+  emit('approveDraft', { messageId });
 }
 </script>
 
@@ -254,7 +273,7 @@ function handleSave() {
           <NButton
             :disabled="loading || saving || refreshing || sendStarting || stopping || !currentMessage || !canApprove"
             :loading="approving"
-            @click="emit('approve')"
+            @click="handleApprove"
           >
             确认草稿
           </NButton>

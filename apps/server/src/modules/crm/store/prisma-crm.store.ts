@@ -1248,16 +1248,29 @@ export class PrismaCrmStore implements CrmStore {
           }
         });
 
+        // 客户回信后，同公司当前开发序列统一停发，避免其他联系人继续跟进。
         await tx.crmSequenceEnrollment.updateMany({
           where: {
-            id: outboundMessage.enrollmentId,
             organizationId: input.organizationId,
             ownerUserId: input.ownerUserId,
+            accountId: outboundMessage.accountId,
             status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
           },
           data: {
             status: 'replied',
             runVersion: { increment: 1 }
+          }
+        });
+        await tx.crmMessage.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            accountId: outboundMessage.accountId,
+            status: 'queued'
+          },
+          data: {
+            status: 'skipped',
+            bullJobId: null
           }
         });
         const isUnsubscribeHint = messageType === 'unsubscribe_hint';

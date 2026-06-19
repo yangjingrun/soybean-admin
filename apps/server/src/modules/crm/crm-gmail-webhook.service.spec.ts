@@ -68,31 +68,39 @@ describe('CrmGmailWebhookService', () => {
     });
     assert.equal(queued.length, 0);
   });
+
+  it('acks non-active mailbox notifications without enqueueing sync jobs', async () => {
+    const queued: CrmGmailHistorySyncQueueJob[] = [];
+    const service = new CrmGmailWebhookService(createStore({ mailbox: createMailbox({ status: 'paused' }) }), {
+      async enqueueHistorySync(input) {
+        queued.push(input);
+
+        return { jobId: 'unused' };
+      }
+    });
+
+    const result = await service.handlePubSubPush(
+      createEnvelope({
+        emailAddress: 'alice@gmail.com',
+        historyId: '12345'
+      })
+    );
+
+    assert.deepEqual(result, {
+      queued: false,
+      reason: 'mailbox_not_active',
+      mailboxId: 'mailbox-1',
+      historyId: '12345',
+      pubsubMessageId: 'pubsub-1'
+    });
+    assert.equal(queued.length, 0);
+  });
 });
 
 function createStore(options: { mailbox?: Awaited<ReturnType<CrmStore['findMailboxByProviderAndEmailHash']>> } = {}) {
   const mailbox =
     options.mailbox === undefined
-      ? {
-          id: 'mailbox-1',
-          organizationId: 'org-1',
-          ownerUserId: 'user-1',
-          ownerUserName: 'Alice',
-          provider: 'gmail' as const,
-          emailAddress: 'alice@gmail.com',
-          emailHash: sha256('alice@gmail.com'),
-          maskedEmail: 'a***@gmail.com',
-          status: 'active' as const,
-          dailyLimit: 50,
-          hourlyLimit: 10,
-          warmupStage: 'new' as const,
-          watchExpiration: null,
-          lastHistoryId: null,
-          authorizedAt: new Date('2026-06-18T09:00:00.000Z'),
-          pausedAt: null,
-          createdAt: new Date('2026-06-18T09:00:00.000Z'),
-          updatedAt: new Date('2026-06-18T09:00:00.000Z')
-        }
+      ? createMailbox()
       : options.mailbox;
 
   return {
@@ -102,6 +110,31 @@ function createStore(options: { mailbox?: Awaited<ReturnType<CrmStore['findMailb
       return mailbox;
     }
   } as Pick<CrmStore, 'findMailboxByProviderAndEmailHash'> as CrmStore;
+}
+
+function createMailbox(input: Partial<NonNullable<Awaited<ReturnType<CrmStore['findMailboxByProviderAndEmailHash']>>>> = {}) {
+  return {
+    id: 'mailbox-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    provider: 'gmail' as const,
+    emailAddress: 'alice@gmail.com',
+    emailHash: sha256('alice@gmail.com'),
+    maskedEmail: 'a***@gmail.com',
+    status: 'active' as const,
+    dailyLimit: 50,
+    hourlyLimit: 10,
+    warmupStage: 'new' as const,
+    encryptedRefreshToken: null,
+    watchExpiration: null,
+    lastHistoryId: null,
+    authorizedAt: new Date('2026-06-18T09:00:00.000Z'),
+    pausedAt: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
 }
 
 function createEnvelope(data: Record<string, unknown>) {

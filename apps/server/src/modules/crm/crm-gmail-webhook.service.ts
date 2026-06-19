@@ -24,6 +24,16 @@ export class CrmGmailWebhookService {
       };
     }
 
+    if (mailbox.status !== 'active') {
+      return {
+        queued: false,
+        reason: 'mailbox_not_active',
+        mailboxId: mailbox.id,
+        historyId: parsed.historyId,
+        pubsubMessageId: parsed.pubsubMessageId
+      };
+    }
+
     const { jobId } = await this.historySyncQueue.enqueueHistorySync({
       mailboxId: mailbox.id,
       organizationId: mailbox.organizationId,

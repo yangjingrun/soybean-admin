@@ -1331,6 +1331,72 @@ describe('CrmService', () => {
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_replied');
   });
 
+  it('mock-ingests a customer reply and stops all active same-account sequences', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [
+        createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com' }),
+        createContact({ id: 'contact-2', accountId: 'account-1', email: 'buyer@example.com' })
+      ],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 3
+        }),
+        createEnrollment({
+          id: 'enrollment-2',
+          accountId: 'account-1',
+          contactId: 'contact-2',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 6
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'sent',
+          sentAt: new Date('2026-06-18T10:00:00.000Z')
+        }),
+        createMessage({
+          id: 'message-2',
+          accountId: 'account-1',
+          contactId: 'contact-2',
+          enrollmentId: 'enrollment-2',
+          mailboxId: 'mailbox-1',
+          status: 'queued',
+          bullJobId: 'crm-send:message-2'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await service.mockCustomerReply(
+      'message-1',
+      {
+        subject: 'Interested',
+        bodyText: 'Please send details.',
+        receivedAt: '2026-06-18T11:00:00.000Z'
+      },
+      createContext()
+    );
+
+    assert.equal(store.enrollments[0].status, 'replied');
+    assert.equal(store.enrollments[0].runVersion, 4);
+    assert.equal(store.enrollments[1].status, 'replied');
+    assert.equal(store.enrollments[1].runVersion, 7);
+    assert.equal(store.messages[1].status, 'skipped');
+    assert.equal(store.messages[1].bullJobId, null);
+  });
+
   it('does not notify or log when provider reply ingest is a duplicate', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'replied_pending' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com', emailStatus: 'valid' })],
@@ -2551,12 +2617,33 @@ function createStore(
         });
       }
 
-      if (enrollment && ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(enrollment.status)) {
-        Object.assign(enrollment, {
-          status: 'replied',
-          runVersion: enrollment.runVersion + 1,
-          updatedAt: new Date('2026-06-18T10:00:00.000Z')
-        });
+      for (const activeEnrollment of enrollments) {
+        if (
+          activeEnrollment.organizationId === input.organizationId &&
+          activeEnrollment.ownerUserId === input.ownerUserId &&
+          activeEnrollment.accountId === outboundMessage.accountId &&
+          ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(activeEnrollment.status)
+        ) {
+          Object.assign(activeEnrollment, {
+            status: 'replied',
+            runVersion: activeEnrollment.runVersion + 1,
+            updatedAt: new Date('2026-06-18T10:00:00.000Z')
+          });
+        }
+      }
+      for (const queuedMessage of messages) {
+        if (
+          queuedMessage.organizationId === input.organizationId &&
+          queuedMessage.ownerUserId === input.ownerUserId &&
+          queuedMessage.accountId === outboundMessage.accountId &&
+          queuedMessage.status === 'queued'
+        ) {
+          Object.assign(queuedMessage, {
+            status: 'skipped',
+            bullJobId: null,
+            updatedAt: new Date('2026-06-18T10:00:00.000Z')
+          });
+        }
       }
 
       const event = createTimelineEvent({

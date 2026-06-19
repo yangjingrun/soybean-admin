@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
+import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type {
   CrmGmailHistoryGateway,
   CrmGmailHistorySyncQueueJob,
+  CrmMailboxAuthorizationExpiredInput,
   CrmMailboxHistoryAdvanceInput,
   CrmMailboxRecord,
   CrmMessageRecord,
@@ -81,6 +83,70 @@ describe('CrmGmailHistorySyncWorkerService', () => {
       skippedMessageCount: 0
     });
     assert.equal(gatewayCalled, false);
+  });
+
+  it('skips non-active mailboxes without calling Gmail', async () => {
+    let gatewayCalled = false;
+    const service = new CrmGmailHistorySyncWorkerService(
+      createStore({ mailbox: createMailbox({ status: 'paused', lastHistoryId: '100' }) }),
+      {
+        async listHistory() {
+          gatewayCalled = true;
+
+          return { nextHistoryId: '120', messages: [] };
+        }
+      }
+    );
+
+    const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
+
+    assert.deepEqual(result, {
+      status: 'skipped',
+      reason: 'mailbox_not_active',
+      mailboxId: 'mailbox-1',
+      fromHistoryId: '100',
+      toHistoryId: '120',
+      ingestedCount: 0,
+      skippedMessageCount: 0
+    });
+    assert.equal(gatewayCalled, false);
+  });
+
+  it('marks mailbox auth expired and skips retries when Gmail history rejects authorization', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const expiredCalls: CrmMailboxAuthorizationExpiredInput[] = [];
+    const service = new CrmGmailHistorySyncWorkerService(
+      createStore({
+        mailbox,
+        async markMailboxAuthorizationExpired(input) {
+          expiredCalls.push(input);
+
+          return {
+            mailbox: { ...mailbox, status: 'auth_expired', watchExpiration: null },
+            pausedEnrollmentCount: 0,
+            resetMessageCount: 0
+          };
+        }
+      }),
+      {
+        async listHistory() {
+          throw new CrmGmailAuthorizationExpiredError('invalid_grant');
+        }
+      }
+    );
+
+    const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
+
+    assert.equal(result.status, 'skipped');
+    assert.equal(result.reason, 'authorization_expired');
+    assert.equal(result.mailboxId, 'mailbox-1');
+    assert.equal(result.fromHistoryId, '100');
+    assert.equal(result.toHistoryId, '120');
+    assert.equal(expiredCalls.length, 1);
+    assert.equal(expiredCalls[0].mailboxId, 'mailbox-1');
+    assert.equal(expiredCalls[0].organizationId, 'org-1');
+    assert.equal(expiredCalls[0].ownerUserId, 'user-1');
+    assert.equal(expiredCalls[0].reason, 'invalid_grant');
   });
 
   it('skips when another worker has advanced the checkpoint first', async () => {
@@ -354,6 +420,9 @@ function createStore(options: {
     mailboxId: string | null;
     providerThreadId: string;
   }) => Promise<CrmMessageRecord | null>;
+  markMailboxAuthorizationExpired?: (
+    input: CrmMailboxAuthorizationExpiredInput
+  ) => ReturnType<CrmStore['markMailboxAuthorizationExpired']>;
   advanceMailboxHistoryId?: (input: CrmMailboxHistoryAdvanceInput) => Promise<CrmMailboxRecord | null>;
   ingestCustomerReply?: (input: Parameters<CrmStore['ingestCustomerReply']>[0]) => ReturnType<CrmStore['ingestCustomerReply']>;
 }) {
@@ -397,6 +466,9 @@ function createStore(options: {
     async advanceMailboxHistoryId(input) {
       return options.advanceMailboxHistoryId ? options.advanceMailboxHistoryId(input) : options.mailbox;
     },
+    async markMailboxAuthorizationExpired(input) {
+      return options.markMailboxAuthorizationExpired ? options.markMailboxAuthorizationExpired(input) : null;
+    },
     async ingestCustomerReply(input) {
       return options.ingestCustomerReply ? options.ingestCustomerReply(input) : null;
     }
@@ -405,6 +477,7 @@ function createStore(options: {
     | 'findMailboxById'
     | 'findSentMessageByProviderId'
     | 'findSentMessageByProviderThreadId'
+    | 'markMailboxAuthorizationExpired'
     | 'advanceMailboxHistoryId'
     | 'ingestCustomerReply'
   > as CrmStore;

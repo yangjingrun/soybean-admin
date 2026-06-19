@@ -48,6 +48,15 @@ export const messageStatusTagTypeMap: Record<Api.Crm.MessageStatus, NaiveUI.Them
   skipped: 'default'
 };
 
+export interface DraftReviewSavePayload {
+  messageId: string;
+  draft: Api.Crm.MessageDraftPayload;
+}
+
+export interface DraftReviewApprovePayload {
+  messageId: string;
+}
+
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
   return {
@@ -116,4 +125,37 @@ export function formatSequenceDate(value: string) {
 
 export function formatNullableText(value: string | null | undefined) {
   return value || '-';
+}
+
+/** Build the save event payload from the currently selected draft. */
+export function buildDraftReviewOperationPayload(
+  messageId: string,
+  draft: Api.Crm.MessageDraftPayload
+): DraftReviewSavePayload {
+  return {
+    messageId,
+    draft: {
+      subject: draft.subject.trim(),
+      bodyText: draft.bodyText.trim()
+    }
+  };
+}
+
+/** Return the current pending review message ordered by sequence step. */
+export function getPendingReviewMessage(messages: Api.Crm.MessageRecord[]) {
+  return [...messages]
+    .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt))
+    .find(message => message.status === 'draft_pending_review');
+}
+
+/** Return the nearest scheduled message that still needs review or sending. */
+export function getNextScheduledReviewMessage(messages: Api.Crm.MessageRecord[]) {
+  return messages
+    .filter(message => ['draft_pending_review', 'queued'].includes(message.status) && message.scheduledAt)
+    .sort((left, right) => left.scheduledAt!.localeCompare(right.scheduledAt!))[0];
+}
+
+/** Format backend sequence progress as a compact table label. */
+export function getSequenceProgressText(progress: Pick<Api.Crm.SequenceEnrollmentRecord, 'currentStep' | 'totalSteps'>) {
+  return `第 ${progress.currentStep} / ${progress.totalSteps} 封`;
 }

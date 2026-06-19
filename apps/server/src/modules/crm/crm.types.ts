@@ -552,7 +552,7 @@ export interface CrmMailboxHistoryAdvanceInput {
 
 export interface CrmGmailHistorySyncResult {
   status: 'synced' | 'skipped';
-  reason?: 'mailbox_not_found' | 'stale_history' | 'checkpoint_conflict';
+  reason?: 'mailbox_not_found' | 'mailbox_not_active' | 'stale_history' | 'checkpoint_conflict' | 'authorization_expired';
   mailboxId: string;
   fromHistoryId: string | null;
   toHistoryId: string;
@@ -562,7 +562,7 @@ export interface CrmGmailHistorySyncResult {
 
 export interface CrmGmailPubSubPushResult {
   queued: boolean;
-  reason?: 'mailbox_not_found';
+  reason?: 'mailbox_not_found' | 'mailbox_not_active';
   mailboxId?: string;
   historyId: string;
   pubsubMessageId: string | null;

@@ -5,6 +5,9 @@ import type { DataTableColumns } from 'naive-ui';
 import {
   formatNullableText,
   formatSequenceDate,
+  getNextScheduledReviewMessage,
+  getPendingReviewMessage,
+  getSequenceProgressText,
   messageStatusLabelMap,
   messageStatusTagTypeMap,
   sequenceStatusLabelMap,
@@ -60,22 +63,40 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
       )
   },
   {
-    key: 'message',
-    title: '首封草稿',
-    minWidth: 220,
+    key: 'progress',
+    title: '序列进度',
+    width: 130,
+    render: row => getSequenceProgressText(row.enrollment)
+  },
+  {
+    key: 'currentMessage',
+    title: '当前邮件',
+    minWidth: 240,
     render: row => {
-      const firstMessage = row.firstMessage;
+      const pendingMessage = getPendingReviewMessage(row.messages);
+      const currentMessage =
+        pendingMessage ?? row.messages.find(message => message.stepIndex === row.enrollment.currentStep) ?? row.firstMessage;
 
-      return firstMessage
+      return currentMessage
         ? h('div', { class: 'sequence-cell' }, [
-            h('span', { class: 'sequence-primary-text' }, firstMessage.subject),
+            h('span', { class: 'sequence-primary-text' }, currentMessage.subject),
             h(
               NTag,
-              { bordered: false, size: 'small', type: messageStatusTagTypeMap[firstMessage.status] },
-              { default: () => messageStatusLabelMap[firstMessage.status] }
+              { bordered: false, size: 'small', type: messageStatusTagTypeMap[currentMessage.status] },
+              { default: () => messageStatusLabelMap[currentMessage.status] }
             )
           ])
         : '-';
+    }
+  },
+  {
+    key: 'nextScheduledAt',
+    title: '下一封计划发送',
+    width: 170,
+    render: row => {
+      const nextMessage = getNextScheduledReviewMessage(row.messages);
+
+      return nextMessage?.scheduledAt ? formatSequenceDate(nextMessage.scheduledAt) : '-';
     }
   },
   {
@@ -98,7 +119,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
           type: 'primary',
           onClick: () => emit('review', row)
         },
-        { default: () => (row.firstMessage?.status === 'draft_pending_review' ? '审核' : '查看') }
+        { default: () => (getPendingReviewMessage(row.messages) ? '审核' : '查看') }
       )
   }
 ]);
@@ -115,7 +136,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
       :data="records"
       :loading="loading"
       :row-key="getRowKey"
-      :scroll-x="960"
+      :scroll-x="1160"
       size="small"
       remote
       :pagination="{

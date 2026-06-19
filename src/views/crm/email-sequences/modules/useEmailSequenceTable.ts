@@ -17,7 +17,10 @@ import {
   buildSequenceReviewSearchParams,
   createDefaultSequenceCreateForm,
   createDefaultSequenceFilterModel,
-  normalizeSequenceCreatePayload
+  getPendingReviewMessage,
+  normalizeSequenceCreatePayload,
+  type DraftReviewApprovePayload,
+  type DraftReviewSavePayload
 } from './shared';
 
 /** Manage first-email review list, creation resources and draft drawer operations. */
@@ -44,6 +47,8 @@ export function useEmailSequenceTable() {
   const selectedMessageId = shallowRef<string | null>(null);
   let latestListRequestId = 0;
   let latestDetailRequestId = 0;
+  let latestDraftApproveRequestId = 0;
+  let latestDraftSaveRequestId = 0;
   let latestResourceRequestId = 0;
 
   const pagination = reactive({
@@ -213,8 +218,10 @@ export function useEmailSequenceTable() {
   }
 
   async function openDraftDrawer(row: Api.Crm.SequenceReviewItem) {
+    latestDraftApproveRequestId += 1;
+    latestDraftSaveRequestId += 1;
     selectedEnrollmentId.value = row.enrollment.id;
-    selectedMessageId.value = row.firstMessage?.id ?? null;
+    selectedMessageId.value = getPendingReviewMessage(row.messages)?.id ?? row.firstMessage?.id ?? null;
     currentItem.value = null;
     drawerVisible.value = true;
     await loadSequenceDetail(row.enrollment.id);
@@ -237,7 +244,8 @@ export function useEmailSequenceTable() {
       }
 
       currentItem.value = data;
-      selectedMessageId.value = data.firstMessage?.id ?? null;
+      selectedMessageId.value =
+        data.messages.find(reviewMessage => reviewMessage.id === selectedMessageId.value)?.id ?? data.firstMessage?.id ?? null;
     } finally {
       if (requestId === latestDetailRequestId) {
         drawerLoading.value = false;
@@ -245,20 +253,29 @@ export function useEmailSequenceTable() {
     }
   }
 
-  async function handleSaveDraft(payload: Api.Crm.MessageDraftPayload) {
-    const messageId = selectedMessageId.value;
+  async function handleSaveDraft(payload: DraftReviewSavePayload) {
+    const { messageId } = payload;
 
     if (!messageId || !currentItem.value) {
       return;
     }
 
     const enrollmentId = currentItem.value.enrollment.id;
+    const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === messageId);
+
+    if (targetMessage?.status !== 'draft_pending_review') {
+      return;
+    }
+
+    selectedMessageId.value = messageId;
+    const requestId = latestDraftSaveRequestId + 1;
+    latestDraftSaveRequestId = requestId;
     draftSaving.value = true;
 
     try {
-      const { data, error } = await updateCrmMessageDraft(messageId, payload);
+      const { data, error } = await updateCrmMessageDraft(messageId, payload.draft);
 
-      if (error) {
+      if (error || requestId !== latestDraftSaveRequestId) {
         return;
       }
 
@@ -270,24 +287,35 @@ export function useEmailSequenceTable() {
       currentItem.value = replaceReviewMessage(currentItem.value, data.message);
       await loadSequences();
     } finally {
-      draftSaving.value = false;
+      if (requestId === latestDraftSaveRequestId) {
+        draftSaving.value = false;
+      }
     }
   }
 
-  async function handleApproveDraft() {
-    const messageId = selectedMessageId.value;
+  async function handleApproveDraft(payload: DraftReviewApprovePayload) {
+    const { messageId } = payload;
 
     if (!messageId || !currentItem.value) {
       return;
     }
 
     const enrollmentId = currentItem.value.enrollment.id;
+    const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === messageId);
+
+    if (targetMessage?.status !== 'draft_pending_review') {
+      return;
+    }
+
+    selectedMessageId.value = messageId;
+    const requestId = latestDraftApproveRequestId + 1;
+    latestDraftApproveRequestId = requestId;
     draftApproving.value = true;
 
     try {
       const { data, error } = await approveCrmMessageDraft(messageId);
 
-      if (error) {
+      if (error || requestId !== latestDraftApproveRequestId) {
         return;
       }
 
@@ -306,7 +334,9 @@ export function useEmailSequenceTable() {
       await loadSequenceDetail(data.enrollment.id);
       await loadSequences();
     } finally {
-      draftApproving.value = false;
+      if (requestId === latestDraftApproveRequestId) {
+        draftApproving.value = false;
+      }
     }
   }
 
@@ -422,6 +452,8 @@ export function useEmailSequenceTable() {
 
     if (!show) {
       latestDetailRequestId += 1;
+      latestDraftApproveRequestId += 1;
+      latestDraftSaveRequestId += 1;
       selectedEnrollmentId.value = null;
       selectedMessageId.value = null;
       currentItem.value = null;

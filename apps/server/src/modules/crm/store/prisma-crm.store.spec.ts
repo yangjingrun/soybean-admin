@@ -1061,6 +1061,49 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmTimelineEvent.createCalls.length, 0);
   });
 
+  it('stops all active same-account sequences and skips queued follow-ups after a customer reply', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    prisma.crmInboxMessage.findFirstResult = null;
+
+    const result = await store.ingestCustomerReply({
+      outboundMessageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      subject: 'Re: Bearing Series',
+      bodyText: 'Please send details.',
+      receivedAt: new Date('2026-06-18T11:00:00.000Z'),
+      providerThreadId: 'gmail-thread-1',
+      providerMessageId: 'gmail-reply-1'
+    });
+
+    assert.equal(result?.isDuplicate, false);
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
+      },
+      data: {
+        status: 'replied',
+        runVersion: { increment: 1 }
+      }
+    });
+    assert.deepEqual(prisma.crmMessage.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        status: 'queued'
+      },
+      data: {
+        status: 'skipped',
+        bullJobId: null
+      }
+    });
+  });
+
   it('marks contact unsubscribed when ingesting an unsubscribe reply', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
