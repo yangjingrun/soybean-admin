@@ -215,6 +215,14 @@
 - 相关文件：`apps/server/src/modules/ai-leads/ai-lead-hunter-enrichment.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`apps/server/src/modules/ai-gateway/ai-gateway.service.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-hunter-enrichment.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts`，确认无域名不调用 Hunter、失败不阻断 CRM 导入、日志不包含 API Key。
 
+### 2026-06-19 CRM 邮箱验证缓存是全平台共享，不按组织隔离
+
+- 场景：AI 获客或手动验证联系人邮箱时，需要做格式、公共邮箱、MX/DNS 等验证；不同用户甚至不同组织可能反复遇到同一个邮箱。
+- 坑点：不要把邮箱验证缓存设计成联系人字段或 `organizationId + emailHash`。联系人主记录必须保持成员/组织隔离，但验证结果只是邮箱可用性结论；按组织缓存会让跨组织重复查 DNS/MX，违背“所有用户共用一次验证结果”的需求。
+- 正确做法：使用独立全局 `CrmEmailVerificationCache`，按 `emailHash` 唯一，保存 `maskedEmail/domain/status/reason/verifiedAt/expiresAt/checkedBy`，不保存明文邮箱；验证前先查 `emailHash` 缓存，再按 `CrmGlobalConfig.emailVerificationCooldownDays` 计算 `verifiedAt + 冷却天数` 是否仍有效，命中则跳过 DNS/MX，未命中再验证并按当前配置刷新冷却期。冷却天数默认 30 天，但必须支持平台超管后台配置。客户主记录、邮件正文、时间线仍按组织和 owner 隔离。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认跨 owner、跨 organization 的同邮箱命中新鲜缓存不查 DNS，过期缓存会重新验证并刷新。
+
 ### 记录模板
 
 ```md

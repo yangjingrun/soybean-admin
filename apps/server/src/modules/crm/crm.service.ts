@@ -6,6 +6,7 @@ import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
+import { normalizeEmailVerificationCooldownDays } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
@@ -23,8 +24,10 @@ import type {
   CrmMailboxRecord,
   CrmMailboxStatus,
   CrmContactRecord,
+  CrmEmailVerificationReason,
   CrmEmailStatus,
   CrmEmailSendGateway,
+  CrmGlobalConfigRecord,
   CrmCustomerReplyIngestRecord,
   CrmInboxMessageType,
   CrmInboxThreadDetailRecord,
@@ -87,10 +90,14 @@ export interface CrmEmailDnsResolver {
   resolveMx(domain: string): Promise<unknown[]>;
 }
 
-interface EmailVerificationResult {
-  status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'unreachable'>;
+interface EmailVerificationProbeResult {
+  status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'risky' | 'unreachable'>;
   domain: string | null;
-  reason: 'mx_found' | 'invalid_format' | 'no_mx' | 'dns_temporary_failure';
+  reason: CrmEmailVerificationReason;
+}
+
+interface EmailVerificationResult extends EmailVerificationProbeResult {
+  cacheHit: boolean;
 }
 
 interface ProductLineCreateInput {
@@ -337,9 +344,10 @@ export class CrmService {
     }
 
     const contact = await this.importContactIfPresent(account, input, context);
+    const updatedAccount = contact ? await this.applyImportedContactAccountStatus(account, contact) : account;
 
     return {
-      account,
+      account: updatedAccount,
       contact
     };
   }
@@ -440,45 +448,35 @@ export class CrmService {
       throw new NotFoundException('联系人不存在');
     }
 
-    const fromStatus = contact.emailStatus;
-    const verification = await this.verifyEmailAddress(contact.email);
-    const updatedContact = await this.store.updateContactEmailStatus(contact.id, verification.status);
-
-    if (!updatedContact) {
-      throw new NotFoundException('联系人不存在');
-    }
-
-    const event = await this.store.createTimelineEvent({
-      organizationId: updatedContact.organizationId,
-      accountId: updatedContact.accountId,
-      contactId: updatedContact.id,
-      ownerUserId: context.userId,
-      eventType: 'email_verified',
-      title: '邮箱验证',
-      content: `邮箱 ${updatedContact.maskedEmail} 验证结果：${toEmailStatusText(verification.status)}`,
-      metadata: {
-        maskedEmail: updatedContact.maskedEmail,
-        domain: verification.domain,
-        fromStatus,
-        toStatus: verification.status,
-        reason: verification.reason
-      }
-    });
-    await this.recordCrmLog('contact-email-verify', 'CRM 联系人邮箱验证完成', context, {
-      organizationId: updatedContact.organizationId,
-      accountId: updatedContact.accountId,
-      contactId: updatedContact.id,
-      maskedEmail: updatedContact.maskedEmail,
-      domain: verification.domain,
-      fromStatus,
-      toStatus: verification.status,
-      reason: verification.reason
-    });
+    const verification = await this.verifyEmailWithCache(contact.email, context);
+    const result = await this.applyContactEmailVerification(contact, verification, context);
 
     return {
-      contact: toContactView(updatedContact),
-      event: toTimelineEventView(event)
+      contact: toContactView(result.contact),
+      event: toTimelineEventView(result.event)
     };
+  }
+
+  /** Reads platform-wide CRM settings maintained by super administrators. */
+  async getGlobalConfig() {
+    const record = await this.store.getGlobalConfig();
+
+    return toGlobalConfigView(record);
+  }
+
+  /** Saves platform-wide CRM settings maintained by super administrators. */
+  async saveGlobalConfig(input: { emailVerificationCooldownDays: number }, context: CrmUserContext) {
+    const record = await this.store.saveGlobalConfig({
+      emailVerificationCooldownDays: input.emailVerificationCooldownDays,
+      updatedById: context.userId,
+      updatedByName: context.userName
+    });
+
+    await this.recordCrmLog('save-global-config', 'CRM 全局配置已保存', context, {
+      emailVerificationCooldownDays: record.emailVerificationCooldownDays
+    });
+
+    return toGlobalConfigView(record);
   }
 
   /** Creates a Gmail mock authorization record without storing any OAuth token. */
@@ -1452,7 +1450,71 @@ export class CrmService {
       }
     });
 
-    return contact;
+    const verification = await this.verifyEmailWithCache(contact.email, context);
+    const { contact: verifiedContact } = await this.applyContactEmailVerification(contact, verification, context);
+
+    return verifiedContact;
+  }
+
+  private async applyContactEmailVerification(
+    contact: CrmContactRecord,
+    verification: EmailVerificationResult,
+    context: CrmUserContext
+  ) {
+    const fromStatus = contact.emailStatus;
+    const updatedContact = await this.store.updateContactEmailStatus(contact.id, verification.status);
+
+    if (!updatedContact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    const event = await this.store.createTimelineEvent({
+      organizationId: updatedContact.organizationId,
+      accountId: updatedContact.accountId,
+      contactId: updatedContact.id,
+      ownerUserId: context.userId,
+      eventType: 'email_verified',
+      title: '邮箱验证',
+      content: `邮箱 ${updatedContact.maskedEmail} 验证结果：${toEmailStatusText(verification.status)}`,
+      metadata: {
+        maskedEmail: updatedContact.maskedEmail,
+        domain: verification.domain,
+        fromStatus,
+        toStatus: verification.status,
+        reason: verification.reason,
+        cacheHit: verification.cacheHit
+      }
+    });
+    await this.recordCrmLog('contact-email-verify', 'CRM 联系人邮箱验证完成', context, {
+      organizationId: updatedContact.organizationId,
+      accountId: updatedContact.accountId,
+      contactId: updatedContact.id,
+      maskedEmail: updatedContact.maskedEmail,
+      domain: verification.domain,
+      fromStatus,
+      toStatus: verification.status,
+      reason: verification.reason,
+      cacheHit: verification.cacheHit
+    });
+
+    return {
+      contact: updatedContact,
+      event
+    };
+  }
+
+  private async applyImportedContactAccountStatus(account: CrmAccountRecord, contact: CrmContactRecord) {
+    if (!canApplyEmailVerificationAccountStatus(account.status)) {
+      return account;
+    }
+
+    const nextStatus = toAccountStatusAfterEmailVerification(contact.emailStatus);
+
+    if (account.status === nextStatus) {
+      return account;
+    }
+
+    return (await this.store.updateAccount(account.id, { status: nextStatus })) ?? account;
   }
 
   private async changeAccountStatus(
@@ -1490,7 +1552,45 @@ export class CrmService {
     };
   }
 
-  private async verifyEmailAddress(email: string): Promise<EmailVerificationResult> {
+  /** Reuses global email verification results within the cooldown window. */
+  private async verifyEmailWithCache(email: string, context: CrmUserContext): Promise<EmailVerificationResult> {
+    const emailHash = hashEmail(email);
+    const now = new Date();
+    const [cached, globalConfig] = await Promise.all([
+      this.store.findEmailVerificationCache({ emailHash }),
+      this.store.getGlobalConfig()
+    ]);
+
+    if (cached && isEmailVerificationCacheFresh(cached.verifiedAt, globalConfig.emailVerificationCooldownDays, now)) {
+      return {
+        status: cached.status as EmailVerificationResult['status'],
+        domain: cached.domain,
+        reason: cached.reason,
+        cacheHit: true
+      };
+    }
+
+    const verification = await this.verifyEmailAddress(email);
+
+    await this.store.upsertEmailVerificationCache({
+      emailHash,
+      maskedEmail: maskEmail(email),
+      domain: verification.domain,
+      status: verification.status,
+      reason: verification.reason,
+      verifiedAt: now,
+      expiresAt: addDays(now, globalConfig.emailVerificationCooldownDays),
+      checkedById: context.userId,
+      checkedByName: context.userName
+    });
+
+    return {
+      ...verification,
+      cacheHit: false
+    };
+  }
+
+  private async verifyEmailAddress(email: string): Promise<EmailVerificationProbeResult> {
     const parsedEmail = parseEmailAddress(email);
 
     if (!parsedEmail) {
@@ -1498,6 +1598,14 @@ export class CrmService {
         status: 'invalid',
         domain: null,
         reason: 'invalid_format'
+      };
+    }
+
+    if (isPublicEmail(email)) {
+      return {
+        status: 'risky',
+        domain: parsedEmail.domain,
+        reason: 'public_email'
       };
     }
 
@@ -1868,6 +1976,13 @@ function toContactView(record: CrmContactRecord) {
   return {
     ...record,
     createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toGlobalConfigView(record: CrmGlobalConfigRecord) {
+  return {
+    ...record,
     updatedAt: record.updatedAt.toISOString()
   };
 }
@@ -2313,6 +2428,34 @@ function maskEmail(email: string) {
 function isPublicEmail(email: string) {
   const [local = ''] = email.split('@');
   return publicEmailPrefixes.has(local.toLowerCase());
+}
+
+function canApplyEmailVerificationAccountStatus(status: CrmAccountStatus) {
+  return ['candidate', 'missing_contact', 'email_verification_pending', 'manual_review_pending', 'invalid'].includes(
+    status
+  );
+}
+
+function toAccountStatusAfterEmailVerification(status: CrmEmailStatus): CrmAccountStatus {
+  if (status === 'valid') {
+    return 'ready';
+  }
+
+  if (status === 'invalid') {
+    return 'invalid';
+  }
+
+  return 'manual_review_pending';
+}
+
+function isEmailVerificationCacheFresh(verifiedAt: Date, cooldownDays: number, now: Date) {
+  const normalizedDays = normalizeEmailVerificationCooldownDays(cooldownDays);
+
+  return addDays(verifiedAt, normalizedDays).getTime() > now.getTime();
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 function toEmailStatusText(status: CrmEmailStatus) {

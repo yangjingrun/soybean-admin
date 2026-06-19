@@ -132,6 +132,16 @@ declare namespace Api {
       event: LeadTimelineEvent;
     }
 
+    interface GlobalConfig {
+      configKey: string;
+      emailVerificationCooldownDays: number;
+      updatedAt: string;
+    }
+
+    interface SaveGlobalConfigPayload {
+      emailVerificationCooldownDays: number;
+    }
+
     interface LeadArchiveResult {
       account: LeadRecord;
       event: LeadTimelineEvent;

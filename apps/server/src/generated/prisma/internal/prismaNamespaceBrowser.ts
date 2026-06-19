@@ -56,6 +56,8 @@ export const ModelName = {
   Organization: 'Organization',
   CrmAccount: 'CrmAccount',
   CrmContact: 'CrmContact',
+  CrmEmailVerificationCache: 'CrmEmailVerificationCache',
+  CrmGlobalConfig: 'CrmGlobalConfig',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
@@ -185,6 +187,37 @@ export const CrmContactScalarFieldEnum = {
 } as const
 
 export type CrmContactScalarFieldEnum = (typeof CrmContactScalarFieldEnum)[keyof typeof CrmContactScalarFieldEnum]
+
+
+export const CrmEmailVerificationCacheScalarFieldEnum = {
+  id: 'id',
+  emailHash: 'emailHash',
+  maskedEmail: 'maskedEmail',
+  domain: 'domain',
+  status: 'status',
+  reason: 'reason',
+  verifiedAt: 'verifiedAt',
+  expiresAt: 'expiresAt',
+  checkedById: 'checkedById',
+  checkedByName: 'checkedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmEmailVerificationCacheScalarFieldEnum = (typeof CrmEmailVerificationCacheScalarFieldEnum)[keyof typeof CrmEmailVerificationCacheScalarFieldEnum]
+
+
+export const CrmGlobalConfigScalarFieldEnum = {
+  id: 'id',
+  configKey: 'configKey',
+  emailVerificationCooldownDays: 'emailVerificationCooldownDays',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmGlobalConfigScalarFieldEnum = (typeof CrmGlobalConfigScalarFieldEnum)[keyof typeof CrmGlobalConfigScalarFieldEnum]
 
 
 export const CrmTimelineEventScalarFieldEnum = {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
@@ -17,6 +17,7 @@ type CrmSendStartView = Awaited<ReturnType<CrmService['startFirstMessageSend']>>
 type CrmSequenceStopView = Awaited<ReturnType<CrmService['stopSequenceEnrollment']>>;
 type CrmInboxThreadView = Awaited<ReturnType<CrmService['listInboxThreads']>>['records'][number];
 type CrmInboxThreadDetailView = Awaited<ReturnType<CrmService['getInboxThread']>>;
+type CrmGlobalConfigView = Awaited<ReturnType<CrmService['getGlobalConfig']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -646,6 +647,40 @@ describe('CrmController', () => {
 
     await assert.rejects(() => controller.listAccounts('', {}), UnauthorizedException);
   });
+
+  it('lets super admins read and save CRM global config', async () => {
+    const calls: Array<{ dto?: { emailVerificationCooldownDays: number }; context?: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(createUser({ roles: ['R_SUPER'] })),
+      createCrmService({
+        async getGlobalConfig() {
+          return createGlobalConfigView({ emailVerificationCooldownDays: 30 });
+        },
+        async saveGlobalConfig(dto, context) {
+          calls.push({ dto, context });
+
+          return createGlobalConfigView({ emailVerificationCooldownDays: dto.emailVerificationCooldownDays });
+        }
+      })
+    );
+
+    const loaded = await controller.getGlobalConfig('Bearer token');
+    const saved = await controller.saveGlobalConfig('Bearer token', { emailVerificationCooldownDays: 45 });
+
+    assert.equal(loaded.data.emailVerificationCooldownDays, 30);
+    assert.equal(saved.data.emailVerificationCooldownDays, 45);
+    assert.equal(calls[0].context?.roles.includes('R_SUPER'), true);
+  });
+
+  it('rejects ordinary users from CRM global config endpoints', async () => {
+    const controller = new CrmController(createAuthService(), createCrmService());
+
+    await assert.rejects(() => controller.getGlobalConfig('Bearer token'), ForbiddenException);
+    await assert.rejects(
+      () => controller.saveGlobalConfig('Bearer token', { emailVerificationCooldownDays: 45 }),
+      ForbiddenException
+    );
+  });
 });
 
 function createAuthService(user: ReturnType<typeof createUser> | null = createUser()): AuthService {
@@ -656,7 +691,14 @@ function createAuthService(user: ReturnType<typeof createUser> | null = createUs
   } as unknown as AuthService;
 }
 
-function createUser() {
+function createUser(overrides: Partial<ReturnType<typeof createUserBase>> = {}) {
+  return {
+    ...createUserBase(),
+    ...overrides
+  };
+}
+
+function createUserBase() {
   return {
     userId: 'user-1',
     userName: 'Alice',
@@ -987,6 +1029,15 @@ function createEmailVerificationView(overrides: { contactId?: string } = {}): Cr
   };
 }
 
+function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): CrmGlobalConfigView {
+  return {
+    configKey: 'default',
+    emailVerificationCooldownDays: 30,
+    updatedAt: '1970-01-01T00:00:00.000Z',
+    ...overrides
+  };
+}
+
 function createCrmService(partial: Partial<CrmService> = {}): CrmService {
   return {
     async listAccounts() {
@@ -1027,6 +1078,12 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async verifyContactEmail() {
       return createEmailVerificationView();
+    },
+    async getGlobalConfig() {
+      return createGlobalConfigView();
+    },
+    async saveGlobalConfig() {
+      return createGlobalConfigView();
     },
     async mockAuthorizeMailbox() {
       return { mailbox: createMailboxView() };

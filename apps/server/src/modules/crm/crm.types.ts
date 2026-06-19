@@ -20,6 +20,12 @@ export const crmAccountStatuses = [
 export type CrmAccountStatus = (typeof crmAccountStatuses)[number];
 
 export type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable' | 'unsubscribed';
+export type CrmEmailVerificationReason =
+  | 'mx_found'
+  | 'invalid_format'
+  | 'no_mx'
+  | 'dns_temporary_failure'
+  | 'public_email';
 
 export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
@@ -100,6 +106,45 @@ export interface CrmContactRecord {
   sourceTaskId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CrmEmailVerificationCacheRecord {
+  id: string;
+  emailHash: string;
+  maskedEmail: string;
+  domain: string | null;
+  status: CrmEmailStatus;
+  reason: CrmEmailVerificationReason;
+  verifiedAt: Date;
+  expiresAt: Date;
+  checkedById: string | null;
+  checkedByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmEmailVerificationCacheUpsertInput {
+  emailHash: string;
+  maskedEmail: string;
+  domain: string | null;
+  status: CrmEmailStatus;
+  reason: CrmEmailVerificationReason;
+  verifiedAt: Date;
+  expiresAt: Date;
+  checkedById: string;
+  checkedByName: string | null;
+}
+
+export interface CrmGlobalConfigRecord {
+  configKey: string;
+  emailVerificationCooldownDays: number;
+  updatedAt: Date;
+}
+
+export interface CrmGlobalConfigInput {
+  emailVerificationCooldownDays: number;
+  updatedById?: string | null;
+  updatedByName?: string | null;
 }
 
 export interface CrmTimelineEventRecord {
@@ -787,6 +832,14 @@ export interface CrmStore {
     ownerUserId?: string;
   }): Promise<CrmContactRecord | null>;
   updateContactEmailStatus(id: string, emailStatus: CrmEmailStatus): Promise<CrmContactRecord | null>;
+  findEmailVerificationCache(args: {
+    emailHash: string;
+  }): Promise<CrmEmailVerificationCacheRecord | null>;
+  upsertEmailVerificationCache(
+    input: CrmEmailVerificationCacheUpsertInput
+  ): Promise<CrmEmailVerificationCacheRecord>;
+  getGlobalConfig(): Promise<CrmGlobalConfigRecord>;
+  saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
   listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;

@@ -141,6 +141,35 @@ model CrmContact {
   @@index([sourceTaskId])
 }
 
+model CrmEmailVerificationCache {
+  id             String   @id @default(uuid())
+  emailHash      String
+  maskedEmail    String
+  domain         String?
+  status         String
+  reason         String
+  verifiedAt     DateTime
+  expiresAt      DateTime
+  checkedById    String?
+  checkedByName  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([emailHash])
+  @@index([expiresAt])
+  @@index([domain, expiresAt])
+}
+
+model CrmGlobalConfig {
+  id                            String   @id @default(uuid())
+  configKey                     String   @unique
+  emailVerificationCooldownDays Int      @default(30)
+  updatedById                   String?
+  updatedByName                 String?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+}
+
 model CrmTimelineEvent {
   id             String   @id @default(uuid())
   organizationId String

@@ -43,6 +43,23 @@ export function verifyCrmContactEmail(contactId: string) {
   });
 }
 
+/** Read platform-wide CRM settings. */
+export function fetchCrmGlobalConfig() {
+  return request<Api.Crm.GlobalConfig>({
+    url: '/crm/global-config',
+    method: 'get'
+  });
+}
+
+/** Save platform-wide CRM settings. */
+export function saveCrmGlobalConfig(data: Api.Crm.SaveGlobalConfigPayload) {
+  return request<Api.Crm.GlobalConfig>({
+    url: '/crm/global-config',
+    method: 'post',
+    data
+  });
+}
+
 /** Archive one CRM account with an optional reason. */
 export function archiveCrmAccount(id: string, data: Api.Crm.LeadArchivePayload = {}) {
   return request<Api.Crm.LeadArchiveResult>({

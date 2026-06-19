@@ -93,6 +93,60 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('finds a fresh global email verification cache by email hash', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const cache = await store.findEmailVerificationCache({ emailHash: 'email-hash-1' });
+
+    assert.equal(cache?.status, 'valid');
+    assert.deepEqual(prisma.crmEmailVerificationCache.findUniqueCalls[0].where, {
+      emailHash: 'email-hash-1'
+    });
+  });
+
+  it('upserts a global email verification cache by email hash', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const cache = await store.upsertEmailVerificationCache({
+      emailHash: 'email-hash-1',
+      maskedEmail: 'a***@example.com',
+      domain: 'example.com',
+      status: 'valid',
+      reason: 'mx_found',
+      verifiedAt: new Date('2026-06-18T09:00:00.000Z'),
+      expiresAt: new Date('2026-07-18T09:00:00.000Z'),
+      checkedById: 'user-1',
+      checkedByName: 'Alice'
+    });
+
+    assert.equal(cache.reason, 'mx_found');
+    assert.deepEqual(prisma.crmEmailVerificationCache.upsertCalls[0].where, {
+      emailHash: 'email-hash-1'
+    });
+    assert.equal(prisma.crmEmailVerificationCache.upsertCalls[0].create.status, 'valid');
+    assert.equal(prisma.crmEmailVerificationCache.upsertCalls[0].update.reason, 'mx_found');
+  });
+
+  it('reads and saves CRM global config with normalized cooldown days', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const current = await store.getGlobalConfig();
+    const saved = await store.saveGlobalConfig({
+      emailVerificationCooldownDays: 45,
+      updatedById: 'super-1',
+      updatedByName: 'Super Admin'
+    });
+
+    assert.equal(current.emailVerificationCooldownDays, 30);
+    assert.equal(saved.emailVerificationCooldownDays, 45);
+    assert.deepEqual(prisma.crmGlobalConfig.findUniqueCalls[0].where, { configKey: 'default' });
+    assert.deepEqual(prisma.crmGlobalConfig.upsertCalls[0].where, { configKey: 'default' });
+    assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.emailVerificationCooldownDays, 45);
+  });
+
   it('loads account detail with member owner scope and newest timeline first', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1263,6 +1317,20 @@ function createPrisma(
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
+  const emailVerificationCache = {
+    id: 'email-verification-cache-1',
+    emailHash: 'email-hash-1',
+    maskedEmail: 'a***@example.com',
+    domain: 'example.com',
+    status: 'valid',
+    reason: 'mx_found',
+    verifiedAt: new Date('2026-06-18T09:00:00.000Z'),
+    expiresAt: new Date('2026-07-18T09:00:00.000Z'),
+    checkedById: 'user-1',
+    checkedByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
   const message = createPrismaMessage();
   const enrollment = {
     id: 'enrollment-1',
@@ -1462,6 +1530,54 @@ function createPrisma(
             updatedAt: new Date('2026-06-18T10:00:00.000Z')
           }
         ];
+      }
+    },
+    crmEmailVerificationCache: {
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return emailVerificationCache;
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+        return { ...emailVerificationCache, ...args.create, ...args.update };
+      }
+    },
+    crmGlobalConfig: {
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return null;
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+        return {
+          id: 'crm-global-config-1',
+          configKey: 'default',
+          emailVerificationCooldownDays: args.update.emailVerificationCooldownDays ?? 30,
+          updatedById: args.update.updatedById ?? null,
+          updatedByName: args.update.updatedByName ?? null,
+          createdAt: new Date('2026-06-18T09:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        };
       }
     },
     crmTimelineEvent: {

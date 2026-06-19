@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
+import type { CrmEmailVerificationCacheModel } from '../../../generated/prisma/models/CrmEmailVerificationCache';
+import type { CrmGlobalConfigModel } from '../../../generated/prisma/models/CrmGlobalConfig';
 import type { CrmInboxMessageModel } from '../../../generated/prisma/models/CrmInboxMessage';
 import type { CrmInboxThreadModel } from '../../../generated/prisma/models/CrmInboxThread';
 import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
@@ -28,6 +30,10 @@ import type {
   CrmContactUpdateInput,
   CrmCustomerReplyIngestInput,
   CrmCustomerReplyIngestRecord,
+  CrmEmailVerificationCacheRecord,
+  CrmEmailVerificationCacheUpsertInput,
+  CrmGlobalConfigInput,
+  CrmGlobalConfigRecord,
   CrmEmailStatus,
   CrmInboxThreadDetailRecord,
   CrmInboxThreadListRecord,
@@ -69,6 +75,11 @@ import type {
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
 } from '../crm.types';
+import {
+  crmGlobalConfigKey,
+  defaultEmailVerificationCooldownDays,
+  normalizeEmailVerificationCooldownDays
+} from '../crm-global-config';
 
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
@@ -178,6 +189,67 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return records[0] ? toContactRecord(records[0]) : null;
+  }
+
+  findEmailVerificationCache(args: { emailHash: string }) {
+    return this.prisma.crmEmailVerificationCache
+      .findUnique({
+        where: {
+          emailHash: args.emailHash
+        }
+      })
+      .then(record => (record ? toEmailVerificationCacheRecord(record) : null));
+  }
+
+  async upsertEmailVerificationCache(input: CrmEmailVerificationCacheUpsertInput) {
+    const record = await this.prisma.crmEmailVerificationCache.upsert({
+      where: {
+        emailHash: input.emailHash
+      },
+      create: input,
+      update: {
+        maskedEmail: input.maskedEmail,
+        domain: input.domain,
+        status: input.status,
+        reason: input.reason,
+        verifiedAt: input.verifiedAt,
+        expiresAt: input.expiresAt,
+        checkedById: input.checkedById,
+        checkedByName: input.checkedByName
+      }
+    });
+
+    return toEmailVerificationCacheRecord(record);
+  }
+
+  async getGlobalConfig() {
+    const record = await this.prisma.crmGlobalConfig.findUnique({
+      where: { configKey: crmGlobalConfigKey }
+    });
+
+    return record ? toGlobalConfigRecord(record) : createDefaultGlobalConfig();
+  }
+
+  async saveGlobalConfig(input: CrmGlobalConfigInput) {
+    const emailVerificationCooldownDays = normalizeEmailVerificationCooldownDays(
+      input.emailVerificationCooldownDays
+    );
+    const record = await this.prisma.crmGlobalConfig.upsert({
+      where: { configKey: crmGlobalConfigKey },
+      create: {
+        configKey: crmGlobalConfigKey,
+        emailVerificationCooldownDays,
+        updatedById: input.updatedById,
+        updatedByName: input.updatedByName
+      },
+      update: {
+        emailVerificationCooldownDays,
+        updatedById: input.updatedById,
+        updatedByName: input.updatedByName
+      }
+    });
+
+    return toGlobalConfigRecord(record);
   }
 
   async listAccounts(args: {
@@ -1855,6 +1927,30 @@ function toContactRecord(record: CrmContactModel): CrmContactRecord {
   return {
     ...record,
     emailStatus: record.emailStatus as CrmContactRecord['emailStatus']
+  };
+}
+
+function toEmailVerificationCacheRecord(record: CrmEmailVerificationCacheModel): CrmEmailVerificationCacheRecord {
+  return {
+    ...record,
+    status: record.status as CrmEmailVerificationCacheRecord['status'],
+    reason: record.reason as CrmEmailVerificationCacheRecord['reason']
+  };
+}
+
+function createDefaultGlobalConfig(): CrmGlobalConfigRecord {
+  return {
+    configKey: crmGlobalConfigKey,
+    emailVerificationCooldownDays: defaultEmailVerificationCooldownDays,
+    updatedAt: new Date(0)
+  };
+}
+
+function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalConfigRecord {
+  return {
+    configKey: record.configKey,
+    emailVerificationCooldownDays: normalizeEmailVerificationCooldownDays(record.emailVerificationCooldownDays),
+    updatedAt: record.updatedAt
   };
 }
 

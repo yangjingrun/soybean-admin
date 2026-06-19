@@ -389,6 +389,8 @@ export const ModelName = {
   Organization: 'Organization',
   CrmAccount: 'CrmAccount',
   CrmContact: 'CrmContact',
+  CrmEmailVerificationCache: 'CrmEmailVerificationCache',
+  CrmGlobalConfig: 'CrmGlobalConfig',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
@@ -422,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -793,6 +795,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmContactCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmContactCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmEmailVerificationCache: {
+      payload: Prisma.$CrmEmailVerificationCachePayload<ExtArgs>
+      fields: Prisma.CrmEmailVerificationCacheFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmEmailVerificationCacheFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmEmailVerificationCacheFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>
+        }
+        findFirst: {
+          args: Prisma.CrmEmailVerificationCacheFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmEmailVerificationCacheFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>
+        }
+        findMany: {
+          args: Prisma.CrmEmailVerificationCacheFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>[]
+        }
+        create: {
+          args: Prisma.CrmEmailVerificationCacheCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>
+        }
+        createMany: {
+          args: Prisma.CrmEmailVerificationCacheCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmEmailVerificationCacheCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>[]
+        }
+        delete: {
+          args: Prisma.CrmEmailVerificationCacheDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>
+        }
+        update: {
+          args: Prisma.CrmEmailVerificationCacheUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmEmailVerificationCacheDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmEmailVerificationCacheUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmEmailVerificationCacheUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmEmailVerificationCacheUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailVerificationCachePayload>
+        }
+        aggregate: {
+          args: Prisma.CrmEmailVerificationCacheAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmEmailVerificationCache>
+        }
+        groupBy: {
+          args: Prisma.CrmEmailVerificationCacheGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailVerificationCacheGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmEmailVerificationCacheCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailVerificationCacheCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmGlobalConfig: {
+      payload: Prisma.$CrmGlobalConfigPayload<ExtArgs>
+      fields: Prisma.CrmGlobalConfigFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmGlobalConfigFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmGlobalConfigFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmGlobalConfigFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmGlobalConfigFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>
+        }
+        findMany: {
+          args: Prisma.CrmGlobalConfigFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>[]
+        }
+        create: {
+          args: Prisma.CrmGlobalConfigCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>
+        }
+        createMany: {
+          args: Prisma.CrmGlobalConfigCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmGlobalConfigCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmGlobalConfigDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>
+        }
+        update: {
+          args: Prisma.CrmGlobalConfigUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmGlobalConfigDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmGlobalConfigUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmGlobalConfigUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmGlobalConfigUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGlobalConfigPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmGlobalConfigAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmGlobalConfig>
+        }
+        groupBy: {
+          args: Prisma.CrmGlobalConfigGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmGlobalConfigGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmGlobalConfigCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmGlobalConfigCountAggregateOutputType> | number
         }
       }
     }
@@ -2262,6 +2412,37 @@ export const CrmContactScalarFieldEnum = {
 export type CrmContactScalarFieldEnum = (typeof CrmContactScalarFieldEnum)[keyof typeof CrmContactScalarFieldEnum]
 
 
+export const CrmEmailVerificationCacheScalarFieldEnum = {
+  id: 'id',
+  emailHash: 'emailHash',
+  maskedEmail: 'maskedEmail',
+  domain: 'domain',
+  status: 'status',
+  reason: 'reason',
+  verifiedAt: 'verifiedAt',
+  expiresAt: 'expiresAt',
+  checkedById: 'checkedById',
+  checkedByName: 'checkedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmEmailVerificationCacheScalarFieldEnum = (typeof CrmEmailVerificationCacheScalarFieldEnum)[keyof typeof CrmEmailVerificationCacheScalarFieldEnum]
+
+
+export const CrmGlobalConfigScalarFieldEnum = {
+  id: 'id',
+  configKey: 'configKey',
+  emailVerificationCooldownDays: 'emailVerificationCooldownDays',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmGlobalConfigScalarFieldEnum = (typeof CrmGlobalConfigScalarFieldEnum)[keyof typeof CrmGlobalConfigScalarFieldEnum]
+
+
 export const CrmTimelineEventScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -2848,6 +3029,8 @@ export type GlobalOmitConfig = {
   organization?: Prisma.OrganizationOmit
   crmAccount?: Prisma.CrmAccountOmit
   crmContact?: Prisma.CrmContactOmit
+  crmEmailVerificationCache?: Prisma.CrmEmailVerificationCacheOmit
+  crmGlobalConfig?: Prisma.CrmGlobalConfigOmit
   crmTimelineEvent?: Prisma.CrmTimelineEventOmit
   crmMailbox?: Prisma.CrmMailboxOmit
   crmMailboxSendUsage?: Prisma.CrmMailboxSendUsageOmit

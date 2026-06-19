@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   Inject,
@@ -30,6 +31,7 @@ import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
 import { ReplyCrmInboxThreadDto } from './dto/reply-crm-inbox-thread.dto';
+import { SaveCrmGlobalConfigDto } from './dto/save-crm-global-config.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
@@ -93,6 +95,18 @@ export class CrmController {
   @Post('contacts/:id/verify-email')
   async verifyContactEmail(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.verifyContactEmail(id, this.requireUserContext(authorization)));
+  }
+
+  @Get('global-config')
+  async getGlobalConfig(@Headers('authorization') authorization = '') {
+    this.requireSuperUserContext(authorization);
+
+    return ok(await this.crmService.getGlobalConfig());
+  }
+
+  @Post('global-config')
+  async saveGlobalConfig(@Headers('authorization') authorization = '', @Body() dto: SaveCrmGlobalConfigDto) {
+    return ok(await this.crmService.saveGlobalConfig(dto, this.requireSuperUserContext(authorization)));
   }
 
   @Post('mailboxes/mock-authorize')
@@ -257,6 +271,16 @@ export class CrmController {
       organizationId: user.organizationId,
       organizationRole: user.organizationRole
     };
+  }
+
+  private requireSuperUserContext(authorization: string): CrmUserContext {
+    const context = this.requireUserContext(authorization);
+
+    if (!context.roles.includes('R_SUPER')) {
+      throw new ForbiddenException('无权维护 CRM 全局配置');
+    }
+
+    return context;
   }
 
   private requireUser(authorization: string): UserInfo {

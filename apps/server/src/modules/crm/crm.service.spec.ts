@@ -8,6 +8,8 @@ import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gma
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmService } from './crm.service';
 import type {
+  CrmEmailVerificationCacheRecord,
+  CrmGlobalConfigRecord,
   CrmInboxMessageRecord,
   CrmInboxThreadRecord,
   CrmMailboxRecord,
@@ -22,7 +24,11 @@ import type {
 describe('CrmService', () => {
   it('imports one lead account and contact with organization scoped dedupe', async () => {
     const store = createStore();
-    const service = new CrmService(store);
+    const service = new CrmService(store, {
+      async resolveMx() {
+        return [{ exchange: 'mx.abc-bearing.example' }];
+      }
+    });
     const context = createContext();
 
     const first = await service.importAccountFromLead(
@@ -64,7 +70,210 @@ describe('CrmService', () => {
     assert.equal(store.accounts[0].ownerUserId, 'user-1');
     assert.equal(store.accounts[0].domain, 'abc-bearing.example');
     assert.equal(store.contacts[0].maskedEmail, 'a***@abc-bearing.example');
-    assert.equal(store.timelineEvents.map(event => event.eventType).join(','), 'account_imported,contact_imported');
+    assert.equal(
+      store.timelineEvents.map(event => event.eventType).join(','),
+      'account_imported,contact_imported,email_verified'
+    );
+  });
+
+  it('auto verifies imported personal contact email by MX lookup', async () => {
+    const store = createStore();
+    const service = new CrmService(store, {
+      async resolveMx(domain) {
+        assert.equal(domain, 'buyer.example');
+
+        return [{ exchange: 'mx.buyer.example' }];
+      }
+    });
+
+    const result = await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: 'Alice Buyer',
+          title: 'Purchasing Manager',
+          email: 'alice@buyer.example'
+        }
+      },
+      createContext()
+    );
+
+    assert.equal(result.contact?.emailStatus, 'valid');
+    assert.equal(store.contacts[0].emailStatus, 'valid');
+    assert.equal(store.timelineEvents.some(event => event.eventType === 'email_verified'), true);
+  });
+
+  it('reuses fresh global email verification cache across owners', async () => {
+    const store = createStore();
+    const dnsResolver = createDnsResolver([{ exchange: 'mx.buyer.example', priority: 10 }]);
+    const service = new CrmService(store, dnsResolver);
+
+    await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: 'Alice Buyer',
+          title: 'Purchasing Manager',
+          email: 'alice@buyer.example'
+        }
+      },
+      createContext({ userId: 'user-1' })
+    );
+    const second = await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: 'Alice Buyer',
+          title: 'Purchasing Manager',
+          email: 'alice@buyer.example'
+        }
+      },
+      createContext({ userId: 'user-2' })
+    );
+
+    assert.deepEqual(dnsResolver.calls, ['buyer.example']);
+    assert.equal(store.contacts.length, 2);
+    assert.equal(store.emailVerificationCaches.length, 1);
+    assert.equal(second.contact?.emailStatus, 'valid');
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { cacheHit?: boolean } | undefined)?.cacheHit, true);
+  });
+
+  it('reuses fresh global email verification cache across organizations', async () => {
+    const store = createStore([], {
+      emailVerificationCaches: [
+        createEmailVerificationCache({
+          emailHash: hashTestEmail('alice@buyer.example'),
+          maskedEmail: 'a***@buyer.example',
+          domain: 'buyer.example',
+          status: 'valid',
+          reason: 'mx_found',
+          checkedById: 'user-1',
+          checkedByName: 'Alice'
+        })
+      ]
+    });
+    const dnsResolver = createDnsResolver([]);
+    const service = new CrmService(store, dnsResolver);
+
+    const result = await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: 'Alice Buyer',
+          title: 'Purchasing Manager',
+          email: 'alice@buyer.example'
+        }
+      },
+      createContext({ organizationId: 'org-2', userId: 'user-9' })
+    );
+
+    assert.equal(result.contact?.emailStatus, 'valid');
+    assert.equal(dnsResolver.calls.length, 0);
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { cacheHit?: boolean } | undefined)?.cacheHit, true);
+  });
+
+  it('refreshes stale global email verification cache after cooldown', async () => {
+    const store = createStore([], {
+      emailVerificationCaches: [
+        createEmailVerificationCache({
+          emailHash: hashTestEmail('alice@buyer.example'),
+          maskedEmail: 'a***@buyer.example',
+          domain: 'buyer.example',
+          status: 'invalid',
+          reason: 'no_mx',
+          verifiedAt: new Date('2026-05-01T00:00:00.000Z'),
+          expiresAt: new Date('2026-05-31T00:00:00.000Z')
+        })
+      ]
+    });
+    const dnsResolver = createDnsResolver([{ exchange: 'mx.buyer.example', priority: 10 }]);
+    const service = new CrmService(store, dnsResolver);
+
+    const result = await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: 'Alice Buyer',
+          title: 'Purchasing Manager',
+          email: 'alice@buyer.example'
+        }
+      },
+      createContext()
+    );
+
+    assert.deepEqual(dnsResolver.calls, ['buyer.example']);
+    assert.equal(result.contact?.emailStatus, 'valid');
+    assert.equal(store.emailVerificationCaches[0].status, 'valid');
+    assert.equal(store.emailVerificationCaches[0].reason, 'mx_found');
+    assert.equal(store.emailVerificationCaches[0].expiresAt.getTime() > Date.now(), true);
+  });
+
+  it('uses configured CRM email verification cooldown when deciding cache freshness', async () => {
+    const store = createStore([], {
+      globalConfig: createGlobalConfig({ emailVerificationCooldownDays: 60 }),
+      emailVerificationCaches: [
+        createEmailVerificationCache({
+          emailHash: hashTestEmail('alice@buyer.example'),
+          maskedEmail: 'a***@buyer.example',
+          domain: 'buyer.example',
+          status: 'valid',
+          reason: 'mx_found',
+          verifiedAt: new Date('2026-05-15T00:00:00.000Z'),
+          expiresAt: new Date('2026-06-14T00:00:00.000Z')
+        })
+      ]
+    });
+    const dnsResolver = createDnsResolver([]);
+    const service = new CrmService(store, dnsResolver);
+
+    const result = await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: 'Alice Buyer',
+          title: 'Purchasing Manager',
+          email: 'alice@buyer.example'
+        }
+      },
+      createContext()
+    );
+
+    assert.equal(result.contact?.emailStatus, 'valid');
+    assert.equal(dnsResolver.calls.length, 0);
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { cacheHit?: boolean } | undefined)?.cacheHit, true);
+  });
+
+  it('keeps imported public mailbox in risky review without querying MX', async () => {
+    const store = createStore();
+    const service = new CrmService(store, {
+      async resolveMx() {
+        throw new Error('public mailbox should not query DNS');
+      }
+    });
+
+    const result = await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: null,
+          title: null,
+          email: 'info@buyer.example'
+        }
+      },
+      createContext()
+    );
+
+    assert.equal(result.contact?.isPublicEmail, true);
+    assert.equal(result.contact?.emailStatus, 'risky');
+    assert.equal(store.accounts[0].status, 'manual_review_pending');
+    assert.equal(store.timelineEvents.some(event => event.eventType === 'email_verified'), true);
   });
 
   it('lists only owner accounts for members and all organization accounts for organization admins', async () => {
@@ -279,7 +488,8 @@ describe('CrmService', () => {
       domain: 'example.com',
       fromStatus: 'unchecked',
       toStatus: 'valid',
-      reason: 'mx_found'
+      reason: 'mx_found',
+      cacheHit: false
     });
     assert.deepEqual(logs.records[0], {
       level: 'info',
@@ -297,7 +507,8 @@ describe('CrmService', () => {
         domain: 'example.com',
         fromStatus: 'unchecked',
         toStatus: 'valid',
-        reason: 'mx_found'
+        reason: 'mx_found',
+        cacheHit: false
       }
     });
   });
@@ -352,6 +563,20 @@ describe('CrmService', () => {
 
     assert.equal(result.contact.emailStatus, 'unreachable');
     assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string } | undefined)?.reason, 'dns_temporary_failure');
+  });
+
+  it('marks public role mailboxes risky without querying DNS during manual verification', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'sales@example.com' })]
+    });
+    const resolver = createDnsResolver([]);
+    const service = new CrmService(store, resolver);
+
+    const result = await service.verifyContactEmail('contact-1', createContext());
+
+    assert.equal(result.contact.emailStatus, 'risky');
+    assert.equal(resolver.calls.length, 0);
+    assert.equal((store.timelineEvents.at(-1)?.metadata as { reason: string } | undefined)?.reason, 'public_email');
   });
 
   it('rejects contact verification outside current member scope without updating status', async () => {
@@ -1773,10 +1998,13 @@ function createStore(
     messages?: TestMessage[];
     inboxThreads?: TestInboxThread[];
     inboxMessages?: TestInboxMessage[];
+    emailVerificationCaches?: TestEmailVerificationCache[];
+    globalConfig?: TestGlobalConfig;
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
   contacts: TestContact[];
+  emailVerificationCaches: TestEmailVerificationCache[];
   timelineEvents: TestTimelineEvent[];
   mailboxes: TestMailbox[];
   productLines: TestProductLine[];
@@ -1784,6 +2012,7 @@ function createStore(
   messages: TestMessage[];
   inboxThreads: TestInboxThread[];
   inboxMessages: TestInboxMessage[];
+  globalConfig: TestGlobalConfig;
   mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
   productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }>;
   enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }>;
@@ -1807,6 +2036,7 @@ function createStore(
 } {
   const accounts = [...initialAccounts];
   const contacts: TestContact[] = [...(initialData.contacts ?? [])];
+  const emailVerificationCaches: TestEmailVerificationCache[] = [...(initialData.emailVerificationCaches ?? [])];
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
   const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
@@ -1814,6 +2044,7 @@ function createStore(
   const messages: TestMessage[] = [...(initialData.messages ?? [])];
   const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
   const inboxMessages: TestInboxMessage[] = [...(initialData.inboxMessages ?? [])];
+  const globalConfig = initialData.globalConfig ?? createGlobalConfig();
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
   const productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }> = [];
   const enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }> = [];
@@ -1822,6 +2053,7 @@ function createStore(
   return {
     accounts,
     contacts,
+    emailVerificationCaches,
     timelineEvents,
     mailboxes,
     productLines,
@@ -1829,6 +2061,7 @@ function createStore(
     messages,
     inboxThreads,
     inboxMessages,
+    globalConfig,
     mailboxUpdateCalls,
     productLineUpdateCalls,
     enrollmentUpdateCalls,
@@ -1909,6 +2142,37 @@ function createStore(
       if (!contact) return null;
       Object.assign(contact, { emailStatus, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return contact;
+    },
+    async findEmailVerificationCache(args) {
+      return emailVerificationCaches.find(cache => cache.emailHash === args.emailHash) || null;
+    },
+    async upsertEmailVerificationCache(input) {
+      const existingCache = emailVerificationCaches.find(
+        cache => cache.emailHash === input.emailHash
+      );
+
+      if (existingCache) {
+        Object.assign(existingCache, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+        return existingCache;
+      }
+
+      const cache = createEmailVerificationCache({
+        ...input,
+        id: `email-verification-cache-${emailVerificationCaches.length + 1}`
+      });
+      emailVerificationCaches.push(cache);
+
+      return cache;
+    },
+    async getGlobalConfig() {
+      return globalConfig;
+    },
+    async saveGlobalConfig(input) {
+      Object.assign(globalConfig, {
+        emailVerificationCooldownDays: input.emailVerificationCooldownDays,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+      return globalConfig;
     },
     async listAccounts(args) {
       this.lastListArgs = args;
@@ -2845,6 +3109,31 @@ function createContact(input: Partial<TestContact> = {}): TestContact {
   };
 }
 
+function createEmailVerificationCache(input: Partial<TestEmailVerificationCache> = {}): TestEmailVerificationCache {
+  return {
+    id: input.id || 'email-verification-cache-1',
+    emailHash: input.emailHash || 'hash-1',
+    maskedEmail: input.maskedEmail || 'a***@example.com',
+    domain: input.domain ?? 'example.com',
+    status: input.status || 'valid',
+    reason: input.reason || 'mx_found',
+    verifiedAt: input.verifiedAt || new Date('2026-06-18T09:00:00.000Z'),
+    expiresAt: input.expiresAt || new Date('2026-07-18T09:00:00.000Z'),
+    checkedById: input.checkedById ?? 'user-1',
+    checkedByName: input.checkedByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalConfig {
+  return {
+    configKey: input.configKey || 'default',
+    emailVerificationCooldownDays: input.emailVerificationCooldownDays ?? 30,
+    updatedAt: input.updatedAt || new Date(0)
+  };
+}
+
 function createTimelineEvent(input: Partial<TestTimelineEvent> = {}): TestTimelineEvent {
   return {
     id: input.id || 'event-1',
@@ -3053,6 +3342,8 @@ function buildInboxThreadListRecord(
 
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
+type TestEmailVerificationCache = CrmEmailVerificationCacheRecord;
+type TestGlobalConfig = CrmGlobalConfigRecord;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
 type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
