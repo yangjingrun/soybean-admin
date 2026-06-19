@@ -37,6 +37,7 @@ export function parseGmailApiMessage(message: unknown): CrmGmailHistoryMessage {
   const gmailMessage = parseMessageRecord(message);
   const payload = parseOptionalPart(gmailMessage.payload);
   const headers = parseHeaders(payload?.headers);
+  const labelIds = parseLabelIds(gmailMessage.labelIds);
   const subject = getHeaderValue(headers, 'subject') ?? '';
   const bodyText = extractMessageBody(payload) ?? normalizeOptionalString(gmailMessage.snippet) ?? '';
 
@@ -44,6 +45,7 @@ export function parseGmailApiMessage(message: unknown): CrmGmailHistoryMessage {
     providerMessageId: normalizeRequiredString(gmailMessage.id, 'Gmail 消息缺少 id'),
     providerThreadId: normalizeOptionalString(gmailMessage.threadId),
     replyToProviderMessageId: null,
+    direction: getHistoryMessageDirection(labelIds),
     subject,
     bodyText,
     receivedAt: parseInternalDate(gmailMessage.internalDate),
@@ -75,6 +77,19 @@ function parseHeaders(headers: unknown): GmailApiHeader[] {
   }
 
   return headers.filter(isRecord);
+}
+
+function parseLabelIds(labelIds: unknown): string[] {
+  if (labelIds === undefined || labelIds === null) return [];
+  if (!Array.isArray(labelIds)) {
+    throw new BadRequestException('Gmail 消息 labelIds 格式不正确');
+  }
+
+  return labelIds.filter((item): item is string => typeof item === 'string');
+}
+
+function getHistoryMessageDirection(labelIds: string[]) {
+  return labelIds.includes('SENT') && !labelIds.includes('INBOX') ? 'outbound' : 'inbound';
 }
 
 function getHeaderValue(headers: GmailApiHeader[], name: string) {

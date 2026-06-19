@@ -26,7 +26,27 @@ describe('parseGmailApiMessage', () => {
     assert.equal(result.subject, 'Re: New supplier');
     assert.equal(result.bodyText, 'Thanks, please send the catalog.');
     assert.equal(result.receivedAt.toISOString(), '2026-06-19T08:00:00.000Z');
+    assert.equal(result.direction, 'inbound');
     assert.equal(result.messageType, 'customer_reply');
+  });
+
+  it('marks SENT-only Gmail messages as outbound history messages', () => {
+    const result = parseGmailApiMessage(
+      createMessage({
+        labelIds: ['SENT'],
+        payload: {
+          mimeType: 'text/plain',
+          headers: [{ name: 'Subject', value: 'Re: New supplier' }],
+          body: {
+            data: encodeBase64Url('Thanks, I sent the catalog from Gmail.')
+          }
+        }
+      })
+    );
+
+    assert.equal(result.direction, 'outbound');
+    assert.equal(result.providerMessageId, 'gmail-message-1');
+    assert.equal(result.providerThreadId, 'gmail-thread-1');
   });
 
   it('prefers nested text/plain over html content', () => {

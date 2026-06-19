@@ -228,6 +228,17 @@ export class CrmGmailHistorySyncWorkerService {
     let skippedMessageCount = 0;
 
     for (const message of messages) {
+      if (message.direction === 'outbound') {
+        const ingested = await this.recordExternalSentMessage(job, message);
+        if (ingested) {
+          ingestedCount += 1;
+        } else {
+          skippedMessageCount += 1;
+        }
+
+        continue;
+      }
+
       const outboundMessage = await this.findOutboundMessageForHistoryMessage(job, message);
 
       if (!outboundMessage) {
@@ -253,6 +264,42 @@ export class CrmGmailHistorySyncWorkerService {
     }
 
     return { ingestedCount, skippedMessageCount };
+  }
+
+  private async recordExternalSentMessage(job: CrmGmailHistorySyncQueueJob, message: CrmGmailHistoryMessage) {
+    if (!message.providerThreadId) {
+      return false;
+    }
+
+    const outboundMessage = await this.store.findSentMessageByProviderThreadId({
+      organizationId: job.organizationId,
+      ownerUserId: job.ownerUserId,
+      mailboxId: job.mailboxId,
+      providerThreadId: message.providerThreadId
+    });
+
+    if (!outboundMessage) {
+      return false;
+    }
+
+    await this.store.createTimelineEvent({
+      organizationId: job.organizationId,
+      accountId: outboundMessage.accountId,
+      contactId: outboundMessage.contactId,
+      ownerUserId: job.ownerUserId,
+      eventType: 'external_gmail_reply_sent',
+      title: 'Gmail 外部回复已同步',
+      content: message.bodyText,
+      metadata: {
+        enrollmentId: outboundMessage.enrollmentId,
+        mailboxId: job.mailboxId,
+        providerMessageId: message.providerMessageId,
+        providerThreadId: message.providerThreadId,
+        sentAt: message.receivedAt.toISOString()
+      }
+    });
+
+    return true;
   }
 
   private async findOutboundMessageForHistoryMessage(

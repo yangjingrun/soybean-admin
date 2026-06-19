@@ -35,10 +35,6 @@ interface GmailHistoryMessageRef {
   id?: unknown;
 }
 
-interface GmailMessageWithLabels {
-  labelIds?: unknown;
-}
-
 interface GmailApiErrorResponse {
   error?: {
     errors?: Array<{
@@ -109,10 +105,6 @@ export class CrmGmailApiHistoryGateway implements CrmGmailHistoryGateway {
       const response = await this.httpClient.getJson(this.buildMessageUrl(messageId), headers);
       const body = this.parseGmailResponse<unknown>(response);
 
-      if (isSentOnlyMessage(body)) {
-        continue;
-      }
-
       messages.push(parseGmailApiMessage(body));
     }
 
@@ -180,16 +172,6 @@ function collectAddedMessageIds(history: unknown): string[] {
       return typeof message.id === 'string' && message.id ? [message.id] : [];
     });
   });
-}
-
-function isSentOnlyMessage(message: unknown) {
-  if (!isRecord(message)) return false;
-
-  const value = (message as GmailMessageWithLabels).labelIds;
-  if (!Array.isArray(value)) return false;
-
-  const labelIds = value.filter((item): item is string => typeof item === 'string');
-  return labelIds.includes('SENT') && !labelIds.includes('INBOX');
 }
 
 function normalizeOptionalString(value: unknown) {

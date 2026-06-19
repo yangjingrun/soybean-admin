@@ -271,6 +271,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认 history 过期时 checkpoint 不推进、返回 `history_expired`，并创建日志和通知。
 
+### 2026-06-19 Gmail 外部手动发送回复要按 outbound 分流
+
+- 场景：用户可能直接在 Gmail 里对 CRM 发起的线程手动回复，Gmail History 会把这类 `SENT` 且非 `INBOX` 的消息作为 `messageAdded` 推过来。
+- 坑点：History gateway 如果把 `SENT-only` 消息直接过滤，会漏掉用户外部手动回复；如果只删除过滤但不建模方向，worker 会把外发消息误当客户回信，触发 inbox 入库和停发逻辑。
+- 正确做法：`parseGmailApiMessage` 根据 `labelIds` 标记 `direction: inbound/outbound`；gateway 保留 `SENT-only` 消息；History worker 对 `outbound` 只按 `providerThreadId` 匹配已发送 CRM message 并写 `external_gmail_reply_sent` 时间线事件，不调用 `ingestCustomerReply`。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-message.ts`、`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-message.spec.ts apps/server/src/modules/crm/crm-gmail-history.gateway.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认 SENT-only 被解析为 outbound、gateway 不跳过、worker 写时间线且不走客户回信入库。
+
 ### 记录模板
 
 ```md

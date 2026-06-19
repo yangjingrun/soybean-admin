@@ -292,6 +292,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
                 providerMessageId: 'gmail-reply-1',
                 providerThreadId: 'gmail-thread-1',
                 replyToProviderMessageId: 'gmail-sent-1',
+                direction: 'inbound',
                 subject: 'Re: Bearing Series',
                 bodyText: 'Please send details.',
                 receivedAt: new Date('2026-06-19T08:30:00.000Z')
@@ -300,6 +301,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
                 providerMessageId: 'gmail-unmatched-1',
                 providerThreadId: 'gmail-thread-2',
                 replyToProviderMessageId: 'missing-sent-message',
+                direction: 'inbound',
                 subject: 'Unknown thread',
                 bodyText: 'Hello',
                 receivedAt: new Date('2026-06-19T08:40:00.000Z')
@@ -386,6 +388,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
                 providerMessageId: 'gmail-reply-no-reply-to',
                 providerThreadId: 'gmail-thread-hit',
                 replyToProviderMessageId: null,
+                direction: 'inbound',
                 subject: 'Re: Bearing Series',
                 bodyText: 'No In-Reply-To header here.',
                 receivedAt: new Date('2026-06-19T08:30:00.000Z')
@@ -394,6 +397,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
                 providerMessageId: 'gmail-reply-invalid-reply-to',
                 providerThreadId: 'gmail-thread-hit',
                 replyToProviderMessageId: 'missing-sent-message',
+                direction: 'inbound',
                 subject: 'Re: Bearing Series again',
                 bodyText: 'In-Reply-To does not match locally.',
                 receivedAt: new Date('2026-06-19T08:40:00.000Z')
@@ -461,6 +465,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
                 providerMessageId: 'gmail-reply-1',
                 providerThreadId: 'gmail-thread-1',
                 replyToProviderMessageId: 'gmail-sent-1',
+                direction: 'inbound',
                 subject: 'Re: Bearing Series',
                 bodyText: 'Please send details.',
                 receivedAt: new Date('2026-06-19T08:30:00.000Z')
@@ -491,6 +496,73 @@ describe('CrmGmailHistorySyncWorkerService', () => {
       }
     ]);
   });
+
+  it('records external Gmail sent replies on the CRM timeline without ingesting them as customer replies', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const timelineEvents: Parameters<CrmStore['createTimelineEvent']>[0][] = [];
+    const ingested: Parameters<CrmStore['ingestCustomerReply']>[0][] = [];
+    const service = new CrmGmailHistorySyncWorkerService(
+      createStore({
+        mailbox,
+        sentMessage: createMessage({
+          id: 'message-thread-hit',
+          providerMessageId: 'gmail-sent-1',
+          providerThreadId: 'gmail-thread-1'
+        }),
+        async advanceMailboxHistoryId(input) {
+          return { ...mailbox, lastHistoryId: input.toHistoryId };
+        },
+        async createTimelineEvent(input) {
+          timelineEvents.push(input);
+
+          return createTimelineEvent(input);
+        },
+        async ingestCustomerReply(input) {
+          ingested.push(input);
+
+          return { isDuplicate: false } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+        }
+      }),
+      {
+        async listHistory(input) {
+          return {
+            nextHistoryId: input.targetHistoryId,
+            messages: [
+              {
+                providerMessageId: 'gmail-external-sent-1',
+                providerThreadId: 'gmail-thread-1',
+                replyToProviderMessageId: null,
+                direction: 'outbound',
+                subject: 'Re: Bearing Series',
+                bodyText: 'Manual follow-up from Gmail.',
+                receivedAt: new Date('2026-06-19T09:00:00.000Z')
+              }
+            ]
+          };
+        }
+      }
+    );
+
+    const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
+
+    assert.equal(result.ingestedCount, 1);
+    assert.equal(result.skippedMessageCount, 0);
+    assert.deepEqual(ingested, []);
+    assert.equal(timelineEvents.length, 1);
+    assert.equal(timelineEvents[0].eventType, 'external_gmail_reply_sent');
+    assert.equal(timelineEvents[0].organizationId, 'org-1');
+    assert.equal(timelineEvents[0].accountId, 'account-1');
+    assert.equal(timelineEvents[0].contactId, 'contact-1');
+    assert.equal(timelineEvents[0].ownerUserId, 'user-1');
+    assert.equal(timelineEvents[0].title, 'Gmail 外部回复已同步');
+    assert.deepEqual(timelineEvents[0].metadata, {
+      enrollmentId: 'enrollment-1',
+      mailboxId: 'mailbox-1',
+      providerMessageId: 'gmail-external-sent-1',
+      providerThreadId: 'gmail-thread-1',
+      sentAt: '2026-06-19T09:00:00.000Z'
+    });
+  });
 });
 
 function createStore(options: {
@@ -514,6 +586,7 @@ function createStore(options: {
   ) => ReturnType<CrmStore['markMailboxAuthorizationExpired']>;
   updateMailbox?: (id: string, input: Parameters<CrmStore['updateMailbox']>[1]) => ReturnType<CrmStore['updateMailbox']>;
   advanceMailboxHistoryId?: (input: CrmMailboxHistoryAdvanceInput) => Promise<CrmMailboxRecord | null>;
+  createTimelineEvent?: (input: Parameters<CrmStore['createTimelineEvent']>[0]) => ReturnType<CrmStore['createTimelineEvent']>;
   ingestCustomerReply?: (input: Parameters<CrmStore['ingestCustomerReply']>[0]) => ReturnType<CrmStore['ingestCustomerReply']>;
 }) {
   const sentMessages = options.sentMessages ?? (options.sentMessage ? [options.sentMessage] : []);
@@ -556,6 +629,9 @@ function createStore(options: {
     async advanceMailboxHistoryId(input) {
       return options.advanceMailboxHistoryId ? options.advanceMailboxHistoryId(input) : options.mailbox;
     },
+    async createTimelineEvent(input) {
+      return options.createTimelineEvent ? options.createTimelineEvent(input) : createTimelineEvent(input);
+    },
     async updateMailbox(id, input) {
       return options.updateMailbox ? options.updateMailbox(id, input) : options.mailbox;
     },
@@ -573,6 +649,7 @@ function createStore(options: {
     | 'markMailboxAuthorizationExpired'
     | 'updateMailbox'
     | 'advanceMailboxHistoryId'
+    | 'createTimelineEvent'
     | 'ingestCustomerReply'
   > as CrmStore;
 }
@@ -638,6 +715,23 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T10:00:00.000Z'),
     ...input
+  };
+}
+
+function createTimelineEvent(
+  input: Partial<Awaited<ReturnType<CrmStore['createTimelineEvent']>>> = {}
+): Awaited<ReturnType<CrmStore['createTimelineEvent']>> {
+  return {
+    id: 'timeline-event-1',
+    organizationId: input.organizationId ?? 'org-1',
+    accountId: input.accountId ?? 'account-1',
+    contactId: input.contactId ?? null,
+    ownerUserId: input.ownerUserId ?? 'user-1',
+    eventType: input.eventType ?? 'note',
+    title: input.title ?? 'Event',
+    content: input.content ?? null,
+    metadata: input.metadata ?? {},
+    createdAt: new Date('2026-06-19T09:00:00.000Z')
   };
 }
 

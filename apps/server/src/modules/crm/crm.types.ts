@@ -60,6 +60,7 @@ export type CrmMessageStatus = (typeof crmMessageStatuses)[number];
 export type CrmMessageThreadMode = (typeof crmMessageThreadModes)[number];
 export type CrmInboxThreadStatus = (typeof crmInboxThreadStatuses)[number];
 export type CrmInboxMessageType = (typeof crmInboxMessageTypes)[number];
+export type CrmGmailHistoryMessageDirection = 'inbound' | 'outbound';
 
 export interface CrmUserContext {
   userId: string;
@@ -750,6 +751,7 @@ export interface CrmGmailHistoryMessage {
   providerMessageId: string;
   providerThreadId: string | null;
   replyToProviderMessageId: string | null;
+  direction: CrmGmailHistoryMessageDirection;
   subject: string;
   bodyText: string;
   receivedAt: Date;

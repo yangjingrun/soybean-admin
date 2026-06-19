@@ -10,7 +10,7 @@ import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type { CrmMailboxRecord } from './crm.types';
 
 describe('CrmGmailApiHistoryGateway', () => {
-  it('lists messageAdded history pages and fetches unique non-sent messages with full format', async () => {
+  it('lists messageAdded history pages and fetches unique messages with full format', async () => {
     const httpClient = createHttpClient([
       {
         status: 200,
@@ -68,10 +68,15 @@ describe('CrmGmailApiHistoryGateway', () => {
     });
 
     assert.equal(result.nextHistoryId, '102');
-    assert.equal(result.messages.length, 1);
+    assert.equal(result.messages.length, 2);
     assert.equal(result.messages[0].providerMessageId, 'message-1');
     assert.equal(result.messages[0].providerThreadId, 'thread-1');
     assert.equal(result.messages[0].bodyText, 'Please send the catalog.');
+    assert.equal(result.messages[0].direction, 'inbound');
+    assert.equal(result.messages[1].providerMessageId, 'message-2');
+    assert.equal(result.messages[1].providerThreadId, 'thread-2');
+    assert.equal(result.messages[1].bodyText, 'External sent copy');
+    assert.equal(result.messages[1].direction, 'outbound');
     assert.equal(httpClient.calls.length, 4);
     assert.equal(httpClient.calls[0].headers.Authorization, 'Bearer access-token-1');
     assert.match(httpClient.calls[0].url, /\/gmail\/v1\/users\/me\/history\?/);
