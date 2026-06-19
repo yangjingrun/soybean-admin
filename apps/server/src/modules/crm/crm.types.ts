@@ -644,7 +644,8 @@ export interface CrmCustomerReplyIngestRecord {
   contact: CrmContactRecord;
   mailbox: CrmMailboxRecord | null;
   enrollment: CrmSequenceEnrollmentRecord | null;
-  event: CrmTimelineEventRecord;
+  event: CrmTimelineEventRecord | null;
+  isDuplicate: boolean;
 }
 
 export interface CrmInboxThreadStatusUpdateInput {

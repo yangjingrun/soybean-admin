@@ -159,6 +159,14 @@
 - 相关文件：`prisma/schema.prisma`、`prisma/migrations/*/migration.sql`、`apps/server/src/generated/prisma/models/*`、`apps/server/src/generated/prisma/internal/*`。
 - 验证方式：运行对应 store/worker spec、`pnpm --filter @soybean/server typecheck` 和 `pnpm typecheck`，确认 Prisma 类型和运行入口都识别新字段。
 
+### 2026-06-19 Gmail 回信入库必须按 providerMessageId 幂等
+
+- 场景：后续 Gmail Pub/Sub/History 同步客户回信、退订或退信时，同一 Gmail message 可能因为至少一次投递、worker 重试或并发通知被处理多次。
+- 坑点：不能只在 service 层做先查再写，也不能重复调用 `ingestCustomerReply` 后照常发站内通知；并发下仍可能撞 `CrmInboxMessage` 唯一约束，或者重复递增 `unreadCount/messageCount`、重复写 timeline/通知。
+- 正确做法：`PrismaCrmStore.ingestCustomerReply` 先按 `organizationId + ownerUserId + mailboxId + providerMessageId` 查已有入站消息；创建时遇到 Prisma `P2002` 要按 providerMessageId 重读并返回 `isDuplicate=true`、`event=null`。Service 拿到重复结果时跳过站内通知和“已入库”业务日志；不同新回信仍正常通知。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.types.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm.service.spec.ts`，确认重复 providerMessageId 不 create、不更新 thread、不写 timeline、不通知，并发 `P2002` 会重读已有消息。
+
 ### 记录模板
 
 ```md

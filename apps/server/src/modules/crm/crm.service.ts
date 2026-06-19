@@ -1219,15 +1219,17 @@ export class CrmService {
       throw new BadRequestException('客户回信入库失败，请刷新后重试');
     }
 
-    await this.notifyCustomerReply(ingested.thread, ingested.message, ingested.account, ingested.contact, context);
-    await this.recordCrmLog('inbox-reply-ingest', 'CRM 客户回信已入库', context, {
-      organizationId: context.organizationId,
-      accountId: ingested.account.id,
-      contactId: ingested.contact.id,
-      enrollmentId: ingested.enrollment?.id ?? null,
-      threadId: ingested.thread.id,
-      inboxMessageId: ingested.message.id
-    });
+    if (!ingested.isDuplicate) {
+      await this.notifyCustomerReply(ingested.thread, ingested.message, ingested.account, ingested.contact, context);
+      await this.recordCrmLog('inbox-reply-ingest', 'CRM 客户回信已入库', context, {
+        organizationId: context.organizationId,
+        accountId: ingested.account.id,
+        contactId: ingested.contact.id,
+        enrollmentId: ingested.enrollment?.id ?? null,
+        threadId: ingested.thread.id,
+        inboxMessageId: ingested.message.id
+      });
+    }
 
     const detail = await this.store.getInboxThread({
       id: ingested.thread.id,
@@ -1805,7 +1807,7 @@ function toInboxReplyIngestView(record: CrmCustomerReplyIngestRecord, context: C
     mailbox: thread.mailbox,
     enrollment: thread.enrollment,
     messages: [toInboxMessageView(record.message, record.mailbox)],
-    timelineEvents: [toTimelineEventView(record.event)],
+    timelineEvents: record.event ? [toTimelineEventView(record.event)] : [],
     canOperate: thread.canOperate
   };
 }

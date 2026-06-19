@@ -763,6 +763,67 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'inbox_replied');
   });
 
+  it('returns existing inbox message when ingesting duplicate provider message', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.ingestCustomerReply({
+      outboundMessageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      subject: 'Re: Bearing Series',
+      bodyText: 'Please send details.',
+      receivedAt: new Date('2026-06-18T11:00:00.000Z'),
+      providerThreadId: 'gmail-thread-1',
+      providerMessageId: 'gmail-message-1'
+    });
+
+    assert.equal(result?.isDuplicate, true);
+    assert.equal(result?.message.id, 'inbox-message-1');
+    assert.equal(result?.thread.id, 'inbox-thread-1');
+    assert.deepEqual(prisma.crmInboxMessage.findFirstCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerMessageId: 'gmail-message-1'
+    });
+    assert.equal(prisma.crmInboxMessage.createCalls.length, 0);
+    assert.equal(prisma.crmInboxThread.updateCalls.length, 0);
+    assert.equal(prisma.crmTimelineEvent.createCalls.length, 0);
+  });
+
+  it('rereads existing inbox message when concurrent ingest hits provider message uniqueness', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    prisma.crmInboxMessage.findFirstResults = [null, 'default'];
+    prisma.crmInboxMessage.createError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: 'test'
+    });
+
+    const result = await store.ingestCustomerReply({
+      outboundMessageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      subject: 'Re: Bearing Series',
+      bodyText: 'Please send details.',
+      receivedAt: new Date('2026-06-18T11:00:00.000Z'),
+      providerThreadId: 'gmail-thread-1',
+      providerMessageId: 'gmail-message-1'
+    });
+
+    assert.equal(result?.isDuplicate, true);
+    assert.equal(result?.message.id, 'inbox-message-1');
+    assert.equal(prisma.crmInboxMessage.createCalls.length, 1);
+    assert.deepEqual(prisma.crmInboxMessage.findFirstCalls.at(-1)?.where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      providerMessageId: 'gmail-message-1'
+    });
+    assert.equal(prisma.crmInboxThread.updateCalls.length, 0);
+    assert.equal(prisma.crmTimelineEvent.createCalls.length, 0);
+  });
+
   it('marks contact unsubscribed when ingesting an unsubscribe reply', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -837,7 +898,7 @@ function createPrismaMessage(input: Record<string, unknown> = {}) {
     scheduledAt: null,
     sentAt: null,
     bullJobId: null,
-    providerMessageId: null,
+    providerMessageId: 'gmail-message-1',
     providerThreadId: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z'),
@@ -1404,9 +1465,22 @@ function createPrisma() {
       }
     },
     crmInboxMessage: {
+      findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      createError: null as Error | null,
+      findFirstResult: 'default' as 'default' | null,
+      findFirstResults: [] as Array<'default' | null>,
+      async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        const result = this.findFirstResults.length > 0 ? this.findFirstResults.shift() : this.findFirstResult;
+        if (result === null) return null;
+        return args.include
+          ? { ...inboxMessage, thread: inboxThread, account, contact, mailbox, enrollment }
+          : { ...inboxMessage, thread: undefined };
+      },
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
+        if (this.createError) throw this.createError;
         return { ...inboxMessage, ...args.data };
       }
     }

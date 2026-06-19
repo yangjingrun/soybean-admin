@@ -1117,6 +1117,77 @@ describe('CrmService', () => {
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_replied');
   });
 
+  it('does not notify or log when provider reply ingest is a duplicate', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'replied_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com', emailStatus: 'valid' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'replied',
+          runVersion: 4
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'sent',
+          sentAt: new Date('2026-06-18T10:00:00.000Z')
+        })
+      ],
+      inboxThreads: [createInboxThread({ id: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })],
+      inboxMessages: [
+        createInboxMessage({
+          id: 'inbox-message-1',
+          threadId: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          providerMessageId: 'gmail-message-1'
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const notificationCreates: Array<{ title: string; content: string; type: string; metadata?: unknown }> = [];
+    store.ingestCustomerReply = async () => ({
+      thread: store.inboxThreads[0],
+      message: store.inboxMessages[0],
+      account: store.accounts[0],
+      contact: store.contacts[0],
+      mailbox: store.mailboxes[0],
+      enrollment: store.enrollments[0],
+      event: null,
+      isDuplicate: true
+    });
+    const service = new CrmService(store, undefined, logs.service, undefined, {
+      async create(input: { title: string; content: string; type: string; metadata?: unknown }) {
+        notificationCreates.push(input);
+        return input as never;
+      }
+    } as never);
+
+    const result = await service.mockCustomerReply(
+      'message-1',
+      {
+        subject: 'Re: Bearing Series',
+        bodyText: 'Please send details.',
+        receivedAt: '2026-06-18T11:00:00.000Z'
+      },
+      createContext()
+    );
+
+    assert.equal(result.messages[0].id, 'inbox-message-1');
+    assert.equal(result.timelineEvents.length, 0);
+    assert.equal(notificationCreates.length, 0);
+    assert.equal(logs.records.length, 0);
+  });
+
   it('classifies unsubscribe replies and marks the contact as unsubscribed', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com', emailStatus: 'valid' })],
@@ -2146,6 +2217,7 @@ function createStore(
         snippet: input.bodyText,
         bodyText: input.bodyText,
         receivedAt: input.receivedAt,
+        providerMessageId: input.providerMessageId ?? null,
         messageType: input.messageType ?? 'customer_reply'
       });
       inboxMessages.push(inboxMessage);
@@ -2187,7 +2259,7 @@ function createStore(
       });
       timelineEvents.push(event);
 
-      return { thread, message: inboxMessage, account, contact, mailbox: mailbox ?? null, enrollment: enrollment ?? null, event };
+      return { thread, message: inboxMessage, account, contact, mailbox: mailbox ?? null, enrollment: enrollment ?? null, event, isDuplicate: false };
     },
     async listInboxThreads(args) {
       const records = inboxThreads

@@ -995,150 +995,219 @@ export class PrismaCrmStore implements CrmStore {
   }
 
   async ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null> {
-    return this.prisma.$transaction(async tx => {
-      const outboundMessage = await tx.crmMessage.findFirst({
-        where: {
-          id: input.outboundMessageId,
-          organizationId: input.organizationId,
-          ownerUserId: input.ownerUserId,
-          status: 'sent'
-        },
-        include: {
-          account: true,
-          contact: true,
-          enrollment: true,
-          mailbox: true
+    try {
+      return await this.prisma.$transaction(async tx => {
+        const outboundMessage = await tx.crmMessage.findFirst({
+          where: {
+            id: input.outboundMessageId,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            status: 'sent'
+          },
+          include: {
+            account: true,
+            contact: true,
+            enrollment: true,
+            mailbox: true
+          }
+        });
+
+        if (!outboundMessage) {
+          return null;
         }
-      });
 
-      if (!outboundMessage) {
-        return null;
-      }
-
-      const providerThreadId = input.providerThreadId ?? outboundMessage.enrollmentId;
-      const threadIdentity = {
-        organizationId: input.organizationId,
-        ownerUserId: input.ownerUserId,
-        accountId: outboundMessage.accountId,
-        contactId: outboundMessage.contactId,
-        enrollmentId: outboundMessage.enrollmentId,
-        mailboxId: outboundMessage.mailboxId
-      };
-      const existingThread = await tx.crmInboxThread.findFirst({
-        where: input.providerThreadId
-          ? {
+        if (input.providerMessageId) {
+          const existingMessage = await tx.crmInboxMessage.findFirst({
+            where: {
               organizationId: input.organizationId,
               ownerUserId: input.ownerUserId,
               mailboxId: outboundMessage.mailboxId,
-              providerThreadId: input.providerThreadId
-            }
-          : threadIdentity
-      });
-      const thread =
-        existingThread ??
-        (await tx.crmInboxThread.create({
-          data: {
-            ...threadIdentity,
-            provider: 'gmail',
-            providerThreadId,
-            subject: input.subject,
-            status: 'pending',
-            lastInboundAt: input.receivedAt,
-            unreadCount: 0,
-            messageCount: 0
-          } as Prisma.CrmInboxThreadUncheckedCreateInput
-        }));
-      const messageType = input.messageType ?? 'customer_reply';
-      const inboxMessage = await tx.crmInboxMessage.create({
-        data: {
-          threadId: thread.id,
+              providerMessageId: input.providerMessageId
+            },
+            include: { thread: true }
+          });
+
+          if (existingMessage) {
+            return {
+              thread: toInboxThreadRecord(existingMessage.thread),
+              message: toInboxMessageRecord(existingMessage),
+              account: toAccountRecord(outboundMessage.account),
+              contact: toContactRecord(outboundMessage.contact),
+              mailbox: outboundMessage.mailbox ? toMailboxRecord(outboundMessage.mailbox) : null,
+              enrollment: outboundMessage.enrollment ? toSequenceEnrollmentRecord(outboundMessage.enrollment) : null,
+              event: null,
+              isDuplicate: true
+            };
+          }
+        }
+
+        const providerThreadId = input.providerThreadId ?? outboundMessage.enrollmentId;
+        const threadIdentity = {
           organizationId: input.organizationId,
           ownerUserId: input.ownerUserId,
           accountId: outboundMessage.accountId,
           contactId: outboundMessage.contactId,
           enrollmentId: outboundMessage.enrollmentId,
-          mailboxId: outboundMessage.mailboxId,
-          provider: 'gmail',
-          providerMessageId: input.providerMessageId ?? null,
-          replyToMessageId: outboundMessage.id,
-          fromEmail: outboundMessage.contact.email,
-          fromEmailHash: outboundMessage.contact.emailHash,
-          maskedFromEmail: outboundMessage.contact.maskedEmail,
-          subject: input.subject,
-          snippet: toSnippet(input.bodyText),
-          bodyText: input.bodyText,
-          receivedAt: input.receivedAt,
-          messageType
-        } as Prisma.CrmInboxMessageUncheckedCreateInput
-      });
-      const updatedThread = await tx.crmInboxThread.update({
-        where: { id: thread.id },
-        data: {
-          subject: input.subject,
-          status: 'pending',
-          lastInboundAt: input.receivedAt,
-          unreadCount: { increment: 1 },
-          messageCount: { increment: 1 }
-        }
-      });
-
-      await tx.crmSequenceEnrollment.updateMany({
-        where: {
-          id: outboundMessage.enrollmentId,
-          organizationId: input.organizationId,
-          ownerUserId: input.ownerUserId,
-          status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
-        },
-        data: {
-          status: 'replied',
-          runVersion: { increment: 1 }
-        }
-      });
-      const isUnsubscribeHint = messageType === 'unsubscribe_hint';
-      const isBounce = messageType === 'bounce';
-      const [account, contact] = await Promise.all([
-        tx.crmAccount.update({
-          where: { id: outboundMessage.accountId },
+          mailboxId: outboundMessage.mailboxId
+        };
+        const existingThread = await tx.crmInboxThread.findFirst({
+          where: input.providerThreadId
+            ? {
+                organizationId: input.organizationId,
+                ownerUserId: input.ownerUserId,
+                mailboxId: outboundMessage.mailboxId,
+                providerThreadId: input.providerThreadId
+              }
+            : threadIdentity
+        });
+        const thread =
+          existingThread ??
+          (await tx.crmInboxThread.create({
+            data: {
+              ...threadIdentity,
+              provider: 'gmail',
+              providerThreadId,
+              subject: input.subject,
+              status: 'pending',
+              lastInboundAt: input.receivedAt,
+              unreadCount: 0,
+              messageCount: 0
+            } as Prisma.CrmInboxThreadUncheckedCreateInput
+          }));
+        const messageType = input.messageType ?? 'customer_reply';
+        const inboxMessage = await tx.crmInboxMessage.create({
           data: {
-            status: isUnsubscribeHint ? 'blocked' : isBounce ? 'manual_review_pending' : 'replied_pending'
-          }
-        }),
-        isUnsubscribeHint || isBounce
-          ? tx.crmContact.update({
-              where: { id: outboundMessage.contactId },
-              data: { emailStatus: isUnsubscribeHint ? 'unsubscribed' : 'unreachable' }
-            })
-          : Promise.resolve(outboundMessage.contact)
-      ]);
-      const event = await tx.crmTimelineEvent.create({
-        data: {
-          organizationId: input.organizationId,
-          accountId: outboundMessage.accountId,
-          contactId: outboundMessage.contactId,
-          ownerUserId: input.ownerUserId,
-          eventType: isUnsubscribeHint ? 'customer_unsubscribed' : isBounce ? 'email_bounced' : 'customer_replied',
-          title: isUnsubscribeHint ? '客户要求停止联系' : isBounce ? '邮件退信' : '客户回信',
-          content: input.subject,
-          metadata: {
+            threadId: thread.id,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            accountId: outboundMessage.accountId,
+            contactId: outboundMessage.contactId,
             enrollmentId: outboundMessage.enrollmentId,
-            outboundMessageId: outboundMessage.id,
-            inboxThreadId: updatedThread.id,
-            inboxMessageId: inboxMessage.id,
+            mailboxId: outboundMessage.mailboxId,
+            provider: 'gmail',
+            providerMessageId: input.providerMessageId ?? null,
+            replyToMessageId: outboundMessage.id,
+            fromEmail: outboundMessage.contact.email,
+            fromEmailHash: outboundMessage.contact.emailHash,
+            maskedFromEmail: outboundMessage.contact.maskedEmail,
+            subject: input.subject,
+            snippet: toSnippet(input.bodyText),
+            bodyText: input.bodyText,
+            receivedAt: input.receivedAt,
             messageType
+          } as Prisma.CrmInboxMessageUncheckedCreateInput
+        });
+        const updatedThread = await tx.crmInboxThread.update({
+          where: { id: thread.id },
+          data: {
+            subject: input.subject,
+            status: 'pending',
+            lastInboundAt: input.receivedAt,
+            unreadCount: { increment: 1 },
+            messageCount: { increment: 1 }
           }
-        }
-      });
+        });
 
-      return {
-        thread: toInboxThreadRecord(updatedThread),
-        message: toInboxMessageRecord(inboxMessage),
-        account: toAccountRecord(account),
-        contact: toContactRecord(contact),
-        mailbox: outboundMessage.mailbox ? toMailboxRecord(outboundMessage.mailbox) : null,
-        enrollment: outboundMessage.enrollment ? toSequenceEnrollmentRecord(outboundMessage.enrollment) : null,
-        event: toTimelineEventRecord(event)
-      };
+        await tx.crmSequenceEnrollment.updateMany({
+          where: {
+            id: outboundMessage.enrollmentId,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
+          },
+          data: {
+            status: 'replied',
+            runVersion: { increment: 1 }
+          }
+        });
+        const isUnsubscribeHint = messageType === 'unsubscribe_hint';
+        const isBounce = messageType === 'bounce';
+        const [account, contact] = await Promise.all([
+          tx.crmAccount.update({
+            where: { id: outboundMessage.accountId },
+            data: {
+              status: isUnsubscribeHint ? 'blocked' : isBounce ? 'manual_review_pending' : 'replied_pending'
+            }
+          }),
+          isUnsubscribeHint || isBounce
+            ? tx.crmContact.update({
+                where: { id: outboundMessage.contactId },
+                data: { emailStatus: isUnsubscribeHint ? 'unsubscribed' : 'unreachable' }
+              })
+            : Promise.resolve(outboundMessage.contact)
+        ]);
+        const event = await tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: outboundMessage.accountId,
+            contactId: outboundMessage.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: isUnsubscribeHint ? 'customer_unsubscribed' : isBounce ? 'email_bounced' : 'customer_replied',
+            title: isUnsubscribeHint ? '客户要求停止联系' : isBounce ? '邮件退信' : '客户回信',
+            content: input.subject,
+            metadata: {
+              enrollmentId: outboundMessage.enrollmentId,
+              outboundMessageId: outboundMessage.id,
+              inboxThreadId: updatedThread.id,
+              inboxMessageId: inboxMessage.id,
+              messageType
+            }
+          }
+        });
+
+        return {
+          thread: toInboxThreadRecord(updatedThread),
+          message: toInboxMessageRecord(inboxMessage),
+          account: toAccountRecord(account),
+          contact: toContactRecord(contact),
+          mailbox: outboundMessage.mailbox ? toMailboxRecord(outboundMessage.mailbox) : null,
+          enrollment: outboundMessage.enrollment ? toSequenceEnrollmentRecord(outboundMessage.enrollment) : null,
+          event: toTimelineEventRecord(event),
+          isDuplicate: false
+        };
+      });
+    } catch (error) {
+      if (input.providerMessageId && isPrismaUniqueConflict(error)) {
+        const existingMessage = await this.findIngestedCustomerReplyByProviderMessage(input);
+
+        if (existingMessage) return existingMessage;
+      }
+
+      throw error;
+    }
+  }
+
+  /** Reads an already ingested provider message after duplicate delivery or a unique conflict. */
+  private async findIngestedCustomerReplyByProviderMessage(
+    input: CrmCustomerReplyIngestInput
+  ): Promise<CrmCustomerReplyIngestRecord | null> {
+    const inboxMessage = await this.prisma.crmInboxMessage.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        providerMessageId: input.providerMessageId
+      },
+      include: {
+        thread: true,
+        account: true,
+        contact: true,
+        mailbox: true,
+        enrollment: true
+      }
     });
+
+    if (!inboxMessage) return null;
+
+    return {
+      thread: toInboxThreadRecord(inboxMessage.thread),
+      message: toInboxMessageRecord(inboxMessage),
+      account: toAccountRecord(inboxMessage.account),
+      contact: toContactRecord(inboxMessage.contact),
+      mailbox: inboxMessage.mailbox ? toMailboxRecord(inboxMessage.mailbox) : null,
+      enrollment: inboxMessage.enrollment ? toSequenceEnrollmentRecord(inboxMessage.enrollment) : null,
+      event: null,
+      isDuplicate: true
+    };
   }
 
   async listInboxThreads(args: {
