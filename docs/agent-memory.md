@@ -175,6 +175,14 @@
 - 相关文件：`apps/server/src/generated/prisma/*`、`src/views/crm/*`、`src/views/ai-leads/index.vue`。
 - 验证方式：提交前后都运行 `git status --short`，确认没有 generated 或无关 UI 文件残留。
 
+### 2026-06-19 Gmail 403 不能全部当授权失效
+
+- 场景：CRM Gmail watch/history 接入真实 Gmail API，网关需要把 Gmail 错误转换成业务状态。
+- 坑点：Gmail API 的 403 可能是 `authError/domainPolicy/insufficientPermissions`，也可能是 `rateLimitExceeded/userRateLimitExceeded/dailyLimitExceeded`。如果把所有 403 都转换成 `CrmGmailAuthorizationExpiredError`，`CrmGmailWatchService` 会把临时限流误标成 `auth_expired` 并暂停邮箱。
+- 正确做法：解析 Gmail error body 的 `error.errors[].reason`；只有授权/权限类 reason 或 401 才走授权失效，限流类 403 抛普通错误或后续可重试错误，不改 mailbox 授权状态。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-watch.gateway.spec.ts`、`apps/server/src/modules/crm/crm-gmail-watch.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch.gateway.spec.ts`，确认 `rateLimitExceeded` 不会抛 `CrmGmailAuthorizationExpiredError`。
+
 ### 记录模板
 
 ```md
