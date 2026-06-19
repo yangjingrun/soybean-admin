@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDraftReviewOperationPayload,
+  createDefaultSequenceCreateForm,
   getCurrentSequenceMessage,
   getNextScheduledReviewMessage,
   getPendingReviewMessage,
   getSequenceChecklistSummary,
   getSequenceNextAction,
-  getSequenceProgressText
+  getSequenceProgressText,
+  normalizeSequenceCreatePayload
 } from './shared';
 
 function createMessage(overrides: Partial<Api.Crm.MessageRecord>): Api.Crm.MessageRecord {
@@ -115,6 +117,26 @@ function createSequenceItem(overrides: {
 }
 
 describe('email sequence review shared helpers', () => {
+  it('normalizes selected sequence policy into the create payload', () => {
+    const form = {
+      ...createDefaultSequenceCreateForm(),
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      mailboxId: 'mailbox-1',
+      policyId: 'policy-1',
+      productLineId: 'product-line-1'
+    };
+
+    assert.deepEqual(normalizeSequenceCreatePayload(form), {
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      mailboxId: 'mailbox-1',
+      policyId: 'policy-1',
+      productLineId: 'product-line-1'
+    });
+    assert.equal(createDefaultSequenceCreateForm().policyId, null);
+  });
+
   it('builds draft operation payload with the selected message id', () => {
     const payload = buildDraftReviewOperationPayload('message-2', {
       subject: ' Follow up ',

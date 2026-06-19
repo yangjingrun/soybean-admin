@@ -685,6 +685,7 @@ declare namespace Api {
       contactId: string;
       productLineId?: string;
       mailboxId?: string;
+      policyId?: string;
     }
 
     interface SequenceReviewCreateFormModel {
@@ -692,6 +693,7 @@ declare namespace Api {
       contactId: string | null;
       productLineId: string | null;
       mailboxId: string | null;
+      policyId: string | null;
     }
 
     interface MessageDraftPayload {

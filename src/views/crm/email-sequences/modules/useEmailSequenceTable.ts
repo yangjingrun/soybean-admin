@@ -8,6 +8,7 @@ import {
   fetchCrmAccounts,
   fetchCrmMailboxes,
   fetchCrmProductLines,
+  fetchCrmSequencePolicies,
   fetchCrmSequenceReviewItem,
   fetchCrmSequenceReviewItems,
   startCrmFirstMessageSend,
@@ -33,6 +34,7 @@ export function useEmailSequenceTable() {
   const contactOptions = shallowRef<Api.Crm.LeadContact[]>([]);
   const mailboxOptions = shallowRef<Api.Crm.MailboxRecord[]>([]);
   const productLineOptions = shallowRef<Api.Crm.ProductLineRecord[]>([]);
+  const sequencePolicyOptions = shallowRef<Api.Crm.SequencePolicyRecord[]>([]);
   const currentItem = shallowRef<Api.Crm.SequenceReviewItem | null>(null);
   const loading = shallowRef(false);
   const createResourceLoading = shallowRef(false);
@@ -87,6 +89,12 @@ export function useEmailSequenceTable() {
       value: productLine.id
     }))
   );
+  const sequencePolicySelectOptions = computed(() =>
+    sequencePolicyOptions.value.map(policy => ({
+      label: `${policy.name}${policy.isDefault ? ' · 默认' : ''}`,
+      value: policy.id
+    }))
+  );
   const resourceLoading = computed(() => createResourceLoading.value || contactLoading.value);
 
   onMounted(() => {
@@ -139,10 +147,11 @@ export function useEmailSequenceTable() {
     createResourceLoading.value = true;
 
     try {
-      const [accounts, mailboxes, productLines] = await Promise.all([
+      const [accounts, mailboxes, productLines, sequencePolicies] = await Promise.all([
         fetchCrmAccounts({ current: 1, size: 100 }),
         fetchCrmMailboxes({ current: 1, size: 100, status: 'active' }),
-        fetchCrmProductLines({ current: 1, size: 100, status: 'active' })
+        fetchCrmProductLines({ current: 1, size: 100, status: 'active' }),
+        fetchCrmSequencePolicies({ current: 1, size: 100, status: 'active' })
       ]);
 
       if (requestId !== latestResourceRequestId) {
@@ -152,6 +161,7 @@ export function useEmailSequenceTable() {
       if (!accounts.error) accountOptions.value = accounts.data.records;
       if (!mailboxes.error) mailboxOptions.value = mailboxes.data.records;
       if (!productLines.error) productLineOptions.value = productLines.data.records;
+      if (!sequencePolicies.error) sequencePolicyOptions.value = sequencePolicies.data.records;
     } finally {
       if (requestId === latestResourceRequestId) {
         createResourceLoading.value = false;
@@ -547,6 +557,7 @@ export function useEmailSequenceTable() {
     records,
     resourceLoading,
     sendStarting,
+    sequencePolicySelectOptions,
     sequenceStopping
   };
 }

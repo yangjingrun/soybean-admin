@@ -78,7 +78,8 @@ export function createDefaultSequenceCreateForm(): Api.Crm.SequenceReviewCreateF
     accountId: null,
     contactId: null,
     productLineId: null,
-    mailboxId: null
+    mailboxId: null,
+    policyId: null
   };
 }
 
@@ -121,6 +122,10 @@ export function normalizeSequenceCreatePayload(
 
   if (formModel.mailboxId) {
     payload.mailboxId = formModel.mailboxId;
+  }
+
+  if (formModel.policyId) {
+    payload.policyId = formModel.policyId;
   }
 
   return payload;

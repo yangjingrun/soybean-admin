@@ -41,6 +41,7 @@ const {
   records,
   resourceLoading,
   sendStarting,
+  sequencePolicySelectOptions,
   sequenceStopping
 } = useEmailSequenceTable();
 </script>
@@ -79,6 +80,7 @@ const {
       :loading="resourceLoading"
       :mailbox-options="mailboxSelectOptions"
       :product-line-options="productLineSelectOptions"
+      :sequence-policy-options="sequencePolicySelectOptions"
       :submitting="createSubmitting"
       @account-change="handleAccountChange"
       @submit="handleCreateReviewItem"

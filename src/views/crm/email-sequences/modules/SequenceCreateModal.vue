@@ -5,6 +5,7 @@ defineProps<{
   loading?: boolean;
   mailboxOptions: Array<{ label: string; value: string }>;
   productLineOptions: Array<{ label: string; value: string }>;
+  sequencePolicyOptions: Array<{ label: string; value: string }>;
   submitting?: boolean;
 }>();
 
@@ -57,6 +58,15 @@ const emit = defineEmits<{
             clearable
             :options="mailboxOptions"
             placeholder="可选，后续发送前仍会校验"
+          />
+        </NFormItem>
+        <NFormItem label="序列策略">
+          <NSelect
+            v-model:value="formModel.policyId"
+            filterable
+            clearable
+            :options="sequencePolicyOptions"
+            placeholder="可选，默认使用组织默认策略"
           />
         </NFormItem>
       </NForm>
