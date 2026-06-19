@@ -90,6 +90,30 @@ export const operationMessageStatusTagTypeMap: Record<OperationMessageStatus, Na
   failed: 'error'
 };
 
+export const operationLogLevelLabelMap: Record<Api.SystemLog.LogLevel, string> = {
+  info: '信息',
+  warn: '警告',
+  error: '错误'
+};
+
+export const operationLogLevelTagTypeMap: Record<Api.SystemLog.LogLevel, NaiveUI.ThemeColor> = {
+  info: 'info',
+  warn: 'warning',
+  error: 'error'
+};
+
+export const operationLogStatusLabelMap: Record<Api.SystemLog.LogStatus, string> = {
+  processing: '处理中',
+  success: '成功',
+  failed: '失败'
+};
+
+export const operationLogStatusTagTypeMap: Record<Api.SystemLog.LogStatus, NaiveUI.ThemeColor> = {
+  processing: 'warning',
+  success: 'success',
+  failed: 'error'
+};
+
 export const productLineStatusOptions = [
   { label: '启用', value: 'active' },
   { label: '已归档', value: 'archived' }
@@ -611,6 +635,21 @@ export function buildMailboxOperationDetailItems(
   ];
 }
 
+/** Build the field list used by the CRM operation log detail drawer. */
+export function buildOperationLogDetailItems(row: Api.SystemLog.SystemLogRecord): OperationDetailItem[] {
+  return [
+    { label: '等级', value: operationLogLevelLabelMap[row.level] },
+    { label: '状态', value: operationLogStatusLabelMap[row.status] },
+    { label: '模块', value: row.module },
+    { label: '动作', value: row.action },
+    { label: '摘要', value: row.message },
+    { label: '操作人', value: row.userName || row.userId || '-' },
+    { label: '错误', value: row.errorMessage || row.errorCode || '-' },
+    { label: 'Metadata', value: formatOperationMetadata(row.metadata) || '-' },
+    { label: '时间', value: formatOperationDate(row.createdAt) }
+  ];
+}
+
 /** Join MOQ and lead time into one compact table cell. */
 export function formatProductLineSupply(row: Pick<Api.Crm.ProductLineRecord, 'moq' | 'leadTime'>) {
   return [row.moq, row.leadTime].filter(Boolean).join(' / ') || '-';
@@ -644,6 +683,14 @@ export function collectOperationQueueRows(
         }))
     )
     .sort(compareOperationQueueRows)
+    .slice(0, limit);
+}
+
+/** Keep only recent CRM module system logs for the operations panel. */
+export function collectRecentCrmOperationLogs(records: Api.SystemLog.SystemLogRecord[], limit = 6) {
+  return records
+    .filter(record => record.module === 'crm')
+    .toSorted((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, limit);
 }
 
@@ -698,4 +745,8 @@ function compareOperationQueueRows(left: OperationQueueRow, right: OperationQueu
   }
 
   return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+function formatOperationMetadata(metadata: Record<string, unknown> | null) {
+  return metadata ? JSON.stringify(metadata, null, 2) : '';
 }

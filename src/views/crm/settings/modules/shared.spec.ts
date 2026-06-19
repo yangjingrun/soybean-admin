@@ -3,11 +3,13 @@ import { describe, it } from 'node:test';
 import dayjs from 'dayjs';
 import {
   buildMailboxOperationDetailItems,
+  buildOperationLogDetailItems,
   buildOperationQueueDetailItems,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
   buildSequencePolicySearchParams,
   collectOperationQueueRows,
+  collectRecentCrmOperationLogs,
   createDefaultBlacklistFilterModel,
   createDefaultEmailTemplateFilterModel,
   createDefaultEmailTemplateForm,
@@ -230,6 +232,54 @@ describe('crm settings shared helpers', () => {
     ]);
   });
 
+  it('collects recent CRM operation logs and builds detail rows', () => {
+    const records = [
+      createSystemLog({
+        id: 'log-old',
+        action: 'gmail-watch-renew',
+        createdAt: '2026-06-18T08:00:00.000Z',
+        module: 'crm'
+      }),
+      createSystemLog({
+        id: 'log-auth',
+        action: 'login',
+        createdAt: '2026-06-19T09:00:00.000Z',
+        module: 'auth'
+      }),
+      createSystemLog({
+        id: 'log-new',
+        action: 'gmail-history-expired',
+        createdAt: '2026-06-19T10:00:00.000Z',
+        errorMessage: 'checkpoint expired',
+        level: 'warn',
+        status: 'failed',
+        metadata: {
+          mailboxId: 'mailbox-1',
+          maskedEmail: 'a***@gmail.com'
+        },
+        module: 'crm'
+      })
+    ];
+
+    const rows = collectRecentCrmOperationLogs(records);
+
+    assert.deepEqual(
+      rows.map(row => row.id),
+      ['log-new', 'log-old']
+    );
+    assert.deepEqual(buildOperationLogDetailItems(rows[0]), [
+      { label: '等级', value: '警告' },
+      { label: '状态', value: '失败' },
+      { label: '模块', value: 'crm' },
+      { label: '动作', value: 'gmail-history-expired' },
+      { label: '摘要', value: 'CRM operation' },
+      { label: '操作人', value: 'Alice' },
+      { label: '错误', value: 'checkpoint expired' },
+      { label: 'Metadata', value: '{\n  "mailboxId": "mailbox-1",\n  "maskedEmail": "a***@gmail.com"\n}' },
+      { label: '时间', value: '2026-06-19 18:00:00' }
+    ]);
+  });
+
   it('summarizes mailbox watch and sync health', () => {
     assert.deepEqual(
       summarizeMailboxSyncHealth(
@@ -319,6 +369,26 @@ function createMessage(options: {
     threadMode: 'new_subject',
     updatedAt: options.updatedAt
   } as Api.Crm.MessageRecord;
+}
+
+function createSystemLog(options: Partial<Api.SystemLog.SystemLogRecord> & { id: string }): Api.SystemLog.SystemLogRecord {
+  const { id, ...overrides } = options;
+
+  return {
+    level: 'info',
+    status: 'success',
+    module: 'crm',
+    action: 'gmail-watch-renew',
+    message: 'CRM operation',
+    userId: 'user-1',
+    userName: 'Alice',
+    errorCode: null,
+    errorMessage: null,
+    metadata: null,
+    createdAt: '2026-06-19T08:00:00.000Z',
+    ...overrides,
+    id
+  };
 }
 
 function createEmailTemplateGroup(): Api.Crm.EmailTemplateGroupRecord {

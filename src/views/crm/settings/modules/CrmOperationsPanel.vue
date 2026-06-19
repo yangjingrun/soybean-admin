@@ -4,6 +4,7 @@ import { NButton, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   buildMailboxOperationDetailItems,
+  buildOperationLogDetailItems,
   buildOperationQueueDetailItems,
   formatMailboxDate,
   formatMailboxHistoryId,
@@ -14,6 +15,10 @@ import {
   mailboxStatusTagTypeMap,
   mailboxWatchStatusLabelMap,
   mailboxWatchStatusTagTypeMap,
+  operationLogLevelLabelMap,
+  operationLogLevelTagTypeMap,
+  operationLogStatusLabelMap,
+  operationLogStatusTagTypeMap,
   operationMessageStatusLabelMap,
   operationMessageStatusTagTypeMap,
   type OperationDetailItem,
@@ -21,7 +26,8 @@ import {
 } from './shared';
 import { useCrmOperationsPanel } from './useCrmOperationsPanel';
 
-const { loadOperations, loading, mailboxHealth, mailboxes, queueRows } = useCrmOperationsPanel();
+const { isSuperAdmin, loadOperations, loading, logRows, mailboxHealth, mailboxes, queueRows } = useCrmOperationsPanel();
+const selectedLog = shallowRef<Api.SystemLog.SystemLogRecord | null>(null);
 const selectedQueueRow = shallowRef<OperationQueueRow | null>(null);
 const selectedMailbox = shallowRef<Api.Crm.MailboxRecord | null>(null);
 const detailVisible = shallowRef(false);
@@ -33,6 +39,10 @@ const detailTitle = computed(() => {
 
   if (selectedMailbox.value) {
     return '同步详情';
+  }
+
+  if (selectedLog.value) {
+    return 'CRM 日志详情';
   }
 
   return '运维详情';
@@ -47,18 +57,31 @@ const detailItems = computed<OperationDetailItem[]>(() => {
     return buildMailboxOperationDetailItems(selectedMailbox.value);
   }
 
+  if (selectedLog.value) {
+    return buildOperationLogDetailItems(selectedLog.value);
+  }
+
   return [];
 });
 
 function openQueueDetail(row: OperationQueueRow) {
+  selectedLog.value = null;
   selectedQueueRow.value = row;
   selectedMailbox.value = null;
   detailVisible.value = true;
 }
 
 function openMailboxDetail(row: Api.Crm.MailboxRecord) {
+  selectedLog.value = null;
   selectedQueueRow.value = null;
   selectedMailbox.value = row;
+  detailVisible.value = true;
+}
+
+function openLogDetail(row: Api.SystemLog.SystemLogRecord) {
+  selectedLog.value = row;
+  selectedQueueRow.value = null;
+  selectedMailbox.value = null;
   detailVisible.value = true;
 }
 
@@ -121,6 +144,17 @@ function renderSyncCheckpoint(row: Api.Crm.MailboxRecord) {
   }
 
   return formatMailboxHistoryId(row.lastHistoryId);
+}
+
+function renderLogAction(row: Api.SystemLog.SystemLogRecord) {
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h('span', { class: 'mailbox-primary-text' }, row.action),
+    h('span', { class: 'mailbox-secondary-text' }, row.message)
+  ]);
+}
+
+function renderLogOperator(row: Api.SystemLog.SystemLogRecord) {
+  return row.userName || row.userId || '-';
 }
 
 const queueColumns = computed<DataTableColumns<OperationQueueRow>>(() => [
@@ -247,6 +281,74 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
       )
   }
 ]);
+
+const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() => [
+  {
+    key: 'level',
+    title: '等级',
+    width: 90,
+    render: row =>
+      h(
+        NTag,
+        {
+          bordered: false,
+          size: 'small',
+          type: operationLogLevelTagTypeMap[row.level]
+        },
+        { default: () => operationLogLevelLabelMap[row.level] }
+      )
+  },
+  {
+    key: 'status',
+    title: '状态',
+    width: 100,
+    render: row =>
+      h(
+        NTag,
+        {
+          bordered: false,
+          size: 'small',
+          type: operationLogStatusTagTypeMap[row.status]
+        },
+        { default: () => operationLogStatusLabelMap[row.status] }
+      )
+  },
+  {
+    key: 'action',
+    title: '动作 / 摘要',
+    minWidth: 240,
+    render: row => renderLogAction(row)
+  },
+  {
+    key: 'operator',
+    title: '操作人',
+    minWidth: 120,
+    render: row => renderLogOperator(row)
+  },
+  {
+    key: 'createdAt',
+    title: '时间',
+    minWidth: 170,
+    render: row => formatOperationDate(row.createdAt)
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    width: 90,
+    fixed: 'right',
+    render: row =>
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          text: true,
+          type: 'primary',
+          onClick: () => openLogDetail(row)
+        },
+        { default: () => '详情' }
+      )
+  }
+]);
 </script>
 
 <template>
@@ -305,6 +407,19 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
           </NSpace>
         </NGi>
       </NGrid>
+
+      <NSpace v-if="isSuperAdmin" vertical :size="8">
+        <NText strong>最近 CRM 日志</NText>
+        <NDataTable
+          size="small"
+          :columns="logColumns"
+          :data="logRows"
+          :loading="loading"
+          :pagination="false"
+          :row-key="row => row.id"
+          scroll-x="810"
+        />
+      </NSpace>
     </NSpace>
 
     <NDrawer v-model:show="detailVisible" :width="420" placement="right">
