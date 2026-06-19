@@ -6,6 +6,7 @@ import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
+import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
   CRM_EMAIL_DNS_RESOLVER,
@@ -286,7 +287,10 @@ export class CrmService {
     private readonly sendGateway?: CrmEmailSendGateway,
     @Optional()
     @Inject(CRM_GMAIL_OAUTH_FLOW)
-    private readonly gmailOAuthFlow?: CrmGmailOAuthFlowPort | null
+    private readonly gmailOAuthFlow?: CrmGmailOAuthFlowPort | null,
+    @Optional()
+    @Inject(CrmGmailWatchService)
+    private readonly gmailWatchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -575,7 +579,7 @@ export class CrmService {
         updatedMailbox.status
       );
 
-      return { mailbox: toMailboxView(updatedMailbox) };
+      return this.renewWatchAfterOAuthAuthorization(updatedMailbox, context);
     }
 
     const mailbox = await this.store.createMailbox({
@@ -610,7 +614,7 @@ export class CrmService {
       mailbox.status
     );
 
-    return { mailbox: toMailboxView(mailbox) };
+    return this.renewWatchAfterOAuthAuthorization(mailbox, context);
   }
 
   /** Lists mailboxes within the current organization and applies member ownership isolation. */
@@ -1497,6 +1501,14 @@ export class CrmService {
     }
 
     return this.gmailOAuthFlow;
+  }
+
+  private async renewWatchAfterOAuthAuthorization(mailbox: CrmMailboxRecord, context: CrmUserContext) {
+    if (!this.gmailWatchService) {
+      return { mailbox: toMailboxView(mailbox) };
+    }
+
+    return this.gmailWatchService.renewMailboxWatch(mailbox.id, context);
   }
 
   private async requireScopedProductLine(id: string, context: CrmUserContext) {

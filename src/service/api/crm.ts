@@ -80,7 +80,7 @@ export function createCrmGmailOAuthUrl() {
 
 /** Complete Gmail OAuth after Google redirects back with code and state. */
 export function completeCrmGmailOAuthCallback(data: Api.Crm.GmailOAuthCallbackPayload) {
-  return request<Api.Crm.MailboxOperateResult>({
+  return request<Api.Crm.MailboxWatchRenewResult>({
     url: '/crm/mailboxes/gmail/oauth-callback',
     method: 'post',
     data

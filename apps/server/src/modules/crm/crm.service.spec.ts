@@ -5,6 +5,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gmail-oauth-flow';
+import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmService } from './crm.service';
 import type {
   CrmInboxMessageRecord,
@@ -507,6 +508,38 @@ describe('CrmService', () => {
       fromStatus: null,
       toStatus: 'active'
     });
+  });
+
+  it('renews Gmail watch immediately after completing OAuth authorization', async () => {
+    const store = createStore();
+    const flow = createOAuthFlow({
+      mailbox: {
+        emailAddress: 'alice@gmail.com',
+        historyId: '1001',
+        encryptedRefreshToken: 'encrypted-refresh-token-1'
+      }
+    });
+    const watchService = new CrmGmailWatchService(store, {
+      async renewWatch() {
+        return {
+          historyId: '1500',
+          watchExpiration: new Date('2026-06-26T08:00:00.000Z')
+        };
+      }
+    });
+    const service = new CrmService(store, undefined, undefined, undefined, undefined, undefined, flow, watchService);
+
+    const result = await service.completeGmailOAuthAuthorization({ code: 'code-1', state: 'state-1' }, createContext());
+
+    assert.ok('watch' in result);
+    assert.deepEqual(result.watch, {
+      historyId: '1500',
+      watchExpiration: '2026-06-26T08:00:00.000Z'
+    });
+    assert.equal(result.mailbox.lastHistoryId, '1500');
+    assert.equal(result.mailbox.watchExpiration, '2026-06-26T08:00:00.000Z');
+    assert.equal(store.mailboxes[0].lastHistoryId, '1500');
+    assert.equal(store.mailboxUpdateCalls[0]?.input.lastHistoryId, '1500');
   });
 
   it('updates the current user mailbox when completing Gmail OAuth for an existing address', async () => {
