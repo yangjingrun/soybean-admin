@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import dayjs from 'dayjs';
 import {
+  buildMailboxOperationDetailItems,
+  buildOperationQueueDetailItems,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
   collectOperationQueueRows,
@@ -126,6 +128,68 @@ describe('crm settings shared helpers', () => {
     );
   });
 
+  it('builds queue operation detail rows without exposing message body', () => {
+    const row = collectOperationQueueRows([
+      createSequenceReviewItem({
+        accountName: 'Acme',
+        contactEmail: 'buyer@example.com',
+        messages: [
+          createMessage({
+            bullJobId: 'job-42',
+            id: 'msg-failed',
+            providerThreadId: 'gmail-thread-1',
+            status: 'failed',
+            subject: 'Bearing Series',
+            updatedAt: '2026-06-18T02:00:00.000Z'
+          })
+        ]
+      })
+    ])[0];
+
+    assert.deepEqual(buildOperationQueueDetailItems(row), [
+      { label: '状态', value: '发送失败' },
+      { label: '客户', value: 'Acme' },
+      { label: '联系人', value: 'buyer@example.com' },
+      { label: '发送邮箱', value: 'm***@example.com' },
+      { label: '邮件主题', value: 'Bearing Series' },
+      { label: '步骤', value: '第 1 封' },
+      { label: '线程方式', value: '新主题' },
+      { label: '队列 Job', value: 'job-42' },
+      { label: '运行版本', value: 'run v3' },
+      { label: 'Gmail Thread', value: 'gmail-thread-1' },
+      { label: '计划发送', value: '-' },
+      { label: '实际发送', value: '-' },
+      { label: '更新时间', value: '2026-06-18 10:00:00' }
+    ]);
+  });
+
+  it('builds mailbox operation detail rows for sync issue triage', () => {
+    const mailbox = createMailbox({
+      id: 'mailbox-history-expired',
+      lastHistoryId: '1234567890',
+      lastSyncIssue: {
+        happenedAt: '2026-06-19T08:00:00.000Z',
+        message: 'Gmail History checkpoint 已过期，需要人工处理',
+        type: 'history_expired'
+      },
+      maskedEmail: 'a***@gmail.com',
+      ownerUserName: 'Alice',
+      watchExpiration: null
+    });
+
+    assert.deepEqual(buildMailboxOperationDetailItems(mailbox, dayjs('2026-06-19T12:00:00.000Z')), [
+      { label: '邮箱', value: 'a***@gmail.com' },
+      { label: '负责人', value: 'Alice' },
+      { label: '授权状态', value: '启用' },
+      { label: 'Gmail watch', value: '未开启' },
+      { label: 'Watch 到期', value: '暂无 watch 到期时间' },
+      { label: 'History checkpoint', value: '...34567890' },
+      { label: '同步问题', value: 'Gmail History checkpoint 已过期，需要人工处理' },
+      { label: '问题时间', value: '2026-06-19 16:00:00' },
+      { label: '更新时间', value: '-' }
+    ]);
+  });
+
   it('summarizes mailbox watch and sync health', () => {
     assert.deepEqual(
       summarizeMailboxSyncHealth(
@@ -160,7 +224,8 @@ describe('crm settings shared helpers', () => {
             type: 'history_expired',
             message: 'Gmail History checkpoint 已过期，需要人工处理',
             happenedAt: '2026-06-19T08:00:00.000Z'
-          }
+          },
+          watchExpiration: '2026-06-22T12:00:00.000Z'
         } as Partial<Api.Crm.MailboxRecord> & { id: string })
       ]),
       {
@@ -194,17 +259,24 @@ function createSequenceReviewItem(options: {
 }
 
 function createMessage(options: {
+  bullJobId?: string | null;
   id: string;
+  providerThreadId?: string | null;
   status: Api.Crm.MessageStatus;
+  subject?: string;
   updatedAt: string;
 }): Api.Crm.MessageRecord {
   return {
-    bullJobId: options.status === 'queued' ? 'job-1' : null,
+    bullJobId: options.bullJobId ?? (options.status === 'queued' ? 'job-1' : null),
     id: options.id,
+    providerMessageId: null,
+    providerThreadId: options.providerThreadId ?? null,
     scheduledAt: null,
     sentAt: null,
     status: options.status,
     stepIndex: 1,
+    subject: options.subject ?? 'Subject',
+    threadMode: 'new_subject',
     updatedAt: options.updatedAt
   } as Api.Crm.MessageRecord;
 }

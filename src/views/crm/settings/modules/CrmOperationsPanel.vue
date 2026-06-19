@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, h } from 'vue';
-import { NTag } from 'naive-ui';
+import { computed, h, shallowRef } from 'vue';
+import { NButton, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
+  buildMailboxOperationDetailItems,
+  buildOperationQueueDetailItems,
   formatMailboxDate,
   formatMailboxHistoryId,
   formatMailboxWatchDescription,
@@ -14,11 +16,51 @@ import {
   mailboxWatchStatusTagTypeMap,
   operationMessageStatusLabelMap,
   operationMessageStatusTagTypeMap,
+  type OperationDetailItem,
   type OperationQueueRow
 } from './shared';
 import { useCrmOperationsPanel } from './useCrmOperationsPanel';
 
 const { loadOperations, loading, mailboxHealth, mailboxes, queueRows } = useCrmOperationsPanel();
+const selectedQueueRow = shallowRef<OperationQueueRow | null>(null);
+const selectedMailbox = shallowRef<Api.Crm.MailboxRecord | null>(null);
+const detailVisible = shallowRef(false);
+
+const detailTitle = computed(() => {
+  if (selectedQueueRow.value) {
+    return '发送队列详情';
+  }
+
+  if (selectedMailbox.value) {
+    return '同步详情';
+  }
+
+  return '运维详情';
+});
+
+const detailItems = computed<OperationDetailItem[]>(() => {
+  if (selectedQueueRow.value) {
+    return buildOperationQueueDetailItems(selectedQueueRow.value);
+  }
+
+  if (selectedMailbox.value) {
+    return buildMailboxOperationDetailItems(selectedMailbox.value);
+  }
+
+  return [];
+});
+
+function openQueueDetail(row: OperationQueueRow) {
+  selectedQueueRow.value = row;
+  selectedMailbox.value = null;
+  detailVisible.value = true;
+}
+
+function openMailboxDetail(row: Api.Crm.MailboxRecord) {
+  selectedQueueRow.value = null;
+  selectedMailbox.value = row;
+  detailVisible.value = true;
+}
 
 function renderQueueTarget(row: OperationQueueRow) {
   return h('div', { class: 'mailbox-stack-cell' }, [
@@ -132,6 +174,23 @@ const queueColumns = computed<DataTableColumns<OperationQueueRow>>(() => [
     title: '更新时间',
     minWidth: 170,
     render: row => formatOperationDate(row.updatedAt)
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    width: 90,
+    fixed: 'right',
+    render: row =>
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          text: true,
+          type: 'primary',
+          onClick: () => openQueueDetail(row)
+        },
+        { default: () => '详情' }
+      )
   }
 ]);
 
@@ -169,6 +228,23 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
     title: '更新时间',
     minWidth: 170,
     render: row => formatMailboxDate(row.updatedAt)
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    width: 90,
+    fixed: 'right',
+    render: row =>
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          text: true,
+          type: 'primary',
+          onClick: () => openMailboxDetail(row)
+        },
+        { default: () => '详情' }
+      )
   }
 ]);
 </script>
@@ -209,7 +285,7 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
               :loading="loading"
               :pagination="false"
               :row-key="row => row.id"
-              scroll-x="1090"
+              scroll-x="1180"
             />
           </NSpace>
         </NGi>
@@ -224,11 +300,27 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
               :loading="loading"
               :pagination="false"
               :row-key="row => row.id"
-              scroll-x="840"
+              scroll-x="930"
             />
           </NSpace>
         </NGi>
       </NGrid>
     </NSpace>
+
+    <NDrawer v-model:show="detailVisible" :width="420" placement="right">
+      <NDrawerContent :title="detailTitle" closable>
+        <NDescriptions :column="1" bordered size="small" label-placement="left">
+          <NDescriptionsItem v-for="item in detailItems" :key="item.label" :label="item.label">
+            <span class="operation-detail-value">{{ item.value }}</span>
+          </NDescriptionsItem>
+        </NDescriptions>
+      </NDrawerContent>
+    </NDrawer>
   </NCard>
 </template>
+
+<style scoped>
+.operation-detail-value {
+  word-break: break-word;
+}
+</style>

@@ -10,13 +10,22 @@ export interface OperationQueueRow {
   accountName: string;
   contactName: string;
   mailboxLabel: string;
+  subject: string;
   stepIndex: number;
+  threadMode: Api.Crm.MessageThreadMode;
   status: OperationMessageStatus;
   bullJobId: string | null;
   runVersion: number;
+  providerMessageId: string | null;
+  providerThreadId: string | null;
   scheduledAt: string | null;
   sentAt: string | null;
   updatedAt: string;
+}
+
+export interface OperationDetailItem {
+  label: string;
+  value: string;
 }
 
 export interface MailboxSyncHealthSummary {
@@ -441,6 +450,45 @@ export function formatOperationDate(value: string | null) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 }
 
+/** Build the field list used by the send queue operation detail drawer. */
+export function buildOperationQueueDetailItems(row: OperationQueueRow): OperationDetailItem[] {
+  return [
+    { label: '状态', value: operationMessageStatusLabelMap[row.status] },
+    { label: '客户', value: row.accountName },
+    { label: '联系人', value: row.contactName },
+    { label: '发送邮箱', value: row.mailboxLabel },
+    { label: '邮件主题', value: row.subject || '-' },
+    { label: '步骤', value: `第 ${row.stepIndex} 封` },
+    { label: '线程方式', value: emailTemplateThreadModeLabelMap[row.threadMode] },
+    { label: '队列 Job', value: row.bullJobId || '-' },
+    { label: '运行版本', value: `run v${row.runVersion}` },
+    { label: 'Gmail Thread', value: row.providerThreadId || '-' },
+    { label: '计划发送', value: formatOperationDate(row.scheduledAt) },
+    { label: '实际发送', value: formatOperationDate(row.sentAt) },
+    { label: '更新时间', value: formatOperationDate(row.updatedAt) }
+  ];
+}
+
+/** Build the field list used by the mailbox sync operation detail drawer. */
+export function buildMailboxOperationDetailItems(
+  row: Api.Crm.MailboxRecord,
+  now: Dayjs = dayjs()
+): OperationDetailItem[] {
+  const watchStatus = getMailboxWatchStatus(row.watchExpiration, now);
+
+  return [
+    { label: '邮箱', value: row.maskedEmail },
+    { label: '负责人', value: row.ownerUserName || row.ownerUserId },
+    { label: '授权状态', value: mailboxStatusLabelMap[row.status] },
+    { label: 'Gmail watch', value: mailboxWatchStatusLabelMap[watchStatus] },
+    { label: 'Watch 到期', value: formatMailboxWatchDescription(row.watchExpiration) },
+    { label: 'History checkpoint', value: formatMailboxHistoryId(row.lastHistoryId) },
+    { label: '同步问题', value: row.lastSyncIssue?.message ?? '-' },
+    { label: '问题时间', value: row.lastSyncIssue ? formatOperationDate(row.lastSyncIssue.happenedAt) : '-' },
+    { label: '更新时间', value: formatMailboxDate(row.updatedAt ?? null) }
+  ];
+}
+
 /** Join MOQ and lead time into one compact table cell. */
 export function formatProductLineSupply(row: Pick<Api.Crm.ProductLineRecord, 'moq' | 'leadTime'>) {
   return [row.moq, row.leadTime].filter(Boolean).join(' / ') || '-';
@@ -460,10 +508,14 @@ export function collectOperationQueueRows(
           accountName: item.account.name,
           contactName: item.contact.fullName || item.contact.email || '-',
           mailboxLabel: item.mailbox?.maskedEmail ?? '-',
+          subject: message.subject,
           stepIndex: message.stepIndex,
+          threadMode: message.threadMode,
           status: message.status,
           bullJobId: message.bullJobId,
           runVersion: item.enrollment.runVersion,
+          providerMessageId: message.providerMessageId,
+          providerThreadId: message.providerThreadId,
           scheduledAt: message.scheduledAt,
           sentAt: message.sentAt,
           updatedAt: message.updatedAt
