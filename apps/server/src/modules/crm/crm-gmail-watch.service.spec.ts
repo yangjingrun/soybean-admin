@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
-import type { CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
+import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
 import type { CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
 
 describe('CrmGmailWatchService', () => {
@@ -107,6 +107,67 @@ describe('CrmGmailWatchService', () => {
     assert.equal(gatewayCalled, false);
     assert.equal(store.mailboxUpdateCalls.length, 0);
   });
+
+  it('marks the owner mailbox auth expired and notifies the owner when Gmail rejects authorization', async () => {
+    const store = createStore([createMailbox({ ownerUserId: 'user-2', ownerUserName: 'Bob' })]);
+    const logs = createLogRecorder();
+    const notifications = createNotificationRecorder();
+    const service = new CrmGmailWatchService(
+      store,
+      {
+        async renewWatch() {
+          throw new CrmGmailAuthorizationExpiredError('invalid_grant');
+        }
+      },
+      logs.service,
+      notifications.service as never
+    );
+
+    await assert.rejects(
+      () => service.renewMailboxWatch('mailbox-1', createContext({ organizationRole: 'admin' })),
+      BadRequestException
+    );
+
+    assert.equal(store.mailboxes[0].status, 'auth_expired');
+    assert.equal(store.mailboxes[0].watchExpiration, null);
+    assert.deepEqual(store.mailboxUpdateCalls[0], {
+      id: 'mailbox-1',
+      input: {
+        status: 'auth_expired',
+        watchExpiration: null
+      }
+    });
+    assert.deepEqual(notifications.records[0], {
+      userId: 'user-2',
+      userName: 'Bob',
+      module: 'crm',
+      type: 'crm_mailbox_auth_expired',
+      title: 'Gmail 授权已失效',
+      content: 'a***@gmail.com 授权已失效，请重新授权后再继续发送和同步。',
+      targetType: 'crmMailbox',
+      targetId: 'mailbox-1',
+      routePath: '/crm/settings',
+      metadata: {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        maskedEmail: 'a***@gmail.com'
+      }
+    });
+    assert.deepEqual(logs.records[0], {
+      level: 'warn',
+      status: 'failed',
+      action: 'gmail-auth-expired',
+      errorMessage: 'invalid_grant',
+      metadata: {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        maskedEmail: 'a***@gmail.com',
+        toStatus: 'auth_expired'
+      }
+    });
+  });
 });
 
 function createGateway(): CrmGmailWatchGateway {
@@ -192,13 +253,55 @@ function createMailbox(input: Partial<CrmMailboxRecord> = {}): CrmMailboxRecord 
 }
 
 function createLogRecorder() {
-  const records: Array<{ metadata: unknown }> = [];
+  const records: Array<{
+    level?: string;
+    status?: string;
+    action?: string;
+    errorMessage?: string;
+    metadata: unknown;
+  }> = [];
 
   return {
     records,
     service: {
-      async record(input: { metadata?: unknown }) {
-        records.push({ metadata: input.metadata });
+      async record(input: {
+        level?: string;
+        status?: string;
+        action?: string;
+        errorMessage?: string;
+        metadata?: unknown;
+      }) {
+        records.push({
+          level: input.level,
+          status: input.status,
+          action: input.action,
+          errorMessage: input.errorMessage,
+          metadata: input.metadata
+        });
+      }
+    }
+  };
+}
+
+function createNotificationRecorder() {
+  const records: Array<{
+    userId: string;
+    userName?: string | null;
+    module: string;
+    type: string;
+    title: string;
+    content: string;
+    targetType?: string | null;
+    targetId?: string | null;
+    routePath?: string | null;
+    metadata?: unknown | null;
+  }> = [];
+
+  return {
+    records,
+    service: {
+      async create(input: (typeof records)[number]) {
+        records.push(input);
       }
     }
   };
