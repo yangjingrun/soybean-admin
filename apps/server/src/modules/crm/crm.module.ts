@@ -5,7 +5,6 @@ import { DatabaseModule } from '../database/database.module';
 import { RedisModule } from '../redis/redis.module';
 import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
-import { MockCrmEmailSendGateway } from './crm-email-send.gateway';
 import { CrmController } from './crm.controller';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
 import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
@@ -69,7 +68,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     },
     {
       provide: CRM_EMAIL_SEND_GATEWAY,
-      useClass: MockCrmEmailSendGateway
+      useFactory: () => createCrmGmailIntegrationProviders(process.env).emailSendGateway
     },
     {
       provide: CRM_EMAIL_DNS_RESOLVER,

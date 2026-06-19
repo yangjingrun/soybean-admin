@@ -1,3 +1,4 @@
+import { CrmGmailApiEmailSendGateway, MockCrmEmailSendGateway } from './crm-email-send.gateway';
 import { CrmGmailApiHistoryGateway, MockCrmGmailHistoryGateway } from './crm-gmail-history.gateway';
 import { CrmGmailOAuthFlow } from './crm-gmail-oauth-flow';
 import { CrmGmailOAuthTokenProvider } from './crm-gmail-oauth-token.provider';
@@ -19,6 +20,7 @@ export function createCrmGmailIntegrationProviders(env: CrmGmailIntegrationEnv) 
   const topicName = normalizeEnvString(env.CRM_GMAIL_PUBSUB_TOPIC_NAME);
   const tokenProvider = tokenConfig ? new CrmGmailOAuthTokenProvider(tokenConfig) : null;
   const historyGateway = tokenProvider ? new CrmGmailApiHistoryGateway(tokenProvider) : new MockCrmGmailHistoryGateway();
+  const emailSendGateway = tokenProvider ? new CrmGmailApiEmailSendGateway(tokenProvider) : new MockCrmEmailSendGateway();
   const watchGateway =
     tokenProvider && topicName
       ? new CrmGmailApiWatchGateway(tokenProvider, { topicName })
@@ -28,6 +30,7 @@ export function createCrmGmailIntegrationProviders(env: CrmGmailIntegrationEnv) 
     oauthFlow: oauthConfig ? new CrmGmailOAuthFlow(oauthConfig) : null,
     tokenProvider,
     historyGateway,
+    emailSendGateway,
     watchGateway
   };
 }

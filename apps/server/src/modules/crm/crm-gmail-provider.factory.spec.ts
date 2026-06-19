@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { CrmGmailApiEmailSendGateway, MockCrmEmailSendGateway } from './crm-email-send.gateway';
 import { CrmGmailApiHistoryGateway, MockCrmGmailHistoryGateway } from './crm-gmail-history.gateway';
 import { CrmGmailOAuthFlow } from './crm-gmail-oauth-flow';
 import { CrmGmailOAuthTokenProvider } from './crm-gmail-oauth-token.provider';
@@ -14,9 +15,10 @@ describe('createCrmGmailIntegrationProviders', () => {
     assert.ok(providers.tokenProvider instanceof CrmGmailOAuthTokenProvider);
     assert.ok(providers.historyGateway instanceof CrmGmailApiHistoryGateway);
     assert.ok(providers.watchGateway instanceof CrmGmailApiWatchGateway);
+    assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
   });
 
-  it('keeps watch mocked when Pub/Sub topic is not configured', () => {
+  it('keeps watch mocked when Pub/Sub topic is not configured but still enables Gmail sending', () => {
     const providers = createCrmGmailIntegrationProviders({
       ...createEnv(),
       CRM_GMAIL_PUBSUB_TOPIC_NAME: ''
@@ -25,6 +27,7 @@ describe('createCrmGmailIntegrationProviders', () => {
     assert.ok(providers.oauthFlow instanceof CrmGmailOAuthFlow);
     assert.ok(providers.historyGateway instanceof CrmGmailApiHistoryGateway);
     assert.ok(providers.watchGateway instanceof MockCrmGmailWatchGateway);
+    assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
   });
 
   it('falls back to null OAuth flow and mocked Gmail gateways when token config is incomplete', () => {
@@ -37,6 +40,7 @@ describe('createCrmGmailIntegrationProviders', () => {
     assert.equal(providers.tokenProvider, null);
     assert.ok(providers.historyGateway instanceof MockCrmGmailHistoryGateway);
     assert.ok(providers.watchGateway instanceof MockCrmGmailWatchGateway);
+    assert.ok(providers.emailSendGateway instanceof MockCrmEmailSendGateway);
   });
 });
 
