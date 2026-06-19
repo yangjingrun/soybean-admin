@@ -5,6 +5,37 @@ import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './
 import type { CrmMailboxRecord, CrmStore } from './crm.types';
 
 describe('CrmGmailWatchRenewalService', () => {
+  it('treats a trimmed case-insensitive disabled env as disabled', () => {
+    const originalDisabled = process.env.CRM_GMAIL_WATCH_RENEWAL_DISABLED;
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    const intervalCallbacks: Array<() => void> = [];
+    const store = createStore([createMailbox()]);
+    const service = new CrmGmailWatchRenewalService(store, createGateway());
+
+    process.env.CRM_GMAIL_WATCH_RENEWAL_DISABLED = ' TRUE ';
+    globalThis.setInterval = ((callback: () => void) => {
+      intervalCallbacks.push(callback);
+
+      return {
+        unref() {}
+      };
+    }) as typeof setInterval;
+    globalThis.clearInterval = (() => {}) as typeof clearInterval;
+
+    try {
+      service.onModuleInit();
+
+      assert.equal(store.renewalListCalls.length, 0);
+      assert.equal(intervalCallbacks.length, 0);
+    } finally {
+      service.onModuleDestroy();
+      restoreEnv('CRM_GMAIL_WATCH_RENEWAL_DISABLED', originalDisabled);
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
+  });
+
   it('does not run overlapping scheduled renewal batches', async () => {
     const originalSetInterval = globalThis.setInterval;
     const originalClearInterval = globalThis.clearInterval;
@@ -366,6 +397,15 @@ function createDeferred<T>() {
   });
 
   return { promise, resolve };
+}
+
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+
+  process.env[key] = value;
 }
 
 function createMailbox(input: Partial<CrmMailboxRecord> = {}): CrmMailboxRecord {

@@ -238,7 +238,7 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
 }
 
 function isWatchRenewalDisabled() {
-  return process.env.CRM_GMAIL_WATCH_RENEWAL_DISABLED === 'true';
+  return process.env.CRM_GMAIL_WATCH_RENEWAL_DISABLED?.trim().toLowerCase() === 'true';
 }
 
 function getPositiveEnvNumber(key: string, fallback: number) {

@@ -319,6 +319,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认批次级 store 错误不会产生 unhandled rejection，并会写调度失败日志。
 
+### 2026-06-19 Gmail watch 自动续订禁用开关要容忍空白和大小写
+
+- 场景：生产或预发环境通过 `CRM_GMAIL_WATCH_RENEWAL_DISABLED=true` 临时关闭自动 watch 续订。
+- 坑点：部署平台或人工配置可能写成 ` TRUE `、`True` 等形式；如果只按精确字符串比较，会导致以为已关闭但实际仍启动定时续订。
+- 正确做法：读取 `CRM_GMAIL_WATCH_RENEWAL_DISABLED` 时先 `trim().toLowerCase()`，只把规范化后的 `true` 视为禁用；默认和其他值仍保持启用。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认带空白和大小写变化的 disabled env 不会启动首批续订或 interval。
+
 ### 记录模板
 
 ```md
