@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
 import BlacklistManager from './BlacklistManager.vue';
 import CrmOperationsPanel from './CrmOperationsPanel.vue';
+import CrmSettingsOverview from './CrmSettingsOverview.vue';
 import DefaultEmailTemplateCard from './DefaultEmailTemplateCard.vue';
 import EmailTemplateManager from './EmailTemplateManager.vue';
 import GlobalConfigCard from './GlobalConfigCard.vue';
@@ -14,6 +16,7 @@ import ProductLineManager from './ProductLineManager.vue';
 import SendPreferenceCard from './SendPreferenceCard.vue';
 import SequencePolicyManager from './SequencePolicyManager.vue';
 import StrategyStatsPanel from './StrategyStatsPanel.vue';
+import { buildCrmSettingsOverview } from './shared';
 import { useMailboxTable } from './useMailboxTable';
 import { useTemplateDefaults } from './useTemplateDefaults';
 
@@ -40,96 +43,94 @@ const {
 } = useMailboxTable();
 
 const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults } = useTemplateDefaults();
+
+const overviewItems = computed(() =>
+  buildCrmSettingsOverview({
+    mailboxes: records.value,
+    mailboxTotal: pagination.total,
+    templateDefaults: templateDefaults.value
+  })
+);
 </script>
 
 <template>
   <NSpace vertical :size="16">
-    <NPageHeader title="CRM配置" subtitle="线索分配、邮箱账号和基础规则" />
+    <NPageHeader title="CRM 配置中心" subtitle="先接通邮箱，再配置写信资料、发送规则和安全边界" />
 
-    <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1">
-      <NGi>
-        <BasicRulesCard />
-      </NGi>
+    <CrmSettingsOverview :items="overviewItems" :loading="loading || templateDefaultsLoading" />
 
-      <NGi>
-        <GlobalConfigCard />
-      </NGi>
+    <NTabs type="segment" animated>
+      <NTabPane name="start" tab="开始使用">
+        <NSpace vertical :size="12">
+          <SendPreferenceCard />
 
-      <NGi>
-        <SendPreferenceCard />
-      </NGi>
+          <DefaultEmailTemplateCard
+            :loading="templateDefaultsLoading"
+            :template-defaults="templateDefaults"
+            @refresh="loadTemplateDefaults"
+          />
 
-      <NGi>
-        <OrganizationPermissionCard />
-      </NGi>
+          <NCard :bordered="false" size="small" class="card-wrapper" title="邮箱账号">
+            <NSpace vertical :size="12">
+              <MailboxToolbar
+                v-model="filterModel"
+                :authorizing="authorizeSubmitting"
+                :loading="loading"
+                @add="openAuthorizeModal"
+                @refresh="loadMailboxes"
+                @reset="handleReset"
+                @search="handleSearch"
+              />
 
-      <NGi>
-        <EmailTemplateManager />
-      </NGi>
+              <MailboxTable
+                :records="records"
+                :loading="loading"
+                :operating-mailbox-id="operatingMailboxId"
+                :page="pagination.current"
+                :page-size="pagination.size"
+                :total="pagination.total"
+                @reauthorize="handleReauthorizeMailbox"
+                @renew-watch="handleRenewMailboxWatch"
+                @sync-now="handleSyncMailboxNow"
+                @toggle="handleToggleMailbox"
+                @update-page="handlePageUpdate"
+                @update-page-size="handlePageSizeUpdate"
+              />
+            </NSpace>
+          </NCard>
+        </NSpace>
+      </NTabPane>
 
-      <NGi>
-        <DefaultEmailTemplateCard
-          :loading="templateDefaultsLoading"
-          :template-defaults="templateDefaults"
-          @refresh="loadTemplateDefaults"
-        />
-      </NGi>
+      <NTabPane name="assets" tab="写信资料">
+        <NSpace vertical :size="12">
+          <ProductLineManager />
+          <PersonaProfileManager />
+          <EmailTemplateManager />
+        </NSpace>
+      </NTabPane>
 
-      <NGi>
-        <SequencePolicyManager />
-      </NGi>
+      <NTabPane name="rules" tab="发送规则">
+        <NSpace vertical :size="12">
+          <SequencePolicyManager />
+          <OrganizationPermissionCard />
+          <GlobalConfigCard />
+        </NSpace>
+      </NTabPane>
 
-      <NGi>
-        <StrategyStatsPanel />
-      </NGi>
+      <NTabPane name="safety" tab="安全与拦截">
+        <NSpace vertical :size="12">
+          <BasicRulesCard />
+          <BlacklistManager />
+        </NSpace>
+      </NTabPane>
 
-      <NGi>
-        <PersonaProfileManager />
-      </NGi>
-
-      <NGi>
-        <NCard :bordered="false" size="small" class="card-wrapper" title="邮箱账号">
-          <NSpace vertical :size="12">
-            <MailboxToolbar
-              v-model="filterModel"
-              :authorizing="authorizeSubmitting"
-              :loading="loading"
-              @add="openAuthorizeModal"
-              @refresh="loadMailboxes"
-              @reset="handleReset"
-              @search="handleSearch"
-            />
-
-            <MailboxTable
-              :records="records"
-              :loading="loading"
-              :operating-mailbox-id="operatingMailboxId"
-              :page="pagination.current"
-              :page-size="pagination.size"
-              :total="pagination.total"
-              @reauthorize="handleReauthorizeMailbox"
-              @renew-watch="handleRenewMailboxWatch"
-              @sync-now="handleSyncMailboxNow"
-              @toggle="handleToggleMailbox"
-              @update-page="handlePageUpdate"
-              @update-page-size="handlePageSizeUpdate"
-            />
-          </NSpace>
-        </NCard>
-      </NGi>
-
-      <NGi>
-        <CrmOperationsPanel />
-      </NGi>
-
-      <NGi>
-        <ProductLineManager />
-      </NGi>
-
-      <NGi>
-        <BlacklistManager />
-      </NGi>
-    </NGrid>
+      <NTabPane name="operations" tab="运维诊断">
+        <NSpace vertical :size="12">
+          <CrmOperationsPanel />
+          <StrategyStatsPanel />
+        </NSpace>
+      </NTabPane>
+    </NTabs>
 
     <AuthorizeMailboxModal
       v-model:visible="authorizeVisible"

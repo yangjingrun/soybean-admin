@@ -7,6 +7,7 @@ import {
   buildOperationQueueDetailItems,
   buildStrategyStatSections,
   buildOperationLogSummaryRows,
+  buildCrmSettingsOverview,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
   buildPersonaProfileSearchParams,
@@ -712,6 +713,31 @@ describe('crm settings shared helpers', () => {
     );
   });
 
+  it('builds CRM settings overview from current mailbox list and template defaults', () => {
+    assert.deepEqual(
+      buildCrmSettingsOverview({
+        mailboxes: [
+          createMailbox({ id: 'mailbox-active', status: 'active' }),
+          createMailbox({ id: 'mailbox-paused', status: 'paused' }),
+          createMailbox({ id: 'mailbox-expired', status: 'auth_expired' })
+        ],
+        mailboxTotal: 12,
+        templateDefaults: createTemplateDefaults(),
+        now: dayjs('2026-06-19T12:00:00.000Z')
+      }).map(item => ({
+        key: item.key,
+        value: item.value,
+        tagType: item.tagType
+      })),
+      [
+        { key: 'mailbox', value: '1 / 12', tagType: 'success' },
+        { key: 'template', value: '默认模板', tagType: 'success' },
+        { key: 'sendRule', value: '5 步序列', tagType: 'info' },
+        { key: 'attention', value: '1 项', tagType: 'warning' }
+      ]
+    );
+  });
+
   it('counts mailbox history sync issues as operation attention', () => {
     assert.deepEqual(
       summarizeMailboxSyncHealth([
@@ -923,6 +949,27 @@ function createStrategyStatRow(input: Partial<Api.Crm.StrategyStatRow> = {}): Ap
     repliedCount: 0,
     stoppedCount: 0,
     ...input
+  };
+}
+
+function createTemplateDefaults(): Api.Crm.TemplateDefaults {
+  return {
+    templateGroup: {
+      id: 'template-default',
+      name: '默认模板',
+      scope: 'organization',
+      language: 'en',
+      variables: [],
+      steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+        stepIndex,
+        name: `第 ${stepIndex} 封`,
+        threadMode: stepIndex === 2 ? 'same_thread' : 'new_subject',
+        delayDays: stepIndex === 1 ? 0 : stepIndex,
+        subjectTemplate: `Subject ${stepIndex}`,
+        bodyTemplate: `Body ${stepIndex}`
+      }))
+    },
+    personas: []
   };
 }
 
