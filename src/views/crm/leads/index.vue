@@ -11,6 +11,7 @@ const {
   detailVisible,
   filterModel,
   handleArchiveLead,
+  handleCreateSequenceFromContact,
   handleCreateNote,
   handleDetailVisibleUpdate,
   handlePageSizeUpdate,
@@ -59,6 +60,7 @@ const {
       :status-submitting="statusSubmitting"
       :verifying-contact-ids="verifyingContactIds"
       @update:show="handleDetailVisibleUpdate"
+      @create-sequence="handleCreateSequenceFromContact"
       @reload="loadLeadDetail()"
       @submit-note="handleCreateNote"
       @submit-status="handleUpdateStatus"

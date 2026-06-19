@@ -1,4 +1,5 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
+import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
   approveCrmMessageDraft,
@@ -26,6 +27,7 @@ import {
 /** Manage first-email review list, creation resources and draft drawer operations. */
 export function useEmailSequenceTable() {
   const message = useMessage();
+  const route = useRoute();
   const records = shallowRef<Api.Crm.SequenceReviewItem[]>([]);
   const accountOptions = shallowRef<Api.Crm.LeadRecord[]>([]);
   const contactOptions = shallowRef<Api.Crm.LeadContact[]>([]);
@@ -33,7 +35,8 @@ export function useEmailSequenceTable() {
   const productLineOptions = shallowRef<Api.Crm.ProductLineRecord[]>([]);
   const currentItem = shallowRef<Api.Crm.SequenceReviewItem | null>(null);
   const loading = shallowRef(false);
-  const resourceLoading = shallowRef(false);
+  const createResourceLoading = shallowRef(false);
+  const contactLoading = shallowRef(false);
   const createVisible = shallowRef(false);
   const createSubmitting = shallowRef(false);
   const drawerVisible = shallowRef(false);
@@ -50,6 +53,7 @@ export function useEmailSequenceTable() {
   let latestDraftApproveRequestId = 0;
   let latestDraftSaveRequestId = 0;
   let latestResourceRequestId = 0;
+  let latestContactRequestId = 0;
 
   const pagination = reactive({
     current: 1,
@@ -83,9 +87,20 @@ export function useEmailSequenceTable() {
       value: productLine.id
     }))
   );
+  const resourceLoading = computed(() => createResourceLoading.value || contactLoading.value);
 
   onMounted(() => {
-    void Promise.all([loadSequences(), loadCreateResources()]);
+    void loadSequences();
+
+    const accountId = getRouteQueryString(route.query.accountId);
+    const contactId = getRouteQueryString(route.query.contactId);
+
+    if (accountId && contactId) {
+      void openCreateModalWithSelection(accountId, contactId);
+      return;
+    }
+
+    void loadCreateResources();
   });
 
   /** Load review items with backend pagination and ignore stale responses. */
@@ -121,7 +136,7 @@ export function useEmailSequenceTable() {
   async function loadCreateResources() {
     const requestId = latestResourceRequestId + 1;
     latestResourceRequestId = requestId;
-    resourceLoading.value = true;
+    createResourceLoading.value = true;
 
     try {
       const [accounts, mailboxes, productLines] = await Promise.all([
@@ -139,7 +154,7 @@ export function useEmailSequenceTable() {
       if (!productLines.error) productLineOptions.value = productLines.data.records;
     } finally {
       if (requestId === latestResourceRequestId) {
-        resourceLoading.value = false;
+        createResourceLoading.value = false;
       }
     }
   }
@@ -148,29 +163,8 @@ export function useEmailSequenceTable() {
   async function handleAccountChange(accountId: string | null) {
     createForm.accountId = accountId;
     createForm.contactId = null;
-    contactOptions.value = [];
 
-    if (!accountId) {
-      return;
-    }
-
-    const requestId = latestResourceRequestId + 1;
-    latestResourceRequestId = requestId;
-    resourceLoading.value = true;
-
-    try {
-      const { data, error } = await fetchCrmAccountDetail(accountId);
-
-      if (error || requestId !== latestResourceRequestId) {
-        return;
-      }
-
-      contactOptions.value = data.contacts;
-    } finally {
-      if (requestId === latestResourceRequestId) {
-        resourceLoading.value = false;
-      }
-    }
+    await loadAccountContacts(accountId);
   }
 
   function openCreateModal() {
@@ -180,12 +174,57 @@ export function useEmailSequenceTable() {
     void loadCreateResources();
   }
 
+  async function openCreateModalWithSelection(accountId: string, contactId: string) {
+    Object.assign(createForm, {
+      ...createDefaultSequenceCreateForm(),
+      accountId,
+      contactId
+    });
+    contactOptions.value = [];
+    createVisible.value = true;
+    await Promise.all([loadCreateResources(), loadAccountContacts(accountId, contactId)]);
+  }
+
   function handleCreateVisibleUpdate(show: boolean) {
     createVisible.value = show;
 
     if (!show) {
       Object.assign(createForm, createDefaultSequenceCreateForm());
       contactOptions.value = [];
+    }
+  }
+
+  /** Load contacts for one account and optionally keep a known contact selected from route prefill. */
+  async function loadAccountContacts(accountId: string | null, preferredContactId?: string) {
+    contactOptions.value = [];
+
+    if (!accountId) {
+      return;
+    }
+
+    const requestId = latestContactRequestId + 1;
+    latestContactRequestId = requestId;
+    contactLoading.value = true;
+
+    try {
+      const { data, error } = await fetchCrmAccountDetail(accountId);
+
+      if (error || requestId !== latestContactRequestId) {
+        return;
+      }
+
+      contactOptions.value = data.contacts;
+      const matchedPreferredContactId =
+        preferredContactId && data.contacts.some(contact => contact.id === preferredContactId) ? preferredContactId : null;
+      createForm.contactId = matchedPreferredContactId
+        ? matchedPreferredContactId
+        : data.contacts.some(contact => contact.id === createForm.contactId)
+          ? createForm.contactId
+          : null;
+    } finally {
+      if (requestId === latestContactRequestId) {
+        contactLoading.value = false;
+      }
     }
   }
 
@@ -528,4 +567,10 @@ function replaceReviewMessage(
     firstMessage: message.stepIndex === 1 ? message : item.firstMessage,
     messages
   };
+}
+
+function getRouteQueryString(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return '';
 }

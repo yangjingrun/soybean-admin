@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, reactive, watch } from 'vue';
-import { NButton, NTag, useMessage } from 'naive-ui';
+import { NButton, NSpace, NTag, useMessage } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   createDefaultLeadNoteForm,
@@ -27,6 +27,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  createSequence: [contact: Api.Crm.LeadContact];
   'update:show': [show: boolean];
   reload: [];
   submitNote: [payload: Api.Crm.LeadNotePayload];
@@ -52,6 +53,11 @@ const websiteHref = computed(() => (account.value?.websiteUrl ? getWebsiteHref(a
 /** Check whether the current contact already has an email verification request in flight. */
 function isContactVerifying(contactId: string) {
   return props.verifyingContactIds?.includes(contactId) ?? false;
+}
+
+/** Contacts that explicitly opted out or failed verification should not start new outreach from the drawer. */
+function canCreateSequence(contact: Api.Crm.LeadContact) {
+  return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
 }
 
 const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
@@ -89,20 +95,42 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
   {
     key: 'operate',
     title: '操作',
-    width: 90,
+    width: 150,
     fixed: 'right',
     render: row =>
       h(
-        NButton,
+        NSpace,
         {
-          size: 'small',
-          text: true,
-          type: 'primary',
-          loading: isContactVerifying(row.id),
-          disabled: isContactVerifying(row.id),
-          onClick: () => emit('verifyContactEmail', row)
+          size: 8,
+          justify: 'center'
         },
-        { default: () => '验证' }
+        {
+          default: () => [
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'primary',
+                loading: isContactVerifying(row.id),
+                disabled: isContactVerifying(row.id),
+                onClick: () => emit('verifyContactEmail', row)
+              },
+              { default: () => '验证' }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'success',
+                disabled: !canCreateSequence(row),
+                onClick: () => emit('createSequence', row)
+              },
+              { default: () => '开发信' }
+            )
+          ]
+        }
       )
   }
 ]);

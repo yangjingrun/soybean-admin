@@ -1,4 +1,5 @@
 import { onMounted, reactive, shallowRef } from 'vue';
+import { useRouter } from 'vue-router';
 import { useDialog, useMessage } from 'naive-ui';
 import {
   archiveCrmAccount,
@@ -14,6 +15,7 @@ import { buildLeadSearchParams, createDefaultLeadFilterModel } from '../shared';
 export function useLeadTable() {
   const dialog = useDialog();
   const message = useMessage();
+  const router = useRouter();
   const records = shallowRef<Api.Crm.LeadRecord[]>([]);
   const loading = shallowRef(false);
   const detailVisible = shallowRef(false);
@@ -161,6 +163,17 @@ export function useLeadTable() {
     }
   }
 
+  /** Continue from a lead contact into the sequence review creation flow with the contact preselected. */
+  async function handleCreateSequenceFromContact(contact: Api.Crm.LeadContact) {
+    await router.push({
+      path: '/crm/email-sequences',
+      query: {
+        accountId: contact.accountId,
+        contactId: contact.id
+      }
+    });
+  }
+
   async function handleCreateNote(payload: Api.Crm.LeadNotePayload) {
     const id = selectedLeadId.value;
 
@@ -274,6 +287,7 @@ export function useLeadTable() {
     detailVisible,
     filterModel,
     handleArchiveLead,
+    handleCreateSequenceFromContact,
     handleCreateNote,
     handleDetailVisibleUpdate,
     handlePageSizeUpdate,

@@ -119,6 +119,14 @@
 - 相关文件：`src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`、`src/views/crm/email-sequences/modules/DraftReviewDrawer.vue`。
 - 验证方式：运行 `pnpm typecheck`，并由 code review 检查抽屉切换、关闭、保存、确认路径都有 ID 校验。
 
+### 2026-06-19 CRM 跨页面预填创建流程要拆开资源请求和联系人请求
+
+- 场景：从线索详情联系人行跳到邮件序列页，自动打开“生成首封草稿”弹窗，并通过 query 预填 `accountId/contactId`。
+- 坑点：创建弹窗需要同时加载线索/邮箱/产品线资源和所选线索的联系人列表；如果二者复用同一个 request id 或 loading 标志，普通资源请求和联系人请求会互相判定为旧请求，或一个请求先结束导致另一个请求的 loading 被提前关闭。
+- 正确做法：邮件序列 composable 中分别维护全局创建资源请求 id 和联系人请求 id，loading 用两个内部状态合并；线索详情只 emit 联系人，页面 composable 负责 `router.push({ path: '/crm/email-sequences', query: { accountId, contactId } })`，邮件序列页读取 query 后打开弹窗并校验联系人仍属于该线索。
+- 相关文件：`src/views/crm/leads/modules/LeadDetailDrawer.vue`、`src/views/crm/leads/modules/shared/useLeadTable.ts`、`src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`。
+- 验证方式：运行 `pnpm typecheck`、`pnpm exec eslint --max-warnings=0 .`、`pnpm exec oxlint`，并检查从线索详情点击“开发信”时弹窗能预选线索和联系人。
+
 ### 2026-06-19 CRM 发送队列要用 runVersion 和 bullJobId 做发送前 guard
 
 - 场景：首封开发信从 `ready_to_send/draft_ready` 进入 BullMQ 后，由后台 worker 标记 `queued/sent/failed`。
