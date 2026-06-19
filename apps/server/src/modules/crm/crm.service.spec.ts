@@ -705,6 +705,7 @@ describe('CrmService', () => {
           id: 'contact-1',
           accountId: 'account-1',
           fullName: 'Ali Hassan',
+          title: 'Purchasing Manager',
           emailStatus: 'valid'
         })
       ],
@@ -736,6 +737,16 @@ describe('CrmService', () => {
     assert.equal(result.item.firstMessage?.status, 'draft_pending_review');
     assert.equal(result.item.firstMessage?.subject, 'Bearing Series for ABC Trading');
     assert.match(result.item.firstMessage?.bodyText ?? '', /stable supply/);
+    assert.match(result.item.firstMessage?.bodyText ?? '', /price, MOQ, lead time, and payment terms/);
+    assert.deepEqual(
+      result.item.checklist.find(item => item.key === 'persona_focus'),
+      {
+        key: 'persona_focus',
+        label: '职位画像',
+        passed: true,
+        message: '已匹配 Purchasing Manager：价格、MOQ、交期、付款方式'
+      }
+    );
     assert.equal(store.accounts[0].status, 'manual_review_pending');
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_draft_generated');
     assert.equal((logs.records[0].metadata as Record<string, unknown>).messageId, 'message-1');

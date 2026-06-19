@@ -140,6 +140,64 @@ interface GeneratedDraft {
   bodyText: string;
 }
 
+interface PersonaProfile {
+  label: string;
+  aliases: string[];
+  focusText: string;
+  draftFocusText: string;
+}
+
+const personaProfiles: PersonaProfile[] = [
+  {
+    label: 'Owner / Founder',
+    aliases: ['owner', 'founder', 'ceo', 'co-founder', 'general manager', '老板', '创始人'],
+    focusText: '利润、增长、差异化、长期合作',
+    draftFocusText: 'margin, growth, differentiation, and long-term cooperation'
+  },
+  {
+    label: 'Purchasing Manager',
+    aliases: ['purchasing manager', 'buyer', 'procurement manager', 'purchasing officer', '采购', '采购经理'],
+    focusText: '价格、MOQ、交期、付款方式',
+    draftFocusText: 'price, MOQ, lead time, and payment terms'
+  },
+  {
+    label: 'Sourcing Manager',
+    aliases: ['sourcing manager', 'sourcing specialist', 'supplier manager', '供应商开发', '寻源'],
+    focusText: '新供应商、样品、认证、风险控制',
+    draftFocusText: 'new supplier options, samples, certifications, and risk control'
+  },
+  {
+    label: 'Product Manager',
+    aliases: ['product manager', 'product lead', '产品经理'],
+    focusText: '产品卖点、设计、功能、上新速度',
+    draftFocusText: 'selling points, design, functions, and new-product speed'
+  },
+  {
+    label: 'Category Manager',
+    aliases: ['category manager', 'category lead', '品类经理'],
+    focusText: 'SKU 补充、毛利、市场趋势',
+    draftFocusText: 'SKU expansion, margin, and market trends'
+  },
+  {
+    label: 'Sales Director',
+    aliases: ['sales director', 'sales manager', 'head of sales', '销售总监'],
+    focusText: '产品是否好卖、渠道接受度',
+    draftFocusText: 'sell-through potential and channel acceptance'
+  },
+  {
+    label: 'Project Manager',
+    aliases: ['project manager', 'program manager', '项目经理'],
+    focusText: '定制、项目节点、交付稳定',
+    draftFocusText: 'customization, project milestones, and stable delivery'
+  },
+  {
+    label: 'Operations Manager',
+    aliases: ['operations manager', 'operation manager', 'supply chain manager', '运营经理'],
+    focusText: '库存、物流、补货效率',
+    draftFocusText: 'inventory, logistics, and replenishment efficiency'
+  }
+];
+
 @Injectable()
 export class CrmService {
   private readonly dnsResolver: CrmEmailDnsResolver;
@@ -1609,6 +1667,8 @@ function toSequenceReviewView(record: CrmSequenceReviewRecord, context: CrmUserC
 }
 
 function buildReviewChecklist(record: CrmSequenceReviewRecord) {
+  const persona = findPersonaProfile(record.contact.title);
+
   return [
     {
       key: 'mailbox_active',
@@ -1633,6 +1693,16 @@ function buildReviewChecklist(record: CrmSequenceReviewRecord) {
       label: '产品资料',
       passed: record.productLine?.status === 'active',
       message: record.productLine?.status === 'active' ? record.productLine.name : '未选择启用的产品资料'
+    },
+    {
+      key: 'persona_focus',
+      label: '职位画像',
+      passed: Boolean(persona),
+      message: persona
+        ? `已匹配 ${persona.label}：${persona.focusText}`
+        : record.contact.title
+          ? `未匹配职位画像：${record.contact.title}`
+          : '缺少联系人职位，按通用开发信生成'
     },
     {
       key: 'draft_content',
@@ -1769,6 +1839,7 @@ function generateFirstDraft(options: {
   const greetingName = contact.fullName || contact.title || 'there';
   const productName = productLine?.name || 'our product line';
   const sellingPoint = productLine?.coreSellingPoints || `supporting ${account.customerType || 'B2B'} customers`;
+  const persona = findPersonaProfile(contact.title);
   const supplyInfo = [
     productLine?.moq ? `MOQ: ${productLine.moq}` : null,
     productLine?.leadTime ? `lead time: ${productLine.leadTime}` : null,
@@ -1780,6 +1851,7 @@ function generateFirstDraft(options: {
     '',
     `I noticed ${account.name}${account.country ? ` in ${account.country}` : ''} and thought this might be relevant to your team.`,
     `We work on ${productName}, mainly focused on ${sellingPoint}.`,
+    persona ? `For ${persona.label}, I kept this note focused on ${persona.draftFocusText}.` : null,
     supplyInfo.length ? `For reference, ${supplyInfo.join(', ')}.` : null,
     '',
     'Would it be useful if I sent a short product list for your review?',
@@ -1792,6 +1864,17 @@ function generateFirstDraft(options: {
     subject,
     bodyText: bodyLines.join('\n')
   };
+}
+
+function findPersonaProfile(title?: string | null) {
+  const normalizedTitle = title?.trim().toLowerCase();
+  if (!normalizedTitle) return null;
+
+  return (
+    personaProfiles.find(profile =>
+      profile.aliases.some(alias => normalizedTitle.includes(alias.toLowerCase()))
+    ) ?? null
+  );
 }
 
 function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord) {
