@@ -5,12 +5,14 @@ import {
   createDefaultSequenceCreateForm,
   getCurrentSequenceMessage,
   getFailedSequenceMessages,
+  getMaxSequenceMessageStep,
   getNextScheduledReviewMessage,
   getPendingReviewMessage,
   getSequenceChecklistSummary,
   getSequenceNextAction,
   getSequenceProgressText,
   getSequenceSendAuditSummary,
+  canGenerateNextSequenceDraft,
   normalizeSequenceCreatePayload
 } from './shared';
 
@@ -38,12 +40,14 @@ function createMessage(overrides: Partial<Api.Crm.MessageRecord>): Api.Crm.Messa
   };
 }
 
-function createSequenceItem(overrides: {
-  enrollment?: Partial<Api.Crm.SequenceEnrollmentRecord>;
-  firstMessage?: Api.Crm.MessageRecord | null;
-  messages?: Api.Crm.MessageRecord[];
-  checklist?: Api.Crm.SequenceReviewChecklistItem[];
-} = {}): Api.Crm.SequenceReviewItem {
+function createSequenceItem(
+  overrides: {
+    enrollment?: Partial<Api.Crm.SequenceEnrollmentRecord>;
+    firstMessage?: Api.Crm.MessageRecord | null;
+    messages?: Api.Crm.MessageRecord[];
+    checklist?: Api.Crm.SequenceReviewChecklistItem[];
+  } = {}
+): Api.Crm.SequenceReviewItem {
   const firstMessage = overrides.firstMessage === undefined ? createMessage({}) : overrides.firstMessage;
   const messages = overrides.messages ?? (firstMessage ? [firstMessage] : []);
 
@@ -279,5 +283,64 @@ describe('email sequence review shared helpers', () => {
     assert.equal(getSequenceNextAction(ready).label, '启动首封');
     assert.equal(getSequenceNextAction(failed).label, '处理失败');
     assert.equal(getSequenceNextAction(replied).description, '同公司当前序列已停发');
+  });
+
+  it('gets the largest sequence message step from existing messages', () => {
+    assert.equal(
+      getMaxSequenceMessageStep([
+        createMessage({ id: 'message-1', stepIndex: 1 }),
+        createMessage({ id: 'message-3', stepIndex: 3 }),
+        createMessage({ id: 'message-2', stepIndex: 2 })
+      ]),
+      3
+    );
+    assert.equal(getMaxSequenceMessageStep([]), 0);
+  });
+
+  it('allows generating the next draft only while the sequence can accept another review draft', () => {
+    const ready = createSequenceItem({
+      enrollment: { status: 'ready_to_send', totalSteps: 5 },
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'draft_ready' }),
+        createMessage({ id: 'message-2', stepIndex: 2, status: 'sent' })
+      ]
+    });
+    const running = createSequenceItem({
+      enrollment: { status: 'sequence_running', totalSteps: 5 },
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({ id: 'message-2', stepIndex: 2, status: 'sent' })
+      ]
+    });
+    const hasPendingDraft = createSequenceItem({
+      enrollment: { status: 'sequence_running', totalSteps: 5 },
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({ id: 'message-2', stepIndex: 2, status: 'draft_pending_review' })
+      ]
+    });
+    const reachedLastStep = createSequenceItem({
+      enrollment: { status: 'sequence_running', totalSteps: 2 },
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({ id: 'message-2', stepIndex: 2, status: 'sent' })
+      ]
+    });
+    const stopped = createSequenceItem({
+      enrollment: { status: 'stopped', totalSteps: 5 },
+      messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' })]
+    });
+    const forbidden = createSequenceItem({
+      enrollment: { status: 'sequence_running', totalSteps: 5 },
+      messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' })]
+    });
+    forbidden.canOperateDraft = false;
+
+    assert.equal(canGenerateNextSequenceDraft(ready), true);
+    assert.equal(canGenerateNextSequenceDraft(running), true);
+    assert.equal(canGenerateNextSequenceDraft(hasPendingDraft), false);
+    assert.equal(canGenerateNextSequenceDraft(reachedLastStep), false);
+    assert.equal(canGenerateNextSequenceDraft(stopped), false);
+    assert.equal(canGenerateNextSequenceDraft(forbidden), false);
   });
 });

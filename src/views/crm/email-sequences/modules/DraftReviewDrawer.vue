@@ -6,6 +6,7 @@ import {
   formatNullableText,
   formatSequenceDate,
   buildDraftReviewOperationPayload,
+  canGenerateNextSequenceDraft,
   type DraftReviewApprovePayload,
   type DraftReviewSavePayload,
   messageStatusLabelMap,
@@ -18,6 +19,7 @@ const props = defineProps<{
   approving?: boolean;
   item: Api.Crm.SequenceReviewItem | null;
   loading?: boolean;
+  nextDraftGenerating?: boolean;
   refreshing?: boolean;
   saving?: boolean;
   sendStarting?: boolean;
@@ -27,6 +29,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   approveDraft: [payload: DraftReviewApprovePayload];
+  generateNextDraft: [];
   refresh: [];
   saveDraft: [payload: DraftReviewSavePayload];
   startSend: [];
@@ -52,11 +55,12 @@ const currentMessage = computed(
   () => reviewMessages.value.find(item => item.id === selectedMessageId.value) ?? reviewMessages.value[0] ?? null
 );
 const isFirstMessageSelected = computed(() => currentMessage.value?.stepIndex === 1);
+const operableFollowUpEnrollmentStatuses: Api.Crm.SequenceEnrollmentStatus[] = ['ready_to_send', 'sequence_running'];
 const canOperateSelectedDraft = computed(() =>
   Boolean(
     props.item?.canOperateDraft &&
-      currentMessage.value?.status === 'draft_pending_review' &&
-      (isFirstMessageSelected.value || props.item.enrollment.status === 'sequence_running')
+    currentMessage.value?.status === 'draft_pending_review' &&
+    (isFirstMessageSelected.value || operableFollowUpEnrollmentStatuses.includes(props.item.enrollment.status))
   )
 );
 const canEdit = computed(() => {
@@ -66,24 +70,26 @@ const canApprove = computed(() => canOperateSelectedDraft.value);
 const canStartSend = computed(() =>
   Boolean(
     props.item?.canOperateDraft &&
-      isFirstMessageSelected.value &&
-      props.item.enrollment.status === 'ready_to_send' &&
-      currentMessage.value?.status === 'draft_ready'
+    isFirstMessageSelected.value &&
+    props.item.enrollment.status === 'ready_to_send' &&
+    currentMessage.value?.status === 'draft_ready'
   )
 );
+const canGenerateNextDraft = computed(() => Boolean(props.item && canGenerateNextSequenceDraft(props.item)));
 const canRefreshSequence = computed(() =>
   Boolean(props.item && ['sequence_running', 'paused', 'stopped'].includes(props.item.enrollment.status))
 );
 const canStopSequence = computed(() =>
   Boolean(
     props.item?.canControlSequence &&
-      ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(props.item.enrollment.status)
+    ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(props.item.enrollment.status)
   )
 );
 const statusTip = computed(() => {
   if (props.item?.enrollment.status === 'stopped') return '序列已停止，旧发送任务会在执行前跳过';
   if (!currentMessage.value) return '暂无草稿';
-  if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review') return '确认后会按计划时间进入发送队列';
+  if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review')
+    return '确认后会按计划时间进入发送队列';
   if (currentMessage.value.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
   if (currentMessage.value.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
   if (currentMessage.value.status === 'queued') return '开发信已进入发送队列';
@@ -99,7 +105,9 @@ watch(
     const stillExists = reviewMessages.value.some(item => item.id === selectedMessageId.value);
     selectedMessageId.value = stillExists
       ? selectedMessageId.value
-      : reviewMessages.value.find(item => item.status === 'draft_pending_review')?.id ?? reviewMessages.value[0]?.id ?? null;
+      : (reviewMessages.value.find(item => item.status === 'draft_pending_review')?.id ??
+        reviewMessages.value[0]?.id ??
+        null);
   },
   { immediate: true }
 );
@@ -130,10 +138,13 @@ function handleSave() {
     return;
   }
 
-  emit('saveDraft', buildDraftReviewOperationPayload(messageId, {
-    subject: draftForm.subject.trim(),
-    bodyText: draftForm.bodyText.trim()
-  }));
+  emit(
+    'saveDraft',
+    buildDraftReviewOperationPayload(messageId, {
+      subject: draftForm.subject.trim(),
+      bodyText: draftForm.bodyText.trim()
+    })
+  );
 }
 
 function handleApprove() {
@@ -228,22 +239,28 @@ function handleApprove() {
         <NSpace justify="end">
           <NButton @click="drawerVisible = false">关闭</NButton>
           <NButton
-            :disabled="loading || saving || approving || sendStarting || stopping || !canRefreshSequence"
+            :disabled="
+              loading || saving || approving || sendStarting || stopping || nextDraftGenerating || !canRefreshSequence
+            "
             :loading="refreshing"
             @click="emit('refresh')"
           >
             刷新状态
           </NButton>
-          <NPopconfirm
-            positive-text="停止"
-            negative-text="取消"
-            @positive-click="emit('stop')"
-          >
+          <NPopconfirm positive-text="停止" negative-text="取消" @positive-click="emit('stop')">
             <template #trigger>
               <NButton
                 type="error"
                 secondary
-                :disabled="loading || saving || approving || sendStarting || refreshing || !canStopSequence"
+                :disabled="
+                  loading ||
+                    saving ||
+                    approving ||
+                    sendStarting ||
+                    refreshing ||
+                    nextDraftGenerating ||
+                    !canStopSequence
+                "
                 :loading="stopping"
               >
                 停止序列
@@ -252,22 +269,58 @@ function handleApprove() {
             停止后当前序列不会继续发送，队列中的旧任务也会失效。
           </NPopconfirm>
           <NButton
-            :disabled="loading || approving || refreshing || sendStarting || stopping || !currentMessage || !canEdit"
+            :disabled="
+              loading ||
+                approving ||
+                refreshing ||
+                sendStarting ||
+                stopping ||
+                nextDraftGenerating ||
+                !currentMessage ||
+                !canEdit
+            "
             :loading="saving"
             @click="handleSave"
           >
             保存草稿
           </NButton>
           <NButton
-            :disabled="loading || saving || refreshing || sendStarting || stopping || !currentMessage || !canApprove"
+            :disabled="
+              loading ||
+                saving ||
+                refreshing ||
+                sendStarting ||
+                stopping ||
+                nextDraftGenerating ||
+                !currentMessage ||
+                !canApprove
+            "
             :loading="approving"
             @click="handleApprove"
           >
             确认草稿
           </NButton>
           <NButton
+            :disabled="
+              loading || saving || approving || refreshing || sendStarting || stopping || !canGenerateNextDraft
+            "
+            :loading="nextDraftGenerating"
+            @click="emit('generateNextDraft')"
+          >
+            生成下一封草稿
+          </NButton>
+          <NButton
             type="primary"
-            :disabled="loading || saving || approving || refreshing || stopping || !currentMessage || !canStartSend"
+            :disabled="
+              loading ||
+                saving ||
+                approving ||
+                refreshing ||
+                stopping ||
+                nextDraftGenerating ||
+                !currentMessage ||
+                !canStartSend
+            "
             :loading="sendStarting"
             @click="emit('startSend')"
           >
@@ -317,5 +370,4 @@ function handleApprove() {
   display: flex;
   justify-content: flex-start;
 }
-
 </style>

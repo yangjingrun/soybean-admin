@@ -1,19 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
-import { findPersonaProfile, renderEmailTemplateText } from './crm-email-template-renderer';
+import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_STORE } from './crm.tokens';
-import type {
-  CrmEmailSendGateway,
-  CrmEmailTemplateGroupRecord,
-  CrmGlobalConfigRecord,
-  CrmMailboxRecord,
-  CrmSendDeliveryClaimRecord,
-  CrmSendQueueJob,
-  CrmStore
-} from './crm.types';
-
-const oneDayMs = 24 * 60 * 60 * 1000;
+import type { CrmEmailSendGateway, CrmMailboxRecord, CrmSendQueueJob, CrmStore } from './crm.types';
 
 @Injectable()
 export class CrmSendWorkerService {
@@ -58,13 +48,14 @@ export class CrmSendWorkerService {
         sentAt,
         providerMessageId: sent.providerMessageId ?? null,
         providerThreadId: sent.providerThreadId ?? null,
-        nextMessage: buildNextFollowUpDraft(
+        nextMessage: buildNextFollowUpDraft({
           item,
-          sent.providerThreadId ?? null,
-          sentAt,
-          globalConfig.followUpDelayDays,
-          defaultTemplateGroup
-        )
+          sourceMessage: item.firstMessage,
+          providerThreadId: sent.providerThreadId ?? null,
+          baseTime: sentAt,
+          followUpDelayDays: globalConfig.followUpDelayDays,
+          templateGroup: defaultTemplateGroup
+        })
       });
     } catch (error) {
       if (error instanceof CrmGmailAuthorizationExpiredError) {
@@ -119,79 +110,4 @@ export class CrmSendWorkerService {
       }
     });
   }
-}
-
-function buildNextFollowUpDraft(
-  item: CrmSendDeliveryClaimRecord,
-  providerThreadId: string | null,
-  sentAt: Date,
-  followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays'],
-  templateGroup: CrmEmailTemplateGroupRecord | null
-): Parameters<CrmStore['completeFirstMessageSend']>[0]['nextMessage'] {
-  const nextStepIndex = item.firstMessage.stepIndex + 1;
-
-  if (nextStepIndex > item.enrollment.totalSteps) {
-    return null;
-  }
-
-  const templateStep =
-    templateGroup?.status === 'active' ? templateGroup.steps.find(step => step.stepIndex === nextStepIndex) : null;
-  const policyStep = item.policy?.steps.find(step => step.stepIndex === nextStepIndex) ?? null;
-  const delayDays = policyStep?.delayDays ?? templateStep?.delayDays ?? getFollowUpDelayDays(nextStepIndex, followUpDelayDays);
-
-  if (delayDays === null) {
-    return null;
-  }
-
-  const contactName = item.contact.fullName || item.contact.title || 'there';
-  const senderName = item.mailbox.ownerUserName || 'there';
-  const persona = findPersonaProfile(item.contact.title);
-  const templateBodyText = templateStep
-    ? renderEmailTemplateText(templateStep.bodyTemplate, {
-        account: item.account,
-        contact: item.contact,
-        persona,
-        productLine: item.productLine,
-        senderName
-      })
-    : null;
-  const templateSubject =
-    templateStep && templateStep.subjectTemplate
-      ? renderEmailTemplateText(templateStep.subjectTemplate, {
-          account: item.account,
-          contact: item.contact,
-          persona,
-          productLine: item.productLine,
-          senderName
-        })
-      : null;
-
-  return {
-    organizationId: item.firstMessage.organizationId,
-    ownerUserId: item.firstMessage.ownerUserId,
-    accountId: item.firstMessage.accountId,
-    contactId: item.firstMessage.contactId,
-    mailboxId: item.mailbox.id,
-    stepIndex: nextStepIndex,
-    threadMode: policyStep?.threadMode ?? templateStep?.threadMode ?? 'same_thread',
-    subject: templateSubject || item.firstMessage.subject,
-    bodyText:
-      templateBodyText ||
-      `Hi ${contactName},\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\n${senderName}`,
-    status: 'draft_pending_review',
-    scheduledAt: new Date(sentAt.getTime() + delayDays * oneDayMs),
-    providerThreadId
-  };
-}
-
-function getFollowUpDelayDays(stepIndex: number, followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']) {
-  const delayDaysByStep = new Map([
-    [2, followUpDelayDays.step2Days],
-    [3, followUpDelayDays.step3Days],
-    [4, followUpDelayDays.step4Days],
-    [5, followUpDelayDays.step5Days]
-  ]);
-  const delayDays = delayDaysByStep.get(stepIndex);
-
-  return delayDays ?? null;
 }

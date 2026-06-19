@@ -184,6 +184,24 @@ export function getFailedSequenceMessages(messages: Api.Crm.MessageRecord[]) {
     .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt));
 }
 
+/** Return the largest generated message step in one enrollment. */
+export function getMaxSequenceMessageStep(messages: Api.Crm.MessageRecord[]) {
+  return messages.reduce((maxStep, message) => Math.max(maxStep, message.stepIndex), 0);
+}
+
+/** Check whether the current enrollment can create one local follow-up draft. */
+export function canGenerateNextSequenceDraft(item: Api.Crm.SequenceReviewItem) {
+  const canAppendDraftByStatus = ['ready_to_send', 'sequence_running'].includes(item.enrollment.status);
+  const hasPendingReviewDraft = item.messages.some(message => message.status === 'draft_pending_review');
+
+  return (
+    item.canOperateDraft &&
+    canAppendDraftByStatus &&
+    !hasPendingReviewDraft &&
+    getMaxSequenceMessageStep(item.messages) < item.enrollment.totalSteps
+  );
+}
+
 /** Pick the message that best represents the row's current operational state. */
 export function getCurrentSequenceMessage(item: Api.Crm.SequenceReviewItem) {
   return (
@@ -343,6 +361,8 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
 }
 
 /** Format backend sequence progress as a compact table label. */
-export function getSequenceProgressText(progress: Pick<Api.Crm.SequenceEnrollmentRecord, 'currentStep' | 'totalSteps'>) {
+export function getSequenceProgressText(
+  progress: Pick<Api.Crm.SequenceEnrollmentRecord, 'currentStep' | 'totalSteps'>
+) {
   return `第 ${progress.currentStep} / ${progress.totalSteps} 封`;
 }

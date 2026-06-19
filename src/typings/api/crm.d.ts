@@ -718,6 +718,11 @@ declare namespace Api {
       message: MessageRecord;
     }
 
+    interface MessageNextDraftGenerateResult {
+      enrollment: SequenceEnrollmentRecord;
+      message: MessageRecord;
+    }
+
     interface MessageSendStartResult {
       enrollment: SequenceEnrollmentRecord;
       message: MessageRecord;

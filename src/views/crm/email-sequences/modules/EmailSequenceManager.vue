@@ -23,6 +23,7 @@ const {
   handleCreateReviewItem,
   handleCreateVisibleUpdate,
   handleDrawerVisibleUpdate,
+  handleGenerateNextDraft,
   handlePageSizeUpdate,
   handlePageUpdate,
   handleReset,
@@ -34,6 +35,7 @@ const {
   loadSequences,
   loading,
   mailboxSelectOptions,
+  nextDraftGenerating,
   openCreateModal,
   openDraftDrawer,
   pagination,
@@ -92,11 +94,13 @@ const {
       :approving="draftApproving"
       :item="currentItem"
       :loading="drawerLoading"
+      :next-draft-generating="nextDraftGenerating"
       :refreshing="detailRefreshing"
       :saving="draftSaving"
       :send-starting="sendStarting"
       :stopping="sequenceStopping"
       @approve-draft="handleApproveDraft"
+      @generate-next-draft="handleGenerateNextDraft"
       @refresh="handleRefreshCurrentSequence"
       @save-draft="handleSaveDraft"
       @start-send="handleStartSend"

@@ -972,6 +972,72 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('creates local follow-up draft bundles with scoped enrollment and timeline metadata', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const scheduledAt = new Date('2026-06-23T10:00:00.000Z');
+
+    const result = await store.createFollowUpDraftBundle({
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      message: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        mailboxId: 'mailbox-1',
+        stepIndex: 2,
+        threadMode: 'same_thread',
+        subject: 'Follow-up',
+        bodyText: 'Hi Ali',
+        status: 'draft_pending_review',
+        scheduledAt,
+        providerThreadId: null
+      },
+      timelineEvent: {
+        organizationId: 'org-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        ownerUserId: 'user-1',
+        eventType: 'sequence_follow_up_draft_generated',
+        title: '生成后续开发信草稿',
+        content: 'Follow-up',
+        metadata: {
+          enrollmentId: 'enrollment-1',
+          stepIndex: 2
+        }
+      }
+    });
+
+    assert.equal(result?.message.stepIndex, 2);
+    assert.deepEqual(prisma.crmSequenceEnrollment.findFirstCalls.at(-1)?.where, {
+      id: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmMessage.createCalls.at(-1)?.data, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      mailboxId: 'mailbox-1',
+      stepIndex: 2,
+      threadMode: 'same_thread',
+      subject: 'Follow-up',
+      bodyText: 'Hi Ali',
+      status: 'draft_pending_review',
+      scheduledAt,
+      providerThreadId: null,
+      enrollmentId: 'enrollment-1'
+    });
+    assert.deepEqual(prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata, {
+      enrollmentId: 'enrollment-1',
+      stepIndex: 2,
+      messageId: 'message-2'
+    });
+  });
+
   it('starts first message sending with enrollment and message status guards', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1235,6 +1301,53 @@ describe('PrismaCrmStore', () => {
       nextMessageId: 'message-2',
       nextStepIndex: 2
     });
+  });
+
+  it('reuses an existing local follow-up draft when completing first message send', async () => {
+    const existingNextMessage = createPrismaMessage({
+      id: 'message-local-2',
+      stepIndex: 2,
+      status: 'draft_ready',
+      threadMode: 'same_thread',
+      scheduledAt: new Date('2026-06-21T10:45:00.000Z')
+    });
+    const prisma = createPrisma({ existingNextMessage });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.completeFirstMessageSend({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      sentAt: new Date('2026-06-18T10:45:00.000Z'),
+      providerMessageId: 'gmail-message-1',
+      providerThreadId: 'gmail-thread-1',
+      nextMessage: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        mailboxId: 'mailbox-1',
+        stepIndex: 2,
+        threadMode: 'same_thread',
+        subject: 'Bearing Series for ABC Trading',
+        bodyText: 'Hi Ali,\n\nJust following up.',
+        status: 'draft_pending_review',
+        scheduledAt: new Date('2026-06-21T10:45:00.000Z'),
+        providerThreadId: 'gmail-thread-1'
+      }
+    });
+
+    assert.equal(result?.nextMessage?.id, 'message-local-2');
+    assert.equal(prisma.crmMessage.createCalls.length, 0);
+    assert.deepEqual(prisma.crmMessage.findFirstCalls.at(-1)?.where, {
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      stepIndex: 2
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata.nextMessageId, 'message-local-2');
   });
 
   it('records the sent follow-up step when completing a later queued message', async () => {
@@ -1813,6 +1926,7 @@ function createPrisma(
   options: {
     archivedFingerprintResults?: ReturnType<typeof createPrismaArchivedFingerprint>[];
     blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
+    existingNextMessage?: ReturnType<typeof createPrismaMessage> | null;
     organizationConfig?: ReturnType<typeof createPrismaOrganizationConfig> | null;
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
@@ -2055,7 +2169,11 @@ function createPrisma(
         this.updateCalls.push(args);
         return { ...account, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') };
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...account, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
@@ -2133,7 +2251,11 @@ function createPrisma(
         this.updateCalls.push(args);
         return { ...contact, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') };
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         return [
           {
@@ -2267,7 +2389,11 @@ function createPrisma(
         this.updateManyCalls.push(args);
         return { count: 1 };
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         Object.assign(emailTemplateGroup, args.data, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
         return [emailTemplateGroup];
@@ -2321,7 +2447,11 @@ function createPrisma(
         this.updateManyCalls.push(args);
         return { count: 1 };
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         Object.assign(sequencePolicy, args.data, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
         return [sequencePolicy];
@@ -2486,7 +2616,11 @@ function createPrisma(
       async count() {
         return 1;
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...mailbox, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
@@ -2556,7 +2690,11 @@ function createPrisma(
       async count() {
         return 1;
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...productLine, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
@@ -2593,7 +2731,16 @@ function createPrisma(
             messages: options.sequenceReviewMessages ?? [{ ...message, status: 'queued' }]
           };
         }
-        return args.include ? enrollment : { ...enrollment, account: undefined, contact: undefined, productLine: undefined, mailbox: undefined, messages: undefined };
+        return args.include
+          ? enrollment
+          : {
+              ...enrollment,
+              account: undefined,
+              contact: undefined,
+              productLine: undefined,
+              mailbox: undefined,
+              messages: undefined
+            };
       },
       async findMany(args: {
         where: Record<string, unknown>;
@@ -2608,7 +2755,11 @@ function createPrisma(
       async count() {
         return 1;
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit?: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit?: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...enrollment, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       },
@@ -2640,6 +2791,9 @@ function createPrisma(
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
+        if (args.where.stepIndex && !args.where.status) {
+          return options.existingNextMessage ?? null;
+        }
         if (args.where.status === 'queued' && options.sentMessageResult) {
           return options.sentMessageResult;
         }
@@ -2655,9 +2809,15 @@ function createPrisma(
         }
         return message;
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit?: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit?: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
-        return [{ ...(options.sentMessageResult ?? message), ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+        return [
+          { ...(options.sentMessageResult ?? message), ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }
+        ];
       },
       async updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
         this.updateManyCalls.push(args);
@@ -2686,7 +2846,16 @@ function createPrisma(
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
-        return args.include ? inboxThread : { ...inboxThread, account: undefined, contact: undefined, mailbox: undefined, enrollment: undefined, messages: undefined };
+        return args.include
+          ? inboxThread
+          : {
+              ...inboxThread,
+              account: undefined,
+              contact: undefined,
+              mailbox: undefined,
+              enrollment: undefined,
+              messages: undefined
+            };
       },
       async findMany(args: {
         where: Record<string, unknown>;
@@ -2705,7 +2874,11 @@ function createPrisma(
         this.updateCalls.push(args);
         return { ...inboxThread, ...args.data, updatedAt: new Date('2026-06-18T12:00:00.000Z') };
       },
-      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...inboxThread, ...args.data, updatedAt: new Date('2026-06-18T12:00:00.000Z') }];
       }

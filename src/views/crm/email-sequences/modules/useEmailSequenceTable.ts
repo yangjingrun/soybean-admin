@@ -11,12 +11,14 @@ import {
   fetchCrmSequencePolicies,
   fetchCrmSequenceReviewItem,
   fetchCrmSequenceReviewItems,
+  generateCrmNextSequenceDraft,
   startCrmFirstMessageSend,
   stopCrmSequenceEnrollment,
   updateCrmMessageDraft
 } from '@/service/api';
 import {
   buildSequenceReviewSearchParams,
+  canGenerateNextSequenceDraft,
   createDefaultSequenceCreateForm,
   createDefaultSequenceFilterModel,
   getPendingReviewMessage,
@@ -46,6 +48,7 @@ export function useEmailSequenceTable() {
   const draftSaving = shallowRef(false);
   const draftApproving = shallowRef(false);
   const detailRefreshing = shallowRef(false);
+  const nextDraftGenerating = shallowRef(false);
   const sendStarting = shallowRef(false);
   const sequenceStopping = shallowRef(false);
   const selectedEnrollmentId = shallowRef<string | null>(null);
@@ -54,6 +57,7 @@ export function useEmailSequenceTable() {
   let latestDetailRequestId = 0;
   let latestDraftApproveRequestId = 0;
   let latestDraftSaveRequestId = 0;
+  let latestNextDraftGenerateRequestId = 0;
   let latestResourceRequestId = 0;
   let latestContactRequestId = 0;
 
@@ -225,7 +229,9 @@ export function useEmailSequenceTable() {
 
       contactOptions.value = data.contacts;
       const matchedPreferredContactId =
-        preferredContactId && data.contacts.some(contact => contact.id === preferredContactId) ? preferredContactId : null;
+        preferredContactId && data.contacts.some(contact => contact.id === preferredContactId)
+          ? preferredContactId
+          : null;
       createForm.contactId = matchedPreferredContactId
         ? matchedPreferredContactId
         : data.contacts.some(contact => contact.id === createForm.contactId)
@@ -294,7 +300,9 @@ export function useEmailSequenceTable() {
 
       currentItem.value = data;
       selectedMessageId.value =
-        data.messages.find(reviewMessage => reviewMessage.id === selectedMessageId.value)?.id ?? data.firstMessage?.id ?? null;
+        data.messages.find(reviewMessage => reviewMessage.id === selectedMessageId.value)?.id ??
+        data.firstMessage?.id ??
+        null;
     } finally {
       if (requestId === latestDetailRequestId) {
         drawerLoading.value = false;
@@ -385,6 +393,47 @@ export function useEmailSequenceTable() {
     } finally {
       if (requestId === latestDraftApproveRequestId) {
         draftApproving.value = false;
+      }
+    }
+  }
+
+  async function handleGenerateNextDraft() {
+    const enrollmentId = selectedEnrollmentId.value;
+    const messageId = selectedMessageId.value;
+
+    if (!enrollmentId || !messageId || !currentItem.value || !canGenerateNextSequenceDraft(currentItem.value)) {
+      return;
+    }
+
+    const requestId = latestNextDraftGenerateRequestId + 1;
+    latestNextDraftGenerateRequestId = requestId;
+    nextDraftGenerating.value = true;
+
+    try {
+      const { data, error } = await generateCrmNextSequenceDraft(enrollmentId);
+
+      if (error || requestId !== latestNextDraftGenerateRequestId) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== messageId || !currentItem.value) {
+        return;
+      }
+
+      message.success(`第 ${data.message.stepIndex} 封草稿已生成`);
+      currentItem.value = replaceReviewMessage(
+        {
+          ...currentItem.value,
+          enrollment: data.enrollment
+        },
+        data.message
+      );
+      selectedMessageId.value = data.message.id;
+      await loadSequenceDetail(data.enrollment.id);
+      await loadSequences();
+    } finally {
+      if (requestId === latestNextDraftGenerateRequestId) {
+        nextDraftGenerating.value = false;
       }
     }
   }
@@ -503,6 +552,7 @@ export function useEmailSequenceTable() {
       latestDetailRequestId += 1;
       latestDraftApproveRequestId += 1;
       latestDraftSaveRequestId += 1;
+      latestNextDraftGenerateRequestId += 1;
       selectedEnrollmentId.value = null;
       selectedMessageId.value = null;
       currentItem.value = null;
@@ -538,6 +588,7 @@ export function useEmailSequenceTable() {
     handleCreateReviewItem,
     handleCreateVisibleUpdate,
     handleDrawerVisibleUpdate,
+    handleGenerateNextDraft,
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
@@ -550,6 +601,7 @@ export function useEmailSequenceTable() {
     loadSequences,
     loading,
     mailboxSelectOptions,
+    nextDraftGenerating,
     openCreateModal,
     openDraftDrawer,
     pagination,
@@ -568,9 +620,10 @@ function replaceReviewMessage(
   message: Api.Crm.MessageRecord
 ): Api.Crm.SequenceReviewItem {
   const hasMessage = item.messages.some(current => current.id === message.id);
-  const messages = (hasMessage
-    ? item.messages.map(current => (current.id === message.id ? message : current))
-    : [...item.messages, message]
+  const messages = (
+    hasMessage
+      ? item.messages.map(current => (current.id === message.id ? message : current))
+      : [...item.messages, message]
   ).sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt));
 
   return {

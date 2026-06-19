@@ -482,9 +482,10 @@ describe('CrmController', () => {
     assert.equal(result.code, '0000');
     assert.ok(result.data);
     assert.equal(result.data.watch.historyId, '150');
-    assert.deepEqual(calls.map(call => ({ id: call.id, userId: call.context.userId })), [
-      { id: 'mailbox-1', userId: 'user-1' }
-    ]);
+    assert.deepEqual(
+      calls.map(call => ({ id: call.id, userId: call.context.userId })),
+      [{ id: 'mailbox-1', userId: 'user-1' }]
+    );
   });
 
   it('enqueues an immediate Gmail sync with the current user context', async () => {
@@ -513,9 +514,10 @@ describe('CrmController', () => {
 
     assert.equal(result.code, '0000');
     assert.equal(result.data.sync.queued, true);
-    assert.deepEqual(calls.map(call => ({ id: call.id, userId: call.context.userId })), [
-      { id: 'mailbox-1', userId: 'user-1' }
-    ]);
+    assert.deepEqual(
+      calls.map(call => ({ id: call.id, userId: call.context.userId })),
+      [{ id: 'mailbox-1', userId: 'user-1' }]
+    );
   });
 
   it('lists product lines with the current organization context', async () => {
@@ -756,6 +758,19 @@ describe('CrmController', () => {
 
           return createSendStartView({ id });
         },
+        async generateNextDraft(id, context) {
+          calls.push({ action: 'generate-next-draft', id, context });
+
+          return {
+            enrollment: createEnrollmentView({ id, status: 'ready_to_send' }),
+            message: createMessageView({
+              id: 'message-2',
+              enrollmentId: id,
+              stepIndex: 2,
+              status: 'draft_pending_review'
+            })
+          };
+        },
         async stopSequenceEnrollment(id, context) {
           calls.push({ action: 'stop', id, context });
 
@@ -770,11 +785,14 @@ describe('CrmController', () => {
     });
     const approved = await controller.approveMessageDraft('Bearer token', 'message-1');
     const queued = await controller.startFirstMessageSend('Bearer token', 'enrollment-1');
+    const generated = await controller.generateNextDraft('Bearer token', 'enrollment-1');
     const stopped = await controller.stopSequenceEnrollment('Bearer token', 'enrollment-1');
 
     assert.equal(updated.data.message.subject, 'Hello');
     assert.equal(approved.data.enrollment.status, 'ready_to_send');
     assert.equal(queued.data.message.status, 'queued');
+    assert.equal(generated.data.enrollment.status, 'ready_to_send');
+    assert.equal(generated.data.message.stepIndex, 2);
     assert.equal(stopped.data.enrollment.status, 'stopped');
     assert.deepEqual(
       calls.map(call => [call.action, call.id, call.context.organizationId]),
@@ -782,6 +800,7 @@ describe('CrmController', () => {
         ['update', 'message-1', 'org-1'],
         ['approve', 'message-1', 'org-1'],
         ['start-send', 'enrollment-1', 'org-1'],
+        ['generate-next-draft', 'enrollment-1', 'org-1'],
         ['stop', 'enrollment-1', 'org-1']
       ]
     );
@@ -877,7 +896,8 @@ describe('CrmController', () => {
   });
 
   it('reads and saves organization CRM config with the current organization context', async () => {
-    const calls: Array<{ action: string; dto?: { allowAdminViewMemberEmailBody: boolean }; context: CrmUserContext }> = [];
+    const calls: Array<{ action: string; dto?: { allowAdminViewMemberEmailBody: boolean }; context: CrmUserContext }> =
+      [];
     const controller = new CrmController(
       createAuthService(createUser({ organizationRole: 'admin' })),
       createCrmService({
@@ -1070,25 +1090,27 @@ function createMailboxView(overrides: Partial<CrmMailboxView> = {}) {
   };
 }
 
-function createProductLineView(overrides: Partial<{
-  id: string;
-  organizationId: string;
-  name: string;
-  targetCustomerType: string | null;
-  coreSellingPoints: string | null;
-  moq: string | null;
-  leadTime: string | null;
-  paymentTerms: string | null;
-  certifications: string | null;
-  catalogUrl: string | null;
-  websiteUrl: string | null;
-  commonModelsText: string | null;
-  status: 'active' | 'archived';
-  createdById: string;
-  createdByName: string | null;
-  createdAt: string;
-  updatedAt: string;
-}> = {}) {
+function createProductLineView(
+  overrides: Partial<{
+    id: string;
+    organizationId: string;
+    name: string;
+    targetCustomerType: string | null;
+    coreSellingPoints: string | null;
+    moq: string | null;
+    leadTime: string | null;
+    paymentTerms: string | null;
+    certifications: string | null;
+    catalogUrl: string | null;
+    websiteUrl: string | null;
+    commonModelsText: string | null;
+    status: 'active' | 'archived';
+    createdById: string;
+    createdByName: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }> = {}
+) {
   return {
     id: 'product-line-1',
     organizationId: 'org-1',
@@ -1142,32 +1164,34 @@ function createTemplateDefaultsView() {
   };
 }
 
-function createEmailTemplateGroupView(overrides: Partial<{
-  id: string;
-  organizationId: string;
-  name: string;
-  language: string;
-  description: string | null;
-  status: 'active' | 'archived';
-  isDefault: boolean;
-  createdById: string;
-  createdByName: string | null;
-  createdAt: string;
-  updatedAt: string;
-  steps: Array<{
+function createEmailTemplateGroupView(
+  overrides: Partial<{
     id: string;
     organizationId: string;
-    templateGroupId: string;
-    stepIndex: number;
     name: string;
-    threadMode: 'new_subject' | 'same_thread';
-    delayDays: number;
-    subjectTemplate: string;
-    bodyTemplate: string;
+    language: string;
+    description: string | null;
+    status: 'active' | 'archived';
+    isDefault: boolean;
+    createdById: string;
+    createdByName: string | null;
     createdAt: string;
     updatedAt: string;
-  }>;
-}> = {}) {
+    steps: Array<{
+      id: string;
+      organizationId: string;
+      templateGroupId: string;
+      stepIndex: number;
+      name: string;
+      threadMode: 'new_subject' | 'same_thread';
+      delayDays: number;
+      subjectTemplate: string;
+      bodyTemplate: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  }> = {}
+) {
   return {
     id: 'template-1',
     organizationId: 'org-1',
@@ -1383,9 +1407,7 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
   };
 }
 
-function createOrganizationConfigView(
-  overrides: Partial<CrmOrganizationConfigView> = {}
-): CrmOrganizationConfigView {
+function createOrganizationConfigView(overrides: Partial<CrmOrganizationConfigView> = {}): CrmOrganizationConfigView {
   return {
     id: 'crm-organization-config-1',
     organizationId: 'org-1',

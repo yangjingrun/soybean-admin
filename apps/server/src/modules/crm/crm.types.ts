@@ -49,7 +49,14 @@ export const crmSequenceEnrollmentStatuses = [
   'replied',
   'archived'
 ] as const;
-export const crmMessageStatuses = ['draft_pending_review', 'draft_ready', 'queued', 'sent', 'failed', 'skipped'] as const;
+export const crmMessageStatuses = [
+  'draft_pending_review',
+  'draft_ready',
+  'queued',
+  'sent',
+  'failed',
+  'skipped'
+] as const;
 export const crmMessageThreadModes = ['new_subject', 'same_thread'] as const;
 export const crmInboxThreadStatuses = ['pending', 'handled', 'archived'] as const;
 export const crmInboxMessageTypes = ['customer_reply', 'bounce', 'unsubscribe_hint'] as const;
@@ -773,6 +780,20 @@ export interface CrmSequenceDraftBundleRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmFollowUpDraftBundleCreateInput {
+  enrollmentId: string;
+  organizationId: string;
+  ownerUserId: string;
+  message: Omit<CrmMessageCreateInput, 'enrollmentId'>;
+  timelineEvent: CrmTimelineEventCreateInput;
+}
+
+export interface CrmFollowUpDraftBundleRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  event: CrmTimelineEventRecord;
+}
+
 export interface CrmMessageDraftUpdateGuard {
   status: CrmMessageStatus;
 }
@@ -1116,18 +1137,10 @@ export interface CrmStore {
   ): Promise<CrmContactRecord | null>;
   createContact(input: CrmContactCreateInput): Promise<CrmContactRecord>;
   updateContact(id: string, input: CrmContactUpdateInput): Promise<CrmContactRecord | null>;
-  findContactById(args: {
-    id: string;
-    organizationId: string;
-    ownerUserId?: string;
-  }): Promise<CrmContactRecord | null>;
+  findContactById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmContactRecord | null>;
   updateContactEmailStatus(id: string, emailStatus: CrmEmailStatus): Promise<CrmContactRecord | null>;
-  findEmailVerificationCache(args: {
-    emailHash: string;
-  }): Promise<CrmEmailVerificationCacheRecord | null>;
-  upsertEmailVerificationCache(
-    input: CrmEmailVerificationCacheUpsertInput
-  ): Promise<CrmEmailVerificationCacheRecord>;
+  findEmailVerificationCache(args: { emailHash: string }): Promise<CrmEmailVerificationCacheRecord | null>;
+  upsertEmailVerificationCache(input: CrmEmailVerificationCacheUpsertInput): Promise<CrmEmailVerificationCacheRecord>;
   getGlobalConfig(): Promise<CrmGlobalConfigRecord>;
   saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
   getOrganizationConfig(organizationId: string): Promise<CrmOrganizationConfigRecord | null>;
@@ -1152,10 +1165,7 @@ export interface CrmStore {
     ownerUserId?: string;
   }): Promise<CrmAccountDetailRecord | null>;
   createTimelineEvent(input: CrmTimelineEventCreateInput): Promise<CrmTimelineEventRecord>;
-  findMailboxByProviderAndEmailHash(
-    provider: CrmMailboxProvider,
-    emailHash: string
-  ): Promise<CrmMailboxRecord | null>;
+  findMailboxByProviderAndEmailHash(provider: CrmMailboxProvider, emailHash: string): Promise<CrmMailboxRecord | null>;
   createMailbox(input: CrmMailboxCreateInput): Promise<CrmMailboxRecord>;
   listMailboxes(args: {
     organizationId: string;
@@ -1165,11 +1175,7 @@ export interface CrmStore {
     skip: number;
     take: number;
   }): Promise<{ records: CrmMailboxRecord[]; total: number }>;
-  findMailboxById(args: {
-    id: string;
-    organizationId: string;
-    ownerUserId?: string;
-  }): Promise<CrmMailboxRecord | null>;
+  findMailboxById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmMailboxRecord | null>;
   updateMailbox(id: string, input: CrmMailboxUpdateInput): Promise<CrmMailboxRecord | null>;
   listMailboxesForWatchRenewal(input: CrmMailboxWatchRenewalListInput): Promise<CrmMailboxRecord[]>;
   listProductLines(args: {
@@ -1227,6 +1233,7 @@ export interface CrmStore {
   }): Promise<CrmSequenceEnrollmentRecord | null>;
   createSequenceEnrollment(input: CrmSequenceEnrollmentCreateInput): Promise<CrmSequenceEnrollmentRecord>;
   createSequenceDraftBundle(input: CrmSequenceDraftBundleCreateInput): Promise<CrmSequenceDraftBundleRecord>;
+  createFollowUpDraftBundle(input: CrmFollowUpDraftBundleCreateInput): Promise<CrmFollowUpDraftBundleRecord | null>;
   listSequenceReviewItems(args: {
     organizationId: string;
     ownerUserId?: string;
@@ -1246,11 +1253,7 @@ export interface CrmStore {
     input: CrmSequenceEnrollmentUpdateInput
   ): Promise<CrmSequenceEnrollmentRecord | null>;
   createMessage(input: CrmMessageCreateInput): Promise<CrmMessageRecord>;
-  findMessageById(args: {
-    id: string;
-    organizationId: string;
-    ownerUserId?: string;
-  }): Promise<CrmMessageRecord | null>;
+  findMessageById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmMessageRecord | null>;
   findSentMessageByProviderId(args: {
     organizationId: string;
     ownerUserId: string;
@@ -1294,9 +1297,7 @@ export interface CrmStore {
     organizationId: string;
     ownerUserId?: string;
   }): Promise<CrmInboxThreadDetailRecord | null>;
-  updateInboxThreadStatus(
-    input: CrmInboxThreadStatusUpdateInput
-  ): Promise<CrmInboxThreadStatusUpdateRecord | null>;
+  updateInboxThreadStatus(input: CrmInboxThreadStatusUpdateInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
   syncInboxThreadGmailState(input: CrmInboxThreadGmailStateSyncInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
   replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null>;
 }

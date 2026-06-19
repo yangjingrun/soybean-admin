@@ -351,6 +351,14 @@ export function approveCrmMessageDraft(id: string) {
   });
 }
 
+/** Generate the next local follow-up draft for one sequence without queueing it. */
+export function generateCrmNextSequenceDraft(enrollmentId: string) {
+  return request<Api.Crm.MessageNextDraftGenerateResult>({
+    url: `/crm/sequence-review-items/${enrollmentId}/generate-next-draft`,
+    method: 'post'
+  });
+}
+
 /** Start the first approved message by putting it into the CRM send queue. */
 export function startCrmFirstMessageSend(enrollmentId: string) {
   return request<Api.Crm.MessageSendStartResult>({

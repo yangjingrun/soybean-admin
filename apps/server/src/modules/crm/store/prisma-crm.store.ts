@@ -79,6 +79,8 @@ import type {
   CrmOrganizationConfigRecord,
   CrmDraftApprovalInput,
   CrmDraftApprovalRecord,
+  CrmFollowUpDraftBundleCreateInput,
+  CrmFollowUpDraftBundleRecord,
   CrmSequenceEnrollmentCreateInput,
   CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
@@ -319,9 +321,7 @@ export class PrismaCrmStore implements CrmStore {
   }
 
   async saveGlobalConfig(input: CrmGlobalConfigInput) {
-    const emailVerificationCooldownDays = normalizeEmailVerificationCooldownDays(
-      input.emailVerificationCooldownDays
-    );
+    const emailVerificationCooldownDays = normalizeEmailVerificationCooldownDays(input.emailVerificationCooldownDays);
     const followUpDelayDaysText = serializeFollowUpDelayDays(input.followUpDelayDays);
     const record = await this.prisma.crmGlobalConfig.upsert({
       where: { configKey: crmGlobalConfigKey },
@@ -1123,6 +1123,47 @@ export class PrismaCrmStore implements CrmStore {
     });
   }
 
+  async createFollowUpDraftBundle(
+    input: CrmFollowUpDraftBundleCreateInput
+  ): Promise<CrmFollowUpDraftBundleRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const enrollment = await tx.crmSequenceEnrollment.findFirst({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        }
+      });
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const message = await tx.crmMessage.create({
+        data: {
+          ...input.message,
+          enrollmentId: enrollment.id
+        } as Prisma.CrmMessageUncheckedCreateInput
+      });
+      const metadata = input.timelineEvent.metadata as Record<string, unknown>;
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          ...input.timelineEvent,
+          metadata: {
+            ...metadata,
+            messageId: message.id
+          }
+        } as Prisma.CrmTimelineEventUncheckedCreateInput
+      });
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
   async listSequenceReviewItems(args: {
     organizationId: string;
     ownerUserId?: string;
@@ -1158,11 +1199,7 @@ export class PrismaCrmStore implements CrmStore {
     return record ? toSequenceReviewRecord(record) : null;
   }
 
-  async updateSequenceEnrollment(
-    id: string,
-    organizationId: string,
-    input: CrmSequenceEnrollmentUpdateInput
-  ) {
+  async updateSequenceEnrollment(id: string, organizationId: string, input: CrmSequenceEnrollmentUpdateInput) {
     const records = await this.prisma.crmSequenceEnrollment.updateManyAndReturn({
       where: {
         id,
@@ -1648,14 +1685,28 @@ export class PrismaCrmStore implements CrmStore {
         return null;
       }
 
-      const nextMessage = input.nextMessage
-        ? await tx.crmMessage.create({
+      let nextMessage: CrmMessageModel | null = null;
+
+      if (input.nextMessage) {
+        nextMessage = await tx.crmMessage.findFirst({
+          where: {
+            enrollmentId: enrollment.id,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            stepIndex: input.nextMessage.stepIndex
+          }
+        });
+
+        if (!nextMessage) {
+          nextMessage = await tx.crmMessage.create({
             data: {
               ...input.nextMessage,
               enrollmentId: enrollment.id
             } as Prisma.CrmMessageUncheckedCreateInput
-          })
-        : null;
+          });
+        }
+      }
+
       const account = await tx.crmAccount.update({
         where: { id: enrollment.accountId },
         data: { status: 'sequence_running' }
@@ -2815,7 +2866,9 @@ function toSequencePolicyRecord(record: CrmSequencePolicyModel): CrmSequencePoli
   };
 }
 
-function toSequencePolicyCreateInput(input: CrmSequencePolicyCreateInput): Prisma.CrmSequencePolicyUncheckedCreateInput {
+function toSequencePolicyCreateInput(
+  input: CrmSequencePolicyCreateInput
+): Prisma.CrmSequencePolicyUncheckedCreateInput {
   return {
     organizationId: input.organizationId,
     name: input.name,
@@ -2832,7 +2885,9 @@ function toSequencePolicyCreateInput(input: CrmSequencePolicyCreateInput): Prism
   };
 }
 
-function toSequencePolicyUpdateInput(input: CrmSequencePolicyUpdateInput): Prisma.CrmSequencePolicyUncheckedUpdateInput {
+function toSequencePolicyUpdateInput(
+  input: CrmSequencePolicyUpdateInput
+): Prisma.CrmSequencePolicyUncheckedUpdateInput {
   return {
     name: input.name,
     description: input.description,

@@ -1,4 +1,11 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional
+} from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
@@ -8,6 +15,7 @@ import { SystemNotificationService } from '../system-notification/system-notific
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
 import { normalizeEmailVerificationCooldownDays } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
+import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
   defaultSequencePolicySteps,
@@ -97,6 +105,8 @@ const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
 const queuedMessageStatus: CrmMessageStatus = 'queued';
+const nextDraftEnrollmentStatuses: CrmSequenceEnrollmentStatus[] = ['ready_to_send', 'sequence_running'];
+const blockingNextDraftMessageStatuses: CrmMessageStatus[] = ['draft_pending_review', 'queued', 'failed'];
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
 const inboxNotificationTargetType = 'crmInboxThread';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
@@ -626,7 +636,14 @@ export class CrmService {
       throw new BadRequestException('该 Gmail 地址已绑定');
     }
 
-    await this.recordMailboxLog('mailbox-mock-authorize', 'CRM 邮箱 mock 授权完成', context, mailbox, null, mailbox.status);
+    await this.recordMailboxLog(
+      'mailbox-mock-authorize',
+      'CRM 邮箱 mock 授权完成',
+      context,
+      mailbox,
+      null,
+      mailbox.status
+    );
 
     return { mailbox: toMailboxView(mailbox) };
   }
@@ -800,7 +817,14 @@ export class CrmService {
       })
     );
 
-    await this.recordProductLineLog('product-line-create', 'CRM 产品资料新建', context, productLine, null, productLine.status);
+    await this.recordProductLineLog(
+      'product-line-create',
+      'CRM 产品资料新建',
+      context,
+      productLine,
+      null,
+      productLine.status
+    );
 
     return { productLine: toProductLineView(productLine) };
   }
@@ -903,7 +927,14 @@ export class CrmService {
       })
     );
 
-    await this.recordEmailTemplateLog('email-template-create', 'CRM 邮件模板新建', context, templateGroup, null, templateGroup.status);
+    await this.recordEmailTemplateLog(
+      'email-template-create',
+      'CRM 邮件模板新建',
+      context,
+      templateGroup,
+      null,
+      templateGroup.status
+    );
 
     return { templateGroup: toEmailTemplateGroupView(templateGroup) };
   }
@@ -1056,7 +1087,14 @@ export class CrmService {
     const data = normalizeSequencePolicyCreateInput(input, context);
     const policy = await this.runSequencePolicyWrite(() => this.store.createSequencePolicy(data));
 
-    await this.recordSequencePolicyLog('sequence-policy-create', 'CRM 序列策略新建', context, policy, null, policy.status);
+    await this.recordSequencePolicyLog(
+      'sequence-policy-create',
+      'CRM 序列策略新建',
+      context,
+      policy,
+      null,
+      policy.status
+    );
 
     return { policy: toSequencePolicyView(policy) };
   }
@@ -1369,14 +1407,131 @@ export class CrmService {
     };
   }
 
-  /** Confirms a follow-up draft and schedules its guarded send job. */
+  /** Locally creates the next follow-up draft without Gmail, BullMQ, or mutating existing message statuses. */
+  async generateNextDraft(id: string, context: CrmUserContext) {
+    const item = await this.requireOwnedSequenceReviewItem(id, context);
+
+    if (!nextDraftEnrollmentStatuses.includes(item.enrollment.status)) {
+      throw new BadRequestException('当前序列状态不能生成下一封草稿');
+    }
+
+    const sourceMessage = item.messages.at(-1);
+
+    if (!sourceMessage) {
+      throw new BadRequestException('当前序列还没有可参考的开发信');
+    }
+
+    if (sourceMessage.stepIndex >= item.enrollment.totalSteps) {
+      throw new BadRequestException('当前序列已达到最大步骤数');
+    }
+
+    const blockingMessage = item.messages.find(message => blockingNextDraftMessageStatuses.includes(message.status));
+
+    if (blockingMessage) {
+      throw new BadRequestException('已存在下一步草稿或待发送消息，请先处理后再生成');
+    }
+
+    const [globalConfig, defaultTemplateGroup] = await Promise.all([
+      this.store.getGlobalConfig(),
+      this.store.findDefaultEmailTemplateGroup(context.organizationId)
+    ]);
+    const nextMessage = buildNextFollowUpDraft({
+      item,
+      sourceMessage,
+      providerThreadId: sourceMessage.providerThreadId,
+      baseTime: new Date(),
+      followUpDelayDays: globalConfig.followUpDelayDays,
+      templateGroup: defaultTemplateGroup,
+      senderName: context.userName
+    });
+
+    if (!nextMessage) {
+      throw new BadRequestException('当前序列没有可生成的下一步草稿');
+    }
+
+    const bundle = await this.runFollowUpDraftWrite(() =>
+      this.store.createFollowUpDraftBundle({
+        enrollmentId: item.enrollment.id,
+        organizationId: context.organizationId,
+        ownerUserId: context.userId,
+        message: nextMessage,
+        timelineEvent: {
+          organizationId: nextMessage.organizationId,
+          accountId: nextMessage.accountId,
+          contactId: nextMessage.contactId,
+          ownerUserId: context.userId,
+          eventType: 'sequence_follow_up_draft_generated',
+          title: '生成后续开发信草稿',
+          content: nextMessage.subject,
+          metadata: {
+            enrollmentId: item.enrollment.id,
+            stepIndex: nextMessage.stepIndex
+          }
+        }
+      })
+    );
+
+    if (!bundle) {
+      throw new NotFoundException('开发信序列不存在');
+    }
+
+    await this.recordCrmLog('follow-up-draft-generate', 'CRM 后续开发信草稿本地生成', context, {
+      organizationId: context.organizationId,
+      accountId: bundle.message.accountId,
+      contactId: bundle.message.contactId,
+      enrollmentId: item.enrollment.id,
+      messageId: bundle.message.id,
+      stepIndex: bundle.message.stepIndex
+    });
+
+    return {
+      enrollment: toSequenceEnrollmentView(bundle.enrollment),
+      message: toMessageView(bundle.message)
+    };
+  }
+
+  /** Confirms a follow-up draft locally, or schedules it when the sequence is already sending. */
   private async approveFollowUpMessageDraft(
     message: CrmMessageRecord,
     reviewItem: CrmSequenceReviewRecord,
     context: CrmUserContext
   ) {
-    if (reviewItem.enrollment.status !== 'sequence_running') {
+    if (!nextDraftEnrollmentStatuses.includes(reviewItem.enrollment.status)) {
       throw new BadRequestException('当前序列状态不能确认后续草稿');
+    }
+
+    if (reviewItem.enrollment.status === 'ready_to_send') {
+      const approval = await this.store.approveMessageDraft({
+        messageId: message.id,
+        enrollmentId: reviewItem.enrollment.id,
+        organizationId: context.organizationId,
+        ownerUserId: context.userId,
+        accountId: message.accountId,
+        contactId: message.contactId,
+        fromEnrollmentStatus: 'ready_to_send',
+        toEnrollmentStatus: 'ready_to_send',
+        fromMessageStatus: 'draft_pending_review',
+        toMessageStatus: approvedDraftStatus,
+        accountStatus: 'ready'
+      });
+
+      if (!approval) {
+        throw new BadRequestException('当前草稿状态已变化，请刷新后重试');
+      }
+
+      await this.recordCrmLog('follow-up-draft-approve-local', 'CRM 后续开发信人工确认', context, {
+        organizationId: context.organizationId,
+        accountId: approval.message.accountId,
+        contactId: approval.message.contactId,
+        enrollmentId: approval.enrollment.id,
+        messageId: approval.message.id,
+        stepIndex: approval.message.stepIndex
+      });
+
+      return {
+        enrollment: toSequenceEnrollmentView(approval.enrollment),
+        message: toMessageView(approval.message)
+      };
     }
 
     if (!reviewItem.mailbox || reviewItem.mailbox.status !== 'active') {
@@ -1631,7 +1786,8 @@ export class CrmService {
       ownerUserId: context.userId,
       fromStatus: currentThread.status,
       toStatus: input.status,
-      accountStatus: input.status === 'handled' ? 'followed_up' : input.status === 'pending' ? 'replied_pending' : undefined
+      accountStatus:
+        input.status === 'handled' ? 'followed_up' : input.status === 'pending' ? 'replied_pending' : undefined
     });
 
     if (!updated) {
@@ -1639,7 +1795,11 @@ export class CrmService {
     }
 
     if (input.status === 'handled') {
-      await this.systemNotificationService?.markTargetReadForUser(inboxNotificationTargetType, updated.thread.id, context.userId);
+      await this.systemNotificationService?.markTargetReadForUser(
+        inboxNotificationTargetType,
+        updated.thread.id,
+        context.userId
+      );
     }
 
     await this.recordCrmLog('inbox-thread-status-update', 'CRM 收件箱处理状态更新', context, {
@@ -1790,7 +1950,9 @@ export class CrmService {
     });
     const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
 
-    return detail ? toInboxThreadDetailView(detail, context, organizationConfig) : toInboxReplyIngestView(ingested, context);
+    return detail
+      ? toInboxThreadDetailView(detail, context, organizationConfig)
+      : toInboxReplyIngestView(ingested, context);
   }
 
   private async importContactIfPresent(
@@ -1984,11 +2146,7 @@ export class CrmService {
     };
   }
 
-  private async findArchivedImportMatches(
-    domain: string | null,
-    input: ImportCrmLeadInput,
-    context: CrmUserContext
-  ) {
+  private async findArchivedImportMatches(domain: string | null, input: ImportCrmLeadInput, context: CrmUserContext) {
     const fingerprints = buildLeadImportFingerprints(domain, input);
 
     if (fingerprints.length === 0) {
@@ -2376,7 +2534,11 @@ export class CrmService {
     }
   }
 
-  private async enqueueFirstMessage(enrollment: CrmSequenceEnrollmentRecord, message: CrmMessageRecord, delayMs?: number) {
+  private async enqueueFirstMessage(
+    enrollment: CrmSequenceEnrollmentRecord,
+    message: CrmMessageRecord,
+    delayMs?: number
+  ) {
     if (!this.sendQueue) {
       throw new BadRequestException('CRM 邮件发送队列未启用');
     }
@@ -2457,12 +2619,19 @@ export class CrmService {
     }
   }
 
-  private recordCrmLog(
-    action: string,
-    message: string,
-    context: CrmUserContext,
-    metadata: Record<string, unknown>
-  ) {
+  private async runFollowUpDraftWrite<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        throw new BadRequestException('已存在下一步草稿或待发送消息，请先处理后再生成');
+      }
+
+      throw error;
+    }
+  }
+
+  private recordCrmLog(action: string, message: string, context: CrmUserContext, metadata: Record<string, unknown>) {
     return this.systemLogService?.record({
       level: 'info',
       status: 'success',
@@ -2488,7 +2657,11 @@ export class CrmService {
     visibleMessageCount: number,
     context: CrmUserContext
   ) {
-    if (!context.roles.includes('R_SUPER') || record.thread.ownerUserId === context.userId || visibleMessageCount <= 0) {
+    if (
+      !context.roles.includes('R_SUPER') ||
+      record.thread.ownerUserId === context.userId ||
+      visibleMessageCount <= 0
+    ) {
       return undefined;
     }
 
@@ -2750,7 +2923,7 @@ function toInboxThreadListView(
     contact: toContactView(record.contact),
     mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
     enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
-    lastMessageSnippet: canReadBody ? record.lastMessage?.snippet ?? '' : '',
+    lastMessageSnippet: canReadBody ? (record.lastMessage?.snippet ?? '') : '',
     canReadBody,
     canOperate: record.thread.ownerUserId === context.userId
   };

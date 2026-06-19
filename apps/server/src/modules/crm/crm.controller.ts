@@ -66,7 +66,10 @@ export class CrmController {
   @Post('accounts/import-lead')
   async importLead(@Headers('authorization') authorization = '', @Body() dto: ImportCrmLeadDto) {
     return ok(
-      await this.crmService.importAccountFromLead({ ...dto, sourceTaskId: null }, this.requireUserContext(authorization))
+      await this.crmService.importAccountFromLead(
+        { ...dto, sourceTaskId: null },
+        this.requireUserContext(authorization)
+      )
     );
   }
 
@@ -152,10 +155,7 @@ export class CrmController {
   }
 
   @Post('mailboxes/mock-authorize')
-  async mockAuthorizeMailbox(
-    @Headers('authorization') authorization = '',
-    @Body() dto: MockAuthorizeCrmMailboxDto
-  ) {
+  async mockAuthorizeMailbox(@Headers('authorization') authorization = '', @Body() dto: MockAuthorizeCrmMailboxDto) {
     const context = this.requireUserContext(authorization);
     this.requireMockEndpointsEnabled(context);
 
@@ -233,10 +233,7 @@ export class CrmController {
   }
 
   @Post('email-template-groups')
-  async createEmailTemplateGroup(
-    @Headers('authorization') authorization = '',
-    @Body() dto: CreateCrmEmailTemplateDto
-  ) {
+  async createEmailTemplateGroup(@Headers('authorization') authorization = '', @Body() dto: CreateCrmEmailTemplateDto) {
     return ok(await this.crmService.createEmailTemplateGroup(dto, this.requireUserContext(authorization)));
   }
 
@@ -265,10 +262,7 @@ export class CrmController {
   }
 
   @Get('sequence-policies')
-  async listSequencePolicies(
-    @Headers('authorization') authorization = '',
-    @Query() query: CrmSequencePolicyQueryDto
-  ) {
+  async listSequencePolicies(@Headers('authorization') authorization = '', @Query() query: CrmSequencePolicyQueryDto) {
     return ok(await this.crmService.listSequencePolicies(this.requireUserContext(authorization), query));
   }
 
@@ -334,6 +328,11 @@ export class CrmController {
   @Post('sequence-review-items/:id/start-send')
   async startFirstMessageSend(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.startFirstMessageSend(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('sequence-review-items/:id/generate-next-draft')
+  async generateNextDraft(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.generateNextDraft(id, this.requireUserContext(authorization)));
   }
 
   @Post('sequence-review-items/:id/stop')
