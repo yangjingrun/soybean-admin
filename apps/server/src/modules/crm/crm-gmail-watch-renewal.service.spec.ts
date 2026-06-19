@@ -36,6 +36,22 @@ describe('CrmGmailWatchRenewalService', () => {
     }
   });
 
+  it('falls back to the default batch size when the env value is not an integer', async () => {
+    const originalBatchSize = process.env.CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE;
+    const store = createStore([createMailbox()]);
+    const service = new CrmGmailWatchRenewalService(store, createGateway());
+
+    process.env.CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE = '1.5';
+
+    try {
+      await service.renewDueMailboxWatches(new Date('2026-06-19T08:00:00.000Z'));
+
+      assert.equal(store.renewalListCalls[0].take, 50);
+    } finally {
+      restoreEnv('CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE', originalBatchSize);
+    }
+  });
+
   it('does not run overlapping scheduled renewal batches', async () => {
     const originalSetInterval = globalThis.setInterval;
     const originalClearInterval = globalThis.clearInterval;

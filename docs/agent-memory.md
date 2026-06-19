@@ -327,6 +327,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认带空白和大小写变化的 disabled env 不会启动首批续订或 interval。
 
+### 2026-06-19 Gmail watch 自动续订批大小 env 必须是正整数
+
+- 场景：自动续订读取 `CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE` 后传给 store 的分页 `take`。
+- 坑点：`Number('1.5')` 是有限正数，但 Prisma 分页 `take` 需要整数；如果小数透传，可能在运行期触发底层查询错误。
+- 正确做法：interval/window 这类毫秒配置可按正数处理，`CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE` 必须使用正整数校验；非整数、非正数或非法值回退默认 50。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认 `CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE=1.5` 时传给 store 的 `take` 回退为 50。
+
 ### 记录模板
 
 ```md

@@ -58,7 +58,7 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
     const mailboxes = await this.store.listMailboxesForWatchRenewal({
       provider: 'gmail',
       renewBefore,
-      take: getPositiveEnvNumber('CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE', defaultRenewalBatchSize)
+      take: getPositiveIntegerEnvNumber('CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE', defaultRenewalBatchSize)
     });
     const result: CrmGmailWatchRenewalResult = {
       checkedCount: mailboxes.length,
@@ -244,4 +244,9 @@ function isWatchRenewalDisabled() {
 function getPositiveEnvNumber(key: string, fallback: number) {
   const value = Number(process.env[key]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function getPositiveIntegerEnvNumber(key: string, fallback: number) {
+  const value = Number(process.env[key]);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
 }
