@@ -425,6 +425,18 @@ export interface CrmAccountUpdateInput {
   archiveSlimmedAt?: Date | null;
 }
 
+export interface CrmArchiveSlimmingListInput {
+  archivedBefore: Date;
+  take: number;
+}
+
+export interface CrmArchiveSlimInput {
+  id: string;
+  organizationId: string;
+  archivedBefore: Date;
+  slimmedAt: Date;
+}
+
 export interface CrmContactCreateInput {
   organizationId: string;
   accountId: string;
@@ -917,6 +929,8 @@ export interface CrmStore {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
   updateAccount(id: string, input: CrmAccountUpdateInput): Promise<CrmAccountRecord | null>;
+  listAccountsForArchiveSlimming(input: CrmArchiveSlimmingListInput): Promise<CrmAccountRecord[]>;
+  slimArchivedAccount(input: CrmArchiveSlimInput): Promise<CrmAccountRecord | null>;
   findContactByEmailHash(
     organizationId: string,
     ownerUserId: string,

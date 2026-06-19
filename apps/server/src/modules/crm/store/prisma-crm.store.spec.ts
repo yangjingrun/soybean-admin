@@ -62,6 +62,53 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('lists and slims archived accounts after the recovery window', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const archivedBefore = new Date('2026-05-20T00:00:00.000Z');
+    const slimmedAt = new Date('2026-06-19T00:00:00.000Z');
+
+    await store.listAccountsForArchiveSlimming({
+      archivedBefore,
+      take: 100
+    });
+    await store.slimArchivedAccount({
+      id: 'account-1',
+      organizationId: 'org-1',
+      archivedBefore,
+      slimmedAt
+    });
+
+    assert.deepEqual(prisma.crmAccount.findManyCalls.at(-1), {
+      where: {
+        status: 'archived',
+        archiveSlimmedAt: null,
+        archivedAt: {
+          lte: archivedBefore
+        }
+      },
+      orderBy: { archivedAt: 'asc' },
+      take: 100
+    });
+    assert.deepEqual(prisma.crmAccount.updateManyAndReturnCalls[0], {
+      where: {
+        id: 'account-1',
+        organizationId: 'org-1',
+        status: 'archived',
+        archiveSlimmedAt: null,
+        archivedAt: {
+          lte: archivedBefore
+        }
+      },
+      data: {
+        archiveSlimmedAt: slimmedAt,
+        customerType: null,
+        websiteUrl: null
+      },
+      limit: 1
+    });
+  });
+
   it('returns the existing account when concurrent create hits a unique conflict', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1657,6 +1704,11 @@ function createPrisma(
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{ where: Record<string, unknown> }>,
       updateCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
       createError: null as Error | null,
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
@@ -1681,6 +1733,10 @@ function createPrisma(
       async update(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
         this.updateCalls.push(args);
         return { ...account, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') };
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [{ ...account, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
     },
     crmContact: {

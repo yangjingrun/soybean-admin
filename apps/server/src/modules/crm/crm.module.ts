@@ -6,6 +6,7 @@ import { RedisModule } from '../redis/redis.module';
 import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
 import { CrmController } from './crm.controller';
+import { CrmArchiveSlimmingService } from './crm-archive-slimming.service';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
 import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
 import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
@@ -35,6 +36,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
   controllers: [CrmController, CrmGmailWebhookController],
   providers: [
     CrmService,
+    CrmArchiveSlimmingService,
     CrmGmailWebhookService,
     CrmSendQueueService,
     CrmGmailHistorySyncQueueService,

@@ -19,6 +19,8 @@ import type {
   CrmAccountRecord,
   CrmAccountStatus,
   CrmAccountUpdateInput,
+  CrmArchiveSlimInput,
+  CrmArchiveSlimmingListInput,
   CrmArchivedFingerprintLookupInput,
   CrmArchivedFingerprintRecord,
   CrmArchivedFingerprintUpsertInput,
@@ -133,6 +135,44 @@ export class PrismaCrmStore implements CrmStore {
     const records = await this.prisma.crmAccount.updateManyAndReturn({
       where: { id },
       data: input,
+      limit: 1
+    });
+
+    return records[0] ? toAccountRecord(records[0]) : null;
+  }
+
+  async listAccountsForArchiveSlimming(input: CrmArchiveSlimmingListInput) {
+    const records = await this.prisma.crmAccount.findMany({
+      where: {
+        status: 'archived',
+        archiveSlimmedAt: null,
+        archivedAt: {
+          lte: input.archivedBefore
+        }
+      },
+      orderBy: { archivedAt: 'asc' },
+      take: input.take
+    });
+
+    return records.map(toAccountRecord);
+  }
+
+  async slimArchivedAccount(input: CrmArchiveSlimInput) {
+    const records = await this.prisma.crmAccount.updateManyAndReturn({
+      where: {
+        id: input.id,
+        organizationId: input.organizationId,
+        status: 'archived',
+        archiveSlimmedAt: null,
+        archivedAt: {
+          lte: input.archivedBefore
+        }
+      },
+      data: {
+        archiveSlimmedAt: input.slimmedAt,
+        customerType: null,
+        websiteUrl: null
+      },
       limit: 1
     });
 

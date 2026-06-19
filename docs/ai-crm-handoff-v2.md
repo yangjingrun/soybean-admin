@@ -279,6 +279,12 @@ Hunter 原始长结果
 非必要邮件正文摘要
 ```
 
+当前代码层面的账户瘦身策略：
+
+- 保留 `name`、`normalizedName`、`domain`、`country`、`sourceTaskId`、归档原因、归档时间和 `archiveSlimmedAt`。
+- 清理 `websiteUrl`、`customerType` 这类账户侧非关键展示字段。
+- 联系人、时间线、收件箱和已发送消息暂不删除，避免破坏历史触达、退订、退信、审计和去重判断。
+
 ## 3. 今日 Git 提交完成步骤清单
 
 本节根据 2026-06-19 当天 Git 提交整理，记录“已经提交到 Git 历史里的完成步骤”。这部分不等于当前工作区全部内容；当前仍有未提交改动，继续开发前必须重新看 `git status --short`。
@@ -711,7 +717,7 @@ Hunter 原始长结果
     - 后端新增 `POST /crm/accounts/:id/restore`，仅允许恢复当前 scope 内、状态为 `archived` 且归档未超过 30 天的线索。
     - 恢复后状态回到 `candidate`，清空归档元信息，并写 `account_restored` 时间线。
     - 前端线索列表中已归档行显示“恢复”，普通行仍显示“归档”。
-    - 当前完成的是 30 天内恢复完整线索；自动瘦身需要先明确要清理哪些字段，仍保留为后续任务。
+    - 30 天后自动瘦身已在后续第 54 项补齐。
     - 已通过验证：
       - `pnpm exec prisma generate`
       - `pnpm --filter @soybean/server typecheck`
@@ -729,6 +735,24 @@ Hunter 原始长结果
       - `src/views/crm/leads/modules/LeadTable.vue`
       - `src/views/crm/leads/modules/shared/useLeadTable.ts`
 
+54. 归档 30 天自动瘦身任务
+    - 新增 `CrmArchiveSlimmingService`，模块启动后默认立即扫描一次，之后按 `CRM_ARCHIVE_SLIMMING_INTERVAL_MS` 周期执行，默认 24 小时。
+    - 可用 `CRM_ARCHIVE_SLIMMING_DISABLED=true` 关闭自动任务；批量大小可用 `CRM_ARCHIVE_SLIMMING_BATCH_SIZE` 调整，默认 100。
+    - 扫描 `status=archived`、`archiveSlimmedAt=null`、`archivedAt <= now - 30 days` 的线索。
+    - 瘦身时写入 `archiveSlimmedAt`，保留 `name/normalizedName/domain/country/sourceTaskId/归档元信息`，清理 `websiteUrl/customerType`。
+    - 使用 `updateManyAndReturn` 加上状态、组织、归档时间和未瘦身 guard，避免并发或恢复后误清理。
+    - 每批处理完成后写系统日志 `archive-slimming-summary`，记录 checked/slimmed/failed 数量和 cutoff。
+    - 已通过验证：
+      - `pnpm --filter @soybean/server typecheck`
+      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-archive-slimming.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
+    - 涉及文件：
+      - `apps/server/src/modules/crm/crm-archive-slimming.service.ts`
+      - `apps/server/src/modules/crm/crm-archive-slimming.service.spec.ts`
+      - `apps/server/src/modules/crm/crm.module.ts`
+      - `apps/server/src/modules/crm/crm.types.ts`
+      - `apps/server/src/modules/crm/store/prisma-crm.store.ts`
+      - `apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -740,6 +764,7 @@ Hunter 原始长结果
 - Hunter Domain Search 可补全联系人。
 - CRM 线索库：导入、列表、详情、状态变更、备注、归档、归档指纹提醒。
 - CRM 线索库：已归档线索支持 30 天内恢复。
+- CRM 线索库：已归档超过 30 天的线索会自动瘦身并保留去重/历史判断关键信息。
 - 全平台邮箱验证缓存：`CrmEmailVerificationCache`，按 `emailHash` 唯一。
 - 邮箱验证逻辑：格式、公共邮箱、MX/DNS。
 - Gmail OAuth URL / callback。
@@ -806,14 +831,13 @@ Hunter 原始长结果
 
 - 组织管理员可见范围已开始做，但“管理员是否可看成员邮件正文由组织配置决定”未看到完整配置项。
 - 平台超管可跨组织查看正文的静默审计，不确定是否所有正文读取路径都已记录专门审计事件。
-- 归档 30 天恢复和 30 天后自动瘦身，当前只看到归档和归档指纹，自动瘦身/恢复完整生命周期未完全确认。
+- 归档 30 天恢复和 30 天后自动瘦身已实现；后续可继续补组织级历史触达提醒 UI。
 
 ### 当前未完成
 
 - 组织级权限配置页。
 - 组织管理员邮件正文可见策略配置。
 - 超管查看正文的完整审计闭环。
-- 归档 30 天自动瘦身定时任务。
 - 组织级历史触达提醒的产品化 UI。
 
 ### 风险点
@@ -1374,7 +1398,7 @@ Hunter 原始长结果
 - 发送队列/同步日志运维页已完成薄视图；完整队列历史和系统日志详情可后续增强。
 - auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。
 - 手动新增/导入 CRM 线索入口已完成。
-- 归档 30 天内恢复已完成；自动瘦身任务需先明确瘦身字段策略。
+- 归档 30 天内恢复和 30 天后自动瘦身均已完成；瘦身字段策略按第 2.12 节执行。
 - 前端组件测试。
 
 ### P2：第二期/第三期

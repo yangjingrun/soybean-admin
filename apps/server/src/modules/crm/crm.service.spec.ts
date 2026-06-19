@@ -2340,6 +2340,12 @@ function createStore(
       Object.assign(account, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return account;
     },
+    async listAccountsForArchiveSlimming() {
+      return [];
+    },
+    async slimArchivedAccount() {
+      return null;
+    },
     async findContactByEmailHash(organizationId, ownerUserId, emailHash) {
       return (
         contacts.find(
