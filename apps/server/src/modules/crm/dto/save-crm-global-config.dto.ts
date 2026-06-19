@@ -3,7 +3,8 @@ import { IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-val
 import {
   maxEmailVerificationCooldownDays,
   maxFollowUpDelayDays,
-  maxOwnerConcurrentSendLimit
+  maxOwnerConcurrentSendLimit,
+  maxOwnerDailySendLimitMax
 } from '../crm-global-config';
 
 class SaveCrmFollowUpDelayDaysDto {
@@ -45,6 +46,13 @@ export class SaveCrmGlobalConfigDto {
   @Max(maxOwnerConcurrentSendLimit)
   @Type(() => Number)
   ownerConcurrentSendLimit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(maxOwnerDailySendLimitMax)
+  @Type(() => Number)
+  ownerDailySendLimitMax?: number;
 
   @IsOptional()
   @IsObject()

@@ -84,6 +84,7 @@ model Organization {
   crmEnrollments     CrmSequenceEnrollment[]
   crmMessages        CrmMessage[]
   crmMessageDraftVersions CrmMessageDraftVersion[]
+  crmUserSendPreferences CrmUserSendPreference[]
   crmInboxThreads    CrmInboxThread[]
   crmInboxMessages   CrmInboxMessage[]
 
@@ -180,11 +181,30 @@ model CrmGlobalConfig {
   configKey                     String   @unique
   emailVerificationCooldownDays Int      @default(30)
   ownerConcurrentSendLimit      Int      @default(5)
+  ownerDailySendLimitMax        Int      @default(200)
   followUpDelayDaysText         String   @default("3,7,14,21")
   updatedById                   String?
   updatedByName                 String?
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
+}
+
+model CrmUserSendPreference {
+  id                   String   @id @default(uuid())
+  organizationId       String
+  ownerUserId          String
+  ownerUserName        String?
+  dailySendLimit       Int      @default(50)
+  followUpSharePercent Int      @default(70)
+  updatedById          String?
+  updatedByName        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, ownerUserId])
+  @@index([organizationId, updatedAt])
 }
 
 model CrmOrganizationConfig {

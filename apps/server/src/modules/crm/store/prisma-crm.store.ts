@@ -20,6 +20,7 @@ import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmPr
 import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
 import type { CrmSequencePolicyModel } from '../../../generated/prisma/models/CrmSequencePolicy';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
+import type { CrmUserSendPreferenceModel } from '../../../generated/prisma/models/CrmUserSendPreference';
 import { PrismaService } from '../../database/prisma.service';
 import type {
   CrmAccountCreateInput,
@@ -49,6 +50,9 @@ import type {
   CrmContactUpdateInput,
   CrmCustomerReplyIngestInput,
   CrmCustomerReplyIngestRecord,
+  CrmDispatchedMessageCountInput,
+  CrmDueSendCandidateListInput,
+  CrmDueSendCandidateRecord,
   CrmEmailTemplateGroupCreateInput,
   CrmEmailTemplateGroupListInput,
   CrmEmailTemplateGroupRecord,
@@ -114,7 +118,10 @@ import type {
   CrmSendDeliveryClaimRecord,
   CrmSendFailureInput,
   CrmSendFailureRecord,
+  CrmSendPreferenceInput,
+  CrmSendPreferenceRecord,
   CrmSendStartInput,
+  CrmScheduledMessageStepKind,
   CrmSendStartRecord,
   CrmSequenceStopInput,
   CrmSequenceStopRecord,
@@ -130,9 +137,11 @@ import {
   defaultEmailVerificationCooldownDays,
   defaultFollowUpDelayDays,
   defaultOwnerConcurrentSendLimit,
+  defaultOwnerDailySendLimitMax,
   normalizeEmailVerificationCooldownDays,
   normalizeFollowUpDelayDays,
   normalizeOwnerConcurrentSendLimit,
+  normalizeOwnerDailySendLimitMax,
   serializeFollowUpDelayDays
 } from '../crm-global-config';
 import {
@@ -344,6 +353,7 @@ export class PrismaCrmStore implements CrmStore {
   async saveGlobalConfig(input: CrmGlobalConfigInput) {
     const emailVerificationCooldownDays = normalizeEmailVerificationCooldownDays(input.emailVerificationCooldownDays);
     const ownerConcurrentSendLimit = normalizeOwnerConcurrentSendLimit(input.ownerConcurrentSendLimit);
+    const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(input.ownerDailySendLimitMax);
     const followUpDelayDaysText = serializeFollowUpDelayDays(input.followUpDelayDays);
     const record = await this.prisma.crmGlobalConfig.upsert({
       where: { configKey: crmGlobalConfigKey },
@@ -351,6 +361,7 @@ export class PrismaCrmStore implements CrmStore {
         configKey: crmGlobalConfigKey,
         emailVerificationCooldownDays,
         ownerConcurrentSendLimit,
+        ownerDailySendLimitMax,
         followUpDelayDaysText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
@@ -358,6 +369,7 @@ export class PrismaCrmStore implements CrmStore {
       update: {
         emailVerificationCooldownDays,
         ownerConcurrentSendLimit,
+        ownerDailySendLimitMax,
         followUpDelayDaysText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
@@ -365,6 +377,48 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return toGlobalConfigRecord(record);
+  }
+
+  async getSendPreference(args: { organizationId: string; ownerUserId: string }) {
+    const record = await this.prisma.crmUserSendPreference.findUnique({
+      where: {
+        organizationId_ownerUserId: {
+          organizationId: args.organizationId,
+          ownerUserId: args.ownerUserId
+        }
+      }
+    });
+
+    return record ? toSendPreferenceRecord(record) : null;
+  }
+
+  async saveSendPreference(input: CrmSendPreferenceInput) {
+    const record = await this.prisma.crmUserSendPreference.upsert({
+      where: {
+        organizationId_ownerUserId: {
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        }
+      },
+      create: {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        ownerUserName: input.ownerUserName,
+        dailySendLimit: input.dailySendLimit,
+        followUpSharePercent: input.followUpSharePercent,
+        updatedById: input.updatedById,
+        updatedByName: input.updatedByName
+      },
+      update: {
+        ownerUserName: input.ownerUserName,
+        dailySendLimit: input.dailySendLimit,
+        followUpSharePercent: input.followUpSharePercent,
+        updatedById: input.updatedById,
+        updatedByName: input.updatedByName
+      }
+    });
+
+    return toSendPreferenceRecord(record);
   }
 
   async countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }) {
@@ -375,6 +429,97 @@ export class PrismaCrmStore implements CrmStore {
         status: 'queued'
       }
     });
+  }
+
+  async countDispatchedMessages(input: CrmDispatchedMessageCountInput) {
+    return this.prisma.crmMessage.count({
+      where: {
+        organizationId: input.organizationId,
+        ...(input.ownerUserId ? { ownerUserId: input.ownerUserId } : {}),
+        ...(input.mailboxId ? { mailboxId: input.mailboxId } : {}),
+        ...toStepKindWhere(input.stepKind),
+        OR: [
+          {
+            status: 'queued',
+            scheduledAt: {
+              gte: input.from,
+              lt: input.to
+            }
+          },
+          {
+            status: 'sent',
+            sentAt: {
+              gte: input.from,
+              lt: input.to
+            }
+          }
+        ]
+      }
+    });
+  }
+
+  async listDueSendCandidates(input: CrmDueSendCandidateListInput): Promise<CrmDueSendCandidateRecord[]> {
+    const records = await this.prisma.crmMessage.findMany({
+      where: {
+        status: 'draft_ready',
+        scheduledAt: {
+          lte: input.now
+        },
+        mailboxId: {
+          not: null
+        }
+      },
+      include: {
+        account: true,
+        contact: true,
+        mailbox: true,
+        enrollment: {
+          include: {
+            productLine: true
+          }
+        }
+      },
+      orderBy: [{ scheduledAt: 'asc' }, { updatedAt: 'asc' }],
+      take: input.take
+    });
+    const candidates: CrmDueSendCandidateRecord[] = [];
+
+    for (const record of records) {
+      if (!record.mailbox || record.mailbox.status !== 'active') {
+        continue;
+      }
+
+      if (record.enrollment.status !== 'sequence_running' || record.contact.emailStatus === 'unsubscribed') {
+        continue;
+      }
+
+      const blacklist = await this.prisma.crmBlacklist.findUnique({
+        where: {
+          organizationId_emailHash: {
+            organizationId: record.organizationId,
+            emailHash: record.contact.emailHash
+          }
+        }
+      });
+
+      if (blacklist) {
+        continue;
+      }
+
+      candidates.push({
+        enrollment: toSequenceEnrollmentRecord(record.enrollment),
+        account: toAccountRecord(record.account),
+        contact: toContactRecord(record.contact),
+        productLine: record.enrollment.productLine ? toProductLineRecord(record.enrollment.productLine) : null,
+        mailbox: toMailboxRecord(record.mailbox),
+        firstMessage: record.stepIndex === 1 ? toMessageRecord(record) : null,
+        messages: [toMessageRecord(record)],
+        message: toMessageRecord(record),
+        stepKind: record.stepIndex === 1 ? 'first_touch' : 'follow_up'
+      });
+    }
+
+    return candidates;
   }
 
   async getOrganizationConfig(organizationId: string) {
@@ -1888,8 +2033,8 @@ export class PrismaCrmStore implements CrmStore {
             accountId: enrollment.accountId,
             contactId: enrollment.contactId,
             ownerUserId: input.ownerUserId,
-            eventType: 'message_queued',
-            title: '首封开发信进入发送队列',
+            eventType: 'message_send_scheduled',
+            title: '首封开发信等待发送调度',
             content: message.subject,
             metadata: {
               enrollmentId: enrollment.id,
@@ -3423,6 +3568,7 @@ function createDefaultGlobalConfig(): CrmGlobalConfigRecord {
     configKey: crmGlobalConfigKey,
     emailVerificationCooldownDays: defaultEmailVerificationCooldownDays,
     ownerConcurrentSendLimit: defaultOwnerConcurrentSendLimit,
+    ownerDailySendLimitMax: defaultOwnerDailySendLimitMax,
     followUpDelayDays: { ...defaultFollowUpDelayDays },
     updatedAt: new Date(0)
   };
@@ -3433,9 +3579,37 @@ function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalConfigReco
     configKey: record.configKey,
     emailVerificationCooldownDays: normalizeEmailVerificationCooldownDays(record.emailVerificationCooldownDays),
     ownerConcurrentSendLimit: normalizeOwnerConcurrentSendLimit(record.ownerConcurrentSendLimit),
+    ownerDailySendLimitMax: normalizeOwnerDailySendLimitMax(record.ownerDailySendLimitMax),
     followUpDelayDays: normalizeFollowUpDelayDays(record.followUpDelayDaysText),
     updatedAt: record.updatedAt
   };
+}
+
+function toSendPreferenceRecord(record: CrmUserSendPreferenceModel): CrmSendPreferenceRecord {
+  return {
+    id: record.id,
+    organizationId: record.organizationId,
+    ownerUserId: record.ownerUserId,
+    ownerUserName: record.ownerUserName,
+    dailySendLimit: record.dailySendLimit,
+    followUpSharePercent: record.followUpSharePercent,
+    updatedById: record.updatedById,
+    updatedByName: record.updatedByName,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  };
+}
+
+function toStepKindWhere(stepKind?: CrmScheduledMessageStepKind): Prisma.CrmMessageWhereInput {
+  if (stepKind === 'first_touch') {
+    return { stepIndex: 1 };
+  }
+
+  if (stepKind === 'follow_up') {
+    return { stepIndex: { gt: 1 } };
+  }
+
+  return {};
 }
 
 function toOrganizationConfigRecord(record: CrmOrganizationConfigModel): CrmOrganizationConfigRecord {

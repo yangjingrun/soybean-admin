@@ -3,6 +3,10 @@ export const defaultEmailVerificationCooldownDays = 30;
 export const maxEmailVerificationCooldownDays = 365;
 export const defaultOwnerConcurrentSendLimit = 5;
 export const maxOwnerConcurrentSendLimit = 100;
+export const defaultOwnerDailySendLimit = 50;
+export const defaultFollowUpSharePercent = 70;
+export const defaultOwnerDailySendLimitMax = 200;
+export const maxOwnerDailySendLimitMax = 1000;
 export const defaultFollowUpDelayDays = {
   step2Days: 3,
   step3Days: 7,
@@ -38,6 +42,39 @@ export function normalizeOwnerConcurrentSendLimit(value: unknown) {
   }
 
   return Math.min(numberValue, maxOwnerConcurrentSendLimit);
+}
+
+/** Normalizes the platform hard cap for each owner's daily queued sends. */
+export function normalizeOwnerDailySendLimitMax(value: unknown) {
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    return defaultOwnerDailySendLimitMax;
+  }
+
+  return Math.min(numberValue, maxOwnerDailySendLimitMax);
+}
+
+/** Normalizes a current owner's daily queued-send preference against the platform cap. */
+export function normalizeOwnerDailySendLimit(value: unknown, maxLimit: number) {
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    return defaultOwnerDailySendLimit;
+  }
+
+  return Math.min(numberValue, maxLimit);
+}
+
+/** Normalizes the percentage of daily capacity reserved for follow-up messages. */
+export function normalizeFollowUpSharePercent(value: unknown) {
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue < 0) {
+    return defaultFollowUpSharePercent;
+  }
+
+  return Math.min(numberValue, 100);
 }
 
 /** Normalizes follow-up delay days for sequence steps 2-5. */

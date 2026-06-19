@@ -26,6 +26,7 @@ import type {
   CrmProductLineRecord,
   CrmSendQueueJob,
   CrmSendQueuePort,
+  CrmSendPreferenceRecord,
   CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmStore,
@@ -210,7 +211,7 @@ describe('CrmService', () => {
     );
   });
 
-  it('saves CRM global owner send concurrency limit with sanitized business log metadata', async () => {
+  it('saves CRM global owner send concurrency and daily hard limits with sanitized business log metadata', async () => {
     const store = createStore();
     const logs = createLogRecorder();
     const service = new CrmService(store, undefined, logs.service);
@@ -219,6 +220,7 @@ describe('CrmService', () => {
       {
         emailVerificationCooldownDays: 45,
         ownerConcurrentSendLimit: 8,
+        ownerDailySendLimitMax: 120,
         followUpDelayDays: {
           step2Days: 2,
           step3Days: 4,
@@ -230,11 +232,45 @@ describe('CrmService', () => {
     );
 
     assert.equal(saved.ownerConcurrentSendLimit, 8);
+    assert.equal(saved.ownerDailySendLimitMax, 120);
     assert.equal(store.globalConfig.ownerConcurrentSendLimit, 8);
+    assert.equal(store.globalConfig.ownerDailySendLimitMax, 120);
     assert.equal(logs.records[0]?.action, 'save-global-config');
-    const metadata = logs.records[0]?.metadata as { ownerConcurrentSendLimit?: number } | undefined;
+    const metadata = logs.records[0]?.metadata as
+      | { ownerConcurrentSendLimit?: number; ownerDailySendLimitMax?: number }
+      | undefined;
 
     assert.equal(metadata?.ownerConcurrentSendLimit, 8);
+    assert.equal(metadata?.ownerDailySendLimitMax, 120);
+  });
+
+  it('saves current owner send preference within the platform daily hard limit', async () => {
+    const store = createStore([], {
+      globalConfig: createGlobalConfig({ ownerDailySendLimitMax: 80 })
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const current = await service.getSendPreference(createContext());
+    const saved = await service.saveSendPreference(
+      {
+        dailySendLimit: 60,
+        followUpSharePercent: 75
+      },
+      createContext()
+    );
+
+    assert.equal(current.dailySendLimit, 50);
+    assert.equal(current.ownerDailySendLimitMax, 80);
+    assert.equal(saved.dailySendLimit, 60);
+    assert.equal(saved.followUpSharePercent, 75);
+    assert.equal(saved.ownerDailySendLimitMax, 80);
+    assert.equal(store.sendPreferences[0].ownerUserId, 'user-1');
+    assert.equal(logs.records[0]?.action, 'save-send-preference');
+    await assert.rejects(
+      () => service.saveSendPreference({ dailySendLimit: 81, followUpSharePercent: 70 }, createContext()),
+      /不能超过平台硬上限 80 封/
+    );
   });
 
   it('refreshes stale global email verification cache after cooldown', async () => {
@@ -2798,7 +2834,7 @@ describe('CrmService', () => {
     assert.equal(aiReplyDraftCalls.length, 0);
   });
 
-  it('approves follow-up drafts by queueing their scheduled send jobs', async () => {
+  it('approves follow-up drafts into the local send scheduling pool', async () => {
     const scheduledAt = new Date('2030-06-21T10:00:00.000Z');
     const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
@@ -2837,19 +2873,13 @@ describe('CrmService', () => {
     const approved = await service.approveMessageDraft('message-2', createContext());
 
     assert.equal(approved.enrollment.status, 'sequence_running');
-    assert.equal(approved.message.status, 'queued');
-    assert.equal(store.messages[1].bullJobId, 'send-job-1');
-    assert.deepEqual(sendQueue.jobs[0], {
-      enrollmentId: 'enrollment-1',
-      messageId: 'message-2',
-      organizationId: 'org-1',
-      ownerUserId: 'user-1',
-      runVersion: 3
-    });
-    assert.ok((sendQueue.options[0]?.delayMs ?? 0) > 0);
+    assert.equal(approved.message.status, 'draft_ready');
+    assert.equal(store.messages[1].scheduledAt?.toISOString(), scheduledAt.toISOString());
+    assert.equal(store.messages[1].bullJobId, null);
+    assert.equal(sendQueue.jobs.length, 0);
   });
 
-  it('rejects queued follow-up approval when the owner reached the concurrency limit', async () => {
+  it('does not check queued concurrency while approving follow-up drafts into the scheduling pool', async () => {
     const scheduledAt = new Date('2030-06-21T10:00:00.000Z');
     const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
       globalConfig: createGlobalConfig({ ownerConcurrentSendLimit: 1 }),
@@ -2892,9 +2922,11 @@ describe('CrmService', () => {
     const sendQueue = createSendQueue();
     const service = new CrmService(store, undefined, undefined, sendQueue);
 
-    await assert.rejects(() => service.approveMessageDraft('message-2', createContext()), /并发上限 1 封/);
+    const approved = await service.approveMessageDraft('message-2', createContext());
+
+    assert.equal(approved.message.status, 'draft_ready');
     assert.equal(sendQueue.jobs.length, 0);
-    assert.equal(store.messages.find(message => message.id === 'message-2')?.status, 'draft_pending_review');
+    assert.equal(store.messages.find(message => message.id === 'message-2')?.status, 'draft_ready');
   });
 
   it('approves locally generated follow-up drafts without queueing send jobs before Gmail starts', async () => {
@@ -3429,7 +3461,7 @@ describe('CrmService', () => {
     );
   });
 
-  it('starts an approved first message by queueing a guarded send job', async () => {
+  it('starts an approved first message into the local send scheduling pool', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
       mailboxes: [createMailbox({ id: 'mailbox-1' })],
@@ -3458,15 +3490,10 @@ describe('CrmService', () => {
     const result = await service.startFirstMessageSend('enrollment-1', createContext());
 
     assert.equal(result.enrollment.status, 'sequence_running');
-    assert.equal(result.message.status, 'queued');
-    assert.equal(store.messages[0].bullJobId, 'send-job-1');
-    assert.deepEqual(queue.jobs[0], {
-      enrollmentId: 'enrollment-1',
-      messageId: 'message-1',
-      organizationId: 'org-1',
-      ownerUserId: 'user-1',
-      runVersion: 3
-    });
+    assert.equal(result.message.status, 'draft_ready');
+    assert.equal(store.messages[0].scheduledAt instanceof Date, true);
+    assert.equal(store.messages[0].bullJobId, null);
+    assert.equal(queue.jobs.length, 0);
   });
 
   it('rejects admin attempts to start another member send queue job', async () => {
@@ -3548,7 +3575,7 @@ describe('CrmService', () => {
     assert.equal(store.messages[0].status, 'draft_ready');
   });
 
-  it('rejects starting send when the owner reached the queued email concurrency limit', async () => {
+  it('does not check queued concurrency while moving first messages into the scheduling pool', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
       globalConfig: createGlobalConfig({ ownerConcurrentSendLimit: 1 }),
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
@@ -3587,12 +3614,14 @@ describe('CrmService', () => {
     const queue = createSendQueue();
     const service = new CrmService(store, undefined, undefined, queue);
 
-    await assert.rejects(() => service.startFirstMessageSend('enrollment-1', createContext()), /并发上限 1 封/);
+    const result = await service.startFirstMessageSend('enrollment-1', createContext());
+
+    assert.equal(result.message.status, 'draft_ready');
     assert.equal(queue.jobs.length, 0);
     assert.equal(store.messages.find(message => message.id === 'message-1')?.status, 'draft_ready');
   });
 
-  it('rolls queued first messages back to ready when enqueue fails', async () => {
+  it('does not call the send queue while moving first messages into the scheduling pool', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
       mailboxes: [createMailbox({ id: 'mailbox-1' })],
@@ -3616,11 +3645,14 @@ describe('CrmService', () => {
     });
     const service = new CrmService(store, undefined, undefined, createSendQueue(new Error('queue down')));
 
-    await assert.rejects(() => service.startFirstMessageSend('enrollment-1', createContext()), /queue down/);
-    assert.equal(store.enrollments[0].status, 'ready_to_send');
+    const result = await service.startFirstMessageSend('enrollment-1', createContext());
+
+    assert.equal(result.enrollment.status, 'sequence_running');
+    assert.equal(result.message.status, 'draft_ready');
+    assert.equal(store.enrollments[0].status, 'sequence_running');
     assert.equal(store.messages[0].status, 'draft_ready');
-    assert.equal(store.accounts[0].status, 'ready');
-    assert.equal(store.timelineEvents.at(-1)?.eventType, 'message_send_failed');
+    assert.equal(store.accounts[0].status, 'sequence_running');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'message_send_scheduled');
   });
 
   it('lets organization admins stop member sequences without editing or sending drafts', async () => {
@@ -4298,6 +4330,7 @@ function createStore(
     enrollments?: TestEnrollment[];
     messages?: TestMessage[];
     draftVersions?: TestDraftVersion[];
+    sendPreferences?: TestSendPreference[];
     inboxThreads?: TestInboxThread[];
     inboxMessages?: TestInboxMessage[];
     emailVerificationCaches?: TestEmailVerificationCache[];
@@ -4320,6 +4353,7 @@ function createStore(
   enrollments: TestEnrollment[];
   messages: TestMessage[];
   draftVersions: TestDraftVersion[];
+  sendPreferences: TestSendPreference[];
   inboxThreads: TestInboxThread[];
   inboxMessages: TestInboxMessage[];
   globalConfig: TestGlobalConfig;
@@ -4376,6 +4410,7 @@ function createStore(
   const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
   const messages: TestMessage[] = [...(initialData.messages ?? [])];
   const draftVersions: TestDraftVersion[] = [...(initialData.draftVersions ?? [])];
+  const sendPreferences: TestSendPreference[] = [...(initialData.sendPreferences ?? [])];
   const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
   const inboxMessages: TestInboxMessage[] = [...(initialData.inboxMessages ?? [])];
   const globalConfig = initialData.globalConfig ?? createGlobalConfig();
@@ -4407,6 +4442,7 @@ function createStore(
     enrollments,
     messages,
     draftVersions,
+    sendPreferences,
     inboxThreads,
     inboxMessages,
     globalConfig,
@@ -4527,10 +4563,52 @@ function createStore(
       Object.assign(globalConfig, {
         emailVerificationCooldownDays: input.emailVerificationCooldownDays,
         ownerConcurrentSendLimit: input.ownerConcurrentSendLimit ?? globalConfig.ownerConcurrentSendLimit,
+        ownerDailySendLimitMax: input.ownerDailySendLimitMax ?? globalConfig.ownerDailySendLimitMax,
         followUpDelayDays: input.followUpDelayDays ?? globalConfig.followUpDelayDays,
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
       return globalConfig;
+    },
+    async getSendPreference(args) {
+      return (
+        sendPreferences.find(
+          preference =>
+            preference.organizationId === args.organizationId && preference.ownerUserId === args.ownerUserId
+        ) ?? null
+      );
+    },
+    async saveSendPreference(input) {
+      const existing = sendPreferences.find(
+        preference =>
+          preference.organizationId === input.organizationId && preference.ownerUserId === input.ownerUserId
+      );
+
+      if (existing) {
+        Object.assign(existing, {
+          ownerUserName: input.ownerUserName ?? null,
+          dailySendLimit: input.dailySendLimit,
+          followUpSharePercent: input.followUpSharePercent,
+          updatedById: input.updatedById ?? null,
+          updatedByName: input.updatedByName ?? null,
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        });
+
+        return existing;
+      }
+
+      const record = createSendPreference({
+        id: `send-preference-${sendPreferences.length + 1}`,
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        ownerUserName: input.ownerUserName ?? null,
+        dailySendLimit: input.dailySendLimit,
+        followUpSharePercent: input.followUpSharePercent,
+        updatedById: input.updatedById ?? null,
+        updatedByName: input.updatedByName ?? null
+      });
+      sendPreferences.push(record);
+
+      return record;
     },
     async countOwnerQueuedMessages(args) {
       return messages.filter(
@@ -4539,6 +4617,28 @@ function createStore(
           message.ownerUserId === args.ownerUserId &&
           message.status === 'queued'
       ).length;
+    },
+    async countDispatchedMessages(input) {
+      return messages.filter(message => {
+        if (message.organizationId !== input.organizationId) return false;
+        if (input.ownerUserId && message.ownerUserId !== input.ownerUserId) return false;
+        if (input.mailboxId && message.mailboxId !== input.mailboxId) return false;
+        if (input.stepKind === 'first_touch' && message.stepIndex !== 1) return false;
+        if (input.stepKind === 'follow_up' && message.stepIndex <= 1) return false;
+
+        if (message.status === 'queued') {
+          return Boolean(message.scheduledAt && message.scheduledAt >= input.from && message.scheduledAt < input.to);
+        }
+
+        if (message.status === 'sent') {
+          return Boolean(message.sentAt && message.sentAt >= input.from && message.sentAt < input.to);
+        }
+
+        return false;
+      }).length;
+    },
+    async listDueSendCandidates() {
+      return [];
     },
     async getOrganizationConfig(organizationId) {
       return organizationConfig?.organizationId === organizationId ? organizationConfig : null;
@@ -5403,8 +5503,8 @@ function createStore(
       const event = createTimelineEvent({
         accountId: enrollment.accountId,
         contactId: enrollment.contactId,
-        eventType: 'message_queued',
-        title: '首封开发信进入发送队列',
+        eventType: 'message_send_scheduled',
+        title: '首封开发信等待发送调度',
         content: message.subject,
         metadata: {
           enrollmentId: enrollment.id,
@@ -6152,6 +6252,7 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
     configKey: input.configKey || 'default',
     emailVerificationCooldownDays: input.emailVerificationCooldownDays ?? 30,
     ownerConcurrentSendLimit: input.ownerConcurrentSendLimit ?? 5,
+    ownerDailySendLimitMax: input.ownerDailySendLimitMax ?? 200,
     followUpDelayDays: input.followUpDelayDays ?? {
       step2Days: 3,
       step3Days: 7,
@@ -6159,6 +6260,21 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
       step5Days: 21
     },
     updatedAt: input.updatedAt || new Date(0)
+  };
+}
+
+function createSendPreference(input: Partial<TestSendPreference> = {}): TestSendPreference {
+  return {
+    id: input.id || 'send-preference-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    ownerUserName: input.ownerUserName ?? 'Alice',
+    dailySendLimit: input.dailySendLimit ?? 50,
+    followUpSharePercent: input.followUpSharePercent ?? 70,
+    updatedById: input.updatedById ?? 'user-1',
+    updatedByName: input.updatedByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };
 }
 
@@ -6682,6 +6798,7 @@ type TestBlacklist = CrmBlacklistRecord;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestEmailVerificationCache = CrmEmailVerificationCacheRecord;
 type TestGlobalConfig = CrmGlobalConfigRecord;
+type TestSendPreference = CrmSendPreferenceRecord;
 type TestOrganizationConfig = CrmOrganizationConfigRecord;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;

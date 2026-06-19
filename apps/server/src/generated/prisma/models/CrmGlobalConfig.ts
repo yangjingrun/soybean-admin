@@ -29,11 +29,13 @@ export type AggregateCrmGlobalConfig = {
 export type CrmGlobalConfigAvgAggregateOutputType = {
   emailVerificationCooldownDays: number | null
   ownerConcurrentSendLimit: number | null
+  ownerDailySendLimitMax: number | null
 }
 
 export type CrmGlobalConfigSumAggregateOutputType = {
   emailVerificationCooldownDays: number | null
   ownerConcurrentSendLimit: number | null
+  ownerDailySendLimitMax: number | null
 }
 
 export type CrmGlobalConfigMinAggregateOutputType = {
@@ -41,6 +43,7 @@ export type CrmGlobalConfigMinAggregateOutputType = {
   configKey: string | null
   emailVerificationCooldownDays: number | null
   ownerConcurrentSendLimit: number | null
+  ownerDailySendLimitMax: number | null
   followUpDelayDaysText: string | null
   updatedById: string | null
   updatedByName: string | null
@@ -53,6 +56,7 @@ export type CrmGlobalConfigMaxAggregateOutputType = {
   configKey: string | null
   emailVerificationCooldownDays: number | null
   ownerConcurrentSendLimit: number | null
+  ownerDailySendLimitMax: number | null
   followUpDelayDaysText: string | null
   updatedById: string | null
   updatedByName: string | null
@@ -65,6 +69,7 @@ export type CrmGlobalConfigCountAggregateOutputType = {
   configKey: number
   emailVerificationCooldownDays: number
   ownerConcurrentSendLimit: number
+  ownerDailySendLimitMax: number
   followUpDelayDaysText: number
   updatedById: number
   updatedByName: number
@@ -77,11 +82,13 @@ export type CrmGlobalConfigCountAggregateOutputType = {
 export type CrmGlobalConfigAvgAggregateInputType = {
   emailVerificationCooldownDays?: true
   ownerConcurrentSendLimit?: true
+  ownerDailySendLimitMax?: true
 }
 
 export type CrmGlobalConfigSumAggregateInputType = {
   emailVerificationCooldownDays?: true
   ownerConcurrentSendLimit?: true
+  ownerDailySendLimitMax?: true
 }
 
 export type CrmGlobalConfigMinAggregateInputType = {
@@ -89,6 +96,7 @@ export type CrmGlobalConfigMinAggregateInputType = {
   configKey?: true
   emailVerificationCooldownDays?: true
   ownerConcurrentSendLimit?: true
+  ownerDailySendLimitMax?: true
   followUpDelayDaysText?: true
   updatedById?: true
   updatedByName?: true
@@ -101,6 +109,7 @@ export type CrmGlobalConfigMaxAggregateInputType = {
   configKey?: true
   emailVerificationCooldownDays?: true
   ownerConcurrentSendLimit?: true
+  ownerDailySendLimitMax?: true
   followUpDelayDaysText?: true
   updatedById?: true
   updatedByName?: true
@@ -113,6 +122,7 @@ export type CrmGlobalConfigCountAggregateInputType = {
   configKey?: true
   emailVerificationCooldownDays?: true
   ownerConcurrentSendLimit?: true
+  ownerDailySendLimitMax?: true
   followUpDelayDaysText?: true
   updatedById?: true
   updatedByName?: true
@@ -212,6 +222,7 @@ export type CrmGlobalConfigGroupByOutputType = {
   configKey: string
   emailVerificationCooldownDays: number
   ownerConcurrentSendLimit: number
+  ownerDailySendLimitMax: number
   followUpDelayDaysText: string
   updatedById: string | null
   updatedByName: string | null
@@ -247,6 +258,7 @@ export type CrmGlobalConfigWhereInput = {
   configKey?: Prisma.StringFilter<"CrmGlobalConfig"> | string
   emailVerificationCooldownDays?: Prisma.IntFilter<"CrmGlobalConfig"> | number
   ownerConcurrentSendLimit?: Prisma.IntFilter<"CrmGlobalConfig"> | number
+  ownerDailySendLimitMax?: Prisma.IntFilter<"CrmGlobalConfig"> | number
   followUpDelayDaysText?: Prisma.StringFilter<"CrmGlobalConfig"> | string
   updatedById?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
   updatedByName?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
@@ -259,6 +271,7 @@ export type CrmGlobalConfigOrderByWithRelationInput = {
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
   ownerConcurrentSendLimit?: Prisma.SortOrder
+  ownerDailySendLimitMax?: Prisma.SortOrder
   followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -274,6 +287,7 @@ export type CrmGlobalConfigWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.CrmGlobalConfigWhereInput | Prisma.CrmGlobalConfigWhereInput[]
   emailVerificationCooldownDays?: Prisma.IntFilter<"CrmGlobalConfig"> | number
   ownerConcurrentSendLimit?: Prisma.IntFilter<"CrmGlobalConfig"> | number
+  ownerDailySendLimitMax?: Prisma.IntFilter<"CrmGlobalConfig"> | number
   followUpDelayDaysText?: Prisma.StringFilter<"CrmGlobalConfig"> | string
   updatedById?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
   updatedByName?: Prisma.StringNullableFilter<"CrmGlobalConfig"> | string | null
@@ -286,6 +300,7 @@ export type CrmGlobalConfigOrderByWithAggregationInput = {
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
   ownerConcurrentSendLimit?: Prisma.SortOrder
+  ownerDailySendLimitMax?: Prisma.SortOrder
   followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -306,6 +321,7 @@ export type CrmGlobalConfigScalarWhereWithAggregatesInput = {
   configKey?: Prisma.StringWithAggregatesFilter<"CrmGlobalConfig"> | string
   emailVerificationCooldownDays?: Prisma.IntWithAggregatesFilter<"CrmGlobalConfig"> | number
   ownerConcurrentSendLimit?: Prisma.IntWithAggregatesFilter<"CrmGlobalConfig"> | number
+  ownerDailySendLimitMax?: Prisma.IntWithAggregatesFilter<"CrmGlobalConfig"> | number
   followUpDelayDaysText?: Prisma.StringWithAggregatesFilter<"CrmGlobalConfig"> | string
   updatedById?: Prisma.StringNullableWithAggregatesFilter<"CrmGlobalConfig"> | string | null
   updatedByName?: Prisma.StringNullableWithAggregatesFilter<"CrmGlobalConfig"> | string | null
@@ -318,6 +334,7 @@ export type CrmGlobalConfigCreateInput = {
   configKey: string
   emailVerificationCooldownDays?: number
   ownerConcurrentSendLimit?: number
+  ownerDailySendLimitMax?: number
   followUpDelayDaysText?: string
   updatedById?: string | null
   updatedByName?: string | null
@@ -330,6 +347,7 @@ export type CrmGlobalConfigUncheckedCreateInput = {
   configKey: string
   emailVerificationCooldownDays?: number
   ownerConcurrentSendLimit?: number
+  ownerDailySendLimitMax?: number
   followUpDelayDaysText?: string
   updatedById?: string | null
   updatedByName?: string | null
@@ -342,6 +360,7 @@ export type CrmGlobalConfigUpdateInput = {
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -354,6 +373,7 @@ export type CrmGlobalConfigUncheckedUpdateInput = {
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -366,6 +386,7 @@ export type CrmGlobalConfigCreateManyInput = {
   configKey: string
   emailVerificationCooldownDays?: number
   ownerConcurrentSendLimit?: number
+  ownerDailySendLimitMax?: number
   followUpDelayDaysText?: string
   updatedById?: string | null
   updatedByName?: string | null
@@ -378,6 +399,7 @@ export type CrmGlobalConfigUpdateManyMutationInput = {
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -390,6 +412,7 @@ export type CrmGlobalConfigUncheckedUpdateManyInput = {
   configKey?: Prisma.StringFieldUpdateOperationsInput | string
   emailVerificationCooldownDays?: Prisma.IntFieldUpdateOperationsInput | number
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -402,6 +425,7 @@ export type CrmGlobalConfigCountOrderByAggregateInput = {
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
   ownerConcurrentSendLimit?: Prisma.SortOrder
+  ownerDailySendLimitMax?: Prisma.SortOrder
   followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedByName?: Prisma.SortOrder
@@ -412,6 +436,7 @@ export type CrmGlobalConfigCountOrderByAggregateInput = {
 export type CrmGlobalConfigAvgOrderByAggregateInput = {
   emailVerificationCooldownDays?: Prisma.SortOrder
   ownerConcurrentSendLimit?: Prisma.SortOrder
+  ownerDailySendLimitMax?: Prisma.SortOrder
 }
 
 export type CrmGlobalConfigMaxOrderByAggregateInput = {
@@ -419,6 +444,7 @@ export type CrmGlobalConfigMaxOrderByAggregateInput = {
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
   ownerConcurrentSendLimit?: Prisma.SortOrder
+  ownerDailySendLimitMax?: Prisma.SortOrder
   followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedByName?: Prisma.SortOrder
@@ -431,6 +457,7 @@ export type CrmGlobalConfigMinOrderByAggregateInput = {
   configKey?: Prisma.SortOrder
   emailVerificationCooldownDays?: Prisma.SortOrder
   ownerConcurrentSendLimit?: Prisma.SortOrder
+  ownerDailySendLimitMax?: Prisma.SortOrder
   followUpDelayDaysText?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedByName?: Prisma.SortOrder
@@ -441,6 +468,7 @@ export type CrmGlobalConfigMinOrderByAggregateInput = {
 export type CrmGlobalConfigSumOrderByAggregateInput = {
   emailVerificationCooldownDays?: Prisma.SortOrder
   ownerConcurrentSendLimit?: Prisma.SortOrder
+  ownerDailySendLimitMax?: Prisma.SortOrder
 }
 
 
@@ -450,6 +478,7 @@ export type CrmGlobalConfigSelect<ExtArgs extends runtime.Types.Extensions.Inter
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
   ownerConcurrentSendLimit?: boolean
+  ownerDailySendLimitMax?: boolean
   followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
@@ -462,6 +491,7 @@ export type CrmGlobalConfigSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
   ownerConcurrentSendLimit?: boolean
+  ownerDailySendLimitMax?: boolean
   followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
@@ -474,6 +504,7 @@ export type CrmGlobalConfigSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
   ownerConcurrentSendLimit?: boolean
+  ownerDailySendLimitMax?: boolean
   followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
@@ -486,6 +517,7 @@ export type CrmGlobalConfigSelectScalar = {
   configKey?: boolean
   emailVerificationCooldownDays?: boolean
   ownerConcurrentSendLimit?: boolean
+  ownerDailySendLimitMax?: boolean
   followUpDelayDaysText?: boolean
   updatedById?: boolean
   updatedByName?: boolean
@@ -493,7 +525,7 @@ export type CrmGlobalConfigSelectScalar = {
   updatedAt?: boolean
 }
 
-export type CrmGlobalConfigOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "configKey" | "emailVerificationCooldownDays" | "ownerConcurrentSendLimit" | "followUpDelayDaysText" | "updatedById" | "updatedByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmGlobalConfig"]>
+export type CrmGlobalConfigOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "configKey" | "emailVerificationCooldownDays" | "ownerConcurrentSendLimit" | "ownerDailySendLimitMax" | "followUpDelayDaysText" | "updatedById" | "updatedByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmGlobalConfig"]>
 
 export type $CrmGlobalConfigPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "CrmGlobalConfig"
@@ -503,6 +535,7 @@ export type $CrmGlobalConfigPayload<ExtArgs extends runtime.Types.Extensions.Int
     configKey: string
     emailVerificationCooldownDays: number
     ownerConcurrentSendLimit: number
+    ownerDailySendLimitMax: number
     followUpDelayDaysText: string
     updatedById: string | null
     updatedByName: string | null
@@ -935,6 +968,7 @@ export interface CrmGlobalConfigFieldRefs {
   readonly configKey: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly emailVerificationCooldownDays: Prisma.FieldRef<"CrmGlobalConfig", 'Int'>
   readonly ownerConcurrentSendLimit: Prisma.FieldRef<"CrmGlobalConfig", 'Int'>
+  readonly ownerDailySendLimitMax: Prisma.FieldRef<"CrmGlobalConfig", 'Int'>
   readonly followUpDelayDaysText: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly updatedById: Prisma.FieldRef<"CrmGlobalConfig", 'String'>
   readonly updatedByName: Prisma.FieldRef<"CrmGlobalConfig", 'String'>

@@ -46,6 +46,7 @@ import { RemoveCrmBlacklistEntryDto } from './dto/remove-crm-blacklist-entry.dto
 import { SaveCrmGlobalConfigDto } from './dto/save-crm-global-config.dto';
 import { SaveCrmInboxReplyDraftDto } from './dto/save-crm-inbox-reply-draft.dto';
 import { SaveCrmOrganizationConfigDto } from './dto/save-crm-organization-config.dto';
+import { SaveCrmSendPreferenceDto } from './dto/save-crm-send-preference.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
@@ -132,6 +133,16 @@ export class CrmController {
   @Post('global-config')
   async saveGlobalConfig(@Headers('authorization') authorization = '', @Body() dto: SaveCrmGlobalConfigDto) {
     return ok(await this.crmService.saveGlobalConfig(dto, this.requireSuperUserContext(authorization)));
+  }
+
+  @Get('send-preference')
+  async getSendPreference(@Headers('authorization') authorization = '') {
+    return ok(await this.crmService.getSendPreference(this.requireUserContext(authorization)));
+  }
+
+  @Post('send-preference')
+  async saveSendPreference(@Headers('authorization') authorization = '', @Body() dto: SaveCrmSendPreferenceDto) {
+    return ok(await this.crmService.saveSendPreference(dto, this.requireUserContext(authorization)));
   }
 
   @Get('organization-config')

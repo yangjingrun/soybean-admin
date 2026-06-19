@@ -58,6 +58,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
+  CrmUserSendPreference: 'CrmUserSendPreference',
   CrmOrganizationConfig: 'CrmOrganizationConfig',
   CrmBlacklist: 'CrmBlacklist',
   CrmArchivedFingerprint: 'CrmArchivedFingerprint',
@@ -224,6 +225,7 @@ export const CrmGlobalConfigScalarFieldEnum = {
   configKey: 'configKey',
   emailVerificationCooldownDays: 'emailVerificationCooldownDays',
   ownerConcurrentSendLimit: 'ownerConcurrentSendLimit',
+  ownerDailySendLimitMax: 'ownerDailySendLimitMax',
   followUpDelayDaysText: 'followUpDelayDaysText',
   updatedById: 'updatedById',
   updatedByName: 'updatedByName',
@@ -232,6 +234,22 @@ export const CrmGlobalConfigScalarFieldEnum = {
 } as const
 
 export type CrmGlobalConfigScalarFieldEnum = (typeof CrmGlobalConfigScalarFieldEnum)[keyof typeof CrmGlobalConfigScalarFieldEnum]
+
+
+export const CrmUserSendPreferenceScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  ownerUserName: 'ownerUserName',
+  dailySendLimit: 'dailySendLimit',
+  followUpSharePercent: 'followUpSharePercent',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmUserSendPreferenceScalarFieldEnum = (typeof CrmUserSendPreferenceScalarFieldEnum)[keyof typeof CrmUserSendPreferenceScalarFieldEnum]
 
 
 export const CrmOrganizationConfigScalarFieldEnum = {

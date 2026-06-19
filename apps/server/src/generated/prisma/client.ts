@@ -75,6 +75,11 @@ export type CrmEmailVerificationCache = Prisma.CrmEmailVerificationCacheModel
  */
 export type CrmGlobalConfig = Prisma.CrmGlobalConfigModel
 /**
+ * Model CrmUserSendPreference
+ *
+ */
+export type CrmUserSendPreference = Prisma.CrmUserSendPreferenceModel
+/**
  * Model CrmOrganizationConfig
  *
  */

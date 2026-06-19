@@ -512,6 +512,7 @@ function createGlobalConfig(input: Partial<CrmGlobalConfigRecord> = {}): CrmGlob
     configKey: input.configKey || 'default',
     emailVerificationCooldownDays: input.emailVerificationCooldownDays ?? 30,
     ownerConcurrentSendLimit: input.ownerConcurrentSendLimit ?? 5,
+    ownerDailySendLimitMax: input.ownerDailySendLimitMax ?? 200,
     followUpDelayDays: input.followUpDelayDays ?? {
       step2Days: 3,
       step3Days: 7,

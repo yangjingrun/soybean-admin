@@ -20,6 +20,8 @@ import { CrmGmailPubSubOidcVerifier } from './crm-gmail-pubsub-oidc.verifier';
 import { CrmGmailWebhookController } from './crm-gmail-webhook.controller';
 import { CrmGmailWebhookService } from './crm-gmail-webhook.service';
 import { CrmSendQueueService } from './crm-send-queue.service';
+import { CrmSendSchedulerHost } from './crm-send-scheduler-host.service';
+import { CrmSendSchedulerService } from './crm-send-scheduler.service';
 import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmService } from './crm.service';
@@ -51,6 +53,8 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmGmailHistorySyncWorkerHost,
     CrmGmailWatchService,
     CrmGmailWatchRenewalService,
+    CrmSendSchedulerService,
+    CrmSendSchedulerHost,
     CrmSendWorkerService,
     CrmSendWorkerHost,
     {

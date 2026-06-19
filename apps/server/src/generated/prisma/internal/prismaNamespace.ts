@@ -391,6 +391,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
+  CrmUserSendPreference: 'CrmUserSendPreference',
   CrmOrganizationConfig: 'CrmOrganizationConfig',
   CrmBlacklist: 'CrmBlacklist',
   CrmArchivedFingerprint: 'CrmArchivedFingerprint',
@@ -433,7 +434,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -952,6 +953,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmGlobalConfigCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmGlobalConfigCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmUserSendPreference: {
+      payload: Prisma.$CrmUserSendPreferencePayload<ExtArgs>
+      fields: Prisma.CrmUserSendPreferenceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmUserSendPreferenceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmUserSendPreferenceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>
+        }
+        findFirst: {
+          args: Prisma.CrmUserSendPreferenceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmUserSendPreferenceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>
+        }
+        findMany: {
+          args: Prisma.CrmUserSendPreferenceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>[]
+        }
+        create: {
+          args: Prisma.CrmUserSendPreferenceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>
+        }
+        createMany: {
+          args: Prisma.CrmUserSendPreferenceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmUserSendPreferenceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>[]
+        }
+        delete: {
+          args: Prisma.CrmUserSendPreferenceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>
+        }
+        update: {
+          args: Prisma.CrmUserSendPreferenceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmUserSendPreferenceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmUserSendPreferenceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmUserSendPreferenceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmUserSendPreferenceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmUserSendPreferencePayload>
+        }
+        aggregate: {
+          args: Prisma.CrmUserSendPreferenceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmUserSendPreference>
+        }
+        groupBy: {
+          args: Prisma.CrmUserSendPreferenceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmUserSendPreferenceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmUserSendPreferenceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmUserSendPreferenceCountAggregateOutputType> | number
         }
       }
     }
@@ -3113,6 +3188,7 @@ export const CrmGlobalConfigScalarFieldEnum = {
   configKey: 'configKey',
   emailVerificationCooldownDays: 'emailVerificationCooldownDays',
   ownerConcurrentSendLimit: 'ownerConcurrentSendLimit',
+  ownerDailySendLimitMax: 'ownerDailySendLimitMax',
   followUpDelayDaysText: 'followUpDelayDaysText',
   updatedById: 'updatedById',
   updatedByName: 'updatedByName',
@@ -3121,6 +3197,22 @@ export const CrmGlobalConfigScalarFieldEnum = {
 } as const
 
 export type CrmGlobalConfigScalarFieldEnum = (typeof CrmGlobalConfigScalarFieldEnum)[keyof typeof CrmGlobalConfigScalarFieldEnum]
+
+
+export const CrmUserSendPreferenceScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  ownerUserName: 'ownerUserName',
+  dailySendLimit: 'dailySendLimit',
+  followUpSharePercent: 'followUpSharePercent',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmUserSendPreferenceScalarFieldEnum = (typeof CrmUserSendPreferenceScalarFieldEnum)[keyof typeof CrmUserSendPreferenceScalarFieldEnum]
 
 
 export const CrmOrganizationConfigScalarFieldEnum = {
@@ -3887,6 +3979,7 @@ export type GlobalOmitConfig = {
   crmContact?: Prisma.CrmContactOmit
   crmEmailVerificationCache?: Prisma.CrmEmailVerificationCacheOmit
   crmGlobalConfig?: Prisma.CrmGlobalConfigOmit
+  crmUserSendPreference?: Prisma.CrmUserSendPreferenceOmit
   crmOrganizationConfig?: Prisma.CrmOrganizationConfigOmit
   crmBlacklist?: Prisma.CrmBlacklistOmit
   crmArchivedFingerprint?: Prisma.CrmArchivedFingerprintOmit

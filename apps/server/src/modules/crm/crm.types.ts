@@ -175,6 +175,7 @@ export interface CrmGlobalConfigRecord {
   configKey: string;
   emailVerificationCooldownDays: number;
   ownerConcurrentSendLimit: number;
+  ownerDailySendLimitMax: number;
   followUpDelayDays: CrmFollowUpDelayDays;
   updatedAt: Date;
 }
@@ -182,7 +183,31 @@ export interface CrmGlobalConfigRecord {
 export interface CrmGlobalConfigInput {
   emailVerificationCooldownDays: number;
   ownerConcurrentSendLimit?: number;
+  ownerDailySendLimitMax?: number;
   followUpDelayDays?: CrmFollowUpDelayDays;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+}
+
+export interface CrmSendPreferenceRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  ownerUserName: string | null;
+  dailySendLimit: number;
+  followUpSharePercent: number;
+  updatedById: string | null;
+  updatedByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmSendPreferenceInput {
+  organizationId: string;
+  ownerUserId: string;
+  ownerUserName?: string | null;
+  dailySendLimit: number;
+  followUpSharePercent: number;
   updatedById?: string | null;
   updatedByName?: string | null;
 }
@@ -1088,6 +1113,28 @@ export interface CrmSendQueueJob {
   runVersion: number;
 }
 
+export type CrmScheduledMessageStepKind = 'first_touch' | 'follow_up';
+
+export interface CrmDueSendCandidateRecord extends CrmSequenceReviewRecord {
+  message: CrmMessageRecord;
+  mailbox: CrmMailboxRecord;
+  stepKind: CrmScheduledMessageStepKind;
+}
+
+export interface CrmDueSendCandidateListInput {
+  now: Date;
+  take: number;
+}
+
+export interface CrmDispatchedMessageCountInput {
+  organizationId: string;
+  ownerUserId?: string;
+  mailboxId?: string;
+  stepKind?: CrmScheduledMessageStepKind;
+  from: Date;
+  to: Date;
+}
+
 export interface CrmSendQueuePort {
   enqueueFirstMessage(input: CrmSendQueueJob, options?: { delayMs?: number }): Promise<{ jobId: string }>;
 }
@@ -1417,7 +1464,11 @@ export interface CrmStore {
   upsertEmailVerificationCache(input: CrmEmailVerificationCacheUpsertInput): Promise<CrmEmailVerificationCacheRecord>;
   getGlobalConfig(): Promise<CrmGlobalConfigRecord>;
   saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
+  getSendPreference(args: { organizationId: string; ownerUserId: string }): Promise<CrmSendPreferenceRecord | null>;
+  saveSendPreference(input: CrmSendPreferenceInput): Promise<CrmSendPreferenceRecord>;
   countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }): Promise<number>;
+  countDispatchedMessages(input: CrmDispatchedMessageCountInput): Promise<number>;
+  listDueSendCandidates(input: CrmDueSendCandidateListInput): Promise<CrmDueSendCandidateRecord[]>;
   getOrganizationConfig(organizationId: string): Promise<CrmOrganizationConfigRecord | null>;
   saveOrganizationConfig(input: CrmOrganizationConfigInput): Promise<CrmOrganizationConfigRecord>;
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;

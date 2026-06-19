@@ -14,7 +14,15 @@ import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
-import { normalizeEmailVerificationCooldownDays, normalizeOwnerConcurrentSendLimit } from './crm-global-config';
+import {
+  defaultFollowUpSharePercent,
+  defaultOwnerDailySendLimit,
+  normalizeEmailVerificationCooldownDays,
+  normalizeFollowUpSharePercent,
+  normalizeOwnerConcurrentSendLimit,
+  normalizeOwnerDailySendLimit,
+  normalizeOwnerDailySendLimitMax
+} from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
@@ -95,6 +103,7 @@ import type {
   CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmSequenceReviewTodoType,
+  CrmSendPreferenceRecord,
   CrmStrategyStatsRecord,
   CrmSendQueuePort,
   CrmStore,
@@ -554,6 +563,7 @@ export class CrmService {
     input: {
       emailVerificationCooldownDays: number;
       ownerConcurrentSendLimit?: number;
+      ownerDailySendLimitMax?: number;
       followUpDelayDays?: CrmGlobalConfigRecord['followUpDelayDays'];
     },
     context: CrmUserContext
@@ -561,6 +571,7 @@ export class CrmService {
     const record = await this.store.saveGlobalConfig({
       emailVerificationCooldownDays: input.emailVerificationCooldownDays,
       ownerConcurrentSendLimit: input.ownerConcurrentSendLimit,
+      ownerDailySendLimitMax: input.ownerDailySendLimitMax,
       followUpDelayDays: input.followUpDelayDays,
       updatedById: context.userId,
       updatedByName: context.userName
@@ -569,10 +580,72 @@ export class CrmService {
     await this.recordCrmLog('save-global-config', 'CRM 全局配置已保存', context, {
       emailVerificationCooldownDays: record.emailVerificationCooldownDays,
       ownerConcurrentSendLimit: record.ownerConcurrentSendLimit,
+      ownerDailySendLimitMax: record.ownerDailySendLimitMax,
       followUpDelayDays: record.followUpDelayDays
     });
 
     return toGlobalConfigView(record);
+  }
+
+  /** Reads the current owner's send scheduling preference with platform cap context. */
+  async getSendPreference(context: CrmUserContext) {
+    const [globalConfig, preference] = await Promise.all([
+      this.store.getGlobalConfig(),
+      this.store.getSendPreference({
+        organizationId: context.organizationId,
+        ownerUserId: context.userId
+      })
+    ]);
+    const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(globalConfig.ownerDailySendLimitMax);
+
+    return toSendPreferenceView(preference, ownerDailySendLimitMax);
+  }
+
+  /** Saves the current owner's daily send scheduling preference. */
+  async saveSendPreference(
+    input: {
+      dailySendLimit: number;
+      followUpSharePercent: number;
+    },
+    context: CrmUserContext
+  ) {
+    const globalConfig = await this.store.getGlobalConfig();
+    const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(globalConfig.ownerDailySendLimitMax);
+    const dailySendLimit = Number(input.dailySendLimit);
+
+    if (!Number.isInteger(dailySendLimit) || dailySendLimit <= 0) {
+      throw new BadRequestException('每日进入发送队列数量必须是正整数');
+    }
+
+    if (dailySendLimit > ownerDailySendLimitMax) {
+      throw new BadRequestException(`每日进入发送队列数量不能超过平台硬上限 ${ownerDailySendLimitMax} 封`);
+    }
+
+    const followUpSharePercent = Number(input.followUpSharePercent);
+
+    if (!Number.isInteger(followUpSharePercent) || followUpSharePercent < 0 || followUpSharePercent > 100) {
+      throw new BadRequestException('后续开发信占比必须是 0-100 的整数');
+    }
+
+    const record = await this.store.saveSendPreference({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      ownerUserName: context.userName,
+      dailySendLimit: normalizeOwnerDailySendLimit(dailySendLimit, ownerDailySendLimitMax),
+      followUpSharePercent: normalizeFollowUpSharePercent(followUpSharePercent),
+      updatedById: context.userId,
+      updatedByName: context.userName
+    });
+
+    await this.recordCrmLog('save-send-preference', 'CRM 个人发送偏好已保存', context, {
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      dailySendLimit: record.dailySendLimit,
+      followUpSharePercent: record.followUpSharePercent,
+      ownerDailySendLimitMax
+    });
+
+    return toSendPreferenceView(record, ownerDailySendLimitMax);
   }
 
   /** Reads organization-level CRM permission settings. */
@@ -2225,8 +2298,6 @@ export class CrmService {
       throw new BadRequestException('后续开发信缺少计划发送时间');
     }
 
-    await this.assertOwnerSendConcurrencyAvailable(context);
-
     const approval = await this.store.approveMessageDraft({
       messageId: message.id,
       enrollmentId: reviewItem.enrollment.id,
@@ -2237,7 +2308,7 @@ export class CrmService {
       fromEnrollmentStatus: 'sequence_running',
       toEnrollmentStatus: 'sequence_running',
       fromMessageStatus: 'draft_pending_review',
-      toMessageStatus: queuedMessageStatus,
+      toMessageStatus: approvedDraftStatus,
       accountStatus: 'sequence_running'
     });
 
@@ -2245,30 +2316,7 @@ export class CrmService {
       throw new BadRequestException('当前草稿状态已变化，请刷新后重试');
     }
 
-    try {
-      const delayMs = Math.max(0, message.scheduledAt.getTime() - Date.now());
-      const { jobId } = await this.enqueueFirstMessage(approval.enrollment, approval.message, delayMs);
-      const queuedMessage = await this.store.updateMessage(
-        approval.message.id,
-        approval.message.organizationId,
-        { bullJobId: jobId },
-        { status: queuedMessageStatus }
-      );
-
-      if (queuedMessage) {
-        approval.message = queuedMessage;
-      }
-    } catch (error) {
-      await this.store.updateMessage(
-        approval.message.id,
-        approval.message.organizationId,
-        { status: 'draft_pending_review', bullJobId: null },
-        { status: queuedMessageStatus }
-      );
-      throw error;
-    }
-
-    await this.recordCrmLog('follow-up-draft-approve', 'CRM 后续开发信人工确认并进入发送队列', context, {
+    await this.recordCrmLog('follow-up-draft-approve', 'CRM 后续开发信人工确认并等待发送调度', context, {
       organizationId: context.organizationId,
       accountId: approval.message.accountId,
       contactId: approval.message.contactId,
@@ -2284,7 +2332,7 @@ export class CrmService {
     };
   }
 
-  /** Starts the approved first message by queueing a guarded background send job. */
+  /** Starts the approved first message by placing it into the local send scheduling pool. */
   async startFirstMessageSend(id: string, context: CrmUserContext) {
     const item = await this.requireOwnedSequenceReviewItem(id, context);
 
@@ -2305,7 +2353,6 @@ export class CrmService {
     }
 
     await this.assertContactNotBlacklisted(item.contact, context);
-    await this.assertOwnerSendConcurrencyAvailable(context);
 
     const started = await this.store.startFirstMessageSend({
       enrollmentId: item.enrollment.id,
@@ -2314,7 +2361,7 @@ export class CrmService {
       fromEnrollmentStatus: 'ready_to_send',
       toEnrollmentStatus: 'sequence_running',
       fromMessageStatus: approvedDraftStatus,
-      toMessageStatus: queuedMessageStatus,
+      toMessageStatus: approvedDraftStatus,
       accountStatus: 'sequence_running',
       scheduledAt: new Date()
     });
@@ -2323,31 +2370,7 @@ export class CrmService {
       throw new BadRequestException('当前序列状态已变化，请刷新后重试');
     }
 
-    try {
-      const { jobId } = await this.enqueueFirstMessage(started.enrollment, started.message);
-      const queuedMessage = await this.store.updateMessage(
-        started.message.id,
-        started.message.organizationId,
-        { bullJobId: jobId },
-        { status: queuedMessageStatus }
-      );
-
-      if (queuedMessage) {
-        started.message = queuedMessage;
-      }
-    } catch (error) {
-      await this.store.failFirstMessageSend({
-        enrollmentId: started.enrollment.id,
-        messageId: started.message.id,
-        organizationId: started.enrollment.organizationId,
-        ownerUserId: started.enrollment.ownerUserId,
-        runVersion: started.enrollment.runVersion,
-        reason: error instanceof Error ? error.message : String(error)
-      });
-      throw error;
-    }
-
-    await this.recordCrmLog('sequence-send-started', 'CRM 首封开发信已进入发送队列', context, {
+    await this.recordCrmLog('sequence-send-started', 'CRM 首封开发信已等待发送调度', context, {
       organizationId: context.organizationId,
       accountId: started.account.id,
       contactId: started.contact.id,
@@ -4044,6 +4067,14 @@ function toGlobalConfigView(record: CrmGlobalConfigRecord) {
   return {
     ...record,
     updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toSendPreferenceView(record: CrmSendPreferenceRecord | null, ownerDailySendLimitMax: number) {
+  return {
+    dailySendLimit: record?.dailySendLimit ?? Math.min(defaultOwnerDailySendLimit, ownerDailySendLimitMax),
+    followUpSharePercent: record?.followUpSharePercent ?? defaultFollowUpSharePercent,
+    ownerDailySendLimitMax
   };
 }
 

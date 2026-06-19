@@ -1837,6 +1837,7 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
     configKey: 'default',
     emailVerificationCooldownDays: 30,
     ownerConcurrentSendLimit: 5,
+    ownerDailySendLimitMax: 200,
     followUpDelayDays: {
       step2Days: 3,
       step3Days: 7,
