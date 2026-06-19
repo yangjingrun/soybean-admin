@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
+import DefaultEmailTemplateCard from './DefaultEmailTemplateCard.vue';
 import MailboxTable from './MailboxTable.vue';
 import MailboxToolbar from './MailboxToolbar.vue';
 import ProductLineManager from './ProductLineManager.vue';
 import { useMailboxTable } from './useMailboxTable';
+import { useTemplateDefaults } from './useTemplateDefaults';
 
 const {
   authorizeForm,
@@ -25,6 +27,11 @@ const {
   pagination,
   records
 } = useMailboxTable();
+const {
+  loadTemplateDefaults,
+  loading: templateDefaultsLoading,
+  templateDefaults
+} = useTemplateDefaults();
 </script>
 
 <template>
@@ -34,6 +41,14 @@ const {
     <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1">
       <NGi>
         <BasicRulesCard />
+      </NGi>
+
+      <NGi>
+        <DefaultEmailTemplateCard
+          :loading="templateDefaultsLoading"
+          :template-defaults="templateDefaults"
+          @refresh="loadTemplateDefaults"
+        />
       </NGi>
 
       <NGi>

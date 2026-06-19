@@ -24,6 +24,7 @@ import type {
   CrmInboxThreadStatus,
   CrmMessageRecord,
   CrmMessageStatus,
+  CrmMessageThreadMode,
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmProductLineUpdateInput,
@@ -147,6 +148,21 @@ interface PersonaProfile {
   draftFocusText: string;
 }
 
+interface TemplateVariable {
+  key: string;
+  label: string;
+  source: string;
+}
+
+interface DefaultTemplateStep {
+  stepIndex: number;
+  name: string;
+  threadMode: CrmMessageThreadMode;
+  delayDays: number;
+  subjectTemplate: string;
+  bodyTemplate: string;
+}
+
 const personaProfiles: PersonaProfile[] = [
   {
     label: 'Owner / Founder',
@@ -195,6 +211,65 @@ const personaProfiles: PersonaProfile[] = [
     aliases: ['operations manager', 'operation manager', 'supply chain manager', '运营经理'],
     focusText: '库存、物流、补货效率',
     draftFocusText: 'inventory, logistics, and replenishment efficiency'
+  }
+];
+
+const defaultTemplateVariables: TemplateVariable[] = [
+  { key: 'account.name', label: '客户公司', source: '线索库' },
+  { key: 'account.country', label: '客户国家/地区', source: '线索库' },
+  { key: 'contact.name', label: '联系人姓名/职位', source: '联系人' },
+  { key: 'product.name', label: '产品线名称', source: '产品资料' },
+  { key: 'product.sellingPoint', label: '核心卖点', source: '产品资料' },
+  { key: 'product.supplyInfo', label: 'MOQ/交期/认证', source: '产品资料' },
+  { key: 'persona.focus', label: '职位画像侧重点', source: '内置职位画像' },
+  { key: 'sender.name', label: '发送人姓名', source: '当前用户' }
+];
+
+const defaultTemplateSteps: DefaultTemplateStep[] = [
+  {
+    stepIndex: 1,
+    name: '第 1 封：首封开发信',
+    threadMode: 'new_subject',
+    delayDays: 0,
+    subjectTemplate: '{{product.name}} for {{account.name}}',
+    bodyTemplate:
+      'Hi {{contact.name}},\n\nI noticed {{account.name}} and thought this might be relevant to your team.\nWe work on {{product.name}}, mainly focused on {{product.sellingPoint}}.\n{{persona.focus}}\n{{product.supplyInfo}}\n\nWould it be useful if I sent a short product list for your review?\n\nBest regards,\n{{sender.name}}'
+  },
+  {
+    stepIndex: 2,
+    name: '第 2 封：同线程跟进',
+    threadMode: 'same_thread',
+    delayDays: 3,
+    subjectTemplate: '',
+    bodyTemplate:
+      'Hi {{contact.name}},\n\nJust following up in case {{product.name}} is relevant for your current sourcing plan.\n\nBest regards,\n{{sender.name}}'
+  },
+  {
+    stepIndex: 3,
+    name: '第 3 封：新主题换角度',
+    threadMode: 'new_subject',
+    delayDays: 7,
+    subjectTemplate: 'Quick idea for {{account.name}}',
+    bodyTemplate:
+      'Hi {{contact.name}},\n\nA quick angle: {{product.sellingPoint}} may help when comparing supplier options.\n\nBest regards,\n{{sender.name}}'
+  },
+  {
+    stepIndex: 4,
+    name: '第 4 封：价值补充',
+    threadMode: 'new_subject',
+    delayDays: 14,
+    subjectTemplate: '{{product.name}} supplier option',
+    bodyTemplate:
+      'Hi {{contact.name}},\n\nSharing one more note in case you are reviewing supplier options for {{product.name}}.\n{{product.supplyInfo}}\n\nBest regards,\n{{sender.name}}'
+  },
+  {
+    stepIndex: 5,
+    name: '第 5 封：最后一次触达',
+    threadMode: 'new_subject',
+    delayDays: 21,
+    subjectTemplate: 'Should I close this out?',
+    bodyTemplate:
+      'Hi {{contact.name}},\n\nI do not want to keep following up if this is not relevant. Should I close this out for now?\n\nBest regards,\n{{sender.name}}'
   }
 ];
 
@@ -596,6 +671,21 @@ export class CrmService {
     );
 
     return { productLine: toProductLineView(productLine) };
+  }
+
+  /** Returns the read-only default template and persona rules used by first-draft generation. */
+  getTemplateDefaults(_context: CrmUserContext) {
+    return {
+      templateGroup: {
+        id: 'global-first-touch',
+        name: '默认开发信序列模板',
+        scope: 'global' as const,
+        language: 'en',
+        variables: defaultTemplateVariables.map(variable => ({ ...variable })),
+        steps: defaultTemplateSteps.map(step => ({ ...step }))
+      },
+      personas: personaProfiles.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
+    };
   }
 
   /** Creates one first-email review item and deterministic draft without queueing any send job. */

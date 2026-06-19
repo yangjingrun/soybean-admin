@@ -363,6 +363,27 @@ describe('CrmController', () => {
     );
   });
 
+  it('gets read-only template defaults with the current organization context', async () => {
+    const calls: CrmUserContext[] = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        getTemplateDefaults(context) {
+          calls.push(context);
+
+          return createTemplateDefaultsView();
+        }
+      })
+    );
+
+    const result = await controller.getTemplateDefaults('Bearer token');
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].organizationId, 'org-1');
+    assert.equal(result.data.templateGroup.steps.length, 5);
+    assert.equal(result.data.personas[0].label, 'Purchasing Manager');
+  });
+
   it('creates, lists and reads sequence review items with the current user context', async () => {
     const calls: Array<{ action: string; payload: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
@@ -671,6 +692,37 @@ function createProductLineView(overrides: Partial<{
   };
 }
 
+function createTemplateDefaultsView() {
+  return {
+    templateGroup: {
+      id: 'global-first-touch',
+      name: '默认首封开发信',
+      scope: 'global' as const,
+      language: 'en',
+      variables: [
+        { key: 'account.name', label: '客户公司', source: '线索库' },
+        { key: 'persona.focus', label: '职位画像侧重点', source: '内置职位画像' }
+      ],
+      steps: Array.from({ length: 5 }, (_, index) => ({
+        stepIndex: index + 1,
+        name: `第 ${index + 1} 封`,
+        threadMode: index === 1 ? ('same_thread' as const) : ('new_subject' as const),
+        delayDays: index === 0 ? 0 : [3, 7, 14, 21][index - 1],
+        subjectTemplate: index === 0 ? '{{product.name}} for {{account.name}}' : '',
+        bodyTemplate: 'Hi {{contact.name}},\n\n{{persona.focus}}'
+      }))
+    },
+    personas: [
+      {
+        label: 'Purchasing Manager',
+        aliases: ['buyer'],
+        focusText: '价格、MOQ、交期、付款方式',
+        draftFocusText: 'price, MOQ, lead time, and payment terms'
+      }
+    ]
+  };
+}
+
 function createEnrollmentView(overrides: Partial<CrmEnrollmentView> = {}): CrmEnrollmentView {
   return {
     id: 'enrollment-1',
@@ -901,6 +953,9 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
         total: 0,
         records: []
       };
+    },
+    getTemplateDefaults() {
+      return createTemplateDefaultsView();
     },
     async createProductLine() {
       return { productLine: createProductLineView() };

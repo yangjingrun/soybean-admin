@@ -121,6 +121,14 @@ export function archiveCrmProductLine(id: string) {
   });
 }
 
+/** Get the read-only default email template and persona profiles. */
+export function fetchCrmTemplateDefaults() {
+  return request<Api.Crm.TemplateDefaults>({
+    url: '/crm/template-defaults',
+    method: 'get'
+  });
+}
+
 /** List first-email sequence review items by filters and pagination. */
 export function fetchCrmSequenceReviewItems(params: Api.Crm.SequenceReviewSearchParams) {
   return request<Api.Crm.SequenceReviewList>({

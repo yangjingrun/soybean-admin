@@ -135,6 +135,11 @@ export class CrmController {
     return ok(await this.crmService.archiveProductLine(id, this.requireUserContext(authorization)));
   }
 
+  @Get('template-defaults')
+  async getTemplateDefaults(@Headers('authorization') authorization = '') {
+    return ok(this.crmService.getTemplateDefaults(this.requireUserContext(authorization)));
+  }
+
   @Get('sequence-review-items')
   async listSequenceReviewItems(
     @Headers('authorization') authorization = '',

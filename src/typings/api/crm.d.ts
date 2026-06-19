@@ -234,6 +234,40 @@ declare namespace Api {
 
     type ProductLineList = Api.Common.PaginatingQueryRecord<ProductLineRecord>;
 
+    interface TemplateVariable {
+      key: string;
+      label: string;
+      source: string;
+    }
+
+    interface DefaultTemplateStep {
+      stepIndex: number;
+      name: string;
+      threadMode: MessageThreadMode;
+      delayDays: number;
+      subjectTemplate: string;
+      bodyTemplate: string;
+    }
+
+    interface PersonaProfile {
+      label: string;
+      aliases: string[];
+      focusText: string;
+      draftFocusText: string;
+    }
+
+    interface TemplateDefaults {
+      templateGroup: {
+        id: string;
+        name: string;
+        scope: 'global';
+        language: string;
+        variables: TemplateVariable[];
+        steps: DefaultTemplateStep[];
+      };
+      personas: PersonaProfile[];
+    }
+
     interface SequenceEnrollmentRecord {
       id: string;
       organizationId: string;

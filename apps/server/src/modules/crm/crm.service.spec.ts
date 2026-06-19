@@ -698,6 +698,19 @@ describe('CrmService', () => {
     assert.equal(store.productLineUpdateCalls.length, 0);
   });
 
+  it('returns read-only default templates and persona profiles', () => {
+    const service = new CrmService(createStore());
+
+    const result = service.getTemplateDefaults(createContext());
+
+    assert.equal(result.templateGroup.scope, 'global');
+    assert.equal(result.templateGroup.steps.length, 5);
+    assert.equal(result.templateGroup.steps[0].stepIndex, 1);
+    assert.equal(result.templateGroup.steps[0].threadMode, 'new_subject');
+    assert.match(result.templateGroup.steps[0].bodyTemplate, /{{persona.focus}}/);
+    assert.equal(result.personas.some(persona => persona.label === 'Purchasing Manager'), true);
+  });
+
   it('creates first draft review items with scoped resources and sanitized logs', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
       contacts: [
@@ -1177,7 +1190,7 @@ describe('CrmService', () => {
     });
     const notificationCreates: Array<{ title: string; content: string; type: string; metadata?: unknown }> = [];
     const service = new CrmService(store, undefined, undefined, undefined, {
-      async create(input) {
+      async create(input: { title: string; content: string; type: string; metadata?: unknown }) {
         notificationCreates.push(input);
         return input as never;
       }
