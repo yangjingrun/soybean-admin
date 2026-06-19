@@ -175,6 +175,7 @@ model CrmMailbox {
   dailyLimit      Int       @default(50)
   hourlyLimit     Int       @default(10)
   warmupStage     String    @default("new")
+  encryptedRefreshToken String?
   watchExpiration DateTime?
   lastHistoryId   String?
   authorizedAt    DateTime

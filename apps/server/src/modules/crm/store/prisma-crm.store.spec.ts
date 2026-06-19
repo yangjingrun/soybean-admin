@@ -192,11 +192,13 @@ describe('PrismaCrmStore', () => {
       dailyLimit: 50,
       hourlyLimit: 10,
       warmupStage: 'new',
+      encryptedRefreshToken: 'encrypted-refresh-token-1',
       authorizedAt: new Date('2026-06-18T09:00:00.000Z')
     });
     const existing = await store.findMailboxByProviderAndEmailHash('gmail', 'hash-1');
 
     assert.equal(mailbox.id, 'mailbox-1');
+    assert.equal(mailbox.encryptedRefreshToken, 'encrypted-refresh-token-1');
     assert.equal(existing?.id, 'mailbox-1');
     assert.deepEqual(prisma.crmMailbox.findUniqueCalls[0].where, {
       provider_emailHash: {
@@ -998,6 +1000,7 @@ function createPrisma() {
     warmupStage: 'new',
     watchExpiration: null,
     lastHistoryId: null,
+    encryptedRefreshToken: 'encrypted-refresh-token-1',
     authorizedAt: new Date('2026-06-18T09:00:00.000Z'),
     pausedAt: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),

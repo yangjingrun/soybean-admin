@@ -238,6 +238,7 @@ function createMailbox(input: Partial<CrmMailboxRecord> = {}): CrmMailboxRecord 
     dailyLimit: input.dailyLimit ?? 50,
     hourlyLimit: input.hourlyLimit ?? 10,
     warmupStage: input.warmupStage || 'new',
+    encryptedRefreshToken: input.encryptedRefreshToken ?? null,
     watchExpiration: input.watchExpiration ?? null,
     lastHistoryId: input.lastHistoryId ?? null,
     authorizedAt: input.authorizedAt || new Date('2026-06-18T09:00:00.000Z'),

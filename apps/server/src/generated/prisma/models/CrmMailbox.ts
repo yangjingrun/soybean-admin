@@ -49,6 +49,7 @@ export type CrmMailboxMinAggregateOutputType = {
   dailyLimit: number | null
   hourlyLimit: number | null
   warmupStage: string | null
+  encryptedRefreshToken: string | null
   watchExpiration: Date | null
   lastHistoryId: string | null
   authorizedAt: Date | null
@@ -70,6 +71,7 @@ export type CrmMailboxMaxAggregateOutputType = {
   dailyLimit: number | null
   hourlyLimit: number | null
   warmupStage: string | null
+  encryptedRefreshToken: string | null
   watchExpiration: Date | null
   lastHistoryId: string | null
   authorizedAt: Date | null
@@ -91,6 +93,7 @@ export type CrmMailboxCountAggregateOutputType = {
   dailyLimit: number
   hourlyLimit: number
   warmupStage: number
+  encryptedRefreshToken: number
   watchExpiration: number
   lastHistoryId: number
   authorizedAt: number
@@ -124,6 +127,7 @@ export type CrmMailboxMinAggregateInputType = {
   dailyLimit?: true
   hourlyLimit?: true
   warmupStage?: true
+  encryptedRefreshToken?: true
   watchExpiration?: true
   lastHistoryId?: true
   authorizedAt?: true
@@ -145,6 +149,7 @@ export type CrmMailboxMaxAggregateInputType = {
   dailyLimit?: true
   hourlyLimit?: true
   warmupStage?: true
+  encryptedRefreshToken?: true
   watchExpiration?: true
   lastHistoryId?: true
   authorizedAt?: true
@@ -166,6 +171,7 @@ export type CrmMailboxCountAggregateInputType = {
   dailyLimit?: true
   hourlyLimit?: true
   warmupStage?: true
+  encryptedRefreshToken?: true
   watchExpiration?: true
   lastHistoryId?: true
   authorizedAt?: true
@@ -274,6 +280,7 @@ export type CrmMailboxGroupByOutputType = {
   dailyLimit: number
   hourlyLimit: number
   warmupStage: string
+  encryptedRefreshToken: string | null
   watchExpiration: Date | null
   lastHistoryId: string | null
   authorizedAt: Date
@@ -318,6 +325,7 @@ export type CrmMailboxWhereInput = {
   dailyLimit?: Prisma.IntFilter<"CrmMailbox"> | number
   hourlyLimit?: Prisma.IntFilter<"CrmMailbox"> | number
   warmupStage?: Prisma.StringFilter<"CrmMailbox"> | string
+  encryptedRefreshToken?: Prisma.StringNullableFilter<"CrmMailbox"> | string | null
   watchExpiration?: Prisma.DateTimeNullableFilter<"CrmMailbox"> | Date | string | null
   lastHistoryId?: Prisma.StringNullableFilter<"CrmMailbox"> | string | null
   authorizedAt?: Prisma.DateTimeFilter<"CrmMailbox"> | Date | string
@@ -345,6 +353,7 @@ export type CrmMailboxOrderByWithRelationInput = {
   dailyLimit?: Prisma.SortOrder
   hourlyLimit?: Prisma.SortOrder
   warmupStage?: Prisma.SortOrder
+  encryptedRefreshToken?: Prisma.SortOrderInput | Prisma.SortOrder
   watchExpiration?: Prisma.SortOrderInput | Prisma.SortOrder
   lastHistoryId?: Prisma.SortOrderInput | Prisma.SortOrder
   authorizedAt?: Prisma.SortOrder
@@ -376,6 +385,7 @@ export type CrmMailboxWhereUniqueInput = Prisma.AtLeast<{
   dailyLimit?: Prisma.IntFilter<"CrmMailbox"> | number
   hourlyLimit?: Prisma.IntFilter<"CrmMailbox"> | number
   warmupStage?: Prisma.StringFilter<"CrmMailbox"> | string
+  encryptedRefreshToken?: Prisma.StringNullableFilter<"CrmMailbox"> | string | null
   watchExpiration?: Prisma.DateTimeNullableFilter<"CrmMailbox"> | Date | string | null
   lastHistoryId?: Prisma.StringNullableFilter<"CrmMailbox"> | string | null
   authorizedAt?: Prisma.DateTimeFilter<"CrmMailbox"> | Date | string
@@ -403,6 +413,7 @@ export type CrmMailboxOrderByWithAggregationInput = {
   dailyLimit?: Prisma.SortOrder
   hourlyLimit?: Prisma.SortOrder
   warmupStage?: Prisma.SortOrder
+  encryptedRefreshToken?: Prisma.SortOrderInput | Prisma.SortOrder
   watchExpiration?: Prisma.SortOrderInput | Prisma.SortOrder
   lastHistoryId?: Prisma.SortOrderInput | Prisma.SortOrder
   authorizedAt?: Prisma.SortOrder
@@ -432,6 +443,7 @@ export type CrmMailboxScalarWhereWithAggregatesInput = {
   dailyLimit?: Prisma.IntWithAggregatesFilter<"CrmMailbox"> | number
   hourlyLimit?: Prisma.IntWithAggregatesFilter<"CrmMailbox"> | number
   warmupStage?: Prisma.StringWithAggregatesFilter<"CrmMailbox"> | string
+  encryptedRefreshToken?: Prisma.StringNullableWithAggregatesFilter<"CrmMailbox"> | string | null
   watchExpiration?: Prisma.DateTimeNullableWithAggregatesFilter<"CrmMailbox"> | Date | string | null
   lastHistoryId?: Prisma.StringNullableWithAggregatesFilter<"CrmMailbox"> | string | null
   authorizedAt?: Prisma.DateTimeWithAggregatesFilter<"CrmMailbox"> | Date | string
@@ -452,6 +464,7 @@ export type CrmMailboxCreateInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -479,6 +492,7 @@ export type CrmMailboxUncheckedCreateInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -504,6 +518,7 @@ export type CrmMailboxUpdateInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -531,6 +546,7 @@ export type CrmMailboxUncheckedUpdateInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -557,6 +573,7 @@ export type CrmMailboxCreateManyInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -577,6 +594,7 @@ export type CrmMailboxUpdateManyMutationInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -598,6 +616,7 @@ export type CrmMailboxUncheckedUpdateManyInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -634,6 +653,7 @@ export type CrmMailboxCountOrderByAggregateInput = {
   dailyLimit?: Prisma.SortOrder
   hourlyLimit?: Prisma.SortOrder
   warmupStage?: Prisma.SortOrder
+  encryptedRefreshToken?: Prisma.SortOrder
   watchExpiration?: Prisma.SortOrder
   lastHistoryId?: Prisma.SortOrder
   authorizedAt?: Prisma.SortOrder
@@ -660,6 +680,7 @@ export type CrmMailboxMaxOrderByAggregateInput = {
   dailyLimit?: Prisma.SortOrder
   hourlyLimit?: Prisma.SortOrder
   warmupStage?: Prisma.SortOrder
+  encryptedRefreshToken?: Prisma.SortOrder
   watchExpiration?: Prisma.SortOrder
   lastHistoryId?: Prisma.SortOrder
   authorizedAt?: Prisma.SortOrder
@@ -681,6 +702,7 @@ export type CrmMailboxMinOrderByAggregateInput = {
   dailyLimit?: Prisma.SortOrder
   hourlyLimit?: Prisma.SortOrder
   warmupStage?: Prisma.SortOrder
+  encryptedRefreshToken?: Prisma.SortOrder
   watchExpiration?: Prisma.SortOrder
   lastHistoryId?: Prisma.SortOrder
   authorizedAt?: Prisma.SortOrder
@@ -836,6 +858,7 @@ export type CrmMailboxCreateWithoutOrganizationInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -861,6 +884,7 @@ export type CrmMailboxUncheckedCreateWithoutOrganizationInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -916,6 +940,7 @@ export type CrmMailboxScalarWhereInput = {
   dailyLimit?: Prisma.IntFilter<"CrmMailbox"> | number
   hourlyLimit?: Prisma.IntFilter<"CrmMailbox"> | number
   warmupStage?: Prisma.StringFilter<"CrmMailbox"> | string
+  encryptedRefreshToken?: Prisma.StringNullableFilter<"CrmMailbox"> | string | null
   watchExpiration?: Prisma.DateTimeNullableFilter<"CrmMailbox"> | Date | string | null
   lastHistoryId?: Prisma.StringNullableFilter<"CrmMailbox"> | string | null
   authorizedAt?: Prisma.DateTimeFilter<"CrmMailbox"> | Date | string
@@ -936,6 +961,7 @@ export type CrmMailboxCreateWithoutSendUsagesInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -962,6 +988,7 @@ export type CrmMailboxUncheckedCreateWithoutSendUsagesInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1002,6 +1029,7 @@ export type CrmMailboxUpdateWithoutSendUsagesInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1028,6 +1056,7 @@ export type CrmMailboxUncheckedUpdateWithoutSendUsagesInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1052,6 +1081,7 @@ export type CrmMailboxCreateWithoutEnrollmentsInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1078,6 +1108,7 @@ export type CrmMailboxUncheckedCreateWithoutEnrollmentsInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1118,6 +1149,7 @@ export type CrmMailboxUpdateWithoutEnrollmentsInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1144,6 +1176,7 @@ export type CrmMailboxUncheckedUpdateWithoutEnrollmentsInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1168,6 +1201,7 @@ export type CrmMailboxCreateWithoutMessagesInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1194,6 +1228,7 @@ export type CrmMailboxUncheckedCreateWithoutMessagesInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1234,6 +1269,7 @@ export type CrmMailboxUpdateWithoutMessagesInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1260,6 +1296,7 @@ export type CrmMailboxUncheckedUpdateWithoutMessagesInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1284,6 +1321,7 @@ export type CrmMailboxCreateWithoutInboxThreadsInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1310,6 +1348,7 @@ export type CrmMailboxUncheckedCreateWithoutInboxThreadsInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1350,6 +1389,7 @@ export type CrmMailboxUpdateWithoutInboxThreadsInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1376,6 +1416,7 @@ export type CrmMailboxUncheckedUpdateWithoutInboxThreadsInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1400,6 +1441,7 @@ export type CrmMailboxCreateWithoutInboxMessagesInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1426,6 +1468,7 @@ export type CrmMailboxUncheckedCreateWithoutInboxMessagesInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1466,6 +1509,7 @@ export type CrmMailboxUpdateWithoutInboxMessagesInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1492,6 +1536,7 @@ export type CrmMailboxUncheckedUpdateWithoutInboxMessagesInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1516,6 +1561,7 @@ export type CrmMailboxCreateManyOrganizationInput = {
   dailyLimit?: number
   hourlyLimit?: number
   warmupStage?: string
+  encryptedRefreshToken?: string | null
   watchExpiration?: Date | string | null
   lastHistoryId?: string | null
   authorizedAt: Date | string
@@ -1536,6 +1582,7 @@ export type CrmMailboxUpdateWithoutOrganizationInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1561,6 +1608,7 @@ export type CrmMailboxUncheckedUpdateWithoutOrganizationInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1586,6 +1634,7 @@ export type CrmMailboxUncheckedUpdateManyWithoutOrganizationInput = {
   dailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   hourlyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   warmupStage?: Prisma.StringFieldUpdateOperationsInput | string
+  encryptedRefreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   watchExpiration?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastHistoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   authorizedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1674,6 +1723,7 @@ export type CrmMailboxSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   dailyLimit?: boolean
   hourlyLimit?: boolean
   warmupStage?: boolean
+  encryptedRefreshToken?: boolean
   watchExpiration?: boolean
   lastHistoryId?: boolean
   authorizedAt?: boolean
@@ -1702,6 +1752,7 @@ export type CrmMailboxSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   dailyLimit?: boolean
   hourlyLimit?: boolean
   warmupStage?: boolean
+  encryptedRefreshToken?: boolean
   watchExpiration?: boolean
   lastHistoryId?: boolean
   authorizedAt?: boolean
@@ -1724,6 +1775,7 @@ export type CrmMailboxSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   dailyLimit?: boolean
   hourlyLimit?: boolean
   warmupStage?: boolean
+  encryptedRefreshToken?: boolean
   watchExpiration?: boolean
   lastHistoryId?: boolean
   authorizedAt?: boolean
@@ -1746,6 +1798,7 @@ export type CrmMailboxSelectScalar = {
   dailyLimit?: boolean
   hourlyLimit?: boolean
   warmupStage?: boolean
+  encryptedRefreshToken?: boolean
   watchExpiration?: boolean
   lastHistoryId?: boolean
   authorizedAt?: boolean
@@ -1754,7 +1807,7 @@ export type CrmMailboxSelectScalar = {
   updatedAt?: boolean
 }
 
-export type CrmMailboxOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "ownerUserId" | "ownerUserName" | "provider" | "emailAddress" | "emailHash" | "maskedEmail" | "status" | "dailyLimit" | "hourlyLimit" | "warmupStage" | "watchExpiration" | "lastHistoryId" | "authorizedAt" | "pausedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["crmMailbox"]>
+export type CrmMailboxOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "ownerUserId" | "ownerUserName" | "provider" | "emailAddress" | "emailHash" | "maskedEmail" | "status" | "dailyLimit" | "hourlyLimit" | "warmupStage" | "encryptedRefreshToken" | "watchExpiration" | "lastHistoryId" | "authorizedAt" | "pausedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["crmMailbox"]>
 export type CrmMailboxInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   enrollments?: boolean | Prisma.CrmMailbox$enrollmentsArgs<ExtArgs>
@@ -1794,6 +1847,7 @@ export type $CrmMailboxPayload<ExtArgs extends runtime.Types.Extensions.Internal
     dailyLimit: number
     hourlyLimit: number
     warmupStage: string
+    encryptedRefreshToken: string | null
     watchExpiration: Date | null
     lastHistoryId: string | null
     authorizedAt: Date
@@ -2241,6 +2295,7 @@ export interface CrmMailboxFieldRefs {
   readonly dailyLimit: Prisma.FieldRef<"CrmMailbox", 'Int'>
   readonly hourlyLimit: Prisma.FieldRef<"CrmMailbox", 'Int'>
   readonly warmupStage: Prisma.FieldRef<"CrmMailbox", 'String'>
+  readonly encryptedRefreshToken: Prisma.FieldRef<"CrmMailbox", 'String'>
   readonly watchExpiration: Prisma.FieldRef<"CrmMailbox", 'DateTime'>
   readonly lastHistoryId: Prisma.FieldRef<"CrmMailbox", 'String'>
   readonly authorizedAt: Prisma.FieldRef<"CrmMailbox", 'DateTime'>

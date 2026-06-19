@@ -2216,6 +2216,7 @@ export const CrmMailboxScalarFieldEnum = {
   dailyLimit: 'dailyLimit',
   hourlyLimit: 'hourlyLimit',
   warmupStage: 'warmupStage',
+  encryptedRefreshToken: 'encryptedRefreshToken',
   watchExpiration: 'watchExpiration',
   lastHistoryId: 'lastHistoryId',
   authorizedAt: 'authorizedAt',

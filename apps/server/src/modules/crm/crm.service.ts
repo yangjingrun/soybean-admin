@@ -1676,8 +1676,10 @@ function toTimelineEventView(record: CrmTimelineEventRecord) {
 }
 
 function toMailboxView(record: CrmMailboxRecord) {
+  const { encryptedRefreshToken: _encryptedRefreshToken, ...safeRecord } = record;
+
   return {
-    ...record,
+    ...safeRecord,
     authorizedAt: record.authorizedAt.toISOString(),
     watchExpiration: record.watchExpiration?.toISOString() ?? null,
     pausedAt: record.pausedAt?.toISOString() ?? null,

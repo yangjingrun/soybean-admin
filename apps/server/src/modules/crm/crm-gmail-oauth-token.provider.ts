@@ -31,10 +31,6 @@ interface GmailOAuthErrorResponse {
   error?: unknown;
 }
 
-type CrmMailboxWithEncryptedRefreshToken = CrmMailboxRecord & {
-  encryptedRefreshToken?: string | null;
-};
-
 const encryptionVersion = 'v1';
 const encryptionAlgorithm = 'aes-256-gcm';
 const encryptionIvLength = 12;
@@ -68,13 +64,11 @@ export class CrmGmailOAuthTokenProvider implements CrmGmailAccessTokenProvider {
 
   /** Exchanges the mailbox refresh token for a short-lived Gmail access token. */
   async getAccessToken(mailbox: CrmMailboxRecord): Promise<string> {
-    const encryptedRefreshToken = (mailbox as CrmMailboxWithEncryptedRefreshToken).encryptedRefreshToken;
-
-    if (!encryptedRefreshToken) {
+    if (!mailbox.encryptedRefreshToken) {
       throw new Error('Gmail mailbox refresh token is missing');
     }
 
-    const refreshToken = decryptGmailSecret(encryptedRefreshToken, this.config.tokenEncryptionKey);
+    const refreshToken = decryptGmailSecret(mailbox.encryptedRefreshToken, this.config.tokenEncryptionKey);
     const body = new URLSearchParams({
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,

@@ -170,6 +170,7 @@ function createMailbox(): CrmMailboxRecord {
     dailyLimit: 50,
     hourlyLimit: 10,
     warmupStage: 'ready',
+    encryptedRefreshToken: 'encrypted-refresh-token-1',
     watchExpiration: null,
     lastHistoryId: '100',
     authorizedAt: new Date('2026-06-19T08:00:00.000Z'),

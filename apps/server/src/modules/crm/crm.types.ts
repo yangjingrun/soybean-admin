@@ -128,6 +128,7 @@ export interface CrmMailboxRecord {
   dailyLimit: number;
   hourlyLimit: number;
   warmupStage: CrmMailboxWarmupStage;
+  encryptedRefreshToken: string | null;
   watchExpiration: Date | null;
   lastHistoryId: string | null;
   authorizedAt: Date;
@@ -336,6 +337,7 @@ export interface CrmMailboxCreateInput {
   dailyLimit: number;
   hourlyLimit: number;
   warmupStage: CrmMailboxWarmupStage;
+  encryptedRefreshToken?: string | null;
   watchExpiration?: Date | null;
   lastHistoryId?: string | null;
   authorizedAt: Date;
@@ -347,6 +349,7 @@ export interface CrmMailboxUpdateInput {
   dailyLimit?: number;
   hourlyLimit?: number;
   warmupStage?: CrmMailboxWarmupStage;
+  encryptedRefreshToken?: string | null;
   watchExpiration?: Date | null;
   lastHistoryId?: string | null;
   authorizedAt?: Date;
