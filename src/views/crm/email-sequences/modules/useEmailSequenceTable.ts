@@ -295,7 +295,7 @@ export function useEmailSequenceTable() {
         return;
       }
 
-      message.success('草稿已确认，等待后续发送队列接入');
+      message.success(data.message.status === 'queued' ? '后续草稿已确认并进入发送队列' : '草稿已确认，等待启动发送');
       currentItem.value = replaceReviewMessage(
         {
           ...currentItem.value,

@@ -999,6 +999,57 @@ describe('CrmService', () => {
     assert.equal((logs.records[0].metadata as Record<string, unknown>).messageId, 'message-1');
   });
 
+  it('approves follow-up drafts by queueing their scheduled send jobs', async () => {
+    const scheduledAt = new Date('2030-06-21T10:00:00.000Z');
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1', status: 'active' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 3,
+          currentStep: 1
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          status: 'sent',
+          stepIndex: 1
+        }),
+        createMessage({
+          id: 'message-2',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_pending_review',
+          stepIndex: 2,
+          threadMode: 'same_thread',
+          scheduledAt
+        })
+      ]
+    });
+    const sendQueue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, sendQueue);
+
+    const approved = await service.approveMessageDraft('message-2', createContext());
+
+    assert.equal(approved.enrollment.status, 'sequence_running');
+    assert.equal(approved.message.status, 'queued');
+    assert.equal(store.messages[1].bullJobId, 'send-job-1');
+    assert.deepEqual(sendQueue.jobs[0], {
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-2',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 3
+    });
+    assert.ok((sendQueue.options[0]?.delayMs ?? 0) > 0);
+  });
+
   it('rejects admin attempts to edit or approve another member draft', async () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
@@ -3000,17 +3051,22 @@ function createOAuthFlow(input: {
   return flow;
 }
 
-function createSendQueue(error?: Error): CrmSendQueuePort & { jobs: CrmSendQueueJob[] } {
+function createSendQueue(
+  error?: Error
+): CrmSendQueuePort & { jobs: CrmSendQueueJob[]; options: Array<{ delayMs?: number }> } {
   const jobs: CrmSendQueueJob[] = [];
+  const options: Array<{ delayMs?: number }> = [];
 
   return {
     jobs,
-    async enqueueFirstMessage(input) {
+    options,
+    async enqueueFirstMessage(input, enqueueOptions) {
       if (error) {
         throw error;
       }
 
       jobs.push(input);
+      options.push(enqueueOptions ?? {});
       return { jobId: `send-job-${jobs.length}` };
     }
   };

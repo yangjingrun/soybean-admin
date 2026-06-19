@@ -946,6 +946,10 @@ export class CrmService {
     const message = await this.requireOwnedEditableMessage(id, context);
     const reviewItem = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
 
+    if (message.stepIndex > initialDraftStepIndex) {
+      return this.approveFollowUpMessageDraft(message, reviewItem, context);
+    }
+
     if (reviewItem.enrollment.status !== 'draft_review_pending') {
       throw new BadRequestException('当前序列状态不能确认草稿');
     }
@@ -976,6 +980,81 @@ export class CrmService {
       messageId: approval.message.id,
       fromStatus: reviewItem.enrollment.status,
       toStatus: approval.enrollment.status
+    });
+
+    return {
+      enrollment: toSequenceEnrollmentView(approval.enrollment),
+      message: toMessageView(approval.message)
+    };
+  }
+
+  /** Confirms a follow-up draft and schedules its guarded send job. */
+  private async approveFollowUpMessageDraft(
+    message: CrmMessageRecord,
+    reviewItem: CrmSequenceReviewRecord,
+    context: CrmUserContext
+  ) {
+    if (reviewItem.enrollment.status !== 'sequence_running') {
+      throw new BadRequestException('当前序列状态不能确认后续草稿');
+    }
+
+    if (!reviewItem.mailbox || reviewItem.mailbox.status !== 'active') {
+      throw new BadRequestException('发送邮箱未启用');
+    }
+
+    if (!message.scheduledAt) {
+      throw new BadRequestException('后续开发信缺少计划发送时间');
+    }
+
+    const approval = await this.store.approveMessageDraft({
+      messageId: message.id,
+      enrollmentId: reviewItem.enrollment.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      accountId: message.accountId,
+      contactId: message.contactId,
+      fromEnrollmentStatus: 'sequence_running',
+      toEnrollmentStatus: 'sequence_running',
+      fromMessageStatus: 'draft_pending_review',
+      toMessageStatus: queuedMessageStatus,
+      accountStatus: 'sequence_running'
+    });
+
+    if (!approval) {
+      throw new BadRequestException('当前草稿状态已变化，请刷新后重试');
+    }
+
+    try {
+      const delayMs = Math.max(0, message.scheduledAt.getTime() - Date.now());
+      const { jobId } = await this.enqueueFirstMessage(approval.enrollment, approval.message, delayMs);
+      const queuedMessage = await this.store.updateMessage(
+        approval.message.id,
+        approval.message.organizationId,
+        { bullJobId: jobId },
+        { status: queuedMessageStatus }
+      );
+
+      if (queuedMessage) {
+        approval.message = queuedMessage;
+      }
+    } catch (error) {
+      await this.store.updateMessage(
+        approval.message.id,
+        approval.message.organizationId,
+        { status: 'draft_pending_review', bullJobId: null },
+        { status: queuedMessageStatus }
+      );
+      throw error;
+    }
+
+    await this.recordCrmLog('follow-up-draft-approve', 'CRM 后续开发信人工确认并进入发送队列', context, {
+      organizationId: context.organizationId,
+      accountId: approval.message.accountId,
+      contactId: approval.message.contactId,
+      enrollmentId: approval.enrollment.id,
+      messageId: approval.message.id,
+      stepIndex: approval.message.stepIndex,
+      scheduledAt: approval.message.scheduledAt?.toISOString() ?? null
     });
 
     return {
@@ -1673,18 +1752,21 @@ export class CrmService {
     }
   }
 
-  private async enqueueFirstMessage(enrollment: CrmSequenceEnrollmentRecord, message: CrmMessageRecord) {
+  private async enqueueFirstMessage(enrollment: CrmSequenceEnrollmentRecord, message: CrmMessageRecord, delayMs?: number) {
     if (!this.sendQueue) {
       throw new BadRequestException('CRM 邮件发送队列未启用');
     }
 
-    return this.sendQueue.enqueueFirstMessage({
-      enrollmentId: enrollment.id,
-      messageId: message.id,
-      organizationId: enrollment.organizationId,
-      ownerUserId: enrollment.ownerUserId,
-      runVersion: enrollment.runVersion
-    });
+    return this.sendQueue.enqueueFirstMessage(
+      {
+        enrollmentId: enrollment.id,
+        messageId: message.id,
+        organizationId: enrollment.organizationId,
+        ownerUserId: enrollment.ownerUserId,
+        runVersion: enrollment.runVersion
+      },
+      delayMs ? { delayMs } : undefined
+    );
   }
 
   private async assertProductLineNameAvailable(organizationId: string, name: string, ignoredId?: string) {

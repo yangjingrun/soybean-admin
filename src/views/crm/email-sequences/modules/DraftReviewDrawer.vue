@@ -48,13 +48,17 @@ const currentMessage = computed(
   () => reviewMessages.value.find(item => item.id === selectedMessageId.value) ?? reviewMessages.value[0] ?? null
 );
 const isFirstMessageSelected = computed(() => currentMessage.value?.stepIndex === 1);
-const canEdit = computed(() => {
-  const status = currentMessage.value?.status;
-  return Boolean(props.item?.canOperateDraft && isFirstMessageSelected.value && status === 'draft_pending_review');
-});
-const canApprove = computed(() =>
-  Boolean(props.item?.canOperateDraft && isFirstMessageSelected.value && currentMessage.value?.status === 'draft_pending_review')
+const canOperateSelectedDraft = computed(() =>
+  Boolean(
+    props.item?.canOperateDraft &&
+      currentMessage.value?.status === 'draft_pending_review' &&
+      (isFirstMessageSelected.value || props.item.enrollment.status === 'sequence_running')
+  )
 );
+const canEdit = computed(() => {
+  return canOperateSelectedDraft.value;
+});
+const canApprove = computed(() => canOperateSelectedDraft.value);
 const canStartSend = computed(() =>
   Boolean(
     props.item?.canOperateDraft &&
@@ -75,7 +79,7 @@ const canStopSequence = computed(() =>
 const statusTip = computed(() => {
   if (props.item?.enrollment.status === 'stopped') return '序列已停止，旧发送任务会在执行前跳过';
   if (!currentMessage.value) return '暂无草稿';
-  if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review') return '后续草稿已生成，可先查看内容';
+  if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review') return '确认后会按计划时间进入发送队列';
   if (currentMessage.value.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
   if (currentMessage.value.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
   if (currentMessage.value.status === 'queued') return '开发信已进入发送队列';

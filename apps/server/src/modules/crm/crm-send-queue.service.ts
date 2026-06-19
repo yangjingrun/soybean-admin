@@ -14,11 +14,12 @@ export class CrmSendQueueService implements CrmSendQueuePort, OnModuleDestroy {
     });
   }
 
-  /** Enqueue the first approved CRM message for guarded background sending. */
-  async enqueueFirstMessage(input: CrmSendQueueJob) {
+  /** Enqueue one approved CRM message for guarded background sending. */
+  async enqueueFirstMessage(input: CrmSendQueueJob, options: { delayMs?: number } = {}) {
     await this.ensureReady();
     const job = await this.queue.add('send-first-message', input, {
       jobId: toCrmSendJobId(input.messageId, input.runVersion),
+      ...(options.delayMs ? { delay: options.delayMs } : {}),
       removeOnComplete: true,
       removeOnFail: crmSendRemoveOnFail
     });

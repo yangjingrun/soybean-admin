@@ -499,7 +499,7 @@ export interface CrmSendQueueJob {
 }
 
 export interface CrmSendQueuePort {
-  enqueueFirstMessage(input: CrmSendQueueJob): Promise<{ jobId: string }>;
+  enqueueFirstMessage(input: CrmSendQueueJob, options?: { delayMs?: number }): Promise<{ jobId: string }>;
 }
 
 export interface CrmGmailHistorySyncQueueJob {
