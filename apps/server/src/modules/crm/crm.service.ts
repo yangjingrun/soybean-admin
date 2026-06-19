@@ -16,6 +16,7 @@ import type {
   CrmContactRecord,
   CrmEmailStatus,
   CrmCustomerReplyIngestRecord,
+  CrmInboxMessageType,
   CrmInboxThreadDetailRecord,
   CrmInboxThreadListRecord,
   CrmInboxMessageRecord,
@@ -58,6 +59,18 @@ const queuedMessageStatus: CrmMessageStatus = 'queued';
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
 const inboxNotificationTargetType = 'crmInboxThread';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
+const unsubscribeReplyPatterns = [
+  /\bunsubscribe\b/i,
+  /\bremove\s+me\b/i,
+  /\bstop\b/i,
+  /\bnot\s+interested\b/i,
+  /\bdo\s+not\s+contact\b/i,
+  /\bdon't\s+contact\b/i,
+  /退订/,
+  /取消订阅/,
+  /不要再联系/,
+  /停止联系/
+];
 const publicEmailPrefixes = new Set([
   'admin',
   'contact',
@@ -957,13 +970,15 @@ export class CrmService {
     const receivedAt = parseOptionalDate(input.receivedAt) ?? new Date();
     const subject = normalizeNullableString(input.subject) ?? `Re: ${outboundMessage.subject}`;
     const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
+    const messageType = classifyCustomerReplyMessage(bodyText);
     const ingested = await this.store.ingestCustomerReply({
       outboundMessageId: outboundMessage.id,
       organizationId: context.organizationId,
       ownerUserId: context.userId,
       subject,
       bodyText,
-      receivedAt
+      receivedAt,
+      messageType
     });
 
     if (!ingested) {
@@ -1833,10 +1848,15 @@ function toEmailStatusText(status: CrmEmailStatus) {
     valid: '有效',
     invalid: '无效',
     risky: '风险',
-    unreachable: '暂不可达'
+    unreachable: '暂不可达',
+    unsubscribed: '已退订'
   };
 
   return textMap[status];
+}
+
+function classifyCustomerReplyMessage(bodyText: string): CrmInboxMessageType {
+  return unsubscribeReplyPatterns.some(pattern => pattern.test(bodyText)) ? 'unsubscribe_hint' : 'customer_reply';
 }
 
 function normalizePositiveInteger(value: number | string | undefined, fallback: number) {

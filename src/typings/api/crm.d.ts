@@ -16,7 +16,7 @@ declare namespace Api {
       | 'blocked'
       | 'archived';
 
-    type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable';
+    type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable' | 'unsubscribed';
 
     type MailboxProvider = 'gmail';
 

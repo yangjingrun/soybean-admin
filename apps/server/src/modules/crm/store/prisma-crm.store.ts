@@ -1044,6 +1044,7 @@ export class PrismaCrmStore implements CrmStore {
             messageCount: 0
           } as Prisma.CrmInboxThreadUncheckedCreateInput
         }));
+      const messageType = input.messageType ?? 'customer_reply';
       const inboxMessage = await tx.crmInboxMessage.create({
         data: {
           threadId: thread.id,
@@ -1063,7 +1064,7 @@ export class PrismaCrmStore implements CrmStore {
           snippet: toSnippet(input.bodyText),
           bodyText: input.bodyText,
           receivedAt: input.receivedAt,
-          messageType: input.messageType ?? 'customer_reply'
+          messageType
         } as Prisma.CrmInboxMessageUncheckedCreateInput
       });
       const updatedThread = await tx.crmInboxThread.update({
@@ -1089,24 +1090,34 @@ export class PrismaCrmStore implements CrmStore {
           runVersion: { increment: 1 }
         }
       });
-      const account = await tx.crmAccount.update({
-        where: { id: outboundMessage.accountId },
-        data: { status: 'replied_pending' }
-      });
+      const isUnsubscribeHint = messageType === 'unsubscribe_hint';
+      const [account, contact] = await Promise.all([
+        tx.crmAccount.update({
+          where: { id: outboundMessage.accountId },
+          data: { status: isUnsubscribeHint ? 'blocked' : 'replied_pending' }
+        }),
+        isUnsubscribeHint
+          ? tx.crmContact.update({
+              where: { id: outboundMessage.contactId },
+              data: { emailStatus: 'unsubscribed' }
+            })
+          : Promise.resolve(outboundMessage.contact)
+      ]);
       const event = await tx.crmTimelineEvent.create({
         data: {
           organizationId: input.organizationId,
           accountId: outboundMessage.accountId,
           contactId: outboundMessage.contactId,
           ownerUserId: input.ownerUserId,
-          eventType: 'customer_replied',
-          title: '客户回信',
+          eventType: isUnsubscribeHint ? 'customer_unsubscribed' : 'customer_replied',
+          title: isUnsubscribeHint ? '客户要求停止联系' : '客户回信',
           content: input.subject,
           metadata: {
             enrollmentId: outboundMessage.enrollmentId,
             outboundMessageId: outboundMessage.id,
             inboxThreadId: updatedThread.id,
-            inboxMessageId: inboxMessage.id
+            inboxMessageId: inboxMessage.id,
+            messageType
           }
         }
       });
@@ -1115,7 +1126,7 @@ export class PrismaCrmStore implements CrmStore {
         thread: toInboxThreadRecord(updatedThread),
         message: toInboxMessageRecord(inboxMessage),
         account: toAccountRecord(account),
-        contact: toContactRecord(outboundMessage.contact),
+        contact: toContactRecord(contact),
         mailbox: outboundMessage.mailbox ? toMailboxRecord(outboundMessage.mailbox) : null,
         enrollment: outboundMessage.enrollment ? toSequenceEnrollmentRecord(outboundMessage.enrollment) : null,
         event: toTimelineEventRecord(event)

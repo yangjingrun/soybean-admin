@@ -19,7 +19,7 @@ export const crmAccountStatuses = [
 
 export type CrmAccountStatus = (typeof crmAccountStatuses)[number];
 
-export type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable';
+export type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable' | 'unsubscribed';
 
 export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;

@@ -56,7 +56,8 @@ export const leadEmailStatusLabelMap: Record<Api.Crm.CrmEmailStatus, string> = {
   valid: '有效',
   invalid: '无效',
   risky: '有风险',
-  unreachable: '不可达'
+  unreachable: '不可达',
+  unsubscribed: '已退订'
 };
 
 export const leadEmailStatusTagTypeMap: Record<Api.Crm.CrmEmailStatus, NaiveUI.ThemeColor> = {
@@ -64,7 +65,8 @@ export const leadEmailStatusTagTypeMap: Record<Api.Crm.CrmEmailStatus, NaiveUI.T
   valid: 'success',
   invalid: 'error',
   risky: 'warning',
-  unreachable: 'error'
+  unreachable: 'error',
+  unsubscribed: 'error'
 };
 
 export const leadTimelineEventLabelMap: Record<string, string> = {
@@ -72,7 +74,8 @@ export const leadTimelineEventLabelMap: Record<string, string> = {
   contact_imported: '联系人导入',
   status_changed: '状态变更',
   note_added: '备注',
-  account_archived: '归档'
+  account_archived: '归档',
+  customer_unsubscribed: '客户退订'
 };
 
 /** Create the default lead filter object for initial load and reset. */
