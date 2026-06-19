@@ -58,6 +58,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
+  CrmMailboxSendUsage: 'CrmMailboxSendUsage',
   CrmProductLine: 'CrmProductLine',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
@@ -223,6 +224,20 @@ export const CrmMailboxScalarFieldEnum = {
 } as const
 
 export type CrmMailboxScalarFieldEnum = (typeof CrmMailboxScalarFieldEnum)[keyof typeof CrmMailboxScalarFieldEnum]
+
+
+export const CrmMailboxSendUsageScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  mailboxId: 'mailboxId',
+  bucketType: 'bucketType',
+  bucketKey: 'bucketKey',
+  usedCount: 'usedCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmMailboxSendUsageScalarFieldEnum = (typeof CrmMailboxSendUsageScalarFieldEnum)[keyof typeof CrmMailboxSendUsageScalarFieldEnum]
 
 
 export const CrmProductLineScalarFieldEnum = {

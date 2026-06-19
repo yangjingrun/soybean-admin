@@ -143,6 +143,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm.types.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`。
 - 验证方式：运行 `pnpm --filter @soybean/server typecheck` 和 CRM service/controller/store 测试，确认 fake store 与正式 store 接口一致。
 
+### 2026-06-19 CRM 邮箱额度要在 worker 发送前 claim，避免入队即扣和重复扣
+
+- 场景：CRM 首封开发信从 `ready_to_send` 入 BullMQ 后，由 worker 执行真实发送，并需要遵守每个 Gmail 的每日/每小时额度。
+- 坑点：不要在 `startFirstMessageSend` 入队阶段扣真实发送额度；queued 可能因为 BullMQ 不可用、用户停止、旧 job 或后续调度变化而从未发送。也不要在 worker 里先普通读取再发送，或重复调用 claim 方法，否则并发 worker 会超发或双扣额度。
+- 正确做法：额度账本在 worker 发送前通过 store 事务方法 `claimFirstMessageSendDelivery` 统一完成：校验 `organizationId + ownerUserId + enrollmentId + messageId + runVersion + sequence_running + queued + mailbox.active`，再按 UTC day/hour bucket 原子占用 `CrmMailboxSendUsage`；claim 失败时 worker 不调用发送网关。成功路径测试要断言 claim 只调用一次。
+- 相关文件：`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认额度满不发送、正常发送只 claim 一次。
+
 ### 记录模板
 
 ```md

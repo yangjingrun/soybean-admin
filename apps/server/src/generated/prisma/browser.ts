@@ -53,6 +53,11 @@ export type CrmTimelineEvent = Prisma.CrmTimelineEventModel
  */
 export type CrmMailbox = Prisma.CrmMailboxModel
 /**
+ * Model CrmMailboxSendUsage
+ * 
+ */
+export type CrmMailboxSendUsage = Prisma.CrmMailboxSendUsageModel
+/**
  * Model CrmProductLine
  * 
  */

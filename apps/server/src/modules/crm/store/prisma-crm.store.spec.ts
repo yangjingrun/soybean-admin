@@ -528,6 +528,68 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmTimelineEvent.createCalls.length, 0);
   });
 
+  it('claims queued first message delivery by reserving daily and hourly mailbox quota', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.claimFirstMessageSendDelivery({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      claimedAt: new Date('2026-06-18T10:30:00.000Z')
+    });
+
+    assert.equal(result?.firstMessage?.id, 'message-1');
+    assert.deepEqual(
+      prisma.crmMailboxSendUsage.createCalls.map(call => call.data),
+      [
+        {
+          organizationId: 'org-1',
+          mailboxId: 'mailbox-1',
+          bucketType: 'daily',
+          bucketKey: '2026-06-18',
+          usedCount: 1
+        },
+        {
+          organizationId: 'org-1',
+          mailboxId: 'mailbox-1',
+          bucketType: 'hourly',
+          bucketKey: '2026-06-18T10',
+          usedCount: 1
+        }
+      ]
+    );
+  });
+
+  it('does not claim queued first message delivery when mailbox quota is exhausted', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    prisma.crmMailboxSendUsage.updateManyResultCount = 0;
+    prisma.crmMailboxSendUsage.findUniqueResult = {
+      id: 'usage-1',
+      organizationId: 'org-1',
+      mailboxId: 'mailbox-1',
+      bucketType: 'daily',
+      bucketKey: '2026-06-18',
+      usedCount: 50,
+      createdAt: new Date('2026-06-18T00:00:00.000Z'),
+      updatedAt: new Date('2026-06-18T00:00:00.000Z')
+    };
+
+    const result = await store.claimFirstMessageSendDelivery({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      claimedAt: new Date('2026-06-18T10:30:00.000Z')
+    });
+
+    assert.equal(result, null);
+  });
+
   it('stops one sequence and skips queued first message with status guard', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -623,6 +685,29 @@ describe('PrismaCrmStore', () => {
   });
 });
 
+function createPrismaMessage(input: Record<string, unknown> = {}) {
+  return {
+    id: 'message-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    enrollmentId: 'enrollment-1',
+    mailboxId: 'mailbox-1',
+    stepIndex: 1,
+    threadMode: 'new_subject',
+    subject: 'Bearing Series for ABC Trading',
+    bodyText: 'Hi Ali',
+    status: 'draft_pending_review',
+    scheduledAt: null,
+    sentAt: null,
+    bullJobId: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
+}
+
 function createPrisma() {
   const account = {
     id: 'account-1',
@@ -694,25 +779,7 @@ function createPrisma() {
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
-  const message = {
-    id: 'message-1',
-    organizationId: 'org-1',
-    ownerUserId: 'user-1',
-    accountId: 'account-1',
-    contactId: 'contact-1',
-    enrollmentId: 'enrollment-1',
-    mailboxId: 'mailbox-1',
-    stepIndex: 1,
-    threadMode: 'new_subject',
-    subject: 'Bearing Series for ABC Trading',
-    bodyText: 'Hi Ali',
-    status: 'draft_pending_review',
-    scheduledAt: null,
-    sentAt: null,
-    bullJobId: null,
-    createdAt: new Date('2026-06-18T09:00:00.000Z'),
-    updatedAt: new Date('2026-06-18T09:00:00.000Z')
-  };
+  const message = createPrismaMessage();
   const enrollment = {
     id: 'enrollment-1',
     organizationId: 'org-1',
@@ -991,6 +1058,30 @@ function createPrisma() {
         return [{ ...mailbox, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
     },
+    crmMailboxSendUsage: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      updateManyCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
+      updateManyResultCount: 0,
+      findUniqueResult: null as Record<string, unknown> | null,
+      async updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+        this.updateManyCalls.push(args);
+        return { count: this.updateManyResultCount };
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return this.findUniqueResult;
+      },
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return {
+          id: `usage-${this.createCalls.length}`,
+          ...args.data,
+          createdAt: new Date('2026-06-18T10:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        };
+      }
+    },
     crmProductLine: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
@@ -1058,6 +1149,13 @@ function createPrisma() {
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
+        if (args.include && args.where.status === 'sequence_running') {
+          return {
+            ...enrollment,
+            status: 'sequence_running',
+            messages: [{ ...message, status: 'queued' }]
+          };
+        }
         return args.include ? enrollment : { ...enrollment, account: undefined, contact: undefined, productLine: undefined, mailbox: undefined, messages: undefined };
       },
       async findMany(args: {

@@ -1140,6 +1140,9 @@ describe('CrmService', () => {
 
     const memberResult = await service.listInboxThreads(createContext());
     const adminResult = await service.listInboxThreads(createContext({ organizationRole: 'admin' }));
+    const superResult = await service.listInboxThreads(
+      createContext({ roles: ['R_SUPER'], organizationRole: 'member' })
+    );
 
     assert.deepEqual(
       memberResult.records.map(record => record.id),
@@ -1148,6 +1151,19 @@ describe('CrmService', () => {
     assert.deepEqual(
       adminResult.records.map(record => record.id),
       ['own-thread', 'peer-thread']
+    );
+    assert.equal(memberResult.records[0].lastMessageSnippet, 'Please send details.');
+    assert.equal(adminResult.records.find(record => record.id === 'peer-thread')?.lastMessageSnippet, '');
+    assert.equal((await service.getInboxThread('peer-thread', createContext({ organizationRole: 'admin' }))).messages.length, 0);
+    assert.equal(superResult.records.find(record => record.id === 'peer-thread')?.lastMessageSnippet, 'Please send details.');
+    assert.equal(
+      (
+        await service.getInboxThread(
+          'peer-thread',
+          createContext({ roles: ['R_SUPER'], organizationRole: 'member' })
+        )
+      ).messages.length,
+      1
     );
   });
 
@@ -1680,6 +1696,41 @@ function createStore(
       timelineEvents.push(event);
 
       return { enrollment, message, account, contact, mailbox, event };
+    },
+    async claimFirstMessageSendDelivery(input) {
+      const enrollment = enrollments.find(
+        item =>
+          item.id === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.runVersion === input.runVersion &&
+          item.status === 'sequence_running'
+      );
+      const message = messages.find(
+        item =>
+          item.id === input.messageId &&
+          item.enrollmentId === input.enrollmentId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.status === 'queued'
+      );
+      const account = enrollment ? accounts.find(item => item.id === enrollment.accountId) : null;
+      const contact = enrollment ? contacts.find(item => item.id === enrollment.contactId) : null;
+      const mailbox = enrollment?.mailboxId ? mailboxes.find(item => item.id === enrollment.mailboxId) : null;
+      const productLine = enrollment?.productLineId
+        ? productLines.find(item => item.id === enrollment.productLineId) || null
+        : null;
+
+      if (!enrollment || !message || !account || !contact || !mailbox || mailbox.status !== 'active') return null;
+
+      return {
+        enrollment,
+        account,
+        contact,
+        productLine,
+        mailbox,
+        firstMessage: message
+      };
     },
     async stopSequenceEnrollment(input) {
       const enrollment = enrollments.find(

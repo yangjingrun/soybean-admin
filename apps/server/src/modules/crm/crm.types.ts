@@ -529,6 +529,15 @@ export interface CrmSendStartRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmSendDeliveryClaimInput extends CrmSendQueueJob {
+  claimedAt: Date;
+}
+
+export interface CrmSendDeliveryClaimRecord extends Omit<CrmSequenceReviewRecord, 'mailbox' | 'firstMessage'> {
+  mailbox: CrmMailboxRecord;
+  firstMessage: CrmMessageRecord;
+}
+
 export interface CrmSequenceStopInput {
   enrollmentId: string;
   organizationId: string;
@@ -739,6 +748,7 @@ export interface CrmStore {
   ): Promise<CrmMessageRecord | null>;
   approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null>;
   startFirstMessageSend(input: CrmSendStartInput): Promise<CrmSendStartRecord | null>;
+  claimFirstMessageSendDelivery(input: CrmSendDeliveryClaimInput): Promise<CrmSendDeliveryClaimRecord | null>;
   stopSequenceEnrollment(input: CrmSequenceStopInput): Promise<CrmSequenceStopRecord | null>;
   completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null>;
   failFirstMessageSend(input: CrmSendFailureInput): Promise<CrmSendFailureRecord | null>;

@@ -11,21 +11,12 @@ export class CrmSendWorkerService {
 
   /** Processes one queued CRM email with persisted guards before mock/real sending. */
   async processSendJob(job: CrmSendQueueJob) {
-    const item = await this.store.getSequenceReviewItem({
-      id: job.enrollmentId,
-      organizationId: job.organizationId,
-      ownerUserId: job.ownerUserId
+    const item = await this.store.claimFirstMessageSendDelivery({
+      ...job,
+      claimedAt: new Date()
     });
 
-    if (!item || item.enrollment.runVersion !== job.runVersion || item.firstMessage?.id !== job.messageId) {
-      return;
-    }
-
-    if (
-      item.enrollment.status !== 'sequence_running' ||
-      item.firstMessage.status !== 'queued' ||
-      item.mailbox?.status !== 'active'
-    ) {
+    if (!item) {
       return;
     }
 

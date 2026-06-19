@@ -71,6 +71,7 @@ model Organization {
   crmContacts       CrmContact[]
   crmTimelineEvents CrmTimelineEvent[]
   crmMailboxes      CrmMailbox[]
+  crmMailboxSendUsages CrmMailboxSendUsage[]
   crmProductLines   CrmProductLine[]
   crmEnrollments     CrmSequenceEnrollment[]
   crmMessages        CrmMessage[]
@@ -186,11 +187,29 @@ model CrmMailbox {
   messages     CrmMessage[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
+  sendUsages   CrmMailboxSendUsage[]
 
   @@unique([provider, emailHash])
   @@index([organizationId, ownerUserId, updatedAt])
   @@index([organizationId, status, updatedAt])
   @@index([provider, status])
+}
+
+model CrmMailboxSendUsage {
+  id             String   @id @default(uuid())
+  organizationId String
+  mailboxId      String
+  bucketType     String
+  bucketKey      String
+  usedCount      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  mailbox      CrmMailbox   @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  @@unique([mailboxId, bucketType, bucketKey])
+  @@index([organizationId, mailboxId, bucketType, bucketKey])
 }
 
 model CrmProductLine {
@@ -310,7 +329,7 @@ model CrmInboxThread {
   mailbox      CrmMailbox?            @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
   messages     CrmInboxMessage[]
 
-  @@unique([mailboxId, providerThreadId])
+  @@unique([organizationId, ownerUserId, mailboxId, providerThreadId])
   @@index([organizationId, ownerUserId, status, lastInboundAt])
   @@index([organizationId, accountId, lastInboundAt])
   @@index([organizationId, contactId, lastInboundAt])
@@ -346,7 +365,7 @@ model CrmInboxMessage {
   enrollment  CrmSequenceEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
   mailbox     CrmMailbox?          @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
 
-  @@unique([mailboxId, providerMessageId])
+  @@unique([organizationId, ownerUserId, mailboxId, providerMessageId])
   @@index([organizationId, ownerUserId, receivedAt])
   @@index([organizationId, accountId, receivedAt])
   @@index([organizationId, contactId, receivedAt])

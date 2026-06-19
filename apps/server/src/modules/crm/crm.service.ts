@@ -1503,19 +1503,22 @@ function toInboxMessageView(record: CrmInboxMessageRecord) {
 }
 
 function toInboxThreadListView(record: CrmInboxThreadListRecord, context: CrmUserContext) {
+  const canReadBody = canReadInboxBody(record.thread, context);
+
   return {
     ...toInboxThreadView(record.thread),
     account: toAccountView(record.account),
     contact: toContactView(record.contact),
     mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
     enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
-    lastMessageSnippet: record.lastMessage?.snippet ?? '',
+    lastMessageSnippet: canReadBody ? record.lastMessage?.snippet ?? '' : '',
     canOperate: record.thread.ownerUserId === context.userId
   };
 }
 
 function toInboxThreadDetailView(record: CrmInboxThreadDetailRecord, context: CrmUserContext) {
   const thread = toInboxThreadListView(record, context);
+  const canReadBody = canReadInboxBody(record.thread, context);
 
   return {
     thread,
@@ -1523,7 +1526,7 @@ function toInboxThreadDetailView(record: CrmInboxThreadDetailRecord, context: Cr
     contact: thread.contact,
     mailbox: thread.mailbox,
     enrollment: thread.enrollment,
-    messages: record.messages.map(toInboxMessageView),
+    messages: canReadBody ? record.messages.map(toInboxMessageView) : [],
     timelineEvents: record.timelineEvents.map(toTimelineEventView),
     canOperate: thread.canOperate
   };
@@ -1619,6 +1622,10 @@ function isOrganizationAdmin(context: CrmUserContext) {
 
 function isOwnedMailbox(mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'ownerUserId'>, context: CrmUserContext) {
   return mailbox.organizationId === context.organizationId && mailbox.ownerUserId === context.userId;
+}
+
+function canReadInboxBody(thread: Pick<CrmInboxThreadRecord, 'ownerUserId'>, context: CrmUserContext) {
+  return thread.ownerUserId === context.userId || context.roles.includes('R_SUPER');
 }
 
 function normalizeDomain(value?: string | null) {

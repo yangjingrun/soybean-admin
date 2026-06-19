@@ -7,6 +7,7 @@ import type {
   CrmEmailSendGateway,
   CrmMailboxRecord,
   CrmMessageRecord,
+  CrmSendDeliveryClaimRecord,
   CrmSendQueueJob,
   CrmSequenceEnrollmentRecord,
   CrmSequenceReviewRecord,
@@ -40,6 +41,7 @@ describe('CrmSendWorkerService', () => {
 
     await worker.processSendJob(createJob({ runVersion: 2 }));
 
+    assert.equal(store.claims.length, 1);
     assert.equal(gateway.calls[0].message.id, 'message-1');
     assert.deepEqual(store.completed[0], {
       enrollmentId: 'enrollment-1',
@@ -49,6 +51,25 @@ describe('CrmSendWorkerService', () => {
       runVersion: 2,
       sentAt: store.completed[0].sentAt
     });
+  });
+
+  it('skips sending when delivery claim cannot reserve mailbox quota', async () => {
+    const store = createWorkerStore(
+      {
+        enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2 }),
+        message: createMessage({ status: 'queued' }),
+        mailbox: createMailbox({ status: 'active' })
+      },
+      { claimResult: null }
+    );
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store as never, gateway);
+
+    await worker.processSendJob(createJob({ runVersion: 2 }));
+
+    assert.equal(gateway.calls.length, 0);
+    assert.equal(store.completed.length, 0);
+    assert.equal(store.failed.length, 0);
   });
 
   it('marks queued messages failed when the send gateway throws', async () => {
@@ -68,7 +89,7 @@ interface WorkerStoreInput extends Partial<CrmSequenceReviewRecord> {
   message?: CrmMessageRecord;
 }
 
-function createWorkerStore(input: WorkerStoreInput) {
+function createWorkerStore(input: WorkerStoreInput, options: { claimResult?: CrmSendDeliveryClaimRecord | null } = {}) {
   const item: CrmSequenceReviewRecord = {
     enrollment: input.enrollment ?? createEnrollment(),
     account: input.account ?? createAccount(),
@@ -79,12 +100,43 @@ function createWorkerStore(input: WorkerStoreInput) {
   } as CrmSequenceReviewRecord & { message?: CrmMessageRecord };
   const completed: Parameters<CrmStore['completeFirstMessageSend']>[0][] = [];
   const failed: Parameters<CrmStore['failFirstMessageSend']>[0][] = [];
+  const claims: Parameters<CrmStore['claimFirstMessageSendDelivery']>[0][] = [];
 
   return {
     completed,
     failed,
+    claims,
     async getSequenceReviewItem() {
       return item;
+    },
+    async claimFirstMessageSendDelivery(args) {
+      claims.push(args);
+      if ('claimResult' in options) {
+        return options.claimResult ?? null;
+      }
+
+      if (
+        item.enrollment.id !== args.enrollmentId ||
+        item.enrollment.organizationId !== args.organizationId ||
+        item.enrollment.ownerUserId !== args.ownerUserId ||
+        item.enrollment.runVersion !== args.runVersion ||
+        item.enrollment.status !== 'sequence_running' ||
+        item.firstMessage?.id !== args.messageId ||
+        item.firstMessage.status !== 'queued' ||
+        item.mailbox?.status !== 'active'
+      ) {
+        return null;
+      }
+
+      if (!item.mailbox || !item.firstMessage) {
+        return null;
+      }
+
+      return {
+        ...item,
+        mailbox: item.mailbox,
+        firstMessage: item.firstMessage
+      };
     },
     async completeFirstMessageSend(args) {
       completed.push(args);
@@ -97,6 +149,7 @@ function createWorkerStore(input: WorkerStoreInput) {
   } satisfies Partial<CrmStore> & {
     completed: Parameters<CrmStore['completeFirstMessageSend']>[0][];
     failed: Parameters<CrmStore['failFirstMessageSend']>[0][];
+    claims: Parameters<CrmStore['claimFirstMessageSendDelivery']>[0][];
   };
 }
 

@@ -391,6 +391,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
+  CrmMailboxSendUsage: 'CrmMailboxSendUsage',
   CrmProductLine: 'CrmProductLine',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
@@ -420,7 +421,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -939,6 +940,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmMailboxCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmMailboxCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmMailboxSendUsage: {
+      payload: Prisma.$CrmMailboxSendUsagePayload<ExtArgs>
+      fields: Prisma.CrmMailboxSendUsageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmMailboxSendUsageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmMailboxSendUsageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>
+        }
+        findFirst: {
+          args: Prisma.CrmMailboxSendUsageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmMailboxSendUsageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>
+        }
+        findMany: {
+          args: Prisma.CrmMailboxSendUsageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>[]
+        }
+        create: {
+          args: Prisma.CrmMailboxSendUsageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>
+        }
+        createMany: {
+          args: Prisma.CrmMailboxSendUsageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmMailboxSendUsageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>[]
+        }
+        delete: {
+          args: Prisma.CrmMailboxSendUsageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>
+        }
+        update: {
+          args: Prisma.CrmMailboxSendUsageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmMailboxSendUsageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmMailboxSendUsageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmMailboxSendUsageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmMailboxSendUsageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmMailboxSendUsagePayload>
+        }
+        aggregate: {
+          args: Prisma.CrmMailboxSendUsageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmMailboxSendUsage>
+        }
+        groupBy: {
+          args: Prisma.CrmMailboxSendUsageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmMailboxSendUsageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmMailboxSendUsageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmMailboxSendUsageCountAggregateOutputType> | number
         }
       }
     }
@@ -2152,6 +2227,20 @@ export const CrmMailboxScalarFieldEnum = {
 export type CrmMailboxScalarFieldEnum = (typeof CrmMailboxScalarFieldEnum)[keyof typeof CrmMailboxScalarFieldEnum]
 
 
+export const CrmMailboxSendUsageScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  mailboxId: 'mailboxId',
+  bucketType: 'bucketType',
+  bucketKey: 'bucketKey',
+  usedCount: 'usedCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmMailboxSendUsageScalarFieldEnum = (typeof CrmMailboxSendUsageScalarFieldEnum)[keyof typeof CrmMailboxSendUsageScalarFieldEnum]
+
+
 export const CrmProductLineScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -2670,6 +2759,7 @@ export type GlobalOmitConfig = {
   crmContact?: Prisma.CrmContactOmit
   crmTimelineEvent?: Prisma.CrmTimelineEventOmit
   crmMailbox?: Prisma.CrmMailboxOmit
+  crmMailboxSendUsage?: Prisma.CrmMailboxSendUsageOmit
   crmProductLine?: Prisma.CrmProductLineOmit
   crmSequenceEnrollment?: Prisma.CrmSequenceEnrollmentOmit
   crmMessage?: Prisma.CrmMessageOmit

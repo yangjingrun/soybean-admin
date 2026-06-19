@@ -281,6 +281,8 @@ declare namespace Api {
       contactId: string | null;
       enrollmentId: string | null;
       mailboxId: string | null;
+      provider: MailboxProvider;
+      providerThreadId: string | null;
       subject: string;
       status: InboxThreadStatus;
       lastInboundAt: string;
@@ -304,9 +306,17 @@ declare namespace Api {
       enrollmentId: string | null;
       mailboxId: string | null;
       threadId: string;
+      provider: MailboxProvider;
+      providerMessageId: string | null;
+      replyToMessageId: string | null;
+      fromEmail: string;
+      fromEmailHash: string;
+      maskedFromEmail: string;
       direction: InboxMessageDirection;
       subject: string;
+      snippet: string | null;
       bodyText: string;
+      messageType: 'customer_reply' | 'bounce' | 'unsubscribe_hint';
       sentAt: string | null;
       receivedAt: string | null;
       createdAt: string;
@@ -320,6 +330,7 @@ declare namespace Api {
       mailbox: MailboxRecord | null;
       enrollment: SequenceEnrollmentRecord | null;
       messages: InboxMessageRecord[];
+      timelineEvents: LeadTimelineEvent[];
       canOperate: boolean;
     }
 

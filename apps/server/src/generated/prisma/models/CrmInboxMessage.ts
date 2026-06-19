@@ -341,7 +341,7 @@ export type CrmInboxMessageOrderByWithRelationInput = {
 
 export type CrmInboxMessageWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  mailboxId_providerMessageId?: Prisma.CrmInboxMessageMailboxIdProviderMessageIdCompoundUniqueInput
+  organizationId_ownerUserId_mailboxId_providerMessageId?: Prisma.CrmInboxMessageOrganizationIdOwnerUserIdMailboxIdProviderMessageIdCompoundUniqueInput
   AND?: Prisma.CrmInboxMessageWhereInput | Prisma.CrmInboxMessageWhereInput[]
   OR?: Prisma.CrmInboxMessageWhereInput[]
   NOT?: Prisma.CrmInboxMessageWhereInput | Prisma.CrmInboxMessageWhereInput[]
@@ -370,7 +370,7 @@ export type CrmInboxMessageWhereUniqueInput = Prisma.AtLeast<{
   contact?: Prisma.XOR<Prisma.CrmContactScalarRelationFilter, Prisma.CrmContactWhereInput>
   enrollment?: Prisma.XOR<Prisma.CrmSequenceEnrollmentNullableScalarRelationFilter, Prisma.CrmSequenceEnrollmentWhereInput> | null
   mailbox?: Prisma.XOR<Prisma.CrmMailboxNullableScalarRelationFilter, Prisma.CrmMailboxWhereInput> | null
-}, "id" | "mailboxId_providerMessageId">
+}, "id" | "organizationId_ownerUserId_mailboxId_providerMessageId">
 
 export type CrmInboxMessageOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -589,7 +589,9 @@ export type CrmInboxMessageOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type CrmInboxMessageMailboxIdProviderMessageIdCompoundUniqueInput = {
+export type CrmInboxMessageOrganizationIdOwnerUserIdMailboxIdProviderMessageIdCompoundUniqueInput = {
+  organizationId: string
+  ownerUserId: string
   mailboxId: string
   providerMessageId: string
 }
