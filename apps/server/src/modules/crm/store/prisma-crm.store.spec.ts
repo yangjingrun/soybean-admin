@@ -711,6 +711,34 @@ describe('PrismaCrmStore', () => {
     const metadata = prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata as { messageType?: string } | undefined;
     assert.equal(metadata?.messageType, 'unsubscribe_hint');
   });
+
+  it('marks contact unreachable when ingesting a bounce reply', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.ingestCustomerReply({
+      outboundMessageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      subject: 'Delivery Status Notification (Failure)',
+      bodyText: 'Diagnostic-Code: smtp; 550 5.1.1 User unknown',
+      receivedAt: new Date('2026-06-18T11:00:00.000Z'),
+      messageType: 'bounce'
+    });
+
+    assert.equal(result?.message.messageType, 'bounce');
+    assert.deepEqual(prisma.crmContact.updateCalls[0], {
+      where: { id: 'contact-1' },
+      data: { emailStatus: 'unreachable' }
+    });
+    assert.deepEqual(prisma.crmAccount.updateCalls.at(-1), {
+      where: { id: 'account-1' },
+      data: { status: 'manual_review_pending' }
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'email_bounced');
+    const metadata = prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata as { messageType?: string } | undefined;
+    assert.equal(metadata?.messageType, 'bounce');
+  });
 });
 
 function createPrismaMessage(input: Record<string, unknown> = {}) {

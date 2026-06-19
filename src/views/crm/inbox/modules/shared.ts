@@ -1,5 +1,7 @@
 import dayjs from 'dayjs';
 
+type InboxMessageType = Api.Crm.InboxMessageRecord['messageType'];
+
 export const inboxThreadStatusOptions = [
   { label: '待处理', value: 'pending' },
   { label: '已处理', value: 'handled' },
@@ -26,6 +28,18 @@ export const inboxMessageDirectionLabelMap: Record<Api.Crm.InboxMessageDirection
 export const inboxMessageDirectionTagTypeMap: Record<Api.Crm.InboxMessageDirection, NaiveUI.ThemeColor> = {
   inbound: 'info',
   outbound: 'default'
+};
+
+export const inboxMessageTypeLabelMap: Record<InboxMessageType, string> = {
+  customer_reply: '客户回复',
+  bounce: '退信',
+  unsubscribe_hint: '退订/拒绝'
+};
+
+export const inboxMessageTypeTagTypeMap: Record<InboxMessageType, NaiveUI.ThemeColor> = {
+  customer_reply: 'info',
+  bounce: 'error',
+  unsubscribe_hint: 'warning'
 };
 
 /** Create the default inbox filter object for initial load and reset. */

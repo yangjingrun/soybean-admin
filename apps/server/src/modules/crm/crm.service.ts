@@ -71,6 +71,19 @@ const unsubscribeReplyPatterns = [
   /不要再联系/,
   /停止联系/
 ];
+const bounceReplyPatterns = [
+  /delivery status notification/i,
+  /delivery failure/i,
+  /delivery failed/i,
+  /undeliver(?:ed|able)/i,
+  /returned mail/i,
+  /\bmailer-daemon\b/i,
+  /\bpostmaster\b/i,
+  /diagnostic-code:\s*smtp/i,
+  /\b550\s+5\.1\.1\b/i,
+  /\buser unknown\b/i,
+  /\bmailbox unavailable\b/i
+];
 const publicEmailPrefixes = new Set([
   'admin',
   'contact',
@@ -970,7 +983,7 @@ export class CrmService {
     const receivedAt = parseOptionalDate(input.receivedAt) ?? new Date();
     const subject = normalizeNullableString(input.subject) ?? `Re: ${outboundMessage.subject}`;
     const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
-    const messageType = classifyCustomerReplyMessage(bodyText);
+    const messageType = classifyCustomerReplyMessage(subject, bodyText);
     const ingested = await this.store.ingestCustomerReply({
       outboundMessageId: outboundMessage.id,
       organizationId: context.organizationId,
@@ -985,7 +998,7 @@ export class CrmService {
       throw new BadRequestException('客户回信入库失败，请刷新后重试');
     }
 
-    await this.notifyCustomerReply(ingested.thread, ingested.account, ingested.contact, context);
+    await this.notifyCustomerReply(ingested.thread, ingested.message, ingested.account, ingested.contact, context);
     await this.recordCrmLog('inbox-reply-ingest', 'CRM 客户回信已入库', context, {
       organizationId: context.organizationId,
       accountId: ingested.account.id,
@@ -1303,18 +1316,20 @@ export class CrmService {
 
   private async notifyCustomerReply(
     thread: CrmInboxThreadRecord,
+    message: CrmInboxMessageRecord,
     account: CrmAccountRecord,
     contact: CrmContactRecord,
     context: CrmUserContext
   ) {
+    const notificationCopy = toInboxNotificationCopy(message.messageType, account, contact);
     try {
       await this.systemNotificationService?.create({
         userId: thread.ownerUserId,
         userName: context.userName,
         module: 'crm',
         type: 'crm_customer_reply',
-        title: '收到客户回信',
-        content: `${account.name} / ${contact.maskedEmail} 回复了开发信`,
+        title: notificationCopy.title,
+        content: notificationCopy.content,
         targetType: inboxNotificationTargetType,
         targetId: thread.id,
         routePath: '/crm/inbox',
@@ -1322,7 +1337,8 @@ export class CrmService {
           organizationId: thread.organizationId,
           accountId: thread.accountId,
           contactId: thread.contactId,
-          threadId: thread.id
+          threadId: thread.id,
+          messageType: message.messageType
         }
       });
     } catch (error) {
@@ -1855,8 +1871,37 @@ function toEmailStatusText(status: CrmEmailStatus) {
   return textMap[status];
 }
 
-function classifyCustomerReplyMessage(bodyText: string): CrmInboxMessageType {
-  return unsubscribeReplyPatterns.some(pattern => pattern.test(bodyText)) ? 'unsubscribe_hint' : 'customer_reply';
+function classifyCustomerReplyMessage(subject: string, bodyText: string): CrmInboxMessageType {
+  const content = `${subject}\n${bodyText}`;
+  if (unsubscribeReplyPatterns.some(pattern => pattern.test(content))) {
+    return 'unsubscribe_hint';
+  }
+  return bounceReplyPatterns.some(pattern => pattern.test(content)) ? 'bounce' : 'customer_reply';
+}
+
+function toInboxNotificationCopy(
+  messageType: CrmInboxMessageType,
+  account: CrmAccountRecord,
+  contact: CrmContactRecord
+) {
+  if (messageType === 'bounce') {
+    return {
+      title: '邮件退信',
+      content: `${account.name} / ${contact.maskedEmail} 邮件退信，请检查邮箱可达性`
+    };
+  }
+
+  if (messageType === 'unsubscribe_hint') {
+    return {
+      title: '客户要求停止联系',
+      content: `${account.name} / ${contact.maskedEmail} 可能要求退订或停止联系`
+    };
+  }
+
+  return {
+    title: '收到客户回信',
+    content: `${account.name} / ${contact.maskedEmail} 回复了开发信`
+  };
 }
 
 function normalizePositiveInteger(value: number | string | undefined, fallback: number) {

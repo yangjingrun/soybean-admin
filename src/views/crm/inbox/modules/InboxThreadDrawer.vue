@@ -6,6 +6,8 @@ import {
   formatInboxText,
   inboxMessageDirectionLabelMap,
   inboxMessageDirectionTagTypeMap,
+  inboxMessageTypeLabelMap,
+  inboxMessageTypeTagTypeMap,
   inboxThreadStatusLabelMap,
   inboxThreadStatusTagTypeMap
 } from './shared';
@@ -100,6 +102,14 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
                         size="small"
                       >
                         {{ inboxMessageDirectionLabelMap[item.direction] }}
+                      </NTag>
+                      <NTag
+                        v-if="item.direction === 'inbound'"
+                        :type="inboxMessageTypeTagTypeMap[item.messageType]"
+                        :bordered="false"
+                        size="small"
+                      >
+                        {{ inboxMessageTypeLabelMap[item.messageType] }}
                       </NTag>
                       <span class="message-time">{{ formatInboxMessageTime(item) }}</span>
                     </NSpace>

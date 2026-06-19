@@ -75,7 +75,8 @@ export const leadTimelineEventLabelMap: Record<string, string> = {
   status_changed: '状态变更',
   note_added: '备注',
   account_archived: '归档',
-  customer_unsubscribed: '客户退订'
+  customer_unsubscribed: '客户退订',
+  email_bounced: '邮件退信'
 };
 
 /** Create the default lead filter object for initial load and reset. */

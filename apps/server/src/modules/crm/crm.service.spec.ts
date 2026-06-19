@@ -1138,6 +1138,60 @@ describe('CrmService', () => {
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_unsubscribed');
   });
 
+  it('classifies delivery failure replies and marks the contact as unreachable', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com', emailStatus: 'valid' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 3
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'sent',
+          sentAt: new Date('2026-06-18T10:00:00.000Z')
+        })
+      ]
+    });
+    const notificationCreates: Array<{ title: string; content: string; type: string; metadata?: unknown }> = [];
+    const service = new CrmService(store, undefined, undefined, undefined, {
+      async create(input) {
+        notificationCreates.push(input);
+        return input as never;
+      }
+    } as never);
+
+    const result = await service.mockCustomerReply(
+      'message-1',
+      {
+        subject: 'Delivery Status Notification (Failure)',
+        bodyText: 'The message was not delivered. Diagnostic-Code: smtp; 550 5.1.1 User unknown',
+        receivedAt: '2026-06-18T11:00:00.000Z'
+      },
+      createContext()
+    );
+
+    assert.equal(result.messages[0].messageType, 'bounce');
+    assert.equal(store.contacts[0].emailStatus, 'unreachable');
+    assert.equal(store.accounts[0].status, 'manual_review_pending');
+    assert.equal(store.enrollments[0].status, 'replied');
+    assert.equal(store.enrollments[0].runVersion, 4);
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'email_bounced');
+    assert.equal(notificationCreates[0]?.title, '邮件退信');
+    assert.equal(notificationCreates[0]?.content, 'Account / a***@example.com 邮件退信，请检查邮箱可达性');
+  });
+
   it('lists inbox threads with member ownership isolation', async () => {
     const store = createStore(
       [
@@ -1978,13 +2032,14 @@ function createStore(
       });
       inboxMessages.push(inboxMessage);
       const isUnsubscribeHint = inboxMessage.messageType === 'unsubscribe_hint';
+      const isBounce = inboxMessage.messageType === 'bounce';
       Object.assign(account, {
-        status: isUnsubscribeHint ? 'blocked' : 'replied_pending',
+        status: isUnsubscribeHint ? 'blocked' : isBounce ? 'manual_review_pending' : 'replied_pending',
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
-      if (isUnsubscribeHint) {
+      if (isUnsubscribeHint || isBounce) {
         Object.assign(contact, {
-          emailStatus: 'unsubscribed',
+          emailStatus: isUnsubscribeHint ? 'unsubscribed' : 'unreachable',
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         });
       }
@@ -2001,8 +2056,8 @@ function createStore(
         accountId: outboundMessage.accountId,
         contactId: outboundMessage.contactId,
         ownerUserId: input.ownerUserId,
-        eventType: isUnsubscribeHint ? 'customer_unsubscribed' : 'customer_replied',
-        title: isUnsubscribeHint ? '客户要求停止联系' : '客户回信',
+        eventType: isUnsubscribeHint ? 'customer_unsubscribed' : isBounce ? 'email_bounced' : 'customer_replied',
+        title: isUnsubscribeHint ? '客户要求停止联系' : isBounce ? '邮件退信' : '客户回信',
         content: input.subject,
         metadata: {
           enrollmentId: outboundMessage.enrollmentId,

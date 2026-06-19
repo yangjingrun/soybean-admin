@@ -1091,15 +1091,18 @@ export class PrismaCrmStore implements CrmStore {
         }
       });
       const isUnsubscribeHint = messageType === 'unsubscribe_hint';
+      const isBounce = messageType === 'bounce';
       const [account, contact] = await Promise.all([
         tx.crmAccount.update({
           where: { id: outboundMessage.accountId },
-          data: { status: isUnsubscribeHint ? 'blocked' : 'replied_pending' }
+          data: {
+            status: isUnsubscribeHint ? 'blocked' : isBounce ? 'manual_review_pending' : 'replied_pending'
+          }
         }),
-        isUnsubscribeHint
+        isUnsubscribeHint || isBounce
           ? tx.crmContact.update({
               where: { id: outboundMessage.contactId },
-              data: { emailStatus: 'unsubscribed' }
+              data: { emailStatus: isUnsubscribeHint ? 'unsubscribed' : 'unreachable' }
             })
           : Promise.resolve(outboundMessage.contact)
       ]);
@@ -1109,8 +1112,8 @@ export class PrismaCrmStore implements CrmStore {
           accountId: outboundMessage.accountId,
           contactId: outboundMessage.contactId,
           ownerUserId: input.ownerUserId,
-          eventType: isUnsubscribeHint ? 'customer_unsubscribed' : 'customer_replied',
-          title: isUnsubscribeHint ? '客户要求停止联系' : '客户回信',
+          eventType: isUnsubscribeHint ? 'customer_unsubscribed' : isBounce ? 'email_bounced' : 'customer_replied',
+          title: isUnsubscribeHint ? '客户要求停止联系' : isBounce ? '邮件退信' : '客户回信',
           content: input.subject,
           metadata: {
             enrollmentId: outboundMessage.enrollmentId,
