@@ -7,7 +7,10 @@ import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
 import { MockCrmEmailSendGateway } from './crm-email-send.gateway';
 import { CrmController } from './crm.controller';
+import { MockCrmGmailHistoryGateway } from './crm-gmail-history.gateway';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
+import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
+import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
 import { CrmGmailWebhookController } from './crm-gmail-webhook.controller';
 import { CrmGmailWebhookService } from './crm-gmail-webhook.service';
 import { CrmSendQueueService } from './crm-send-queue.service';
@@ -17,6 +20,7 @@ import { CrmService } from './crm.service';
 import {
   CRM_EMAIL_DNS_RESOLVER,
   CRM_EMAIL_SEND_GATEWAY,
+  CRM_GMAIL_HISTORY_GATEWAY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
   CRM_SEND_QUEUE,
   CRM_STORE
@@ -31,6 +35,8 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmGmailWebhookService,
     CrmSendQueueService,
     CrmGmailHistorySyncQueueService,
+    CrmGmailHistorySyncWorkerService,
+    CrmGmailHistorySyncWorkerHost,
     CrmSendWorkerService,
     CrmSendWorkerHost,
     {
@@ -44,6 +50,10 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     {
       provide: CRM_GMAIL_HISTORY_SYNC_QUEUE,
       useExisting: CrmGmailHistorySyncQueueService
+    },
+    {
+      provide: CRM_GMAIL_HISTORY_GATEWAY,
+      useClass: MockCrmGmailHistoryGateway
     },
     {
       provide: CRM_EMAIL_SEND_GATEWAY,

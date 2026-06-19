@@ -2147,6 +2147,24 @@ function createStore(
 
       return { enrollment, message, account, event };
     },
+    async advanceMailboxHistoryId(input) {
+      const mailbox = mailboxes.find(
+        item =>
+          item.id === input.mailboxId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.lastHistoryId === input.fromHistoryId
+      );
+
+      if (!mailbox) return null;
+
+      Object.assign(mailbox, {
+        lastHistoryId: input.toHistoryId,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      return mailbox;
+    },
     async ingestCustomerReply(input) {
       const outboundMessage = messages.find(
         message =>

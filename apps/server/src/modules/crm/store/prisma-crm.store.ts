@@ -19,6 +19,7 @@ import type {
   CrmMailboxProvider,
   CrmMailboxRecord,
   CrmMailboxStatus,
+  CrmMailboxHistoryAdvanceInput,
   CrmMailboxUpdateInput,
   CrmContactCreateInput,
   CrmContactRecord,
@@ -322,6 +323,23 @@ export class PrismaCrmStore implements CrmStore {
     const records = await this.prisma.crmMailbox.updateManyAndReturn({
       where: { id },
       data: input,
+      limit: 1
+    });
+
+    return records[0] ? toMailboxRecord(records[0]) : null;
+  }
+
+  async advanceMailboxHistoryId(input: CrmMailboxHistoryAdvanceInput) {
+    const records = await this.prisma.crmMailbox.updateManyAndReturn({
+      where: {
+        id: input.mailboxId,
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        lastHistoryId: input.fromHistoryId
+      },
+      data: {
+        lastHistoryId: input.toHistoryId
+      },
       limit: 1
     });
 

@@ -295,6 +295,31 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('advances mailbox Gmail history id with the current checkpoint guard', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const mailbox = await store.advanceMailboxHistoryId({
+      mailboxId: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      fromHistoryId: '100',
+      toHistoryId: '120'
+    });
+
+    assert.equal(mailbox?.lastHistoryId, '120');
+    assert.deepEqual(prisma.crmMailbox.updateManyAndReturnCalls[0], {
+      where: {
+        id: 'mailbox-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        lastHistoryId: '100'
+      },
+      data: { lastHistoryId: '120' },
+      limit: 1
+    });
+  });
+
   it('creates and lists product lines with organization scope only', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);

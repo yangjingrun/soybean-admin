@@ -513,6 +513,36 @@ export interface CrmGmailHistorySyncQueuePort {
   enqueueHistorySync(input: CrmGmailHistorySyncQueueJob): Promise<{ jobId: string }>;
 }
 
+export interface CrmGmailHistoryListInput {
+  mailbox: CrmMailboxRecord;
+  startHistoryId: string | null;
+  targetHistoryId: string;
+}
+
+export interface CrmGmailHistoryListResult {
+  nextHistoryId: string;
+}
+
+export interface CrmGmailHistoryGateway {
+  listHistory(input: CrmGmailHistoryListInput): Promise<CrmGmailHistoryListResult>;
+}
+
+export interface CrmMailboxHistoryAdvanceInput {
+  mailboxId: string;
+  organizationId: string;
+  ownerUserId: string;
+  fromHistoryId: string | null;
+  toHistoryId: string;
+}
+
+export interface CrmGmailHistorySyncResult {
+  status: 'synced' | 'skipped';
+  reason?: 'mailbox_not_found' | 'stale_history' | 'checkpoint_conflict';
+  mailboxId: string;
+  fromHistoryId: string | null;
+  toHistoryId: string;
+}
+
 export interface CrmGmailPubSubPushResult {
   queued: boolean;
   reason?: 'mailbox_not_found';
@@ -816,6 +846,7 @@ export interface CrmStore {
   stopSequenceEnrollment(input: CrmSequenceStopInput): Promise<CrmSequenceStopRecord | null>;
   completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null>;
   failFirstMessageSend(input: CrmSendFailureInput): Promise<CrmSendFailureRecord | null>;
+  advanceMailboxHistoryId(input: CrmMailboxHistoryAdvanceInput): Promise<CrmMailboxRecord | null>;
   ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null>;
   listInboxThreads(args: {
     organizationId: string;
