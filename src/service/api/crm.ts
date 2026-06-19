@@ -87,6 +87,14 @@ export function archiveCrmAccount(id: string, data: Api.Crm.LeadArchivePayload =
   });
 }
 
+/** Restore one archived CRM account within the recovery window. */
+export function restoreCrmAccount(id: string) {
+  return request<Api.Crm.LeadRestoreResult>({
+    url: `/crm/accounts/${id}/restore`,
+    method: 'post'
+  });
+}
+
 /** List CRM mailboxes by filters and pagination. */
 export function fetchCrmMailboxes(params: Api.Crm.MailboxSearchParams) {
   return request<Api.Crm.MailboxList>({

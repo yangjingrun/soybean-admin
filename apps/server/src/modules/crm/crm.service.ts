@@ -66,6 +66,7 @@ const defaultMailboxHourlyLimit = 10;
 const defaultProductLineStatus: CrmProductLineStatus = 'active';
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex = 1;
+const accountArchiveRecoveryDays = 30;
 const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
   'draft_review_pending',
   'ready_to_send',
@@ -444,7 +445,12 @@ export class CrmService {
     const fromStatus = detail.account.status;
     const archiveReason = normalizeNullableString(input.reason);
     const archivedAt = new Date();
-    const account = await this.store.updateAccount(detail.account.id, { status: 'archived' });
+    const account = await this.store.updateAccount(detail.account.id, {
+      status: 'archived',
+      archivedAt,
+      archiveReason,
+      archiveSlimmedAt: null
+    });
 
     if (!account) {
       throw new NotFoundException('线索不存在');
@@ -464,6 +470,47 @@ export class CrmService {
     });
 
     await this.upsertArchivedFingerprints(account, detail.contacts, archiveReason, archivedAt);
+
+    return {
+      account: toAccountView(account),
+      event: toTimelineEventView(event)
+    };
+  }
+
+  /** Restores an archived account while the full recovery window is still open. */
+  async restoreAccount(id: string, context: CrmUserContext) {
+    const detail = await this.requireScopedAccountDetail(id, context);
+
+    if (detail.account.status !== 'archived') {
+      throw new BadRequestException('只有已归档线索可以恢复');
+    }
+
+    if (!detail.account.archivedAt || isPastArchiveRecoveryWindow(detail.account.archivedAt)) {
+      throw new BadRequestException('归档已超过 30 天，不能直接恢复');
+    }
+
+    const account = await this.store.updateAccount(detail.account.id, {
+      status: 'candidate',
+      archivedAt: null,
+      archiveReason: null,
+      archiveSlimmedAt: null
+    });
+
+    if (!account) {
+      throw new NotFoundException('线索不存在');
+    }
+
+    const event = await this.store.createTimelineEvent({
+      organizationId: account.organizationId,
+      accountId: account.id,
+      ownerUserId: context.userId,
+      eventType: 'account_restored',
+      title: '恢复归档线索',
+      metadata: {
+        fromStatus: 'archived',
+        toStatus: account.status
+      }
+    });
 
     return {
       account: toAccountView(account),
@@ -2106,6 +2153,8 @@ export class CrmService {
 function toAccountView(record: CrmAccountRecord) {
   return {
     ...record,
+    archivedAt: record.archivedAt?.toISOString() ?? null,
+    archiveSlimmedAt: record.archiveSlimmedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
@@ -2539,6 +2588,10 @@ function normalizeRequiredString(value: string, emptyMessage: string) {
   }
 
   return normalized;
+}
+
+function isPastArchiveRecoveryWindow(archivedAt: Date, now = new Date()) {
+  return now.getTime() - archivedAt.getTime() > accountArchiveRecoveryDays * 24 * 60 * 60 * 1000;
 }
 
 function getTemplateStepDelayDays(stepIndex: number, followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']) {

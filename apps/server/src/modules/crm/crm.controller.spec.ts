@@ -73,6 +73,9 @@ describe('CrmController', () => {
               customerType: input.customerType ?? null,
               status: 'missing_contact',
               sourceTaskId: input.sourceTaskId ?? null,
+              archivedAt: null,
+              archiveReason: null,
+              archiveSlimmedAt: null,
               createdAt: new Date('2026-06-18T09:00:00.000Z'),
               updatedAt: new Date('2026-06-18T09:00:00.000Z')
             },
@@ -215,6 +218,30 @@ describe('CrmController', () => {
     assert.equal(result.code, '0000');
     assert.equal(calls[0].id, 'account-1');
     assert.equal(calls[0].dto, dto);
+    assert.equal(calls[0].context.organizationId, 'org-1');
+  });
+
+  it('restores archived accounts with the current user context', async () => {
+    const calls: Array<{ id: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async restoreAccount(id, context) {
+          calls.push({ id, context });
+
+          return {
+            account: createAccountView({ id, status: 'candidate' }),
+            event: createTimelineEventView({ accountId: id, eventType: 'account_restored' })
+          };
+        }
+      })
+    );
+
+    const result = await controller.restoreAccount('Bearer token', 'account-1');
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.event.eventType, 'account_restored');
+    assert.equal(calls[0].id, 'account-1');
     assert.equal(calls[0].context.organizationId, 'org-1');
   });
 
@@ -836,6 +863,9 @@ function createAccountView(overrides: Partial<CrmAccountView> = {}) {
     customerType: 'distributor',
     status: 'candidate' as const,
     sourceTaskId: null,
+    archivedAt: null,
+    archiveReason: null,
+    archiveSlimmedAt: null,
     createdAt: '2026-06-18T09:00:00.000Z',
     updatedAt: '2026-06-18T09:00:00.000Z',
     ...overrides

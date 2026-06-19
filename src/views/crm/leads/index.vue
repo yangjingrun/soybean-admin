@@ -20,6 +20,7 @@ const {
   handlePageSizeUpdate,
   handlePageUpdate,
   handleReset,
+  handleRestoreLead,
   handleSearch,
   handleUpdateStatus,
   handleVerifyContactEmail,
@@ -59,6 +60,7 @@ const {
       @view="openLeadDetail"
       @change-status="openLeadDetail"
       @archive="handleArchiveLead"
+      @restore="handleRestoreLead"
       @update-page="handlePageUpdate"
       @update-page-size="handlePageSizeUpdate"
     />

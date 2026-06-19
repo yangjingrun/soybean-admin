@@ -7,6 +7,7 @@ import {
   fetchCrmAccountDetail,
   fetchCrmAccounts,
   importCrmLead,
+  restoreCrmAccount,
   updateCrmAccountStatus,
   verifyCrmContactEmail
 } from '@/service/api';
@@ -270,6 +271,16 @@ export function useLeadTable() {
     });
   }
 
+  function handleRestoreLead(record: Api.Crm.LeadRecord) {
+    dialog.warning({
+      title: '确认恢复线索',
+      content: `确认恢复“${record.name}”？恢复后线索会回到候选状态。`,
+      positiveText: '恢复',
+      negativeText: '取消',
+      onPositiveClick: () => restoreLead(record)
+    });
+  }
+
   /** Archive one lead, then refresh the list and close the matching detail drawer. */
   async function archiveLead(record: Api.Crm.LeadRecord) {
     archiveOperatingId.value = record.id;
@@ -288,6 +299,28 @@ export function useLeadTable() {
       }
 
       await loadLeads();
+    } finally {
+      archiveOperatingId.value = null;
+    }
+  }
+
+  /** Restore one archived lead, then refresh the list and matching detail drawer. */
+  async function restoreLead(record: Api.Crm.LeadRecord) {
+    archiveOperatingId.value = record.id;
+
+    try {
+      const { error } = await restoreCrmAccount(record.id);
+
+      if (error) {
+        return;
+      }
+
+      message.success('线索已恢复');
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === record.id) {
+        await loadLeadDetail(record.id);
+      }
     } finally {
       archiveOperatingId.value = null;
     }
@@ -329,6 +362,7 @@ export function useLeadTable() {
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
+    handleRestoreLead,
     handleSearch,
     handleUpdateStatus,
     handleVerifyContactEmail,

@@ -75,6 +75,9 @@ function createSequenceItem(overrides: {
       customerType: null,
       status: 'manual_review_pending',
       sourceTaskId: null,
+      archivedAt: null,
+      archiveReason: null,
+      archiveSlimmedAt: null,
       createdAt: '2026-06-19T01:00:00.000Z',
       updatedAt: '2026-06-19T01:00:00.000Z'
     },

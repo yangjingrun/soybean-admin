@@ -513,6 +513,8 @@ describe('CrmService', () => {
     const result = await service.archiveAccount('account-1', { reason: '  Not a fit  ' }, createContext());
 
     assert.equal(result.account.status, 'archived');
+    assert.equal(result.account.archiveReason, 'Not a fit');
+    assert.match(result.account.archivedAt ?? '', /^20/);
     assert.deepEqual(
       store.archivedFingerprints.map(fingerprint => ({
         fingerprintType: fingerprint.fingerprintType,
@@ -542,6 +544,42 @@ describe('CrmService', () => {
       fromStatus: 'ready',
       toStatus: 'archived'
     });
+  });
+
+  it('restores archived accounts inside the recovery window', async () => {
+    const store = createStore([
+      createAccount({
+        id: 'account-1',
+        status: 'archived',
+        archivedAt: new Date(),
+        archiveReason: 'Not a fit'
+      })
+    ]);
+    const service = new CrmService(store);
+
+    const result = await service.restoreAccount('account-1', createContext());
+
+    assert.equal(result.account.status, 'candidate');
+    assert.equal(result.account.archivedAt, null);
+    assert.equal(result.account.archiveReason, null);
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'account_restored');
+    assert.deepEqual(store.timelineEvents.at(-1)?.metadata, {
+      fromStatus: 'archived',
+      toStatus: 'candidate'
+    });
+  });
+
+  it('rejects restoring archived accounts after the recovery window', async () => {
+    const store = createStore([
+      createAccount({
+        id: 'account-1',
+        status: 'archived',
+        archivedAt: new Date('2026-01-01T00:00:00.000Z')
+      })
+    ]);
+    const service = new CrmService(store);
+
+    await assert.rejects(() => service.restoreAccount('account-1', createContext()), BadRequestException);
   });
 
   it('verifies a contact email as valid when the domain has MX records', async () => {
@@ -3391,6 +3429,9 @@ function createAccount(input: Partial<TestAccount> = {}): TestAccount {
     customerType: input.customerType ?? null,
     status: input.status || 'candidate',
     sourceTaskId: input.sourceTaskId ?? null,
+    archivedAt: input.archivedAt ?? null,
+    archiveReason: input.archiveReason ?? null,
+    archiveSlimmedAt: input.archiveSlimmedAt ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };

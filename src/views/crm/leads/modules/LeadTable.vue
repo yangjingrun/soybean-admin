@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   archive: [record: Api.Crm.LeadRecord];
   changeStatus: [record: Api.Crm.LeadRecord];
+  restore: [record: Api.Crm.LeadRecord];
   view: [record: Api.Crm.LeadRecord];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
@@ -141,12 +142,11 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
               {
                 size: 'small',
                 text: true,
-                type: 'error',
-                disabled: row.status === 'archived',
+                type: row.status === 'archived' ? 'primary' : 'error',
                 loading: props.archiveOperatingId === row.id,
-                onClick: () => emit('archive', row)
+                onClick: () => (row.status === 'archived' ? emit('restore', row) : emit('archive', row))
               },
-              { default: () => '归档' }
+              { default: () => (row.status === 'archived' ? '恢复' : '归档') }
             )
           ]
         }

@@ -705,6 +705,30 @@ Hunter 原始长结果
       - `src/views/crm/settings/modules/GlobalConfigCard.vue`
       - `src/views/crm/settings/modules/shared.ts`
 
+53. 归档 30 天内恢复入口
+    - `CrmAccount` 新增 `archivedAt`、`archiveReason`、`archiveSlimmedAt` 归档元信息字段。
+    - 归档线索时写入归档时间和原因，并继续写归档指纹。
+    - 后端新增 `POST /crm/accounts/:id/restore`，仅允许恢复当前 scope 内、状态为 `archived` 且归档未超过 30 天的线索。
+    - 恢复后状态回到 `candidate`，清空归档元信息，并写 `account_restored` 时间线。
+    - 前端线索列表中已归档行显示“恢复”，普通行仍显示“归档”。
+    - 当前完成的是 30 天内恢复完整线索；自动瘦身需要先明确要清理哪些字段，仍保留为后续任务。
+    - 已通过验证：
+      - `pnpm exec prisma generate`
+      - `pnpm --filter @soybean/server typecheck`
+      - `pnpm typecheck`
+      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
+    - 涉及文件：
+      - `prisma/schema.prisma`
+      - `prisma/migrations/20260619214000_add_crm_account_archive_metadata/migration.sql`
+      - `apps/server/src/modules/crm/crm.controller.ts`
+      - `apps/server/src/modules/crm/crm.service.ts`
+      - `apps/server/src/modules/crm/crm.types.ts`
+      - `src/service/api/crm.ts`
+      - `src/typings/api/crm.d.ts`
+      - `src/views/crm/leads/index.vue`
+      - `src/views/crm/leads/modules/LeadTable.vue`
+      - `src/views/crm/leads/modules/shared/useLeadTable.ts`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -715,6 +739,7 @@ Hunter 原始长结果
 - AI 获客完成后可导入 CRM。
 - Hunter Domain Search 可补全联系人。
 - CRM 线索库：导入、列表、详情、状态变更、备注、归档、归档指纹提醒。
+- CRM 线索库：已归档线索支持 30 天内恢复。
 - 全平台邮箱验证缓存：`CrmEmailVerificationCache`，按 `emailHash` 唯一。
 - 邮箱验证逻辑：格式、公共邮箱、MX/DNS。
 - Gmail OAuth URL / callback。
@@ -789,7 +814,6 @@ Hunter 原始长结果
 - 组织管理员邮件正文可见策略配置。
 - 超管查看正文的完整审计闭环。
 - 归档 30 天自动瘦身定时任务。
-- 归档后 30 天内恢复完整线索的前端入口和后端完整流程。
 - 组织级历史触达提醒的产品化 UI。
 
 ### 风险点
@@ -1350,7 +1374,7 @@ Hunter 原始长结果
 - 发送队列/同步日志运维页已完成薄视图；完整队列历史和系统日志详情可后续增强。
 - auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。
 - 手动新增/导入 CRM 线索入口已完成。
-- 归档恢复和自动瘦身任务。
+- 归档 30 天内恢复已完成；自动瘦身任务需先明确瘦身字段策略。
 - 前端组件测试。
 
 ### P2：第二期/第三期

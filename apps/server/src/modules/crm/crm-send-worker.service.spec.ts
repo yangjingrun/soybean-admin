@@ -376,6 +376,9 @@ function createAccount(input: Partial<CrmAccountRecord> = {}): CrmAccountRecord 
     customerType: input.customerType ?? null,
     status: input.status || 'sequence_running',
     sourceTaskId: input.sourceTaskId ?? null,
+    archivedAt: input.archivedAt ?? null,
+    archiveReason: input.archiveReason ?? null,
+    archiveSlimmedAt: input.archiveSlimmedAt ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };

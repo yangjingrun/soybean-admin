@@ -55,6 +55,9 @@ declare namespace Api {
       customerType: string | null;
       status: CrmAccountStatus;
       sourceTaskId: string | null;
+      archivedAt: string | null;
+      archiveReason: string | null;
+      archiveSlimmedAt: string | null;
       createdAt: string;
       updatedAt: string;
     }
@@ -203,6 +206,11 @@ declare namespace Api {
     }
 
     interface LeadArchiveResult {
+      account: LeadRecord;
+      event: LeadTimelineEvent;
+    }
+
+    interface LeadRestoreResult {
       account: LeadRecord;
       event: LeadTimelineEvent;
     }

@@ -95,6 +95,9 @@ model CrmAccount {
   customerType   String?
   status         String   @default("candidate")
   sourceTaskId   String?
+  archivedAt     DateTime?
+  archiveReason  String?
+  archiveSlimmedAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -109,6 +112,7 @@ model CrmAccount {
   @@unique([organizationId, ownerUserId, domain])
   @@index([organizationId, ownerUserId, updatedAt])
   @@index([organizationId, status, updatedAt])
+  @@index([organizationId, status, archivedAt])
   @@index([sourceTaskId])
 }
 

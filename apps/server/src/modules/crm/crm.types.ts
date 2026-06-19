@@ -90,6 +90,9 @@ export interface CrmAccountRecord {
   customerType: string | null;
   status: CrmAccountStatus;
   sourceTaskId: string | null;
+  archivedAt: Date | null;
+  archiveReason: string | null;
+  archiveSlimmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -417,6 +420,9 @@ export interface CrmAccountUpdateInput {
   customerType?: string | null;
   status?: CrmAccountStatus;
   sourceTaskId?: string | null;
+  archivedAt?: Date | null;
+  archiveReason?: string | null;
+  archiveSlimmedAt?: Date | null;
 }
 
 export interface CrmContactCreateInput {

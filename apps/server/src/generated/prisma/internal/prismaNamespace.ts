@@ -2535,6 +2535,9 @@ export const CrmAccountScalarFieldEnum = {
   customerType: 'customerType',
   status: 'status',
   sourceTaskId: 'sourceTaskId',
+  archivedAt: 'archivedAt',
+  archiveReason: 'archiveReason',
+  archiveSlimmedAt: 'archiveSlimmedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
