@@ -10,7 +10,13 @@ import type {
   CrmStore
 } from './crm.types';
 
-const followUpDelayMsByStep = new Map([[2, 3 * 24 * 60 * 60 * 1000]]);
+const oneDayMs = 24 * 60 * 60 * 1000;
+const followUpDelayMsByStep = new Map([
+  [2, 3 * oneDayMs],
+  [3, 7 * oneDayMs],
+  [4, 14 * oneDayMs],
+  [5, 21 * oneDayMs]
+]);
 
 @Injectable()
 export class CrmSendWorkerService {

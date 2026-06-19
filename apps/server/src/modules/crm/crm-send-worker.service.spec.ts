@@ -70,6 +70,41 @@ describe('CrmSendWorkerService', () => {
     });
   });
 
+  it('sends queued follow-up messages and creates the next step draft', async () => {
+    const store = createWorkerStore({
+      enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2, currentStep: 1 }),
+      message: createMessage({
+        id: 'message-2',
+        status: 'queued',
+        stepIndex: 2,
+        threadMode: 'same_thread',
+        providerThreadId: 'mock-thread:enrollment-1'
+      }),
+      mailbox: createMailbox({ status: 'active' })
+    });
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store as never, gateway);
+
+    await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
+
+    assert.equal(gateway.calls[0].message.id, 'message-2');
+    assert.equal(store.completed[0].messageId, 'message-2');
+    assert.deepEqual(store.completed[0].nextMessage, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      mailboxId: 'mailbox-1',
+      stepIndex: 3,
+      threadMode: 'same_thread',
+      subject: 'Bearing Series for ABC Trading',
+      bodyText: 'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
+      status: 'draft_pending_review',
+      scheduledAt: new Date(store.completed[0].sentAt.getTime() + 7 * 24 * 60 * 60 * 1000),
+      providerThreadId: 'mock-thread:enrollment-1'
+    });
+  });
+
   it('skips sending when delivery claim cannot reserve mailbox quota', async () => {
     const store = createWorkerStore(
       {

@@ -183,6 +183,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-watch.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-watch.gateway.spec.ts`、`apps/server/src/modules/crm/crm-gmail-watch.service.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch.gateway.spec.ts`，确认 `rateLimitExceeded` 不会抛 `CrmGmailAuthorizationExpiredError`。
 
+### 2026-06-19 CRM 发送 worker 必须按 job.messageId 定位目标邮件
+
+- 场景：首封发送成功后会在同一个 Enrollment 下生成第 2/3/4/5 封 follow-up 草稿，审核后这些后续邮件也会进入同一套发送 worker。
+- 坑点：`toSequenceReviewInclude()` 返回整组 `messages[]` 后，列表第一条通常仍是 step 1；如果 claim/send/complete 逻辑继续用 `record.messages[0]` 或 `firstMessage` 当作当前 job 目标，第 2 封及后续 queued job 会被误跳过，或发送完成后把 `currentStep` 固定写成 1。
+- 正确做法：发送 claim 必须用 `job.messageId` 在 `messages[]` 中定位 queued 目标邮件，返回给 worker 的发送 message 也必须是该目标邮件；发送完成时用目标邮件的 `stepIndex` 回写 `Enrollment.currentStep`，再按该 step 生成下一封 follow-up 草稿。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`、`apps/server/src/modules/crm/crm-send-worker.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认 step 2 queued job 能 claim、发送并生成 step 3 草稿。
+
 ### 记录模板
 
 ```md

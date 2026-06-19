@@ -638,6 +638,28 @@ describe('PrismaCrmStore', () => {
     );
   });
 
+  it('claims queued follow-up delivery by the job message id instead of the first step', async () => {
+    const prisma = createPrisma({
+      sequenceReviewMessages: [
+        createPrismaMessage({ id: 'message-1', status: 'sent', stepIndex: 1 }),
+        createPrismaMessage({ id: 'message-2', status: 'queued', stepIndex: 2, threadMode: 'same_thread' })
+      ]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.claimFirstMessageSendDelivery({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-2',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      claimedAt: new Date('2026-06-21T10:30:00.000Z')
+    });
+
+    assert.equal(result?.firstMessage.id, 'message-2');
+    assert.equal(result?.firstMessage.stepIndex, 2);
+  });
+
   it('does not claim queued first message delivery when mailbox quota is exhausted', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -746,6 +768,33 @@ describe('PrismaCrmStore', () => {
       nextMessageId: 'message-2',
       nextStepIndex: 2
     });
+  });
+
+  it('records the sent follow-up step when completing a later queued message', async () => {
+    const prisma = createPrisma({
+      sentMessageResult: createPrismaMessage({
+        id: 'message-2',
+        status: 'queued',
+        stepIndex: 2,
+        threadMode: 'same_thread'
+      })
+    });
+    const store = new PrismaCrmStore(prisma as never);
+    const sentAt = new Date('2026-06-21T10:45:00.000Z');
+
+    const result = await store.completeFirstMessageSend({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-2',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      sentAt,
+      providerMessageId: 'gmail-message-2',
+      providerThreadId: 'gmail-thread-1'
+    });
+
+    assert.equal(result?.message.stepIndex, 2);
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyAndReturnCalls[0].data, { currentStep: 2 });
   });
 
   it('marks Gmail mailbox auth expired and pauses pending sends for that mailbox', async () => {
@@ -1095,7 +1144,12 @@ function createPrismaMessage(input: Record<string, unknown> = {}) {
   };
 }
 
-function createPrisma() {
+function createPrisma(
+  options: {
+    sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
+    sentMessageResult?: ReturnType<typeof createPrismaMessage>;
+  } = {}
+) {
   const account = {
     id: 'account-1',
     organizationId: 'org-1',
@@ -1550,7 +1604,7 @@ function createPrisma() {
           return {
             ...enrollment,
             status: 'sequence_running',
-            messages: [{ ...message, status: 'queued' }]
+            messages: options.sequenceReviewMessages ?? [{ ...message, status: 'queued' }]
           };
         }
         return args.include ? enrollment : { ...enrollment, account: undefined, contact: undefined, productLine: undefined, mailbox: undefined, messages: undefined };
@@ -1600,6 +1654,9 @@ function createPrisma() {
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
+        if (args.where.status === 'queued' && options.sentMessageResult) {
+          return options.sentMessageResult;
+        }
         if (args.include && args.where.status === 'sent') {
           return {
             ...message,
@@ -1614,7 +1671,7 @@ function createPrisma() {
       },
       async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
         this.updateManyAndReturnCalls.push(args);
-        return [{ ...message, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+        return [{ ...(options.sentMessageResult ?? message), ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       },
       async updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
         this.updateManyCalls.push(args);

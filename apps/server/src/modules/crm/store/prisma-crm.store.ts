@@ -811,15 +811,16 @@ export class PrismaCrmStore implements CrmStore {
         include: toSequenceReviewInclude()
       });
 
-      if (!record || record.messages[0]?.id !== input.messageId) {
+      if (!record) {
         return null;
       }
 
       const reviewItem = toSequenceReviewRecord(record);
+      const targetMessage = reviewItem.messages.find(message => message.id === input.messageId) ?? null;
 
       if (
-        !reviewItem.firstMessage ||
-        reviewItem.firstMessage.status !== 'queued' ||
+        !targetMessage ||
+        targetMessage.status !== 'queued' ||
         !reviewItem.mailbox ||
         reviewItem.mailbox.status !== 'active'
       ) {
@@ -841,7 +842,7 @@ export class PrismaCrmStore implements CrmStore {
       return {
         ...reviewItem,
         mailbox: reviewItem.mailbox,
-        firstMessage: reviewItem.firstMessage
+        firstMessage: targetMessage
       };
     });
   }
@@ -914,6 +915,20 @@ export class PrismaCrmStore implements CrmStore {
 
   async completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null> {
     return this.prisma.$transaction(async tx => {
+      const targetMessage = await tx.crmMessage.findFirst({
+        where: {
+          id: input.messageId,
+          enrollmentId: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: 'queued'
+        }
+      });
+
+      if (!targetMessage) {
+        return null;
+      }
+
       const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
         where: {
           id: input.enrollmentId,
@@ -922,7 +937,7 @@ export class PrismaCrmStore implements CrmStore {
           runVersion: input.runVersion,
           status: 'sequence_running'
         },
-        data: { currentStep: 1 },
+        data: { currentStep: targetMessage.stepIndex },
         limit: 1
       });
       const enrollment = enrollments[0];
