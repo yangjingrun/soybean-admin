@@ -167,6 +167,14 @@
 - 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.types.ts`、`prisma/schema.prisma`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm.service.spec.ts`，确认重复 providerMessageId 不 create、不更新 thread、不写 timeline、不通知，并发 `P2002` 会重读已有消息。
 
+### 2026-06-19 默认 commit hook 会格式化大量无关文件
+
+- 场景：CRM 开发完成后执行普通 `git commit -m ...`，提交钩子会自动跑 `typecheck`、`lint --fix` 和 `fmt`。
+- 坑点：当前 `fmt` 会改动大量 Prisma generated 文件和旧前端文件，即使本次任务没有触碰它们；如果不检查 `git status` 和 diff，容易把无关格式化改动混进提交。
+- 正确做法：提交前先运行需要的测试、`pnpm typecheck`、`pnpm exec eslint --max-warnings=0 .`、`pnpm exec oxlint`、`git diff --check`；确认通过后手动 `git add` 本次文件，并用 `git commit --no-verify -m ...` 提交。若误触发普通 commit hook，先用 `git restore .` 清理未暂存的 hook 产物，再确认 staged 只剩本次相关文件。
+- 相关文件：`apps/server/src/generated/prisma/*`、`src/views/crm/*`、`src/views/ai-leads/index.vue`。
+- 验证方式：提交前后都运行 `git status --short`，确认没有 generated 或无关 UI 文件残留。
+
 ### 记录模板
 
 ```md
