@@ -1,4 +1,8 @@
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
+
+const MAILBOX_WATCH_EXPIRING_SOON_HOURS = 24;
+
+export type MailboxWatchStatus = 'not_started' | 'expired' | 'expiring_soon' | 'normal';
 
 export const mailboxStatusOptions = [
   { label: '启用', value: 'active' },
@@ -28,6 +32,20 @@ export const mailboxWarmupTagTypeMap: Record<Api.Crm.MailboxWarmupStage, NaiveUI
   new: 'default',
   warming: 'info',
   ready: 'success'
+};
+
+export const mailboxWatchStatusLabelMap: Record<MailboxWatchStatus, string> = {
+  not_started: '未开启',
+  expired: '已过期',
+  expiring_soon: '即将过期',
+  normal: '正常'
+};
+
+export const mailboxWatchStatusTagTypeMap: Record<MailboxWatchStatus, NaiveUI.ThemeColor> = {
+  not_started: 'default',
+  expired: 'error',
+  expiring_soon: 'warning',
+  normal: 'success'
 };
 
 export const productLineStatusOptions = [
@@ -167,6 +185,40 @@ export function normalizeProductLinePayload(formModel: Api.Crm.ProductLineFormMo
 /** Format nullable backend ISO datetime for mailbox table display. */
 export function formatMailboxDate(value: string | null) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+}
+
+/** Derive Gmail watch health from its expiration time. */
+export function getMailboxWatchStatus(watchExpiration: string | null, now: Dayjs = dayjs()): MailboxWatchStatus {
+  if (!watchExpiration) {
+    return 'not_started';
+  }
+
+  const expiration = dayjs(watchExpiration);
+
+  if (!expiration.isAfter(now)) {
+    return 'expired';
+  }
+
+  // Gmail watch 24 小时内到期时提前提示。
+  return expiration.diff(now, 'hour', true) <= MAILBOX_WATCH_EXPIRING_SOON_HOURS ? 'expiring_soon' : 'normal';
+}
+
+/** Format watch expiration as a short status description. */
+export function formatMailboxWatchDescription(watchExpiration: string | null) {
+  if (!watchExpiration) {
+    return '暂无 watch 到期时间';
+  }
+
+  return `到期时间 ${formatMailboxDate(watchExpiration)}`;
+}
+
+/** Mask Gmail history checkpoint while keeping it recognizable in the table. */
+export function formatMailboxHistoryId(value: string | null) {
+  if (!value) {
+    return '未同步';
+  }
+
+  return value.length > 8 ? `...${value.slice(-8)}` : value;
 }
 
 /** Format sending quotas into a compact table label. */

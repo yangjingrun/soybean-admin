@@ -4,9 +4,14 @@ import { NButton, NPopconfirm, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   formatMailboxDate,
+  formatMailboxHistoryId,
   formatMailboxQuota,
+  formatMailboxWatchDescription,
+  getMailboxWatchStatus,
   mailboxStatusLabelMap,
   mailboxStatusTagTypeMap,
+  mailboxWatchStatusLabelMap,
+  mailboxWatchStatusTagTypeMap,
   mailboxWarmupLabelMap,
   mailboxWarmupTagTypeMap
 } from './shared';
@@ -40,6 +45,60 @@ function renderOwner(row: Api.Crm.MailboxRecord) {
   ]);
 }
 
+function renderAuthorizationStatus(row: Api.Crm.MailboxRecord) {
+  const description =
+    row.status === 'paused' && row.pausedAt
+      ? `暂停于 ${formatMailboxDate(row.pausedAt)}`
+      : `授权于 ${formatMailboxDate(row.authorizedAt)}`;
+
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: mailboxStatusTagTypeMap[row.status]
+      },
+      { default: () => mailboxStatusLabelMap[row.status] }
+    ),
+    h('span', { class: 'mailbox-secondary-text' }, description)
+  ]);
+}
+
+function renderWatchStatus(row: Api.Crm.MailboxRecord) {
+  const watchStatus = getMailboxWatchStatus(row.watchExpiration);
+
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: mailboxWatchStatusTagTypeMap[watchStatus]
+      },
+      { default: () => mailboxWatchStatusLabelMap[watchStatus] }
+    ),
+    h('span', { class: 'mailbox-secondary-text' }, formatMailboxWatchDescription(row.watchExpiration))
+  ]);
+}
+
+function renderSyncCheckpoint(row: Api.Crm.MailboxRecord) {
+  const hasSynced = Boolean(row.lastHistoryId);
+
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: hasSynced ? 'info' : 'default'
+      },
+      { default: () => formatMailboxHistoryId(row.lastHistoryId) }
+    ),
+    h('span', { class: 'mailbox-secondary-text' }, hasSynced ? 'Gmail historyId' : '等待首次同步')
+  ]);
+}
+
 const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   {
     key: 'emailAddress',
@@ -49,18 +108,9 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   },
   {
     key: 'status',
-    title: '状态',
-    width: 120,
-    render: row =>
-      h(
-        NTag,
-        {
-          bordered: false,
-          size: 'small',
-          type: mailboxStatusTagTypeMap[row.status]
-        },
-        { default: () => mailboxStatusLabelMap[row.status] }
-      )
+    title: '授权状态',
+    minWidth: 170,
+    render: row => renderAuthorizationStatus(row)
   },
   {
     key: 'owner',
@@ -91,9 +141,15 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   },
   {
     key: 'watchExpiration',
-    title: 'watch 到期',
+    title: 'Gmail watch',
     minWidth: 180,
-    render: row => formatMailboxDate(row.watchExpiration)
+    render: row => renderWatchStatus(row)
+  },
+  {
+    key: 'lastHistoryId',
+    title: '同步检查点',
+    minWidth: 150,
+    render: row => renderSyncCheckpoint(row)
   },
   {
     key: 'updatedAt',
@@ -166,7 +222,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
       :data="records"
       :loading="loading"
       :row-key="row => row.id"
-      :scroll-x="1250"
+      :scroll-x="1450"
       size="small"
       remote
     >
