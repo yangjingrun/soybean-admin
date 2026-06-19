@@ -147,6 +147,33 @@ export interface CrmGlobalConfigInput {
   updatedByName?: string | null;
 }
 
+export interface CrmBlacklistRecord {
+  id: string;
+  organizationId: string;
+  emailHash: string;
+  maskedEmail: string;
+  reason: 'unsubscribe';
+  sourceAccountId: string | null;
+  sourceContactId: string | null;
+  sourceMessageId: string | null;
+  createdById: string | null;
+  createdByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmBlacklistUpsertInput {
+  organizationId: string;
+  emailHash: string;
+  maskedEmail: string;
+  reason: 'unsubscribe';
+  sourceAccountId?: string | null;
+  sourceContactId?: string | null;
+  sourceMessageId?: string | null;
+  createdById?: string | null;
+  createdByName?: string | null;
+}
+
 export interface CrmTimelineEventRecord {
   id: string;
   organizationId: string;
@@ -840,6 +867,8 @@ export interface CrmStore {
   ): Promise<CrmEmailVerificationCacheRecord>;
   getGlobalConfig(): Promise<CrmGlobalConfigRecord>;
   saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
+  findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;
+  upsertBlacklistEntry(input: CrmBlacklistUpsertInput): Promise<CrmBlacklistRecord>;
   listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;

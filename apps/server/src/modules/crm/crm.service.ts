@@ -775,6 +775,7 @@ export class CrmService {
   /** Creates one first-email review item and deterministic draft without queueing any send job. */
   async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
     const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
+    await this.assertContactNotBlacklisted(contact, context);
     const existingEnrollment = await this.store.findActiveEnrollmentByContact({
       organizationId: context.organizationId,
       ownerUserId: context.userId,
@@ -1080,6 +1081,8 @@ export class CrmService {
     if (item.mailbox.status !== 'active') {
       throw new BadRequestException('发送邮箱未启用');
     }
+
+    await this.assertContactNotBlacklisted(item.contact, context);
 
     const started = await this.store.startFirstMessageSend({
       enrollmentId: item.enrollment.id,
@@ -1738,6 +1741,17 @@ export class CrmService {
     }
 
     return mailbox;
+  }
+
+  private async assertContactNotBlacklisted(contact: CrmContactRecord, context: CrmUserContext) {
+    const blacklistEntry = await this.store.findBlacklistEntry({
+      organizationId: context.organizationId,
+      emailHash: contact.emailHash
+    });
+
+    if (blacklistEntry) {
+      throw new BadRequestException('该邮箱已在组织黑名单中，不能继续开发');
+    }
   }
 
   private async requireScopedAccountAndContact(accountId: string, contactId: string, context: CrmUserContext) {

@@ -147,6 +147,50 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.emailVerificationCooldownDays, 45);
   });
 
+  it('finds organization blacklist entries by organization and email hash', async () => {
+    const prisma = createPrisma({ blacklistEntry: createPrismaBlacklist() });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const entry = await store.findBlacklistEntry({
+      organizationId: 'org-1',
+      emailHash: 'hash-1'
+    });
+
+    assert.equal(entry?.reason, 'unsubscribe');
+    assert.deepEqual(prisma.crmBlacklist.findUniqueCalls[0].where, {
+      organizationId_emailHash: {
+        organizationId: 'org-1',
+        emailHash: 'hash-1'
+      }
+    });
+  });
+
+  it('upserts organization blacklist entries by organization and email hash', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const entry = await store.upsertBlacklistEntry({
+      organizationId: 'org-1',
+      emailHash: 'hash-1',
+      maskedEmail: 'a***@example.com',
+      reason: 'unsubscribe',
+      sourceAccountId: 'account-1',
+      sourceContactId: 'contact-1',
+      sourceMessageId: 'inbox-message-1',
+      createdById: 'user-1',
+      createdByName: 'Alice'
+    });
+
+    assert.equal(entry.emailHash, 'hash-1');
+    assert.deepEqual(prisma.crmBlacklist.upsertCalls[0].where, {
+      organizationId_emailHash: {
+        organizationId: 'org-1',
+        emailHash: 'hash-1'
+      }
+    });
+    assert.equal(prisma.crmBlacklist.upsertCalls[0].create.sourceMessageId, 'inbox-message-1');
+  });
+
   it('loads account detail with member owner scope and newest timeline first', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -692,6 +736,48 @@ describe('PrismaCrmStore', () => {
     );
   });
 
+  it('skips queued delivery and stops the sequence when the contact is organization blacklisted', async () => {
+    const prisma = createPrisma({ blacklistEntry: createPrismaBlacklist() });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.claimFirstMessageSendDelivery({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      claimedAt: new Date('2026-06-18T10:30:00.000Z')
+    });
+
+    assert.equal(result, null);
+    assert.equal(prisma.crmMailboxSendUsage.createCalls.length, 0);
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyCalls.at(-1), {
+      where: {
+        id: 'enrollment-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        runVersion: 1,
+        status: 'sequence_running'
+      },
+      data: {
+        status: 'stopped',
+        runVersion: { increment: 1 }
+      }
+    });
+    assert.deepEqual(prisma.crmMessage.updateManyCalls.at(-1), {
+      where: {
+        id: 'message-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        status: 'queued'
+      },
+      data: {
+        status: 'skipped',
+        bullJobId: null
+      }
+    });
+  });
+
   it('claims queued follow-up delivery by the job message id instead of the first step', async () => {
     const prisma = createPrisma({
       sequenceReviewMessages: [
@@ -1071,6 +1157,7 @@ describe('PrismaCrmStore', () => {
     assert.equal(result?.isDuplicate, true);
     assert.equal(result?.message.id, 'inbox-message-1');
     assert.equal(result?.thread.id, 'inbox-thread-1');
+    assert.equal(prisma.crmBlacklist.upsertCalls.length, 0);
     assert.deepEqual(prisma.crmInboxMessage.findFirstCalls[0].where, {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
@@ -1173,6 +1260,13 @@ describe('PrismaCrmStore', () => {
     });
 
     assert.equal(result?.message.messageType, 'unsubscribe_hint');
+    assert.deepEqual(prisma.crmBlacklist.upsertCalls[0].where, {
+      organizationId_emailHash: {
+        organizationId: 'org-1',
+        emailHash: 'hash-1'
+      }
+    });
+    assert.equal(prisma.crmBlacklist.upsertCalls[0].create.sourceMessageId, 'inbox-message-1');
     assert.deepEqual(prisma.crmContact.updateCalls[0], {
       where: { id: 'contact-1' },
       data: { emailStatus: 'unsubscribed' }
@@ -1240,8 +1334,27 @@ function createPrismaMessage(input: Record<string, unknown> = {}) {
   };
 }
 
+function createPrismaBlacklist(input: Record<string, unknown> = {}) {
+  return {
+    id: 'blacklist-1',
+    organizationId: 'org-1',
+    emailHash: 'hash-1',
+    maskedEmail: 'a***@example.com',
+    reason: 'unsubscribe',
+    sourceAccountId: 'account-1',
+    sourceContactId: 'contact-1',
+    sourceMessageId: 'inbox-message-1',
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
+}
+
 function createPrisma(
   options: {
+    blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
   } = {}
@@ -1331,6 +1444,7 @@ function createPrisma(
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
+  const blacklist = options.blacklistEntry ?? null;
   const message = createPrismaMessage();
   const enrollment = {
     id: 'enrollment-1',
@@ -1576,6 +1690,32 @@ function createPrisma(
           updatedById: args.update.updatedById ?? null,
           updatedByName: args.update.updatedByName ?? null,
           createdAt: new Date('2026-06-18T09:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        };
+      }
+    },
+    crmBlacklist: {
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      findUniqueResult: blacklist,
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return this.findUniqueResult;
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+        return {
+          ...createPrismaBlacklist(),
+          ...args.create,
+          ...args.update,
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         };
       }

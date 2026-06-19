@@ -70,6 +70,7 @@ model Organization {
   crmAccounts       CrmAccount[]
   crmContacts       CrmContact[]
   crmTimelineEvents CrmTimelineEvent[]
+  crmBlacklists     CrmBlacklist[]
   crmMailboxes      CrmMailbox[]
   crmMailboxSendUsages CrmMailboxSendUsage[]
   crmProductLines   CrmProductLine[]
@@ -168,6 +169,27 @@ model CrmGlobalConfig {
   updatedByName                 String?
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
+}
+
+model CrmBlacklist {
+  id              String   @id @default(uuid())
+  organizationId  String
+  emailHash       String
+  maskedEmail     String
+  reason          String
+  sourceAccountId String?
+  sourceContactId String?
+  sourceMessageId String?
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, emailHash])
+  @@index([organizationId, reason, updatedAt])
+  @@index([organizationId, updatedAt])
 }
 
 model CrmTimelineEvent {

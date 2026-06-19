@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
+import type { CrmBlacklistModel } from '../../../generated/prisma/models/CrmBlacklist';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
 import type { CrmEmailVerificationCacheModel } from '../../../generated/prisma/models/CrmEmailVerificationCache';
 import type { CrmGlobalConfigModel } from '../../../generated/prisma/models/CrmGlobalConfig';
@@ -17,6 +18,8 @@ import type {
   CrmAccountRecord,
   CrmAccountStatus,
   CrmAccountUpdateInput,
+  CrmBlacklistRecord,
+  CrmBlacklistUpsertInput,
   CrmMailboxCreateInput,
   CrmMailboxAuthorizationExpiredInput,
   CrmMailboxAuthorizationExpiredRecord,
@@ -250,6 +253,42 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return toGlobalConfigRecord(record);
+  }
+
+  findBlacklistEntry(args: { organizationId: string; emailHash: string }) {
+    return this.prisma.crmBlacklist
+      .findUnique({
+        where: {
+          organizationId_emailHash: {
+            organizationId: args.organizationId,
+            emailHash: args.emailHash
+          }
+        }
+      })
+      .then(record => (record ? toBlacklistRecord(record) : null));
+  }
+
+  async upsertBlacklistEntry(input: CrmBlacklistUpsertInput) {
+    const record = await this.prisma.crmBlacklist.upsert({
+      where: {
+        organizationId_emailHash: {
+          organizationId: input.organizationId,
+          emailHash: input.emailHash
+        }
+      },
+      create: input,
+      update: {
+        maskedEmail: input.maskedEmail,
+        reason: input.reason,
+        sourceAccountId: input.sourceAccountId ?? null,
+        sourceContactId: input.sourceContactId ?? null,
+        sourceMessageId: input.sourceMessageId ?? null,
+        createdById: input.createdById ?? null,
+        createdByName: input.createdByName ?? null
+      }
+    });
+
+    return toBlacklistRecord(record);
   }
 
   async listAccounts(args: {
@@ -899,6 +938,47 @@ export class PrismaCrmStore implements CrmStore {
         return null;
       }
 
+      const blacklistEntry = await tx.crmBlacklist.findUnique({
+        where: {
+          organizationId_emailHash: {
+            organizationId: input.organizationId,
+            emailHash: reviewItem.contact.emailHash
+          }
+        }
+      });
+
+      if (blacklistEntry) {
+        await Promise.all([
+          tx.crmSequenceEnrollment.updateMany({
+            where: {
+              id: input.enrollmentId,
+              organizationId: input.organizationId,
+              ownerUserId: input.ownerUserId,
+              runVersion: input.runVersion,
+              status: 'sequence_running'
+            },
+            data: {
+              status: 'stopped',
+              runVersion: { increment: 1 }
+            }
+          }),
+          tx.crmMessage.updateMany({
+            where: {
+              id: input.messageId,
+              organizationId: input.organizationId,
+              ownerUserId: input.ownerUserId,
+              status: 'queued'
+            },
+            data: {
+              status: 'skipped',
+              bullJobId: null
+            }
+          })
+        ]);
+
+        return null;
+      }
+
       const reserved = await reserveMailboxSendQuota(tx, {
         organizationId: input.organizationId,
         mailboxId: reviewItem.mailbox.id,
@@ -1347,6 +1427,36 @@ export class PrismaCrmStore implements CrmStore {
         });
         const isUnsubscribeHint = messageType === 'unsubscribe_hint';
         const isBounce = messageType === 'bounce';
+        if (isUnsubscribeHint) {
+          await tx.crmBlacklist.upsert({
+            where: {
+              organizationId_emailHash: {
+                organizationId: input.organizationId,
+                emailHash: outboundMessage.contact.emailHash
+              }
+            },
+            create: {
+              organizationId: input.organizationId,
+              emailHash: outboundMessage.contact.emailHash,
+              maskedEmail: outboundMessage.contact.maskedEmail,
+              reason: 'unsubscribe',
+              sourceAccountId: outboundMessage.accountId,
+              sourceContactId: outboundMessage.contactId,
+              sourceMessageId: inboxMessage.id,
+              createdById: input.ownerUserId,
+              createdByName: outboundMessage.mailbox?.ownerUserName ?? null
+            },
+            update: {
+              maskedEmail: outboundMessage.contact.maskedEmail,
+              reason: 'unsubscribe',
+              sourceAccountId: outboundMessage.accountId,
+              sourceContactId: outboundMessage.contactId,
+              sourceMessageId: inboxMessage.id,
+              createdById: input.ownerUserId,
+              createdByName: outboundMessage.mailbox?.ownerUserName ?? null
+            }
+          });
+        }
         const [account, contact] = await Promise.all([
           tx.crmAccount.update({
             where: { id: outboundMessage.accountId },
@@ -1920,6 +2030,13 @@ function toAccountRecord(record: CrmAccountModel): CrmAccountRecord {
   return {
     ...record,
     status: record.status as CrmAccountRecord['status']
+  };
+}
+
+function toBlacklistRecord(record: CrmBlacklistModel): CrmBlacklistRecord {
+  return {
+    ...record,
+    reason: record.reason as CrmBlacklistRecord['reason']
   };
 }
 

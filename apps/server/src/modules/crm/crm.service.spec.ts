@@ -8,6 +8,7 @@ import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gma
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmService } from './crm.service';
 import type {
+  CrmBlacklistRecord,
   CrmEmailVerificationCacheRecord,
   CrmGlobalConfigRecord,
   CrmInboxMessageRecord,
@@ -1150,6 +1151,33 @@ describe('CrmService', () => {
     );
   });
 
+  it('rejects sequence review creation for organization blacklisted contact emails', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-1' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          ownerUserId: 'user-1',
+          accountId: 'account-1',
+          email: 'ali@example.com',
+          emailHash: hashTestEmail('ali@example.com')
+        })
+      ],
+      blacklists: [
+        createBlacklist({
+          organizationId: 'org-1',
+          emailHash: hashTestEmail('ali@example.com'),
+          maskedEmail: 'a***@example.com'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext()),
+      /组织黑名单/
+    );
+  });
+
   it('lists sequence review items with member owner scope and generated checklist', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', emailStatus: 'valid' })],
@@ -1407,6 +1435,51 @@ describe('CrmService', () => {
       () => service.startFirstMessageSend('enrollment-1', createContext({ organizationRole: 'admin' })),
       NotFoundException
     );
+  });
+
+  it('rejects starting send when the contact email is organization blacklisted', async () => {
+    const email = 'ali@example.com';
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          email,
+          emailHash: hashTestEmail(email)
+        })
+      ],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'ready_to_send'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'draft_ready'
+        })
+      ],
+      blacklists: [
+        createBlacklist({
+          organizationId: 'org-1',
+          emailHash: hashTestEmail(email),
+          maskedEmail: 'a***@example.com'
+        })
+      ]
+    });
+    const queue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, queue);
+
+    await assert.rejects(() => service.startFirstMessageSend('enrollment-1', createContext()), /组织黑名单/);
+    assert.equal(queue.jobs.length, 0);
+    assert.equal(store.messages[0].status, 'draft_ready');
   });
 
   it('rolls queued first messages back to ready when enqueue fails', async () => {
@@ -1736,6 +1809,10 @@ describe('CrmService', () => {
     assert.equal(store.accounts[0].status, 'blocked');
     assert.equal(store.enrollments[0].status, 'replied');
     assert.equal(store.enrollments[0].runVersion, 4);
+    assert.equal(store.blacklists.length, 1);
+    assert.equal(store.blacklists[0].organizationId, 'org-1');
+    assert.equal(store.blacklists[0].emailHash, 'hash-1');
+    assert.equal(store.blacklists[0].reason, 'unsubscribe');
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_unsubscribed');
   });
 
@@ -1991,6 +2068,7 @@ function createStore(
   initialAccounts: TestAccount[] = [],
   initialData: {
     contacts?: TestContact[];
+    blacklists?: TestBlacklist[];
     timelineEvents?: TestTimelineEvent[];
     mailboxes?: TestMailbox[];
     productLines?: TestProductLine[];
@@ -2004,6 +2082,7 @@ function createStore(
 ): CrmStore & {
   accounts: TestAccount[];
   contacts: TestContact[];
+  blacklists: TestBlacklist[];
   emailVerificationCaches: TestEmailVerificationCache[];
   timelineEvents: TestTimelineEvent[];
   mailboxes: TestMailbox[];
@@ -2036,6 +2115,7 @@ function createStore(
 } {
   const accounts = [...initialAccounts];
   const contacts: TestContact[] = [...(initialData.contacts ?? [])];
+  const blacklists: TestBlacklist[] = [...(initialData.blacklists ?? [])];
   const emailVerificationCaches: TestEmailVerificationCache[] = [...(initialData.emailVerificationCaches ?? [])];
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
@@ -2053,6 +2133,7 @@ function createStore(
   return {
     accounts,
     contacts,
+    blacklists,
     emailVerificationCaches,
     timelineEvents,
     mailboxes,
@@ -2173,6 +2254,30 @@ function createStore(
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
       return globalConfig;
+    },
+    async findBlacklistEntry(args) {
+      return (
+        blacklists.find(
+          entry => entry.organizationId === args.organizationId && entry.emailHash === args.emailHash
+        ) || null
+      );
+    },
+    async upsertBlacklistEntry(input) {
+      const existingEntry = blacklists.find(
+        entry => entry.organizationId === input.organizationId && entry.emailHash === input.emailHash
+      );
+
+      if (existingEntry) {
+        Object.assign(existingEntry, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+        return existingEntry;
+      }
+
+      const entry = createBlacklist({
+        ...input,
+        id: `blacklist-${blacklists.length + 1}`
+      });
+      blacklists.push(entry);
+      return entry;
     },
     async listAccounts(args) {
       this.lastListArgs = args;
@@ -2870,6 +2975,19 @@ function createStore(
       inboxMessages.push(inboxMessage);
       const isUnsubscribeHint = inboxMessage.messageType === 'unsubscribe_hint';
       const isBounce = inboxMessage.messageType === 'bounce';
+      if (isUnsubscribeHint) {
+        await this.upsertBlacklistEntry({
+          organizationId: input.organizationId,
+          emailHash: contact.emailHash,
+          maskedEmail: contact.maskedEmail,
+          reason: 'unsubscribe',
+          sourceAccountId: account.id,
+          sourceContactId: contact.id,
+          sourceMessageId: inboxMessage.id,
+          createdById: input.ownerUserId,
+          createdByName: mailbox?.ownerUserName ?? null
+        });
+      }
       Object.assign(account, {
         status: isUnsubscribeHint ? 'blocked' : isBounce ? 'manual_review_pending' : 'replied_pending',
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
@@ -3109,6 +3227,23 @@ function createContact(input: Partial<TestContact> = {}): TestContact {
   };
 }
 
+function createBlacklist(input: Partial<TestBlacklist> = {}): TestBlacklist {
+  return {
+    id: input.id || 'blacklist-1',
+    organizationId: input.organizationId || 'org-1',
+    emailHash: input.emailHash || 'hash-1',
+    maskedEmail: input.maskedEmail || 'a***@example.com',
+    reason: input.reason || 'unsubscribe',
+    sourceAccountId: input.sourceAccountId ?? 'account-1',
+    sourceContactId: input.sourceContactId ?? 'contact-1',
+    sourceMessageId: input.sourceMessageId ?? null,
+    createdById: input.createdById ?? 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
 function createEmailVerificationCache(input: Partial<TestEmailVerificationCache> = {}): TestEmailVerificationCache {
   return {
     id: input.id || 'email-verification-cache-1',
@@ -3341,6 +3476,7 @@ function buildInboxThreadListRecord(
 }
 
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
+type TestBlacklist = CrmBlacklistRecord;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestEmailVerificationCache = CrmEmailVerificationCacheRecord;
 type TestGlobalConfig = CrmGlobalConfigRecord;

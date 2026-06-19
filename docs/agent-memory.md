@@ -151,6 +151,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认额度满不发送、正常发送只 claim 一次。
 
+### 2026-06-19 CRM 退订黑名单按组织隔离，但 worker claim 仍要最终拦截
+
+- 场景：客户回复 `remove me / unsubscribe / stop` 等退订语义后，同一组织内其他成员或后续任务再次开发同一邮箱时必须被挡住；不同组织不共享退订黑名单。
+- 坑点：不能把退订黑名单做成全局邮箱缓存，也不能只在草稿创建或开始发送前校验；草稿审核后到 BullMQ worker 真正发送前，客户可能已经退订，旧 queued job 仍会执行。
+- 正确做法：退订回信在 `PrismaCrmStore.ingestCustomerReply` 同一事务里 upsert `CrmBlacklist`，唯一键为 `organizationId + emailHash`；`CrmService.createSequenceReviewItem` 和 `startFirstMessageSend` 先查黑名单并拒绝；`claimFirstMessageSendDelivery` 在扣额度前再次查询黑名单，命中时停止 enrollment、跳过 queued message 并返回 `null`。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认黑名单联系人不能建审核、不能入队、worker claim 不扣额度，退订回信会写组织级黑名单。
+
 ### 2026-06-19 Prisma schema 变更要同步生成客户端
 
 - 场景：给 `CrmMessage` 增加 `providerMessageId/providerThreadId` 这类数据库字段，后端 store 需要在 Prisma 写入和读取这些字段。
