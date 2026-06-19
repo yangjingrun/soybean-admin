@@ -39,8 +39,17 @@ interface GmailMessageWithLabels {
   labelIds?: unknown;
 }
 
+interface GmailApiErrorResponse {
+  error?: {
+    errors?: Array<{
+      reason?: unknown;
+    }>;
+  };
+}
+
 const gmailApiBase = 'https://gmail.googleapis.com';
 const gmailHistoryMaxResults = '100';
+const authorizationErrorReasons = new Set(['authError', 'forbidden', 'insufficientPermissions', 'domainPolicy']);
 
 export class CrmGmailHistoryExpiredError extends Error {
   constructor(message = 'Gmail history checkpoint expired') {
@@ -131,7 +140,7 @@ export class CrmGmailApiHistoryGateway implements CrmGmailHistoryGateway {
   }
 
   private parseGmailResponse<T>(response: CrmGmailApiHttpResponse): T {
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401 || isAuthorizationErrorResponse(response)) {
       throw new CrmGmailAuthorizationExpiredError();
     }
 
@@ -185,6 +194,19 @@ function isSentOnlyMessage(message: unknown) {
 
 function normalizeOptionalString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function isAuthorizationErrorResponse(response: CrmGmailApiHttpResponse) {
+  if (response.status !== 403) {
+    return false;
+  }
+
+  const body = response.body as GmailApiErrorResponse;
+  const reasons = body.error?.errors
+    ?.map(item => item.reason)
+    .filter((reason): reason is string => typeof reason === 'string');
+
+  return reasons?.some(reason => authorizationErrorReasons.has(reason)) ?? false;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

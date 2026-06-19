@@ -115,6 +115,61 @@ describe('CrmGmailApiHistoryGateway', () => {
     );
   });
 
+  it('maps Gmail auth-like 403 responses to the shared authorization-expired error', async () => {
+    const gateway = new CrmGmailApiHistoryGateway(
+      createTokenProvider('access-token-1'),
+      createHttpClient([
+        {
+          status: 403,
+          body: {
+            error: {
+              errors: [{ reason: 'authError' }]
+            }
+          }
+        }
+      ])
+    );
+
+    await assert.rejects(
+      () =>
+        gateway.listHistory({
+          mailbox: createMailbox(),
+          startHistoryId: '100',
+          targetHistoryId: '102'
+        }),
+      CrmGmailAuthorizationExpiredError
+    );
+  });
+
+  it('does not mark Gmail history rate limits as authorization expired', async () => {
+    const gateway = new CrmGmailApiHistoryGateway(
+      createTokenProvider('access-token-1'),
+      createHttpClient([
+        {
+          status: 403,
+          body: {
+            error: {
+              errors: [{ reason: 'rateLimitExceeded' }]
+            }
+          }
+        }
+      ])
+    );
+
+    await assert.rejects(
+      () =>
+        gateway.listHistory({
+          mailbox: createMailbox(),
+          startHistoryId: '100',
+          targetHistoryId: '102'
+        }),
+      error =>
+        error instanceof Error &&
+        !(error instanceof CrmGmailAuthorizationExpiredError) &&
+        /Gmail API request failed with status 403/.test(error.message)
+    );
+  });
+
   it('maps expired Gmail history checkpoints to a dedicated history error', async () => {
     const gateway = new CrmGmailApiHistoryGateway(
       createTokenProvider('access-token-1'),
