@@ -1,0 +1,205 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { CrmGmailWatchService } from './crm-gmail-watch.service';
+import type { CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
+import type { CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
+
+describe('CrmGmailWatchService', () => {
+  it('renews an active mailbox watch and persists the returned checkpoint', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const store = createStore([mailbox]);
+    const logs = createLogRecorder();
+    const gatewayCalls: Parameters<CrmGmailWatchGateway['renewWatch']>[0][] = [];
+    const service = new CrmGmailWatchService(
+      store,
+      {
+        async renewWatch(input) {
+          gatewayCalls.push(input);
+
+          return {
+            historyId: '150',
+            watchExpiration: new Date('2026-06-26T08:00:00.000Z')
+          };
+        }
+      },
+      logs.service
+    );
+
+    const result = await service.renewMailboxWatch('mailbox-1', createContext());
+
+    assert.equal(result.mailbox.watchExpiration, '2026-06-26T08:00:00.000Z');
+    assert.equal(result.mailbox.lastHistoryId, '150');
+    assert.deepEqual(result.watch, {
+      historyId: '150',
+      watchExpiration: '2026-06-26T08:00:00.000Z'
+    });
+    assert.equal(gatewayCalls[0].mailbox.id, 'mailbox-1');
+    assert.deepEqual(store.lastMailboxDetailArgs, {
+      id: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(store.mailboxUpdateCalls[0], {
+      id: 'mailbox-1',
+      input: {
+        watchExpiration: new Date('2026-06-26T08:00:00.000Z'),
+        lastHistoryId: '150'
+      }
+    });
+    assert.deepEqual(logs.records[0].metadata, {
+      organizationId: 'org-1',
+      mailboxId: 'mailbox-1',
+      provider: 'gmail',
+      maskedEmail: 'a***@gmail.com',
+      historyId: '150',
+      watchExpiration: '2026-06-26T08:00:00.000Z'
+    });
+  });
+
+  it('rejects mailboxes outside the member scope before calling the gateway', async () => {
+    const store = createStore([createMailbox({ id: 'peer-mailbox', ownerUserId: 'user-2' })]);
+    let gatewayCalled = false;
+    const service = new CrmGmailWatchService(store, {
+      async renewWatch() {
+        gatewayCalled = true;
+
+        return {
+          historyId: '150',
+          watchExpiration: new Date('2026-06-26T08:00:00.000Z')
+        };
+      }
+    });
+
+    await assert.rejects(() => service.renewMailboxWatch('peer-mailbox', createContext()), NotFoundException);
+
+    assert.equal(gatewayCalled, false);
+  });
+
+  it('allows organization admins to renew organization mailbox watches', async () => {
+    const store = createStore([createMailbox({ id: 'peer-mailbox', ownerUserId: 'user-2' })]);
+    const service = new CrmGmailWatchService(store, createGateway());
+
+    await service.renewMailboxWatch('peer-mailbox', createContext({ organizationRole: 'admin' }));
+
+    assert.deepEqual(store.lastMailboxDetailArgs, {
+      id: 'peer-mailbox',
+      organizationId: 'org-1'
+    });
+  });
+
+  it('rejects inactive mailboxes before calling the gateway', async () => {
+    const store = createStore([createMailbox({ status: 'paused' })]);
+    let gatewayCalled = false;
+    const service = new CrmGmailWatchService(store, {
+      async renewWatch() {
+        gatewayCalled = true;
+
+        return {
+          historyId: '150',
+          watchExpiration: new Date('2026-06-26T08:00:00.000Z')
+        };
+      }
+    });
+
+    await assert.rejects(() => service.renewMailboxWatch('mailbox-1', createContext()), BadRequestException);
+
+    assert.equal(gatewayCalled, false);
+    assert.equal(store.mailboxUpdateCalls.length, 0);
+  });
+});
+
+function createGateway(): CrmGmailWatchGateway {
+  return {
+    async renewWatch() {
+      return {
+        historyId: '150',
+        watchExpiration: new Date('2026-06-26T08:00:00.000Z')
+      };
+    }
+  };
+}
+
+function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
+  return {
+    userId: 'user-1',
+    userName: 'Alice',
+    roles: ['R_USER'],
+    organizationId: 'org-1',
+    organizationRole: 'member',
+    ...overrides
+  };
+}
+
+function createStore(mailboxes: CrmMailboxRecord[]) {
+  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
+  let lastMailboxDetailArgs: Parameters<CrmStore['findMailboxById']>[0] | undefined;
+
+  return {
+    mailboxes,
+    mailboxUpdateCalls,
+    get lastMailboxDetailArgs() {
+      return lastMailboxDetailArgs;
+    },
+    async findMailboxById(args) {
+      lastMailboxDetailArgs = args;
+
+      return (
+        mailboxes.find(mailbox => {
+          if (mailbox.id !== args.id) return false;
+          if (mailbox.organizationId !== args.organizationId) return false;
+          if (args.ownerUserId && mailbox.ownerUserId !== args.ownerUserId) return false;
+          return true;
+        }) ?? null
+      );
+    },
+    async updateMailbox(id, input) {
+      mailboxUpdateCalls.push({ id, input });
+      const mailbox = mailboxes.find(item => item.id === id);
+      if (!mailbox) return null;
+      Object.assign(mailbox, input, { updatedAt: new Date('2026-06-19T08:30:00.000Z') });
+      return mailbox;
+    }
+  } as Pick<CrmStore, 'findMailboxById' | 'updateMailbox'> as CrmStore & {
+    mailboxes: CrmMailboxRecord[];
+    mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
+    lastMailboxDetailArgs?: Parameters<CrmStore['findMailboxById']>[0];
+  };
+}
+
+function createMailbox(input: Partial<CrmMailboxRecord> = {}): CrmMailboxRecord {
+  return {
+    id: 'mailbox-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    provider: 'gmail',
+    emailAddress: 'alice@gmail.com',
+    emailHash: 'email-hash-1',
+    maskedEmail: 'a***@gmail.com',
+    status: 'active',
+    dailyLimit: 50,
+    hourlyLimit: 10,
+    warmupStage: 'new',
+    watchExpiration: null,
+    lastHistoryId: null,
+    authorizedAt: new Date('2026-06-18T09:00:00.000Z'),
+    pausedAt: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
+}
+
+function createLogRecorder() {
+  const records: Array<{ metadata: unknown }> = [];
+
+  return {
+    records,
+    service: {
+      async record(input: { metadata?: unknown }) {
+        records.push({ metadata: input.metadata });
+      }
+    }
+  };
+}

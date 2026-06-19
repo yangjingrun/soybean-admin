@@ -11,6 +11,8 @@ import { MockCrmGmailHistoryGateway } from './crm-gmail-history.gateway';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
 import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
 import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
+import { MockCrmGmailWatchGateway } from './crm-gmail-watch.gateway';
+import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmGmailWebhookController } from './crm-gmail-webhook.controller';
 import { CrmGmailWebhookService } from './crm-gmail-webhook.service';
 import { CrmSendQueueService } from './crm-send-queue.service';
@@ -22,6 +24,7 @@ import {
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_HISTORY_GATEWAY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
+  CRM_GMAIL_WATCH_GATEWAY,
   CRM_SEND_QUEUE,
   CRM_STORE
 } from './crm.tokens';
@@ -37,6 +40,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmGmailHistorySyncQueueService,
     CrmGmailHistorySyncWorkerService,
     CrmGmailHistorySyncWorkerHost,
+    CrmGmailWatchService,
     CrmSendWorkerService,
     CrmSendWorkerHost,
     {
@@ -54,6 +58,10 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     {
       provide: CRM_GMAIL_HISTORY_GATEWAY,
       useClass: MockCrmGmailHistoryGateway
+    },
+    {
+      provide: CRM_GMAIL_WATCH_GATEWAY,
+      useClass: MockCrmGmailWatchGateway
     },
     {
       provide: CRM_EMAIL_SEND_GATEWAY,

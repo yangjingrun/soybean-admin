@@ -4,6 +4,7 @@ import {
   Get,
   Headers,
   Inject,
+  Optional,
   Param,
   Patch,
   Post,
@@ -14,6 +15,7 @@ import { ok } from '../../shared/api-response';
 import { AuthService } from '../auth/auth.service';
 import type { UserInfo } from '../auth/auth.types';
 import { CrmService } from './crm.service';
+import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
@@ -37,7 +39,10 @@ import type { CrmUserContext } from './crm.types';
 export class CrmController {
   constructor(
     @Inject(AuthService) private readonly authService: AuthService,
-    @Inject(CrmService) private readonly crmService: CrmService
+    @Inject(CrmService) private readonly crmService: CrmService,
+    @Optional()
+    @Inject(CrmGmailWatchService)
+    private readonly gmailWatchService?: CrmGmailWatchService
   ) {}
 
   @Get('accounts')
@@ -110,6 +115,11 @@ export class CrmController {
   @Patch('mailboxes/:id/resume')
   async resumeMailbox(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.resumeMailbox(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('mailboxes/:id/renew-watch')
+  async renewMailboxWatch(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.gmailWatchService!.renewMailboxWatch(id, this.requireUserContext(authorization)));
   }
 
   @Get('product-lines')

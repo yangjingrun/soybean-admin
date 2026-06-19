@@ -294,6 +294,32 @@ describe('CrmController', () => {
     );
   });
 
+  it('renews Gmail watch with the current user context', async () => {
+    const calls: Array<{ id: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(createAuthService(), createCrmService(), {
+      async renewMailboxWatch(id: string, context: CrmUserContext) {
+        calls.push({ id, context });
+
+        return {
+          mailbox: createMailboxView({ id, watchExpiration: '2026-06-26T08:00:00.000Z', lastHistoryId: '150' }),
+          watch: {
+            historyId: '150',
+            watchExpiration: '2026-06-26T08:00:00.000Z'
+          }
+        };
+      }
+    } as never);
+
+    const result = await controller.renewMailboxWatch('Bearer token', 'mailbox-1');
+
+    assert.equal(result.code, '0000');
+    assert.ok(result.data);
+    assert.equal(result.data.watch.historyId, '150');
+    assert.deepEqual(calls.map(call => ({ id: call.id, userId: call.context.userId })), [
+      { id: 'mailbox-1', userId: 'user-1' }
+    ]);
+  });
+
   it('lists product lines with the current organization context', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
     const controller = new CrmController(
