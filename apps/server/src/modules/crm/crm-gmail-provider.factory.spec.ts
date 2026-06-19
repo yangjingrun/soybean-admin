@@ -38,9 +38,10 @@ describe('createCrmGmailIntegrationProviders', () => {
           NODE_ENV: 'production',
           ...createEnv(),
           CRM_GMAIL_TOKEN_ENCRYPTION_KEY: '',
-          CRM_GMAIL_PUBSUB_TOPIC_NAME: ''
+          CRM_GMAIL_PUBSUB_TOPIC_NAME: '',
+          CRM_GMAIL_PUBSUB_PUSH_SECRET: ' '
         }),
-      /CRM Gmail production config missing: CRM_GMAIL_TOKEN_ENCRYPTION_KEY, CRM_GMAIL_PUBSUB_TOPIC_NAME/
+      /CRM Gmail production config missing: CRM_GMAIL_TOKEN_ENCRYPTION_KEY, CRM_GMAIL_PUBSUB_TOPIC_NAME, CRM_GMAIL_PUBSUB_PUSH_SECRET/
     );
   });
 
@@ -77,6 +78,7 @@ function createEnv() {
     CRM_GMAIL_OAUTH_REDIRECT_URI: 'https://app.example.com/crm/gmail-oauth-callback',
     CRM_GMAIL_TOKEN_ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
     CRM_GMAIL_OAUTH_STATE_SECRET: 'state-secret-1',
-    CRM_GMAIL_PUBSUB_TOPIC_NAME: 'projects/example-project/topics/gmail-push'
+    CRM_GMAIL_PUBSUB_TOPIC_NAME: 'projects/example-project/topics/gmail-push',
+    CRM_GMAIL_PUBSUB_PUSH_SECRET: 'push-secret-1'
   };
 }

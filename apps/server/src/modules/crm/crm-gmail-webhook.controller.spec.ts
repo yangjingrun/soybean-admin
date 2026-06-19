@@ -103,6 +103,30 @@ describe('CrmGmailWebhookController', () => {
     assert.equal(called, false);
   });
 
+  it('treats a blank production Pub/Sub push secret as missing config', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET = '   ';
+    let called = false;
+    const controller = new CrmGmailWebhookController({
+      async handlePubSubPush() {
+        called = true;
+
+        return {
+          queued: false,
+          reason: 'mailbox_not_found',
+          historyId: '12345',
+          pubsubMessageId: 'pubsub-1'
+        };
+      }
+    } as Pick<CrmGmailWebhookService, 'handlePubSubPush'> as CrmGmailWebhookService);
+
+    await assert.rejects(
+      () => controller.handlePubSubPush({ message: { data: 'unused' } }, 'anything'),
+      UnauthorizedException
+    );
+    assert.equal(called, false);
+  });
+
   it('accepts Pub/Sub push requests with a matching configured secret', async () => {
     process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET = 'expected-secret';
     const controller = new CrmGmailWebhookController({
@@ -118,6 +142,26 @@ describe('CrmGmailWebhookController', () => {
     } as Pick<CrmGmailWebhookService, 'handlePubSubPush'> as CrmGmailWebhookService);
 
     const result = await controller.handlePubSubPush({ message: { data: 'unused' } }, 'expected-secret');
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.queued, true);
+  });
+
+  it('normalizes configured and request Pub/Sub push secrets before comparing', async () => {
+    process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET = ' expected-secret ';
+    const controller = new CrmGmailWebhookController({
+      async handlePubSubPush() {
+        return {
+          queued: true,
+          mailboxId: 'mailbox-1',
+          historyId: '12345',
+          pubsubMessageId: 'pubsub-1',
+          jobId: 'job-1'
+        };
+      }
+    } as Pick<CrmGmailWebhookService, 'handlePubSubPush'> as CrmGmailWebhookService);
+
+    const result = await controller.handlePubSubPush({ message: { data: 'unused' } }, ' expected-secret ');
 
     assert.equal(result.code, '0000');
     assert.equal(result.data.queued, true);

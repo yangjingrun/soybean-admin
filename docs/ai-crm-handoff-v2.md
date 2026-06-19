@@ -555,17 +555,22 @@ Hunter 原始长结果
 
 45. Pub/Sub webhook 生产安全加固
     - 生产环境 `NODE_ENV=production` 下，如果没有配置 `CRM_GMAIL_PUBSUB_PUSH_SECRET`，`/crm/gmail/pubsub/push` 会直接拒绝请求。
+    - 生产环境 Gmail provider 初始化也会强制检查 `CRM_GMAIL_PUBSUB_PUSH_SECRET`，避免预发/生产以缺失 secret 的配置启动真实 Gmail 集成。
+    - 空白 secret 会按缺失处理；请求头和配置值比较前会去除首尾空白。
     - 保留非生产环境的本地调试便利：非 production 且未配置 secret 时仍可走测试/本地流程。
     - 配置了 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 时，无论环境如何，请求头 `x-crm-gmail-pubsub-secret` 必须匹配。
     - 已修正部署清单中的 Pub/Sub push endpoint：实际路径是 `/crm/gmail/pubsub/push`。
     - 已补测试：
       - `apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts`
+      - `apps/server/src/modules/crm/crm-gmail-provider.factory.spec.ts`
     - 已通过验证：
-      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts`
+      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts apps/server/src/modules/crm/crm-gmail-provider.factory.spec.ts`
       - `pnpm --filter @soybean/server typecheck`
     - 涉及文件：
       - `apps/server/src/modules/crm/crm-gmail-webhook.controller.ts`
       - `apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts`
+      - `apps/server/src/modules/crm/crm-gmail-provider.factory.ts`
+      - `apps/server/src/modules/crm/crm-gmail-provider.factory.spec.ts`
       - `docs/crm-gmail-deployment-checklist.md`
 
 46. Gmail History expired 补偿告警
@@ -890,7 +895,7 @@ Hunter 原始长结果
 
 ### 当前半成品
 
-- Gmail provider factory 在非完整配置下会退回 mock/null provider。
+- Gmail provider factory 在非生产且配置不完整时会退回 mock/null provider；production 会强制检查真实 Gmail 必需配置。
 - mock history gateway 返回空消息。
 - mock watch gateway 返回模拟 history/expiration。
 - mock send gateway 返回 `mock:*` provider id。
@@ -900,10 +905,9 @@ Hunter 原始长结果
 
 ### 当前未完成
 
-- Gmail watch 自动定时续订任务。
-- 生产环境 Pub/Sub webhook 强制 secret 配置。
 - Google Pub/Sub push OIDC/JWT 验证。
-- History checkpoint expired 后的可靠补偿同步。
+- Gmail watch 自动续订真实环境验收和生命周期/env 开关测试补强。
+- History checkpoint expired 后的管理员可见态、人工恢复入口和更完整补偿同步。
 - Gmail 已读/未读双向同步完整实现和 UI。
 - Gmail label change 处理。
 - Gmail 删除/归档状态同步策略的完整测试。
@@ -913,8 +917,8 @@ Hunter 原始长结果
 
 ### 风险点
 
-- 如果 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 未配置，当前 webhook 可能接受任意请求。
-- History 过期时当前逻辑可能推进 checkpoint 并跳过消息，存在漏回信风险。
+- Pub/Sub webhook 当前先用自定义 secret 硬化，尚未实现 Google Pub/Sub push OIDC/JWT 验证。
+- History 过期时已不推进 checkpoint，并会记录日志和通知 owner；但管理员可见态、人工恢复入口和自动补偿同步仍未闭环。
 - Gmail message parser 主要依赖 `providerThreadId` 匹配，`In-Reply-To/References` 支持需确认。
 - 系统内回复是先 Gmail 发送再 DB 入库，DB 失败会出现 Gmail 已发但 CRM 无记录。
 - 非 production 配置不完整时使用 mock gateway，预发环境可能误以为真实 Gmail 已接通。
@@ -1347,24 +1351,25 @@ Hunter 原始长结果
 ### P0：生产闭环必须补
 
 1. Gmail watch 自动续订任务
-   - 状态：已在当前线程完成，尚未提交。
+   - 状态：代码已落地，本批复核确认不再作为从零实现任务。
    - 已新增后台自动续订服务，默认每 6 小时扫描 24 小时内到期或未初始化 watch 的 active Gmail mailbox。
    - 自动续订不会推进已有 `lastHistoryId`，避免跳过历史回信。
    - 授权失效会标记 `auth_expired`，暂停相关待发送序列并通知用户。
-   - 后续仍需要在真实 Gmail 环境验证续订效果。
+   - 后续仍需要在真实 Gmail 环境验证续订效果，并补生命周期/env 开关测试。
 
 2. Pub/Sub webhook 生产安全
-   - 状态：已在当前线程完成，尚未提交。
-   - 生产环境缺 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 时 webhook 会拒绝请求。
+   - 状态：本批已强化 secret 校验；OIDC/JWT 仍是后续增强项。
+   - 生产环境缺 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 时 provider 初始化和 webhook 请求都会拒绝。
    - 配置 secret 后，请求头 `x-crm-gmail-pubsub-secret` 必须匹配。
+   - 空白 secret 按缺失处理，比较前会裁剪首尾空白。
    - 不记录完整 secret。
    - 后续仍可增强 Google OIDC/JWT 验证。
 
 3. Gmail History expired 补偿
-   - 状态：已在当前线程完成告警型补偿，尚未提交。
+   - 状态：已完成告警型补偿，本批复核确认还缺管理员可见态和恢复入口。
    - 过期时不再推进 `lastHistoryId`，避免静默跳过历史回信。
    - 已写系统日志和站内通知，提醒邮箱 owner 人工处理。
-   - 后续仍可继续增强为更完整的自动补偿同步策略。
+   - 后续仍需在邮箱设置/运维页显式展示处理提示，并继续设计更完整的补偿同步策略。
 
 4. 真实 Gmail 全链路联调
    - 状态：需要外部 Google Cloud/PubSub/Gmail 真实环境，当前本地线程无法直接完成。
@@ -1496,78 +1501,76 @@ git diff --check
 
 ## 15. 推荐下一步任务拆分
 
-### 任务 1：Gmail watch 自动续订
+### 任务 1：Google Pub/Sub OIDC/JWT 验证
 
 目标：
 
-- 后端新增定时任务或 worker。
-- 定期扫描 `active` 且 `watchExpiration` 快过期或为空的 mailbox。
-- 调用现有 watch gateway renew。
-- 成功更新 `watchExpiration/lastHistoryId`。
-- 授权失效标记 `auth_expired`，创建站内通知。
-- 失败写 system log，不记录敏感 token。
+- 在现有 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 基础上增加 Google Pub/Sub push 身份验证。
+- 优先使用成熟官方库或框架能力，不手写半安全 JWT 校验。
+- 校验失败拒绝 `/crm/gmail/pubsub/push`，并写脱敏系统日志。
+- 部署清单补 Google Cloud push auth 配置步骤。
 
 需要注意：
 
-- 不要全量频繁扫描。
-- 并发要避免同一 mailbox 重复续订。
-- 续订失败不要影响其他 mailbox。
-- 生产环境必须可观测。
-
-可能涉及文件：
-
-- `apps/server/src/modules/crm/crm-gmail-watch.service.ts`
-- `apps/server/src/modules/crm/store/prisma-crm.store.ts`
-- `apps/server/src/modules/crm/crm.module.ts`
-- `apps/server/src/modules/crm/crm-gmail-watch.service.spec.ts`
-
-### 任务 2：Pub/Sub 生产安全
-
-目标：
-
-- production 下缺 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 时拒绝 webhook 或启动失败。
-- 保持测试环境可配置。
-- 增加 controller/service spec。
+- 新增生产依赖前需要单独确认。
+- secret 校验仍保留，OIDC/JWT 是增强层，不替代现有最小安全线。
+- 日志不得记录完整 token、JWT、authorization header。
 
 可能涉及文件：
 
 - `apps/server/src/modules/crm/crm-gmail-webhook.controller.ts`
 - `apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts`
-- `apps/server/src/modules/crm/crm-gmail-provider.factory.ts`
 - `docs/crm-gmail-deployment-checklist.md`
-- `.env.example`
 
-### 任务 3：History expired 补偿
+### 任务 2：History expired 管理员可见态和恢复入口
 
 目标：
 
-- 不要静默跳过已过期 history。
-- 至少写日志、站内通知、mailbox 标记需要人工同步或重新初始化。
-- 设计后续补偿同步策略。
+- 在现有“不推进 checkpoint + 系统日志 + owner 通知”基础上，补 mailbox 级可见处理提示。
+- 管理员能在邮箱设置或运维页看到 `history_expired` 需要人工处理。
+- 提供明确恢复操作入口或 runbook，例如重新授权、手动同步、重新初始化 checkpoint 的受控流程。
+- 保留当前不自动推进 checkpoint 的安全行为。
 
 可能涉及文件：
 
 - `apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`
 - `apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`
 - `apps/server/src/modules/crm/crm.types.ts`
+- `src/typings/api/crm.d.ts`
+- `src/views/crm/settings/modules/MailboxTable.vue`
 - `docs/crm-gmail-deployment-checklist.md`
 
-### 任务 4：部署配置补齐
+### 任务 3：Gmail 同步完整性验收
 
 目标：
 
-- `.env.example` 补全前后端变量。
-- CORS 支持生产域名 env。
-- docker-compose 增加 Redis。
-- server package 增加 build script。
-- checklist 补迁移、Prisma generate、build/start、Redis、CORS。
+- 验收 Gmail 外部手动发送回复同步入 CRM 时间线。
+- 明确已读/未读、label change、删除/归档与 CRM 待处理状态的边界。
+- 确认 `SENT`、thread、`In-Reply-To/References` 的解析覆盖。
+- 删除/归档 Gmail 原件不能删除 CRM 已同步正文和历史。
 
 可能涉及文件：
 
-- `.env.example`
-- `apps/server/src/main.ts`
-- `apps/server/package.json`
-- `docker-compose.yml`
+- `apps/server/src/modules/crm/crm-gmail-message.ts`
+- `apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`
+- `apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`
+- `apps/server/src/modules/crm/crm.types.ts`
+- `src/views/crm/inbox`
+
+### 任务 4：同步/发送运维页面增强
+
+目标：
+
+- 管理员能排查 webhook、history sync、watch renewal、send worker 失败。
+- 基于系统日志和现有状态做详情页或抽屉。
+- 展示脱敏邮箱、jobId、失败原因、时间。
+- 不展示邮件正文、token、refresh token、完整 API key。
+
+可能涉及文件：
+
+- `apps/server/src/modules/system-log`
+- `apps/server/src/modules/crm`
+- `src/views`
 - `docs/crm-gmail-deployment-checklist.md`
 
 ## 16. 当前文件地图
@@ -1644,11 +1647,11 @@ AI 获客 / Hunter：
 
 最值得先补的是：
 
-1. Gmail watch 自动续订。
-2. Pub/Sub 生产安全。
-3. History expired 补偿。
-4. 真实 Gmail 全链路验收。
-5. 生产部署配置。
+1. Google Pub/Sub push OIDC/JWT 验证。
+2. History expired 管理员可见态、恢复入口和补偿同步策略。
+3. Gmail 已读/未读、label change、删除/归档与外部 SENT 回复验收。
+4. webhook/history/watch/send 的运维可视化增强。
+5. 真实 Gmail 全链路和预发/生产部署演练。
 
 然后再补：
 

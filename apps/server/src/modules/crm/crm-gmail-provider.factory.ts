@@ -12,6 +12,7 @@ export interface CrmGmailIntegrationEnv {
   CRM_GMAIL_TOKEN_ENCRYPTION_KEY?: string;
   CRM_GMAIL_OAUTH_STATE_SECRET?: string;
   CRM_GMAIL_PUBSUB_TOPIC_NAME?: string;
+  CRM_GMAIL_PUBSUB_PUSH_SECRET?: string;
 }
 
 /** Creates the Gmail integration providers from platform env without leaking secrets to logs or clients. */
@@ -49,7 +50,8 @@ function assertProductionGmailConfig(env: CrmGmailIntegrationEnv) {
     'CRM_GMAIL_OAUTH_REDIRECT_URI',
     'CRM_GMAIL_TOKEN_ENCRYPTION_KEY',
     'CRM_GMAIL_OAUTH_STATE_SECRET',
-    'CRM_GMAIL_PUBSUB_TOPIC_NAME'
+    'CRM_GMAIL_PUBSUB_TOPIC_NAME',
+    'CRM_GMAIL_PUBSUB_PUSH_SECRET'
   ];
   const missingKeys = requiredKeys.filter(key => !normalizeEnvString(env[key]));
 
