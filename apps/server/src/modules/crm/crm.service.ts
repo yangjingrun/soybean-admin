@@ -5,6 +5,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
+import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import { CRM_EMAIL_DNS_RESOLVER, CRM_EMAIL_SEND_GATEWAY, CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
 import type {
   CrmAccountDetailRecord,
@@ -62,31 +63,6 @@ const queuedMessageStatus: CrmMessageStatus = 'queued';
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
 const inboxNotificationTargetType = 'crmInboxThread';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
-const unsubscribeReplyPatterns = [
-  /\bunsubscribe\b/i,
-  /\bremove\s+me\b/i,
-  /\bstop\b/i,
-  /\bnot\s+interested\b/i,
-  /\bdo\s+not\s+contact\b/i,
-  /\bdon't\s+contact\b/i,
-  /退订/,
-  /取消订阅/,
-  /不要再联系/,
-  /停止联系/
-];
-const bounceReplyPatterns = [
-  /delivery status notification/i,
-  /delivery failure/i,
-  /delivery failed/i,
-  /undeliver(?:ed|able)/i,
-  /returned mail/i,
-  /\bmailer-daemon\b/i,
-  /\bpostmaster\b/i,
-  /diagnostic-code:\s*smtp/i,
-  /\b550\s+5\.1\.1\b/i,
-  /\buser unknown\b/i,
-  /\bmailbox unavailable\b/i
-];
 const publicEmailPrefixes = new Set([
   'admin',
   'contact',
@@ -2143,14 +2119,6 @@ function toEmailStatusText(status: CrmEmailStatus) {
   };
 
   return textMap[status];
-}
-
-function classifyCustomerReplyMessage(subject: string, bodyText: string): CrmInboxMessageType {
-  const content = `${subject}\n${bodyText}`;
-  if (unsubscribeReplyPatterns.some(pattern => pattern.test(content))) {
-    return 'unsubscribe_hint';
-  }
-  return bounceReplyPatterns.some(pattern => pattern.test(content)) ? 'bounce' : 'customer_reply';
 }
 
 function toInboxNotificationCopy(
