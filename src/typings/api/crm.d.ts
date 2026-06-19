@@ -651,6 +651,7 @@ declare namespace Api {
       contact: LeadContact;
       productLine: ProductLineRecord | null;
       mailbox: MailboxRecord | null;
+      policy: SequencePolicyRecord | null;
       firstMessage: MessageRecord | null;
       messages: MessageRecord[];
       canOperateDraft: boolean;

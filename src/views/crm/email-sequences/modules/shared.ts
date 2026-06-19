@@ -74,6 +74,14 @@ export interface SequenceSendAuditSummary {
   totalCheckCount: number;
 }
 
+export interface SequencePolicyReviewHint {
+  key: 'link_policy' | 'auto_send';
+  label: string;
+  description: string;
+  status: string;
+  tagType: NaiveUI.ThemeColor;
+}
+
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
   return {
@@ -202,6 +210,51 @@ export function canGenerateNextSequenceDraft(item: Api.Crm.SequenceReviewItem) {
   );
 }
 
+/** Build strategy hints for the draft review drawer. */
+export function buildSequencePolicyReviewHints(
+  item: Api.Crm.SequenceReviewItem,
+  message: Api.Crm.MessageRecord | null
+): SequencePolicyReviewHint[] {
+  if (!item.policy) return [];
+
+  const hasLink = Boolean(message && containsLink(`${message.subject}\n${message.bodyText}`));
+  const linkHint: SequencePolicyReviewHint =
+    item.policy.linkPolicy === 'block_new_links'
+      ? {
+          key: 'link_policy',
+          label: '链接策略',
+          description: hasLink
+            ? '策略要求阻止新增链接，当前草稿仍包含链接，请删掉后再确认'
+            : '策略要求阻止新增链接，当前草稿未检测到链接',
+          status: hasLink ? '需复核' : '已符合',
+          tagType: hasLink ? 'warning' : 'success'
+        }
+      : {
+          key: 'link_policy',
+          label: '链接策略',
+          description: '允许保留模板中已有链接，审核时确认链接仍有效',
+          status: '允许',
+          tagType: 'info'
+        };
+  const autoSendHint: SequencePolicyReviewHint = item.policy.allowLowRiskAutoSend
+    ? {
+        key: 'auto_send',
+        label: '自动发送',
+        description: '策略允许低风险自动发送；当前本地链路仍先进入人工审核',
+        status: '允许',
+        tagType: 'info'
+      }
+    : {
+        key: 'auto_send',
+        label: '自动发送',
+        description: '策略未开启低风险自动发送，草稿只能人工确认',
+        status: '人工',
+        tagType: 'default'
+      };
+
+  return [linkHint, autoSendHint];
+}
+
 /** Pick the message that best represents the row's current operational state. */
 export function getCurrentSequenceMessage(item: Api.Crm.SequenceReviewItem) {
   return (
@@ -211,6 +264,10 @@ export function getCurrentSequenceMessage(item: Api.Crm.SequenceReviewItem) {
     item.messages.find(message => message.stepIndex === item.enrollment.currentStep) ??
     item.firstMessage
   );
+}
+
+function containsLink(text: string) {
+  return /\b(?:https?:\/\/|www\.)\S+/i.test(text);
 }
 
 /** Summarize the row checklist for dense table scanning. */

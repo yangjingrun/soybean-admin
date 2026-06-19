@@ -5,6 +5,7 @@ import type {
   CrmMailboxRecord,
   CrmMessageCreateInput,
   CrmMessageRecord,
+  CrmSequencePolicyRecord,
   CrmSequenceReviewRecord
 } from './crm.types';
 
@@ -63,6 +64,12 @@ export function buildNextFollowUpDraft({
     templateStep && templateStep.subjectTemplate
       ? renderEmailTemplateText(templateStep.subjectTemplate, renderVars)
       : null;
+  const subject = applyLinkPolicy(templateSubject || sourceMessage.subject, item.policy?.linkPolicy);
+  const bodyText = applyLinkPolicy(
+    templateBodyText ||
+      `Hi ${contactName},\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\n${senderName}`,
+    item.policy?.linkPolicy
+  );
 
   return {
     organizationId: sourceMessage.organizationId,
@@ -72,10 +79,8 @@ export function buildNextFollowUpDraft({
     mailboxId: item.mailbox?.id ?? sourceMessage.mailboxId,
     stepIndex: nextStepIndex,
     threadMode: policyStep?.threadMode ?? templateStep?.threadMode ?? 'same_thread',
-    subject: templateSubject || sourceMessage.subject,
-    bodyText:
-      templateBodyText ||
-      `Hi ${contactName},\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\n${senderName}`,
+    subject,
+    bodyText,
     status: 'draft_pending_review',
     scheduledAt: new Date(baseTime.getTime() + delayDays * oneDayMs),
     providerThreadId
@@ -92,4 +97,17 @@ function getFollowUpDelayDays(stepIndex: number, followUpDelayDays: CrmGlobalCon
   const delayDays = delayDaysByStep.get(stepIndex);
 
   return delayDays ?? null;
+}
+
+/** Applies sequence link policy to generated plain-text email content. */
+function applyLinkPolicy(text: string, linkPolicy?: CrmSequencePolicyRecord['linkPolicy']) {
+  if (linkPolicy !== 'block_new_links') return text;
+
+  return text
+    .replace(/\[([^\]]+)]\((?:https?:\/\/|www\.)[^)\s]+\)/gi, '$1')
+    .replace(/\bhttps?:\/\/\S+/gi, '')
+    .replace(/\bwww\.\S+/gi, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }

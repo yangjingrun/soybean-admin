@@ -6,6 +6,7 @@ import {
   formatNullableText,
   formatSequenceDate,
   buildDraftReviewOperationPayload,
+  buildSequencePolicyReviewHints,
   canGenerateNextSequenceDraft,
   type DraftReviewApprovePayload,
   type DraftReviewSavePayload,
@@ -76,6 +77,9 @@ const canStartSend = computed(() =>
   )
 );
 const canGenerateNextDraft = computed(() => Boolean(props.item && canGenerateNextSequenceDraft(props.item)));
+const policyReviewHints = computed(() =>
+  props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
+);
 const canRefreshSequence = computed(() =>
   Boolean(props.item && ['sequence_running', 'paused', 'stopped'].includes(props.item.enrollment.status))
 );
@@ -209,6 +213,21 @@ function handleApprove() {
           </div>
 
           <SendAuditPanel :item="item" :current-message="currentMessage" />
+
+          <NDescriptions
+            v-if="policyReviewHints.length"
+            :column="1"
+            bordered
+            size="small"
+            label-placement="left"
+          >
+            <NDescriptionsItem v-for="hint in policyReviewHints" :key="hint.key" :label="hint.label">
+              <NSpace align="center" :size="8">
+                <NTag :type="hint.tagType" :bordered="false" size="small">{{ hint.status }}</NTag>
+                <span class="policy-hint-text">{{ hint.description }}</span>
+              </NSpace>
+            </NDescriptionsItem>
+          </NDescriptions>
 
           <div class="drawer-section">
             <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封草稿</div>
@@ -353,6 +372,11 @@ function handleApprove() {
 
 .review-subtitle {
   color: var(--n-text-color-3);
+  font-size: 12px;
+}
+
+.policy-hint-text {
+  color: var(--n-text-color-2);
   font-size: 12px;
 }
 

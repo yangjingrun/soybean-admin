@@ -496,6 +496,7 @@ function createSequenceReviewItem(options: {
     firstMessage: null,
     mailbox: { maskedEmail: 'm***@example.com' } as Api.Crm.MailboxRecord,
     messages: options.messages,
+    policy: null,
     productLine: null
   };
 }

@@ -1968,6 +1968,60 @@ describe('CrmService', () => {
     assert.equal(store.messages[0].status, 'draft_ready');
   });
 
+  it('removes template links from generated follow-up drafts when the policy blocks new links', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', fullName: 'Ali Hassan', title: 'Buyer' })],
+      sequencePolicies: [
+        createSequencePolicy({
+          id: 'policy-1',
+          linkPolicy: 'block_new_links',
+          steps: [
+            { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' },
+            { stepIndex: 2, delayDays: 3, threadMode: 'same_thread' },
+            { stepIndex: 3, delayDays: 7, threadMode: 'new_subject' },
+            { stepIndex: 4, delayDays: 14, threadMode: 'new_subject' },
+            { stepIndex: 5, delayDays: 21, threadMode: 'new_subject' }
+          ]
+        })
+      ],
+      emailTemplateGroups: [
+        createEmailTemplateGroup({
+          isDefault: true,
+          steps: createEmailTemplateSteps({
+            bodyTemplate:
+              'Hi {{contact.name}},\n\nCatalog: https://example.com/catalog.pdf\nWebsite: www.example.com\n\nBest,\n{{sender.name}}'
+          })
+        })
+      ],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          policyId: 'policy-1',
+          status: 'ready_to_send',
+          totalSteps: 5
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_ready',
+          stepIndex: 1
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const generated = await service.generateNextDraft('enrollment-1', createContext());
+
+    assert.doesNotMatch(generated.message.bodyText, /https?:\/\//);
+    assert.doesNotMatch(generated.message.bodyText, /\bwww\./);
+    assert.match(generated.message.bodyText, /Catalog:/);
+    assert.match(generated.message.bodyText, /Website:/);
+  });
+
   it('rejects duplicate or non-owner next draft generation', async () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2', status: 'sequence_running' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDraftReviewOperationPayload,
+  buildSequencePolicyReviewHints,
   createDefaultSequenceCreateForm,
   getCurrentSequenceMessage,
   getFailedSequenceMessages,
@@ -107,6 +108,7 @@ function createSequenceItem(
     },
     productLine: null,
     mailbox: null,
+    policy: null,
     firstMessage,
     messages,
     canOperateDraft: true,
@@ -119,6 +121,34 @@ function createSequenceItem(
         message: '邮箱有效'
       }
     ]
+  };
+}
+
+function createSequencePolicy(
+  overrides: Partial<Api.Crm.SequencePolicyRecord> = {}
+): Api.Crm.SequencePolicyRecord {
+  return {
+    id: 'policy-1',
+    organizationId: 'org-1',
+    name: 'Conservative follow-up',
+    description: null,
+    status: 'active',
+    isDefault: true,
+    steps: [
+      { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' },
+      { stepIndex: 2, delayDays: 3, threadMode: 'same_thread' },
+      { stepIndex: 3, delayDays: 7, threadMode: 'new_subject' },
+      { stepIndex: 4, delayDays: 14, threadMode: 'new_subject' },
+      { stepIndex: 5, delayDays: 21, threadMode: 'new_subject' }
+    ],
+    linkPolicy: 'preserve_template_links',
+    allowLowRiskAutoSend: false,
+    sameCompanyContactStrategy: 'single_active_per_company',
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-19T01:00:00.000Z',
+    updatedAt: '2026-06-19T01:00:00.000Z',
+    ...overrides
   };
 }
 
@@ -342,5 +372,26 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canGenerateNextSequenceDraft(reachedLastStep), false);
     assert.equal(canGenerateNextSequenceDraft(stopped), false);
     assert.equal(canGenerateNextSequenceDraft(forbidden), false);
+  });
+
+  it('builds policy review hints for blocked links and manual-only sending', () => {
+    const item = createSequenceItem() as Api.Crm.SequenceReviewItem & { policy: Api.Crm.SequencePolicyRecord };
+    item.policy = createSequencePolicy({
+      linkPolicy: 'block_new_links',
+      allowLowRiskAutoSend: false
+    });
+
+    const hints = buildSequencePolicyReviewHints(item, createMessage({ bodyText: 'See https://example.com' }));
+
+    assert.deepEqual(
+      hints.map(hint => [hint.label, hint.tagType]),
+      [
+        ['链接策略', 'warning'],
+        ['自动发送', 'default']
+      ]
+    );
+    assert.match(hints[0].description, /阻止新增链接/);
+    assert.match(hints[0].description, /仍包含链接/);
+    assert.match(hints[1].description, /只能人工确认/);
   });
 });
