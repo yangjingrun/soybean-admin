@@ -2,6 +2,7 @@
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
 import BlacklistManager from './BlacklistManager.vue';
+import CrmOperationsPanel from './CrmOperationsPanel.vue';
 import DefaultEmailTemplateCard from './DefaultEmailTemplateCard.vue';
 import GlobalConfigCard from './GlobalConfigCard.vue';
 import MailboxTable from './MailboxTable.vue';
@@ -88,6 +89,10 @@ const {
             />
           </NSpace>
         </NCard>
+      </NGi>
+
+      <NGi>
+        <CrmOperationsPanel />
       </NGi>
 
       <NGi>

@@ -659,6 +659,25 @@ Hunter 原始长结果
       - `src/views/crm/settings/modules/shared.ts`
       - `src/views/crm/settings/modules/useBlacklistTable.ts`
 
+51. 发送队列/同步日志运维薄视图
+    - CRM 配置页新增“运维概览”只读区块，展示近期队列中/发送失败消息和 Gmail 同步/续订健康。
+    - 前端复用现有 `sequence-review-items` 和 `mailboxes` 接口，不新增队列历史表或日志接口。
+    - 发送侧展示客户、联系人、邮箱、步骤、状态、`bullJobId`、`runVersion`、计划/发送时间。
+    - 同步侧展示邮箱授权状态、watch 到期状态、Gmail history checkpoint 和更新时间。
+    - 当前视图是基于现有状态字段的薄视图；完整 BullMQ 历史、重试次数和系统日志详情仍属于后续增强。
+    - 已通过验证：
+      - `pnpm typecheck`
+      - `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`
+      - `pnpm exec oxlint src/views/crm/settings/modules/CrmOperationsPanel.vue src/views/crm/settings/modules/useCrmOperationsPanel.ts src/views/crm/settings/modules/shared.ts src/views/crm/settings/modules/shared.spec.ts src/views/crm/settings/modules/MailboxManager.vue`
+      - `pnpm exec eslint --max-warnings=0 .`
+      - `git diff --check`
+    - 涉及文件：
+      - `src/views/crm/settings/modules/CrmOperationsPanel.vue`
+      - `src/views/crm/settings/modules/MailboxManager.vue`
+      - `src/views/crm/settings/modules/shared.ts`
+      - `src/views/crm/settings/modules/shared.spec.ts`
+      - `src/views/crm/settings/modules/useCrmOperationsPanel.ts`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -701,6 +720,7 @@ Hunter 原始长结果
 - 收件箱支持列表、筛选、详情、待处理统计、正文查看、状态更新、纯文本回复。
 - CRM 配置支持 Gmail 授权、OAuth 回调、邮箱列表、暂停/恢复、续订 watch、立即同步、产品线 CRUD、默认模板只读展示、全局邮箱验证冷却期配置。
 - CRM 配置支持退订黑名单只读分页管理。
+- CRM 配置支持发送队列和 Gmail 同步/续订只读运维概览。
 - AI 设置页支持模型、Serper、Hunter 配置。
 
 ## 5. 第一期 1A 对照：组织体系 + CRM 线索库
@@ -1299,7 +1319,7 @@ Hunter 原始长结果
 - 序列策略配置。
 - 后续 follow-up 自动策略。
 - 黑名单/退订管理页已完成只读列表；解除黑名单需后续结合审计和权限设计。
-- 发送队列/同步日志运维页。
+- 发送队列/同步日志运维页已完成薄视图；完整队列历史和系统日志详情可后续增强。
 - auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。
 - 手动新增/导入 CRM 线索入口已完成。
 - 归档恢复和自动瘦身任务。
@@ -1394,7 +1414,7 @@ git diff --check
 6. 适合多 Agent 的拆分方式：
    - Agent A：模板库 CRUD 和序列策略配置。
    - Agent B：黑名单/退订管理页已完成只读列表；后续可补解除黑名单审计流程。
-   - Agent C：发送队列/同步日志运维视图。
+   - Agent C：发送队列/同步日志运维薄视图已完成；完整队列历史可后续增强。
    - Agent D：前端 auth_expired 行级重新授权和邮箱同步状态 UI。
 7. 子 Agent 必须明确：不要提交代码，不要修改同一批文件，完成后只汇报 changed files。
 8. 主 Agent 统一集成和跑测试。

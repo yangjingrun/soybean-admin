@@ -3,6 +3,28 @@ import dayjs, { type Dayjs } from 'dayjs';
 const MAILBOX_WATCH_EXPIRING_SOON_HOURS = 24;
 
 export type MailboxWatchStatus = 'not_started' | 'expired' | 'expiring_soon' | 'normal';
+export type OperationMessageStatus = Extract<Api.Crm.MessageStatus, 'queued' | 'failed'>;
+
+export interface OperationQueueRow {
+  id: string;
+  accountName: string;
+  contactName: string;
+  mailboxLabel: string;
+  stepIndex: number;
+  status: OperationMessageStatus;
+  bullJobId: string | null;
+  runVersion: number;
+  scheduledAt: string | null;
+  sentAt: string | null;
+  updatedAt: string;
+}
+
+export interface MailboxSyncHealthSummary {
+  total: number;
+  authExpired: number;
+  watchNeedsAttention: number;
+  synced: number;
+}
 
 export const mailboxStatusOptions = [
   { label: '启用', value: 'active' },
@@ -46,6 +68,16 @@ export const mailboxWatchStatusTagTypeMap: Record<MailboxWatchStatus, NaiveUI.Th
   expired: 'error',
   expiring_soon: 'warning',
   normal: 'success'
+};
+
+export const operationMessageStatusLabelMap: Record<OperationMessageStatus, string> = {
+  queued: '队列中',
+  failed: '发送失败'
+};
+
+export const operationMessageStatusTagTypeMap: Record<OperationMessageStatus, NaiveUI.ThemeColor> = {
+  queued: 'info',
+  failed: 'error'
 };
 
 export const productLineStatusOptions = [
@@ -272,7 +304,87 @@ export function formatBlacklistDate(value: string) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
 }
 
+/** Format nullable operation table datetime. */
+export function formatOperationDate(value: string | null) {
+  return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+}
+
 /** Join MOQ and lead time into one compact table cell. */
 export function formatProductLineSupply(row: Pick<Api.Crm.ProductLineRecord, 'moq' | 'leadTime'>) {
   return [row.moq, row.leadTime].filter(Boolean).join(' / ') || '-';
+}
+
+/** Flatten sequence review items into the queue rows that need operational attention. */
+export function collectOperationQueueRows(
+  items: Api.Crm.SequenceReviewItem[],
+  limit = 8
+): OperationQueueRow[] {
+  return items
+    .flatMap(item =>
+      item.messages
+        .filter(isOperationQueueMessage)
+        .map(message => ({
+          id: message.id,
+          accountName: item.account.name,
+          contactName: item.contact.fullName || item.contact.email || '-',
+          mailboxLabel: item.mailbox?.maskedEmail ?? '-',
+          stepIndex: message.stepIndex,
+          status: message.status,
+          bullJobId: message.bullJobId,
+          runVersion: item.enrollment.runVersion,
+          scheduledAt: message.scheduledAt,
+          sentAt: message.sentAt,
+          updatedAt: message.updatedAt
+        }))
+    )
+    .sort(compareOperationQueueRows)
+    .slice(0, limit);
+}
+
+/** Summarize mailbox sync and watch health for a compact operations header. */
+export function summarizeMailboxSyncHealth(
+  records: Api.Crm.MailboxRecord[],
+  now: Dayjs = dayjs()
+): MailboxSyncHealthSummary {
+  return records.reduce<MailboxSyncHealthSummary>(
+    (summary, record) => {
+      const watchStatus = getMailboxWatchStatus(record.watchExpiration, now);
+
+      summary.total += 1;
+
+      if (record.status === 'auth_expired') {
+        summary.authExpired += 1;
+      }
+
+      if (watchStatus !== 'normal') {
+        summary.watchNeedsAttention += 1;
+      }
+
+      if (record.lastHistoryId) {
+        summary.synced += 1;
+      }
+
+      return summary;
+    },
+    {
+      authExpired: 0,
+      synced: 0,
+      total: 0,
+      watchNeedsAttention: 0
+    }
+  );
+}
+
+function isOperationQueueMessage(message: Api.Crm.MessageRecord): message is Api.Crm.MessageRecord & {
+  status: OperationMessageStatus;
+} {
+  return message.status === 'queued' || message.status === 'failed';
+}
+
+function compareOperationQueueRows(left: OperationQueueRow, right: OperationQueueRow) {
+  if (left.status !== right.status) {
+    return left.status === 'failed' ? -1 : 1;
+  }
+
+  return right.updatedAt.localeCompare(left.updatedAt);
 }
