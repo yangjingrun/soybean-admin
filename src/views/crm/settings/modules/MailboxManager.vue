@@ -17,6 +17,7 @@ const {
   handleAuthorizeVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
+  handleReauthorizeMailbox,
   handleRenewMailboxWatch,
   handleReset,
   handleSearch,
@@ -77,6 +78,7 @@ const {
               :page="pagination.current"
               :page-size="pagination.size"
               :total="pagination.total"
+              @reauthorize="handleReauthorizeMailbox"
               @renew-watch="handleRenewMailboxWatch"
               @sync-now="handleSyncMailboxNow"
               @toggle="handleToggleMailbox"

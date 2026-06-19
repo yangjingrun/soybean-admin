@@ -601,6 +601,20 @@ Hunter 原始长结果
       - `docker-compose.yml`
       - `docs/crm-gmail-deployment-checklist.md`
 
+48. auth_expired 邮箱行级重新授权
+    - 邮箱表格中 `auth_expired` Gmail 邮箱的“重新授权”按钮已从禁用提示改为可点击操作。
+    - 行级重新授权复用现有 Google OAuth URL 创建和跳转流程，OAuth callback 仍按 Gmail 地址更新当前用户邮箱记录。
+    - 暂停或其他非 active / 非 auth_expired 状态仍不允许误触发重新授权。
+    - 已通过验证：
+      - `pnpm typecheck`
+      - `pnpm exec eslint --max-warnings=0 .`
+      - `pnpm exec oxlint src/views/crm/settings/modules/MailboxManager.vue src/views/crm/settings/modules/MailboxTable.vue src/views/crm/settings/modules/useMailboxTable.ts`
+      - `git diff --check`
+    - 涉及文件：
+      - `src/views/crm/settings/modules/useMailboxTable.ts`
+      - `src/views/crm/settings/modules/MailboxManager.vue`
+      - `src/views/crm/settings/modules/MailboxTable.vue`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -1242,7 +1256,7 @@ Hunter 原始长结果
 - 后续 follow-up 自动策略。
 - 黑名单/退订管理页。
 - 发送队列/同步日志运维页。
-- auth_expired 行级重新授权。
+- auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。
 - 手动新增/导入 CRM 线索入口。
 - 归档恢复和自动瘦身任务。
 - 前端组件测试。

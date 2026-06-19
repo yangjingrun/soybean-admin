@@ -76,7 +76,30 @@ export function useMailboxTable() {
 
   /** Create a Gmail OAuth URL and send the user to Google consent. */
   async function handleAuthorizeMailbox() {
-    authorizeSubmitting.value = true;
+    await redirectToGmailOAuth({
+      loadingTarget: 'modal'
+    });
+  }
+
+  /** Re-authorize an expired Gmail mailbox from the table row. */
+  async function handleReauthorizeMailbox(record: Api.Crm.MailboxRecord) {
+    if (operatingMailboxId.value || record.status !== 'auth_expired' || record.provider !== 'gmail') {
+      return;
+    }
+
+    await redirectToGmailOAuth({
+      loadingTarget: 'row',
+      mailboxId: record.id
+    });
+  }
+
+  /** Create a Gmail OAuth URL and redirect to Google consent. */
+  async function redirectToGmailOAuth(options: { loadingTarget: 'modal' | 'row'; mailboxId?: string }) {
+    if (options.loadingTarget === 'modal') {
+      authorizeSubmitting.value = true;
+    } else {
+      operatingMailboxId.value = options.mailboxId ?? null;
+    }
 
     try {
       const { data, error } = await createCrmGmailOAuthUrl();
@@ -87,7 +110,11 @@ export function useMailboxTable() {
 
       window.location.assign(data.authorizationUrl);
     } finally {
-      authorizeSubmitting.value = false;
+      if (options.loadingTarget === 'modal') {
+        authorizeSubmitting.value = false;
+      } else {
+        operatingMailboxId.value = null;
+      }
     }
   }
 
@@ -188,6 +215,7 @@ export function useMailboxTable() {
     handleAuthorizeVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
+    handleReauthorizeMailbox,
     handleRenewMailboxWatch,
     handleReset,
     handleSearch,

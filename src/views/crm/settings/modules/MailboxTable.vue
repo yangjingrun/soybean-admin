@@ -26,6 +26,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  reauthorize: [record: Api.Crm.MailboxRecord];
   renewWatch: [record: Api.Crm.MailboxRecord];
   syncNow: [record: Api.Crm.MailboxRecord];
   toggle: [record: Api.Crm.MailboxRecord];
@@ -167,6 +168,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
     render: row => {
       const isActive = row.status === 'active';
       const isPaused = row.status === 'paused';
+      const canReauthorize = row.status === 'auth_expired' && row.provider === 'gmail';
       const canRenewWatch = isActive && row.provider === 'gmail';
       const canSyncNow = isActive && row.provider === 'gmail';
       const actionText = isActive ? '暂停' : '恢复';
@@ -177,7 +179,14 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
           {
             size: 'small',
             text: true,
-            disabled: true
+            type: canReauthorize ? 'primary' : 'default',
+            disabled: !canReauthorize,
+            loading: props.operatingMailboxId === row.id,
+            onClick: () => {
+              if (canReauthorize) {
+                emit('reauthorize', row);
+              }
+            }
           },
           { default: () => '重新授权' }
         );
