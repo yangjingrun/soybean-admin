@@ -9,6 +9,7 @@ import MailboxTable from './MailboxTable.vue';
 import MailboxToolbar from './MailboxToolbar.vue';
 import OrganizationPermissionCard from './OrganizationPermissionCard.vue';
 import ProductLineManager from './ProductLineManager.vue';
+import SequencePolicyManager from './SequencePolicyManager.vue';
 import { useMailboxTable } from './useMailboxTable';
 
 const {
@@ -53,6 +54,10 @@ const {
 
       <NGi>
         <EmailTemplateManager />
+      </NGi>
+
+      <NGi>
+        <SequencePolicyManager />
       </NGi>
 
       <NGi>

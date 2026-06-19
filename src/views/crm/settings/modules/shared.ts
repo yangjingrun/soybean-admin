@@ -100,10 +100,25 @@ export const emailTemplateStatusOptions = [
   { label: '已归档', value: 'archived' }
 ] satisfies Array<{ label: string; value: Api.Crm.EmailTemplateStatus }>;
 
+export const sequencePolicyStatusOptions = [
+  { label: '启用', value: 'active' },
+  { label: '已归档', value: 'archived' }
+] satisfies Array<{ label: string; value: Api.Crm.SequencePolicyStatus }>;
+
 export const emailTemplateThreadModeOptions = [
   { label: '新主题', value: 'new_subject' },
   { label: '同线程', value: 'same_thread' }
 ] satisfies Array<{ label: string; value: Api.Crm.MessageThreadMode }>;
+
+export const sequencePolicyLinkPolicyOptions = [
+  { label: '保留模板链接', value: 'preserve_template_links' },
+  { label: '阻止新增链接', value: 'block_new_links' }
+] satisfies Array<{ label: string; value: Api.Crm.SequencePolicyLinkPolicy }>;
+
+export const sequencePolicySameCompanyStrategyOptions = [
+  { label: '同公司只保留一条活跃序列', value: 'single_active_per_company' },
+  { label: '允许多个联系人并行', value: 'allow_multiple_contacts' }
+] satisfies Array<{ label: string; value: Api.Crm.SequencePolicySameCompanyStrategy }>;
 
 export const productLineStatusLabelMap: Record<Api.Crm.ProductLineStatus, string> = {
   active: '启用',
@@ -115,9 +130,24 @@ export const emailTemplateStatusLabelMap: Record<Api.Crm.EmailTemplateStatus, st
   archived: '已归档'
 };
 
+export const sequencePolicyStatusLabelMap: Record<Api.Crm.SequencePolicyStatus, string> = {
+  active: '启用',
+  archived: '已归档'
+};
+
 export const emailTemplateThreadModeLabelMap: Record<Api.Crm.MessageThreadMode, string> = {
   new_subject: '新主题',
   same_thread: '同线程'
+};
+
+export const sequencePolicyLinkPolicyLabelMap: Record<Api.Crm.SequencePolicyLinkPolicy, string> = {
+  preserve_template_links: '保留模板链接',
+  block_new_links: '阻止新增链接'
+};
+
+export const sequencePolicySameCompanyStrategyLabelMap: Record<Api.Crm.SequencePolicySameCompanyStrategy, string> = {
+  single_active_per_company: '同公司单活跃序列',
+  allow_multiple_contacts: '允许多联系人并行'
 };
 
 export const productLineStatusTagTypeMap: Record<Api.Crm.ProductLineStatus, NaiveUI.ThemeColor> = {
@@ -126,6 +156,11 @@ export const productLineStatusTagTypeMap: Record<Api.Crm.ProductLineStatus, Naiv
 };
 
 export const emailTemplateStatusTagTypeMap: Record<Api.Crm.EmailTemplateStatus, NaiveUI.ThemeColor> = {
+  active: 'success',
+  archived: 'default'
+};
+
+export const sequencePolicyStatusTagTypeMap: Record<Api.Crm.SequencePolicyStatus, NaiveUI.ThemeColor> = {
   active: 'success',
   archived: 'default'
 };
@@ -177,6 +212,14 @@ export function createDefaultProductLineFilterModel(): Api.Crm.ProductLineFilter
 
 /** Create the default email template filter object for initial load and reset. */
 export function createDefaultEmailTemplateFilterModel(): Api.Crm.EmailTemplateFilterModel {
+  return {
+    keyword: '',
+    status: null
+  };
+}
+
+/** Create the default sequence policy filter object for initial load and reset. */
+export function createDefaultSequencePolicyFilterModel(): Api.Crm.SequencePolicyFilterModel {
   return {
     keyword: '',
     status: null
@@ -235,6 +278,23 @@ export function createDefaultEmailTemplateForm(): Api.Crm.EmailTemplateFormModel
   };
 }
 
+/** Create an editable five-step CRM sequence policy form. */
+export function createDefaultSequencePolicyForm(): Api.Crm.SequencePolicyFormModel {
+  return {
+    name: '',
+    description: '',
+    isDefault: false,
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      stepIndex,
+      delayDays: stepIndex === 1 ? 0 : [3, 7, 14, 21][stepIndex - 2],
+      threadMode: stepIndex === 2 ? 'same_thread' : 'new_subject'
+    })),
+    linkPolicy: 'preserve_template_links',
+    allowLowRiskAutoSend: false,
+    sameCompanyContactStrategy: 'single_active_per_company'
+  };
+}
+
 /** Convert one backend email template group into the editable form model. */
 export function createEmailTemplateFormFromRecord(record: Api.Crm.EmailTemplateGroupRecord): Api.Crm.EmailTemplateFormModel {
   return {
@@ -251,6 +311,25 @@ export function createEmailTemplateFormFromRecord(record: Api.Crm.EmailTemplateG
         subjectTemplate: step.subjectTemplate,
         bodyTemplate: step.bodyTemplate
       }))
+  };
+}
+
+/** Convert one backend sequence policy into the editable form model. */
+export function createSequencePolicyFormFromRecord(record: Api.Crm.SequencePolicyRecord): Api.Crm.SequencePolicyFormModel {
+  return {
+    name: record.name,
+    description: record.description ?? '',
+    isDefault: record.isDefault,
+    steps: record.steps
+      .toSorted((left, right) => left.stepIndex - right.stepIndex)
+      .map(step => ({
+        stepIndex: step.stepIndex,
+        delayDays: step.stepIndex === 1 ? 0 : step.delayDays,
+        threadMode: step.threadMode
+      })),
+    linkPolicy: record.linkPolicy,
+    allowLowRiskAutoSend: record.allowLowRiskAutoSend,
+    sameCompanyContactStrategy: record.sameCompanyContactStrategy
   };
 }
 
@@ -346,6 +425,30 @@ export function buildEmailTemplateSearchParams(options: {
   return params;
 }
 
+/** Build CRM sequence policy list query params from pagination and current filters. */
+export function buildSequencePolicySearchParams(options: {
+  current: number;
+  size: number;
+  filterModel: Api.Crm.SequencePolicyFilterModel;
+}): Api.Crm.SequencePolicySearchParams {
+  const { current, filterModel, size } = options;
+  const params: Api.Crm.SequencePolicySearchParams = {
+    current,
+    size
+  };
+  const keyword = filterModel.keyword.trim();
+
+  if (keyword) {
+    params.keyword = keyword;
+  }
+
+  if (filterModel.status) {
+    params.status = filterModel.status;
+  }
+
+  return params;
+}
+
 /** Trim all product line form fields before submit. */
 export function normalizeProductLinePayload(formModel: Api.Crm.ProductLineFormModel): Api.Crm.ProductLinePayload {
   return {
@@ -378,6 +481,25 @@ export function normalizeEmailTemplatePayload(formModel: Api.Crm.EmailTemplateFo
         subjectTemplate: step.subjectTemplate.trim(),
         bodyTemplate: step.bodyTemplate.trim()
       }))
+  };
+}
+
+/** Trim sequence policy fields before submit while preserving the five configured steps. */
+export function normalizeSequencePolicyPayload(formModel: Api.Crm.SequencePolicyFormModel): Api.Crm.SequencePolicyPayload {
+  return {
+    name: formModel.name.trim(),
+    description: formModel.description.trim(),
+    isDefault: formModel.isDefault,
+    steps: formModel.steps
+      .toSorted((left, right) => left.stepIndex - right.stepIndex)
+      .map(step => ({
+        stepIndex: step.stepIndex,
+        delayDays: step.stepIndex === 1 ? 0 : step.delayDays,
+        threadMode: step.threadMode
+      })),
+    linkPolicy: formModel.linkPolicy,
+    allowLowRiskAutoSend: formModel.allowLowRiskAutoSend,
+    sameCompanyContactStrategy: formModel.sameCompanyContactStrategy
   };
 }
 

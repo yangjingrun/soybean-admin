@@ -30,6 +30,12 @@ declare namespace Api {
 
     type EmailTemplateStatus = 'active' | 'archived';
 
+    type SequencePolicyStatus = 'active' | 'archived';
+
+    type SequencePolicyLinkPolicy = 'preserve_template_links' | 'block_new_links';
+
+    type SequencePolicySameCompanyStrategy = 'single_active_per_company' | 'allow_multiple_contacts';
+
     type SequenceEnrollmentStatus =
       | 'draft_review_pending'
       | 'ready_to_send'
@@ -436,6 +442,57 @@ declare namespace Api {
     }
 
     type EmailTemplateList = Api.Common.PaginatingQueryRecord<EmailTemplateGroupRecord>;
+
+    interface SequencePolicyStep {
+      stepIndex: number;
+      delayDays: number;
+      threadMode: MessageThreadMode;
+    }
+
+    interface SequencePolicyRecord {
+      id: string;
+      organizationId: string;
+      name: string;
+      description: string | null;
+      status: SequencePolicyStatus;
+      isDefault: boolean;
+      steps: SequencePolicyStep[];
+      linkPolicy: SequencePolicyLinkPolicy;
+      allowLowRiskAutoSend: boolean;
+      sameCompanyContactStrategy: SequencePolicySameCompanyStrategy;
+      createdById: string;
+      createdByName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface SequencePolicySearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+      status?: SequencePolicyStatus;
+    }
+
+    interface SequencePolicyFilterModel {
+      keyword: string;
+      status: SequencePolicyStatus | null;
+    }
+
+    interface SequencePolicyPayload {
+      name: string;
+      description: string;
+      isDefault: boolean;
+      steps: SequencePolicyStep[];
+      linkPolicy: SequencePolicyLinkPolicy;
+      allowLowRiskAutoSend: boolean;
+      sameCompanyContactStrategy: SequencePolicySameCompanyStrategy;
+    }
+
+    type SequencePolicyFormModel = SequencePolicyPayload;
+
+    interface SequencePolicyOperateResult {
+      policy: SequencePolicyRecord;
+    }
+
+    type SequencePolicyList = Api.Common.PaginatingQueryRecord<SequencePolicyRecord>;
 
     interface TemplateVariable {
       key: string;

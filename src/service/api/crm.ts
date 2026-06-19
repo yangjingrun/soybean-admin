@@ -257,6 +257,49 @@ export function setDefaultCrmEmailTemplateGroup(id: string) {
   });
 }
 
+/** List organization sequence policies by filters and pagination. */
+export function fetchCrmSequencePolicies(params: Api.Crm.SequencePolicySearchParams) {
+  return request<Api.Crm.SequencePolicyList>({
+    url: '/crm/sequence-policies',
+    method: 'get',
+    params
+  });
+}
+
+/** Create one organization sequence policy. */
+export function createCrmSequencePolicy(data: Api.Crm.SequencePolicyPayload) {
+  return request<Api.Crm.SequencePolicyOperateResult>({
+    url: '/crm/sequence-policies',
+    method: 'post',
+    data
+  });
+}
+
+/** Update one organization sequence policy. */
+export function updateCrmSequencePolicy(id: string, data: Partial<Api.Crm.SequencePolicyPayload>) {
+  return request<Api.Crm.SequencePolicyOperateResult>({
+    url: `/crm/sequence-policies/${id}`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Archive one organization sequence policy. */
+export function archiveCrmSequencePolicy(id: string) {
+  return request<Api.Crm.SequencePolicyOperateResult>({
+    url: `/crm/sequence-policies/${id}/archive`,
+    method: 'patch'
+  });
+}
+
+/** Mark one active organization sequence policy as default. */
+export function setDefaultCrmSequencePolicy(id: string) {
+  return request<Api.Crm.SequencePolicyOperateResult>({
+    url: `/crm/sequence-policies/${id}/default`,
+    method: 'post'
+  });
+}
+
 /** Get the read-only default email template and persona profiles. */
 export function fetchCrmTemplateDefaults() {
   return request<Api.Crm.TemplateDefaults>({

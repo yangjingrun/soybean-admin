@@ -6,16 +6,21 @@ import {
   buildOperationQueueDetailItems,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
+  buildSequencePolicySearchParams,
   collectOperationQueueRows,
   createDefaultBlacklistFilterModel,
   createDefaultEmailTemplateFilterModel,
   createDefaultEmailTemplateForm,
   createDefaultFollowUpDelayDays,
   createDefaultGlobalConfigForm,
+  createDefaultSequencePolicyFilterModel,
+  createDefaultSequencePolicyForm,
   createEmailTemplateFormFromRecord,
+  createSequencePolicyFormFromRecord,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
   normalizeEmailTemplatePayload,
+  normalizeSequencePolicyPayload,
   summarizeMailboxSyncHealth
 } from './shared';
 
@@ -100,6 +105,41 @@ describe('crm settings shared helpers', () => {
     assert.equal(normalizeEmailTemplatePayload(form).name, 'Distributor sequence');
     assert.equal(normalizeEmailTemplatePayload(form).steps[0].subjectTemplate, 'Hello {{account.name}}');
     assert.equal(createEmailTemplateFormFromRecord(createEmailTemplateGroup()).steps[0].bodyTemplate, 'Body 1');
+  });
+
+  it('creates and normalizes sequence policy forms with five steps', () => {
+    const form = createDefaultSequencePolicyForm();
+    form.name = '  Conservative follow-up  ';
+    form.description = '  Manual review first  ';
+    form.isDefault = true;
+    form.steps[1].delayDays = 2;
+    form.steps[2].threadMode = 'same_thread';
+
+    assert.deepEqual(createDefaultSequencePolicyFilterModel(), {
+      keyword: '',
+      status: null
+    });
+    assert.deepEqual(
+      buildSequencePolicySearchParams({
+        current: 2,
+        size: 20,
+        filterModel: { keyword: '  follow  ', status: 'active' }
+      }),
+      {
+        current: 2,
+        size: 20,
+        keyword: 'follow',
+        status: 'active'
+      }
+    );
+    assert.equal(form.steps.length, 5);
+    assert.equal(form.steps[0].delayDays, 0);
+    assert.equal(form.steps[1].threadMode, 'same_thread');
+    assert.equal(normalizeSequencePolicyPayload(form).name, 'Conservative follow-up');
+    assert.equal(normalizeSequencePolicyPayload(form).steps[0].delayDays, 0);
+    assert.equal(normalizeSequencePolicyPayload(form).steps[1].delayDays, 2);
+    assert.equal(normalizeSequencePolicyPayload(form).steps[2].threadMode, 'same_thread');
+    assert.equal(createSequencePolicyFormFromRecord(createSequencePolicy()).linkPolicy, 'block_new_links');
   });
 
   it('collects queued and failed messages for the operations queue', () => {
@@ -303,6 +343,29 @@ function createEmailTemplateGroup(): Api.Crm.EmailTemplateGroupRecord {
       createdAt: '2026-06-18T09:00:00.000Z',
       updatedAt: '2026-06-18T09:00:00.000Z'
     })),
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z'
+  };
+}
+
+function createSequencePolicy(): Api.Crm.SequencePolicyRecord {
+  return {
+    id: 'policy-1',
+    organizationId: 'org-1',
+    name: 'Default sequence policy',
+    description: 'Conservative policy',
+    status: 'active',
+    isDefault: false,
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      stepIndex,
+      delayDays: stepIndex === 1 ? 0 : stepIndex * 2,
+      threadMode: stepIndex === 2 ? 'same_thread' : 'new_subject'
+    })),
+    linkPolicy: 'block_new_links',
+    allowLowRiskAutoSend: false,
+    sameCompanyContactStrategy: 'single_active_per_company',
     createdById: 'user-1',
     createdByName: 'Alice',
     createdAt: '2026-06-18T09:00:00.000Z',
