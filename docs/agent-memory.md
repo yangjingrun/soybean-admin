@@ -151,6 +151,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认额度满不发送、正常发送只 claim 一次。
 
+### 2026-06-19 Prisma schema 变更要同步生成客户端
+
+- 场景：给 `CrmMessage` 增加 `providerMessageId/providerThreadId` 这类数据库字段，后端 store 需要在 Prisma 写入和读取这些字段。
+- 坑点：只改 `prisma/schema.prisma` 和 migration 不够；项目把 Prisma client 生成代码提交在 `apps/server/src/generated/prisma`，如果不运行 generate，TypeScript 可能靠局部类型绕过，但运行时 Prisma client 仍可能不认识新字段。
+- 正确做法：schema 和 migration 改完后运行 `pnpm --filter @soybean/server exec prisma generate --schema ../../prisma/schema.prisma`，并检查生成 diff 是否集中在对应模型和 internal metadata；不要手写 generated 文件。
+- 相关文件：`prisma/schema.prisma`、`prisma/migrations/*/migration.sql`、`apps/server/src/generated/prisma/models/*`、`apps/server/src/generated/prisma/internal/*`。
+- 验证方式：运行对应 store/worker spec、`pnpm --filter @soybean/server typecheck` 和 `pnpm typecheck`，确认 Prisma 类型和运行入口都识别新字段。
+
 ### 记录模板
 
 ```md

@@ -191,6 +191,8 @@ export interface CrmMessageRecord {
   scheduledAt: Date | null;
   sentAt: Date | null;
   bullJobId: string | null;
+  providerMessageId: string | null;
+  providerThreadId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -423,6 +425,8 @@ export interface CrmMessageCreateInput {
   scheduledAt?: Date | null;
   sentAt?: Date | null;
   bullJobId?: string | null;
+  providerMessageId?: string | null;
+  providerThreadId?: string | null;
 }
 
 export interface CrmMessageUpdateInput {
@@ -434,6 +438,8 @@ export interface CrmMessageUpdateInput {
   scheduledAt?: Date | null;
   sentAt?: Date | null;
   bullJobId?: string | null;
+  providerMessageId?: string | null;
+  providerThreadId?: string | null;
 }
 
 export interface CrmSequenceDraftBundleCreateInput {
@@ -511,6 +517,7 @@ export interface CrmInboxReplySendGatewayInput {
 
 export interface CrmEmailSendGatewayResult {
   providerMessageId?: string | null;
+  providerThreadId?: string | null;
 }
 
 export interface CrmEmailSendGateway {
@@ -570,6 +577,8 @@ export interface CrmSendCompletionInput {
   ownerUserId: string;
   runVersion: number;
   sentAt: Date;
+  providerMessageId?: string | null;
+  providerThreadId?: string | null;
 }
 
 export interface CrmSendCompletionRecord {

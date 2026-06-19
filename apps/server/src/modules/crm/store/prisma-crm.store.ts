@@ -883,7 +883,9 @@ export class PrismaCrmStore implements CrmStore {
         },
         data: {
           status: 'sent',
-          sentAt: input.sentAt
+          sentAt: input.sentAt,
+          providerMessageId: input.providerMessageId ?? null,
+          providerThreadId: input.providerThreadId ?? null
         },
         limit: 1
       });
@@ -1651,10 +1653,17 @@ function toSequenceEnrollmentRecord(record: CrmSequenceEnrollmentModel): CrmSequ
 }
 
 function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
+  const message = record as CrmMessageModel & {
+    providerMessageId?: string | null;
+    providerThreadId?: string | null;
+  };
+
   return {
-    ...record,
-    threadMode: record.threadMode as CrmMessageRecord['threadMode'],
-    status: record.status as CrmMessageRecord['status']
+    ...message,
+    threadMode: message.threadMode as CrmMessageRecord['threadMode'],
+    status: message.status as CrmMessageRecord['status'],
+    providerMessageId: message.providerMessageId ?? null,
+    providerThreadId: message.providerThreadId ?? null
   };
 }
 

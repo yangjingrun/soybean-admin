@@ -590,6 +590,31 @@ describe('PrismaCrmStore', () => {
     assert.equal(result, null);
   });
 
+  it('persists provider ids when completing first message send', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const sentAt = new Date('2026-06-18T10:45:00.000Z');
+
+    const result = await store.completeFirstMessageSend({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      sentAt,
+      providerMessageId: 'gmail-message-1',
+      providerThreadId: 'gmail-thread-1'
+    });
+
+    assert.equal(result?.message.status, 'sent');
+    assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls.at(-1)?.data, {
+      status: 'sent',
+      sentAt,
+      providerMessageId: 'gmail-message-1',
+      providerThreadId: 'gmail-thread-1'
+    });
+  });
+
   it('stops one sequence and skips queued first message with status guard', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -812,6 +837,8 @@ function createPrismaMessage(input: Record<string, unknown> = {}) {
     scheduledAt: null,
     sentAt: null,
     bullJobId: null,
+    providerMessageId: null,
+    providerThreadId: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z'),
     ...input

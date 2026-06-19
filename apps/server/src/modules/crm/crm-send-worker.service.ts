@@ -21,7 +21,7 @@ export class CrmSendWorkerService {
     }
 
     try {
-      await this.sendGateway.sendPlainText({
+      const sent = await this.sendGateway.sendPlainText({
         enrollment: item.enrollment,
         message: item.firstMessage,
         account: item.account,
@@ -34,7 +34,9 @@ export class CrmSendWorkerService {
         organizationId: job.organizationId,
         ownerUserId: job.ownerUserId,
         runVersion: job.runVersion,
-        sentAt: new Date()
+        sentAt: new Date(),
+        providerMessageId: sent.providerMessageId ?? null,
+        providerThreadId: sent.providerThreadId ?? null
       });
     } catch (error) {
       await this.store.failFirstMessageSend({

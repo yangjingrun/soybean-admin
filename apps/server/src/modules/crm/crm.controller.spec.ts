@@ -786,6 +786,8 @@ function createMessageView(overrides: Partial<CrmMessageView> = {}): CrmMessageV
     scheduledAt: null,
     sentAt: null,
     bullJobId: null,
+    providerMessageId: null,
+    providerThreadId: null,
     createdAt: '2026-06-18T09:00:00.000Z',
     updatedAt: '2026-06-18T09:00:00.000Z',
     ...overrides

@@ -303,6 +303,8 @@ declare namespace Api {
       scheduledAt: string | null;
       sentAt: string | null;
       bullJobId: string | null;
+      providerMessageId: string | null;
+      providerThreadId: string | null;
       createdAt: string;
       updatedAt: string;
     }

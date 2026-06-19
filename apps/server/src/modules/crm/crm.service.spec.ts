@@ -2019,7 +2019,13 @@ function createStore(
 
       if (!enrollment || !message || !account) return null;
 
-      Object.assign(message, { status: 'sent', sentAt: input.sentAt, updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      Object.assign(message, {
+        status: 'sent',
+        sentAt: input.sentAt,
+        providerMessageId: input.providerMessageId ?? null,
+        providerThreadId: input.providerThreadId ?? null,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
       const event = createTimelineEvent({
         accountId: enrollment.accountId,
         contactId: enrollment.contactId,
@@ -2461,6 +2467,8 @@ function createMessage(input: Partial<TestMessage> = {}): TestMessage {
     scheduledAt: input.scheduledAt ?? null,
     sentAt: input.sentAt ?? null,
     bullJobId: input.bullJobId ?? null,
+    providerMessageId: input.providerMessageId ?? null,
+    providerThreadId: input.providerThreadId ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };

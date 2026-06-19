@@ -49,7 +49,9 @@ describe('CrmSendWorkerService', () => {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
       runVersion: 2,
-      sentAt: store.completed[0].sentAt
+      sentAt: store.completed[0].sentAt,
+      providerMessageId: 'mock:message-1',
+      providerThreadId: 'mock-thread:enrollment-1'
     });
   });
 
@@ -164,7 +166,10 @@ function createGateway(error?: Error): CrmEmailSendGateway & { calls: Parameters
       }
 
       calls.push(input);
-      return { providerMessageId: `mock:${input.message.id}` };
+      return {
+        providerMessageId: `mock:${input.message.id}`,
+        providerThreadId: `mock-thread:${input.enrollment.id}`
+      };
     },
     async replyPlainText(input) {
       return { providerMessageId: `mock:reply:${input.thread.id}` };
@@ -280,6 +285,8 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
     scheduledAt: input.scheduledAt ?? new Date('2026-06-18T10:00:00.000Z'),
     sentAt: input.sentAt ?? null,
     bullJobId: input.bullJobId ?? 'send-job-1',
+    providerMessageId: input.providerMessageId ?? null,
+    providerThreadId: input.providerThreadId ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };

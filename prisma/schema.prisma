@@ -288,6 +288,8 @@ model CrmMessage {
   scheduledAt    DateTime?
   sentAt         DateTime?
   bullJobId      String?
+  providerMessageId String?
+  providerThreadId  String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -302,6 +304,8 @@ model CrmMessage {
   @@index([organizationId, accountId, createdAt])
   @@index([organizationId, contactId, createdAt])
   @@index([organizationId, bullJobId])
+  @@index([organizationId, ownerUserId, mailboxId, providerThreadId])
+  @@unique([organizationId, ownerUserId, mailboxId, providerMessageId])
 }
 
 model CrmInboxThread {

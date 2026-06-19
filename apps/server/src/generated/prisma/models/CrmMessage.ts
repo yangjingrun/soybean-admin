@@ -50,6 +50,8 @@ export type CrmMessageMinAggregateOutputType = {
   scheduledAt: Date | null
   sentAt: Date | null
   bullJobId: string | null
+  providerMessageId: string | null
+  providerThreadId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -70,6 +72,8 @@ export type CrmMessageMaxAggregateOutputType = {
   scheduledAt: Date | null
   sentAt: Date | null
   bullJobId: string | null
+  providerMessageId: string | null
+  providerThreadId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -90,6 +94,8 @@ export type CrmMessageCountAggregateOutputType = {
   scheduledAt: number
   sentAt: number
   bullJobId: number
+  providerMessageId: number
+  providerThreadId: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -120,6 +126,8 @@ export type CrmMessageMinAggregateInputType = {
   scheduledAt?: true
   sentAt?: true
   bullJobId?: true
+  providerMessageId?: true
+  providerThreadId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -140,6 +148,8 @@ export type CrmMessageMaxAggregateInputType = {
   scheduledAt?: true
   sentAt?: true
   bullJobId?: true
+  providerMessageId?: true
+  providerThreadId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -160,6 +170,8 @@ export type CrmMessageCountAggregateInputType = {
   scheduledAt?: true
   sentAt?: true
   bullJobId?: true
+  providerMessageId?: true
+  providerThreadId?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -267,6 +279,8 @@ export type CrmMessageGroupByOutputType = {
   scheduledAt: Date | null
   sentAt: Date | null
   bullJobId: string | null
+  providerMessageId: string | null
+  providerThreadId: string | null
   createdAt: Date
   updatedAt: Date
   _count: CrmMessageCountAggregateOutputType | null
@@ -310,6 +324,8 @@ export type CrmMessageWhereInput = {
   scheduledAt?: Prisma.DateTimeNullableFilter<"CrmMessage"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"CrmMessage"> | Date | string | null
   bullJobId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
+  providerMessageId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
+  providerThreadId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmMessage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmMessage"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
@@ -335,6 +351,8 @@ export type CrmMessageOrderByWithRelationInput = {
   scheduledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   bullJobId?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerThreadId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   organization?: Prisma.OrganizationOrderByWithRelationInput
@@ -347,6 +365,7 @@ export type CrmMessageOrderByWithRelationInput = {
 export type CrmMessageWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   enrollmentId_stepIndex?: Prisma.CrmMessageEnrollmentIdStepIndexCompoundUniqueInput
+  organizationId_ownerUserId_mailboxId_providerMessageId?: Prisma.CrmMessageOrganizationIdOwnerUserIdMailboxIdProviderMessageIdCompoundUniqueInput
   AND?: Prisma.CrmMessageWhereInput | Prisma.CrmMessageWhereInput[]
   OR?: Prisma.CrmMessageWhereInput[]
   NOT?: Prisma.CrmMessageWhereInput | Prisma.CrmMessageWhereInput[]
@@ -364,6 +383,8 @@ export type CrmMessageWhereUniqueInput = Prisma.AtLeast<{
   scheduledAt?: Prisma.DateTimeNullableFilter<"CrmMessage"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"CrmMessage"> | Date | string | null
   bullJobId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
+  providerMessageId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
+  providerThreadId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmMessage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmMessage"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
@@ -371,7 +392,7 @@ export type CrmMessageWhereUniqueInput = Prisma.AtLeast<{
   contact?: Prisma.XOR<Prisma.CrmContactScalarRelationFilter, Prisma.CrmContactWhereInput>
   enrollment?: Prisma.XOR<Prisma.CrmSequenceEnrollmentScalarRelationFilter, Prisma.CrmSequenceEnrollmentWhereInput>
   mailbox?: Prisma.XOR<Prisma.CrmMailboxNullableScalarRelationFilter, Prisma.CrmMailboxWhereInput> | null
-}, "id" | "enrollmentId_stepIndex">
+}, "id" | "enrollmentId_stepIndex" | "organizationId_ownerUserId_mailboxId_providerMessageId">
 
 export type CrmMessageOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -389,6 +410,8 @@ export type CrmMessageOrderByWithAggregationInput = {
   scheduledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   bullJobId?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerThreadId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.CrmMessageCountOrderByAggregateInput
@@ -417,6 +440,8 @@ export type CrmMessageScalarWhereWithAggregatesInput = {
   scheduledAt?: Prisma.DateTimeNullableWithAggregatesFilter<"CrmMessage"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"CrmMessage"> | Date | string | null
   bullJobId?: Prisma.StringNullableWithAggregatesFilter<"CrmMessage"> | string | null
+  providerMessageId?: Prisma.StringNullableWithAggregatesFilter<"CrmMessage"> | string | null
+  providerThreadId?: Prisma.StringNullableWithAggregatesFilter<"CrmMessage"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CrmMessage"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"CrmMessage"> | Date | string
 }
@@ -432,6 +457,8 @@ export type CrmMessageCreateInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMessagesInput
@@ -457,6 +484,8 @@ export type CrmMessageUncheckedCreateInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -472,6 +501,8 @@ export type CrmMessageUpdateInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMessagesNestedInput
@@ -497,6 +528,8 @@ export type CrmMessageUncheckedUpdateInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -517,6 +550,8 @@ export type CrmMessageCreateManyInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -532,6 +567,8 @@ export type CrmMessageUpdateManyMutationInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -552,6 +589,8 @@ export type CrmMessageUncheckedUpdateManyInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -571,6 +610,13 @@ export type CrmMessageEnrollmentIdStepIndexCompoundUniqueInput = {
   stepIndex: number
 }
 
+export type CrmMessageOrganizationIdOwnerUserIdMailboxIdProviderMessageIdCompoundUniqueInput = {
+  organizationId: string
+  ownerUserId: string
+  mailboxId: string
+  providerMessageId: string
+}
+
 export type CrmMessageCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
@@ -587,6 +633,8 @@ export type CrmMessageCountOrderByAggregateInput = {
   scheduledAt?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
   bullJobId?: Prisma.SortOrder
+  providerMessageId?: Prisma.SortOrder
+  providerThreadId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -611,6 +659,8 @@ export type CrmMessageMaxOrderByAggregateInput = {
   scheduledAt?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
   bullJobId?: Prisma.SortOrder
+  providerMessageId?: Prisma.SortOrder
+  providerThreadId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -631,6 +681,8 @@ export type CrmMessageMinOrderByAggregateInput = {
   scheduledAt?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
   bullJobId?: Prisma.SortOrder
+  providerMessageId?: Prisma.SortOrder
+  providerThreadId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -860,6 +912,8 @@ export type CrmMessageCreateWithoutOrganizationInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   account: Prisma.CrmAccountCreateNestedOneWithoutMessagesInput
@@ -883,6 +937,8 @@ export type CrmMessageUncheckedCreateWithoutOrganizationInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -932,6 +988,8 @@ export type CrmMessageScalarWhereInput = {
   scheduledAt?: Prisma.DateTimeNullableFilter<"CrmMessage"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"CrmMessage"> | Date | string | null
   bullJobId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
+  providerMessageId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
+  providerThreadId?: Prisma.StringNullableFilter<"CrmMessage"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmMessage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmMessage"> | Date | string
 }
@@ -947,6 +1005,8 @@ export type CrmMessageCreateWithoutAccountInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMessagesInput
@@ -970,6 +1030,8 @@ export type CrmMessageUncheckedCreateWithoutAccountInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1011,6 +1073,8 @@ export type CrmMessageCreateWithoutContactInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMessagesInput
@@ -1034,6 +1098,8 @@ export type CrmMessageUncheckedCreateWithoutContactInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1075,6 +1141,8 @@ export type CrmMessageCreateWithoutMailboxInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMessagesInput
@@ -1098,6 +1166,8 @@ export type CrmMessageUncheckedCreateWithoutMailboxInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1139,6 +1209,8 @@ export type CrmMessageCreateWithoutEnrollmentInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmMessagesInput
@@ -1162,6 +1234,8 @@ export type CrmMessageUncheckedCreateWithoutEnrollmentInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1207,6 +1281,8 @@ export type CrmMessageCreateManyOrganizationInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1222,6 +1298,8 @@ export type CrmMessageUpdateWithoutOrganizationInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   account?: Prisma.CrmAccountUpdateOneRequiredWithoutMessagesNestedInput
@@ -1245,6 +1323,8 @@ export type CrmMessageUncheckedUpdateWithoutOrganizationInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1264,6 +1344,8 @@ export type CrmMessageUncheckedUpdateManyWithoutOrganizationInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1283,6 +1365,8 @@ export type CrmMessageCreateManyAccountInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1298,6 +1382,8 @@ export type CrmMessageUpdateWithoutAccountInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMessagesNestedInput
@@ -1321,6 +1407,8 @@ export type CrmMessageUncheckedUpdateWithoutAccountInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1340,6 +1428,8 @@ export type CrmMessageUncheckedUpdateManyWithoutAccountInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1359,6 +1449,8 @@ export type CrmMessageCreateManyContactInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1374,6 +1466,8 @@ export type CrmMessageUpdateWithoutContactInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMessagesNestedInput
@@ -1397,6 +1491,8 @@ export type CrmMessageUncheckedUpdateWithoutContactInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1416,6 +1512,8 @@ export type CrmMessageUncheckedUpdateManyWithoutContactInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1435,6 +1533,8 @@ export type CrmMessageCreateManyMailboxInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1450,6 +1550,8 @@ export type CrmMessageUpdateWithoutMailboxInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMessagesNestedInput
@@ -1473,6 +1575,8 @@ export type CrmMessageUncheckedUpdateWithoutMailboxInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1492,6 +1596,8 @@ export type CrmMessageUncheckedUpdateManyWithoutMailboxInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1511,6 +1617,8 @@ export type CrmMessageCreateManyEnrollmentInput = {
   scheduledAt?: Date | string | null
   sentAt?: Date | string | null
   bullJobId?: string | null
+  providerMessageId?: string | null
+  providerThreadId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1526,6 +1634,8 @@ export type CrmMessageUpdateWithoutEnrollmentInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmMessagesNestedInput
@@ -1549,6 +1659,8 @@ export type CrmMessageUncheckedUpdateWithoutEnrollmentInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1568,6 +1680,8 @@ export type CrmMessageUncheckedUpdateManyWithoutEnrollmentInput = {
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerThreadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1590,6 +1704,8 @@ export type CrmMessageSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   scheduledAt?: boolean
   sentAt?: boolean
   bullJobId?: boolean
+  providerMessageId?: boolean
+  providerThreadId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -1615,6 +1731,8 @@ export type CrmMessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   scheduledAt?: boolean
   sentAt?: boolean
   bullJobId?: boolean
+  providerMessageId?: boolean
+  providerThreadId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -1640,6 +1758,8 @@ export type CrmMessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   scheduledAt?: boolean
   sentAt?: boolean
   bullJobId?: boolean
+  providerMessageId?: boolean
+  providerThreadId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -1665,11 +1785,13 @@ export type CrmMessageSelectScalar = {
   scheduledAt?: boolean
   sentAt?: boolean
   bullJobId?: boolean
+  providerMessageId?: boolean
+  providerThreadId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CrmMessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "ownerUserId" | "accountId" | "contactId" | "enrollmentId" | "mailboxId" | "stepIndex" | "threadMode" | "subject" | "bodyText" | "status" | "scheduledAt" | "sentAt" | "bullJobId" | "createdAt" | "updatedAt", ExtArgs["result"]["crmMessage"]>
+export type CrmMessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "ownerUserId" | "accountId" | "contactId" | "enrollmentId" | "mailboxId" | "stepIndex" | "threadMode" | "subject" | "bodyText" | "status" | "scheduledAt" | "sentAt" | "bullJobId" | "providerMessageId" | "providerThreadId" | "createdAt" | "updatedAt", ExtArgs["result"]["crmMessage"]>
 export type CrmMessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   account?: boolean | Prisma.CrmAccountDefaultArgs<ExtArgs>
@@ -1717,6 +1839,8 @@ export type $CrmMessagePayload<ExtArgs extends runtime.Types.Extensions.Internal
     scheduledAt: Date | null
     sentAt: Date | null
     bullJobId: string | null
+    providerMessageId: string | null
+    providerThreadId: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["crmMessage"]>
@@ -2162,6 +2286,8 @@ export interface CrmMessageFieldRefs {
   readonly scheduledAt: Prisma.FieldRef<"CrmMessage", 'DateTime'>
   readonly sentAt: Prisma.FieldRef<"CrmMessage", 'DateTime'>
   readonly bullJobId: Prisma.FieldRef<"CrmMessage", 'String'>
+  readonly providerMessageId: Prisma.FieldRef<"CrmMessage", 'String'>
+  readonly providerThreadId: Prisma.FieldRef<"CrmMessage", 'String'>
   readonly createdAt: Prisma.FieldRef<"CrmMessage", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"CrmMessage", 'DateTime'>
 }
