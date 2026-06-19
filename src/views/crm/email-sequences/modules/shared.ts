@@ -244,12 +244,14 @@ export function buildSequenceMessageTimelineItems(
 /** Check whether the current enrollment can create one local follow-up draft. */
 export function canGenerateNextSequenceDraft(item: Api.Crm.SequenceReviewItem) {
   const canAppendDraftByStatus = ['ready_to_send', 'sequence_running'].includes(item.enrollment.status);
-  const hasPendingReviewDraft = item.messages.some(message => message.status === 'draft_pending_review');
+  const hasBlockingMessage = item.messages.some(message =>
+    ['draft_pending_review', 'queued', 'failed'].includes(message.status)
+  );
 
   return (
     item.canOperateDraft &&
     canAppendDraftByStatus &&
-    !hasPendingReviewDraft &&
+    !hasBlockingMessage &&
     getMaxSequenceMessageStep(item.messages) < item.enrollment.totalSteps
   );
 }

@@ -433,6 +433,20 @@ describe('email sequence review shared helpers', () => {
         createMessage({ id: 'message-2', stepIndex: 2, status: 'draft_pending_review' })
       ]
     });
+    const hasQueuedMessage = createSequenceItem({
+      enrollment: { status: 'sequence_running', totalSteps: 5 },
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({ id: 'message-2', stepIndex: 2, status: 'queued' })
+      ]
+    });
+    const hasFailedMessage = createSequenceItem({
+      enrollment: { status: 'sequence_running', totalSteps: 5 },
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({ id: 'message-2', stepIndex: 2, status: 'failed' })
+      ]
+    });
     const reachedLastStep = createSequenceItem({
       enrollment: { status: 'sequence_running', totalSteps: 2 },
       messages: [
@@ -453,6 +467,8 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canGenerateNextSequenceDraft(ready), true);
     assert.equal(canGenerateNextSequenceDraft(running), true);
     assert.equal(canGenerateNextSequenceDraft(hasPendingDraft), false);
+    assert.equal(canGenerateNextSequenceDraft(hasQueuedMessage), false);
+    assert.equal(canGenerateNextSequenceDraft(hasFailedMessage), false);
     assert.equal(canGenerateNextSequenceDraft(reachedLastStep), false);
     assert.equal(canGenerateNextSequenceDraft(stopped), false);
     assert.equal(canGenerateNextSequenceDraft(forbidden), false);
