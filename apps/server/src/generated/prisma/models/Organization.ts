@@ -188,6 +188,7 @@ export type OrganizationWhereInput = {
   crmContacts?: Prisma.CrmContactListRelationFilter
   crmTimelineEvents?: Prisma.CrmTimelineEventListRelationFilter
   crmBlacklists?: Prisma.CrmBlacklistListRelationFilter
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintListRelationFilter
   crmMailboxes?: Prisma.CrmMailboxListRelationFilter
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageListRelationFilter
   crmProductLines?: Prisma.CrmProductLineListRelationFilter
@@ -209,6 +210,7 @@ export type OrganizationOrderByWithRelationInput = {
   crmContacts?: Prisma.CrmContactOrderByRelationAggregateInput
   crmTimelineEvents?: Prisma.CrmTimelineEventOrderByRelationAggregateInput
   crmBlacklists?: Prisma.CrmBlacklistOrderByRelationAggregateInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintOrderByRelationAggregateInput
   crmMailboxes?: Prisma.CrmMailboxOrderByRelationAggregateInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageOrderByRelationAggregateInput
   crmProductLines?: Prisma.CrmProductLineOrderByRelationAggregateInput
@@ -233,6 +235,7 @@ export type OrganizationWhereUniqueInput = Prisma.AtLeast<{
   crmContacts?: Prisma.CrmContactListRelationFilter
   crmTimelineEvents?: Prisma.CrmTimelineEventListRelationFilter
   crmBlacklists?: Prisma.CrmBlacklistListRelationFilter
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintListRelationFilter
   crmMailboxes?: Prisma.CrmMailboxListRelationFilter
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageListRelationFilter
   crmProductLines?: Prisma.CrmProductLineListRelationFilter
@@ -276,6 +279,7 @@ export type OrganizationCreateInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -297,6 +301,7 @@ export type OrganizationUncheckedCreateInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -318,6 +323,7 @@ export type OrganizationUpdateInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -339,6 +345,7 @@ export type OrganizationUncheckedUpdateInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -455,6 +462,20 @@ export type OrganizationUpdateOneRequiredWithoutCrmBlacklistsNestedInput = {
   upsert?: Prisma.OrganizationUpsertWithoutCrmBlacklistsInput
   connect?: Prisma.OrganizationWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.OrganizationUpdateToOneWithWhereWithoutCrmBlacklistsInput, Prisma.OrganizationUpdateWithoutCrmBlacklistsInput>, Prisma.OrganizationUncheckedUpdateWithoutCrmBlacklistsInput>
+}
+
+export type OrganizationCreateNestedOneWithoutCrmArchivedFingerprintsInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmArchivedFingerprintsInput, Prisma.OrganizationUncheckedCreateWithoutCrmArchivedFingerprintsInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmArchivedFingerprintsInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+}
+
+export type OrganizationUpdateOneRequiredWithoutCrmArchivedFingerprintsNestedInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmArchivedFingerprintsInput, Prisma.OrganizationUncheckedCreateWithoutCrmArchivedFingerprintsInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmArchivedFingerprintsInput
+  upsert?: Prisma.OrganizationUpsertWithoutCrmArchivedFingerprintsInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.OrganizationUpdateToOneWithWhereWithoutCrmArchivedFingerprintsInput, Prisma.OrganizationUpdateWithoutCrmArchivedFingerprintsInput>, Prisma.OrganizationUncheckedUpdateWithoutCrmArchivedFingerprintsInput>
 }
 
 export type OrganizationCreateNestedOneWithoutCrmTimelineEventsInput = {
@@ -594,6 +615,7 @@ export type OrganizationCreateWithoutUsersInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -614,6 +636,7 @@ export type OrganizationUncheckedCreateWithoutUsersInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -650,6 +673,7 @@ export type OrganizationUpdateWithoutUsersInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -670,6 +694,7 @@ export type OrganizationUncheckedUpdateWithoutUsersInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -690,6 +715,7 @@ export type OrganizationCreateWithoutCrmAccountsInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -710,6 +736,7 @@ export type OrganizationUncheckedCreateWithoutCrmAccountsInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -746,6 +773,7 @@ export type OrganizationUpdateWithoutCrmAccountsInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -766,6 +794,7 @@ export type OrganizationUncheckedUpdateWithoutCrmAccountsInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -786,6 +815,7 @@ export type OrganizationCreateWithoutCrmContactsInput = {
   crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -806,6 +836,7 @@ export type OrganizationUncheckedCreateWithoutCrmContactsInput = {
   crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -842,6 +873,7 @@ export type OrganizationUpdateWithoutCrmContactsInput = {
   crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -862,6 +894,7 @@ export type OrganizationUncheckedUpdateWithoutCrmContactsInput = {
   crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -882,6 +915,7 @@ export type OrganizationCreateWithoutCrmBlacklistsInput = {
   crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -902,6 +936,7 @@ export type OrganizationUncheckedCreateWithoutCrmBlacklistsInput = {
   crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -938,6 +973,7 @@ export type OrganizationUpdateWithoutCrmBlacklistsInput = {
   crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -958,6 +994,107 @@ export type OrganizationUncheckedUpdateWithoutCrmBlacklistsInput = {
   crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMessages?: Prisma.CrmMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationCreateWithoutCrmArchivedFingerprintsInput = {
+  id?: string
+  name: string
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
+  crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
+  crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutOrganizationInput
+  crmMessages?: Prisma.CrmMessageCreateNestedManyWithoutOrganizationInput
+  crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
+  crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationUncheckedCreateWithoutCrmArchivedFingerprintsInput = {
+  id?: string
+  name: string
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
+  crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMessages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationCreateOrConnectWithoutCrmArchivedFingerprintsInput = {
+  where: Prisma.OrganizationWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmArchivedFingerprintsInput, Prisma.OrganizationUncheckedCreateWithoutCrmArchivedFingerprintsInput>
+}
+
+export type OrganizationUpsertWithoutCrmArchivedFingerprintsInput = {
+  update: Prisma.XOR<Prisma.OrganizationUpdateWithoutCrmArchivedFingerprintsInput, Prisma.OrganizationUncheckedUpdateWithoutCrmArchivedFingerprintsInput>
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmArchivedFingerprintsInput, Prisma.OrganizationUncheckedCreateWithoutCrmArchivedFingerprintsInput>
+  where?: Prisma.OrganizationWhereInput
+}
+
+export type OrganizationUpdateToOneWithWhereWithoutCrmArchivedFingerprintsInput = {
+  where?: Prisma.OrganizationWhereInput
+  data: Prisma.XOR<Prisma.OrganizationUpdateWithoutCrmArchivedFingerprintsInput, Prisma.OrganizationUncheckedUpdateWithoutCrmArchivedFingerprintsInput>
+}
+
+export type OrganizationUpdateWithoutCrmArchivedFingerprintsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
+  crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
+  crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutOrganizationNestedInput
+  crmMessages?: Prisma.CrmMessageUpdateManyWithoutOrganizationNestedInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationUncheckedUpdateWithoutCrmArchivedFingerprintsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -978,6 +1115,7 @@ export type OrganizationCreateWithoutCrmTimelineEventsInput = {
   crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -998,6 +1136,7 @@ export type OrganizationUncheckedCreateWithoutCrmTimelineEventsInput = {
   crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1034,6 +1173,7 @@ export type OrganizationUpdateWithoutCrmTimelineEventsInput = {
   crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -1054,6 +1194,7 @@ export type OrganizationUncheckedUpdateWithoutCrmTimelineEventsInput = {
   crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1075,6 +1216,7 @@ export type OrganizationCreateWithoutCrmMailboxesInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutOrganizationInput
@@ -1095,6 +1237,7 @@ export type OrganizationUncheckedCreateWithoutCrmMailboxesInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1131,6 +1274,7 @@ export type OrganizationUpdateWithoutCrmMailboxesInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutOrganizationNestedInput
@@ -1151,6 +1295,7 @@ export type OrganizationUncheckedUpdateWithoutCrmMailboxesInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1171,6 +1316,7 @@ export type OrganizationCreateWithoutCrmMailboxSendUsagesInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutOrganizationInput
@@ -1191,6 +1337,7 @@ export type OrganizationUncheckedCreateWithoutCrmMailboxSendUsagesInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1227,6 +1374,7 @@ export type OrganizationUpdateWithoutCrmMailboxSendUsagesInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutOrganizationNestedInput
@@ -1247,6 +1395,7 @@ export type OrganizationUncheckedUpdateWithoutCrmMailboxSendUsagesInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1267,6 +1416,7 @@ export type OrganizationCreateWithoutCrmProductLinesInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutOrganizationInput
@@ -1287,6 +1437,7 @@ export type OrganizationUncheckedCreateWithoutCrmProductLinesInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1323,6 +1474,7 @@ export type OrganizationUpdateWithoutCrmProductLinesInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutOrganizationNestedInput
@@ -1343,6 +1495,7 @@ export type OrganizationUncheckedUpdateWithoutCrmProductLinesInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1363,6 +1516,7 @@ export type OrganizationCreateWithoutCrmEnrollmentsInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -1383,6 +1537,7 @@ export type OrganizationUncheckedCreateWithoutCrmEnrollmentsInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1419,6 +1574,7 @@ export type OrganizationUpdateWithoutCrmEnrollmentsInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -1439,6 +1595,7 @@ export type OrganizationUncheckedUpdateWithoutCrmEnrollmentsInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1459,6 +1616,7 @@ export type OrganizationCreateWithoutCrmMessagesInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -1479,6 +1637,7 @@ export type OrganizationUncheckedCreateWithoutCrmMessagesInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1515,6 +1674,7 @@ export type OrganizationUpdateWithoutCrmMessagesInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -1535,6 +1695,7 @@ export type OrganizationUncheckedUpdateWithoutCrmMessagesInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1555,6 +1716,7 @@ export type OrganizationCreateWithoutCrmInboxThreadsInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -1575,6 +1737,7 @@ export type OrganizationUncheckedCreateWithoutCrmInboxThreadsInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1611,6 +1774,7 @@ export type OrganizationUpdateWithoutCrmInboxThreadsInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -1631,6 +1795,7 @@ export type OrganizationUncheckedUpdateWithoutCrmInboxThreadsInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1651,6 +1816,7 @@ export type OrganizationCreateWithoutCrmInboxMessagesInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -1671,6 +1837,7 @@ export type OrganizationUncheckedCreateWithoutCrmInboxMessagesInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1707,6 +1874,7 @@ export type OrganizationUpdateWithoutCrmInboxMessagesInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -1727,6 +1895,7 @@ export type OrganizationUncheckedUpdateWithoutCrmInboxMessagesInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1746,6 +1915,7 @@ export type OrganizationCreateWithoutAiLeadSearchTasksInput = {
   crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
@@ -1766,6 +1936,7 @@ export type OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput = {
   crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
   crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
@@ -1802,6 +1973,7 @@ export type OrganizationUpdateWithoutAiLeadSearchTasksInput = {
   crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
@@ -1822,6 +1994,7 @@ export type OrganizationUncheckedUpdateWithoutAiLeadSearchTasksInput = {
   crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
   crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
   crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
   crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
   crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
@@ -1843,6 +2016,7 @@ export type OrganizationCountOutputType = {
   crmContacts: number
   crmTimelineEvents: number
   crmBlacklists: number
+  crmArchivedFingerprints: number
   crmMailboxes: number
   crmMailboxSendUsages: number
   crmProductLines: number
@@ -1859,6 +2033,7 @@ export type OrganizationCountOutputTypeSelect<ExtArgs extends runtime.Types.Exte
   crmContacts?: boolean | OrganizationCountOutputTypeCountCrmContactsArgs
   crmTimelineEvents?: boolean | OrganizationCountOutputTypeCountCrmTimelineEventsArgs
   crmBlacklists?: boolean | OrganizationCountOutputTypeCountCrmBlacklistsArgs
+  crmArchivedFingerprints?: boolean | OrganizationCountOutputTypeCountCrmArchivedFingerprintsArgs
   crmMailboxes?: boolean | OrganizationCountOutputTypeCountCrmMailboxesArgs
   crmMailboxSendUsages?: boolean | OrganizationCountOutputTypeCountCrmMailboxSendUsagesArgs
   crmProductLines?: boolean | OrganizationCountOutputTypeCountCrmProductLinesArgs
@@ -1923,6 +2098,13 @@ export type OrganizationCountOutputTypeCountCrmBlacklistsArgs<ExtArgs extends ru
 /**
  * OrganizationCountOutputType without action
  */
+export type OrganizationCountOutputTypeCountCrmArchivedFingerprintsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmArchivedFingerprintWhereInput
+}
+
+/**
+ * OrganizationCountOutputType without action
+ */
 export type OrganizationCountOutputTypeCountCrmMailboxesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.CrmMailboxWhereInput
 }
@@ -1982,6 +2164,7 @@ export type OrganizationSelect<ExtArgs extends runtime.Types.Extensions.Internal
   crmContacts?: boolean | Prisma.Organization$crmContactsArgs<ExtArgs>
   crmTimelineEvents?: boolean | Prisma.Organization$crmTimelineEventsArgs<ExtArgs>
   crmBlacklists?: boolean | Prisma.Organization$crmBlacklistsArgs<ExtArgs>
+  crmArchivedFingerprints?: boolean | Prisma.Organization$crmArchivedFingerprintsArgs<ExtArgs>
   crmMailboxes?: boolean | Prisma.Organization$crmMailboxesArgs<ExtArgs>
   crmMailboxSendUsages?: boolean | Prisma.Organization$crmMailboxSendUsagesArgs<ExtArgs>
   crmProductLines?: boolean | Prisma.Organization$crmProductLinesArgs<ExtArgs>
@@ -2024,6 +2207,7 @@ export type OrganizationInclude<ExtArgs extends runtime.Types.Extensions.Interna
   crmContacts?: boolean | Prisma.Organization$crmContactsArgs<ExtArgs>
   crmTimelineEvents?: boolean | Prisma.Organization$crmTimelineEventsArgs<ExtArgs>
   crmBlacklists?: boolean | Prisma.Organization$crmBlacklistsArgs<ExtArgs>
+  crmArchivedFingerprints?: boolean | Prisma.Organization$crmArchivedFingerprintsArgs<ExtArgs>
   crmMailboxes?: boolean | Prisma.Organization$crmMailboxesArgs<ExtArgs>
   crmMailboxSendUsages?: boolean | Prisma.Organization$crmMailboxSendUsagesArgs<ExtArgs>
   crmProductLines?: boolean | Prisma.Organization$crmProductLinesArgs<ExtArgs>
@@ -2045,6 +2229,7 @@ export type $OrganizationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     crmContacts: Prisma.$CrmContactPayload<ExtArgs>[]
     crmTimelineEvents: Prisma.$CrmTimelineEventPayload<ExtArgs>[]
     crmBlacklists: Prisma.$CrmBlacklistPayload<ExtArgs>[]
+    crmArchivedFingerprints: Prisma.$CrmArchivedFingerprintPayload<ExtArgs>[]
     crmMailboxes: Prisma.$CrmMailboxPayload<ExtArgs>[]
     crmMailboxSendUsages: Prisma.$CrmMailboxSendUsagePayload<ExtArgs>[]
     crmProductLines: Prisma.$CrmProductLinePayload<ExtArgs>[]
@@ -2459,6 +2644,7 @@ export interface Prisma__OrganizationClient<T, Null = never, ExtArgs extends run
   crmContacts<T extends Prisma.Organization$crmContactsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmContactsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmContactPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   crmTimelineEvents<T extends Prisma.Organization$crmTimelineEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmTimelineEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmTimelineEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   crmBlacklists<T extends Prisma.Organization$crmBlacklistsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmBlacklistsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmBlacklistPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  crmArchivedFingerprints<T extends Prisma.Organization$crmArchivedFingerprintsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmArchivedFingerprintsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmArchivedFingerprintPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   crmMailboxes<T extends Prisma.Organization$crmMailboxesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmMailboxesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmMailboxPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   crmMailboxSendUsages<T extends Prisma.Organization$crmMailboxSendUsagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmMailboxSendUsagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmMailboxSendUsagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   crmProductLines<T extends Prisma.Organization$crmProductLinesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmProductLinesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmProductLinePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -3034,6 +3220,30 @@ export type Organization$crmBlacklistsArgs<ExtArgs extends runtime.Types.Extensi
   take?: number
   skip?: number
   distinct?: Prisma.CrmBlacklistScalarFieldEnum | Prisma.CrmBlacklistScalarFieldEnum[]
+}
+
+/**
+ * Organization.crmArchivedFingerprints
+ */
+export type Organization$crmArchivedFingerprintsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmArchivedFingerprint
+   */
+  select?: Prisma.CrmArchivedFingerprintSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmArchivedFingerprint
+   */
+  omit?: Prisma.CrmArchivedFingerprintOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmArchivedFingerprintInclude<ExtArgs> | null
+  where?: Prisma.CrmArchivedFingerprintWhereInput
+  orderBy?: Prisma.CrmArchivedFingerprintOrderByWithRelationInput | Prisma.CrmArchivedFingerprintOrderByWithRelationInput[]
+  cursor?: Prisma.CrmArchivedFingerprintWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmArchivedFingerprintScalarFieldEnum | Prisma.CrmArchivedFingerprintScalarFieldEnum[]
 }
 
 /**

@@ -71,6 +71,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`、`prisma/migrations/20260618230000_create_crm_foundation/migration.sql`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认同组织不同成员同域名不会复用对方 Account，并发唯一冲突会重读已有记录。
 
+### 2026-06-19 CRM 归档指纹只做组织级历史提醒，不复用成员主记录
+
+- 场景：线索归档后，后续 AI 获客或手动导入可能再次遇到同一公司域名或联系人邮箱；未来 30 天后瘦身主记录时仍需要保留去重/历史触达判断能力。
+- 坑点：不能为了历史去重把 Account/Contact 改成组织级唯一，也不能把归档主记录删除后丢掉 domain/emailHash；否则要么泄漏其他成员私有线索，要么后续获客无法识别历史触达。
+- 正确做法：归档时写 `CrmArchivedFingerprint`，唯一键为 `organizationId + fingerprintType + fingerprintValue`；domain 指纹保存域名，email 指纹只保存 `emailHash + maskedValue`。导入时按组织查指纹并写 `archived_fingerprint_matched` 时间线提醒，但继续按 `organizationId + ownerUserId` 创建/复用当前成员自己的 Account/Contact。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认归档写 domain/email_hash 指纹，再导入命中组织归档指纹时只写提醒时间线，不复用其他成员主记录。
+
 ### 2026-06-18 远程表格筛选要防旧请求覆盖新结果
 
 - 场景：CRM 线索库这类前端远程表格支持关键词、状态、分页快速切换。

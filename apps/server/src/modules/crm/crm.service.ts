@@ -20,6 +20,9 @@ import type {
   CrmAccountDetailRecord,
   CrmAccountRecord,
   CrmAccountStatus,
+  CrmArchivedFingerprintRecord,
+  CrmArchivedFingerprintType,
+  CrmArchivedFingerprintUpsertInput,
   CrmMailboxProvider,
   CrmMailboxRecord,
   CrmMailboxStatus,
@@ -311,6 +314,7 @@ export class CrmService {
     }
 
     const domain = normalizeDomain(input.websiteUrl);
+    const archivedMatches = await this.findArchivedImportMatches(domain, input, context);
     const existingAccount = domain
       ? await this.store.findAccountByDomain(context.organizationId, context.userId, domain)
       : null;
@@ -342,6 +346,8 @@ export class CrmService {
         }
       });
     }
+
+    await this.createArchivedMatchTimelineIfNeeded(account, archivedMatches, context);
 
     const contact = await this.importContactIfPresent(account, input, context);
     const updatedAccount = contact ? await this.applyImportedContactAccountStatus(account, contact) : account;
@@ -433,7 +439,35 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    return this.changeAccountStatus(id, 'archived', 'account_archived', '归档线索', input.reason, context);
+    const detail = await this.requireScopedAccountDetail(id, context);
+    const fromStatus = detail.account.status;
+    const archiveReason = normalizeNullableString(input.reason);
+    const archivedAt = new Date();
+    const account = await this.store.updateAccount(detail.account.id, { status: 'archived' });
+
+    if (!account) {
+      throw new NotFoundException('线索不存在');
+    }
+
+    const event = await this.store.createTimelineEvent({
+      organizationId: account.organizationId,
+      accountId: account.id,
+      ownerUserId: context.userId,
+      eventType: 'account_archived',
+      title: '归档线索',
+      content: archiveReason,
+      metadata: {
+        fromStatus,
+        toStatus: 'archived'
+      }
+    });
+
+    await this.upsertArchivedFingerprints(account, detail.contacts, archiveReason, archivedAt);
+
+    return {
+      account: toAccountView(account),
+      event: toTimelineEventView(event)
+    };
   }
 
   /** Verifies one scoped contact email with basic syntax and MX lookup. */
@@ -1593,6 +1627,56 @@ export class CrmService {
     };
   }
 
+  private async findArchivedImportMatches(
+    domain: string | null,
+    input: ImportCrmLeadInput,
+    context: CrmUserContext
+  ) {
+    const fingerprints = buildLeadImportFingerprints(domain, input);
+
+    if (fingerprints.length === 0) {
+      return [];
+    }
+
+    return this.store.findArchivedFingerprints({
+      organizationId: context.organizationId,
+      fingerprints
+    });
+  }
+
+  private async createArchivedMatchTimelineIfNeeded(
+    account: CrmAccountRecord,
+    matches: CrmArchivedFingerprintRecord[],
+    context: CrmUserContext
+  ) {
+    if (matches.length === 0) {
+      return;
+    }
+
+    await this.store.createTimelineEvent({
+      organizationId: account.organizationId,
+      accountId: account.id,
+      ownerUserId: context.userId,
+      eventType: 'archived_fingerprint_matched',
+      title: '命中归档历史',
+      content: '该线索命中过往归档记录，请确认是否需要重新开发。',
+      metadata: {
+        matchedFingerprints: matches.map(toArchivedFingerprintMatchMetadata)
+      }
+    });
+  }
+
+  private async upsertArchivedFingerprints(
+    account: CrmAccountRecord,
+    contacts: CrmContactRecord[],
+    archiveReason: string | null,
+    archivedAt: Date
+  ) {
+    const fingerprints = buildArchivedFingerprintInputs(account, contacts, archiveReason, archivedAt);
+
+    await Promise.all(fingerprints.map(fingerprint => this.store.upsertArchivedFingerprint(fingerprint)));
+  }
+
   private async verifyEmailAddress(email: string): Promise<EmailVerificationProbeResult> {
     const parsedEmail = parseEmailAddress(email);
 
@@ -2218,6 +2302,81 @@ function buildReviewChecklist(record: CrmSequenceReviewRecord) {
 
 function toOwnerScope(context: CrmUserContext) {
   return isOrganizationAdmin(context) ? {} : { ownerUserId: context.userId };
+}
+
+function buildLeadImportFingerprints(domain: string | null, input: ImportCrmLeadInput) {
+  const fingerprints: Array<{
+    fingerprintType: CrmArchivedFingerprintType;
+    fingerprintValue: string;
+  }> = [];
+
+  if (domain) {
+    fingerprints.push({
+      fingerprintType: 'domain',
+      fingerprintValue: domain
+    });
+  }
+
+  const email = normalizeEmail(input.contact?.email);
+
+  if (email) {
+    fingerprints.push({
+      fingerprintType: 'email_hash',
+      fingerprintValue: hashEmail(email)
+    });
+  }
+
+  return fingerprints;
+}
+
+function buildArchivedFingerprintInputs(
+  account: CrmAccountRecord,
+  contacts: CrmContactRecord[],
+  archiveReason: string | null,
+  archivedAt: Date
+) {
+  const commonInput = {
+    organizationId: account.organizationId,
+    accountName: account.name,
+    normalizedName: account.normalizedName,
+    country: account.country,
+    sourceAccountId: account.id,
+    sourceTaskId: account.sourceTaskId,
+    archiveReason,
+    archivedAt
+  };
+  const fingerprints: CrmArchivedFingerprintUpsertInput[] = account.domain
+    ? [
+        {
+          ...commonInput,
+          fingerprintType: 'domain',
+          fingerprintValue: account.domain,
+          maskedValue: account.domain,
+          sourceContactId: null
+        }
+      ]
+    : [];
+
+  for (const contact of contacts) {
+    fingerprints.push({
+      ...commonInput,
+      fingerprintType: 'email_hash',
+      fingerprintValue: contact.emailHash,
+      maskedValue: contact.maskedEmail,
+      sourceContactId: contact.id
+    });
+  }
+
+  return fingerprints;
+}
+
+function toArchivedFingerprintMatchMetadata(record: CrmArchivedFingerprintRecord) {
+  return {
+    fingerprintType: record.fingerprintType,
+    maskedValue: record.maskedValue,
+    archivedAt: record.archivedAt.toISOString(),
+    accountName: record.accountName
+  };
 }
 
 function isOrganizationAdmin(context: CrmUserContext) {

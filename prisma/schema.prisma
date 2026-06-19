@@ -71,6 +71,7 @@ model Organization {
   crmContacts       CrmContact[]
   crmTimelineEvents CrmTimelineEvent[]
   crmBlacklists     CrmBlacklist[]
+  crmArchivedFingerprints CrmArchivedFingerprint[]
   crmMailboxes      CrmMailbox[]
   crmMailboxSendUsages CrmMailboxSendUsage[]
   crmProductLines   CrmProductLine[]
@@ -190,6 +191,32 @@ model CrmBlacklist {
   @@unique([organizationId, emailHash])
   @@index([organizationId, reason, updatedAt])
   @@index([organizationId, updatedAt])
+}
+
+model CrmArchivedFingerprint {
+  id               String   @id @default(uuid())
+  organizationId   String
+  fingerprintType  String
+  fingerprintValue String
+  maskedValue      String?
+  accountName      String?
+  normalizedName   String?
+  country          String?
+  sourceAccountId  String?
+  sourceContactId  String?
+  sourceTaskId     String?
+  archiveReason    String?
+  archivedAt       DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, fingerprintType, fingerprintValue])
+  @@index([organizationId, fingerprintType, archivedAt])
+  @@index([organizationId, archivedAt])
+  @@index([sourceAccountId])
+  @@index([sourceContactId])
 }
 
 model CrmTimelineEvent {

@@ -191,6 +191,63 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmBlacklist.upsertCalls[0].create.sourceMessageId, 'inbox-message-1');
   });
 
+  it('finds archived fingerprints by organization and requested fingerprint pairs', async () => {
+    const prisma = createPrisma({
+      archivedFingerprintResults: [
+        createPrismaArchivedFingerprint({ fingerprintType: 'domain', fingerprintValue: 'buyer.example' })
+      ]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const records = await store.findArchivedFingerprints({
+      organizationId: 'org-1',
+      fingerprints: [
+        { fingerprintType: 'domain', fingerprintValue: 'buyer.example' },
+        { fingerprintType: 'email_hash', fingerprintValue: 'email-hash-1' }
+      ]
+    });
+
+    assert.equal(records.length, 1);
+    assert.deepEqual(prisma.crmArchivedFingerprint.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      OR: [
+        { fingerprintType: 'domain', fingerprintValue: 'buyer.example' },
+        { fingerprintType: 'email_hash', fingerprintValue: 'email-hash-1' }
+      ]
+    });
+  });
+
+  it('upserts archived fingerprints by organization type and value', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const archivedAt = new Date('2026-06-18T10:00:00.000Z');
+
+    const record = await store.upsertArchivedFingerprint({
+      organizationId: 'org-1',
+      fingerprintType: 'domain',
+      fingerprintValue: 'buyer.example',
+      maskedValue: 'buyer.example',
+      accountName: 'Buyer Inc',
+      normalizedName: 'buyer inc',
+      country: 'AE',
+      sourceAccountId: 'account-1',
+      sourceContactId: null,
+      sourceTaskId: 'task-1',
+      archiveReason: 'Not a fit',
+      archivedAt
+    });
+
+    assert.equal(record.fingerprintValue, 'buyer.example');
+    assert.deepEqual(prisma.crmArchivedFingerprint.upsertCalls[0].where, {
+      organizationId_fingerprintType_fingerprintValue: {
+        organizationId: 'org-1',
+        fingerprintType: 'domain',
+        fingerprintValue: 'buyer.example'
+      }
+    });
+    assert.equal(prisma.crmArchivedFingerprint.upsertCalls[0].update.archiveReason, 'Not a fit');
+  });
+
   it('loads account detail with member owner scope and newest timeline first', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1352,8 +1409,30 @@ function createPrismaBlacklist(input: Record<string, unknown> = {}) {
   };
 }
 
+function createPrismaArchivedFingerprint(input: Record<string, unknown> = {}) {
+  return {
+    id: 'archived-fingerprint-1',
+    organizationId: 'org-1',
+    fingerprintType: 'domain',
+    fingerprintValue: 'buyer.example',
+    maskedValue: 'buyer.example',
+    accountName: 'Buyer Inc',
+    normalizedName: 'buyer inc',
+    country: 'AE',
+    sourceAccountId: 'account-1',
+    sourceContactId: null,
+    sourceTaskId: 'task-1',
+    archiveReason: 'Not a fit',
+    archivedAt: new Date('2026-06-18T09:00:00.000Z'),
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
+}
+
 function createPrisma(
   options: {
+    archivedFingerprintResults?: ReturnType<typeof createPrismaArchivedFingerprint>[];
     blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
@@ -1714,6 +1793,31 @@ function createPrisma(
         this.upsertCalls.push(args);
         return {
           ...createPrismaBlacklist(),
+          ...args.create,
+          ...args.update,
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        };
+      }
+    },
+    crmArchivedFingerprint: {
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
+        this.findManyCalls.push(args);
+        return options.archivedFingerprintResults ?? [];
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+        return {
+          ...createPrismaArchivedFingerprint(),
           ...args.create,
           ...args.update,
           updatedAt: new Date('2026-06-18T10:00:00.000Z')

@@ -59,6 +59,7 @@ export const ModelName = {
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
   CrmBlacklist: 'CrmBlacklist',
+  CrmArchivedFingerprint: 'CrmArchivedFingerprint',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
@@ -237,6 +238,27 @@ export const CrmBlacklistScalarFieldEnum = {
 } as const
 
 export type CrmBlacklistScalarFieldEnum = (typeof CrmBlacklistScalarFieldEnum)[keyof typeof CrmBlacklistScalarFieldEnum]
+
+
+export const CrmArchivedFingerprintScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  fingerprintType: 'fingerprintType',
+  fingerprintValue: 'fingerprintValue',
+  maskedValue: 'maskedValue',
+  accountName: 'accountName',
+  normalizedName: 'normalizedName',
+  country: 'country',
+  sourceAccountId: 'sourceAccountId',
+  sourceContactId: 'sourceContactId',
+  sourceTaskId: 'sourceTaskId',
+  archiveReason: 'archiveReason',
+  archivedAt: 'archivedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmArchivedFingerprintScalarFieldEnum = (typeof CrmArchivedFingerprintScalarFieldEnum)[keyof typeof CrmArchivedFingerprintScalarFieldEnum]
 
 
 export const CrmTimelineEventScalarFieldEnum = {

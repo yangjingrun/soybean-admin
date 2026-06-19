@@ -8,6 +8,7 @@ import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gma
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmService } from './crm.service';
 import type {
+  CrmArchivedFingerprintRecord,
   CrmBlacklistRecord,
   CrmEmailVerificationCacheRecord,
   CrmGlobalConfigRecord,
@@ -343,6 +344,47 @@ describe('CrmService', () => {
     assert.equal(store.accounts.length, 2);
   });
 
+  it('records a timeline warning when importing an account that matches organization archived fingerprints', async () => {
+    const store = createStore([], {
+      archivedFingerprints: [
+        createArchivedFingerprint({
+          organizationId: 'org-1',
+          fingerprintType: 'domain',
+          fingerprintValue: 'buyer.example',
+          maskedValue: 'buyer.example',
+          accountName: 'Archived Buyer'
+        })
+      ]
+    });
+    const service = new CrmService(store, createDnsResolver([]));
+
+    const result = await service.importAccountFromLead(
+      {
+        name: 'Buyer Inc',
+        websiteUrl: 'https://buyer.example',
+        contact: {
+          fullName: 'Alice Buyer',
+          title: 'Purchasing Manager',
+          email: 'alice@buyer.example'
+        }
+      },
+      createContext()
+    );
+
+    assert.equal(result.account.domain, 'buyer.example');
+    assert.equal(store.timelineEvents.some(event => event.eventType === 'archived_fingerprint_matched'), true);
+    assert.deepEqual(store.timelineEvents.find(event => event.eventType === 'archived_fingerprint_matched')?.metadata, {
+      matchedFingerprints: [
+        {
+          fingerprintType: 'domain',
+          maskedValue: 'buyer.example',
+          archivedAt: '2026-06-18T09:00:00.000Z',
+          accountName: 'Archived Buyer'
+        }
+      ]
+    });
+  });
+
   it('normalizes domains with uppercase URL schemes', async () => {
     const store = createStore();
     const service = new CrmService(store);
@@ -455,12 +497,44 @@ describe('CrmService', () => {
   });
 
   it('archives scoped accounts with archive timeline metadata', async () => {
-    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })]);
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready', domain: 'buyer.example' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          email: 'alice@buyer.example',
+          emailHash: hashTestEmail('alice@buyer.example'),
+          maskedEmail: 'a***@buyer.example'
+        })
+      ]
+    });
     const service = new CrmService(store);
 
     const result = await service.archiveAccount('account-1', { reason: '  Not a fit  ' }, createContext());
 
     assert.equal(result.account.status, 'archived');
+    assert.deepEqual(
+      store.archivedFingerprints.map(fingerprint => ({
+        fingerprintType: fingerprint.fingerprintType,
+        fingerprintValue: fingerprint.fingerprintValue,
+        maskedValue: fingerprint.maskedValue,
+        archiveReason: fingerprint.archiveReason
+      })),
+      [
+        {
+          fingerprintType: 'domain',
+          fingerprintValue: 'buyer.example',
+          maskedValue: 'buyer.example',
+          archiveReason: 'Not a fit'
+        },
+        {
+          fingerprintType: 'email_hash',
+          fingerprintValue: hashTestEmail('alice@buyer.example'),
+          maskedValue: 'a***@buyer.example',
+          archiveReason: 'Not a fit'
+        }
+      ]
+    );
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'account_archived');
     assert.equal(store.timelineEvents.at(-1)?.title, '归档线索');
     assert.equal(store.timelineEvents.at(-1)?.content, 'Not a fit');
@@ -2067,6 +2141,7 @@ function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext 
 function createStore(
   initialAccounts: TestAccount[] = [],
   initialData: {
+    archivedFingerprints?: TestArchivedFingerprint[];
     contacts?: TestContact[];
     blacklists?: TestBlacklist[];
     timelineEvents?: TestTimelineEvent[];
@@ -2081,6 +2156,7 @@ function createStore(
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
+  archivedFingerprints: TestArchivedFingerprint[];
   contacts: TestContact[];
   blacklists: TestBlacklist[];
   emailVerificationCaches: TestEmailVerificationCache[];
@@ -2114,6 +2190,7 @@ function createStore(
   lastMessageDetailArgs?: Parameters<CrmStore['findMessageById']>[0];
 } {
   const accounts = [...initialAccounts];
+  const archivedFingerprints: TestArchivedFingerprint[] = [...(initialData.archivedFingerprints ?? [])];
   const contacts: TestContact[] = [...(initialData.contacts ?? [])];
   const blacklists: TestBlacklist[] = [...(initialData.blacklists ?? [])];
   const emailVerificationCaches: TestEmailVerificationCache[] = [...(initialData.emailVerificationCaches ?? [])];
@@ -2132,6 +2209,7 @@ function createStore(
 
   return {
     accounts,
+    archivedFingerprints,
     contacts,
     blacklists,
     emailVerificationCaches,
@@ -2254,6 +2332,37 @@ function createStore(
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
       return globalConfig;
+    },
+    async findArchivedFingerprints(input) {
+      return archivedFingerprints.filter(fingerprint => {
+        if (fingerprint.organizationId !== input.organizationId) return false;
+
+        return input.fingerprints.some(
+          item =>
+            item.fingerprintType === fingerprint.fingerprintType &&
+            item.fingerprintValue === fingerprint.fingerprintValue
+        );
+      });
+    },
+    async upsertArchivedFingerprint(input) {
+      const existingFingerprint = archivedFingerprints.find(
+        fingerprint =>
+          fingerprint.organizationId === input.organizationId &&
+          fingerprint.fingerprintType === input.fingerprintType &&
+          fingerprint.fingerprintValue === input.fingerprintValue
+      );
+
+      if (existingFingerprint) {
+        Object.assign(existingFingerprint, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+        return existingFingerprint;
+      }
+
+      const fingerprint = createArchivedFingerprint({
+        ...input,
+        id: `archived-fingerprint-${archivedFingerprints.length + 1}`
+      });
+      archivedFingerprints.push(fingerprint);
+      return fingerprint;
     },
     async findBlacklistEntry(args) {
       return (
@@ -3227,6 +3336,26 @@ function createContact(input: Partial<TestContact> = {}): TestContact {
   };
 }
 
+function createArchivedFingerprint(input: Partial<TestArchivedFingerprint> = {}): TestArchivedFingerprint {
+  return {
+    id: input.id || 'archived-fingerprint-1',
+    organizationId: input.organizationId || 'org-1',
+    fingerprintType: input.fingerprintType || 'domain',
+    fingerprintValue: input.fingerprintValue || 'account.example',
+    maskedValue: input.maskedValue ?? 'account.example',
+    accountName: input.accountName ?? 'Account',
+    normalizedName: input.normalizedName ?? 'account',
+    country: input.country ?? null,
+    sourceAccountId: input.sourceAccountId ?? 'account-1',
+    sourceContactId: input.sourceContactId ?? null,
+    sourceTaskId: input.sourceTaskId ?? null,
+    archiveReason: input.archiveReason ?? null,
+    archivedAt: input.archivedAt || new Date('2026-06-18T09:00:00.000Z'),
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
 function createBlacklist(input: Partial<TestBlacklist> = {}): TestBlacklist {
   return {
     id: input.id || 'blacklist-1',
@@ -3476,6 +3605,7 @@ function buildInboxThreadListRecord(
 }
 
 type TestAccount = Awaited<ReturnType<CrmStore['createAccount']>>;
+type TestArchivedFingerprint = CrmArchivedFingerprintRecord;
 type TestBlacklist = CrmBlacklistRecord;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestEmailVerificationCache = CrmEmailVerificationCacheRecord;

@@ -392,6 +392,7 @@ export const ModelName = {
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
   CrmBlacklist: 'CrmBlacklist',
+  CrmArchivedFingerprint: 'CrmArchivedFingerprint',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
@@ -425,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmBlacklist" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1018,6 +1019,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmBlacklistCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmBlacklistCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmArchivedFingerprint: {
+      payload: Prisma.$CrmArchivedFingerprintPayload<ExtArgs>
+      fields: Prisma.CrmArchivedFingerprintFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmArchivedFingerprintFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmArchivedFingerprintFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmArchivedFingerprintFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmArchivedFingerprintFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>
+        }
+        findMany: {
+          args: Prisma.CrmArchivedFingerprintFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>[]
+        }
+        create: {
+          args: Prisma.CrmArchivedFingerprintCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>
+        }
+        createMany: {
+          args: Prisma.CrmArchivedFingerprintCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmArchivedFingerprintCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmArchivedFingerprintDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>
+        }
+        update: {
+          args: Prisma.CrmArchivedFingerprintUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmArchivedFingerprintDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmArchivedFingerprintUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmArchivedFingerprintUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmArchivedFingerprintUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmArchivedFingerprintPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmArchivedFingerprintAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmArchivedFingerprint>
+        }
+        groupBy: {
+          args: Prisma.CrmArchivedFingerprintGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmArchivedFingerprintGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmArchivedFingerprintCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmArchivedFingerprintCountAggregateOutputType> | number
         }
       }
     }
@@ -2536,6 +2611,27 @@ export const CrmBlacklistScalarFieldEnum = {
 export type CrmBlacklistScalarFieldEnum = (typeof CrmBlacklistScalarFieldEnum)[keyof typeof CrmBlacklistScalarFieldEnum]
 
 
+export const CrmArchivedFingerprintScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  fingerprintType: 'fingerprintType',
+  fingerprintValue: 'fingerprintValue',
+  maskedValue: 'maskedValue',
+  accountName: 'accountName',
+  normalizedName: 'normalizedName',
+  country: 'country',
+  sourceAccountId: 'sourceAccountId',
+  sourceContactId: 'sourceContactId',
+  sourceTaskId: 'sourceTaskId',
+  archiveReason: 'archiveReason',
+  archivedAt: 'archivedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmArchivedFingerprintScalarFieldEnum = (typeof CrmArchivedFingerprintScalarFieldEnum)[keyof typeof CrmArchivedFingerprintScalarFieldEnum]
+
+
 export const CrmTimelineEventScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -3125,6 +3221,7 @@ export type GlobalOmitConfig = {
   crmEmailVerificationCache?: Prisma.CrmEmailVerificationCacheOmit
   crmGlobalConfig?: Prisma.CrmGlobalConfigOmit
   crmBlacklist?: Prisma.CrmBlacklistOmit
+  crmArchivedFingerprint?: Prisma.CrmArchivedFingerprintOmit
   crmTimelineEvent?: Prisma.CrmTimelineEventOmit
   crmMailbox?: Prisma.CrmMailboxOmit
   crmMailboxSendUsage?: Prisma.CrmMailboxSendUsageOmit

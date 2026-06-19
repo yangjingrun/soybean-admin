@@ -58,6 +58,11 @@ export type CrmGlobalConfig = Prisma.CrmGlobalConfigModel
  */
 export type CrmBlacklist = Prisma.CrmBlacklistModel
 /**
+ * Model CrmArchivedFingerprint
+ *
+ */
+export type CrmArchivedFingerprint = Prisma.CrmArchivedFingerprintModel
+/**
  * Model CrmTimelineEvent
  *
  */

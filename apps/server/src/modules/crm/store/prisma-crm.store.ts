@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
+import type { CrmArchivedFingerprintModel } from '../../../generated/prisma/models/CrmArchivedFingerprint';
 import type { CrmBlacklistModel } from '../../../generated/prisma/models/CrmBlacklist';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
 import type { CrmEmailVerificationCacheModel } from '../../../generated/prisma/models/CrmEmailVerificationCache';
@@ -18,6 +19,9 @@ import type {
   CrmAccountRecord,
   CrmAccountStatus,
   CrmAccountUpdateInput,
+  CrmArchivedFingerprintLookupInput,
+  CrmArchivedFingerprintRecord,
+  CrmArchivedFingerprintUpsertInput,
   CrmBlacklistRecord,
   CrmBlacklistUpsertInput,
   CrmMailboxCreateInput,
@@ -289,6 +293,53 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return toBlacklistRecord(record);
+  }
+
+  async findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput) {
+    if (input.fingerprints.length === 0) {
+      return [];
+    }
+
+    const records = await this.prisma.crmArchivedFingerprint.findMany({
+      where: {
+        organizationId: input.organizationId,
+        OR: input.fingerprints.map(fingerprint => ({
+          fingerprintType: fingerprint.fingerprintType,
+          fingerprintValue: fingerprint.fingerprintValue
+        }))
+      },
+      orderBy: {
+        archivedAt: 'desc'
+      }
+    });
+
+    return records.map(toArchivedFingerprintRecord);
+  }
+
+  async upsertArchivedFingerprint(input: CrmArchivedFingerprintUpsertInput) {
+    const record = await this.prisma.crmArchivedFingerprint.upsert({
+      where: {
+        organizationId_fingerprintType_fingerprintValue: {
+          organizationId: input.organizationId,
+          fingerprintType: input.fingerprintType,
+          fingerprintValue: input.fingerprintValue
+        }
+      },
+      create: input,
+      update: {
+        maskedValue: input.maskedValue ?? null,
+        accountName: input.accountName ?? null,
+        normalizedName: input.normalizedName ?? null,
+        country: input.country ?? null,
+        sourceAccountId: input.sourceAccountId ?? null,
+        sourceContactId: input.sourceContactId ?? null,
+        sourceTaskId: input.sourceTaskId ?? null,
+        archiveReason: input.archiveReason ?? null,
+        archivedAt: input.archivedAt
+      }
+    });
+
+    return toArchivedFingerprintRecord(record);
   }
 
   async listAccounts(args: {
@@ -2030,6 +2081,13 @@ function toAccountRecord(record: CrmAccountModel): CrmAccountRecord {
   return {
     ...record,
     status: record.status as CrmAccountRecord['status']
+  };
+}
+
+function toArchivedFingerprintRecord(record: CrmArchivedFingerprintModel): CrmArchivedFingerprintRecord {
+  return {
+    ...record,
+    fingerprintType: record.fingerprintType as CrmArchivedFingerprintRecord['fingerprintType']
   };
 }
 

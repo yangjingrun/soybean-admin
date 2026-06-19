@@ -45,6 +45,7 @@ export const crmInboxThreadStatuses = ['pending', 'handled', 'archived'] as cons
 export const crmInboxMessageTypes = ['customer_reply', 'bounce', 'unsubscribe_hint'] as const;
 
 export type CrmMailboxProvider = 'gmail';
+export type CrmArchivedFingerprintType = 'domain' | 'email_hash';
 export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
 export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
 export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
@@ -172,6 +173,47 @@ export interface CrmBlacklistUpsertInput {
   sourceMessageId?: string | null;
   createdById?: string | null;
   createdByName?: string | null;
+}
+
+export interface CrmArchivedFingerprintRecord {
+  id: string;
+  organizationId: string;
+  fingerprintType: CrmArchivedFingerprintType;
+  fingerprintValue: string;
+  maskedValue: string | null;
+  accountName: string | null;
+  normalizedName: string | null;
+  country: string | null;
+  sourceAccountId: string | null;
+  sourceContactId: string | null;
+  sourceTaskId: string | null;
+  archiveReason: string | null;
+  archivedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmArchivedFingerprintLookupInput {
+  organizationId: string;
+  fingerprints: Array<{
+    fingerprintType: CrmArchivedFingerprintType;
+    fingerprintValue: string;
+  }>;
+}
+
+export interface CrmArchivedFingerprintUpsertInput {
+  organizationId: string;
+  fingerprintType: CrmArchivedFingerprintType;
+  fingerprintValue: string;
+  maskedValue?: string | null;
+  accountName?: string | null;
+  normalizedName?: string | null;
+  country?: string | null;
+  sourceAccountId?: string | null;
+  sourceContactId?: string | null;
+  sourceTaskId?: string | null;
+  archiveReason?: string | null;
+  archivedAt: Date;
 }
 
 export interface CrmTimelineEventRecord {
@@ -869,6 +911,8 @@ export interface CrmStore {
   saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;
   upsertBlacklistEntry(input: CrmBlacklistUpsertInput): Promise<CrmBlacklistRecord>;
+  findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput): Promise<CrmArchivedFingerprintRecord[]>;
+  upsertArchivedFingerprint(input: CrmArchivedFingerprintUpsertInput): Promise<CrmArchivedFingerprintRecord>;
   listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;
