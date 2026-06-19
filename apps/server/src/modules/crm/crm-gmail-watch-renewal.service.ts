@@ -110,6 +110,8 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
 
     try {
       await this.renewDueMailboxWatches();
+    } catch (error) {
+      await this.recordScheduledRenewalFailureLog(error instanceof Error ? error.message : String(error));
     } finally {
       this.renewalRunning = false;
     }
@@ -217,6 +219,20 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
       action: 'gmail-watch-auto-renew-summary',
       message: 'CRM Gmail watch 自动续订批次完成',
       metadata: result
+    });
+  }
+
+  private recordScheduledRenewalFailureLog(reason: string) {
+    return this.systemLogService?.record({
+      level: 'error',
+      status: 'failed',
+      module: 'crm',
+      action: 'gmail-watch-auto-renew-scheduled-failed',
+      message: 'CRM Gmail watch 自动续订调度失败',
+      errorMessage: reason,
+      metadata: {
+        reason
+      }
     });
   }
 }

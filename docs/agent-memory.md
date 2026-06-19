@@ -311,6 +311,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认未完成的 scheduled renewal 不会被 interval 重入，完成后后续 tick 可继续执行。
 
+### 2026-06-19 Gmail watch 自动续订调度失败要捕获并记录日志
+
+- 场景：自动续订定时任务在调度入口调用 `renewDueMailboxWatches()`，批次开始阶段可能因为数据库查询、连接池或 store 层错误直接抛出。
+- 坑点：如果只在每个 mailbox 循环里捕获错误，批次级错误会从 `void this.runScheduledRenewal()` 泄漏成 unhandled rejection，定时任务失败也没有业务日志可查。
+- 正确做法：自动调度路径 `runScheduledRenewal()` 要 catch 批次级异常并写 `gmail-watch-auto-renew-scheduled-failed` 系统日志；显式调用 `renewDueMailboxWatches()` 保持抛错语义，避免隐藏人工触发或测试中的真实失败。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认批次级 store 错误不会产生 unhandled rejection，并会写调度失败日志。
+
 ### 记录模板
 
 ```md

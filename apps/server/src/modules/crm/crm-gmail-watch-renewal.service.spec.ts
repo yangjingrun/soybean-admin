@@ -48,6 +48,63 @@ describe('CrmGmailWatchRenewalService', () => {
     }
   });
 
+  it('records scheduled renewal batch failures without leaking an unhandled rejection', async () => {
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    const intervalCallbacks: Array<() => void> = [];
+    const store = createStore([createMailbox()]);
+    const logs = createLogRecorder();
+    const service = new CrmGmailWatchRenewalService(store, createGateway(), logs.service);
+    let unhandledRejectionCount = 0;
+    const handleUnhandledRejection = () => {
+      unhandledRejectionCount += 1;
+    };
+
+    store.setListMailboxesForWatchRenewalOverride(async input => {
+      store.renewalListCalls.push(input);
+      throw new Error('database unavailable');
+    });
+
+    globalThis.setInterval = ((callback: () => void) => {
+      intervalCallbacks.push(callback);
+
+      return {
+        unref() {}
+      };
+    }) as typeof setInterval;
+    globalThis.clearInterval = (() => {}) as typeof clearInterval;
+    process.on('unhandledRejection', handleUnhandledRejection);
+
+    try {
+      service.onModuleInit();
+      await new Promise(resolve => {
+        setTimeout(resolve, 0);
+      });
+      intervalCallbacks[0]();
+      await new Promise(resolve => {
+        setTimeout(resolve, 0);
+      });
+
+      assert.equal(unhandledRejectionCount, 0);
+      assert.equal(store.renewalListCalls.length, 2);
+      assert.equal(logs.records.filter(record => record.action === 'gmail-watch-auto-renew-scheduled-failed').length, 2);
+      assert.deepEqual(logs.records[0], {
+        level: 'error',
+        status: 'failed',
+        action: 'gmail-watch-auto-renew-scheduled-failed',
+        errorMessage: 'database unavailable',
+        metadata: {
+          reason: 'database unavailable'
+        }
+      });
+    } finally {
+      service.onModuleDestroy();
+      process.off('unhandledRejection', handleUnhandledRejection);
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
+  });
+
   it('renews due active Gmail watches without advancing an existing history checkpoint', async () => {
     const mailbox = createMailbox({
       lastHistoryId: '100',
