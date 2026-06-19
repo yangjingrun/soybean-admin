@@ -10,6 +10,7 @@ import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.
 import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
 import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
 import { createCrmGmailIntegrationProviders } from './crm-gmail-provider.factory';
+import { CrmGmailWatchRenewalService } from './crm-gmail-watch-renewal.service';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmGmailWebhookController } from './crm-gmail-webhook.controller';
 import { CrmGmailWebhookService } from './crm-gmail-webhook.service';
@@ -40,6 +41,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmGmailHistorySyncWorkerService,
     CrmGmailHistorySyncWorkerHost,
     CrmGmailWatchService,
+    CrmGmailWatchRenewalService,
     CrmSendWorkerService,
     CrmSendWorkerHost,
     {

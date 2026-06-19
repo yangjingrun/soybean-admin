@@ -24,7 +24,7 @@ import {
   type DraftReviewSavePayload
 } from './shared';
 
-/** Manage first-email review list, creation resources and draft drawer operations. */
+/** Manage sequence review list, creation resources and draft drawer operations. */
 export function useEmailSequenceTable() {
   const message = useMessage();
   const route = useRoute();

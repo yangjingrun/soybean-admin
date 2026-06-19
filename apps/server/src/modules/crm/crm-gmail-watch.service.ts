@@ -2,9 +2,9 @@ import { BadRequestException, Inject, Injectable, NotFoundException, Optional } 
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
-import { CRM_GMAIL_WATCH_GATEWAY, CRM_STORE } from './crm.tokens';
+import { CRM_GMAIL_HISTORY_SYNC_QUEUE, CRM_GMAIL_WATCH_GATEWAY, CRM_STORE } from './crm.tokens';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
-import type { CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
+import type { CrmGmailHistorySyncQueuePort, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
 
 @Injectable()
 export class CrmGmailWatchService {
@@ -16,7 +16,10 @@ export class CrmGmailWatchService {
     private readonly systemLogService?: SystemLogRecorder,
     @Optional()
     @Inject(SystemNotificationService)
-    private readonly systemNotificationService?: SystemNotificationService
+    private readonly systemNotificationService?: SystemNotificationService,
+    @Optional()
+    @Inject(CRM_GMAIL_HISTORY_SYNC_QUEUE)
+    private readonly historySyncQueue?: CrmGmailHistorySyncQueuePort
   ) {}
 
   /** Renews Gmail watch for a scoped active mailbox and stores the returned checkpoint. */
@@ -56,6 +59,83 @@ export class CrmGmailWatchService {
     };
   }
 
+  /** Renews Gmail watch and enqueues an immediate incremental sync without advancing the checkpoint early. */
+  async syncMailboxNow(id: string, context: CrmUserContext) {
+    const mailbox = await this.requireActiveScopedMailbox(id, context);
+    const renewal = await this.renewWatchOrMarkAuthorizationExpired(mailbox, context);
+    const fromHistoryId = mailbox.lastHistoryId;
+    const updatedMailbox = await this.store.updateMailbox(mailbox.id, {
+      watchExpiration: renewal.watchExpiration,
+      ...(fromHistoryId ? {} : { lastHistoryId: renewal.historyId })
+    });
+
+    if (!updatedMailbox) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    await this.recordWatchLog(context, updatedMailbox, renewal);
+
+    if (!fromHistoryId || isHistoryIdAtOrBefore(renewal.historyId, fromHistoryId)) {
+      return {
+        mailbox: toMailboxView(updatedMailbox),
+        watch: {
+          historyId: renewal.historyId,
+          watchExpiration: renewal.watchExpiration.toISOString()
+        },
+        sync: {
+          queued: false,
+          reason: fromHistoryId ? 'already_current' : 'checkpoint_initialized',
+          fromHistoryId,
+          toHistoryId: renewal.historyId
+        }
+      };
+    }
+
+    const queue = this.requireHistorySyncQueue();
+    const { jobId } = await queue.enqueueHistorySync({
+      mailboxId: mailbox.id,
+      organizationId: mailbox.organizationId,
+      ownerUserId: mailbox.ownerUserId,
+      emailAddress: mailbox.emailAddress,
+      emailHash: mailbox.emailHash,
+      historyId: renewal.historyId,
+      pubsubMessageId: null,
+      publishTime: null
+    });
+
+    return {
+      mailbox: toMailboxView(updatedMailbox),
+      watch: {
+        historyId: renewal.historyId,
+        watchExpiration: renewal.watchExpiration.toISOString()
+      },
+      sync: {
+        queued: true,
+        jobId,
+        fromHistoryId,
+        toHistoryId: renewal.historyId
+      }
+    };
+  }
+
+  private async requireActiveScopedMailbox(id: string, context: CrmUserContext) {
+    const mailbox = await this.store.findMailboxById({
+      id,
+      organizationId: context.organizationId,
+      ...toOwnerScope(context)
+    });
+
+    if (!mailbox) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    if (mailbox.status !== 'active') {
+      throw new BadRequestException('邮箱未启用');
+    }
+
+    return mailbox;
+  }
+
   private async renewWatchOrMarkAuthorizationExpired(mailbox: CrmMailboxRecord, context: CrmUserContext) {
     try {
       return await this.gateway.renewWatch({ mailbox });
@@ -67,6 +147,14 @@ export class CrmGmailWatchService {
       await this.markMailboxAuthorizationExpired(mailbox, context, error);
       throw new BadRequestException('Gmail 授权已失效，请重新授权');
     }
+  }
+
+  private requireHistorySyncQueue() {
+    if (!this.historySyncQueue) {
+      throw new BadRequestException('Gmail 同步队列未配置');
+    }
+
+    return this.historySyncQueue;
   }
 
   private async markMailboxAuthorizationExpired(
@@ -171,4 +259,8 @@ function toOwnerScope(context: CrmUserContext) {
 
 function isOrganizationAdmin(context: CrmUserContext) {
   return context.organizationRole === 'admin' || context.roles.includes('R_SUPER');
+}
+
+function isHistoryIdAtOrBefore(historyId: string, lastHistoryId: string) {
+  return BigInt(historyId) <= BigInt(lastHistoryId);
 }

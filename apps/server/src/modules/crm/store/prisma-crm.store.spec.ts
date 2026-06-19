@@ -421,6 +421,28 @@ describe('PrismaCrmStore', () => {
     assert.deepEqual(prisma.crmMailbox.findManyCalls[0].orderBy, { updatedAt: 'desc' });
   });
 
+  it('lists active Gmail mailboxes that need watch renewal', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const renewBefore = new Date('2026-06-19T12:00:00.000Z');
+
+    await store.listMailboxesForWatchRenewal({
+      provider: 'gmail',
+      renewBefore,
+      take: 25
+    });
+
+    assert.deepEqual(prisma.crmMailbox.findManyCalls[0], {
+      where: {
+        provider: 'gmail',
+        status: 'active',
+        OR: [{ watchExpiration: null }, { watchExpiration: { lte: renewBefore } }]
+      },
+      orderBy: [{ watchExpiration: 'asc' }, { updatedAt: 'asc' }],
+      take: 25
+    });
+  });
+
   it('finds and updates mailboxes through scoped identity reads before writes', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);

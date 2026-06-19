@@ -471,6 +471,12 @@ export interface CrmMailboxUpdateInput {
   pausedAt?: Date | null;
 }
 
+export interface CrmMailboxWatchRenewalListInput {
+  provider: CrmMailboxProvider;
+  renewBefore: Date;
+  take: number;
+}
+
 export interface CrmProductLineCreateInput {
   organizationId: string;
   name: string;
@@ -666,7 +672,13 @@ export interface CrmMailboxHistoryAdvanceInput {
 
 export interface CrmGmailHistorySyncResult {
   status: 'synced' | 'skipped';
-  reason?: 'mailbox_not_found' | 'mailbox_not_active' | 'stale_history' | 'checkpoint_conflict' | 'authorization_expired';
+  reason?:
+    | 'mailbox_not_found'
+    | 'mailbox_not_active'
+    | 'stale_history'
+    | 'checkpoint_conflict'
+    | 'authorization_expired'
+    | 'history_expired';
   mailboxId: string;
   fromHistoryId: string | null;
   toHistoryId: string;
@@ -946,6 +958,7 @@ export interface CrmStore {
     ownerUserId?: string;
   }): Promise<CrmMailboxRecord | null>;
   updateMailbox(id: string, input: CrmMailboxUpdateInput): Promise<CrmMailboxRecord | null>;
+  listMailboxesForWatchRenewal(input: CrmMailboxWatchRenewalListInput): Promise<CrmMailboxRecord[]>;
   listProductLines(args: {
     organizationId: string;
     keyword?: string;

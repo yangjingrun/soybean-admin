@@ -5,6 +5,7 @@ import { CrmGmailOAuthTokenProvider } from './crm-gmail-oauth-token.provider';
 import { CrmGmailApiWatchGateway, MockCrmGmailWatchGateway } from './crm-gmail-watch.gateway';
 
 export interface CrmGmailIntegrationEnv {
+  NODE_ENV?: string;
   CRM_GMAIL_OAUTH_CLIENT_ID?: string;
   CRM_GMAIL_OAUTH_CLIENT_SECRET?: string;
   CRM_GMAIL_OAUTH_REDIRECT_URI?: string;
@@ -15,6 +16,8 @@ export interface CrmGmailIntegrationEnv {
 
 /** Creates the Gmail integration providers from platform env without leaking secrets to logs or clients. */
 export function createCrmGmailIntegrationProviders(env: CrmGmailIntegrationEnv) {
+  assertProductionGmailConfig(env);
+
   const tokenConfig = createTokenConfig(env);
   const oauthConfig = tokenConfig ? createOAuthFlowConfig(env, tokenConfig) : null;
   const topicName = normalizeEnvString(env.CRM_GMAIL_PUBSUB_TOPIC_NAME);
@@ -33,6 +36,26 @@ export function createCrmGmailIntegrationProviders(env: CrmGmailIntegrationEnv) 
     emailSendGateway,
     watchGateway
   };
+}
+
+function assertProductionGmailConfig(env: CrmGmailIntegrationEnv) {
+  if (env.NODE_ENV !== 'production') {
+    return;
+  }
+
+  const requiredKeys: Array<keyof CrmGmailIntegrationEnv> = [
+    'CRM_GMAIL_OAUTH_CLIENT_ID',
+    'CRM_GMAIL_OAUTH_CLIENT_SECRET',
+    'CRM_GMAIL_OAUTH_REDIRECT_URI',
+    'CRM_GMAIL_TOKEN_ENCRYPTION_KEY',
+    'CRM_GMAIL_OAUTH_STATE_SECRET',
+    'CRM_GMAIL_PUBSUB_TOPIC_NAME'
+  ];
+  const missingKeys = requiredKeys.filter(key => !normalizeEnvString(env[key]));
+
+  if (missingKeys.length > 0) {
+    throw new Error(`CRM Gmail production config missing: ${missingKeys.join(', ')}`);
+  }
 }
 
 function createTokenConfig(env: CrmGmailIntegrationEnv) {

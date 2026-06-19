@@ -217,7 +217,7 @@ describe('CrmController', () => {
   it('mock authorizes mailbox with the current user context', async () => {
     const calls: Array<{ dto: { emailAddress: string }; context: CrmUserContext }> = [];
     const controller = new CrmController(
-      createAuthService(),
+      createAuthService(createUser({ roles: ['R_SUPER'] })),
       createCrmService({
         async mockAuthorizeMailbox(dto, context) {
           calls.push({ dto, context });
@@ -228,12 +228,51 @@ describe('CrmController', () => {
     );
 
     const dto = { emailAddress: 'Alice@Gmail.COM' };
-    const result = await controller.mockAuthorizeMailbox('Bearer token', dto);
+    const result = await withCrmMockEndpointsEnabled(() => controller.mockAuthorizeMailbox('Bearer token', dto));
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].dto, dto);
     assert.equal(calls[0].context.organizationId, 'org-1');
     assert.equal(result.data.mailbox.emailAddress, 'alice@gmail.com');
+  });
+
+  it('rejects CRM mock endpoints unless explicitly enabled', async () => {
+    const controller = new CrmController(createAuthService(), createCrmService());
+
+    await assert.rejects(
+      () => controller.mockAuthorizeMailbox('Bearer token', { emailAddress: 'alice@gmail.com' }),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () => controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' }),
+      ForbiddenException
+    );
+  });
+
+  it('rejects CRM mock endpoints for ordinary users even when enabled', async () => {
+    const controller = new CrmController(createAuthService(), createCrmService());
+
+    await assert.rejects(
+      () =>
+        withCrmMockEndpointsEnabled(() =>
+          controller.mockAuthorizeMailbox('Bearer token', { emailAddress: 'alice@gmail.com' })
+        ),
+      ForbiddenException
+    );
+  });
+
+  it('rejects CRM mock endpoints in production even when the switch is enabled', async () => {
+    const controller = new CrmController(createAuthService(createUser({ roles: ['R_SUPER'] })), createCrmService());
+
+    await assert.rejects(
+      () =>
+        withNodeEnv('production', () =>
+          withCrmMockEndpointsEnabled(() =>
+            controller.mockAuthorizeMailbox('Bearer token', { emailAddress: 'alice@gmail.com' })
+          )
+        ),
+      ForbiddenException
+    );
   });
 
   it('creates a Gmail OAuth URL with the current user context', async () => {
@@ -362,6 +401,37 @@ describe('CrmController', () => {
     assert.equal(result.code, '0000');
     assert.ok(result.data);
     assert.equal(result.data.watch.historyId, '150');
+    assert.deepEqual(calls.map(call => ({ id: call.id, userId: call.context.userId })), [
+      { id: 'mailbox-1', userId: 'user-1' }
+    ]);
+  });
+
+  it('enqueues an immediate Gmail sync with the current user context', async () => {
+    const calls: Array<{ id: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(createAuthService(), createCrmService(), {
+      async syncMailboxNow(id: string, context: CrmUserContext) {
+        calls.push({ id, context });
+
+        return {
+          mailbox: createMailboxView({ id, watchExpiration: '2026-06-26T08:00:00.000Z', lastHistoryId: '100' }),
+          watch: {
+            historyId: '150',
+            watchExpiration: '2026-06-26T08:00:00.000Z'
+          },
+          sync: {
+            queued: true,
+            jobId: 'mailbox-1:150:manual',
+            fromHistoryId: '100',
+            toHistoryId: '150'
+          }
+        };
+      }
+    } as never);
+
+    const result = await controller.syncMailboxNow('Bearer token', 'mailbox-1');
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.sync.queued, true);
     assert.deepEqual(calls.map(call => ({ id: call.id, userId: call.context.userId })), [
       { id: 'mailbox-1', userId: 'user-1' }
     ]);
@@ -564,7 +634,7 @@ describe('CrmController', () => {
   it('lists, reads, updates and mock-ingests inbox replies with the current user context', async () => {
     const calls: Array<{ action: string; id?: string; payload?: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
-      createAuthService(),
+      createAuthService(createUser({ roles: ['R_SUPER'] })),
       createCrmService({
         async listInboxThreads(context, query) {
           calls.push({ action: 'list-inbox', payload: query, context });
@@ -623,7 +693,9 @@ describe('CrmController', () => {
     const detail = await controller.getInboxThread('Bearer token', 'inbox-thread-1');
     const status = await controller.updateInboxThreadStatus('Bearer token', 'inbox-thread-1', { status: 'handled' });
     const sentReply = await controller.replyInboxThread('Bearer token', 'inbox-thread-1', { bodyText: 'Thanks.' });
-    const reply = await controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' });
+    const reply = await withCrmMockEndpointsEnabled(() =>
+      controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' })
+    );
 
     assert.equal(listed.data.records[0].id, 'inbox-thread-1');
     assert.equal(detail.data.thread.id, 'inbox-thread-1');
@@ -1036,6 +1108,36 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
     updatedAt: '1970-01-01T00:00:00.000Z',
     ...overrides
   };
+}
+
+async function withCrmMockEndpointsEnabled<T>(callback: () => Promise<T>) {
+  const previousValue = process.env.CRM_ENABLE_MOCK_ENDPOINTS;
+  process.env.CRM_ENABLE_MOCK_ENDPOINTS = 'true';
+
+  try {
+    return await callback();
+  } finally {
+    if (previousValue === undefined) {
+      delete process.env.CRM_ENABLE_MOCK_ENDPOINTS;
+    } else {
+      process.env.CRM_ENABLE_MOCK_ENDPOINTS = previousValue;
+    }
+  }
+}
+
+async function withNodeEnv<T>(nodeEnv: string, callback: () => Promise<T>) {
+  const previousValue = process.env.NODE_ENV;
+  process.env.NODE_ENV = nodeEnv;
+
+  try {
+    return await callback();
+  } finally {
+    if (previousValue === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousValue;
+    }
+  }
 }
 
 function createCrmService(partial: Partial<CrmService> = {}): CrmService {

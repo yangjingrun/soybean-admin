@@ -142,6 +142,10 @@ declare namespace Api {
       emailVerificationCooldownDays: number;
     }
 
+    interface GlobalConfigFormModel {
+      emailVerificationCooldownDays: number | null;
+    }
+
     interface LeadArchiveResult {
       account: LeadRecord;
       event: LeadTimelineEvent;
@@ -179,14 +183,6 @@ declare namespace Api {
       status: MailboxStatus | null;
     }
 
-    interface MailboxAuthorizePayload {
-      emailAddress: string;
-    }
-
-    interface MailboxAuthorizeFormModel {
-      emailAddress: string;
-    }
-
     interface GmailOAuthUrlResult {
       authorizationUrl: string;
       state: string;
@@ -206,6 +202,22 @@ declare namespace Api {
         historyId: string;
         watchExpiration: string;
       };
+    }
+
+    interface MailboxSyncNowResult extends MailboxWatchRenewResult {
+      sync:
+        | {
+            queued: true;
+            jobId: string;
+            fromHistoryId: string;
+            toHistoryId: string;
+          }
+        | {
+            queued: false;
+            reason: 'checkpoint_initialized' | 'already_current';
+            fromHistoryId: string | null;
+            toHistoryId: string;
+          };
     }
 
     type MailboxList = Api.Common.PaginatingQueryRecord<MailboxRecord>;
@@ -464,12 +476,6 @@ declare namespace Api {
 
     interface InboxThreadStatusPayload {
       status: InboxThreadStatus;
-    }
-
-    interface MessageMockReplyPayload {
-      subject?: string;
-      bodyText: string;
-      receivedAt?: string;
     }
 
     interface SequenceReviewOperateResult {

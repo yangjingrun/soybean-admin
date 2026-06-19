@@ -5,7 +5,6 @@ import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { defaultAiModelConfigKey, defaultHunterConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
 import {
-  fetchCrmGlobalConfig,
   fetchAiLeadQueueConfig,
   generateAiText,
   getAiModelConfig,
@@ -13,7 +12,6 @@ import {
   getSerperConfig,
   saveAiLeadQueueConfig,
   saveAiModelConfig,
-  saveCrmGlobalConfig,
   saveHunterConfig,
   saveSerperConfig,
   testHunterConfig,
@@ -33,10 +31,6 @@ const providerOptions = computed(() => [
 
 interface QueueConfigForm {
   workerConcurrency: number | null;
-}
-
-interface CrmGlobalConfigForm {
-  emailVerificationCooldownDays: number | null;
 }
 
 const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
@@ -62,9 +56,6 @@ const hunterForm = reactive<Api.AiGateway.SaveHunterConfigPayload>({
 const queueConfigForm = reactive<QueueConfigForm>({
   workerConcurrency: 2
 });
-const crmGlobalConfigForm = reactive<CrmGlobalConfigForm>({
-  emailVerificationCooldownDays: 30
-});
 
 const isModelLoading = shallowRef(false);
 const isModelSaving = shallowRef(false);
@@ -77,13 +68,10 @@ const isHunterSaving = shallowRef(false);
 const isHunterTesting = shallowRef(false);
 const isQueueConfigLoading = shallowRef(false);
 const isQueueConfigSaving = shallowRef(false);
-const isCrmGlobalConfigLoading = shallowRef(false);
-const isCrmGlobalConfigSaving = shallowRef(false);
 const modelUpdatedAt = shallowRef('');
 const serperUpdatedAt = shallowRef('');
 const hunterUpdatedAt = shallowRef('');
 const queueConfigUpdatedAt = shallowRef<string | null>(null);
-const crmGlobalConfigUpdatedAt = shallowRef<string | null>(null);
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
@@ -115,18 +103,8 @@ const formattedHunterUpdatedAt = computed(() =>
     : t('page.aiSettings.status.notSaved')
 );
 const canSaveQueueConfig = computed(() => isValidWorkerConcurrency(queueConfigForm.workerConcurrency));
-const canSaveCrmGlobalConfig = computed(() =>
-  isValidEmailVerificationCooldownDays(crmGlobalConfigForm.emailVerificationCooldownDays)
-);
 const formattedQueueConfigUpdatedAt = computed(() => {
   const updatedAt = queueConfigUpdatedAt.value;
-
-  return isSavedUpdatedAt(updatedAt)
-    ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')
-    : t('page.aiSettings.status.notSaved');
-});
-const formattedCrmGlobalConfigUpdatedAt = computed(() => {
-  const updatedAt = crmGlobalConfigUpdatedAt.value;
 
   return isSavedUpdatedAt(updatedAt)
     ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')
@@ -138,7 +116,6 @@ onMounted(() => {
   void handleLoadSerperConfig(false);
   void handleLoadHunterConfig(false);
   void handleLoadQueueConfig(false);
-  void handleLoadCrmGlobalConfig(false);
 });
 
 /** Loads the default backend model config into the settings form. */
@@ -351,62 +328,8 @@ async function handleSaveQueueConfig() {
   }
 }
 
-/** Loads the platform CRM global settings. */
-async function handleLoadCrmGlobalConfig(showMessage = true) {
-  isCrmGlobalConfigLoading.value = true;
-
-  try {
-    const { data: record, error } = await fetchCrmGlobalConfig();
-
-    if (error) {
-      return;
-    }
-
-    crmGlobalConfigForm.emailVerificationCooldownDays = record.emailVerificationCooldownDays;
-    crmGlobalConfigUpdatedAt.value = record.updatedAt;
-
-    if (showMessage) {
-      message.success('CRM 全局配置已加载');
-    }
-  } finally {
-    isCrmGlobalConfigLoading.value = false;
-  }
-}
-
-/** Saves the platform CRM email verification cooldown. */
-async function handleSaveCrmGlobalConfig() {
-  const emailVerificationCooldownDays = crmGlobalConfigForm.emailVerificationCooldownDays;
-
-  if (!isValidEmailVerificationCooldownDays(emailVerificationCooldownDays)) {
-    message.warning('请输入 1-365 的冷却天数');
-    return;
-  }
-
-  isCrmGlobalConfigSaving.value = true;
-
-  try {
-    const { data: record, error } = await saveCrmGlobalConfig({
-      emailVerificationCooldownDays
-    });
-
-    if (error) {
-      return;
-    }
-
-    crmGlobalConfigForm.emailVerificationCooldownDays = record.emailVerificationCooldownDays;
-    crmGlobalConfigUpdatedAt.value = record.updatedAt;
-    message.success('CRM 全局配置已保存');
-  } finally {
-    isCrmGlobalConfigSaving.value = false;
-  }
-}
-
 function isValidWorkerConcurrency(value: number | null): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10;
-}
-
-function isValidEmailVerificationCooldownDays(value: number | null): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 365;
 }
 
 /** Checks whether a saved timestamp should be displayed to users. */
@@ -796,50 +719,6 @@ async function handleTestHunterConfig() {
         </div>
       </NSpace>
     </NCard>
-
-    <NCard :bordered="false" class="card-wrapper">
-      <NSpace vertical :size="14">
-        <div class="page-heading">
-          <div>
-            <h2 class="page-title">CRM 全局配置</h2>
-            <p class="panel-desc">邮箱验证缓存冷却期，默认 30 天。</p>
-          </div>
-          <NTag type="success" :bordered="false">CRM</NTag>
-        </div>
-
-        <NForm :model="crmGlobalConfigForm" label-placement="top" size="small">
-          <NFormItem label="邮箱验证冷却期">
-            <NInputNumber
-              v-model:value="crmGlobalConfigForm.emailVerificationCooldownDays"
-              :min="1"
-              :max="365"
-              :precision="0"
-              class="cooldown-days-input"
-            >
-              <template #suffix>天</template>
-            </NInputNumber>
-          </NFormItem>
-        </NForm>
-
-        <div class="form-footer">
-          <NText depth="3" class="updated-time">配置时间：{{ formattedCrmGlobalConfigUpdatedAt }}</NText>
-          <NSpace :size="8">
-            <NButton size="small" :loading="isCrmGlobalConfigLoading" @click="handleLoadCrmGlobalConfig()">
-              {{ $t('page.aiSettings.actions.reload') }}
-            </NButton>
-            <NButton
-              size="small"
-              type="primary"
-              :loading="isCrmGlobalConfigSaving"
-              :disabled="!canSaveCrmGlobalConfig"
-              @click="handleSaveCrmGlobalConfig"
-            >
-              {{ $t('page.aiSettings.actions.save') }}
-            </NButton>
-          </NSpace>
-        </div>
-      </NSpace>
-    </NCard>
   </NSpace>
 </template>
 
@@ -872,8 +751,7 @@ async function handleTestHunterConfig() {
   width: 34px;
 }
 
-.queue-concurrency-input,
-.cooldown-days-input {
+.queue-concurrency-input {
   width: 180px;
 }
 

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
-import type { CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
+import type { CrmGmailHistorySyncQueueJob, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
 
 describe('CrmGmailWatchService', () => {
   it('renews an active mailbox watch and persists the returned checkpoint', async () => {
@@ -85,6 +85,75 @@ describe('CrmGmailWatchService', () => {
     assert.deepEqual(store.lastMailboxDetailArgs, {
       id: 'peer-mailbox',
       organizationId: 'org-1'
+    });
+  });
+
+  it('renews watch and enqueues an immediate sync without advancing the checkpoint early', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const store = createStore([mailbox]);
+    const queued: CrmGmailHistorySyncQueueJob[] = [];
+    const service = new CrmGmailWatchService(store, createGateway(), undefined, undefined, {
+      async enqueueHistorySync(input) {
+        queued.push(input);
+
+        return { jobId: 'mailbox-1:150:manual' };
+      }
+    });
+
+    const result = await service.syncMailboxNow('mailbox-1', createContext());
+
+    assert.equal(result.sync.queued, true);
+    assert.equal(result.sync.fromHistoryId, '100');
+    assert.equal(result.sync.toHistoryId, '150');
+    assert.equal(result.mailbox.lastHistoryId, '100');
+    assert.deepEqual(store.mailboxUpdateCalls[0], {
+      id: 'mailbox-1',
+      input: {
+        watchExpiration: new Date('2026-06-26T08:00:00.000Z')
+      }
+    });
+    assert.deepEqual(queued, [
+      {
+        mailboxId: 'mailbox-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        emailAddress: 'alice@gmail.com',
+        emailHash: 'email-hash-1',
+        historyId: '150',
+        pubsubMessageId: null,
+        publishTime: null
+      }
+    ]);
+  });
+
+  it('initializes the manual sync checkpoint when a mailbox has no history id yet', async () => {
+    const mailbox = createMailbox({ lastHistoryId: null });
+    const store = createStore([mailbox]);
+    let queueCalled = false;
+    const service = new CrmGmailWatchService(store, createGateway(), undefined, undefined, {
+      async enqueueHistorySync() {
+        queueCalled = true;
+
+        return { jobId: 'job-1' };
+      }
+    });
+
+    const result = await service.syncMailboxNow('mailbox-1', createContext());
+
+    assert.deepEqual(result.sync, {
+      queued: false,
+      reason: 'checkpoint_initialized',
+      fromHistoryId: null,
+      toHistoryId: '150'
+    });
+    assert.equal(result.mailbox.lastHistoryId, '150');
+    assert.equal(queueCalled, false);
+    assert.deepEqual(store.mailboxUpdateCalls[0], {
+      id: 'mailbox-1',
+      input: {
+        watchExpiration: new Date('2026-06-26T08:00:00.000Z'),
+        lastHistoryId: '150'
+      }
     });
   });
 

@@ -78,15 +78,6 @@ export function fetchCrmMailboxes(params: Api.Crm.MailboxSearchParams) {
   });
 }
 
-/** Create a mocked Gmail authorization record before the real OAuth flow is wired. */
-export function mockAuthorizeCrmMailbox(data: Api.Crm.MailboxAuthorizePayload) {
-  return request<Api.Crm.MailboxOperateResult>({
-    url: '/crm/mailboxes/mock-authorize',
-    method: 'post',
-    data
-  });
-}
-
 /** Create the Google OAuth consent URL for authorizing a Gmail mailbox. */
 export function createCrmGmailOAuthUrl() {
   return request<Api.Crm.GmailOAuthUrlResult>({
@@ -124,6 +115,14 @@ export function resumeCrmMailbox(id: string) {
 export function renewCrmMailboxWatch(id: string) {
   return request<Api.Crm.MailboxWatchRenewResult>({
     url: `/crm/mailboxes/${id}/renew-watch`,
+    method: 'post'
+  });
+}
+
+/** Enqueue an immediate Gmail history sync for one active CRM mailbox. */
+export function syncCrmMailboxNow(id: string) {
+  return request<Api.Crm.MailboxSyncNowResult>({
+    url: `/crm/mailboxes/${id}/sync-now`,
     method: 'post'
   });
 }
@@ -171,7 +170,7 @@ export function fetchCrmTemplateDefaults() {
   });
 }
 
-/** List first-email sequence review items by filters and pagination. */
+/** List sequence review items by filters and pagination. */
 export function fetchCrmSequenceReviewItems(params: Api.Crm.SequenceReviewSearchParams) {
   return request<Api.Crm.SequenceReviewList>({
     url: '/crm/sequence-review-items',
@@ -180,7 +179,7 @@ export function fetchCrmSequenceReviewItems(params: Api.Crm.SequenceReviewSearch
   });
 }
 
-/** Create one first-email review item and deterministic draft. */
+/** Create one sequence review item and its deterministic first draft. */
 export function createCrmSequenceReviewItem(data: Api.Crm.SequenceReviewCreatePayload) {
   return request<Api.Crm.SequenceReviewOperateResult>({
     url: '/crm/sequence-review-items',
@@ -189,7 +188,7 @@ export function createCrmSequenceReviewItem(data: Api.Crm.SequenceReviewCreatePa
   });
 }
 
-/** Get one first-email review item with draft and checklist. */
+/** Get one sequence review item with messages and checklist. */
 export function fetchCrmSequenceReviewItem(id: string) {
   return request<Api.Crm.SequenceReviewItem>({
     url: `/crm/sequence-review-items/${id}`,
@@ -197,7 +196,7 @@ export function fetchCrmSequenceReviewItem(id: string) {
   });
 }
 
-/** Save human edits to one first-email draft. */
+/** Save human edits to one sequence draft. */
 export function updateCrmMessageDraft(id: string, data: Api.Crm.MessageDraftPayload) {
   return request<Api.Crm.MessageDraftUpdateResult>({
     url: `/crm/messages/${id}/draft`,
@@ -260,15 +259,6 @@ export function updateCrmInboxThreadStatus(id: string, data: Api.Crm.InboxThread
 export function replyCrmInboxThread(id: string, data: Api.Crm.InboxReplyPayload) {
   return request<Api.Crm.InboxThreadDetail>({
     url: `/crm/inbox-threads/${id}/reply`,
-    method: 'post',
-    data
-  });
-}
-
-/** Create a development-only mocked inbound reply for one CRM message. */
-export function mockReplyCrmMessage(id: string, data: Api.Crm.MessageMockReplyPayload) {
-  return request<Api.Crm.InboxThreadDetail>({
-    url: `/crm/messages/${id}/mock-reply`,
     method: 'post',
     data
   });

@@ -63,18 +63,18 @@ export const productLineStatusTagTypeMap: Record<Api.Crm.ProductLineStatus, Naiv
   archived: 'default'
 };
 
+/** Create the default platform-wide CRM config form. */
+export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
+  return {
+    emailVerificationCooldownDays: 30
+  };
+}
+
 /** Create the default mailbox filter object for initial load and reset. */
 export function createDefaultMailboxFilterModel(): Api.Crm.MailboxFilterModel {
   return {
     keyword: '',
     status: null
-  };
-}
-
-/** Create the default mocked authorization form model. */
-export function createDefaultMailboxAuthorizeForm(): Api.Crm.MailboxAuthorizeFormModel {
-  return {
-    emailAddress: ''
   };
 }
 
@@ -180,6 +180,11 @@ export function normalizeProductLinePayload(formModel: Api.Crm.ProductLineFormMo
     websiteUrl: formModel.websiteUrl.trim(),
     commonModelsText: formModel.commonModelsText.trim()
   };
+}
+
+/** Check whether the platform email verification cache cooldown can be saved. */
+export function isValidEmailVerificationCooldownDays(value: number | null): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 365;
 }
 
 /** Format nullable backend ISO datetime for mailbox table display. */

@@ -1,8 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { SystemLogService } from '../system-log/system-log.service';
+import type { SystemLogRecorder } from '../system-log/system-log.types';
+import { SystemNotificationService } from '../system-notification/system-notification.service';
+import { CrmGmailHistoryExpiredError } from './crm-gmail-history.gateway';
 import { CRM_GMAIL_HISTORY_GATEWAY, CRM_STORE } from './crm.tokens';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type {
   CrmGmailHistoryGateway,
+  CrmGmailHistoryListResult,
   CrmGmailHistoryMessage,
   CrmGmailHistorySyncQueueJob,
   CrmGmailHistorySyncResult,
@@ -11,11 +16,19 @@ import type {
   CrmStore
 } from './crm.types';
 
+type RecoveredCrmGmailHistoryResult = CrmGmailHistoryListResult & { historyExpired?: boolean };
+
 @Injectable()
 export class CrmGmailHistorySyncWorkerService {
   constructor(
     @Inject(CRM_STORE) private readonly store: CrmStore,
-    @Inject(CRM_GMAIL_HISTORY_GATEWAY) private readonly gmailHistoryGateway: CrmGmailHistoryGateway
+    @Inject(CRM_GMAIL_HISTORY_GATEWAY) private readonly gmailHistoryGateway: CrmGmailHistoryGateway,
+    @Optional()
+    @Inject(SystemLogService)
+    private readonly systemLogService?: SystemLogRecorder,
+    @Optional()
+    @Inject(SystemNotificationService)
+    private readonly systemNotificationService?: SystemNotificationService
   ) {}
 
   /** Runs one incremental Gmail History sync job and advances the mailbox checkpoint after processing. */
@@ -62,12 +75,26 @@ export class CrmGmailHistorySyncWorkerService {
       };
     }
 
-    const history = await this.listHistoryOrMarkAuthorizationExpired(job, mailbox);
+    const history = await this.listHistoryOrRecover(job, mailbox);
 
     if (!history) {
       return {
         status: 'skipped',
         reason: 'authorization_expired',
+        mailboxId: mailbox.id,
+        fromHistoryId: mailbox.lastHistoryId,
+        toHistoryId: job.historyId,
+        ingestedCount: 0,
+        skippedMessageCount: 0
+      };
+    }
+
+    if (history.historyExpired) {
+      await this.recordHistoryExpired(mailbox, job);
+
+      return {
+        status: 'skipped',
+        reason: 'history_expired',
         mailboxId: mailbox.id,
         fromHistoryId: mailbox.lastHistoryId,
         toHistoryId: job.historyId,
@@ -107,8 +134,11 @@ export class CrmGmailHistorySyncWorkerService {
     };
   }
 
-  /** Returns null after converting Gmail auth expiry into mailbox state. */
-  private async listHistoryOrMarkAuthorizationExpired(job: CrmGmailHistorySyncQueueJob, mailbox: CrmMailboxRecord) {
+  /** Converts recoverable Gmail sync errors into local mailbox state changes. */
+  private async listHistoryOrRecover(
+    job: CrmGmailHistorySyncQueueJob,
+    mailbox: CrmMailboxRecord
+  ): Promise<RecoveredCrmGmailHistoryResult | null> {
     try {
       return await this.gmailHistoryGateway.listHistory({
         mailbox,
@@ -116,6 +146,14 @@ export class CrmGmailHistorySyncWorkerService {
         targetHistoryId: job.historyId
       });
     } catch (error) {
+      if (error instanceof CrmGmailHistoryExpiredError) {
+        return {
+          nextHistoryId: job.historyId,
+          messages: [],
+          historyExpired: true
+        };
+      }
+
       if (!(error instanceof CrmGmailAuthorizationExpiredError)) {
         throw error;
       }
@@ -130,6 +168,49 @@ export class CrmGmailHistorySyncWorkerService {
 
       return null;
     }
+  }
+
+  private async recordHistoryExpired(mailbox: CrmMailboxRecord, job: CrmGmailHistorySyncQueueJob) {
+    await Promise.all([
+      this.systemLogService?.record({
+        level: 'warn',
+        status: 'failed',
+        module: 'crm',
+        action: 'gmail-history-expired',
+        message: 'CRM Gmail History checkpoint 已过期',
+        userId: mailbox.ownerUserId,
+        userName: mailbox.ownerUserName ?? undefined,
+        metadata: {
+          organizationId: mailbox.organizationId,
+          mailboxId: mailbox.id,
+          provider: mailbox.provider,
+          maskedEmail: mailbox.maskedEmail,
+          fromHistoryId: mailbox.lastHistoryId,
+          toHistoryId: job.historyId,
+          pubsubMessageId: job.pubsubMessageId
+        }
+      }),
+      this.systemNotificationService?.create({
+        userId: mailbox.ownerUserId,
+        userName: mailbox.ownerUserName,
+        module: 'crm',
+        type: 'crm_gmail_history_expired',
+        title: 'Gmail 同步需要人工处理',
+        content: `${mailbox.maskedEmail} 的 Gmail 增量同步 checkpoint 已过期，请重新授权、手动同步或联系管理员处理。`,
+        targetType: 'crmMailbox',
+        targetId: mailbox.id,
+        routePath: '/crm/settings',
+        metadata: {
+          organizationId: mailbox.organizationId,
+          mailboxId: mailbox.id,
+          provider: mailbox.provider,
+          maskedEmail: mailbox.maskedEmail,
+          fromHistoryId: mailbox.lastHistoryId,
+          toHistoryId: job.historyId,
+          pubsubMessageId: job.pubsubMessageId
+        }
+      })
+    ]);
   }
 
   private async ingestHistoryMessages(

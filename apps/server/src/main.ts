@@ -17,7 +17,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
 
   app.enableCors({
-    origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/],
+    origin: getCorsOrigins(),
     credentials: true
   });
 
@@ -33,3 +33,15 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
+function getCorsOrigins() {
+  const configuredOrigins = process.env.SERVER_CORS_ORIGINS?.split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+  if (configuredOrigins?.length) {
+    return configuredOrigins;
+  }
+
+  return [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/];
+}

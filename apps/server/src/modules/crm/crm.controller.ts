@@ -114,7 +114,10 @@ export class CrmController {
     @Headers('authorization') authorization = '',
     @Body() dto: MockAuthorizeCrmMailboxDto
   ) {
-    return ok(await this.crmService.mockAuthorizeMailbox(dto, this.requireUserContext(authorization)));
+    const context = this.requireUserContext(authorization);
+    this.requireMockEndpointsEnabled(context);
+
+    return ok(await this.crmService.mockAuthorizeMailbox(dto, context));
   }
 
   @Post('mailboxes/gmail/oauth-url')
@@ -148,6 +151,11 @@ export class CrmController {
   @Post('mailboxes/:id/renew-watch')
   async renewMailboxWatch(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.gmailWatchService!.renewMailboxWatch(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('mailboxes/:id/sync-now')
+  async syncMailboxNow(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.gmailWatchService!.syncMailboxNow(id, this.requireUserContext(authorization)));
   }
 
   @Get('product-lines')
@@ -258,7 +266,20 @@ export class CrmController {
     @Param('id') id: string,
     @Body() dto: MockCrmReplyDto
   ) {
-    return ok(await this.crmService.mockCustomerReply(id, dto, this.requireUserContext(authorization)));
+    const context = this.requireUserContext(authorization);
+    this.requireMockEndpointsEnabled(context);
+
+    return ok(await this.crmService.mockCustomerReply(id, dto, context));
+  }
+
+  private requireMockEndpointsEnabled(context: CrmUserContext) {
+    if (process.env.NODE_ENV === 'production' || process.env.CRM_ENABLE_MOCK_ENDPOINTS !== 'true') {
+      throw new ForbiddenException('CRM mock 接口未启用');
+    }
+
+    if (!context.roles.includes('R_SUPER')) {
+      throw new ForbiddenException('无权使用 CRM mock 接口');
+    }
   }
 
   private requireUserContext(authorization: string): CrmUserContext {

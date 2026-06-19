@@ -18,6 +18,32 @@ describe('createCrmGmailIntegrationProviders', () => {
     assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
   });
 
+  it('creates real Gmail providers in production only when all required config is present', () => {
+    const providers = createCrmGmailIntegrationProviders({
+      NODE_ENV: 'production',
+      ...createEnv()
+    });
+
+    assert.ok(providers.oauthFlow instanceof CrmGmailOAuthFlow);
+    assert.ok(providers.tokenProvider instanceof CrmGmailOAuthTokenProvider);
+    assert.ok(providers.historyGateway instanceof CrmGmailApiHistoryGateway);
+    assert.ok(providers.watchGateway instanceof CrmGmailApiWatchGateway);
+    assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
+  });
+
+  it('fails fast in production when required Gmail config is missing', () => {
+    assert.throws(
+      () =>
+        createCrmGmailIntegrationProviders({
+          NODE_ENV: 'production',
+          ...createEnv(),
+          CRM_GMAIL_TOKEN_ENCRYPTION_KEY: '',
+          CRM_GMAIL_PUBSUB_TOPIC_NAME: ''
+        }),
+      /CRM Gmail production config missing: CRM_GMAIL_TOKEN_ENCRYPTION_KEY, CRM_GMAIL_PUBSUB_TOPIC_NAME/
+    );
+  });
+
   it('keeps watch mocked when Pub/Sub topic is not configured but still enables Gmail sending', () => {
     const providers = createCrmGmailIntegrationProviders({
       ...createEnv(),

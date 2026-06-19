@@ -247,6 +247,30 @@
 - 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认跨 owner、跨 organization 的同邮箱命中新鲜缓存不查 DNS，过期缓存会重新验证并刷新。
 
+### 2026-06-19 多 Agent 合并前要冻结同文件写入
+
+- 场景：多个子 Agent 并行实现 CRM 配置页时，主 Agent 已经决定把“基础规则”和“邮箱验证冷却期”拆成两个卡片，但子 Agent 仍在后台继续修改同一组前端文件。
+- 坑点：子 Agent 后续写入可能把主 Agent 刚合并的方案覆盖、重复渲染同一个配置入口，甚至删除 `BasicRulesCard.vue` 这类主页面仍在 import 的文件；只看最后一次测试通过不够，必须重新检查 `git status` 和关键文件内容。
+- 正确做法：合并同一前端区域前先 `send_input` 明确要求相关子 Agent 停止写入并总结；主 Agent 再统一落最终结构。合并后必须检查 `git status --short`、`git diff --name-status`、关键父组件 import、实际组件文件是否存在，并重新跑 `pnpm typecheck`、相关单测和 lint。
+- 相关文件：`src/views/crm/settings/modules/BasicRulesCard.vue`、`src/views/crm/settings/modules/GlobalConfigCard.vue`、`src/views/crm/settings/modules/MailboxManager.vue`。
+- 验证方式：确认 `MailboxManager.vue` 同时 import 的组件文件都存在，且配置表单只在 `GlobalConfigCard.vue` 出现一次。
+
+### 2026-06-19 CRM mock 调试接口默认必须关闭
+
+- 场景：Gmail OAuth、发送和回信同步接入期间，CRM 曾保留 `/crm/mailboxes/mock-authorize` 和 `/crm/messages/:id/mock-reply` 方便本地验证邮箱授权和客户回信流程。
+- 坑点：mock 授权会创建没有 OAuth refresh token 的 active mailbox，mock 回信会人为触发回信入库、停发、退订和黑名单逻辑；如果普通用户在生产环境可直接调用，会绕开真实 Gmail 授权和同步边界。
+- 正确做法：正式前端不导出也不调用 mock API；后端 mock controller 入口必须同时满足 `NODE_ENV !== production`、`CRM_ENABLE_MOCK_ENDPOINTS=true` 和 `R_SUPER`，默认抛 `ForbiddenException`。单元测试需要用 helper 临时设置环境变量，并在 finally 中恢复，避免污染其他测试。
+- 相关文件：`apps/server/src/modules/crm/crm.controller.ts`、`apps/server/src/modules/crm/crm.controller.spec.ts`、`src/service/api/crm.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.controller.spec.ts`，确认 mock endpoint 默认拒绝、普通用户拒绝、production 拒绝、显式打开且超管时旧测试仍通过；运行 `rg "mockAuthorizeCrmMailbox|mockReplyCrmMessage|MessageMockReplyPayload" src -n` 确认前端无残留。
+
+### 2026-06-19 Gmail History checkpoint 过期不能静默推进
+
+- 场景：Gmail History API 可能因为 `startHistoryId` 太旧返回 404，gateway 会转换为 `CrmGmailHistoryExpiredError`。
+- 坑点：如果 History worker 不捕获这个错误，BullMQ 会反复重试同一个已过期 checkpoint；但如果直接把 `lastHistoryId` 推进到 Pub/Sub 目标 historyId，又会把未同步历史误标成已处理，造成漏回信。
+- 正确做法：History worker 捕获 `CrmGmailHistoryExpiredError` 后，返回 `skipped/history_expired`，保持 mailbox 原 `lastHistoryId` 不动，并写系统日志和站内通知提醒邮箱 owner 重新授权、手动同步或联系管理员处理；不要在 worker 里无边界全量扫邮箱。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认 history 过期时 checkpoint 不推进、返回 `history_expired`，并创建日志和通知。
+
 ### 记录模板
 
 ```md

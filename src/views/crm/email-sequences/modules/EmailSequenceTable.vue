@@ -165,7 +165,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="发送前审核清单">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="序列审核清单">
     <NDataTable
       :columns="columns"
       :data="records"

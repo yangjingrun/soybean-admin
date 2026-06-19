@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { CrmGmailHistoryExpiredError } from './crm-gmail-history.gateway';
 import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type {
@@ -147,6 +148,78 @@ describe('CrmGmailHistorySyncWorkerService', () => {
     assert.equal(expiredCalls[0].organizationId, 'org-1');
     assert.equal(expiredCalls[0].ownerUserId, 'user-1');
     assert.equal(expiredCalls[0].reason, 'invalid_grant');
+  });
+
+  it('keeps the checkpoint and notifies the owner when Gmail history checkpoint expired', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const advanceCalls: CrmMailboxHistoryAdvanceInput[] = [];
+    const logs = createLogRecorder();
+    const notifications = createNotificationRecorder();
+    const service = new CrmGmailHistorySyncWorkerService(
+      createStore({
+        mailbox,
+        async advanceMailboxHistoryId(input) {
+          advanceCalls.push(input);
+
+          return { ...mailbox, lastHistoryId: input.toHistoryId };
+        }
+      }),
+      {
+        async listHistory() {
+          throw new CrmGmailHistoryExpiredError();
+        }
+      },
+      logs.service,
+      notifications.service as never
+    );
+
+    const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
+
+    assert.deepEqual(result, {
+      status: 'skipped',
+      reason: 'history_expired',
+      mailboxId: 'mailbox-1',
+      fromHistoryId: '100',
+      toHistoryId: '120',
+      ingestedCount: 0,
+      skippedMessageCount: 0
+    });
+    assert.deepEqual(advanceCalls, []);
+    assert.deepEqual(logs.records[0], {
+      level: 'warn',
+      status: 'failed',
+      action: 'gmail-history-expired',
+      errorMessage: undefined,
+      metadata: {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        maskedEmail: 'a***@gmail.com',
+        fromHistoryId: '100',
+        toHistoryId: '120',
+        pubsubMessageId: 'pubsub-1'
+      }
+    });
+    assert.deepEqual(notifications.records[0], {
+      userId: 'user-1',
+      userName: 'Alice',
+      module: 'crm',
+      type: 'crm_gmail_history_expired',
+      title: 'Gmail 同步需要人工处理',
+      content: 'a***@gmail.com 的 Gmail 增量同步 checkpoint 已过期，请重新授权、手动同步或联系管理员处理。',
+      targetType: 'crmMailbox',
+      targetId: 'mailbox-1',
+      routePath: '/crm/settings',
+      metadata: {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        maskedEmail: 'a***@gmail.com',
+        fromHistoryId: '100',
+        toHistoryId: '120',
+        pubsubMessageId: 'pubsub-1'
+      }
+    });
   });
 
   it('skips when another worker has advanced the checkpoint first', async () => {
@@ -544,5 +617,60 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T10:00:00.000Z'),
     ...input
+  };
+}
+
+function createLogRecorder() {
+  const records: Array<{
+    level?: string;
+    status?: string;
+    action?: string;
+    errorMessage?: string;
+    metadata: unknown;
+  }> = [];
+
+  return {
+    records,
+    service: {
+      async record(input: {
+        level?: string;
+        status?: string;
+        action?: string;
+        errorMessage?: string;
+        metadata?: unknown;
+      }) {
+        records.push({
+          level: input.level,
+          status: input.status,
+          action: input.action,
+          errorMessage: input.errorMessage,
+          metadata: input.metadata
+        });
+      }
+    }
+  };
+}
+
+function createNotificationRecorder() {
+  const records: Array<{
+    userId: string;
+    userName?: string | null;
+    module: string;
+    type: string;
+    title: string;
+    content: string;
+    targetType?: string | null;
+    targetId?: string | null;
+    routePath?: string | null;
+    metadata?: unknown | null;
+  }> = [];
+
+  return {
+    records,
+    service: {
+      async create(input: (typeof records)[number]) {
+        records.push(input);
+      }
+    }
   };
 }

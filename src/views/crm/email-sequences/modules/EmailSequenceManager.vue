@@ -47,9 +47,9 @@ const {
 
 <template>
   <NSpace vertical :size="16">
-    <NPageHeader title="邮件序列" subtitle="生成首封开发信草稿，人工审核后进入待发送状态">
+    <NPageHeader title="邮件序列" subtitle="审核首封与后续跟进草稿，控制序列发送状态">
       <template #extra>
-        <NTag type="info" :bordered="false">首封审核</NTag>
+        <NTag type="info" :bordered="false">序列审核</NTag>
       </template>
     </NPageHeader>
 

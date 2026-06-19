@@ -32,6 +32,7 @@ import type {
   CrmMailboxStatus,
   CrmMailboxHistoryAdvanceInput,
   CrmMailboxUpdateInput,
+  CrmMailboxWatchRenewalListInput,
   CrmContactCreateInput,
   CrmContactRecord,
   CrmContactUpdateInput,
@@ -491,6 +492,20 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return records[0] ? toMailboxRecord(records[0]) : null;
+  }
+
+  async listMailboxesForWatchRenewal(input: CrmMailboxWatchRenewalListInput) {
+    const records = await this.prisma.crmMailbox.findMany({
+      where: {
+        provider: input.provider,
+        status: 'active',
+        OR: [{ watchExpiration: null }, { watchExpiration: { lte: input.renewBefore } }]
+      },
+      orderBy: [{ watchExpiration: 'asc' }, { updatedAt: 'asc' }],
+      take: input.take
+    });
+
+    return records.map(toMailboxRecord);
   }
 
   async advanceMailboxHistoryId(input: CrmMailboxHistoryAdvanceInput) {

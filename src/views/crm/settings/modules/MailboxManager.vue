@@ -2,6 +2,7 @@
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
 import DefaultEmailTemplateCard from './DefaultEmailTemplateCard.vue';
+import GlobalConfigCard from './GlobalConfigCard.vue';
 import MailboxTable from './MailboxTable.vue';
 import MailboxToolbar from './MailboxToolbar.vue';
 import ProductLineManager from './ProductLineManager.vue';
@@ -19,6 +20,7 @@ const {
   handleRenewMailboxWatch,
   handleReset,
   handleSearch,
+  handleSyncMailboxNow,
   handleToggleMailbox,
   loadMailboxes,
   loading,
@@ -41,6 +43,10 @@ const {
     <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1">
       <NGi>
         <BasicRulesCard />
+      </NGi>
+
+      <NGi>
+        <GlobalConfigCard />
       </NGi>
 
       <NGi>
@@ -72,6 +78,7 @@ const {
               :page-size="pagination.size"
               :total="pagination.total"
               @renew-watch="handleRenewMailboxWatch"
+              @sync-now="handleSyncMailboxNow"
               @toggle="handleToggleMailbox"
               @update-page="handlePageUpdate"
               @update-page-size="handlePageSizeUpdate"

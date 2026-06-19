@@ -5,7 +5,8 @@ import {
   fetchCrmMailboxes,
   pauseCrmMailbox,
   renewCrmMailboxWatch,
-  resumeCrmMailbox
+  resumeCrmMailbox,
+  syncCrmMailboxNow
 } from '@/service/api';
 import { buildMailboxSearchParams, createDefaultMailboxFilterModel } from './shared';
 
@@ -135,6 +136,28 @@ export function useMailboxTable() {
     }
   }
 
+  /** Enqueue an immediate Gmail history sync for one active mailbox, then refresh the current list. */
+  async function handleSyncMailboxNow(record: Api.Crm.MailboxRecord) {
+    if (operatingMailboxId.value || record.status !== 'active' || record.provider !== 'gmail') {
+      return;
+    }
+
+    operatingMailboxId.value = record.id;
+
+    try {
+      const { data, error } = await syncCrmMailboxNow(record.id);
+
+      if (error) {
+        return;
+      }
+
+      message.success(data.sync.queued ? 'Gmail 同步任务已入队' : 'Gmail 同步检查点已更新');
+      await loadMailboxes();
+    } finally {
+      operatingMailboxId.value = null;
+    }
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadMailboxes();
@@ -168,6 +191,7 @@ export function useMailboxTable() {
     handleRenewMailboxWatch,
     handleReset,
     handleSearch,
+    handleSyncMailboxNow,
     handleToggleMailbox,
     loadMailboxes,
     loading,

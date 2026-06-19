@@ -6,14 +6,20 @@ import type { CrmGmailWebhookService } from './crm-gmail-webhook.service';
 
 describe('CrmGmailWebhookController', () => {
   const originalPushSecret = process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET;
+  const originalNodeEnv = process.env.NODE_ENV;
 
   afterEach(() => {
     if (originalPushSecret === undefined) {
       delete process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET;
-      return;
+    } else {
+      process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET = originalPushSecret;
     }
 
-    process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET = originalPushSecret;
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
   });
 
   it('passes Pub/Sub push payloads to the webhook service', async () => {
@@ -68,6 +74,30 @@ describe('CrmGmailWebhookController', () => {
 
     await assert.rejects(
       () => controller.handlePubSubPush({ message: { data: 'unused' } }, 'wrong-secret'),
+      UnauthorizedException
+    );
+    assert.equal(called, false);
+  });
+
+  it('rejects production Pub/Sub push requests when the secret is not configured', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET;
+    let called = false;
+    const controller = new CrmGmailWebhookController({
+      async handlePubSubPush() {
+        called = true;
+
+        return {
+          queued: false,
+          reason: 'mailbox_not_found',
+          historyId: '12345',
+          pubsubMessageId: 'pubsub-1'
+        };
+      }
+    } as Pick<CrmGmailWebhookService, 'handlePubSubPush'> as CrmGmailWebhookService);
+
+    await assert.rejects(
+      () => controller.handlePubSubPush({ message: { data: 'unused' } }),
       UnauthorizedException
     );
     assert.equal(called, false);

@@ -72,7 +72,7 @@ export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilter
   };
 }
 
-/** Create an empty first-email review creation form. */
+/** Create an empty sequence review creation form. The first message is generated immediately; follow-ups are created later. */
 export function createDefaultSequenceCreateForm(): Api.Crm.SequenceReviewCreateFormModel {
   return {
     accountId: null,

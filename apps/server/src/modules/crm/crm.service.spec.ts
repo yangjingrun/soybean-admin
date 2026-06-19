@@ -2486,6 +2486,14 @@ function createStore(
       Object.assign(mailbox, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return mailbox;
     },
+    async listMailboxesForWatchRenewal(input) {
+      return mailboxes
+        .filter(mailbox => {
+          if (mailbox.provider !== input.provider || mailbox.status !== 'active') return false;
+          return !mailbox.watchExpiration || mailbox.watchExpiration <= input.renewBefore;
+        })
+        .slice(0, input.take);
+    },
     async listProductLines(args) {
       this.lastProductLineListArgs = args;
       const records = productLines.filter(productLine => {

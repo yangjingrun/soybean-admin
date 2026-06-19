@@ -10,6 +10,10 @@ export class CrmGmailWebhookController {
   async handlePubSubPush(@Body() payload: unknown, @Headers('x-crm-gmail-pubsub-secret') pushSecret = '') {
     const configuredSecret = process.env.CRM_GMAIL_PUBSUB_PUSH_SECRET;
 
+    if (process.env.NODE_ENV === 'production' && !configuredSecret) {
+      throw new UnauthorizedException('Gmail Pub/Sub push secret 未配置');
+    }
+
     if (configuredSecret && pushSecret !== configuredSecret) {
       throw new UnauthorizedException('Gmail Pub/Sub push secret 不匹配');
     }
