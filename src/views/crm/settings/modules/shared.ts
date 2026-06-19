@@ -3,7 +3,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 const MAILBOX_WATCH_EXPIRING_SOON_HOURS = 24;
 
 export type MailboxWatchStatus = 'not_started' | 'expired' | 'expiring_soon' | 'normal';
-export type OperationMessageStatus = Extract<Api.Crm.MessageStatus, 'queued' | 'failed'>;
+export type OperationMessageStatus = Extract<Api.Crm.MessageStatus, 'queued' | 'failed'> | 'scheduled';
 export type OperationLogCategory = 'webhook' | 'history' | 'watch' | 'send';
 
 interface OperationLogEvent {
@@ -116,11 +116,13 @@ export const mailboxWatchStatusTagTypeMap: Record<MailboxWatchStatus, NaiveUI.Th
 };
 
 export const operationMessageStatusLabelMap: Record<OperationMessageStatus, string> = {
+  scheduled: '待调度',
   queued: '队列中',
   failed: '发送失败'
 };
 
 export const operationMessageStatusTagTypeMap: Record<OperationMessageStatus, NaiveUI.ThemeColor> = {
+  scheduled: 'warning',
   queued: 'info',
   failed: 'error'
 };
@@ -326,7 +328,17 @@ export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
   return {
     emailVerificationCooldownDays: 30,
     ownerConcurrentSendLimit: 5,
+    ownerDailySendLimitMax: 200,
     followUpDelayDays: createDefaultFollowUpDelayDays()
+  };
+}
+
+/** Create the default current-owner send scheduling preference form. */
+export function createDefaultSendPreferenceForm(): Api.Crm.SendPreferenceFormModel {
+  return {
+    dailySendLimit: 50,
+    followUpSharePercent: 70,
+    ownerDailySendLimitMax: 200
   };
 }
 
@@ -918,6 +930,21 @@ export function isValidOwnerConcurrentSendLimit(value: number | null): value is 
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 100;
 }
 
+/** Check whether the platform-wide owner daily send hard limit can be saved. */
+export function isValidOwnerDailySendLimitMax(value: number | null): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1;
+}
+
+/** Check whether one owner daily send limit respects the platform hard limit. */
+export function isValidDailySendLimit(value: number | null, max: number): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= max;
+}
+
+/** Check whether follow-up send share percent can be saved. */
+export function isValidFollowUpSharePercent(value: number | null): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 100;
+}
+
 /** Check whether all follow-up delay days can be saved. */
 export function isValidFollowUpDelayDays(value: Api.Crm.FollowUpDelayDays) {
   return Object.values(value).every(day => Number.isInteger(day) && day >= 1 && day <= 90);
@@ -1123,7 +1150,7 @@ export function collectOperationQueueRows(
   return items
     .flatMap(item =>
       item.messages
-        .filter(isOperationQueueMessage)
+        .filter(message => isOperationQueueMessage(item.enrollment.status, message))
         .map(message => ({
           id: message.id,
           accountName: item.account.name,
@@ -1132,7 +1159,7 @@ export function collectOperationQueueRows(
           subject: message.subject,
           stepIndex: message.stepIndex,
           threadMode: message.threadMode,
-          status: message.status,
+          status: resolveOperationMessageStatus(item.enrollment.status, message),
           bullJobId: message.bullJobId,
           runVersion: item.enrollment.runVersion,
           providerMessageId: message.providerMessageId,
@@ -1193,18 +1220,46 @@ export function summarizeMailboxSyncHealth(
   );
 }
 
-function isOperationQueueMessage(message: Api.Crm.MessageRecord): message is Api.Crm.MessageRecord & {
-  status: OperationMessageStatus;
+function isOperationQueueMessage(
+  enrollmentStatus: Api.Crm.SequenceEnrollmentStatus,
+  message: Api.Crm.MessageRecord
+): message is Api.Crm.MessageRecord & {
+  status: Extract<Api.Crm.MessageStatus, 'draft_ready' | 'queued' | 'failed'>;
 } {
-  return message.status === 'queued' || message.status === 'failed';
+  return (
+    message.status === 'queued' ||
+    message.status === 'failed' ||
+    (message.status === 'draft_ready' && Boolean(message.scheduledAt) && enrollmentStatus === 'sequence_running')
+  );
+}
+
+function resolveOperationMessageStatus(
+  enrollmentStatus: Api.Crm.SequenceEnrollmentStatus,
+  message: Api.Crm.MessageRecord
+): OperationMessageStatus {
+  if (message.status === 'draft_ready' && message.scheduledAt && enrollmentStatus === 'sequence_running') {
+    return 'scheduled';
+  }
+
+  return message.status === 'failed' ? 'failed' : 'queued';
 }
 
 function compareOperationQueueRows(left: OperationQueueRow, right: OperationQueueRow) {
   if (left.status !== right.status) {
-    return left.status === 'failed' ? -1 : 1;
+    return getOperationMessageStatusPriority(left.status) - getOperationMessageStatusPriority(right.status);
   }
 
   return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+function getOperationMessageStatusPriority(status: OperationMessageStatus) {
+  const priorityMap: Record<OperationMessageStatus, number> = {
+    failed: 0,
+    queued: 1,
+    scheduled: 2
+  };
+
+  return priorityMap[status];
 }
 
 function formatOperationMetadata(metadata: Record<string, unknown> | null) {

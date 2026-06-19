@@ -1,0 +1,187 @@
+<script setup lang="ts">
+import { computed, onMounted, reactive, shallowRef } from 'vue';
+import { useMessage } from 'naive-ui';
+import { fetchCrmSendPreference, saveCrmSendPreference } from '@/service/api';
+import {
+  createDefaultSendPreferenceForm,
+  isValidDailySendLimit,
+  isValidFollowUpSharePercent
+} from './shared';
+
+const message = useMessage();
+
+const formModel = reactive<Api.Crm.SendPreferenceFormModel>(createDefaultSendPreferenceForm());
+const loading = shallowRef(false);
+const saving = shallowRef(false);
+
+const firstTouchSharePercent = computed<number | null>(() => {
+  if (!isValidFollowUpSharePercent(formModel.followUpSharePercent)) {
+    return null;
+  }
+
+  return 100 - formModel.followUpSharePercent;
+});
+const canSave = computed(
+  () =>
+    isValidDailySendLimit(formModel.dailySendLimit, formModel.ownerDailySendLimitMax) &&
+    isValidFollowUpSharePercent(formModel.followUpSharePercent)
+);
+
+onMounted(() => {
+  void loadSendPreference(false);
+});
+
+/** Load current owner's send scheduling preference. */
+async function loadSendPreference(showMessage = true) {
+  if (loading.value) {
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const { data, error } = await fetchCrmSendPreference();
+
+    if (error) {
+      return;
+    }
+
+    formModel.dailySendLimit = data.dailySendLimit;
+    formModel.followUpSharePercent = data.followUpSharePercent;
+    formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
+
+    if (showMessage) {
+      message.success('发送偏好已加载');
+    }
+  } finally {
+    loading.value = false;
+  }
+}
+
+/** Save current owner's send scheduling preference. */
+async function saveSendPreference() {
+  if (saving.value) {
+    return;
+  }
+
+  const dailySendLimit = formModel.dailySendLimit;
+  const followUpSharePercent = formModel.followUpSharePercent;
+
+  if (!isValidDailySendLimit(dailySendLimit, formModel.ownerDailySendLimitMax)) {
+    message.warning(`请输入 1-${formModel.ownerDailySendLimitMax} 的每日队列上限`);
+    return;
+  }
+
+  if (!isValidFollowUpSharePercent(followUpSharePercent)) {
+    message.warning('请输入 0-100 的后续开发信占比');
+    return;
+  }
+
+  saving.value = true;
+
+  try {
+    const { data, error } = await saveCrmSendPreference({
+      dailySendLimit,
+      followUpSharePercent
+    });
+
+    if (error) {
+      return;
+    }
+
+    formModel.dailySendLimit = data.dailySendLimit;
+    formModel.followUpSharePercent = data.followUpSharePercent;
+    formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
+    message.success('发送偏好已保存');
+  } finally {
+    saving.value = false;
+  }
+}
+</script>
+
+<template>
+  <NCard :bordered="false" size="small" class="card-wrapper" title="我的发送偏好">
+    <NSpace vertical :size="12">
+      <NForm :model="formModel" label-placement="top" size="small">
+        <NGrid responsive="screen" :x-gap="12" :y-gap="4" cols="1 s:3">
+          <NGi>
+            <NFormItem label="每日最多进入发送队列">
+              <NInputNumber
+                v-model:value="formModel.dailySendLimit"
+                :min="1"
+                :max="formModel.ownerDailySendLimitMax"
+                :precision="0"
+                class="send-preference-number-input"
+              >
+                <template #suffix>封</template>
+              </NInputNumber>
+            </NFormItem>
+          </NGi>
+
+          <NGi>
+            <NFormItem label="后续开发信占比">
+              <NInputNumber
+                v-model:value="formModel.followUpSharePercent"
+                :min="0"
+                :max="100"
+                :precision="0"
+                class="send-preference-number-input"
+              >
+                <template #suffix>%</template>
+              </NInputNumber>
+            </NFormItem>
+          </NGi>
+
+          <NGi>
+            <NFormItem label="首封开发信占比">
+              <NInputNumber
+                :value="firstTouchSharePercent"
+                :show-button="false"
+                disabled
+                class="send-preference-number-input"
+              >
+                <template #suffix>%</template>
+              </NInputNumber>
+            </NFormItem>
+          </NGi>
+        </NGrid>
+      </NForm>
+
+      <div class="send-preference-footer">
+        <NText depth="3" class="send-preference-note">
+          平台硬上限：每日 {{ formModel.ownerDailySendLimitMax }} 封
+        </NText>
+        <NSpace :size="8">
+          <NButton size="small" :loading="loading" @click="loadSendPreference()">重新加载</NButton>
+          <NButton size="small" type="primary" :loading="saving" :disabled="!canSave" @click="saveSendPreference">
+            保存
+          </NButton>
+        </NSpace>
+      </div>
+    </NSpace>
+  </NCard>
+</template>
+
+<style scoped>
+.send-preference-number-input {
+  width: 100%;
+}
+
+.send-preference-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.send-preference-note {
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .send-preference-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

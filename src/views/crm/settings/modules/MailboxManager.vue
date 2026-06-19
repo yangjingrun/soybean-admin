@@ -11,6 +11,7 @@ import MailboxToolbar from './MailboxToolbar.vue';
 import OrganizationPermissionCard from './OrganizationPermissionCard.vue';
 import PersonaProfileManager from './PersonaProfileManager.vue';
 import ProductLineManager from './ProductLineManager.vue';
+import SendPreferenceCard from './SendPreferenceCard.vue';
 import SequencePolicyManager from './SequencePolicyManager.vue';
 import StrategyStatsPanel from './StrategyStatsPanel.vue';
 import { useMailboxTable } from './useMailboxTable';
@@ -52,6 +53,10 @@ const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults
 
       <NGi>
         <GlobalConfigCard />
+      </NGi>
+
+      <NGi>
+        <SendPreferenceCard />
       </NGi>
 
       <NGi>

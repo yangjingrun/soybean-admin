@@ -8,7 +8,8 @@ import {
   createDefaultGlobalConfigForm,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
-  isValidOwnerConcurrentSendLimit
+  isValidOwnerConcurrentSendLimit,
+  isValidOwnerDailySendLimitMax
 } from './shared';
 
 const message = useMessage();
@@ -25,6 +26,7 @@ const canSave = computed(
     isSuperAdmin.value &&
     isValidEmailVerificationCooldownDays(formModel.emailVerificationCooldownDays) &&
     isValidOwnerConcurrentSendLimit(formModel.ownerConcurrentSendLimit) &&
+    isValidOwnerDailySendLimitMax(formModel.ownerDailySendLimitMax) &&
     isValidFollowUpDelayDays(formModel.followUpDelayDays)
 );
 const formattedUpdatedAt = computed(() => {
@@ -58,6 +60,7 @@ async function loadGlobalConfig(showMessage = true) {
 
     formModel.emailVerificationCooldownDays = data.emailVerificationCooldownDays;
     formModel.ownerConcurrentSendLimit = data.ownerConcurrentSendLimit;
+    formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
     formModel.followUpDelayDays = { ...data.followUpDelayDays };
     updatedAt.value = data.updatedAt;
 
@@ -73,6 +76,7 @@ async function loadGlobalConfig(showMessage = true) {
 async function saveGlobalConfig() {
   const emailVerificationCooldownDays = formModel.emailVerificationCooldownDays;
   const ownerConcurrentSendLimit = formModel.ownerConcurrentSendLimit;
+  const ownerDailySendLimitMax = formModel.ownerDailySendLimitMax;
 
   if (!isValidEmailVerificationCooldownDays(emailVerificationCooldownDays)) {
     message.warning('请输入 1-365 的冷却天数');
@@ -89,12 +93,18 @@ async function saveGlobalConfig() {
     return;
   }
 
+  if (!isValidOwnerDailySendLimitMax(ownerDailySendLimitMax)) {
+    message.warning('请输入大于 0 的每日发送硬上限');
+    return;
+  }
+
   saving.value = true;
 
   try {
     const { data, error } = await saveCrmGlobalConfig({
       emailVerificationCooldownDays,
       ownerConcurrentSendLimit,
+      ownerDailySendLimitMax,
       followUpDelayDays: formModel.followUpDelayDays
     });
 
@@ -104,6 +114,7 @@ async function saveGlobalConfig() {
 
     formModel.emailVerificationCooldownDays = data.emailVerificationCooldownDays;
     formModel.ownerConcurrentSendLimit = data.ownerConcurrentSendLimit;
+    formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
     formModel.followUpDelayDays = { ...data.followUpDelayDays };
     updatedAt.value = data.updatedAt;
     message.success('CRM 全局配置已保存');
@@ -126,7 +137,7 @@ async function saveGlobalConfig() {
 
       <template v-else>
         <NForm :model="formModel" label-placement="top" size="small">
-          <NGrid responsive="screen" :x-gap="12" :y-gap="4" cols="1 s:2 m:6">
+          <NGrid responsive="screen" :x-gap="12" :y-gap="4" cols="1 s:2 m:7">
             <NGi>
               <NFormItem label="验证冷却">
                 <NInputNumber
@@ -147,6 +158,19 @@ async function saveGlobalConfig() {
                   v-model:value="formModel.ownerConcurrentSendLimit"
                   :min="1"
                   :max="100"
+                  :precision="0"
+                  class="config-number-input"
+                >
+                  <template #suffix>封</template>
+                </NInputNumber>
+              </NFormItem>
+            </NGi>
+
+            <NGi>
+              <NFormItem label="每日硬上限">
+                <NInputNumber
+                  v-model:value="formModel.ownerDailySendLimitMax"
+                  :min="1"
                   :precision="0"
                   class="config-number-input"
                 >

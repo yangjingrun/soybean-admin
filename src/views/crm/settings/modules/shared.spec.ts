@@ -19,6 +19,7 @@ import {
   createDefaultEmailTemplateForm,
   createDefaultFollowUpDelayDays,
   createDefaultGlobalConfigForm,
+  createDefaultSendPreferenceForm,
   createDefaultPersonaProfileFilterModel,
   createDefaultPersonaProfileForm,
   createDefaultProductLineAiWritingConfig,
@@ -31,7 +32,10 @@ import {
   formatMailboxSyncActionLabel,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
+  isValidDailySendLimit,
+  isValidFollowUpSharePercent,
   isValidOwnerConcurrentSendLimit,
+  isValidOwnerDailySendLimitMax,
   normalizeEmailTemplatePayload,
   normalizePersonaProfilePayload,
   normalizeProductLineAiWritingConfig,
@@ -46,6 +50,7 @@ describe('crm settings shared helpers', () => {
     assert.deepEqual(createDefaultGlobalConfigForm(), {
       emailVerificationCooldownDays: 30,
       ownerConcurrentSendLimit: 5,
+      ownerDailySendLimitMax: 200,
       followUpDelayDays: {
         step2Days: 3,
         step3Days: 7,
@@ -53,6 +58,22 @@ describe('crm settings shared helpers', () => {
         step5Days: 21
       }
     });
+  });
+
+  it('creates and validates current-owner send preference form values', () => {
+    assert.deepEqual(createDefaultSendPreferenceForm(), {
+      dailySendLimit: 50,
+      followUpSharePercent: 70,
+      ownerDailySendLimitMax: 200
+    });
+    assert.equal(isValidDailySendLimit(1, 200), true);
+    assert.equal(isValidDailySendLimit(200, 200), true);
+    assert.equal(isValidDailySendLimit(201, 200), false);
+    assert.equal(isValidDailySendLimit(50.5, 200), false);
+    assert.equal(isValidFollowUpSharePercent(0), true);
+    assert.equal(isValidFollowUpSharePercent(100), true);
+    assert.equal(isValidFollowUpSharePercent(101), false);
+    assert.equal(isValidFollowUpSharePercent(null), false);
   });
 
   it('validates follow-up delay days for sequence policy config', () => {
@@ -84,6 +105,14 @@ describe('crm settings shared helpers', () => {
     assert.equal(isValidOwnerConcurrentSendLimit(101), false);
     assert.equal(isValidOwnerConcurrentSendLimit(5.5), false);
     assert.equal(isValidOwnerConcurrentSendLimit(null), false);
+  });
+
+  it('accepts only positive integer owner daily send hard limits', () => {
+    assert.equal(isValidOwnerDailySendLimitMax(1), true);
+    assert.equal(isValidOwnerDailySendLimitMax(200), true);
+    assert.equal(isValidOwnerDailySendLimitMax(0), false);
+    assert.equal(isValidOwnerDailySendLimitMax(20.5), false);
+    assert.equal(isValidOwnerDailySendLimitMax(null), false);
   });
 
   it('builds blacklist search params from trimmed keyword filters', () => {
@@ -329,7 +358,7 @@ describe('crm settings shared helpers', () => {
     assert.equal(createPersonaProfileFormFromRecord(createPersonaProfile()).focusText, 'MOQ and lead time');
   });
 
-  it('collects queued and failed messages for the operations queue', () => {
+  it('collects scheduled, queued and failed messages for the operations queue', () => {
     const rows = collectOperationQueueRows([
       createSequenceReviewItem({
         accountName: 'Acme',
@@ -343,6 +372,19 @@ describe('crm settings shared helpers', () => {
         accountName: 'Beta',
         contactEmail: 'owner@example.com',
         messages: [createMessage({ id: 'msg-failed', status: 'failed', updatedAt: '2026-06-18T02:00:00.000Z' })]
+      }),
+      createSequenceReviewItem({
+        accountName: 'Delta',
+        contactEmail: 'ops@example.com',
+        enrollmentStatus: 'sequence_running',
+        messages: [
+          createMessage({
+            id: 'msg-scheduled',
+            scheduledAt: '2026-06-20T02:00:00.000Z',
+            status: 'draft_ready',
+            updatedAt: '2026-06-18T03:00:00.000Z'
+          })
+        ]
       })
     ]);
 
@@ -350,7 +392,8 @@ describe('crm settings shared helpers', () => {
       rows.map(row => ({ accountName: row.accountName, id: row.id, status: row.status })),
       [
         { accountName: 'Beta', id: 'msg-failed', status: 'failed' },
-        { accountName: 'Acme', id: 'msg-queued', status: 'queued' }
+        { accountName: 'Acme', id: 'msg-queued', status: 'queued' },
+        { accountName: 'Delta', id: 'msg-scheduled', status: 'scheduled' }
       ]
     );
   });
@@ -713,6 +756,7 @@ describe('crm settings shared helpers', () => {
 function createSequenceReviewItem(options: {
   accountName: string;
   contactEmail: string;
+  enrollmentStatus?: Api.Crm.SequenceEnrollmentStatus;
   messages: Api.Crm.MessageRecord[];
 }): Api.Crm.SequenceReviewItem {
   return {
@@ -721,7 +765,7 @@ function createSequenceReviewItem(options: {
     canOperateDraft: true,
     checklist: [],
     contact: { email: options.contactEmail, fullName: '' } as Api.Crm.LeadContact,
-    enrollment: { runVersion: 3 } as Api.Crm.SequenceEnrollmentRecord,
+    enrollment: { runVersion: 3, status: options.enrollmentStatus ?? 'ready_to_send' } as Api.Crm.SequenceEnrollmentRecord,
     firstMessage: null,
     mailbox: { maskedEmail: 'm***@example.com' } as Api.Crm.MailboxRecord,
     messages: options.messages,
@@ -740,6 +784,7 @@ function createMessage(options: {
   bullJobId?: string | null;
   id: string;
   providerThreadId?: string | null;
+  scheduledAt?: string | null;
   status: Api.Crm.MessageStatus;
   subject?: string;
   updatedAt: string;
@@ -749,7 +794,7 @@ function createMessage(options: {
     id: options.id,
     providerMessageId: null,
     providerThreadId: options.providerThreadId ?? null,
-    scheduledAt: null,
+    scheduledAt: options.scheduledAt ?? null,
     sentAt: null,
     status: options.status,
     stepIndex: 1,

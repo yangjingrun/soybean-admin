@@ -7,12 +7,11 @@ import {
   formatNullableText,
   formatSequenceDate,
   getCurrentSequenceMessage,
+  getMessageStatusView,
   getNextScheduledReviewMessage,
   getSequenceNextAction,
   getSequenceProgressText,
   getSequenceSendAuditSummary,
-  messageStatusLabelMap,
-  messageStatusTagTypeMap,
   sequenceBatchResultDisplayKey,
   sequenceStatusLabelMap,
   sequenceStatusTagTypeMap,
@@ -120,16 +119,20 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
       render: row => {
         const currentMessage = getCurrentSequenceMessage(row);
 
-        return currentMessage
-          ? h('div', { class: 'sequence-cell' }, [
-              h('span', { class: 'sequence-primary-text' }, currentMessage.subject),
-              h(
-                NTag,
-                { bordered: false, size: 'small', type: messageStatusTagTypeMap[currentMessage.status] },
-                { default: () => messageStatusLabelMap[currentMessage.status] }
-              )
-            ])
-          : '-';
+        if (!currentMessage) {
+          return '-';
+        }
+
+        const messageStatusView = getMessageStatusView(currentMessage, row.enrollment.status);
+
+        return h('div', { class: 'sequence-cell' }, [
+          h('span', { class: 'sequence-primary-text' }, currentMessage.subject),
+          h(
+            NTag,
+            { bordered: false, size: 'small', type: messageStatusView.tagType },
+            { default: () => messageStatusView.label }
+          )
+        ]);
       }
     },
     {

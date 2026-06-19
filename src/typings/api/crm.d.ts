@@ -182,6 +182,7 @@ declare namespace Api {
       configKey: string;
       emailVerificationCooldownDays: number;
       ownerConcurrentSendLimit: number;
+      ownerDailySendLimitMax: number;
       followUpDelayDays: FollowUpDelayDays;
       updatedAt: string;
     }
@@ -196,13 +197,32 @@ declare namespace Api {
     interface SaveGlobalConfigPayload {
       emailVerificationCooldownDays: number;
       ownerConcurrentSendLimit: number;
+      ownerDailySendLimitMax: number;
       followUpDelayDays: FollowUpDelayDays;
     }
 
     interface GlobalConfigFormModel {
       emailVerificationCooldownDays: number | null;
       ownerConcurrentSendLimit: number | null;
+      ownerDailySendLimitMax: number | null;
       followUpDelayDays: FollowUpDelayDays;
+    }
+
+    interface SendPreference {
+      dailySendLimit: number;
+      followUpSharePercent: number;
+      ownerDailySendLimitMax: number;
+    }
+
+    interface SaveSendPreferencePayload {
+      dailySendLimit: number;
+      followUpSharePercent: number;
+    }
+
+    interface SendPreferenceFormModel {
+      dailySendLimit: number | null;
+      followUpSharePercent: number | null;
+      ownerDailySendLimitMax: number;
     }
 
     interface OrganizationConfig {

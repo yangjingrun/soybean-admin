@@ -69,6 +69,23 @@ export function saveCrmGlobalConfig(data: Api.Crm.SaveGlobalConfigPayload) {
   });
 }
 
+/** Read the current user's CRM send scheduling preference. */
+export function fetchCrmSendPreference() {
+  return request<Api.Crm.SendPreference>({
+    url: '/crm/send-preference',
+    method: 'get'
+  });
+}
+
+/** Save the current user's CRM send scheduling preference. */
+export function saveCrmSendPreference(data: Api.Crm.SaveSendPreferencePayload) {
+  return request<Api.Crm.SendPreference>({
+    url: '/crm/send-preference',
+    method: 'post',
+    data
+  });
+}
+
 /** Read organization-level CRM permission settings. */
 export function fetchCrmOrganizationConfig() {
   return request<Api.Crm.OrganizationConfig>({

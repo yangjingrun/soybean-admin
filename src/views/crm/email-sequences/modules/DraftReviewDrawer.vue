@@ -11,10 +11,9 @@ import {
   buildSequenceMessageTimelineItems,
   buildSequencePolicyReviewHints,
   canGenerateNextSequenceDraft,
+  getMessageStatusView,
   type DraftReviewApprovePayload,
   type DraftReviewSavePayload,
-  messageStatusLabelMap,
-  messageStatusTagTypeMap,
   sequenceStatusLabelMap,
   sequenceStatusTagTypeMap
 } from './shared';
@@ -79,7 +78,12 @@ const reviewMessages = computed(() => {
 const currentMessage = computed(
   () => reviewMessages.value.find(item => item.id === selectedMessageId.value) ?? reviewMessages.value[0] ?? null
 );
-const timelineItems = computed(() => buildSequenceMessageTimelineItems(reviewMessages.value, selectedMessageId.value));
+const timelineItems = computed(() =>
+  buildSequenceMessageTimelineItems(reviewMessages.value, selectedMessageId.value, props.item?.enrollment.status)
+);
+const currentMessageStatusView = computed(() =>
+  currentMessage.value && props.item ? getMessageStatusView(currentMessage.value, props.item.enrollment.status) : null
+);
 const isFirstMessageSelected = computed(() => currentMessage.value?.stepIndex === 1);
 const operableFollowUpEnrollmentStatuses: Api.Crm.SequenceEnrollmentStatus[] = ['ready_to_send', 'sequence_running'];
 const canOperateSelectedDraft = computed(() =>
@@ -272,6 +276,12 @@ const statusTip = computed(() => {
   if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review')
     return '确认后会按计划时间进入发送队列';
   if (currentMessage.value.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
+  if (
+    currentMessage.value.status === 'draft_ready' &&
+    currentMessage.value.scheduledAt &&
+    props.item?.enrollment.status === 'sequence_running'
+  )
+    return '草稿已确认，等待发送调度器按计划入队';
   if (currentMessage.value.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
   if (currentMessage.value.status === 'queued') return '开发信已进入发送队列';
   if (currentMessage.value.status === 'sent') return '开发信已发送';
@@ -400,11 +410,11 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               </NTag>
               <NTag
                 v-if="currentMessage"
-                :type="messageStatusTagTypeMap[currentMessage.status]"
+                :type="currentMessageStatusView?.tagType"
                 :bordered="false"
                 size="small"
               >
-                {{ messageStatusLabelMap[currentMessage.status] }}
+                {{ currentMessageStatusView?.label }}
               </NTag>
             </NSpace>
             <div class="review-title">{{ item.account.name }}</div>

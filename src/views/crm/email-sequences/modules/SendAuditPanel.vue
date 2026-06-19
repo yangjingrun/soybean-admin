@@ -4,9 +4,8 @@ import {
   formatNullableText,
   formatSequenceDate,
   getFailedSequenceMessages,
+  getMessageStatusView,
   getSequenceSendAuditSummary,
-  messageStatusLabelMap,
-  messageStatusTagTypeMap
 } from './shared';
 
 const props = defineProps<{
@@ -16,6 +15,9 @@ const props = defineProps<{
 
 const auditSummary = computed(() => getSequenceSendAuditSummary(props.item));
 const failedMessages = computed(() => getFailedSequenceMessages(props.item.messages));
+const currentMessageStatusView = computed(() =>
+  props.currentMessage ? getMessageStatusView(props.currentMessage, props.item.enrollment.status) : null
+);
 const isCurrentMessageFailed = computed(() => props.currentMessage?.status === 'failed');
 const retryDisabledReason = computed(() => {
   if (!isCurrentMessageFailed.value) return '当前邮件不是失败状态';
@@ -96,8 +98,8 @@ const retryDisabledReason = computed(() => {
 
     <NAlert v-if="currentMessage" type="info" :bordered="false">
       当前选中第 {{ currentMessage.stepIndex }} 封：
-      <NTag :type="messageStatusTagTypeMap[currentMessage.status]" :bordered="false" size="small">
-        {{ messageStatusLabelMap[currentMessage.status] }}
+      <NTag :type="currentMessageStatusView?.tagType" :bordered="false" size="small">
+        {{ currentMessageStatusView?.label }}
       </NTag>
     </NAlert>
   </div>

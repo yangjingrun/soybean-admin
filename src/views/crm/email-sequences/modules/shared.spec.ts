@@ -12,6 +12,7 @@ import {
   getCurrentSequenceMessage,
   getFailedSequenceMessages,
   getMaxSequenceMessageStep,
+  getMessageStatusView,
   getNextScheduledReviewMessage,
   getPendingReviewMessage,
   getSequenceChecklistSummary,
@@ -410,6 +411,28 @@ describe('email sequence review shared helpers', () => {
     ];
 
     assert.equal(getNextScheduledReviewMessage(messages)?.id, 'message-3');
+  });
+
+  it('displays scheduled ready running messages separately from queued messages', () => {
+    const scheduledReady = createMessage({
+      id: 'message-2',
+      status: 'draft_ready',
+      scheduledAt: '2026-06-20T06:00:00.000Z'
+    });
+    const queued = createMessage({
+      id: 'message-3',
+      status: 'queued',
+      scheduledAt: '2026-06-20T07:00:00.000Z'
+    });
+
+    assert.deepEqual(getMessageStatusView(scheduledReady, 'sequence_running'), {
+      label: '待调度',
+      tagType: 'warning'
+    });
+    assert.deepEqual(getMessageStatusView(queued, 'sequence_running'), {
+      label: '队列中',
+      tagType: 'info'
+    });
   });
 
   it('builds sequence message timeline items for drawer navigation', () => {

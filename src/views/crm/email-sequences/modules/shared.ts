@@ -58,6 +58,11 @@ export const messageStatusTagTypeMap: Record<Api.Crm.MessageStatus, NaiveUI.Them
   skipped: 'default'
 };
 
+export interface MessageStatusView {
+  label: string;
+  tagType: NaiveUI.ThemeColor;
+}
+
 export interface DraftReviewSavePayload {
   messageId: string;
   draft: Api.Crm.MessageDraftPayload;
@@ -253,6 +258,24 @@ export function formatNullableText(value: string | null | undefined) {
   return value || '-';
 }
 
+/** Display scheduled ready follow-ups as waiting for scheduler without changing backend status. */
+export function getMessageStatusView(
+  message: Api.Crm.MessageRecord,
+  enrollmentStatus?: Api.Crm.SequenceEnrollmentStatus
+): MessageStatusView {
+  if (message.status === 'draft_ready' && message.scheduledAt && enrollmentStatus === 'sequence_running') {
+    return {
+      label: '待调度',
+      tagType: 'warning'
+    };
+  }
+
+  return {
+    label: messageStatusLabelMap[message.status],
+    tagType: messageStatusTagTypeMap[message.status]
+  };
+}
+
 /** Build the save event payload from the currently selected draft. */
 export function buildDraftReviewOperationPayload(
   messageId: string,
@@ -319,7 +342,7 @@ export function getPendingReviewMessage(messages: Api.Crm.MessageRecord[]) {
 /** Return the nearest scheduled message that still needs review or sending. */
 export function getNextScheduledReviewMessage(messages: Api.Crm.MessageRecord[]) {
   return messages
-    .filter(message => ['draft_pending_review', 'queued'].includes(message.status) && message.scheduledAt)
+    .filter(message => ['draft_pending_review', 'draft_ready', 'queued'].includes(message.status) && message.scheduledAt)
     .sort((left, right) => left.scheduledAt!.localeCompare(right.scheduledAt!))[0];
 }
 
@@ -338,20 +361,25 @@ export function getMaxSequenceMessageStep(messages: Api.Crm.MessageRecord[]) {
 /** Build drawer navigation items for generated sequence messages. */
 export function buildSequenceMessageTimelineItems(
   messages: Api.Crm.MessageRecord[],
-  selectedMessageId: string | null
+  selectedMessageId: string | null,
+  enrollmentStatus?: Api.Crm.SequenceEnrollmentStatus
 ): SequenceMessageTimelineItem[] {
   return [...messages]
     .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt))
-    .map(message => ({
-      id: message.id,
-      metaText: formatSequenceMessageTimelineMeta(message),
-      selected: message.id === selectedMessageId,
-      statusLabel: messageStatusLabelMap[message.status],
-      statusTagType: messageStatusTagTypeMap[message.status],
-      stepIndex: message.stepIndex,
-      subject: message.subject || '-',
-      title: `第 ${message.stepIndex} 封`
-    }));
+    .map(message => {
+      const statusView = getMessageStatusView(message, enrollmentStatus);
+
+      return {
+        id: message.id,
+        metaText: formatSequenceMessageTimelineMeta(message),
+        selected: message.id === selectedMessageId,
+        statusLabel: statusView.label,
+        statusTagType: statusView.tagType,
+        stepIndex: message.stepIndex,
+        subject: message.subject || '-',
+        title: `第 ${message.stepIndex} 封`
+      };
+    });
 }
 
 /** Check whether the current enrollment can create one local follow-up draft. */
@@ -694,6 +722,19 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
       description: currentMessage.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '已进入发送队列',
       buttonLabel: '查看',
       tagType: 'info'
+    };
+  }
+
+  if (
+    currentMessage?.status === 'draft_ready' &&
+    currentMessage.scheduledAt &&
+    item.enrollment.status === 'sequence_running'
+  ) {
+    return {
+      label: '待调度',
+      description: formatSequenceDate(currentMessage.scheduledAt),
+      buttonLabel: '查看',
+      tagType: 'warning'
     };
   }
 
