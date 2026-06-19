@@ -519,8 +519,19 @@ export interface CrmGmailHistoryListInput {
   targetHistoryId: string;
 }
 
+export interface CrmGmailHistoryMessage {
+  providerMessageId: string;
+  providerThreadId: string | null;
+  replyToProviderMessageId: string | null;
+  subject: string;
+  bodyText: string;
+  receivedAt: Date;
+  messageType?: CrmInboxMessageType;
+}
+
 export interface CrmGmailHistoryListResult {
   nextHistoryId: string;
+  messages: CrmGmailHistoryMessage[];
 }
 
 export interface CrmGmailHistoryGateway {
@@ -541,6 +552,8 @@ export interface CrmGmailHistorySyncResult {
   mailboxId: string;
   fromHistoryId: string | null;
   toHistoryId: string;
+  ingestedCount: number;
+  skippedMessageCount: number;
 }
 
 export interface CrmGmailPubSubPushResult {
@@ -833,6 +846,12 @@ export interface CrmStore {
     id: string;
     organizationId: string;
     ownerUserId?: string;
+  }): Promise<CrmMessageRecord | null>;
+  findSentMessageByProviderId(args: {
+    organizationId: string;
+    ownerUserId: string;
+    mailboxId: string | null;
+    providerMessageId: string;
   }): Promise<CrmMessageRecord | null>;
   updateMessage(
     id: string,

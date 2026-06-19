@@ -548,6 +548,25 @@ export class PrismaCrmStore implements CrmStore {
       .then(record => (record ? toMessageRecord(record) : null));
   }
 
+  findSentMessageByProviderId(args: {
+    organizationId: string;
+    ownerUserId: string;
+    mailboxId: string | null;
+    providerMessageId: string;
+  }) {
+    return this.prisma.crmMessage
+      .findFirst({
+        where: {
+          organizationId: args.organizationId,
+          ownerUserId: args.ownerUserId,
+          mailboxId: args.mailboxId,
+          providerMessageId: args.providerMessageId,
+          status: 'sent'
+        }
+      })
+      .then(record => (record ? toMessageRecord(record) : null));
+  }
+
   async updateMessage(
     id: string,
     organizationId: string,
@@ -1199,10 +1218,23 @@ export class PrismaCrmStore implements CrmStore {
   private async findIngestedCustomerReplyByProviderMessage(
     input: CrmCustomerReplyIngestInput
   ): Promise<CrmCustomerReplyIngestRecord | null> {
+    const outboundMessage = await this.prisma.crmMessage.findFirst({
+      where: {
+        id: input.outboundMessageId,
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        status: 'sent'
+      },
+      select: { mailboxId: true }
+    });
+
+    if (!outboundMessage) return null;
+
     const inboxMessage = await this.prisma.crmInboxMessage.findFirst({
       where: {
         organizationId: input.organizationId,
         ownerUserId: input.ownerUserId,
+        mailboxId: outboundMessage.mailboxId,
         providerMessageId: input.providerMessageId
       },
       include: {

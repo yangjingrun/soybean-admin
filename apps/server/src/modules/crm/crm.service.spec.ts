@@ -1885,6 +1885,17 @@ function createStore(
         }) ?? null
       );
     },
+    async findSentMessageByProviderId(args) {
+      return (
+        messages.find(message => {
+          if (message.organizationId !== args.organizationId) return false;
+          if (message.ownerUserId !== args.ownerUserId) return false;
+          if (message.mailboxId !== args.mailboxId) return false;
+          if (message.providerMessageId !== args.providerMessageId) return false;
+          return message.status === 'sent';
+        }) ?? null
+      );
+    },
     async updateMessage(id, organizationId, input, guard) {
       messageUpdateCalls.push({ id, organizationId, input });
       const message = messages.find(item => {

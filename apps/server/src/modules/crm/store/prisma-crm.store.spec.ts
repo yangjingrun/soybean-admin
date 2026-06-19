@@ -476,6 +476,12 @@ describe('PrismaCrmStore', () => {
       organizationId: 'org-1',
       ownerUserId: 'user-1'
     });
+    const providerMessage = await store.findSentMessageByProviderId({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerMessageId: 'gmail-sent-1'
+    });
     const updated = await store.updateMessage('message-1', 'org-1', {
       subject: 'Updated',
       status: 'draft_ready'
@@ -483,6 +489,7 @@ describe('PrismaCrmStore', () => {
 
     assert.equal(enrollment?.id, 'enrollment-1');
     assert.equal(message?.id, 'message-1');
+    assert.equal(providerMessage?.id, 'message-1');
     assert.equal(updated?.status, 'draft_ready');
     assert.deepEqual(prisma.crmSequenceEnrollment.findFirstCalls[0].where, {
       organizationId: 'org-1',
@@ -494,6 +501,13 @@ describe('PrismaCrmStore', () => {
       id: 'message-1',
       organizationId: 'org-1',
       ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmMessage.findFirstCalls[1].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerMessageId: 'gmail-sent-1',
+      status: 'sent'
     });
   });
 
@@ -843,6 +857,7 @@ describe('PrismaCrmStore', () => {
     assert.deepEqual(prisma.crmInboxMessage.findFirstCalls.at(-1)?.where, {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
       providerMessageId: 'gmail-message-1'
     });
     assert.equal(prisma.crmInboxThread.updateCalls.length, 0);

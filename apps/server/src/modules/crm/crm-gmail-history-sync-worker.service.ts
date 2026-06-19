@@ -28,7 +28,9 @@ export class CrmGmailHistorySyncWorkerService {
         reason: 'mailbox_not_found',
         mailboxId: job.mailboxId,
         fromHistoryId: null,
-        toHistoryId: job.historyId
+        toHistoryId: job.historyId,
+        ingestedCount: 0,
+        skippedMessageCount: 0
       };
     }
 
@@ -38,7 +40,9 @@ export class CrmGmailHistorySyncWorkerService {
         reason: 'stale_history',
         mailboxId: mailbox.id,
         fromHistoryId: mailbox.lastHistoryId,
-        toHistoryId: job.historyId
+        toHistoryId: job.historyId,
+        ingestedCount: 0,
+        skippedMessageCount: 0
       };
     }
 
@@ -47,6 +51,7 @@ export class CrmGmailHistorySyncWorkerService {
       startHistoryId: mailbox.lastHistoryId,
       targetHistoryId: job.historyId
     });
+    const ingestResult = await this.ingestHistoryMessages(job, history.messages);
     const advancedMailbox = await this.store.advanceMailboxHistoryId({
       mailboxId: mailbox.id,
       organizationId: mailbox.organizationId,
@@ -61,7 +66,9 @@ export class CrmGmailHistorySyncWorkerService {
         reason: 'checkpoint_conflict',
         mailboxId: mailbox.id,
         fromHistoryId: mailbox.lastHistoryId,
-        toHistoryId: history.nextHistoryId
+        toHistoryId: history.nextHistoryId,
+        ingestedCount: ingestResult.ingestedCount,
+        skippedMessageCount: ingestResult.skippedMessageCount
       };
     }
 
@@ -69,8 +76,55 @@ export class CrmGmailHistorySyncWorkerService {
       status: 'synced',
       mailboxId: advancedMailbox.id,
       fromHistoryId: mailbox.lastHistoryId,
-      toHistoryId: advancedMailbox.lastHistoryId ?? history.nextHistoryId
+      toHistoryId: advancedMailbox.lastHistoryId ?? history.nextHistoryId,
+      ingestedCount: ingestResult.ingestedCount,
+      skippedMessageCount: ingestResult.skippedMessageCount
     };
+  }
+
+  private async ingestHistoryMessages(
+    job: CrmGmailHistorySyncQueueJob,
+    messages: Awaited<ReturnType<CrmGmailHistoryGateway['listHistory']>>['messages']
+  ) {
+    let ingestedCount = 0;
+    let skippedMessageCount = 0;
+
+    for (const message of messages) {
+      if (!message.replyToProviderMessageId) {
+        skippedMessageCount += 1;
+        continue;
+      }
+
+      const outboundMessage = await this.store.findSentMessageByProviderId({
+        organizationId: job.organizationId,
+        ownerUserId: job.ownerUserId,
+        mailboxId: job.mailboxId,
+        providerMessageId: message.replyToProviderMessageId
+      });
+
+      if (!outboundMessage) {
+        skippedMessageCount += 1;
+        continue;
+      }
+
+      const ingested = await this.store.ingestCustomerReply({
+        outboundMessageId: outboundMessage.id,
+        organizationId: job.organizationId,
+        ownerUserId: job.ownerUserId,
+        subject: message.subject,
+        bodyText: message.bodyText,
+        receivedAt: message.receivedAt,
+        providerThreadId: message.providerThreadId,
+        providerMessageId: message.providerMessageId,
+        messageType: message.messageType
+      });
+
+      if (ingested && !ingested.isDuplicate) {
+        ingestedCount += 1;
+      }
+    }
+
+    return { ingestedCount, skippedMessageCount };
   }
 }
 
