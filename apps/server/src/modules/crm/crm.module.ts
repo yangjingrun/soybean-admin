@@ -8,6 +8,8 @@ import { SystemNotificationModule } from '../system-notification/system-notifica
 import { MockCrmEmailSendGateway } from './crm-email-send.gateway';
 import { CrmController } from './crm.controller';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
+import { CrmGmailWebhookController } from './crm-gmail-webhook.controller';
+import { CrmGmailWebhookService } from './crm-gmail-webhook.service';
 import { CrmSendQueueService } from './crm-send-queue.service';
 import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
@@ -23,9 +25,10 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
 
 @Module({
   imports: [AuthModule, DatabaseModule, RedisModule, SystemLogModule, SystemNotificationModule],
-  controllers: [CrmController],
+  controllers: [CrmController, CrmGmailWebhookController],
   providers: [
     CrmService,
+    CrmGmailWebhookService,
     CrmSendQueueService,
     CrmGmailHistorySyncQueueService,
     CrmSendWorkerService,

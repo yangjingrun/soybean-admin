@@ -513,6 +513,15 @@ export interface CrmGmailHistorySyncQueuePort {
   enqueueHistorySync(input: CrmGmailHistorySyncQueueJob): Promise<{ jobId: string }>;
 }
 
+export interface CrmGmailPubSubPushResult {
+  queued: boolean;
+  reason?: 'mailbox_not_found';
+  mailboxId?: string;
+  historyId: string;
+  pubsubMessageId: string | null;
+  jobId?: string;
+}
+
 export interface CrmEmailSendGatewayInput {
   enrollment: CrmSequenceEnrollmentRecord;
   message: CrmMessageRecord;
