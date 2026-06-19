@@ -75,6 +75,8 @@ model Organization {
   crmMailboxes      CrmMailbox[]
   crmMailboxSendUsages CrmMailboxSendUsage[]
   crmProductLines   CrmProductLine[]
+  crmEmailTemplateGroups CrmEmailTemplateGroup[]
+  crmEmailTemplateSteps  CrmEmailTemplateStep[]
   crmEnrollments     CrmSequenceEnrollment[]
   crmMessages        CrmMessage[]
   crmInboxThreads    CrmInboxThread[]
@@ -321,6 +323,48 @@ model CrmProductLine {
   @@unique([organizationId, name])
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, updatedAt])
+}
+
+model CrmEmailTemplateGroup {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  language       String   @default("en")
+  description    String?
+  status         String   @default("active")
+  isDefault      Boolean  @default(false)
+  createdById    String
+  createdByName  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  steps        CrmEmailTemplateStep[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, isDefault])
+}
+
+model CrmEmailTemplateStep {
+  id              String   @id @default(uuid())
+  organizationId  String
+  templateGroupId String
+  stepIndex       Int
+  name            String
+  threadMode      String
+  delayDays       Int      @default(0)
+  subjectTemplate String
+  bodyTemplate    String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization  Organization          @relation(fields: [organizationId], references: [id])
+  templateGroup CrmEmailTemplateGroup @relation(fields: [templateGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([templateGroupId, stepIndex])
+  @@index([organizationId, templateGroupId])
 }
 
 model CrmSequenceEnrollment {

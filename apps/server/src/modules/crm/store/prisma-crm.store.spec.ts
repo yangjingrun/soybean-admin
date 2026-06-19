@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Prisma } from '../../../generated/prisma/client';
+import type { CrmEmailTemplateStepInput } from '../crm.types';
 import { PrismaCrmStore } from './prisma-crm.store';
 
 describe('PrismaCrmStore', () => {
@@ -195,6 +196,58 @@ describe('PrismaCrmStore', () => {
     assert.deepEqual(prisma.crmGlobalConfig.upsertCalls[0].where, { configKey: 'default' });
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.emailVerificationCooldownDays, 45);
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.followUpDelayDaysText, '3,7,14,21');
+  });
+
+  it('creates, lists, updates and sets default organization email template groups', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const steps = createEmailTemplateSteps();
+
+    const created = await store.createEmailTemplateGroup({
+      organizationId: 'org-1',
+      name: 'Distributor follow-up',
+      language: 'en',
+      description: 'Default distributor sequence',
+      status: 'active',
+      isDefault: false,
+      steps,
+      createdById: 'user-1',
+      createdByName: 'Alice'
+    });
+    const listed = await store.listEmailTemplateGroups({
+      organizationId: 'org-1',
+      keyword: 'distributor',
+      status: 'active',
+      skip: 0,
+      take: 10
+    });
+    const updated = await store.updateEmailTemplateGroup('template-group-1', 'org-1', {
+      name: 'Updated distributor follow-up',
+      steps
+    });
+    const defaultGroup = await store.setDefaultEmailTemplateGroup('template-group-1', 'org-1');
+
+    assert.equal(created.steps.length, 5);
+    assert.equal(listed.records[0].organizationId, 'org-1');
+    assert.equal(updated?.name, 'Updated distributor follow-up');
+    assert.equal(defaultGroup?.isDefault, true);
+    assert.equal(prisma.crmEmailTemplateGroup.createCalls[0].data.organizationId, 'org-1');
+    assert.deepEqual(prisma.crmEmailTemplateGroup.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      status: 'active',
+      OR: [
+        { name: { contains: 'distributor', mode: 'insensitive' } },
+        { description: { contains: 'distributor', mode: 'insensitive' } }
+      ]
+    });
+    assert.equal(prisma.crmEmailTemplateGroup.updateManyAndReturnCalls[0].where.organizationId, 'org-1');
+    assert.equal(prisma.crmEmailTemplateStep.deleteManyCalls[0].where.templateGroupId, 'template-group-1');
+    assert.equal(prisma.crmEmailTemplateStep.createManyCalls[0].data.length, 5);
+    assert.deepEqual(prisma.crmEmailTemplateGroup.updateManyCalls[0].where, {
+      organizationId: 'org-1',
+      id: { not: 'template-group-1' },
+      isDefault: true
+    });
   });
 
   it('finds organization blacklist entries by organization and email hash', async () => {
@@ -1530,6 +1583,17 @@ function createPrismaArchivedFingerprint(input: Record<string, unknown> = {}) {
   };
 }
 
+function createEmailTemplateSteps(): CrmEmailTemplateStepInput[] {
+  return [1, 2, 3, 4, 5].map(stepIndex => ({
+    stepIndex,
+    name: `Step ${stepIndex}`,
+    threadMode: stepIndex === 2 ? 'same_thread' : 'new_subject',
+    delayDays: stepIndex === 1 ? 0 : stepIndex * 2,
+    subjectTemplate: stepIndex === 2 ? '' : `Subject ${stepIndex}`,
+    bodyTemplate: `Body ${stepIndex}`
+  }));
+}
+
 function createPrisma(
   options: {
     archivedFingerprintResults?: ReturnType<typeof createPrismaArchivedFingerprint>[];
@@ -1592,6 +1656,28 @@ function createPrisma(
     createdByName: 'Alice',
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
+  const emailTemplateSteps = createEmailTemplateSteps().map(step => ({
+    id: `template-step-${step.stepIndex}`,
+    organizationId: 'org-1',
+    templateGroupId: 'template-group-1',
+    ...step,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  }));
+  const emailTemplateGroup = {
+    id: 'template-group-1',
+    organizationId: 'org-1',
+    name: 'Distributor follow-up',
+    language: 'en',
+    description: 'Default distributor sequence',
+    status: 'active',
+    isDefault: false,
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    steps: emailTemplateSteps
   };
   const contact = {
     id: 'contact-1',
@@ -1881,6 +1967,60 @@ function createPrisma(
           createdAt: new Date('2026-06-18T09:00:00.000Z'),
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         };
+      }
+    },
+    crmEmailTemplateGroup: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; skip: number; take: number }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      updateManyCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return { ...emailTemplateGroup, ...args.data };
+      },
+      async findMany(args: { where: Record<string, unknown>; skip: number; take: number }) {
+        this.findManyCalls.push(args);
+        return [emailTemplateGroup];
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return emailTemplateGroup;
+      },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return emailTemplateGroup;
+      },
+      async updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+        this.updateManyCalls.push(args);
+        return { count: 1 };
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        Object.assign(emailTemplateGroup, args.data, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+        return [emailTemplateGroup];
+      }
+    },
+    crmEmailTemplateStep: {
+      createManyCalls: [] as Array<{ data: Array<Record<string, unknown>> }>,
+      deleteManyCalls: [] as Array<{ where: Record<string, unknown> }>,
+      async createMany(args: { data: Array<Record<string, unknown>> }) {
+        this.createManyCalls.push(args);
+        return { count: args.data.length };
+      },
+      async deleteMany(args: { where: Record<string, unknown> }) {
+        this.deleteManyCalls.push(args);
+        return { count: 5 };
       }
     },
     crmBlacklist: {

@@ -10,6 +10,13 @@ import { normalizeEmailVerificationCooldownDays } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
+  defaultTemplateSteps,
+  defaultTemplateVariables,
+  findPersonaProfile,
+  personaProfiles,
+  renderEmailTemplateText
+} from './crm-email-template-renderer';
+import {
   CRM_EMAIL_DNS_RESOLVER,
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_OAUTH_FLOW,
@@ -28,6 +35,10 @@ import type {
   CrmMailboxRecord,
   CrmMailboxStatus,
   CrmContactRecord,
+  CrmEmailTemplateGroupRecord,
+  CrmEmailTemplateGroupUpdateInput,
+  CrmEmailTemplateStatus,
+  CrmEmailTemplateStepInput,
   CrmEmailVerificationReason,
   CrmEmailStatus,
   CrmEmailSendGateway,
@@ -64,6 +75,7 @@ const gmailProvider: CrmMailboxProvider = 'gmail';
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
 const defaultProductLineStatus: CrmProductLineStatus = 'active';
+const defaultEmailTemplateStatus: CrmEmailTemplateStatus = 'active';
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex = 1;
 const accountArchiveRecoveryDays = 30;
@@ -122,6 +134,28 @@ interface ProductLineUpdateInput extends Partial<ProductLineCreateInput> {
   status?: CrmProductLineStatus;
 }
 
+interface EmailTemplateStepInput {
+  stepIndex: number;
+  name: string;
+  threadMode: CrmMessageThreadMode;
+  delayDays: number;
+  subjectTemplate: string;
+  bodyTemplate: string;
+}
+
+interface EmailTemplateCreateInput {
+  name: string;
+  language?: string | null;
+  description?: string | null;
+  steps: EmailTemplateStepInput[];
+}
+
+interface EmailTemplateUpdateInput extends Partial<Omit<EmailTemplateCreateInput, 'steps'>> {
+  status?: CrmEmailTemplateStatus;
+  isDefault?: boolean;
+  steps?: EmailTemplateStepInput[];
+}
+
 interface SequenceReviewCreateInput {
   accountId: string;
   contactId: string;
@@ -143,138 +177,6 @@ interface GeneratedDraft {
   subject: string;
   bodyText: string;
 }
-
-interface PersonaProfile {
-  label: string;
-  aliases: string[];
-  focusText: string;
-  draftFocusText: string;
-}
-
-interface TemplateVariable {
-  key: string;
-  label: string;
-  source: string;
-}
-
-interface DefaultTemplateStep {
-  stepIndex: number;
-  name: string;
-  threadMode: CrmMessageThreadMode;
-  delayDays: number;
-  subjectTemplate: string;
-  bodyTemplate: string;
-}
-
-const personaProfiles: PersonaProfile[] = [
-  {
-    label: 'Owner / Founder',
-    aliases: ['owner', 'founder', 'ceo', 'co-founder', 'general manager', '老板', '创始人'],
-    focusText: '利润、增长、差异化、长期合作',
-    draftFocusText: 'margin, growth, differentiation, and long-term cooperation'
-  },
-  {
-    label: 'Purchasing Manager',
-    aliases: ['purchasing manager', 'buyer', 'procurement manager', 'purchasing officer', '采购', '采购经理'],
-    focusText: '价格、MOQ、交期、付款方式',
-    draftFocusText: 'price, MOQ, lead time, and payment terms'
-  },
-  {
-    label: 'Sourcing Manager',
-    aliases: ['sourcing manager', 'sourcing specialist', 'supplier manager', '供应商开发', '寻源'],
-    focusText: '新供应商、样品、认证、风险控制',
-    draftFocusText: 'new supplier options, samples, certifications, and risk control'
-  },
-  {
-    label: 'Product Manager',
-    aliases: ['product manager', 'product lead', '产品经理'],
-    focusText: '产品卖点、设计、功能、上新速度',
-    draftFocusText: 'selling points, design, functions, and new-product speed'
-  },
-  {
-    label: 'Category Manager',
-    aliases: ['category manager', 'category lead', '品类经理'],
-    focusText: 'SKU 补充、毛利、市场趋势',
-    draftFocusText: 'SKU expansion, margin, and market trends'
-  },
-  {
-    label: 'Sales Director',
-    aliases: ['sales director', 'sales manager', 'head of sales', '销售总监'],
-    focusText: '产品是否好卖、渠道接受度',
-    draftFocusText: 'sell-through potential and channel acceptance'
-  },
-  {
-    label: 'Project Manager',
-    aliases: ['project manager', 'program manager', '项目经理'],
-    focusText: '定制、项目节点、交付稳定',
-    draftFocusText: 'customization, project milestones, and stable delivery'
-  },
-  {
-    label: 'Operations Manager',
-    aliases: ['operations manager', 'operation manager', 'supply chain manager', '运营经理'],
-    focusText: '库存、物流、补货效率',
-    draftFocusText: 'inventory, logistics, and replenishment efficiency'
-  }
-];
-
-const defaultTemplateVariables: TemplateVariable[] = [
-  { key: 'account.name', label: '客户公司', source: '线索库' },
-  { key: 'account.country', label: '客户国家/地区', source: '线索库' },
-  { key: 'contact.name', label: '联系人姓名/职位', source: '联系人' },
-  { key: 'product.name', label: '产品线名称', source: '产品资料' },
-  { key: 'product.sellingPoint', label: '核心卖点', source: '产品资料' },
-  { key: 'product.supplyInfo', label: 'MOQ/交期/认证', source: '产品资料' },
-  { key: 'persona.focus', label: '职位画像侧重点', source: '内置职位画像' },
-  { key: 'sender.name', label: '发送人姓名', source: '当前用户' }
-];
-
-const defaultTemplateSteps: DefaultTemplateStep[] = [
-  {
-    stepIndex: 1,
-    name: '第 1 封：首封开发信',
-    threadMode: 'new_subject',
-    delayDays: 0,
-    subjectTemplate: '{{product.name}} for {{account.name}}',
-    bodyTemplate:
-      'Hi {{contact.name}},\n\nI noticed {{account.name}} and thought this might be relevant to your team.\nWe work on {{product.name}}, mainly focused on {{product.sellingPoint}}.\n{{persona.focus}}\n{{product.supplyInfo}}\n\nWould it be useful if I sent a short product list for your review?\n\nBest regards,\n{{sender.name}}'
-  },
-  {
-    stepIndex: 2,
-    name: '第 2 封：同线程跟进',
-    threadMode: 'same_thread',
-    delayDays: 3,
-    subjectTemplate: '',
-    bodyTemplate:
-      'Hi {{contact.name}},\n\nJust following up in case {{product.name}} is relevant for your current sourcing plan.\n\nBest regards,\n{{sender.name}}'
-  },
-  {
-    stepIndex: 3,
-    name: '第 3 封：新主题换角度',
-    threadMode: 'new_subject',
-    delayDays: 7,
-    subjectTemplate: 'Quick idea for {{account.name}}',
-    bodyTemplate:
-      'Hi {{contact.name}},\n\nA quick angle: {{product.sellingPoint}} may help when comparing supplier options.\n\nBest regards,\n{{sender.name}}'
-  },
-  {
-    stepIndex: 4,
-    name: '第 4 封：价值补充',
-    threadMode: 'new_subject',
-    delayDays: 14,
-    subjectTemplate: '{{product.name}} supplier option',
-    bodyTemplate:
-      'Hi {{contact.name}},\n\nSharing one more note in case you are reviewing supplier options for {{product.name}}.\n{{product.supplyInfo}}\n\nBest regards,\n{{sender.name}}'
-  },
-  {
-    stepIndex: 5,
-    name: '第 5 封：最后一次触达',
-    threadMode: 'new_subject',
-    delayDays: 21,
-    subjectTemplate: 'Should I close this out?',
-    bodyTemplate:
-      'Hi {{contact.name}},\n\nI do not want to keep following up if this is not relevant. Should I close this out for now?\n\nBest regards,\n{{sender.name}}'
-  }
-];
 
 @Injectable()
 export class CrmService {
@@ -874,8 +776,150 @@ export class CrmService {
     return { productLine: toProductLineView(productLine) };
   }
 
+  /** Lists organization-level email template groups for CRM sequence drafting. */
+  async listEmailTemplateGroups(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: CrmEmailTemplateStatus;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const result = await this.store.listEmailTemplateGroups({
+      organizationId: context.organizationId,
+      ...(keyword ? { keyword } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(toEmailTemplateGroupView)
+    };
+  }
+
+  /** Creates one organization-level email template group with exactly five sequence steps. */
+  async createEmailTemplateGroup(input: EmailTemplateCreateInput, context: CrmUserContext) {
+    const data = normalizeEmailTemplateCreateInput(input);
+    await this.assertEmailTemplateNameAvailable(context.organizationId, data.name);
+    const templateGroup = await this.runEmailTemplateWrite(() =>
+      this.store.createEmailTemplateGroup({
+        organizationId: context.organizationId,
+        ...data,
+        status: defaultEmailTemplateStatus,
+        isDefault: false,
+        createdById: context.userId,
+        createdByName: context.userName
+      })
+    );
+
+    await this.recordEmailTemplateLog('email-template-create', 'CRM 邮件模板新建', context, templateGroup, null, templateGroup.status);
+
+    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+  }
+
+  /** Updates one organization-level email template group and replaces step rows when provided. */
+  async updateEmailTemplateGroup(id: string, input: EmailTemplateUpdateInput, context: CrmUserContext) {
+    const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
+    const fromStatus = currentTemplate.status;
+    const data = normalizeEmailTemplateUpdateInput(input);
+
+    if (data.name && data.name !== currentTemplate.name) {
+      await this.assertEmailTemplateNameAvailable(context.organizationId, data.name, currentTemplate.id);
+    }
+
+    const templateGroup = await this.runEmailTemplateWrite(() =>
+      this.store.updateEmailTemplateGroup(currentTemplate.id, context.organizationId, data)
+    );
+
+    if (!templateGroup) {
+      throw new NotFoundException('邮件模板不存在');
+    }
+
+    await this.recordEmailTemplateLog(
+      'email-template-update',
+      'CRM 邮件模板更新',
+      context,
+      templateGroup,
+      fromStatus,
+      templateGroup.status
+    );
+
+    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+  }
+
+  /** Archives one organization-level email template group instead of deleting it. */
+  async archiveEmailTemplateGroup(id: string, context: CrmUserContext) {
+    const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
+    const fromStatus = currentTemplate.status;
+    const templateGroup = await this.store.updateEmailTemplateGroup(currentTemplate.id, context.organizationId, {
+      status: 'archived',
+      isDefault: false
+    });
+
+    if (!templateGroup) {
+      throw new NotFoundException('邮件模板不存在');
+    }
+
+    await this.recordEmailTemplateLog(
+      'email-template-archive',
+      'CRM 邮件模板归档',
+      context,
+      templateGroup,
+      fromStatus,
+      templateGroup.status
+    );
+
+    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+  }
+
+  /** Marks one active organization-level email template group as the default drafting template. */
+  async setDefaultEmailTemplateGroup(id: string, context: CrmUserContext) {
+    const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
+
+    if (currentTemplate.status !== 'active') {
+      throw new BadRequestException('只能将启用模板设为默认');
+    }
+
+    const templateGroup = await this.store.setDefaultEmailTemplateGroup(currentTemplate.id, context.organizationId);
+
+    if (!templateGroup) {
+      throw new NotFoundException('邮件模板不存在');
+    }
+
+    await this.recordEmailTemplateLog(
+      'email-template-default',
+      'CRM 默认邮件模板更新',
+      context,
+      templateGroup,
+      currentTemplate.status,
+      templateGroup.status
+    );
+
+    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+  }
+
   /** Returns the read-only default template and persona rules used by first-draft generation. */
-  async getTemplateDefaults(_context: CrmUserContext) {
+  async getTemplateDefaults(context: CrmUserContext) {
+    const defaultTemplateGroup = await this.store.findDefaultEmailTemplateGroup(context.organizationId);
+    if (defaultTemplateGroup) {
+      return {
+        templateGroup: {
+          ...toEmailTemplateGroupView(defaultTemplateGroup),
+          scope: 'organization' as const,
+          variables: defaultTemplateVariables.map(variable => ({ ...variable }))
+        },
+        personas: personaProfiles.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
+      };
+    }
+
     const globalConfig = await this.store.getGlobalConfig();
 
     return {
@@ -913,7 +957,8 @@ export class CrmService {
       input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
       input.mailboxId ? this.requireOwnedActiveMailbox(input.mailboxId, context) : Promise.resolve(null)
     ]);
-    const draft = generateFirstDraft({ account, contact, productLine, context });
+    const defaultTemplateGroup = await this.store.findDefaultEmailTemplateGroup(context.organizationId);
+    const draft = generateFirstDraft({ account, contact, productLine, context, templateGroup: defaultTemplateGroup });
     const bundle = await this.runSequenceWrite(() =>
       this.store.createSequenceDraftBundle({
         enrollment: {
@@ -1897,6 +1942,19 @@ export class CrmService {
     return productLine;
   }
 
+  private async requireScopedEmailTemplateGroup(id: string, context: CrmUserContext) {
+    const templateGroup = await this.store.findEmailTemplateGroupById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!templateGroup) {
+      throw new NotFoundException('邮件模板不存在');
+    }
+
+    return templateGroup;
+  }
+
   private async requireOwnedActiveMailbox(id: string, context: CrmUserContext) {
     const mailbox = await this.store.findMailboxById({
       id,
@@ -2071,12 +2129,32 @@ export class CrmService {
     }
   }
 
+  private async assertEmailTemplateNameAvailable(organizationId: string, name: string, ignoredId?: string) {
+    const existingTemplate = await this.store.findEmailTemplateGroupByName(organizationId, name);
+
+    if (existingTemplate && existingTemplate.id !== ignoredId) {
+      throw new BadRequestException('邮件模板名称已存在');
+    }
+  }
+
   private async runProductLineWrite<T>(operation: () => Promise<T>) {
     try {
       return await operation();
     } catch (error) {
       if (isPrismaUniqueConflict(error)) {
         throw new BadRequestException('产品资料名称已存在');
+      }
+
+      throw error;
+    }
+  }
+
+  private async runEmailTemplateWrite<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        throw new BadRequestException('邮件模板名称已存在');
       }
 
       throw error;
@@ -2148,6 +2226,25 @@ export class CrmService {
       toStatus
     });
   }
+
+  private recordEmailTemplateLog(
+    action: string,
+    message: string,
+    context: CrmUserContext,
+    templateGroup: CrmEmailTemplateGroupRecord,
+    fromStatus: CrmEmailTemplateStatus | null,
+    toStatus: CrmEmailTemplateStatus
+  ) {
+    return this.recordCrmLog(action, message, context, {
+      organizationId: templateGroup.organizationId,
+      templateGroupId: templateGroup.id,
+      name: templateGroup.name,
+      status: templateGroup.status,
+      isDefault: templateGroup.isDefault,
+      fromStatus,
+      toStatus
+    });
+  }
 }
 
 function toAccountView(record: CrmAccountRecord) {
@@ -2208,6 +2305,19 @@ function toMailboxView(record: CrmMailboxRecord) {
 function toProductLineView(record: CrmProductLineRecord) {
   return {
     ...record,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toEmailTemplateGroupView(record: CrmEmailTemplateGroupRecord) {
+  return {
+    ...record,
+    steps: record.steps.map(step => ({
+      ...step,
+      createdAt: step.createdAt.toISOString(),
+      updatedAt: step.updatedAt.toISOString()
+    })),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
@@ -2580,6 +2690,73 @@ function normalizeProductLineUpdateInput(input: ProductLineUpdateInput): CrmProd
   return data;
 }
 
+function normalizeEmailTemplateCreateInput(input: EmailTemplateCreateInput) {
+  return {
+    name: normalizeRequiredString(input.name, '邮件模板名称不能为空'),
+    language: normalizeNullableString(input.language) || 'en',
+    description: normalizeNullableString(input.description),
+    steps: normalizeEmailTemplateSteps(input.steps)
+  };
+}
+
+function normalizeEmailTemplateUpdateInput(input: EmailTemplateUpdateInput): CrmEmailTemplateGroupUpdateInput {
+  const data: CrmEmailTemplateGroupUpdateInput = {};
+
+  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '邮件模板名称不能为空');
+  if (hasOwn(input, 'language')) data.language = normalizeNullableString(input.language) || 'en';
+  if (hasOwn(input, 'description')) data.description = normalizeNullableString(input.description);
+  if (hasOwn(input, 'status')) data.status = input.status;
+  if (hasOwn(input, 'isDefault')) data.isDefault = input.isDefault;
+  if (hasOwn(input, 'steps')) data.steps = normalizeEmailTemplateSteps(input.steps ?? []);
+
+  return data;
+}
+
+function normalizeEmailTemplateSteps(steps: EmailTemplateStepInput[]): CrmEmailTemplateStepInput[] {
+  if (steps.length !== defaultSequenceStepCount) {
+    throw new BadRequestException('邮件模板必须包含 5 个步骤');
+  }
+
+  const normalizedSteps = steps
+    .map(step => ({
+      stepIndex: step.stepIndex,
+      name: normalizeRequiredString(step.name, '步骤名称不能为空'),
+      threadMode: step.threadMode,
+      delayDays: normalizeEmailTemplateDelayDays(step.stepIndex, step.delayDays),
+      subjectTemplate: normalizeEmailTemplateSubject(step.stepIndex, step.subjectTemplate),
+      bodyTemplate: normalizeLimitedContent(step.bodyTemplate, '邮件正文不能为空', 4000)
+    }))
+    .toSorted((left, right) => left.stepIndex - right.stepIndex);
+
+  if (normalizedSteps.some((step, index) => step.stepIndex !== index + 1)) {
+    throw new BadRequestException('邮件模板步骤必须为 1-5');
+  }
+
+  return normalizedSteps;
+}
+
+function normalizeEmailTemplateDelayDays(stepIndex: number, value: number) {
+  if (!Number.isInteger(value) || value < 0 || value > 90) {
+    throw new BadRequestException('发送间隔必须在 0-90 天之间');
+  }
+
+  return stepIndex === initialDraftStepIndex ? 0 : value;
+}
+
+function normalizeEmailTemplateSubject(stepIndex: number, value: string) {
+  const normalized = value.trim();
+
+  if (normalized.length > 300) {
+    throw new BadRequestException('邮件主题不能超过 300 个字符');
+  }
+
+  if (stepIndex !== 2 && !normalized) {
+    throw new BadRequestException('新主题邮件必须填写主题');
+  }
+
+  return normalized;
+}
+
 function normalizeRequiredString(value: string, emptyMessage: string) {
   const normalized = value.trim();
 
@@ -2615,12 +2792,34 @@ function generateFirstDraft(options: {
   contact: CrmContactRecord;
   productLine: CrmProductLineRecord | null;
   context: CrmUserContext;
+  templateGroup?: CrmEmailTemplateGroupRecord | null;
 }): GeneratedDraft {
-  const { account, contact, context, productLine } = options;
+  const { account, contact, context, productLine, templateGroup } = options;
+  const templateStep = templateGroup?.steps.find(step => step.stepIndex === initialDraftStepIndex);
   const greetingName = contact.fullName || contact.title || 'there';
   const productName = productLine?.name || 'our product line';
   const sellingPoint = productLine?.coreSellingPoints || `supporting ${account.customerType || 'B2B'} customers`;
   const persona = findPersonaProfile(contact.title);
+
+  if (templateGroup?.status === 'active' && templateStep) {
+    return {
+      subject: renderEmailTemplateText(templateStep.subjectTemplate, {
+        account,
+        contact,
+        persona,
+        productLine,
+        senderName: context.userName
+      }),
+      bodyText: renderEmailTemplateText(templateStep.bodyTemplate, {
+        account,
+        contact,
+        persona,
+        productLine,
+        senderName: context.userName
+      })
+    };
+  }
+
   const supplyInfo = [
     productLine?.moq ? `MOQ: ${productLine.moq}` : null,
     productLine?.leadTime ? `lead time: ${productLine.leadTime}` : null,
@@ -2645,17 +2844,6 @@ function generateFirstDraft(options: {
     subject,
     bodyText: bodyLines.join('\n')
   };
-}
-
-function findPersonaProfile(title?: string | null) {
-  const normalizedTitle = title?.trim().toLowerCase();
-  if (!normalizedTitle) return null;
-
-  return (
-    personaProfiles.find(profile =>
-      profile.aliases.some(alias => normalizedTitle.includes(alias.toLowerCase()))
-    ) ?? null
-  );
 }
 
 function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord) {

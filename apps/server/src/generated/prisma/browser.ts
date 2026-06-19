@@ -83,6 +83,16 @@ export type CrmMailboxSendUsage = Prisma.CrmMailboxSendUsageModel
  */
 export type CrmProductLine = Prisma.CrmProductLineModel
 /**
+ * Model CrmEmailTemplateGroup
+ *
+ */
+export type CrmEmailTemplateGroup = Prisma.CrmEmailTemplateGroupModel
+/**
+ * Model CrmEmailTemplateStep
+ *
+ */
+export type CrmEmailTemplateStep = Prisma.CrmEmailTemplateStepModel
+/**
  * Model CrmSequenceEnrollment
  *
  */

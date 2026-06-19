@@ -32,6 +32,7 @@ export type CrmEmailVerificationReason =
 export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
 export const crmProductLineStatuses = ['active', 'archived'] as const;
+export const crmEmailTemplateStatuses = ['active', 'archived'] as const;
 export const crmSequenceEnrollmentStatuses = [
   'draft_review_pending',
   'ready_to_send',
@@ -51,6 +52,7 @@ export type CrmArchivedFingerprintType = 'domain' | 'email_hash';
 export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
 export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
 export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
+export type CrmEmailTemplateStatus = (typeof crmEmailTemplateStatuses)[number];
 export type CrmSequenceEnrollmentStatus = (typeof crmSequenceEnrollmentStatuses)[number];
 export type CrmMessageStatus = (typeof crmMessageStatuses)[number];
 export type CrmMessageThreadMode = (typeof crmMessageThreadModes)[number];
@@ -537,6 +539,67 @@ export interface CrmProductLineUpdateInput {
   status?: CrmProductLineStatus;
 }
 
+export interface CrmEmailTemplateStepInput {
+  stepIndex: number;
+  name: string;
+  threadMode: CrmMessageThreadMode;
+  delayDays: number;
+  subjectTemplate: string;
+  bodyTemplate: string;
+}
+
+export interface CrmEmailTemplateStepRecord extends CrmEmailTemplateStepInput {
+  id: string;
+  organizationId: string;
+  templateGroupId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmEmailTemplateGroupRecord {
+  id: string;
+  organizationId: string;
+  name: string;
+  language: string;
+  description: string | null;
+  status: CrmEmailTemplateStatus;
+  isDefault: boolean;
+  steps: CrmEmailTemplateStepRecord[];
+  createdById: string;
+  createdByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmEmailTemplateGroupCreateInput {
+  organizationId: string;
+  name: string;
+  language: string;
+  description?: string | null;
+  status: CrmEmailTemplateStatus;
+  isDefault: boolean;
+  steps: CrmEmailTemplateStepInput[];
+  createdById: string;
+  createdByName?: string | null;
+}
+
+export interface CrmEmailTemplateGroupUpdateInput {
+  name?: string;
+  language?: string;
+  description?: string | null;
+  status?: CrmEmailTemplateStatus;
+  isDefault?: boolean;
+  steps?: CrmEmailTemplateStepInput[];
+}
+
+export interface CrmEmailTemplateGroupListInput {
+  organizationId: string;
+  keyword?: string;
+  status?: CrmEmailTemplateStatus;
+  skip: number;
+  take: number;
+}
+
 export interface CrmSequenceEnrollmentCreateInput {
   organizationId: string;
   ownerUserId: string;
@@ -1006,6 +1069,19 @@ export interface CrmStore {
     organizationId: string,
     input: CrmProductLineUpdateInput
   ): Promise<CrmProductLineRecord | null>;
+  listEmailTemplateGroups(
+    input: CrmEmailTemplateGroupListInput
+  ): Promise<{ records: CrmEmailTemplateGroupRecord[]; total: number }>;
+  findEmailTemplateGroupByName(organizationId: string, name: string): Promise<CrmEmailTemplateGroupRecord | null>;
+  findEmailTemplateGroupById(args: { id: string; organizationId: string }): Promise<CrmEmailTemplateGroupRecord | null>;
+  findDefaultEmailTemplateGroup(organizationId: string): Promise<CrmEmailTemplateGroupRecord | null>;
+  createEmailTemplateGroup(input: CrmEmailTemplateGroupCreateInput): Promise<CrmEmailTemplateGroupRecord>;
+  updateEmailTemplateGroup(
+    id: string,
+    organizationId: string,
+    input: CrmEmailTemplateGroupUpdateInput
+  ): Promise<CrmEmailTemplateGroupRecord | null>;
+  setDefaultEmailTemplateGroup(id: string, organizationId: string): Promise<CrmEmailTemplateGroupRecord | null>;
   findActiveEnrollmentByContact(args: {
     organizationId: string;
     ownerUserId: string;

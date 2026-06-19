@@ -64,6 +64,8 @@ export const ModelName = {
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
   CrmProductLine: 'CrmProductLine',
+  CrmEmailTemplateGroup: 'CrmEmailTemplateGroup',
+  CrmEmailTemplateStep: 'CrmEmailTemplateStep',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
   CrmInboxThread: 'CrmInboxThread',
@@ -341,6 +343,40 @@ export const CrmProductLineScalarFieldEnum = {
 } as const
 
 export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
+
+
+export const CrmEmailTemplateGroupScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  name: 'name',
+  language: 'language',
+  description: 'description',
+  status: 'status',
+  isDefault: 'isDefault',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmEmailTemplateGroupScalarFieldEnum = (typeof CrmEmailTemplateGroupScalarFieldEnum)[keyof typeof CrmEmailTemplateGroupScalarFieldEnum]
+
+
+export const CrmEmailTemplateStepScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  templateGroupId: 'templateGroupId',
+  stepIndex: 'stepIndex',
+  name: 'name',
+  threadMode: 'threadMode',
+  delayDays: 'delayDays',
+  subjectTemplate: 'subjectTemplate',
+  bodyTemplate: 'bodyTemplate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmEmailTemplateStepScalarFieldEnum = (typeof CrmEmailTemplateStepScalarFieldEnum)[keyof typeof CrmEmailTemplateStepScalarFieldEnum]
 
 
 export const CrmSequenceEnrollmentScalarFieldEnum = {

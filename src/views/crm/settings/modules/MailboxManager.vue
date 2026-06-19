@@ -3,13 +3,12 @@ import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
 import BlacklistManager from './BlacklistManager.vue';
 import CrmOperationsPanel from './CrmOperationsPanel.vue';
-import DefaultEmailTemplateCard from './DefaultEmailTemplateCard.vue';
+import EmailTemplateManager from './EmailTemplateManager.vue';
 import GlobalConfigCard from './GlobalConfigCard.vue';
 import MailboxTable from './MailboxTable.vue';
 import MailboxToolbar from './MailboxToolbar.vue';
 import ProductLineManager from './ProductLineManager.vue';
 import { useMailboxTable } from './useMailboxTable';
-import { useTemplateDefaults } from './useTemplateDefaults';
 
 const {
   authorizeSubmitting,
@@ -32,11 +31,6 @@ const {
   pagination,
   records
 } = useMailboxTable();
-const {
-  loadTemplateDefaults,
-  loading: templateDefaultsLoading,
-  templateDefaults
-} = useTemplateDefaults();
 </script>
 
 <template>
@@ -53,11 +47,7 @@ const {
       </NGi>
 
       <NGi>
-        <DefaultEmailTemplateCard
-          :loading="templateDefaultsLoading"
-          :template-defaults="templateDefaults"
-          @refresh="loadTemplateDefaults"
-        />
+        <EmailTemplateManager />
       </NGi>
 
       <NGi>

@@ -580,6 +580,81 @@ describe('CrmController', () => {
     assert.equal(result.data.personas[0].label, 'Purchasing Manager');
   });
 
+  it('manages email template groups with the current organization context', async () => {
+    const calls: Array<{ action: string; id?: string; dto?: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listEmailTemplateGroups(context, query) {
+          calls.push({ action: 'list', dto: query, context });
+
+          return {
+            current: 1,
+            size: 20,
+            total: 1,
+            records: [createEmailTemplateGroupView()]
+          };
+        },
+        async createEmailTemplateGroup(dto, context) {
+          calls.push({ action: 'create', dto, context });
+
+          return { templateGroup: createEmailTemplateGroupView({ name: dto.name }) };
+        },
+        async updateEmailTemplateGroup(id, dto, context) {
+          calls.push({ action: 'update', id, dto, context });
+
+          return { templateGroup: createEmailTemplateGroupView({ id, name: dto.name ?? 'Default follow-up' }) };
+        },
+        async archiveEmailTemplateGroup(id, context) {
+          calls.push({ action: 'archive', id, context });
+
+          return { templateGroup: createEmailTemplateGroupView({ id, status: 'archived' }) };
+        },
+        async setDefaultEmailTemplateGroup(id, context) {
+          calls.push({ action: 'default', id, context });
+
+          return { templateGroup: createEmailTemplateGroupView({ id, isDefault: true }) };
+        }
+      })
+    );
+
+    const payload = {
+      name: 'Distributor sequence',
+      language: 'en',
+      steps: createEmailTemplateGroupView().steps.map(step => ({
+        stepIndex: step.stepIndex,
+        name: step.name,
+        threadMode: step.threadMode,
+        delayDays: step.delayDays,
+        subjectTemplate: step.subjectTemplate,
+        bodyTemplate: step.bodyTemplate
+      }))
+    };
+    const listed = await controller.listEmailTemplateGroups('Bearer token', { current: 1, size: 20 });
+    const created = await controller.createEmailTemplateGroup('Bearer token', payload);
+    const updated = await controller.updateEmailTemplateGroup('Bearer token', 'template-1', {
+      name: 'Updated sequence'
+    });
+    const archived = await controller.archiveEmailTemplateGroup('Bearer token', 'template-1');
+    const defaulted = await controller.setDefaultEmailTemplateGroup('Bearer token', 'template-1');
+
+    assert.equal(listed.data.records.length, 1);
+    assert.equal(created.data.templateGroup.name, 'Distributor sequence');
+    assert.equal(updated.data.templateGroup.name, 'Updated sequence');
+    assert.equal(archived.data.templateGroup.status, 'archived');
+    assert.equal(defaulted.data.templateGroup.isDefault, true);
+    assert.deepEqual(
+      calls.map(call => ({ action: call.action, id: call.id, organizationId: call.context.organizationId })),
+      [
+        { action: 'list', id: undefined, organizationId: 'org-1' },
+        { action: 'create', id: undefined, organizationId: 'org-1' },
+        { action: 'update', id: 'template-1', organizationId: 'org-1' },
+        { action: 'archive', id: 'template-1', organizationId: 'org-1' },
+        { action: 'default', id: 'template-1', organizationId: 'org-1' }
+      ]
+    );
+  });
+
   it('creates, lists and reads sequence review items with the current user context', async () => {
     const calls: Array<{ action: string; payload: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
@@ -1004,6 +1079,61 @@ function createTemplateDefaultsView() {
   };
 }
 
+function createEmailTemplateGroupView(overrides: Partial<{
+  id: string;
+  organizationId: string;
+  name: string;
+  language: string;
+  description: string | null;
+  status: 'active' | 'archived';
+  isDefault: boolean;
+  createdById: string;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+  steps: Array<{
+    id: string;
+    organizationId: string;
+    templateGroupId: string;
+    stepIndex: number;
+    name: string;
+    threadMode: 'new_subject' | 'same_thread';
+    delayDays: number;
+    subjectTemplate: string;
+    bodyTemplate: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}> = {}) {
+  return {
+    id: 'template-1',
+    organizationId: 'org-1',
+    name: 'Default follow-up',
+    language: 'en',
+    description: null,
+    status: 'active' as const,
+    isDefault: false,
+    steps: Array.from({ length: 5 }, (_, index) => ({
+      id: `template-step-${index + 1}`,
+      organizationId: 'org-1',
+      templateGroupId: 'template-1',
+      stepIndex: index + 1,
+      name: `第 ${index + 1} 封`,
+      threadMode: index === 1 ? ('same_thread' as const) : ('new_subject' as const),
+      delayDays: index === 0 ? 0 : [3, 7, 14, 21][index - 1],
+      subjectTemplate: index === 1 ? '' : `Subject ${index + 1}`,
+      bodyTemplate: `Body ${index + 1}`,
+      createdAt: '2026-06-18T09:00:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z'
+    })),
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
+    ...overrides
+  };
+}
+
 function createEnrollmentView(overrides: Partial<CrmEnrollmentView> = {}): CrmEnrollmentView {
   return {
     id: 'enrollment-1',
@@ -1317,6 +1447,26 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     getTemplateDefaults() {
       return createTemplateDefaultsView();
+    },
+    async listEmailTemplateGroups() {
+      return {
+        current: 1,
+        size: 20,
+        total: 0,
+        records: []
+      };
+    },
+    async createEmailTemplateGroup() {
+      return { templateGroup: createEmailTemplateGroupView() };
+    },
+    async updateEmailTemplateGroup() {
+      return { templateGroup: createEmailTemplateGroupView() };
+    },
+    async archiveEmailTemplateGroup() {
+      return { templateGroup: createEmailTemplateGroupView({ status: 'archived' }) };
+    },
+    async setDefaultEmailTemplateGroup() {
+      return { templateGroup: createEmailTemplateGroupView({ isDefault: true }) };
     },
     async createProductLine() {
       return { productLine: createProductLineView() };

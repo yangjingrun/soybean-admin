@@ -10,6 +10,7 @@ import { CrmService } from './crm.service';
 import type {
   CrmArchivedFingerprintRecord,
   CrmBlacklistRecord,
+  CrmEmailTemplateGroupRecord,
   CrmEmailVerificationCacheRecord,
   CrmGlobalConfigRecord,
   CrmInboxMessageRecord,
@@ -1203,6 +1204,80 @@ describe('CrmService', () => {
     assert.equal(result.personas.some(persona => persona.label === 'Purchasing Manager'), true);
   });
 
+  it('creates, lists, updates, defaults and archives organization email template groups', async () => {
+    const store = createStore([], {
+      emailTemplateGroups: [createEmailTemplateGroup({ id: 'template-1', name: 'Distributor follow-up' })]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const created = await service.createEmailTemplateGroup(createEmailTemplatePayload({ name: 'Starter sequence' }), createContext());
+    const list = await service.listEmailTemplateGroups(createContext(), { current: 1, size: 10, keyword: 'starter' });
+    const updated = await service.updateEmailTemplateGroup(
+      created.templateGroup.id,
+      createEmailTemplatePayload({ name: 'Updated starter sequence' }),
+      createContext()
+    );
+    const defaulted = await service.setDefaultEmailTemplateGroup(created.templateGroup.id, createContext());
+    const archived = await service.archiveEmailTemplateGroup(created.templateGroup.id, createContext());
+
+    assert.equal(created.templateGroup.steps.length, 5);
+    assert.equal(list.records[0].organizationId, 'org-1');
+    assert.equal(updated.templateGroup.name, 'Updated starter sequence');
+    assert.equal(defaulted.templateGroup.isDefault, true);
+    assert.equal(archived.templateGroup.status, 'archived');
+    assert.equal(store.emailTemplateGroups.length, 2);
+    assert.deepEqual(logs.records.map(record => record.action), [
+      'email-template-create',
+      'email-template-update',
+      'email-template-default',
+      'email-template-archive'
+    ]);
+  });
+
+  it('uses the organization default email template for first draft generation', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          fullName: 'Ali Hassan',
+          title: 'Purchasing Manager',
+          emailStatus: 'valid'
+        })
+      ],
+      emailTemplateGroups: [
+        createEmailTemplateGroup({
+          isDefault: true,
+          steps: createEmailTemplateSteps({
+            subjectTemplate: '{{product.name}} for {{account.name}}',
+            bodyTemplate: 'Hi {{contact.name}},\n\nTemplate says {{persona.focus}} for {{account.name}}.\n\n{{sender.name}}'
+          })
+        })
+      ],
+      productLines: [
+        createProductLine({
+          id: 'product-line-1',
+          name: 'Bearing Series',
+          coreSellingPoints: 'stable supply'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.createSequenceReviewItem(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        productLineId: 'product-line-1'
+      },
+      createContext()
+    );
+
+    assert.equal(result.item.firstMessage?.subject, 'Bearing Series for ABC Trading');
+    assert.match(result.item.firstMessage?.bodyText || '', /Template says price, MOQ, lead time, and payment terms/);
+  });
+
   it('creates first draft review items with scoped resources and sanitized logs', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
       contacts: [
@@ -2237,6 +2312,7 @@ function createStore(
     timelineEvents?: TestTimelineEvent[];
     mailboxes?: TestMailbox[];
     productLines?: TestProductLine[];
+    emailTemplateGroups?: TestEmailTemplateGroup[];
     enrollments?: TestEnrollment[];
     messages?: TestMessage[];
     inboxThreads?: TestInboxThread[];
@@ -2253,6 +2329,7 @@ function createStore(
   timelineEvents: TestTimelineEvent[];
   mailboxes: TestMailbox[];
   productLines: TestProductLine[];
+  emailTemplateGroups: TestEmailTemplateGroup[];
   enrollments: TestEnrollment[];
   messages: TestMessage[];
   inboxThreads: TestInboxThread[];
@@ -2260,6 +2337,7 @@ function createStore(
   globalConfig: TestGlobalConfig;
   mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
   productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }>;
+  emailTemplateUpdateCalls: Array<{ id: string; organizationId: string; input: Parameters<CrmStore['updateEmailTemplateGroup']>[2] }>;
   enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }>;
   messageUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestMessage> }>;
   lastListArgs?: Parameters<CrmStore['listAccounts']>[0];
@@ -2275,6 +2353,8 @@ function createStore(
     take: number;
   };
   lastProductLineDetailArgs?: { id: string; organizationId: string };
+  lastEmailTemplateListArgs?: Parameters<CrmStore['listEmailTemplateGroups']>[0];
+  lastEmailTemplateDetailArgs?: { id: string; organizationId: string };
   lastBlacklistListArgs?: Parameters<CrmStore['listBlacklistEntries']>[0];
   lastSequenceReviewListArgs?: Parameters<CrmStore['listSequenceReviewItems']>[0];
   lastSequenceReviewDetailArgs?: Parameters<CrmStore['getSequenceReviewItem']>[0];
@@ -2288,6 +2368,7 @@ function createStore(
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
   const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
+  const emailTemplateGroups: TestEmailTemplateGroup[] = [...(initialData.emailTemplateGroups ?? [])];
   const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
   const messages: TestMessage[] = [...(initialData.messages ?? [])];
   const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
@@ -2295,6 +2376,11 @@ function createStore(
   const globalConfig = initialData.globalConfig ?? createGlobalConfig();
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
   const productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }> = [];
+  const emailTemplateUpdateCalls: Array<{
+    id: string;
+    organizationId: string;
+    input: Parameters<CrmStore['updateEmailTemplateGroup']>[2];
+  }> = [];
   const enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }> = [];
   const messageUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestMessage> }> = [];
 
@@ -2307,6 +2393,7 @@ function createStore(
     timelineEvents,
     mailboxes,
     productLines,
+    emailTemplateGroups,
     enrollments,
     messages,
     inboxThreads,
@@ -2314,6 +2401,7 @@ function createStore(
     globalConfig,
     mailboxUpdateCalls,
     productLineUpdateCalls,
+    emailTemplateUpdateCalls,
     enrollmentUpdateCalls,
     messageUpdateCalls,
     async findAccountByDomain(organizationId, ownerUserId, domain) {
@@ -2658,6 +2746,73 @@ function createStore(
       if (!productLine) return null;
       Object.assign(productLine, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return productLine;
+    },
+    async listEmailTemplateGroups(args) {
+      this.lastEmailTemplateListArgs = args;
+      const records = emailTemplateGroups.filter(group => {
+        if (group.organizationId !== args.organizationId) return false;
+        if (args.status && group.status !== args.status) return false;
+        if (!args.keyword) return true;
+        const keyword = args.keyword.toLowerCase();
+        return [group.name, group.description].some(value => value?.toLowerCase().includes(keyword));
+      });
+
+      return {
+        records: records.slice(args.skip, args.skip + args.take),
+        total: records.length
+      };
+    },
+    async findEmailTemplateGroupByName(organizationId, name) {
+      return emailTemplateGroups.find(group => group.organizationId === organizationId && group.name === name) ?? null;
+    },
+    async findEmailTemplateGroupById(args) {
+      this.lastEmailTemplateDetailArgs = args;
+      return (
+        emailTemplateGroups.find(group => group.id === args.id && group.organizationId === args.organizationId) ?? null
+      );
+    },
+    async findDefaultEmailTemplateGroup(organizationId) {
+      return (
+        emailTemplateGroups.find(
+          group => group.organizationId === organizationId && group.status === 'active' && group.isDefault
+        ) ?? null
+      );
+    },
+    async createEmailTemplateGroup(input) {
+      const group = createEmailTemplateGroup({
+        id: `template-${emailTemplateGroups.length + 1}`,
+        organizationId: input.organizationId,
+        name: input.name,
+        language: input.language,
+        description: input.description,
+        status: input.status,
+        isDefault: input.isDefault,
+        steps: input.steps.map((step, index) => createEmailTemplateStep(step, `template-${emailTemplateGroups.length + 1}`, index + 1)),
+        createdById: input.createdById,
+        createdByName: input.createdByName
+      });
+      emailTemplateGroups.push(group);
+      return group;
+    },
+    async updateEmailTemplateGroup(id, organizationId, input) {
+      emailTemplateUpdateCalls.push({ id, organizationId, input });
+      const group = emailTemplateGroups.find(item => item.id === id && item.organizationId === organizationId);
+      if (!group) return null;
+      Object.assign(group, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      if (input.steps) {
+        group.steps = input.steps.map((step, index) => createEmailTemplateStep(step, id, index + 1));
+      }
+      return group;
+    },
+    async setDefaultEmailTemplateGroup(id, organizationId) {
+      const group = emailTemplateGroups.find(item => item.id === id && item.organizationId === organizationId);
+      if (!group || group.status !== 'active') return null;
+      for (const item of emailTemplateGroups) {
+        if (item.organizationId === organizationId) {
+          item.isDefault = item.id === id;
+        }
+      }
+      return group;
     },
     async findActiveEnrollmentByContact(args) {
       return (
@@ -3591,6 +3746,67 @@ function createProductLine(input: Partial<TestProductLine> = {}): TestProductLin
   };
 }
 
+function createEmailTemplateStep(
+  input: Partial<TestEmailTemplateGroup['steps'][number]> = {},
+  templateGroupId = 'template-1',
+  fallbackStepIndex = 1
+): TestEmailTemplateGroup['steps'][number] {
+  const stepIndex = input.stepIndex ?? fallbackStepIndex;
+
+  return {
+    id: input.id || `template-step-${stepIndex}`,
+    organizationId: input.organizationId || 'org-1',
+    templateGroupId: input.templateGroupId || templateGroupId,
+    stepIndex,
+    name: input.name || `Step ${stepIndex}`,
+    threadMode: input.threadMode || (stepIndex === 2 ? 'same_thread' : 'new_subject'),
+    delayDays: input.delayDays ?? (stepIndex === 1 ? 0 : stepIndex * 2),
+    subjectTemplate: input.subjectTemplate ?? (stepIndex === 2 ? '' : `Subject ${stepIndex}`),
+    bodyTemplate: input.bodyTemplate || `Body ${stepIndex}`,
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createEmailTemplateSteps(
+  input: Partial<TestEmailTemplateGroup['steps'][number]> = {}
+): TestEmailTemplateGroup['steps'] {
+  return [1, 2, 3, 4, 5].map(stepIndex => createEmailTemplateStep({ ...input, stepIndex }, 'template-1', stepIndex));
+}
+
+function createEmailTemplateGroup(input: Partial<TestEmailTemplateGroup> = {}): TestEmailTemplateGroup {
+  return {
+    id: input.id || 'template-1',
+    organizationId: input.organizationId || 'org-1',
+    name: input.name || 'Default follow-up',
+    language: input.language || 'en',
+    description: input.description ?? null,
+    status: input.status || 'active',
+    isDefault: input.isDefault ?? false,
+    steps: input.steps ?? createEmailTemplateSteps(),
+    createdById: input.createdById || 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createEmailTemplatePayload(input: Partial<TestEmailTemplateGroup> = {}) {
+  return {
+    name: input.name || 'Starter sequence',
+    language: input.language || 'en',
+    description: input.description ?? 'Editable sequence',
+    steps: (input.steps ?? createEmailTemplateSteps()).map(step => ({
+      stepIndex: step.stepIndex,
+      name: step.name,
+      threadMode: step.threadMode,
+      delayDays: step.delayDays,
+      subjectTemplate: step.subjectTemplate,
+      bodyTemplate: step.bodyTemplate
+    }))
+  };
+}
+
 function createEnrollment(input: Partial<TestEnrollment> = {}): TestEnrollment {
   return {
     id: input.id || 'enrollment-1',
@@ -3744,6 +3960,7 @@ type TestEmailVerificationCache = CrmEmailVerificationCacheRecord;
 type TestGlobalConfig = CrmGlobalConfigRecord;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
+type TestEmailTemplateGroup = CrmEmailTemplateGroupRecord;
 type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
 type TestMessage = Awaited<ReturnType<CrmStore['createMessage']>>;
 type TestInboxThread = CrmInboxThreadRecord;

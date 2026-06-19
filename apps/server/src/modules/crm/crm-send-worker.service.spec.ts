@@ -6,6 +6,7 @@ import type {
   CrmAccountRecord,
   CrmContactRecord,
   CrmEmailSendGateway,
+  CrmEmailTemplateGroupRecord,
   CrmGlobalConfigRecord,
   CrmMailboxRecord,
   CrmMessageRecord,
@@ -141,6 +142,45 @@ describe('CrmSendWorkerService', () => {
     );
   });
 
+  it('uses the organization default email template when creating the next follow-up draft', async () => {
+    const store = createWorkerStore(
+      {
+        enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2, currentStep: 1 }),
+        message: createMessage({
+          id: 'message-2',
+          status: 'queued',
+          stepIndex: 2,
+          threadMode: 'same_thread',
+          providerThreadId: 'mock-thread:enrollment-1'
+        }),
+        mailbox: createMailbox({ status: 'active' })
+      },
+      {
+        defaultTemplateGroup: createEmailTemplateGroup()
+      }
+    );
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store as never, gateway);
+
+    await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
+
+    assert.deepEqual(store.completed[0].nextMessage, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      mailboxId: 'mailbox-1',
+      stepIndex: 3,
+      threadMode: 'new_subject',
+      subject: 'New sourcing idea for ABC Trading',
+      bodyText:
+        'Hi Ali Hassan,\n\nCould another angle around our product line help with price, MOQ, lead time, and payment terms?\n\nBest regards,\nAlice',
+      status: 'draft_pending_review',
+      scheduledAt: new Date(store.completed[0].sentAt.getTime() + 5 * 24 * 60 * 60 * 1000),
+      providerThreadId: 'mock-thread:enrollment-1'
+    });
+  });
+
   it('skips sending when delivery claim cannot reserve mailbox quota', async () => {
     const store = createWorkerStore(
       {
@@ -223,6 +263,7 @@ function createWorkerStore(
   input: WorkerStoreInput,
   options: {
     claimResult?: CrmSendDeliveryClaimRecord | null;
+    defaultTemplateGroup?: CrmEmailTemplateGroupRecord | null;
     globalConfig?: CrmGlobalConfigRecord;
   } = {}
 ) {
@@ -256,6 +297,9 @@ function createWorkerStore(
     },
     async getGlobalConfig() {
       return options.globalConfig ?? createGlobalConfig();
+    },
+    async findDefaultEmailTemplateGroup() {
+      return options.defaultTemplateGroup ?? null;
     },
     async claimFirstMessageSendDelivery(args) {
       claims.push(args);
@@ -438,6 +482,42 @@ function createGlobalConfig(input: Partial<CrmGlobalConfigRecord> = {}): CrmGlob
       step5Days: 21
     },
     updatedAt: input.updatedAt || new Date(0)
+  };
+}
+
+function createEmailTemplateGroup(input: Partial<CrmEmailTemplateGroupRecord> = {}): CrmEmailTemplateGroupRecord {
+  const createdAt = input.createdAt || new Date('2026-06-18T09:00:00.000Z');
+
+  return {
+    id: input.id || 'template-group-1',
+    organizationId: input.organizationId || 'org-1',
+    name: input.name || 'Default outreach',
+    language: input.language || 'en',
+    description: input.description ?? null,
+    status: input.status || 'active',
+    isDefault: input.isDefault ?? true,
+    steps:
+      input.steps ??
+      [1, 2, 3, 4, 5].map(stepIndex => ({
+        id: `template-step-${stepIndex}`,
+        organizationId: input.organizationId || 'org-1',
+        templateGroupId: input.id || 'template-group-1',
+        stepIndex,
+        name: `Step ${stepIndex}`,
+        threadMode: stepIndex === 3 ? 'new_subject' : 'same_thread',
+        delayDays: stepIndex === 3 ? 5 : stepIndex,
+        subjectTemplate: stepIndex === 3 ? 'New sourcing idea for {{account.name}}' : '',
+        bodyTemplate:
+          stepIndex === 3
+            ? 'Hi {{contact.name}},\n\nCould another angle around {{product.name}} help with {{persona.focus}}?\n\nBest regards,\n{{sender.name}}'
+            : 'Hi {{contact.name}},\n\nFollowing up on {{product.name}}.\n\nBest regards,\n{{sender.name}}',
+        createdAt,
+        updatedAt: input.updatedAt || createdAt
+      })),
+    createdById: input.createdById || 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt,
+    updatedAt: input.updatedAt || createdAt
   };
 }
 

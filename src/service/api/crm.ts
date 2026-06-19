@@ -188,6 +188,49 @@ export function archiveCrmProductLine(id: string) {
   });
 }
 
+/** List organization email template groups by filters and pagination. */
+export function fetchCrmEmailTemplateGroups(params: Api.Crm.EmailTemplateSearchParams) {
+  return request<Api.Crm.EmailTemplateList>({
+    url: '/crm/email-template-groups',
+    method: 'get',
+    params
+  });
+}
+
+/** Create one organization email template group. */
+export function createCrmEmailTemplateGroup(data: Api.Crm.EmailTemplatePayload) {
+  return request<Api.Crm.EmailTemplateOperateResult>({
+    url: '/crm/email-template-groups',
+    method: 'post',
+    data
+  });
+}
+
+/** Update one organization email template group. */
+export function updateCrmEmailTemplateGroup(id: string, data: Partial<Api.Crm.EmailTemplatePayload>) {
+  return request<Api.Crm.EmailTemplateOperateResult>({
+    url: `/crm/email-template-groups/${id}`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Archive one organization email template group. */
+export function archiveCrmEmailTemplateGroup(id: string) {
+  return request<Api.Crm.EmailTemplateOperateResult>({
+    url: `/crm/email-template-groups/${id}/archive`,
+    method: 'patch'
+  });
+}
+
+/** Mark one active organization email template group as the default drafting template. */
+export function setDefaultCrmEmailTemplateGroup(id: string) {
+  return request<Api.Crm.EmailTemplateOperateResult>({
+    url: `/crm/email-template-groups/${id}/default`,
+    method: 'post'
+  });
+}
+
 /** Get the read-only default email template and persona profiles. */
 export function fetchCrmTemplateDefaults() {
   return request<Api.Crm.TemplateDefaults>({

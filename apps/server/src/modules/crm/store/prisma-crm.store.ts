@@ -4,6 +4,8 @@ import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccoun
 import type { CrmArchivedFingerprintModel } from '../../../generated/prisma/models/CrmArchivedFingerprint';
 import type { CrmBlacklistModel } from '../../../generated/prisma/models/CrmBlacklist';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
+import type { CrmEmailTemplateGroupModel } from '../../../generated/prisma/models/CrmEmailTemplateGroup';
+import type { CrmEmailTemplateStepModel } from '../../../generated/prisma/models/CrmEmailTemplateStep';
 import type { CrmEmailVerificationCacheModel } from '../../../generated/prisma/models/CrmEmailVerificationCache';
 import type { CrmGlobalConfigModel } from '../../../generated/prisma/models/CrmGlobalConfig';
 import type { CrmInboxMessageModel } from '../../../generated/prisma/models/CrmInboxMessage';
@@ -41,6 +43,12 @@ import type {
   CrmContactUpdateInput,
   CrmCustomerReplyIngestInput,
   CrmCustomerReplyIngestRecord,
+  CrmEmailTemplateGroupCreateInput,
+  CrmEmailTemplateGroupListInput,
+  CrmEmailTemplateGroupRecord,
+  CrmEmailTemplateGroupUpdateInput,
+  CrmEmailTemplateStepInput,
+  CrmEmailTemplateStepRecord,
   CrmEmailVerificationCacheRecord,
   CrmEmailVerificationCacheUpsertInput,
   CrmGlobalConfigInput,
@@ -94,6 +102,16 @@ import {
   normalizeFollowUpDelayDays,
   serializeFollowUpDelayDays
 } from '../crm-global-config';
+
+type CrmEmailTemplateGroupModelWithSteps = CrmEmailTemplateGroupModel & {
+  steps: CrmEmailTemplateStepModel[];
+};
+
+const emailTemplateGroupInclude = {
+  steps: {
+    orderBy: { stepIndex: 'asc' as const }
+  }
+};
 
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
@@ -654,6 +672,169 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return records[0] ? toProductLineRecord(records[0]) : null;
+  }
+
+  async listEmailTemplateGroups(input: CrmEmailTemplateGroupListInput) {
+    const where = toEmailTemplateGroupListWhere(input);
+    const [records, total] = await Promise.all([
+      this.prisma.crmEmailTemplateGroup.findMany({
+        where,
+        skip: input.skip,
+        take: input.take,
+        orderBy: { updatedAt: 'desc' },
+        include: emailTemplateGroupInclude
+      }),
+      this.prisma.crmEmailTemplateGroup.count({ where })
+    ]);
+
+    return {
+      records: records.map(toEmailTemplateGroupRecord),
+      total
+    };
+  }
+
+  findEmailTemplateGroupByName(organizationId: string, name: string) {
+    return this.prisma.crmEmailTemplateGroup
+      .findUnique({
+        where: {
+          organizationId_name: {
+            organizationId,
+            name
+          }
+        },
+        include: emailTemplateGroupInclude
+      })
+      .then(record => (record ? toEmailTemplateGroupRecord(record) : null));
+  }
+
+  findEmailTemplateGroupById(args: { id: string; organizationId: string }) {
+    return this.prisma.crmEmailTemplateGroup
+      .findFirst({
+        where: {
+          id: args.id,
+          organizationId: args.organizationId
+        },
+        include: emailTemplateGroupInclude
+      })
+      .then(record => (record ? toEmailTemplateGroupRecord(record) : null));
+  }
+
+  findDefaultEmailTemplateGroup(organizationId: string) {
+    return this.prisma.crmEmailTemplateGroup
+      .findFirst({
+        where: {
+          organizationId,
+          status: 'active',
+          isDefault: true
+        },
+        include: emailTemplateGroupInclude,
+        orderBy: { updatedAt: 'desc' }
+      })
+      .then(record => (record ? toEmailTemplateGroupRecord(record) : null));
+  }
+
+  async createEmailTemplateGroup(input: CrmEmailTemplateGroupCreateInput) {
+    return this.prisma.$transaction(async tx => {
+      const group = await tx.crmEmailTemplateGroup.create({
+        data: {
+          organizationId: input.organizationId,
+          name: input.name,
+          language: input.language,
+          description: input.description ?? null,
+          status: input.status,
+          isDefault: input.isDefault,
+          createdById: input.createdById,
+          createdByName: input.createdByName ?? null
+        }
+      });
+
+      await tx.crmEmailTemplateStep.createMany({
+        data: toEmailTemplateStepCreateManyInput(input.organizationId, group.id, input.steps)
+      });
+
+      const record = await tx.crmEmailTemplateGroup.findUnique({
+        where: { id: group.id },
+        include: emailTemplateGroupInclude
+      });
+
+      return toEmailTemplateGroupRecord(record as CrmEmailTemplateGroupModelWithSteps);
+    });
+  }
+
+  async updateEmailTemplateGroup(id: string, organizationId: string, input: CrmEmailTemplateGroupUpdateInput) {
+    return this.prisma.$transaction(async tx => {
+      const records = await tx.crmEmailTemplateGroup.updateManyAndReturn({
+        where: {
+          id,
+          organizationId
+        },
+        data: {
+          name: input.name,
+          language: input.language,
+          description: input.description,
+          status: input.status,
+          isDefault: input.isDefault
+        },
+        limit: 1
+      });
+
+      if (!records[0]) {
+        return null;
+      }
+
+      if (input.steps) {
+        await tx.crmEmailTemplateStep.deleteMany({
+          where: {
+            organizationId,
+            templateGroupId: id
+          }
+        });
+        await tx.crmEmailTemplateStep.createMany({
+          data: toEmailTemplateStepCreateManyInput(organizationId, id, input.steps)
+        });
+      }
+
+      const record = await tx.crmEmailTemplateGroup.findUnique({
+        where: { id },
+        include: emailTemplateGroupInclude
+      });
+
+      return record ? toEmailTemplateGroupRecord(record) : null;
+    });
+  }
+
+  async setDefaultEmailTemplateGroup(id: string, organizationId: string) {
+    return this.prisma.$transaction(async tx => {
+      const records = await tx.crmEmailTemplateGroup.updateManyAndReturn({
+        where: {
+          id,
+          organizationId,
+          status: 'active'
+        },
+        data: { isDefault: true },
+        limit: 1
+      });
+
+      if (!records[0]) {
+        return null;
+      }
+
+      await tx.crmEmailTemplateGroup.updateMany({
+        where: {
+          organizationId,
+          id: { not: id },
+          isDefault: true
+        },
+        data: { isDefault: false }
+      });
+
+      const record = await tx.crmEmailTemplateGroup.findUnique({
+        where: { id },
+        include: emailTemplateGroupInclude
+      });
+
+      return record ? toEmailTemplateGroupRecord(record) : null;
+    });
   }
 
   findActiveEnrollmentByContact(args: {
@@ -2026,6 +2207,17 @@ function toProductLineListWhere(args: {
   };
 }
 
+/** Builds the Prisma email template group list scope and optional UI filters. */
+function toEmailTemplateGroupListWhere(args: CrmEmailTemplateGroupListInput): Prisma.CrmEmailTemplateGroupWhereInput {
+  const keywordFilter = args.keyword ? toEmailTemplateKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(args.status ? { status: args.status } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 function toBlacklistListWhere(args: CrmBlacklistListInput): Prisma.CrmBlacklistWhereInput {
   const keywordFilter = args.keyword ? toBlacklistKeywordFilter(args.keyword) : undefined;
 
@@ -2100,6 +2292,15 @@ function toProductLineKeywordFilter(keyword: string): Prisma.CrmProductLineWhere
     'certifications',
     'commonModelsText'
   ].map(field => ({
+    [field]: {
+      contains: keyword,
+      mode: 'insensitive'
+    }
+  }));
+}
+
+function toEmailTemplateKeywordFilter(keyword: string): Prisma.CrmEmailTemplateGroupWhereInput[] {
+  return ['name', 'description'].map(field => ({
     [field]: {
       contains: keyword,
       mode: 'insensitive'
@@ -2247,6 +2448,38 @@ function toProductLineRecord(record: CrmProductLineModel): CrmProductLineRecord 
     ...record,
     status: record.status as CrmProductLineRecord['status']
   };
+}
+
+function toEmailTemplateStepRecord(record: CrmEmailTemplateStepModel): CrmEmailTemplateStepRecord {
+  return {
+    ...record,
+    threadMode: record.threadMode as CrmEmailTemplateStepRecord['threadMode']
+  };
+}
+
+function toEmailTemplateGroupRecord(record: CrmEmailTemplateGroupModelWithSteps): CrmEmailTemplateGroupRecord {
+  return {
+    ...record,
+    status: record.status as CrmEmailTemplateGroupRecord['status'],
+    steps: record.steps.map(toEmailTemplateStepRecord)
+  };
+}
+
+function toEmailTemplateStepCreateManyInput(
+  organizationId: string,
+  templateGroupId: string,
+  steps: CrmEmailTemplateStepInput[]
+) {
+  return steps.map(step => ({
+    organizationId,
+    templateGroupId,
+    stepIndex: step.stepIndex,
+    name: step.name,
+    threadMode: step.threadMode,
+    delayDays: step.delayDays,
+    subjectTemplate: step.subjectTemplate,
+    bodyTemplate: step.bodyTemplate
+  }));
 }
 
 function toSequenceEnrollmentRecord(record: CrmSequenceEnrollmentModel): CrmSequenceEnrollmentRecord {

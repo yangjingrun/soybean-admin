@@ -397,6 +397,8 @@ export const ModelName = {
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
   CrmProductLine: 'CrmProductLine',
+  CrmEmailTemplateGroup: 'CrmEmailTemplateGroup',
+  CrmEmailTemplateStep: 'CrmEmailTemplateStep',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
   CrmInboxThread: 'CrmInboxThread',
@@ -426,7 +428,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1389,6 +1391,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmProductLineCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmProductLineCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmEmailTemplateGroup: {
+      payload: Prisma.$CrmEmailTemplateGroupPayload<ExtArgs>
+      fields: Prisma.CrmEmailTemplateGroupFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmEmailTemplateGroupFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmEmailTemplateGroupFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmEmailTemplateGroupFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmEmailTemplateGroupFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>
+        }
+        findMany: {
+          args: Prisma.CrmEmailTemplateGroupFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>[]
+        }
+        create: {
+          args: Prisma.CrmEmailTemplateGroupCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>
+        }
+        createMany: {
+          args: Prisma.CrmEmailTemplateGroupCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmEmailTemplateGroupCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmEmailTemplateGroupDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>
+        }
+        update: {
+          args: Prisma.CrmEmailTemplateGroupUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmEmailTemplateGroupDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmEmailTemplateGroupUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmEmailTemplateGroupUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmEmailTemplateGroupUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateGroupPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmEmailTemplateGroupAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmEmailTemplateGroup>
+        }
+        groupBy: {
+          args: Prisma.CrmEmailTemplateGroupGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailTemplateGroupGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmEmailTemplateGroupCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailTemplateGroupCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmEmailTemplateStep: {
+      payload: Prisma.$CrmEmailTemplateStepPayload<ExtArgs>
+      fields: Prisma.CrmEmailTemplateStepFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmEmailTemplateStepFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmEmailTemplateStepFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmEmailTemplateStepFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmEmailTemplateStepFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>
+        }
+        findMany: {
+          args: Prisma.CrmEmailTemplateStepFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>[]
+        }
+        create: {
+          args: Prisma.CrmEmailTemplateStepCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>
+        }
+        createMany: {
+          args: Prisma.CrmEmailTemplateStepCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmEmailTemplateStepCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmEmailTemplateStepDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>
+        }
+        update: {
+          args: Prisma.CrmEmailTemplateStepUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmEmailTemplateStepDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmEmailTemplateStepUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmEmailTemplateStepUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmEmailTemplateStepUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailTemplateStepPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmEmailTemplateStepAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmEmailTemplateStep>
+        }
+        groupBy: {
+          args: Prisma.CrmEmailTemplateStepGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailTemplateStepGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmEmailTemplateStepCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailTemplateStepCountAggregateOutputType> | number
         }
       }
     }
@@ -2714,6 +2864,40 @@ export const CrmProductLineScalarFieldEnum = {
 export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
 
 
+export const CrmEmailTemplateGroupScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  name: 'name',
+  language: 'language',
+  description: 'description',
+  status: 'status',
+  isDefault: 'isDefault',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmEmailTemplateGroupScalarFieldEnum = (typeof CrmEmailTemplateGroupScalarFieldEnum)[keyof typeof CrmEmailTemplateGroupScalarFieldEnum]
+
+
+export const CrmEmailTemplateStepScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  templateGroupId: 'templateGroupId',
+  stepIndex: 'stepIndex',
+  name: 'name',
+  threadMode: 'threadMode',
+  delayDays: 'delayDays',
+  subjectTemplate: 'subjectTemplate',
+  bodyTemplate: 'bodyTemplate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmEmailTemplateStepScalarFieldEnum = (typeof CrmEmailTemplateStepScalarFieldEnum)[keyof typeof CrmEmailTemplateStepScalarFieldEnum]
+
+
 export const CrmSequenceEnrollmentScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -3230,6 +3414,8 @@ export type GlobalOmitConfig = {
   crmMailbox?: Prisma.CrmMailboxOmit
   crmMailboxSendUsage?: Prisma.CrmMailboxSendUsageOmit
   crmProductLine?: Prisma.CrmProductLineOmit
+  crmEmailTemplateGroup?: Prisma.CrmEmailTemplateGroupOmit
+  crmEmailTemplateStep?: Prisma.CrmEmailTemplateStepOmit
   crmSequenceEnrollment?: Prisma.CrmSequenceEnrollmentOmit
   crmMessage?: Prisma.CrmMessageOmit
   crmInboxThread?: Prisma.CrmInboxThreadOmit

@@ -24,8 +24,10 @@ import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
 import { CrmBlacklistQueryDto } from './dto/crm-blacklist-query.dto';
 import { CrmInboxThreadQueryDto } from './dto/crm-inbox-thread-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
+import { CrmEmailTemplateQueryDto } from './dto/crm-email-template-query.dto';
 import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
 import { CrmSequenceReviewQueryDto } from './dto/crm-sequence-review-query.dto';
+import { CreateCrmEmailTemplateDto } from './dto/create-crm-email-template.dto';
 import { CreateCrmSequenceReviewItemDto } from './dto/create-crm-sequence-review-item.dto';
 import { CreateCrmProductLineDto } from './dto/create-crm-product-line.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
@@ -36,6 +38,7 @@ import { SaveCrmGlobalConfigDto } from './dto/save-crm-global-config.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
+import { UpdateCrmEmailTemplateDto } from './dto/update-crm-email-template.dto';
 import { UpdateCrmProductLineDto } from './dto/update-crm-product-line.dto';
 import type { CrmUserContext } from './crm.types';
 
@@ -191,6 +194,41 @@ export class CrmController {
   @Patch('product-lines/:id/archive')
   async archiveProductLine(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.archiveProductLine(id, this.requireUserContext(authorization)));
+  }
+
+  @Get('email-template-groups')
+  async listEmailTemplateGroups(
+    @Headers('authorization') authorization = '',
+    @Query() query: CrmEmailTemplateQueryDto
+  ) {
+    return ok(await this.crmService.listEmailTemplateGroups(this.requireUserContext(authorization), query));
+  }
+
+  @Post('email-template-groups')
+  async createEmailTemplateGroup(
+    @Headers('authorization') authorization = '',
+    @Body() dto: CreateCrmEmailTemplateDto
+  ) {
+    return ok(await this.crmService.createEmailTemplateGroup(dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('email-template-groups/:id')
+  async updateEmailTemplateGroup(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmEmailTemplateDto
+  ) {
+    return ok(await this.crmService.updateEmailTemplateGroup(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('email-template-groups/:id/archive')
+  async archiveEmailTemplateGroup(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.archiveEmailTemplateGroup(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('email-template-groups/:id/default')
+  async setDefaultEmailTemplateGroup(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.setDefaultEmailTemplateGroup(id, this.requireUserContext(authorization)));
   }
 
   @Get('template-defaults')

@@ -1,9 +1,11 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
+import { findPersonaProfile, renderEmailTemplateText } from './crm-email-template-renderer';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_STORE } from './crm.tokens';
 import type {
   CrmEmailSendGateway,
+  CrmEmailTemplateGroupRecord,
   CrmGlobalConfigRecord,
   CrmMailboxRecord,
   CrmSendDeliveryClaimRecord,
@@ -43,7 +45,10 @@ export class CrmSendWorkerService {
         mailbox: item.mailbox
       });
       const sentAt = new Date();
-      const globalConfig = await this.store.getGlobalConfig();
+      const [globalConfig, defaultTemplateGroup] = await Promise.all([
+        this.store.getGlobalConfig(),
+        this.store.findDefaultEmailTemplateGroup(job.organizationId)
+      ]);
       await this.store.completeFirstMessageSend({
         enrollmentId: job.enrollmentId,
         messageId: job.messageId,
@@ -53,7 +58,13 @@ export class CrmSendWorkerService {
         sentAt,
         providerMessageId: sent.providerMessageId ?? null,
         providerThreadId: sent.providerThreadId ?? null,
-        nextMessage: buildNextFollowUpDraft(item, sent.providerThreadId ?? null, sentAt, globalConfig.followUpDelayDays)
+        nextMessage: buildNextFollowUpDraft(
+          item,
+          sent.providerThreadId ?? null,
+          sentAt,
+          globalConfig.followUpDelayDays,
+          defaultTemplateGroup
+        )
       });
     } catch (error) {
       if (error instanceof CrmGmailAuthorizationExpiredError) {
@@ -114,7 +125,8 @@ function buildNextFollowUpDraft(
   item: CrmSendDeliveryClaimRecord,
   providerThreadId: string | null,
   sentAt: Date,
-  followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']
+  followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays'],
+  templateGroup: CrmEmailTemplateGroupRecord | null
 ): Parameters<CrmStore['completeFirstMessageSend']>[0]['nextMessage'] {
   const nextStepIndex = item.firstMessage.stepIndex + 1;
 
@@ -122,14 +134,36 @@ function buildNextFollowUpDraft(
     return null;
   }
 
-  const delayMs = getFollowUpDelayMs(nextStepIndex, followUpDelayDays);
+  const templateStep =
+    templateGroup?.status === 'active' ? templateGroup.steps.find(step => step.stepIndex === nextStepIndex) : null;
+  const delayDays = templateStep?.delayDays ?? getFollowUpDelayDays(nextStepIndex, followUpDelayDays);
 
-  if (!delayMs) {
+  if (delayDays === null) {
     return null;
   }
 
   const contactName = item.contact.fullName || item.contact.title || 'there';
   const senderName = item.mailbox.ownerUserName || 'there';
+  const persona = findPersonaProfile(item.contact.title);
+  const templateBodyText = templateStep
+    ? renderEmailTemplateText(templateStep.bodyTemplate, {
+        account: item.account,
+        contact: item.contact,
+        persona,
+        productLine: item.productLine,
+        senderName
+      })
+    : null;
+  const templateSubject =
+    templateStep && templateStep.subjectTemplate
+      ? renderEmailTemplateText(templateStep.subjectTemplate, {
+          account: item.account,
+          contact: item.contact,
+          persona,
+          productLine: item.productLine,
+          senderName
+        })
+      : null;
 
   return {
     organizationId: item.firstMessage.organizationId,
@@ -138,16 +172,18 @@ function buildNextFollowUpDraft(
     contactId: item.firstMessage.contactId,
     mailboxId: item.mailbox.id,
     stepIndex: nextStepIndex,
-    threadMode: 'same_thread',
-    subject: item.firstMessage.subject,
-    bodyText: `Hi ${contactName},\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\n${senderName}`,
+    threadMode: templateStep?.threadMode ?? 'same_thread',
+    subject: templateSubject || item.firstMessage.subject,
+    bodyText:
+      templateBodyText ||
+      `Hi ${contactName},\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\n${senderName}`,
     status: 'draft_pending_review',
-    scheduledAt: new Date(sentAt.getTime() + delayMs),
+    scheduledAt: new Date(sentAt.getTime() + delayDays * oneDayMs),
     providerThreadId
   };
 }
 
-function getFollowUpDelayMs(stepIndex: number, followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']) {
+function getFollowUpDelayDays(stepIndex: number, followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']) {
   const delayDaysByStep = new Map([
     [2, followUpDelayDays.step2Days],
     [3, followUpDelayDays.step3Days],
@@ -156,5 +192,5 @@ function getFollowUpDelayMs(stepIndex: number, followUpDelayDays: CrmGlobalConfi
   ]);
   const delayDays = delayDaysByStep.get(stepIndex);
 
-  return delayDays ? delayDays * oneDayMs : null;
+  return delayDays ?? null;
 }

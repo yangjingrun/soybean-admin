@@ -3,12 +3,17 @@ import { describe, it } from 'node:test';
 import dayjs from 'dayjs';
 import {
   buildBlacklistSearchParams,
+  buildEmailTemplateSearchParams,
   collectOperationQueueRows,
   createDefaultBlacklistFilterModel,
+  createDefaultEmailTemplateFilterModel,
+  createDefaultEmailTemplateForm,
   createDefaultFollowUpDelayDays,
   createDefaultGlobalConfigForm,
+  createEmailTemplateFormFromRecord,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
+  normalizeEmailTemplatePayload,
   summarizeMailboxSyncHealth
 } from './shared';
 
@@ -63,6 +68,36 @@ describe('crm settings shared helpers', () => {
         keyword: 'alice'
       }
     );
+  });
+
+  it('creates and normalizes email template forms with five steps', () => {
+    const form = createDefaultEmailTemplateForm();
+    form.name = '  Distributor sequence  ';
+    form.description = '  First touch  ';
+    form.steps[0].subjectTemplate = '  Hello {{account.name}}  ';
+    form.steps[0].bodyTemplate = '  Hi {{contact.name}}  ';
+
+    assert.equal(form.steps.length, 5);
+    assert.deepEqual(createDefaultEmailTemplateFilterModel(), {
+      keyword: '',
+      status: null
+    });
+    assert.deepEqual(
+      buildEmailTemplateSearchParams({
+        current: 1,
+        size: 10,
+        filterModel: { keyword: '  distributor  ', status: 'active' }
+      }),
+      {
+        current: 1,
+        size: 10,
+        keyword: 'distributor',
+        status: 'active'
+      }
+    );
+    assert.equal(normalizeEmailTemplatePayload(form).name, 'Distributor sequence');
+    assert.equal(normalizeEmailTemplatePayload(form).steps[0].subjectTemplate, 'Hello {{account.name}}');
+    assert.equal(createEmailTemplateFormFromRecord(createEmailTemplateGroup()).steps[0].bodyTemplate, 'Body 1');
   });
 
   it('collects queued and failed messages for the operations queue', () => {
@@ -149,6 +184,35 @@ function createMessage(options: {
     stepIndex: 1,
     updatedAt: options.updatedAt
   } as Api.Crm.MessageRecord;
+}
+
+function createEmailTemplateGroup(): Api.Crm.EmailTemplateGroupRecord {
+  return {
+    id: 'template-1',
+    organizationId: 'org-1',
+    name: 'Default template',
+    language: 'en',
+    description: 'Reusable sequence',
+    status: 'active',
+    isDefault: false,
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      id: `step-${stepIndex}`,
+      organizationId: 'org-1',
+      templateGroupId: 'template-1',
+      stepIndex,
+      name: `Step ${stepIndex}`,
+      threadMode: stepIndex === 2 ? 'same_thread' : 'new_subject',
+      delayDays: stepIndex === 1 ? 0 : stepIndex * 2,
+      subjectTemplate: stepIndex === 2 ? '' : `Subject ${stepIndex}`,
+      bodyTemplate: `Body ${stepIndex}`,
+      createdAt: '2026-06-18T09:00:00.000Z',
+      updatedAt: '2026-06-18T09:00:00.000Z'
+    })),
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z'
+  };
 }
 
 function createMailbox(options: Partial<Api.Crm.MailboxRecord> & { id: string }): Api.Crm.MailboxRecord {

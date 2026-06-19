@@ -26,6 +26,8 @@ declare namespace Api {
 
     type ProductLineStatus = 'active' | 'archived';
 
+    type EmailTemplateStatus = 'active' | 'archived';
+
     type SequenceEnrollmentStatus =
       | 'draft_review_pending'
       | 'ready_to_send'
@@ -344,6 +346,69 @@ declare namespace Api {
 
     type ProductLineList = Api.Common.PaginatingQueryRecord<ProductLineRecord>;
 
+    interface EmailTemplateStepRecord {
+      id: string;
+      organizationId: string;
+      templateGroupId: string;
+      stepIndex: number;
+      name: string;
+      threadMode: MessageThreadMode;
+      delayDays: number;
+      subjectTemplate: string;
+      bodyTemplate: string;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface EmailTemplateGroupRecord {
+      id: string;
+      organizationId: string;
+      name: string;
+      language: string;
+      description: string | null;
+      status: EmailTemplateStatus;
+      isDefault: boolean;
+      steps: EmailTemplateStepRecord[];
+      createdById: string;
+      createdByName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface EmailTemplateSearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+      status?: EmailTemplateStatus;
+    }
+
+    interface EmailTemplateFilterModel {
+      keyword: string;
+      status: EmailTemplateStatus | null;
+    }
+
+    interface EmailTemplateStepPayload {
+      stepIndex: number;
+      name: string;
+      threadMode: MessageThreadMode;
+      delayDays: number;
+      subjectTemplate: string;
+      bodyTemplate: string;
+    }
+
+    interface EmailTemplatePayload {
+      name: string;
+      language: string;
+      description: string;
+      steps: EmailTemplateStepPayload[];
+    }
+
+    type EmailTemplateFormModel = EmailTemplatePayload;
+
+    interface EmailTemplateOperateResult {
+      templateGroup: EmailTemplateGroupRecord;
+    }
+
+    type EmailTemplateList = Api.Common.PaginatingQueryRecord<EmailTemplateGroupRecord>;
+
     interface TemplateVariable {
       key: string;
       label: string;
@@ -370,8 +435,11 @@ declare namespace Api {
       templateGroup: {
         id: string;
         name: string;
-        scope: 'global';
+        scope: 'global' | 'organization';
         language: string;
+        description?: string | null;
+        status?: EmailTemplateStatus;
+        isDefault?: boolean;
         variables: TemplateVariable[];
         steps: DefaultTemplateStep[];
       };
