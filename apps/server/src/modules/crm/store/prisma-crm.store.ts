@@ -15,6 +15,7 @@ import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessag
 import type { CrmOrganizationConfigModel } from '../../../generated/prisma/models/CrmOrganizationConfig';
 import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
 import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
+import type { CrmSequencePolicyModel } from '../../../generated/prisma/models/CrmSequencePolicy';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
 import { PrismaService } from '../../database/prisma.service';
 import type {
@@ -83,6 +84,10 @@ import type {
   CrmSequenceEnrollmentStatus,
   CrmSequenceEnrollmentUpdateInput,
   CrmSequenceDraftBundleCreateInput,
+  CrmSequencePolicyCreateInput,
+  CrmSequencePolicyListInput,
+  CrmSequencePolicyRecord,
+  CrmSequencePolicyUpdateInput,
   CrmSequenceDraftBundleRecord,
   CrmSequenceReviewRecord,
   CrmSendCompletionInput,
@@ -107,6 +112,14 @@ import {
   normalizeFollowUpDelayDays,
   serializeFollowUpDelayDays
 } from '../crm-global-config';
+import {
+  normalizeSequencePolicyLinkPolicy,
+  normalizeSequencePolicySameCompanyStrategy,
+  normalizeSequencePolicyStatus,
+  parseSequencePolicySteps,
+  serializeSequencePolicyStepDelayDays,
+  serializeSequencePolicyThreadModes
+} from '../crm-sequence-policy';
 
 type CrmEmailTemplateGroupModelWithSteps = CrmEmailTemplateGroupModel & {
   steps: CrmEmailTemplateStepModel[];
@@ -890,6 +903,136 @@ export class PrismaCrmStore implements CrmStore {
       });
 
       return record ? toEmailTemplateGroupRecord(record) : null;
+    });
+  }
+
+  async listSequencePolicies(input: CrmSequencePolicyListInput) {
+    const where = toSequencePolicyListWhere(input);
+    const [records, total] = await Promise.all([
+      this.prisma.crmSequencePolicy.findMany({
+        where,
+        skip: input.skip,
+        take: input.take,
+        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
+      }),
+      this.prisma.crmSequencePolicy.count({ where })
+    ]);
+
+    return {
+      records: records.map(toSequencePolicyRecord),
+      total
+    };
+  }
+
+  findSequencePolicyByName(organizationId: string, name: string) {
+    return this.prisma.crmSequencePolicy
+      .findUnique({
+        where: {
+          organizationId_name: {
+            organizationId,
+            name
+          }
+        }
+      })
+      .then(record => (record ? toSequencePolicyRecord(record) : null));
+  }
+
+  findSequencePolicyById(args: { id: string; organizationId: string }) {
+    return this.prisma.crmSequencePolicy
+      .findFirst({
+        where: {
+          id: args.id,
+          organizationId: args.organizationId
+        }
+      })
+      .then(record => (record ? toSequencePolicyRecord(record) : null));
+  }
+
+  findDefaultSequencePolicy(organizationId: string) {
+    return this.prisma.crmSequencePolicy
+      .findFirst({
+        where: {
+          organizationId,
+          status: 'active',
+          isDefault: true
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+      .then(record => (record ? toSequencePolicyRecord(record) : null));
+  }
+
+  async createSequencePolicy(input: CrmSequencePolicyCreateInput) {
+    return this.prisma.$transaction(async tx => {
+      if (input.isDefault) {
+        await tx.crmSequencePolicy.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            isDefault: true
+          },
+          data: { isDefault: false }
+        });
+      }
+
+      const record = await tx.crmSequencePolicy.create({
+        data: toSequencePolicyCreateInput(input)
+      });
+
+      return toSequencePolicyRecord(record);
+    });
+  }
+
+  async updateSequencePolicy(id: string, organizationId: string, input: CrmSequencePolicyUpdateInput) {
+    return this.prisma.$transaction(async tx => {
+      if (input.isDefault) {
+        await tx.crmSequencePolicy.updateMany({
+          where: {
+            organizationId,
+            id: { not: id },
+            isDefault: true
+          },
+          data: { isDefault: false }
+        });
+      }
+
+      const records = await tx.crmSequencePolicy.updateManyAndReturn({
+        where: {
+          id,
+          organizationId
+        },
+        data: toSequencePolicyUpdateInput(input),
+        limit: 1
+      });
+
+      return records[0] ? toSequencePolicyRecord(records[0]) : null;
+    });
+  }
+
+  async setDefaultSequencePolicy(id: string, organizationId: string) {
+    return this.prisma.$transaction(async tx => {
+      const records = await tx.crmSequencePolicy.updateManyAndReturn({
+        where: {
+          id,
+          organizationId,
+          status: 'active'
+        },
+        data: { isDefault: true },
+        limit: 1
+      });
+
+      if (!records[0]) {
+        return null;
+      }
+
+      await tx.crmSequencePolicy.updateMany({
+        where: {
+          organizationId,
+          id: { not: id },
+          isDefault: true
+        },
+        data: { isDefault: false }
+      });
+
+      return toSequencePolicyRecord(records[0]);
     });
   }
 
@@ -2336,6 +2479,17 @@ function toEmailTemplateGroupListWhere(args: CrmEmailTemplateGroupListInput): Pr
   };
 }
 
+/** Builds the Prisma sequence policy list scope and optional UI filters. */
+function toSequencePolicyListWhere(args: CrmSequencePolicyListInput): Prisma.CrmSequencePolicyWhereInput {
+  const keywordFilter = args.keyword ? toSequencePolicyKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(args.status ? { status: args.status } : {}),
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 function toBlacklistListWhere(args: CrmBlacklistListInput): Prisma.CrmBlacklistWhereInput {
   const keywordFilter = args.keyword ? toBlacklistKeywordFilter(args.keyword) : undefined;
 
@@ -2426,6 +2580,15 @@ function toEmailTemplateKeywordFilter(keyword: string): Prisma.CrmEmailTemplateG
   }));
 }
 
+function toSequencePolicyKeywordFilter(keyword: string): Prisma.CrmSequencePolicyWhereInput[] {
+  return ['name', 'description'].map(field => ({
+    [field]: {
+      contains: keyword,
+      mode: 'insensitive'
+    }
+  }));
+}
+
 function toBlacklistKeywordFilter(keyword: string): Prisma.CrmBlacklistWhereInput[] {
   return ['maskedEmail', 'createdByName'].map(field => ({
     [field]: {
@@ -2463,6 +2626,7 @@ function toSequenceReviewInclude() {
     contact: true,
     productLine: true,
     mailbox: true,
+    policy: true,
     messages: {
       orderBy: [{ stepIndex: 'asc' as const }, { createdAt: 'asc' as const }]
     }
@@ -2613,6 +2777,60 @@ function toEmailTemplateStepCreateManyInput(
   }));
 }
 
+function toSequencePolicyRecord(record: CrmSequencePolicyModel): CrmSequencePolicyRecord {
+  return {
+    id: record.id,
+    organizationId: record.organizationId,
+    name: record.name,
+    description: record.description,
+    status: normalizeSequencePolicyStatus(record.status),
+    isDefault: record.isDefault,
+    steps: parseSequencePolicySteps(record.stepDelayDaysText, record.stepThreadModesText),
+    linkPolicy: normalizeSequencePolicyLinkPolicy(record.linkPolicy),
+    allowLowRiskAutoSend: record.allowLowRiskAutoSend,
+    sameCompanyContactStrategy: normalizeSequencePolicySameCompanyStrategy(record.sameCompanyContactStrategy),
+    createdById: record.createdById,
+    createdByName: record.createdByName,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  };
+}
+
+function toSequencePolicyCreateInput(input: CrmSequencePolicyCreateInput): Prisma.CrmSequencePolicyUncheckedCreateInput {
+  return {
+    organizationId: input.organizationId,
+    name: input.name,
+    description: input.description ?? null,
+    status: input.status,
+    isDefault: input.isDefault,
+    stepDelayDaysText: serializeSequencePolicyStepDelayDays(input.steps),
+    stepThreadModesText: serializeSequencePolicyThreadModes(input.steps),
+    linkPolicy: input.linkPolicy,
+    allowLowRiskAutoSend: input.allowLowRiskAutoSend,
+    sameCompanyContactStrategy: input.sameCompanyContactStrategy,
+    createdById: input.createdById,
+    createdByName: input.createdByName ?? null
+  };
+}
+
+function toSequencePolicyUpdateInput(input: CrmSequencePolicyUpdateInput): Prisma.CrmSequencePolicyUncheckedUpdateInput {
+  return {
+    name: input.name,
+    description: input.description,
+    status: input.status,
+    isDefault: input.isDefault,
+    ...(input.steps
+      ? {
+          stepDelayDaysText: serializeSequencePolicyStepDelayDays(input.steps),
+          stepThreadModesText: serializeSequencePolicyThreadModes(input.steps)
+        }
+      : {}),
+    linkPolicy: input.linkPolicy,
+    allowLowRiskAutoSend: input.allowLowRiskAutoSend,
+    sameCompanyContactStrategy: input.sameCompanyContactStrategy
+  };
+}
+
 function toSequenceEnrollmentRecord(record: CrmSequenceEnrollmentModel): CrmSequenceEnrollmentRecord {
   return {
     ...record,
@@ -2657,6 +2875,7 @@ function toSequenceReviewRecord(
     contact: CrmContactModel;
     productLine: CrmProductLineModel | null;
     mailbox: CrmMailboxModel | null;
+    policy?: CrmSequencePolicyModel | null;
     messages: CrmMessageModel[];
   }
 ): CrmSequenceReviewRecord {
@@ -2668,6 +2887,7 @@ function toSequenceReviewRecord(
     contact: toContactRecord(record.contact),
     productLine: record.productLine ? toProductLineRecord(record.productLine) : null,
     mailbox: record.mailbox ? toMailboxRecord(record.mailbox) : null,
+    policy: record.policy ? toSequencePolicyRecord(record.policy) : null,
     firstMessage: messages.find(message => message.stepIndex === 1) || messages[0] || null,
     messages
   };

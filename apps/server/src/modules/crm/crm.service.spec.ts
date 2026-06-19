@@ -20,6 +20,7 @@ import type {
   CrmOrganizationConfigRecord,
   CrmSendQueueJob,
   CrmSendQueuePort,
+  CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmStore,
   CrmUserContext
@@ -1268,6 +1269,83 @@ describe('CrmService', () => {
     ]);
   });
 
+  it('creates, lists, updates, defaults and archives organization sequence policies', async () => {
+    const store = createStore([], {
+      sequencePolicies: [
+        createSequencePolicy({
+          id: 'policy-1',
+          name: 'Conservative sequence',
+          isDefault: true
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const created = await service.createSequencePolicy(
+      {
+        name: 'Fast follow-up',
+        isDefault: true,
+        steps: [
+          { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' },
+          { stepIndex: 2, delayDays: 2, threadMode: 'same_thread' },
+          { stepIndex: 3, delayDays: 5, threadMode: 'new_subject' },
+          { stepIndex: 4, delayDays: 9, threadMode: 'new_subject' },
+          { stepIndex: 5, delayDays: 14, threadMode: 'new_subject' }
+        ],
+        linkPolicy: 'block_new_links',
+        sameCompanyContactStrategy: 'single_active_per_company'
+      },
+      createContext()
+    );
+    const list = await service.listSequencePolicies(createContext(), { keyword: 'fast', status: 'active' });
+    const updated = await service.updateSequencePolicy(
+      created.policy.id,
+      {
+        name: 'Fast follow-up v2',
+        allowLowRiskAutoSend: true
+      },
+      createContext()
+    );
+    const defaulted = await service.setDefaultSequencePolicy('policy-1', createContext());
+    const archived = await service.archiveSequencePolicy(created.policy.id, createContext());
+
+    assert.equal(created.policy.steps[1].delayDays, 2);
+    assert.equal(created.policy.linkPolicy, 'block_new_links');
+    assert.equal(store.sequencePolicies.find(policy => policy.id === 'policy-1')?.isDefault, true);
+    assert.equal(list.records[0].name, 'Fast follow-up');
+    assert.equal(updated.policy.allowLowRiskAutoSend, true);
+    assert.equal(defaulted.policy.isDefault, true);
+    assert.equal(archived.policy.status, 'archived');
+    assert.deepEqual(logs.records.map(record => record.action), [
+      'sequence-policy-create',
+      'sequence-policy-update',
+      'sequence-policy-default',
+      'sequence-policy-archive'
+    ]);
+  });
+
+  it('rejects archived sequence policies as default policies', async () => {
+    const store = createStore([], {
+      sequencePolicies: [
+        createSequencePolicy({
+          id: 'policy-1',
+          name: 'Conservative sequence',
+          isDefault: true
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.updateSequencePolicy('policy-1', { status: 'archived', isDefault: true }, createContext()),
+      /只能将启用策略设为默认/
+    );
+
+    assert.equal(store.sequencePolicies[0].status, 'active');
+    assert.equal(store.sequencePolicies[0].isDefault, true);
+  });
+
   it('uses the organization default email template for first draft generation', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
       contacts: [
@@ -1364,6 +1442,71 @@ describe('CrmService', () => {
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_draft_generated');
     assert.equal((logs.records[0].metadata as Record<string, unknown>).messageId, 'message-1');
     assert.equal(JSON.stringify(logs.records[0].metadata).includes('stable supply'), false);
+  });
+
+  it('binds sequence review drafts to the selected or default sequence policy', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          fullName: 'Ali Hassan',
+          title: 'Purchasing Manager',
+          emailStatus: 'valid'
+        })
+      ],
+      sequencePolicies: [
+        createSequencePolicy({
+          id: 'policy-default',
+          name: 'Default sequence',
+          isDefault: true,
+          steps: [
+            { stepIndex: 1, delayDays: 0, threadMode: 'same_thread' },
+            { stepIndex: 2, delayDays: 3, threadMode: 'same_thread' },
+            { stepIndex: 3, delayDays: 7, threadMode: 'new_subject' },
+            { stepIndex: 4, delayDays: 14, threadMode: 'new_subject' },
+            { stepIndex: 5, delayDays: 21, threadMode: 'new_subject' }
+          ]
+        }),
+        createSequencePolicy({
+          id: 'policy-selected',
+          name: 'Selected sequence',
+          steps: [
+            { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' },
+            { stepIndex: 2, delayDays: 2, threadMode: 'same_thread' },
+            { stepIndex: 3, delayDays: 5, threadMode: 'new_subject' },
+            { stepIndex: 4, delayDays: 10, threadMode: 'new_subject' },
+            { stepIndex: 5, delayDays: 15, threadMode: 'new_subject' }
+          ]
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const defaultResult = await service.createSequenceReviewItem(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1'
+      },
+      createContext()
+    );
+    store.enrollments.length = 0;
+    store.messages.length = 0;
+    const selectedResult = await service.createSequenceReviewItem(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        policyId: 'policy-selected'
+      },
+      createContext()
+    );
+
+    assert.equal(defaultResult.item.enrollment.policyId, 'policy-default');
+    assert.equal(defaultResult.item.policy?.id, 'policy-default');
+    assert.equal(defaultResult.item.firstMessage?.threadMode, 'same_thread');
+    assert.equal(selectedResult.item.enrollment.policyId, 'policy-selected');
+    assert.equal(selectedResult.item.policy?.id, 'policy-selected');
+    assert.equal(selectedResult.item.firstMessage?.threadMode, 'new_subject');
   });
 
   it('rejects sequence review creation for peer contacts and active duplicate enrollments', async () => {
@@ -2396,6 +2539,7 @@ function createStore(
     mailboxes?: TestMailbox[];
     productLines?: TestProductLine[];
     emailTemplateGroups?: TestEmailTemplateGroup[];
+    sequencePolicies?: TestSequencePolicy[];
     enrollments?: TestEnrollment[];
     messages?: TestMessage[];
     inboxThreads?: TestInboxThread[];
@@ -2414,6 +2558,7 @@ function createStore(
   mailboxes: TestMailbox[];
   productLines: TestProductLine[];
   emailTemplateGroups: TestEmailTemplateGroup[];
+  sequencePolicies: TestSequencePolicy[];
   enrollments: TestEnrollment[];
   messages: TestMessage[];
   inboxThreads: TestInboxThread[];
@@ -2440,6 +2585,8 @@ function createStore(
   lastProductLineDetailArgs?: { id: string; organizationId: string };
   lastEmailTemplateListArgs?: Parameters<CrmStore['listEmailTemplateGroups']>[0];
   lastEmailTemplateDetailArgs?: { id: string; organizationId: string };
+  lastSequencePolicyListArgs?: Parameters<CrmStore['listSequencePolicies']>[0];
+  lastSequencePolicyDetailArgs?: { id: string; organizationId: string };
   lastBlacklistListArgs?: Parameters<CrmStore['listBlacklistEntries']>[0];
   lastSequenceReviewListArgs?: Parameters<CrmStore['listSequenceReviewItems']>[0];
   lastSequenceReviewDetailArgs?: Parameters<CrmStore['getSequenceReviewItem']>[0];
@@ -2454,6 +2601,7 @@ function createStore(
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
   const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
   const emailTemplateGroups: TestEmailTemplateGroup[] = [...(initialData.emailTemplateGroups ?? [])];
+  const sequencePolicies: TestSequencePolicy[] = [...(initialData.sequencePolicies ?? [])];
   const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
   const messages: TestMessage[] = [...(initialData.messages ?? [])];
   const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
@@ -2480,6 +2628,7 @@ function createStore(
     mailboxes,
     productLines,
     emailTemplateGroups,
+    sequencePolicies,
     enrollments,
     messages,
     inboxThreads,
@@ -2613,7 +2762,7 @@ function createStore(
     },
     async saveOrganizationConfig(input) {
       organizationConfig = createOrganizationConfig({
-        ...(organizationConfig ?? {}),
+        ...organizationConfig,
         organizationId: input.organizationId,
         allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
         updatedById: input.updatedById ?? null,
@@ -2925,6 +3074,81 @@ function createStore(
       }
       return group;
     },
+    async listSequencePolicies(args) {
+      this.lastSequencePolicyListArgs = args;
+      const records = sequencePolicies.filter(policy => {
+        if (policy.organizationId !== args.organizationId) return false;
+        if (args.status && policy.status !== args.status) return false;
+        if (!args.keyword) return true;
+        const keyword = args.keyword.toLowerCase();
+        return [policy.name, policy.description].some(value => value?.toLowerCase().includes(keyword));
+      });
+
+      return {
+        records: records.slice(args.skip, args.skip + args.take),
+        total: records.length
+      };
+    },
+    async findSequencePolicyByName(organizationId, name) {
+      return sequencePolicies.find(policy => policy.organizationId === organizationId && policy.name === name) ?? null;
+    },
+    async findSequencePolicyById(args) {
+      this.lastSequencePolicyDetailArgs = args;
+      return (
+        sequencePolicies.find(policy => policy.id === args.id && policy.organizationId === args.organizationId) ?? null
+      );
+    },
+    async findDefaultSequencePolicy(organizationId) {
+      return (
+        sequencePolicies.find(
+          policy => policy.organizationId === organizationId && policy.status === 'active' && policy.isDefault
+        ) ?? null
+      );
+    },
+    async createSequencePolicy(input) {
+      const policy = createSequencePolicy({
+        ...input,
+        id: `policy-${sequencePolicies.length + 1}`
+      });
+
+      if (policy.isDefault) {
+        for (const item of sequencePolicies) {
+          if (item.organizationId === policy.organizationId) {
+            item.isDefault = false;
+          }
+        }
+      }
+
+      sequencePolicies.push(policy);
+      return policy;
+    },
+    async updateSequencePolicy(id, organizationId, input) {
+      const policy = sequencePolicies.find(item => item.id === id && item.organizationId === organizationId);
+      if (!policy) return null;
+
+      Object.assign(policy, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      if (input.isDefault) {
+        for (const item of sequencePolicies) {
+          if (item.organizationId === organizationId && item.id !== id) {
+            item.isDefault = false;
+          }
+        }
+      }
+
+      return policy;
+    },
+    async setDefaultSequencePolicy(id, organizationId) {
+      const policy = sequencePolicies.find(item => item.id === id && item.organizationId === organizationId);
+      if (!policy || policy.status !== 'active') return null;
+
+      for (const item of sequencePolicies) {
+        if (item.organizationId === organizationId) {
+          item.isDefault = item.id === id;
+        }
+      }
+
+      return policy;
+    },
     async findActiveEnrollmentByContact(args) {
       return (
         enrollments.find(
@@ -2986,7 +3210,7 @@ function createStore(
             value?.toLowerCase().includes(keyword)
           );
         }),
-        { accounts, contacts, productLines, mailboxes, messages }
+        { accounts, contacts, productLines, mailboxes, sequencePolicies, messages }
       );
 
       return {
@@ -3003,7 +3227,7 @@ function createStore(
         return true;
       });
       return enrollment
-        ? buildSequenceReviewRecords([enrollment], { accounts, contacts, productLines, mailboxes, messages })[0]
+        ? buildSequenceReviewRecords([enrollment], { accounts, contacts, productLines, mailboxes, sequencePolicies, messages })[0]
         : null;
     },
     async updateSequenceEnrollment(id, organizationId, input) {
@@ -3983,6 +4207,31 @@ function createEmailTemplatePayload(input: Partial<TestEmailTemplateGroup> = {})
   };
 }
 
+function createSequencePolicy(input: Partial<TestSequencePolicy> = {}): TestSequencePolicy {
+  return {
+    id: input.id || 'policy-1',
+    organizationId: input.organizationId || 'org-1',
+    name: input.name || 'Default sequence policy',
+    description: input.description ?? null,
+    status: input.status || 'active',
+    isDefault: input.isDefault ?? false,
+    steps: input.steps ?? [
+      { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' },
+      { stepIndex: 2, delayDays: 3, threadMode: 'same_thread' },
+      { stepIndex: 3, delayDays: 7, threadMode: 'new_subject' },
+      { stepIndex: 4, delayDays: 14, threadMode: 'new_subject' },
+      { stepIndex: 5, delayDays: 21, threadMode: 'new_subject' }
+    ],
+    linkPolicy: input.linkPolicy || 'preserve_template_links',
+    allowLowRiskAutoSend: input.allowLowRiskAutoSend ?? false,
+    sameCompanyContactStrategy: input.sameCompanyContactStrategy || 'single_active_per_company',
+    createdById: input.createdById || 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
 function createEnrollment(input: Partial<TestEnrollment> = {}): TestEnrollment {
   return {
     id: input.id || 'enrollment-1',
@@ -3992,6 +4241,7 @@ function createEnrollment(input: Partial<TestEnrollment> = {}): TestEnrollment {
     contactId: input.contactId || 'contact-1',
     productLineId: input.productLineId ?? null,
     mailboxId: input.mailboxId ?? null,
+    policyId: input.policyId ?? null,
     name: input.name || 'Account - Ali Hassan',
     status: input.status || 'draft_review_pending',
     currentStep: input.currentStep ?? 1,
@@ -4081,6 +4331,7 @@ function buildSequenceReviewRecords(
     contacts: TestContact[];
     productLines: TestProductLine[];
     mailboxes: TestMailbox[];
+    sequencePolicies?: TestSequencePolicy[];
     messages: TestMessage[];
   }
 ): CrmSequenceReviewRecord[] {
@@ -4097,6 +4348,9 @@ function buildSequenceReviewRecords(
         ? data.productLines.find(productLine => productLine.id === enrollment.productLineId) || null
         : null,
       mailbox: enrollment.mailboxId ? data.mailboxes.find(mailbox => mailbox.id === enrollment.mailboxId) || null : null,
+      policy: enrollment.policyId
+        ? data.sequencePolicies?.find(policy => policy.id === enrollment.policyId) || null
+        : null,
       firstMessage: messages.find(message => message.stepIndex === 1) || messages[0] || null,
       messages
     };
@@ -4138,6 +4392,7 @@ type TestOrganizationConfig = CrmOrganizationConfigRecord;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
 type TestEmailTemplateGroup = CrmEmailTemplateGroupRecord;
+type TestSequencePolicy = CrmSequencePolicyRecord;
 type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
 type TestMessage = Awaited<ReturnType<CrmStore['createMessage']>>;
 type TestInboxThread = CrmInboxThreadRecord;

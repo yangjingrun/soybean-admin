@@ -400,6 +400,7 @@ export const ModelName = {
   CrmProductLine: 'CrmProductLine',
   CrmEmailTemplateGroup: 'CrmEmailTemplateGroup',
   CrmEmailTemplateStep: 'CrmEmailTemplateStep',
+  CrmSequencePolicy: 'CrmSequencePolicy',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
   CrmInboxThread: 'CrmInboxThread',
@@ -429,7 +430,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1614,6 +1615,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmEmailTemplateStepCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmEmailTemplateStepCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmSequencePolicy: {
+      payload: Prisma.$CrmSequencePolicyPayload<ExtArgs>
+      fields: Prisma.CrmSequencePolicyFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmSequencePolicyFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmSequencePolicyFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmSequencePolicyFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmSequencePolicyFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>
+        }
+        findMany: {
+          args: Prisma.CrmSequencePolicyFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>[]
+        }
+        create: {
+          args: Prisma.CrmSequencePolicyCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>
+        }
+        createMany: {
+          args: Prisma.CrmSequencePolicyCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmSequencePolicyCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmSequencePolicyDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>
+        }
+        update: {
+          args: Prisma.CrmSequencePolicyUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmSequencePolicyDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmSequencePolicyUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmSequencePolicyUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmSequencePolicyUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmSequencePolicyPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmSequencePolicyAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmSequencePolicy>
+        }
+        groupBy: {
+          args: Prisma.CrmSequencePolicyGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmSequencePolicyGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmSequencePolicyCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmSequencePolicyCountAggregateOutputType> | number
         }
       }
     }
@@ -2989,6 +3064,27 @@ export const CrmEmailTemplateStepScalarFieldEnum = {
 export type CrmEmailTemplateStepScalarFieldEnum = (typeof CrmEmailTemplateStepScalarFieldEnum)[keyof typeof CrmEmailTemplateStepScalarFieldEnum]
 
 
+export const CrmSequencePolicyScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  name: 'name',
+  description: 'description',
+  status: 'status',
+  isDefault: 'isDefault',
+  stepDelayDaysText: 'stepDelayDaysText',
+  stepThreadModesText: 'stepThreadModesText',
+  linkPolicy: 'linkPolicy',
+  allowLowRiskAutoSend: 'allowLowRiskAutoSend',
+  sameCompanyContactStrategy: 'sameCompanyContactStrategy',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmSequencePolicyScalarFieldEnum = (typeof CrmSequencePolicyScalarFieldEnum)[keyof typeof CrmSequencePolicyScalarFieldEnum]
+
+
 export const CrmSequenceEnrollmentScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -2997,6 +3093,7 @@ export const CrmSequenceEnrollmentScalarFieldEnum = {
   contactId: 'contactId',
   productLineId: 'productLineId',
   mailboxId: 'mailboxId',
+  policyId: 'policyId',
   name: 'name',
   status: 'status',
   currentStep: 'currentStep',
@@ -3508,6 +3605,7 @@ export type GlobalOmitConfig = {
   crmProductLine?: Prisma.CrmProductLineOmit
   crmEmailTemplateGroup?: Prisma.CrmEmailTemplateGroupOmit
   crmEmailTemplateStep?: Prisma.CrmEmailTemplateStepOmit
+  crmSequencePolicy?: Prisma.CrmSequencePolicyOmit
   crmSequenceEnrollment?: Prisma.CrmSequenceEnrollmentOmit
   crmMessage?: Prisma.CrmMessageOmit
   crmInboxThread?: Prisma.CrmInboxThreadOmit

@@ -10,6 +10,13 @@ import { normalizeEmailVerificationCooldownDays } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
+  defaultSequencePolicySteps,
+  normalizeSequencePolicyLinkPolicy,
+  normalizeSequencePolicySameCompanyStrategy,
+  normalizeSequencePolicyStatus,
+  normalizeSequencePolicySteps
+} from './crm-sequence-policy';
+import {
   defaultTemplateSteps,
   defaultTemplateVariables,
   findPersonaProfile,
@@ -60,6 +67,7 @@ import type {
   CrmProductLineUpdateInput,
   CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
+  CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmSendQueuePort,
   CrmStore,
@@ -162,6 +170,18 @@ interface SequenceReviewCreateInput {
   contactId: string;
   productLineId?: string | null;
   mailboxId?: string | null;
+  policyId?: string | null;
+}
+
+interface SequencePolicyWriteInput {
+  name?: string;
+  description?: string | null;
+  status?: unknown;
+  isDefault?: boolean;
+  steps?: unknown;
+  linkPolicy?: unknown;
+  allowLowRiskAutoSend?: boolean;
+  sameCompanyContactStrategy?: unknown;
 }
 
 interface MessageDraftUpdateInput {
@@ -1001,6 +1021,130 @@ export class CrmService {
     };
   }
 
+  /** Lists organization sequence policies for sequence creation and settings. */
+  async listSequencePolicies(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+      status?: unknown;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const status = query.status ? normalizeSequencePolicyStatus(query.status) : undefined;
+    const result = await this.store.listSequencePolicies({
+      organizationId: context.organizationId,
+      ...(keyword ? { keyword } : {}),
+      ...(status ? { status } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(toSequencePolicyView)
+    };
+  }
+
+  /** Creates one organization sequence policy. */
+  async createSequencePolicy(input: SequencePolicyWriteInput, context: CrmUserContext) {
+    const data = normalizeSequencePolicyCreateInput(input, context);
+    const policy = await this.runSequencePolicyWrite(() => this.store.createSequencePolicy(data));
+
+    await this.recordSequencePolicyLog('sequence-policy-create', 'CRM 序列策略新建', context, policy, null, policy.status);
+
+    return { policy: toSequencePolicyView(policy) };
+  }
+
+  /** Updates one organization sequence policy. */
+  async updateSequencePolicy(id: string, input: SequencePolicyWriteInput, context: CrmUserContext) {
+    const currentPolicy = await this.requireScopedSequencePolicy(id, context);
+    const data = normalizeSequencePolicyUpdateInput(input);
+    const nextStatus = data.status ?? currentPolicy.status;
+
+    if (data.isDefault && nextStatus !== 'active') {
+      throw new BadRequestException('只能将启用策略设为默认');
+    }
+
+    if (data.status === 'archived') {
+      data.isDefault = false;
+    }
+
+    const policy = await this.runSequencePolicyWrite(() =>
+      this.store.updateSequencePolicy(currentPolicy.id, context.organizationId, data)
+    );
+
+    if (!policy) {
+      throw new NotFoundException('序列策略不存在');
+    }
+
+    await this.recordSequencePolicyLog(
+      'sequence-policy-update',
+      'CRM 序列策略更新',
+      context,
+      policy,
+      currentPolicy.status,
+      policy.status
+    );
+
+    return { policy: toSequencePolicyView(policy) };
+  }
+
+  /** Archives one sequence policy instead of deleting it. */
+  async archiveSequencePolicy(id: string, context: CrmUserContext) {
+    const currentPolicy = await this.requireScopedSequencePolicy(id, context);
+    const policy = await this.store.updateSequencePolicy(currentPolicy.id, context.organizationId, {
+      status: 'archived',
+      isDefault: false
+    });
+
+    if (!policy) {
+      throw new NotFoundException('序列策略不存在');
+    }
+
+    await this.recordSequencePolicyLog(
+      'sequence-policy-archive',
+      'CRM 序列策略归档',
+      context,
+      policy,
+      currentPolicy.status,
+      policy.status
+    );
+
+    return { policy: toSequencePolicyView(policy) };
+  }
+
+  /** Marks one active organization sequence policy as default. */
+  async setDefaultSequencePolicy(id: string, context: CrmUserContext) {
+    const currentPolicy = await this.requireScopedSequencePolicy(id, context);
+
+    if (currentPolicy.status !== 'active') {
+      throw new BadRequestException('只能将启用策略设为默认');
+    }
+
+    const policy = await this.store.setDefaultSequencePolicy(currentPolicy.id, context.organizationId);
+
+    if (!policy) {
+      throw new NotFoundException('序列策略不存在');
+    }
+
+    await this.recordSequencePolicyLog(
+      'sequence-policy-default',
+      'CRM 默认序列策略更新',
+      context,
+      policy,
+      currentPolicy.status,
+      policy.status
+    );
+
+    return { policy: toSequencePolicyView(policy) };
+  }
+
   /** Creates one first-email review item and deterministic draft without queueing any send job. */
   async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
     const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
@@ -1016,10 +1160,13 @@ export class CrmService {
       throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
     }
 
-    const [productLine, mailbox] = await Promise.all([
+    const [productLine, mailbox, selectedPolicy, defaultPolicy] = await Promise.all([
       input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
-      input.mailboxId ? this.requireOwnedActiveMailbox(input.mailboxId, context) : Promise.resolve(null)
+      input.mailboxId ? this.requireOwnedActiveMailbox(input.mailboxId, context) : Promise.resolve(null),
+      input.policyId ? this.requireActiveSequencePolicy(input.policyId, context) : Promise.resolve(null),
+      input.policyId ? Promise.resolve(null) : this.store.findDefaultSequencePolicy(context.organizationId)
     ]);
+    const policy = selectedPolicy ?? defaultPolicy;
     const defaultTemplateGroup = await this.store.findDefaultEmailTemplateGroup(context.organizationId);
     const draft = generateFirstDraft({ account, contact, productLine, context, templateGroup: defaultTemplateGroup });
     const bundle = await this.runSequenceWrite(() =>
@@ -1031,6 +1178,7 @@ export class CrmService {
           contactId: contact.id,
           productLineId: productLine?.id ?? null,
           mailboxId: mailbox?.id ?? null,
+          policyId: policy?.id ?? null,
           name: buildSequenceName(account, contact),
           status: 'draft_review_pending',
           currentStep: initialDraftStepIndex,
@@ -1046,7 +1194,7 @@ export class CrmService {
           contactId: contact.id,
           mailboxId: mailbox?.id ?? null,
           stepIndex: initialDraftStepIndex,
-          threadMode: 'new_subject',
+          threadMode: getSequencePolicyStep(policy, initialDraftStepIndex)?.threadMode ?? 'new_subject',
           subject: draft.subject,
           bodyText: draft.bodyText,
           status: 'draft_pending_review'
@@ -1061,7 +1209,8 @@ export class CrmService {
           content: draft.subject,
           metadata: {
             productLineId: productLine?.id ?? null,
-            mailboxId: mailbox?.id ?? null
+            mailboxId: mailbox?.id ?? null,
+            policyId: policy?.id ?? null
           }
         },
         accountStatus: 'manual_review_pending'
@@ -1075,7 +1224,8 @@ export class CrmService {
       enrollmentId: bundle.enrollment.id,
       messageId: bundle.message.id,
       productLineId: productLine?.id ?? null,
-      mailboxId: mailbox?.id ?? null
+      mailboxId: mailbox?.id ?? null,
+      policyId: policy?.id ?? null
     });
 
     return {
@@ -1086,6 +1236,7 @@ export class CrmService {
           contact,
           productLine,
           mailbox,
+          policy,
           firstMessage: bundle.message,
           messages: [bundle.message]
         },
@@ -2027,6 +2178,29 @@ export class CrmService {
     return templateGroup;
   }
 
+  private async requireScopedSequencePolicy(id: string, context: CrmUserContext) {
+    const policy = await this.store.findSequencePolicyById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!policy) {
+      throw new NotFoundException('序列策略不存在');
+    }
+
+    return policy;
+  }
+
+  private async requireActiveSequencePolicy(id: string, context: CrmUserContext) {
+    const policy = await this.requireScopedSequencePolicy(id, context);
+
+    if (policy.status !== 'active') {
+      throw new BadRequestException('序列策略已归档');
+    }
+
+    return policy;
+  }
+
   private async requireOwnedActiveMailbox(id: string, context: CrmUserContext) {
     const mailbox = await this.store.findMailboxById({
       id,
@@ -2233,6 +2407,18 @@ export class CrmService {
     }
   }
 
+  private async runSequencePolicyWrite<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        throw new BadRequestException('序列策略名称已存在');
+      }
+
+      throw error;
+    }
+  }
+
   private async runSequenceWrite<T>(operation: () => Promise<T>) {
     try {
       return await operation();
@@ -2347,6 +2533,28 @@ export class CrmService {
       toStatus
     });
   }
+
+  private recordSequencePolicyLog(
+    action: string,
+    message: string,
+    context: CrmUserContext,
+    policy: CrmSequencePolicyRecord,
+    fromStatus: CrmSequencePolicyRecord['status'] | null,
+    toStatus: CrmSequencePolicyRecord['status']
+  ) {
+    return this.recordCrmLog(action, message, context, {
+      organizationId: policy.organizationId,
+      policyId: policy.id,
+      name: policy.name,
+      status: policy.status,
+      isDefault: policy.isDefault,
+      linkPolicy: policy.linkPolicy,
+      allowLowRiskAutoSend: policy.allowLowRiskAutoSend,
+      sameCompanyContactStrategy: policy.sameCompanyContactStrategy,
+      fromStatus,
+      toStatus
+    });
+  }
 }
 
 function toAccountView(record: CrmAccountRecord) {
@@ -2448,6 +2656,15 @@ function toEmailTemplateGroupView(record: CrmEmailTemplateGroupRecord) {
       createdAt: step.createdAt.toISOString(),
       updatedAt: step.updatedAt.toISOString()
     })),
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toSequencePolicyView(record: CrmSequencePolicyRecord) {
+  return {
+    ...record,
+    steps: record.steps.map(step => ({ ...step })),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
@@ -2594,6 +2811,7 @@ function toSequenceReviewView(record: CrmSequenceReviewRecord, context: CrmUserC
     contact: toContactView(record.contact),
     productLine: record.productLine ? toProductLineView(record.productLine) : null,
     mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
+    policy: record.policy ? toSequencePolicyView(record.policy) : null,
     firstMessage: record.firstMessage ? toMessageView(record.firstMessage) : null,
     messages: record.messages.map(toMessageView),
     canOperateDraft: record.enrollment.ownerUserId === context.userId,
@@ -2904,6 +3122,72 @@ function normalizeEmailTemplateSubject(stepIndex: number, value: string) {
   return normalized;
 }
 
+function normalizeSequencePolicyCreateInput(input: SequencePolicyWriteInput, context: CrmUserContext) {
+  const status = normalizeSequencePolicyStatus(input.status);
+  const isDefault = Boolean(input.isDefault);
+
+  if (isDefault && status !== 'active') {
+    throw new BadRequestException('只能将启用策略设为默认');
+  }
+
+  return {
+    organizationId: context.organizationId,
+    name: normalizeRequiredString(input.name ?? '', '序列策略名称不能为空'),
+    description: normalizeNullableString(input.description),
+    status,
+    isDefault,
+    steps: normalizeSequencePolicyWriteSteps(input.steps),
+    linkPolicy: normalizeSequencePolicyLinkPolicy(input.linkPolicy),
+    allowLowRiskAutoSend: Boolean(input.allowLowRiskAutoSend),
+    sameCompanyContactStrategy: normalizeSequencePolicySameCompanyStrategy(input.sameCompanyContactStrategy),
+    createdById: context.userId,
+    createdByName: context.userName
+  };
+}
+
+function normalizeSequencePolicyUpdateInput(input: SequencePolicyWriteInput) {
+  const data: {
+    name?: string;
+    description?: string | null;
+    status?: ReturnType<typeof normalizeSequencePolicyStatus>;
+    isDefault?: boolean;
+    steps?: ReturnType<typeof normalizeSequencePolicyWriteSteps>;
+    linkPolicy?: ReturnType<typeof normalizeSequencePolicyLinkPolicy>;
+    allowLowRiskAutoSend?: boolean;
+    sameCompanyContactStrategy?: ReturnType<typeof normalizeSequencePolicySameCompanyStrategy>;
+  } = {};
+
+  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '序列策略名称不能为空');
+  if (hasOwn(input, 'description')) data.description = normalizeNullableString(input.description);
+  if (hasOwn(input, 'status')) data.status = normalizeSequencePolicyStatus(input.status);
+  if (hasOwn(input, 'isDefault')) data.isDefault = Boolean(input.isDefault);
+  if (hasOwn(input, 'steps')) data.steps = normalizeSequencePolicyWriteSteps(input.steps);
+  if (hasOwn(input, 'linkPolicy')) data.linkPolicy = normalizeSequencePolicyLinkPolicy(input.linkPolicy);
+  if (hasOwn(input, 'allowLowRiskAutoSend')) data.allowLowRiskAutoSend = Boolean(input.allowLowRiskAutoSend);
+  if (hasOwn(input, 'sameCompanyContactStrategy')) {
+    data.sameCompanyContactStrategy = normalizeSequencePolicySameCompanyStrategy(input.sameCompanyContactStrategy);
+  }
+
+  return data;
+}
+
+function normalizeSequencePolicyWriteSteps(value: unknown) {
+  if (!Array.isArray(value)) {
+    return defaultSequencePolicySteps.map(step => ({ ...step }));
+  }
+
+  if (value.length !== defaultSequenceStepCount) {
+    throw new BadRequestException('序列策略必须包含 5 个步骤');
+  }
+
+  const steps = normalizeSequencePolicySteps(value);
+  if (steps.some((step, index) => step.stepIndex !== index + 1)) {
+    throw new BadRequestException('序列策略步骤必须为 1-5');
+  }
+
+  return steps;
+}
+
 function normalizeRequiredString(value: string, emptyMessage: string) {
   const normalized = value.trim();
 
@@ -2931,6 +3215,10 @@ function getTemplateStepDelayDays(stepIndex: number, followUpDelayDays: CrmGloba
   ]);
 
   return delayDaysByStep.get(stepIndex) ?? 0;
+}
+
+function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex: number) {
+  return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
 }
 
 /** Builds a conservative first-touch draft from verified CRM fields only. */

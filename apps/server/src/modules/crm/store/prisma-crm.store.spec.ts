@@ -270,6 +270,71 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('creates, lists, updates and sets default organization sequence policies', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const steps = [
+      { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' as const },
+      { stepIndex: 2, delayDays: 2, threadMode: 'same_thread' as const },
+      { stepIndex: 3, delayDays: 5, threadMode: 'new_subject' as const },
+      { stepIndex: 4, delayDays: 9, threadMode: 'new_subject' as const },
+      { stepIndex: 5, delayDays: 14, threadMode: 'new_subject' as const }
+    ];
+
+    const created = await store.createSequencePolicy({
+      organizationId: 'org-1',
+      name: 'Fast follow-up',
+      description: 'Shorter first week',
+      status: 'active',
+      isDefault: false,
+      steps,
+      linkPolicy: 'block_new_links',
+      allowLowRiskAutoSend: true,
+      sameCompanyContactStrategy: 'single_active_per_company',
+      createdById: 'user-1',
+      createdByName: 'Alice'
+    });
+    const listed = await store.listSequencePolicies({
+      organizationId: 'org-1',
+      keyword: 'fast',
+      status: 'active',
+      skip: 0,
+      take: 10
+    });
+    const updated = await store.updateSequencePolicy('policy-1', 'org-1', {
+      name: 'Updated fast follow-up',
+      steps
+    });
+    const defaultPolicy = await store.setDefaultSequencePolicy('policy-1', 'org-1');
+
+    assert.equal(created.steps[1].delayDays, 2);
+    assert.equal(created.linkPolicy, 'block_new_links');
+    assert.equal(listed.records[0].organizationId, 'org-1');
+    assert.equal(updated?.name, 'Updated fast follow-up');
+    assert.equal(defaultPolicy?.isDefault, true);
+    assert.equal(prisma.crmSequencePolicy.createCalls[0].data.stepDelayDaysText, '0,2,5,9,14');
+    assert.equal(
+      prisma.crmSequencePolicy.createCalls[0].data.stepThreadModesText,
+      'new_subject,same_thread,new_subject,new_subject,new_subject'
+    );
+    assert.deepEqual(prisma.crmSequencePolicy.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      status: 'active',
+      OR: [
+        { name: { contains: 'fast', mode: 'insensitive' } },
+        { description: { contains: 'fast', mode: 'insensitive' } }
+      ]
+    });
+    assert.deepEqual(prisma.crmSequencePolicy.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        id: { not: 'policy-1' },
+        isDefault: true
+      },
+      data: { isDefault: false }
+    });
+  });
+
   it('finds organization blacklist entries by organization and email hash', async () => {
     const prisma = createPrisma({ blacklistEntry: createPrismaBlacklist() });
     const store = new PrismaCrmStore(prisma as never);
@@ -822,6 +887,7 @@ describe('PrismaCrmStore', () => {
       contact: true,
       productLine: true,
       mailbox: true,
+      policy: true,
       messages: {
         orderBy: [{ stepIndex: 'asc' }, { createdAt: 'asc' }]
       }
@@ -1822,6 +1888,23 @@ function createPrisma(
     updatedAt: new Date('2026-06-18T09:00:00.000Z'),
     steps: emailTemplateSteps
   };
+  const sequencePolicy = {
+    id: 'policy-1',
+    organizationId: 'org-1',
+    name: 'Default sequence policy',
+    description: null,
+    status: 'active',
+    isDefault: false,
+    stepDelayDaysText: '0,3,7,14,21',
+    stepThreadModesText: 'new_subject,same_thread,new_subject,new_subject,new_subject',
+    linkPolicy: 'preserve_template_links',
+    allowLowRiskAutoSend: false,
+    sameCompanyContactStrategy: 'single_active_per_company',
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z')
+  };
   const contact = {
     id: 'contact-1',
     organizationId: 'org-1',
@@ -1862,6 +1945,7 @@ function createPrisma(
     contactId: 'contact-1',
     productLineId: 'product-line-1',
     mailboxId: 'mailbox-1',
+    policyId: null,
     name: 'ABC Trading - Ali Hassan',
     status: 'draft_review_pending',
     currentStep: 1,
@@ -1875,6 +1959,7 @@ function createPrisma(
     contact,
     productLine,
     mailbox,
+    policy: null,
     messages: [message]
   };
   const inboxMessage = {
@@ -2132,7 +2217,7 @@ function createPrisma(
 
         return {
           ...createPrismaOrganizationConfig(),
-          ...(options.organizationConfig ?? {}),
+          ...options.organizationConfig,
           ...args.create,
           ...args.update,
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
@@ -2191,6 +2276,48 @@ function createPrisma(
       async deleteMany(args: { where: Record<string, unknown> }) {
         this.deleteManyCalls.push(args);
         return { count: 5 };
+      }
+    },
+    crmSequencePolicy: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; skip: number; take: number; orderBy?: unknown }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown>; orderBy?: unknown }>,
+      updateManyCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return { ...sequencePolicy, ...args.data };
+      },
+      async findMany(args: { where: Record<string, unknown>; skip: number; take: number; orderBy?: unknown }) {
+        this.findManyCalls.push(args);
+        return [sequencePolicy];
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return sequencePolicy;
+      },
+      async findFirst(args: { where: Record<string, unknown>; orderBy?: unknown }) {
+        this.findFirstCalls.push(args);
+        return sequencePolicy;
+      },
+      async updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+        this.updateManyCalls.push(args);
+        return { count: 1 };
+      },
+      async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
+        this.updateManyAndReturnCalls.push(args);
+        Object.assign(sequencePolicy, args.data, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+        return [sequencePolicy];
       }
     },
     crmBlacklist: {

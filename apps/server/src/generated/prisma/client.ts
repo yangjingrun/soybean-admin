@@ -120,6 +120,11 @@ export type CrmEmailTemplateGroup = Prisma.CrmEmailTemplateGroupModel
  */
 export type CrmEmailTemplateStep = Prisma.CrmEmailTemplateStepModel
 /**
+ * Model CrmSequencePolicy
+ *
+ */
+export type CrmSequencePolicy = Prisma.CrmSequencePolicyModel
+/**
  * Model CrmSequenceEnrollment
  *
  */

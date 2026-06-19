@@ -13,6 +13,7 @@ import type {
   CrmSendDeliveryClaimRecord,
   CrmSendQueueJob,
   CrmSequenceEnrollmentRecord,
+  CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmStore
 } from './crm.types';
@@ -139,6 +140,40 @@ describe('CrmSendWorkerService', () => {
     assert.equal(
       store.completed[0].nextMessage?.scheduledAt?.getTime(),
       store.completed[0].sentAt.getTime() + 4 * 24 * 60 * 60 * 1000
+    );
+  });
+
+  it('uses the bound sequence policy when scheduling the next draft', async () => {
+    const store = createWorkerStore({
+      enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2, currentStep: 1, policyId: 'policy-1' }),
+      message: createMessage({
+        id: 'message-2',
+        status: 'queued',
+        stepIndex: 2,
+        threadMode: 'same_thread',
+        providerThreadId: 'mock-thread:enrollment-1'
+      }),
+      mailbox: createMailbox({ status: 'active' }),
+      policy: createSequencePolicy({
+        id: 'policy-1',
+        steps: [
+          { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' },
+          { stepIndex: 2, delayDays: 2, threadMode: 'same_thread' },
+          { stepIndex: 3, delayDays: 6, threadMode: 'new_subject' },
+          { stepIndex: 4, delayDays: 12, threadMode: 'new_subject' },
+          { stepIndex: 5, delayDays: 18, threadMode: 'new_subject' }
+        ]
+      })
+    });
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store as never, gateway);
+
+    await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
+
+    assert.equal(store.completed[0].nextMessage?.threadMode, 'new_subject');
+    assert.equal(
+      store.completed[0].nextMessage?.scheduledAt?.getTime(),
+      store.completed[0].sentAt.getTime() + 6 * 24 * 60 * 60 * 1000
     );
   });
 
@@ -273,6 +308,7 @@ function createWorkerStore(
     contact: input.contact ?? createContact(),
     productLine: null,
     mailbox: input.mailbox ?? createMailbox(),
+    policy: input.policy ?? null,
     firstMessage: input.firstMessage ?? input.message ?? createMessage(),
     messages: input.messages ?? [input.firstMessage ?? input.message ?? createMessage()]
   } as CrmSequenceReviewRecord & { message?: CrmMessageRecord };
@@ -521,6 +557,33 @@ function createEmailTemplateGroup(input: Partial<CrmEmailTemplateGroupRecord> = 
   };
 }
 
+function createSequencePolicy(input: Partial<CrmSequencePolicyRecord> = {}): CrmSequencePolicyRecord {
+  const createdAt = input.createdAt || new Date('2026-06-18T09:00:00.000Z');
+
+  return {
+    id: input.id || 'policy-1',
+    organizationId: input.organizationId || 'org-1',
+    name: input.name || 'Default sequence policy',
+    description: input.description ?? null,
+    status: input.status || 'active',
+    isDefault: input.isDefault ?? false,
+    steps: input.steps ?? [
+      { stepIndex: 1, delayDays: 0, threadMode: 'new_subject' },
+      { stepIndex: 2, delayDays: 3, threadMode: 'same_thread' },
+      { stepIndex: 3, delayDays: 7, threadMode: 'new_subject' },
+      { stepIndex: 4, delayDays: 14, threadMode: 'new_subject' },
+      { stepIndex: 5, delayDays: 21, threadMode: 'new_subject' }
+    ],
+    linkPolicy: input.linkPolicy || 'preserve_template_links',
+    allowLowRiskAutoSend: input.allowLowRiskAutoSend ?? false,
+    sameCompanyContactStrategy: input.sameCompanyContactStrategy || 'single_active_per_company',
+    createdById: input.createdById || 'user-1',
+    createdByName: input.createdByName ?? 'Alice',
+    createdAt,
+    updatedAt: input.updatedAt || createdAt
+  };
+}
+
 function createEnrollment(input: Partial<CrmSequenceEnrollmentRecord> = {}): CrmSequenceEnrollmentRecord {
   return {
     id: input.id || 'enrollment-1',
@@ -530,6 +593,7 @@ function createEnrollment(input: Partial<CrmSequenceEnrollmentRecord> = {}): Crm
     contactId: input.contactId || 'contact-1',
     productLineId: input.productLineId ?? null,
     mailboxId: input.mailboxId ?? 'mailbox-1',
+    policyId: input.policyId ?? null,
     name: input.name || 'ABC Trading - Ali Hassan',
     status: input.status || 'sequence_running',
     currentStep: input.currentStep ?? 1,

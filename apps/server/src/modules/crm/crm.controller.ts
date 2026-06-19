@@ -27,10 +27,12 @@ import { CrmInboxThreadQueryDto } from './dto/crm-inbox-thread-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
 import { CrmEmailTemplateQueryDto } from './dto/crm-email-template-query.dto';
 import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
+import { CrmSequencePolicyQueryDto } from './dto/crm-sequence-policy-query.dto';
 import { CrmSequenceReviewQueryDto } from './dto/crm-sequence-review-query.dto';
 import { CreateCrmEmailTemplateDto } from './dto/create-crm-email-template.dto';
 import { CreateCrmSequenceReviewItemDto } from './dto/create-crm-sequence-review-item.dto';
 import { CreateCrmProductLineDto } from './dto/create-crm-product-line.dto';
+import { CreateCrmSequencePolicyDto } from './dto/create-crm-sequence-policy.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
@@ -43,6 +45,7 @@ import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-sta
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
 import { UpdateCrmEmailTemplateDto } from './dto/update-crm-email-template.dto';
 import { UpdateCrmProductLineDto } from './dto/update-crm-product-line.dto';
+import { UpdateCrmSequencePolicyDto } from './dto/update-crm-sequence-policy.dto';
 import type { CrmUserContext } from './crm.types';
 
 @Controller('crm')
@@ -259,6 +262,38 @@ export class CrmController {
   @Get('template-defaults')
   async getTemplateDefaults(@Headers('authorization') authorization = '') {
     return ok(await this.crmService.getTemplateDefaults(this.requireUserContext(authorization)));
+  }
+
+  @Get('sequence-policies')
+  async listSequencePolicies(
+    @Headers('authorization') authorization = '',
+    @Query() query: CrmSequencePolicyQueryDto
+  ) {
+    return ok(await this.crmService.listSequencePolicies(this.requireUserContext(authorization), query));
+  }
+
+  @Post('sequence-policies')
+  async createSequencePolicy(@Headers('authorization') authorization = '', @Body() dto: CreateCrmSequencePolicyDto) {
+    return ok(await this.crmService.createSequencePolicy(dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('sequence-policies/:id')
+  async updateSequencePolicy(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmSequencePolicyDto
+  ) {
+    return ok(await this.crmService.updateSequencePolicy(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('sequence-policies/:id/archive')
+  async archiveSequencePolicy(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.archiveSequencePolicy(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('sequence-policies/:id/default')
+  async setDefaultSequencePolicy(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.setDefaultSequencePolicy(id, this.requireUserContext(authorization)));
   }
 
   @Get('sequence-review-items')

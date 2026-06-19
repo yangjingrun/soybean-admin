@@ -67,6 +67,7 @@ export const ModelName = {
   CrmProductLine: 'CrmProductLine',
   CrmEmailTemplateGroup: 'CrmEmailTemplateGroup',
   CrmEmailTemplateStep: 'CrmEmailTemplateStep',
+  CrmSequencePolicy: 'CrmSequencePolicy',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
   CrmInboxThread: 'CrmInboxThread',
@@ -396,6 +397,27 @@ export const CrmEmailTemplateStepScalarFieldEnum = {
 export type CrmEmailTemplateStepScalarFieldEnum = (typeof CrmEmailTemplateStepScalarFieldEnum)[keyof typeof CrmEmailTemplateStepScalarFieldEnum]
 
 
+export const CrmSequencePolicyScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  name: 'name',
+  description: 'description',
+  status: 'status',
+  isDefault: 'isDefault',
+  stepDelayDaysText: 'stepDelayDaysText',
+  stepThreadModesText: 'stepThreadModesText',
+  linkPolicy: 'linkPolicy',
+  allowLowRiskAutoSend: 'allowLowRiskAutoSend',
+  sameCompanyContactStrategy: 'sameCompanyContactStrategy',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmSequencePolicyScalarFieldEnum = (typeof CrmSequencePolicyScalarFieldEnum)[keyof typeof CrmSequencePolicyScalarFieldEnum]
+
+
 export const CrmSequenceEnrollmentScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -404,6 +426,7 @@ export const CrmSequenceEnrollmentScalarFieldEnum = {
   contactId: 'contactId',
   productLineId: 'productLineId',
   mailboxId: 'mailboxId',
+  policyId: 'policyId',
   name: 'name',
   status: 'status',
   currentStep: 'currentStep',

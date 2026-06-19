@@ -287,6 +287,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history.gateway.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认 label/delete delta 能推进 checkpoint、更新 thread 状态、写时间线且不删除本地 message。
 
+### 2026-06-19 CRM 序列策略默认状态和后续草稿要一起校验
+
+- 场景：每组织/每序列策略引入 `CrmSequencePolicy` 后，创建首封草稿会绑定默认或指定策略，发送 worker 会继续生成第 2-5 封 follow-up 草稿。
+- 坑点：只在首封草稿读取策略不够；后续草稿如果仍只读模板或全局延迟，会导致同一 enrollment 的后续发送间隔和线程模式不按所选策略执行。另一个坑是 update 接口如果允许 `status=archived + isDefault=true`，会产生“归档默认策略”错位状态。
+- 正确做法：`CrmSendWorkerService` 生成下一封草稿时，`delayDays/threadMode` 优先使用 enrollment 绑定的 `policy.steps`，再退到默认模板 step，最后退到全局 follow-up 配置；service 写策略时必须保证默认策略只能是 `active`，归档策略要清掉 `isDefault`。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认归档策略不能设默认，后续草稿按绑定策略生成。
+
 ### 记录模板
 
 ```md

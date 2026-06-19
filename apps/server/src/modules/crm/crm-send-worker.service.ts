@@ -136,7 +136,8 @@ function buildNextFollowUpDraft(
 
   const templateStep =
     templateGroup?.status === 'active' ? templateGroup.steps.find(step => step.stepIndex === nextStepIndex) : null;
-  const delayDays = templateStep?.delayDays ?? getFollowUpDelayDays(nextStepIndex, followUpDelayDays);
+  const policyStep = item.policy?.steps.find(step => step.stepIndex === nextStepIndex) ?? null;
+  const delayDays = policyStep?.delayDays ?? templateStep?.delayDays ?? getFollowUpDelayDays(nextStepIndex, followUpDelayDays);
 
   if (delayDays === null) {
     return null;
@@ -172,7 +173,7 @@ function buildNextFollowUpDraft(
     contactId: item.firstMessage.contactId,
     mailboxId: item.mailbox.id,
     stepIndex: nextStepIndex,
-    threadMode: templateStep?.threadMode ?? 'same_thread',
+    threadMode: policyStep?.threadMode ?? templateStep?.threadMode ?? 'same_thread',
     subject: templateSubject || item.firstMessage.subject,
     bodyText:
       templateBodyText ||

@@ -36,4 +36,10 @@ export class CreateCrmSequenceReviewItemDto {
   @MaxLength(80)
   @Transform(trimOptionalString)
   mailboxId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  @Transform(trimOptionalString)
+  policyId?: string;
 }

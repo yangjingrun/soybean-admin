@@ -252,6 +252,7 @@ function createEnrollment(input: Partial<CrmSequenceEnrollmentRecord> = {}): Crm
     contactId: input.contactId || 'contact-1',
     productLineId: input.productLineId ?? null,
     mailboxId: input.mailboxId ?? 'mailbox-1',
+    policyId: input.policyId ?? null,
     name: input.name || 'ABC Trading - Ali Hassan',
     status: input.status || 'sequence_running',
     currentStep: input.currentStep ?? 1,

@@ -78,6 +78,7 @@ model Organization {
   crmProductLines   CrmProductLine[]
   crmEmailTemplateGroups CrmEmailTemplateGroup[]
   crmEmailTemplateSteps  CrmEmailTemplateStep[]
+  crmSequencePolicies CrmSequencePolicy[]
   crmEnrollments     CrmSequenceEnrollment[]
   crmMessages        CrmMessage[]
   crmInboxThreads    CrmInboxThread[]
@@ -385,6 +386,31 @@ model CrmEmailTemplateStep {
   @@index([organizationId, templateGroupId])
 }
 
+model CrmSequencePolicy {
+  id                              String   @id @default(uuid())
+  organizationId                  String
+  name                            String
+  description                     String?
+  status                          String   @default("active")
+  isDefault                       Boolean  @default(false)
+  stepDelayDaysText               String   @default("0,3,7,14,21")
+  stepThreadModesText             String   @default("new_subject,same_thread,new_subject,new_subject,new_subject")
+  linkPolicy                      String   @default("preserve_template_links")
+  allowLowRiskAutoSend            Boolean  @default(false)
+  sameCompanyContactStrategy      String   @default("single_active_per_company")
+  createdById                     String
+  createdByName                   String?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  enrollments  CrmSequenceEnrollment[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, isDefault])
+}
+
 model CrmSequenceEnrollment {
   id              String   @id @default(uuid())
   organizationId  String
@@ -393,6 +419,7 @@ model CrmSequenceEnrollment {
   contactId       String
   productLineId   String?
   mailboxId       String?
+  policyId        String?
   name            String
   status          String   @default("draft_review_pending")
   currentStep     Int      @default(1)
@@ -408,6 +435,7 @@ model CrmSequenceEnrollment {
   contact      CrmContact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
   productLine  CrmProductLine? @relation(fields: [productLineId], references: [id], onDelete: SetNull)
   mailbox      CrmMailbox?     @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  policy       CrmSequencePolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
   messages     CrmMessage[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
@@ -416,6 +444,7 @@ model CrmSequenceEnrollment {
   @@index([organizationId, accountId, status])
   @@index([organizationId, contactId, status])
   @@index([organizationId, ownerUserId, contactId])
+  @@index([organizationId, policyId])
 }
 
 model CrmMessage {

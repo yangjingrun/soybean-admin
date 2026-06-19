@@ -1,4 +1,10 @@
 import type { CrmFollowUpDelayDays } from './crm-global-config';
+import type {
+  CrmSequencePolicyLinkPolicy,
+  CrmSequencePolicySameCompanyStrategy,
+  CrmSequencePolicyStatus,
+  CrmSequencePolicyStep
+} from './crm-sequence-policy';
 
 export type OrganizationRole = 'member' | 'admin';
 
@@ -324,11 +330,29 @@ export interface CrmSequenceEnrollmentRecord {
   contactId: string;
   productLineId: string | null;
   mailboxId: string | null;
+  policyId: string | null;
   name: string;
   status: CrmSequenceEnrollmentStatus;
   currentStep: number;
   totalSteps: number;
   runVersion: number;
+  createdById: string;
+  createdByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmSequencePolicyRecord {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string | null;
+  status: CrmSequencePolicyStatus;
+  isDefault: boolean;
+  steps: CrmSequencePolicyStep[];
+  linkPolicy: CrmSequencePolicyLinkPolicy;
+  allowLowRiskAutoSend: boolean;
+  sameCompanyContactStrategy: CrmSequencePolicySameCompanyStrategy;
   createdById: string;
   createdByName: string | null;
   createdAt: Date;
@@ -405,6 +429,7 @@ export interface CrmSequenceReviewRecord {
   contact: CrmContactRecord;
   productLine: CrmProductLineRecord | null;
   mailbox: CrmMailboxRecord | null;
+  policy?: CrmSequencePolicyRecord | null;
   firstMessage: CrmMessageRecord | null;
   messages: CrmMessageRecord[];
 }
@@ -642,6 +667,7 @@ export interface CrmSequenceEnrollmentCreateInput {
   contactId: string;
   productLineId?: string | null;
   mailboxId?: string | null;
+  policyId?: string | null;
   name: string;
   status: CrmSequenceEnrollmentStatus;
   currentStep: number;
@@ -654,11 +680,45 @@ export interface CrmSequenceEnrollmentCreateInput {
 export interface CrmSequenceEnrollmentUpdateInput {
   productLineId?: string | null;
   mailboxId?: string | null;
+  policyId?: string | null;
   name?: string;
   status?: CrmSequenceEnrollmentStatus;
   currentStep?: number;
   totalSteps?: number;
   runVersion?: number;
+}
+
+export interface CrmSequencePolicyCreateInput {
+  organizationId: string;
+  name: string;
+  description?: string | null;
+  status: CrmSequencePolicyStatus;
+  isDefault: boolean;
+  steps: CrmSequencePolicyStep[];
+  linkPolicy: CrmSequencePolicyLinkPolicy;
+  allowLowRiskAutoSend: boolean;
+  sameCompanyContactStrategy: CrmSequencePolicySameCompanyStrategy;
+  createdById: string;
+  createdByName?: string | null;
+}
+
+export interface CrmSequencePolicyUpdateInput {
+  name?: string;
+  description?: string | null;
+  status?: CrmSequencePolicyStatus;
+  isDefault?: boolean;
+  steps?: CrmSequencePolicyStep[];
+  linkPolicy?: CrmSequencePolicyLinkPolicy;
+  allowLowRiskAutoSend?: boolean;
+  sameCompanyContactStrategy?: CrmSequencePolicySameCompanyStrategy;
+}
+
+export interface CrmSequencePolicyListInput {
+  organizationId: string;
+  keyword?: string;
+  status?: CrmSequencePolicyStatus;
+  skip: number;
+  take: number;
 }
 
 export interface CrmMessageCreateInput {
@@ -700,6 +760,7 @@ export interface CrmSequenceDraftBundleCreateInput {
     metadata: {
       productLineId: string | null;
       mailboxId: string | null;
+      policyId?: string | null;
     };
   };
   accountStatus: CrmAccountStatus;
@@ -1139,6 +1200,19 @@ export interface CrmStore {
     input: CrmEmailTemplateGroupUpdateInput
   ): Promise<CrmEmailTemplateGroupRecord | null>;
   setDefaultEmailTemplateGroup(id: string, organizationId: string): Promise<CrmEmailTemplateGroupRecord | null>;
+  listSequencePolicies(
+    input: CrmSequencePolicyListInput
+  ): Promise<{ records: CrmSequencePolicyRecord[]; total: number }>;
+  findSequencePolicyByName(organizationId: string, name: string): Promise<CrmSequencePolicyRecord | null>;
+  findSequencePolicyById(args: { id: string; organizationId: string }): Promise<CrmSequencePolicyRecord | null>;
+  findDefaultSequencePolicy(organizationId: string): Promise<CrmSequencePolicyRecord | null>;
+  createSequencePolicy(input: CrmSequencePolicyCreateInput): Promise<CrmSequencePolicyRecord>;
+  updateSequencePolicy(
+    id: string,
+    organizationId: string,
+    input: CrmSequencePolicyUpdateInput
+  ): Promise<CrmSequencePolicyRecord | null>;
+  setDefaultSequencePolicy(id: string, organizationId: string): Promise<CrmSequencePolicyRecord | null>;
   findActiveEnrollmentByContact(args: {
     organizationId: string;
     ownerUserId: string;
