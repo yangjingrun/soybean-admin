@@ -66,6 +66,8 @@ CRM_GMAIL_TOKEN_ENCRYPTION_KEY=
 CRM_GMAIL_OAUTH_STATE_SECRET=
 CRM_GMAIL_PUBSUB_TOPIC_NAME=projects/<project-id>/topics/<topic-name>
 CRM_GMAIL_PUBSUB_PUSH_SECRET=
+CRM_GMAIL_PUBSUB_AUTH_AUDIENCE=https://<api-domain>/crm/gmail/pubsub/push
+CRM_GMAIL_PUBSUB_AUTH_SERVICE_ACCOUNT=<pubsub-push-service-account-email>
 CRM_GMAIL_WATCH_RENEWAL_DISABLED=false
 CRM_GMAIL_WATCH_RENEWAL_INTERVAL_MS=21600000
 CRM_GMAIL_WATCH_RENEWAL_WINDOW_MS=86400000
@@ -80,6 +82,8 @@ CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE=50
 - `CRM_GMAIL_OAUTH_STATE_SECRET`：用于签名 OAuth state，防止伪造回调。
 - `CRM_GMAIL_PUBSUB_TOPIC_NAME`：Gmail watch 使用的 Pub/Sub topic 全名。
 - `CRM_GMAIL_PUBSUB_PUSH_SECRET`：Pub/Sub push webhook 请求头校验密钥。Pub/Sub push subscription 需要带上同值 header：`x-crm-gmail-pubsub-secret`。
+- `CRM_GMAIL_PUBSUB_AUTH_AUDIENCE`：Pub/Sub push subscription 的 OIDC audience，建议使用完整 webhook URL。
+- `CRM_GMAIL_PUBSUB_AUTH_SERVICE_ACCOUNT`：Pub/Sub push authentication 使用的服务账号邮箱，必须与 Google OIDC token 的 `email` claim 一致。
 - `CRM_GMAIL_WATCH_RENEWAL_DISABLED`：是否关闭自动 watch 续订，生产环境建议保持 `false`。
 - `CRM_GMAIL_WATCH_RENEWAL_INTERVAL_MS`：自动续订扫描间隔，默认 6 小时。
 - `CRM_GMAIL_WATCH_RENEWAL_WINDOW_MS`：提前续订窗口，默认 24 小时。
@@ -101,6 +105,7 @@ Gmail Push 消息只包含邮箱地址和 `historyId`，不是邮件正文。后
 Pub/Sub push
   -> /crm/gmail/pubsub/push
   -> 校验 x-crm-gmail-pubsub-secret
+  -> 校验 Google OIDC bearer token 的 audience 和服务账号
   -> 找到 active Mailbox
   -> 入队 Gmail history sync job
   -> History API 增量拉取变化
@@ -112,7 +117,9 @@ Pub/Sub push
 
 - Pub/Sub push endpoint 必须是公网 HTTPS。
 - 生产环境必须配置 `CRM_GMAIL_PUBSUB_PUSH_SECRET`；缺少该变量时 webhook 会拒绝请求。
+- 创建 push subscription 时启用 authentication，service account 填 `CRM_GMAIL_PUBSUB_AUTH_SERVICE_ACCOUNT`，audience 填 `CRM_GMAIL_PUBSUB_AUTH_AUDIENCE`。
 - webhook secret 错误时应返回拒绝。
+- 配置了 `CRM_GMAIL_PUBSUB_AUTH_AUDIENCE` / `CRM_GMAIL_PUBSUB_AUTH_SERVICE_ACCOUNT` 后，缺少或不匹配的 `Authorization: Bearer <OIDC token>` 应返回拒绝。
 - 非 active mailbox 的 push 不应入队。
 - `historyId` 异常时不应推进旧 checkpoint；系统会在邮箱行显示同步问题并通知 owner。
 - `history_expired` 恢复 runbook：在 `CRM -> CRM 配置 -> 邮箱账号` 对应邮箱点击“立即同步”。后端会续订 Gmail watch，用新的 `historyId` 重新初始化 checkpoint 并清空同步问题；这一步不会全量扫描旧邮件，仍需人工确认过期窗口内是否有漏同步回复。

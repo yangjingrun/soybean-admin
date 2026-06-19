@@ -1515,14 +1515,15 @@ git diff --check
 
 目标：
 
-- 在现有 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 基础上增加 Google Pub/Sub push 身份验证。
+- 已在现有 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 基础上增加 Google Pub/Sub push 身份验证。
+- 当前实现使用 Google `tokeninfo` 端点校验 OIDC token 的 audience、service account email、email_verified、issuer 和过期时间，未新增生产依赖。
 - 优先使用成熟官方库或框架能力，不手写半安全 JWT 校验。
-- 校验失败拒绝 `/crm/gmail/pubsub/push`，并写脱敏系统日志。
-- 部署清单补 Google Cloud push auth 配置步骤。
+- 配置 `CRM_GMAIL_PUBSUB_AUTH_AUDIENCE` 和 `CRM_GMAIL_PUBSUB_AUTH_SERVICE_ACCOUNT` 后，校验失败会拒绝 `/crm/gmail/pubsub/push`。
+- 部署清单已补 Google Cloud push auth 配置步骤。
 
 需要注意：
 
-- 新增生产依赖前需要单独确认。
+- 如后续要改为 `google-auth-library` 这类官方库本地验签，新增生产依赖前需要单独确认。
 - secret 校验仍保留，OIDC/JWT 是增强层，不替代现有最小安全线。
 - 日志不得记录完整 token、JWT、authorization header。
 
