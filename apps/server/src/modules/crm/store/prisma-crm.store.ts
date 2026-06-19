@@ -567,6 +567,25 @@ export class PrismaCrmStore implements CrmStore {
       .then(record => (record ? toMessageRecord(record) : null));
   }
 
+  findSentMessageByProviderThreadId(args: {
+    organizationId: string;
+    ownerUserId: string;
+    mailboxId: string | null;
+    providerThreadId: string;
+  }) {
+    return this.prisma.crmMessage
+      .findFirst({
+        where: {
+          organizationId: args.organizationId,
+          ownerUserId: args.ownerUserId,
+          mailboxId: args.mailboxId,
+          providerThreadId: args.providerThreadId,
+          status: 'sent'
+        }
+      })
+      .then(record => (record ? toMessageRecord(record) : null));
+  }
+
   async updateMessage(
     id: string,
     organizationId: string,

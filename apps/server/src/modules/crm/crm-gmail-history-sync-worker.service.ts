@@ -2,8 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CRM_GMAIL_HISTORY_GATEWAY, CRM_STORE } from './crm.tokens';
 import type {
   CrmGmailHistoryGateway,
+  CrmGmailHistoryMessage,
   CrmGmailHistorySyncQueueJob,
   CrmGmailHistorySyncResult,
+  CrmMessageRecord,
   CrmStore
 } from './crm.types';
 
@@ -90,17 +92,7 @@ export class CrmGmailHistorySyncWorkerService {
     let skippedMessageCount = 0;
 
     for (const message of messages) {
-      if (!message.replyToProviderMessageId) {
-        skippedMessageCount += 1;
-        continue;
-      }
-
-      const outboundMessage = await this.store.findSentMessageByProviderId({
-        organizationId: job.organizationId,
-        ownerUserId: job.ownerUserId,
-        mailboxId: job.mailboxId,
-        providerMessageId: message.replyToProviderMessageId
-      });
+      const outboundMessage = await this.findOutboundMessageForHistoryMessage(job, message);
 
       if (!outboundMessage) {
         skippedMessageCount += 1;
@@ -125,6 +117,33 @@ export class CrmGmailHistorySyncWorkerService {
     }
 
     return { ingestedCount, skippedMessageCount };
+  }
+
+  private async findOutboundMessageForHistoryMessage(
+    job: CrmGmailHistorySyncQueueJob,
+    message: CrmGmailHistoryMessage
+  ): Promise<CrmMessageRecord | null> {
+    if (message.replyToProviderMessageId) {
+      const replyToMessage = await this.store.findSentMessageByProviderId({
+        organizationId: job.organizationId,
+        ownerUserId: job.ownerUserId,
+        mailboxId: job.mailboxId,
+        providerMessageId: message.replyToProviderMessageId
+      });
+
+      if (replyToMessage) return replyToMessage;
+    }
+
+    if (!message.providerThreadId) {
+      return null;
+    }
+
+    return this.store.findSentMessageByProviderThreadId({
+      organizationId: job.organizationId,
+      ownerUserId: job.ownerUserId,
+      mailboxId: job.mailboxId,
+      providerThreadId: message.providerThreadId
+    });
   }
 }
 

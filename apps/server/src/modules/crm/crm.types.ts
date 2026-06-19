@@ -853,6 +853,12 @@ export interface CrmStore {
     mailboxId: string | null;
     providerMessageId: string;
   }): Promise<CrmMessageRecord | null>;
+  findSentMessageByProviderThreadId(args: {
+    organizationId: string;
+    ownerUserId: string;
+    mailboxId: string | null;
+    providerThreadId: string;
+  }): Promise<CrmMessageRecord | null>;
   updateMessage(
     id: string,
     organizationId: string,

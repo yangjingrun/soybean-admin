@@ -174,6 +174,113 @@ describe('CrmGmailHistorySyncWorkerService', () => {
     ]);
   });
 
+  it('falls back to provider thread id when reply-to is missing or unmatched', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const providerIdLookups: Array<{
+      organizationId: string;
+      ownerUserId: string;
+      mailboxId: string | null;
+      providerMessageId: string;
+    }> = [];
+    const providerThreadLookups: Array<{
+      organizationId: string;
+      ownerUserId: string;
+      mailboxId: string | null;
+      providerThreadId: string;
+    }> = [];
+    const ingested: Parameters<CrmStore['ingestCustomerReply']>[0][] = [];
+    const service = new CrmGmailHistorySyncWorkerService(
+      createStore({
+        mailbox,
+        sentMessages: [
+          createMessage({
+            id: 'message-thread-hit',
+            providerMessageId: 'gmail-sent-thread-hit',
+            providerThreadId: 'gmail-thread-hit'
+          }),
+          createMessage({
+            id: 'message-other-mailbox',
+            mailboxId: 'mailbox-2',
+            providerMessageId: 'gmail-sent-other-mailbox',
+            providerThreadId: 'gmail-thread-hit'
+          })
+        ],
+        async findSentMessageByProviderId(input) {
+          providerIdLookups.push(input);
+          return null;
+        },
+        async findSentMessageByProviderThreadId(input) {
+          providerThreadLookups.push(input);
+          return null;
+        },
+        async advanceMailboxHistoryId(input) {
+          return { ...mailbox, lastHistoryId: input.toHistoryId };
+        },
+        async ingestCustomerReply(input) {
+          ingested.push(input);
+
+          return { isDuplicate: false } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+        }
+      }),
+      {
+        async listHistory(input) {
+          return {
+            nextHistoryId: input.targetHistoryId,
+            messages: [
+              {
+                providerMessageId: 'gmail-reply-no-reply-to',
+                providerThreadId: 'gmail-thread-hit',
+                replyToProviderMessageId: null,
+                subject: 'Re: Bearing Series',
+                bodyText: 'No In-Reply-To header here.',
+                receivedAt: new Date('2026-06-19T08:30:00.000Z')
+              },
+              {
+                providerMessageId: 'gmail-reply-invalid-reply-to',
+                providerThreadId: 'gmail-thread-hit',
+                replyToProviderMessageId: 'missing-sent-message',
+                subject: 'Re: Bearing Series again',
+                bodyText: 'In-Reply-To does not match locally.',
+                receivedAt: new Date('2026-06-19T08:40:00.000Z')
+              }
+            ]
+          };
+        }
+      }
+    );
+
+    const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
+
+    assert.equal(result.ingestedCount, 2);
+    assert.equal(result.skippedMessageCount, 0);
+    assert.deepEqual(providerIdLookups, [
+      {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        providerMessageId: 'missing-sent-message'
+      }
+    ]);
+    assert.deepEqual(providerThreadLookups, [
+      {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        providerThreadId: 'gmail-thread-hit'
+      },
+      {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        providerThreadId: 'gmail-thread-hit'
+      }
+    ]);
+    assert.deepEqual(
+      ingested.map(input => input.outboundMessageId),
+      ['message-thread-hit', 'message-thread-hit']
+    );
+  });
+
   it('keeps the checkpoint moving when Gmail redelivers an already ingested message', async () => {
     const mailbox = createMailbox({ lastHistoryId: '120' });
     const advanceCalls: CrmMailboxHistoryAdvanceInput[] = [];
@@ -234,25 +341,58 @@ describe('CrmGmailHistorySyncWorkerService', () => {
 function createStore(options: {
   mailbox: CrmMailboxRecord | null;
   sentMessage?: CrmMessageRecord | null;
+  sentMessages?: CrmMessageRecord[];
+  findSentMessageByProviderId?: (input: {
+    organizationId: string;
+    ownerUserId: string;
+    mailboxId: string | null;
+    providerMessageId: string;
+  }) => Promise<CrmMessageRecord | null>;
+  findSentMessageByProviderThreadId?: (input: {
+    organizationId: string;
+    ownerUserId: string;
+    mailboxId: string | null;
+    providerThreadId: string;
+  }) => Promise<CrmMessageRecord | null>;
   advanceMailboxHistoryId?: (input: CrmMailboxHistoryAdvanceInput) => Promise<CrmMailboxRecord | null>;
   ingestCustomerReply?: (input: Parameters<CrmStore['ingestCustomerReply']>[0]) => ReturnType<CrmStore['ingestCustomerReply']>;
 }) {
+  const sentMessages = options.sentMessages ?? (options.sentMessage ? [options.sentMessage] : []);
+
   return {
     async findMailboxById() {
       return options.mailbox;
     },
     async findSentMessageByProviderId(args) {
-      if (
-        !options.sentMessage ||
-        options.sentMessage.organizationId !== args.organizationId ||
-        options.sentMessage.ownerUserId !== args.ownerUserId ||
-        options.sentMessage.mailboxId !== args.mailboxId ||
-        options.sentMessage.providerMessageId !== args.providerMessageId
-      ) {
-        return null;
+      if (options.findSentMessageByProviderId) {
+        return options.findSentMessageByProviderId(args);
       }
 
-      return options.sentMessage;
+      return (
+        sentMessages.find(message => {
+          if (message.organizationId !== args.organizationId) return false;
+          if (message.ownerUserId !== args.ownerUserId) return false;
+          if (message.mailboxId !== args.mailboxId) return false;
+          if (message.providerMessageId !== args.providerMessageId) return false;
+          return message.status === 'sent';
+        }) ?? null
+      );
+    },
+    async findSentMessageByProviderThreadId(args) {
+      const scopedMessage =
+        sentMessages.find(message => {
+          if (message.organizationId !== args.organizationId) return false;
+          if (message.ownerUserId !== args.ownerUserId) return false;
+          if (message.mailboxId !== args.mailboxId) return false;
+          if (message.providerThreadId !== args.providerThreadId) return false;
+          return message.status === 'sent';
+        }) ?? null;
+
+      if (options.findSentMessageByProviderThreadId) {
+        return (await options.findSentMessageByProviderThreadId(args)) ?? scopedMessage;
+      }
+
+      return scopedMessage;
     },
     async advanceMailboxHistoryId(input) {
       return options.advanceMailboxHistoryId ? options.advanceMailboxHistoryId(input) : options.mailbox;
@@ -262,7 +402,11 @@ function createStore(options: {
     }
   } as Pick<
     CrmStore,
-    'findMailboxById' | 'findSentMessageByProviderId' | 'advanceMailboxHistoryId' | 'ingestCustomerReply'
+    | 'findMailboxById'
+    | 'findSentMessageByProviderId'
+    | 'findSentMessageByProviderThreadId'
+    | 'advanceMailboxHistoryId'
+    | 'ingestCustomerReply'
   > as CrmStore;
 }
 

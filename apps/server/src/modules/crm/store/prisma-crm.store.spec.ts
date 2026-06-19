@@ -511,6 +511,27 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('finds sent messages by provider thread id with full mailbox owner scope', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const providerThreadMessage = await store.findSentMessageByProviderThreadId({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerThreadId: 'gmail-thread-1'
+    });
+
+    assert.equal(providerThreadMessage?.id, 'message-1');
+    assert.deepEqual(prisma.crmMessage.findFirstCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerThreadId: 'gmail-thread-1',
+      status: 'sent'
+    });
+  });
+
   it('starts first message sending with enrollment and message status guards', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
