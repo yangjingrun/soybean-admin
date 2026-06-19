@@ -179,6 +179,7 @@ model CrmGlobalConfig {
   id                            String   @id @default(uuid())
   configKey                     String   @unique
   emailVerificationCooldownDays Int      @default(30)
+  ownerConcurrentSendLimit      Int      @default(5)
   followUpDelayDaysText         String   @default("3,7,14,21")
   updatedById                   String?
   updatedByName                 String?

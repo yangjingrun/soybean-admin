@@ -181,6 +181,7 @@ declare namespace Api {
     interface GlobalConfig {
       configKey: string;
       emailVerificationCooldownDays: number;
+      ownerConcurrentSendLimit: number;
       followUpDelayDays: FollowUpDelayDays;
       updatedAt: string;
     }
@@ -194,11 +195,13 @@ declare namespace Api {
 
     interface SaveGlobalConfigPayload {
       emailVerificationCooldownDays: number;
+      ownerConcurrentSendLimit: number;
       followUpDelayDays: FollowUpDelayDays;
     }
 
     interface GlobalConfigFormModel {
       emailVerificationCooldownDays: number | null;
+      ownerConcurrentSendLimit: number | null;
       followUpDelayDays: FollowUpDelayDays;
     }
 

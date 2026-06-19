@@ -14,7 +14,7 @@ import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
-import { normalizeEmailVerificationCooldownDays } from './crm-global-config';
+import { normalizeEmailVerificationCooldownDays, normalizeOwnerConcurrentSendLimit } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
@@ -553,12 +553,14 @@ export class CrmService {
   async saveGlobalConfig(
     input: {
       emailVerificationCooldownDays: number;
+      ownerConcurrentSendLimit?: number;
       followUpDelayDays?: CrmGlobalConfigRecord['followUpDelayDays'];
     },
     context: CrmUserContext
   ) {
     const record = await this.store.saveGlobalConfig({
       emailVerificationCooldownDays: input.emailVerificationCooldownDays,
+      ownerConcurrentSendLimit: input.ownerConcurrentSendLimit,
       followUpDelayDays: input.followUpDelayDays,
       updatedById: context.userId,
       updatedByName: context.userName
@@ -566,6 +568,7 @@ export class CrmService {
 
     await this.recordCrmLog('save-global-config', 'CRM 全局配置已保存', context, {
       emailVerificationCooldownDays: record.emailVerificationCooldownDays,
+      ownerConcurrentSendLimit: record.ownerConcurrentSendLimit,
       followUpDelayDays: record.followUpDelayDays
     });
 
@@ -2222,6 +2225,8 @@ export class CrmService {
       throw new BadRequestException('后续开发信缺少计划发送时间');
     }
 
+    await this.assertOwnerSendConcurrencyAvailable(context);
+
     const approval = await this.store.approveMessageDraft({
       messageId: message.id,
       enrollmentId: reviewItem.enrollment.id,
@@ -2300,6 +2305,7 @@ export class CrmService {
     }
 
     await this.assertContactNotBlacklisted(item.contact, context);
+    await this.assertOwnerSendConcurrencyAvailable(context);
 
     const started = await this.store.startFirstMessageSend({
       enrollmentId: item.enrollment.id,
@@ -3404,6 +3410,22 @@ export class CrmService {
     }
 
     return item;
+  }
+
+  /** Ensures one owner does not keep more queued outbound emails than the platform allows. */
+  private async assertOwnerSendConcurrencyAvailable(context: CrmUserContext) {
+    const [globalConfig, queuedCount] = await Promise.all([
+      this.store.getGlobalConfig(),
+      this.store.countOwnerQueuedMessages({
+        organizationId: context.organizationId,
+        ownerUserId: context.userId
+      })
+    ]);
+    const limit = normalizeOwnerConcurrentSendLimit(globalConfig.ownerConcurrentSendLimit);
+
+    if (queuedCount >= limit) {
+      throw new BadRequestException(`当前用户已有 ${queuedCount} 封邮件在发送队列中，已达到并发上限 ${limit} 封`);
+    }
   }
 
   /** Generates an AI draft only when the selected product line explicitly enables it. */

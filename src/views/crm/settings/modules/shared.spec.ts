@@ -31,6 +31,7 @@ import {
   formatMailboxSyncActionLabel,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
+  isValidOwnerConcurrentSendLimit,
   normalizeEmailTemplatePayload,
   normalizePersonaProfilePayload,
   normalizeProductLineAiWritingConfig,
@@ -44,6 +45,7 @@ describe('crm settings shared helpers', () => {
   it('creates the platform global config form with the documented cooldown default', () => {
     assert.deepEqual(createDefaultGlobalConfigForm(), {
       emailVerificationCooldownDays: 30,
+      ownerConcurrentSendLimit: 5,
       followUpDelayDays: {
         step2Days: 3,
         step3Days: 7,
@@ -73,6 +75,15 @@ describe('crm settings shared helpers', () => {
     assert.equal(isValidEmailVerificationCooldownDays(366), false);
     assert.equal(isValidEmailVerificationCooldownDays(30.5), false);
     assert.equal(isValidEmailVerificationCooldownDays(null), false);
+  });
+
+  it('accepts only integer owner concurrent send limits in the supported range', () => {
+    assert.equal(isValidOwnerConcurrentSendLimit(1), true);
+    assert.equal(isValidOwnerConcurrentSendLimit(100), true);
+    assert.equal(isValidOwnerConcurrentSendLimit(0), false);
+    assert.equal(isValidOwnerConcurrentSendLimit(101), false);
+    assert.equal(isValidOwnerConcurrentSendLimit(5.5), false);
+    assert.equal(isValidOwnerConcurrentSendLimit(null), false);
   });
 
   it('builds blacklist search params from trimmed keyword filters', () => {

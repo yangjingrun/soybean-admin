@@ -210,6 +210,33 @@ describe('CrmService', () => {
     );
   });
 
+  it('saves CRM global owner send concurrency limit with sanitized business log metadata', async () => {
+    const store = createStore();
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const saved = await service.saveGlobalConfig(
+      {
+        emailVerificationCooldownDays: 45,
+        ownerConcurrentSendLimit: 8,
+        followUpDelayDays: {
+          step2Days: 2,
+          step3Days: 4,
+          step4Days: 8,
+          step5Days: 16
+        }
+      },
+      createContext({ roles: ['R_SUPER'] })
+    );
+
+    assert.equal(saved.ownerConcurrentSendLimit, 8);
+    assert.equal(store.globalConfig.ownerConcurrentSendLimit, 8);
+    assert.equal(logs.records[0]?.action, 'save-global-config');
+    const metadata = logs.records[0]?.metadata as { ownerConcurrentSendLimit?: number } | undefined;
+
+    assert.equal(metadata?.ownerConcurrentSendLimit, 8);
+  });
+
   it('refreshes stale global email verification cache after cooldown', async () => {
     const store = createStore([], {
       emailVerificationCaches: [
@@ -2822,6 +2849,54 @@ describe('CrmService', () => {
     assert.ok((sendQueue.options[0]?.delayMs ?? 0) > 0);
   });
 
+  it('rejects queued follow-up approval when the owner reached the concurrency limit', async () => {
+    const scheduledAt = new Date('2030-06-21T10:00:00.000Z');
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      globalConfig: createGlobalConfig({ ownerConcurrentSendLimit: 1 }),
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1', status: 'active' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 3,
+          currentStep: 1
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          status: 'sent',
+          stepIndex: 1
+        }),
+        createMessage({
+          id: 'message-2',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_pending_review',
+          stepIndex: 2,
+          threadMode: 'same_thread',
+          scheduledAt
+        }),
+        createMessage({
+          id: 'message-queued',
+          enrollmentId: 'enrollment-1',
+          status: 'queued',
+          stepIndex: 3
+        })
+      ]
+    });
+    const sendQueue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, sendQueue);
+
+    await assert.rejects(() => service.approveMessageDraft('message-2', createContext()), /并发上限 1 封/);
+    assert.equal(sendQueue.jobs.length, 0);
+    assert.equal(store.messages.find(message => message.id === 'message-2')?.status, 'draft_pending_review');
+  });
+
   it('approves locally generated follow-up drafts without queueing send jobs before Gmail starts', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
@@ -3471,6 +3546,50 @@ describe('CrmService', () => {
     await assert.rejects(() => service.startFirstMessageSend('enrollment-1', createContext()), /组织黑名单/);
     assert.equal(queue.jobs.length, 0);
     assert.equal(store.messages[0].status, 'draft_ready');
+  });
+
+  it('rejects starting send when the owner reached the queued email concurrency limit', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
+      globalConfig: createGlobalConfig({ ownerConcurrentSendLimit: 1 }),
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'ready_to_send'
+        }),
+        createEnrollment({
+          id: 'enrollment-queued',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'draft_ready'
+        }),
+        createMessage({
+          id: 'message-queued',
+          enrollmentId: 'enrollment-queued',
+          mailboxId: 'mailbox-1',
+          status: 'queued'
+        })
+      ]
+    });
+    const queue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, queue);
+
+    await assert.rejects(() => service.startFirstMessageSend('enrollment-1', createContext()), /并发上限 1 封/);
+    assert.equal(queue.jobs.length, 0);
+    assert.equal(store.messages.find(message => message.id === 'message-1')?.status, 'draft_ready');
   });
 
   it('rolls queued first messages back to ready when enqueue fails', async () => {
@@ -4407,10 +4526,19 @@ function createStore(
     async saveGlobalConfig(input) {
       Object.assign(globalConfig, {
         emailVerificationCooldownDays: input.emailVerificationCooldownDays,
+        ownerConcurrentSendLimit: input.ownerConcurrentSendLimit ?? globalConfig.ownerConcurrentSendLimit,
         followUpDelayDays: input.followUpDelayDays ?? globalConfig.followUpDelayDays,
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
       return globalConfig;
+    },
+    async countOwnerQueuedMessages(args) {
+      return messages.filter(
+        message =>
+          message.organizationId === args.organizationId &&
+          message.ownerUserId === args.ownerUserId &&
+          message.status === 'queued'
+      ).length;
     },
     async getOrganizationConfig(organizationId) {
       return organizationConfig?.organizationId === organizationId ? organizationConfig : null;
@@ -6023,6 +6151,7 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
   return {
     configKey: input.configKey || 'default',
     emailVerificationCooldownDays: input.emailVerificationCooldownDays ?? 30,
+    ownerConcurrentSendLimit: input.ownerConcurrentSendLimit ?? 5,
     followUpDelayDays: input.followUpDelayDays ?? {
       step2Days: 3,
       step3Days: 7,

@@ -1315,6 +1315,7 @@ describe('CrmController', () => {
     const calls: Array<{
       dto?: {
         emailVerificationCooldownDays: number;
+        ownerConcurrentSendLimit?: number;
         followUpDelayDays?: CrmGlobalConfigView['followUpDelayDays'];
       };
       context?: CrmUserContext;
@@ -1336,6 +1337,7 @@ describe('CrmController', () => {
     const loaded = await controller.getGlobalConfig('Bearer token');
     const saved = await controller.saveGlobalConfig('Bearer token', {
       emailVerificationCooldownDays: 45,
+      ownerConcurrentSendLimit: 8,
       followUpDelayDays: {
         step2Days: 2,
         step3Days: 4,
@@ -1346,6 +1348,7 @@ describe('CrmController', () => {
 
     assert.equal(loaded.data.emailVerificationCooldownDays, 30);
     assert.equal(saved.data.emailVerificationCooldownDays, 45);
+    assert.equal(calls[0].dto?.ownerConcurrentSendLimit, 8);
     assert.deepEqual(calls[0].dto?.followUpDelayDays, { step2Days: 2, step3Days: 4, step4Days: 8, step5Days: 16 });
     assert.equal(calls[0].context?.roles.includes('R_SUPER'), true);
   });
@@ -1833,6 +1836,7 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
   return {
     configKey: 'default',
     emailVerificationCooldownDays: 30,
+    ownerConcurrentSendLimit: 5,
     followUpDelayDays: {
       step2Days: 3,
       step3Days: 7,

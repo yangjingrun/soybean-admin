@@ -1,6 +1,8 @@
 export const crmGlobalConfigKey = 'default';
 export const defaultEmailVerificationCooldownDays = 30;
 export const maxEmailVerificationCooldownDays = 365;
+export const defaultOwnerConcurrentSendLimit = 5;
+export const maxOwnerConcurrentSendLimit = 100;
 export const defaultFollowUpDelayDays = {
   step2Days: 3,
   step3Days: 7,
@@ -25,6 +27,17 @@ export function normalizeEmailVerificationCooldownDays(value: unknown) {
   }
 
   return Math.min(numberValue, maxEmailVerificationCooldownDays);
+}
+
+/** Normalizes the max queued outbound emails one owner can keep concurrently. */
+export function normalizeOwnerConcurrentSendLimit(value: unknown) {
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    return defaultOwnerConcurrentSendLimit;
+  }
+
+  return Math.min(numberValue, maxOwnerConcurrentSendLimit);
 }
 
 /** Normalizes follow-up delay days for sequence steps 2-5. */

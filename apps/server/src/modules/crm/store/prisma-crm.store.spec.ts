@@ -190,12 +190,31 @@ describe('PrismaCrmStore', () => {
 
     assert.equal(current.emailVerificationCooldownDays, 30);
     assert.deepEqual(current.followUpDelayDays, { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 });
+    assert.equal(current.ownerConcurrentSendLimit, 5);
     assert.equal(saved.emailVerificationCooldownDays, 45);
+    assert.equal(saved.ownerConcurrentSendLimit, 5);
     assert.deepEqual(saved.followUpDelayDays, { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 });
     assert.deepEqual(prisma.crmGlobalConfig.findUniqueCalls[0].where, { configKey: 'default' });
     assert.deepEqual(prisma.crmGlobalConfig.upsertCalls[0].where, { configKey: 'default' });
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.emailVerificationCooldownDays, 45);
+    assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.ownerConcurrentSendLimit, 5);
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.followUpDelayDaysText, '3,7,14,21');
+  });
+
+  it('counts queued CRM messages for one owner send concurrency guard', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const count = await store.countOwnerQueuedMessages({ organizationId: 'org-1', ownerUserId: 'user-1' });
+
+    assert.equal(count, 1);
+    assert.deepEqual(prisma.crmMessage.countCalls[0], {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        status: 'queued'
+      }
+    });
   });
 
   it('reads and saves organization CRM permission config', async () => {
@@ -2761,6 +2780,7 @@ function createPrisma(
           id: 'crm-global-config-1',
           configKey: 'default',
           emailVerificationCooldownDays: args.update.emailVerificationCooldownDays ?? 30,
+          ownerConcurrentSendLimit: args.update.ownerConcurrentSendLimit ?? 5,
           followUpDelayDaysText: args.update.followUpDelayDaysText ?? '3,7,14,21',
           updatedById: args.update.updatedById ?? null,
           updatedByName: args.update.updatedByName ?? null,
@@ -3329,6 +3349,7 @@ function createPrisma(
     crmMessage: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
         data: Record<string, unknown>;
@@ -3366,6 +3387,10 @@ function createPrisma(
           };
         }
         return message;
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
       },
       async updateManyAndReturn(args: {
         where: Record<string, unknown>;

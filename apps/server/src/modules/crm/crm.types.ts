@@ -174,12 +174,14 @@ export interface CrmEmailVerificationCacheUpsertInput {
 export interface CrmGlobalConfigRecord {
   configKey: string;
   emailVerificationCooldownDays: number;
+  ownerConcurrentSendLimit: number;
   followUpDelayDays: CrmFollowUpDelayDays;
   updatedAt: Date;
 }
 
 export interface CrmGlobalConfigInput {
   emailVerificationCooldownDays: number;
+  ownerConcurrentSendLimit?: number;
   followUpDelayDays?: CrmFollowUpDelayDays;
   updatedById?: string | null;
   updatedByName?: string | null;
@@ -1415,6 +1417,7 @@ export interface CrmStore {
   upsertEmailVerificationCache(input: CrmEmailVerificationCacheUpsertInput): Promise<CrmEmailVerificationCacheRecord>;
   getGlobalConfig(): Promise<CrmGlobalConfigRecord>;
   saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
+  countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }): Promise<number>;
   getOrganizationConfig(organizationId: string): Promise<CrmOrganizationConfigRecord | null>;
   saveOrganizationConfig(input: CrmOrganizationConfigInput): Promise<CrmOrganizationConfigRecord>;
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;

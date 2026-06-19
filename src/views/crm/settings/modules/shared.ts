@@ -325,6 +325,7 @@ export interface ProductLineAiPromptVersionDiffItem {
 export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
   return {
     emailVerificationCooldownDays: 30,
+    ownerConcurrentSendLimit: 5,
     followUpDelayDays: createDefaultFollowUpDelayDays()
   };
 }
@@ -910,6 +911,11 @@ export function normalizeSequencePolicyPayload(formModel: Api.Crm.SequencePolicy
 /** Check whether the platform email verification cache cooldown can be saved. */
 export function isValidEmailVerificationCooldownDays(value: number | null): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 365;
+}
+
+/** Check whether one owner's queued send concurrency limit can be saved. */
+export function isValidOwnerConcurrentSendLimit(value: number | null): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 100;
 }
 
 /** Check whether all follow-up delay days can be saved. */

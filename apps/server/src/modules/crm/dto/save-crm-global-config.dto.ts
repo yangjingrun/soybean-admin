@@ -1,6 +1,10 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-validator';
-import { maxEmailVerificationCooldownDays, maxFollowUpDelayDays } from '../crm-global-config';
+import {
+  maxEmailVerificationCooldownDays,
+  maxFollowUpDelayDays,
+  maxOwnerConcurrentSendLimit
+} from '../crm-global-config';
 
 class SaveCrmFollowUpDelayDaysDto {
   @IsInt()
@@ -34,6 +38,13 @@ export class SaveCrmGlobalConfigDto {
   @Max(maxEmailVerificationCooldownDays)
   @Type(() => Number)
   emailVerificationCooldownDays!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(maxOwnerConcurrentSendLimit)
+  @Type(() => Number)
+  ownerConcurrentSendLimit?: number;
 
   @IsOptional()
   @IsObject()

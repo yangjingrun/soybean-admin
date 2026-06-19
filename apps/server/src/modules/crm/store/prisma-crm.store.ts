@@ -129,8 +129,10 @@ import {
   crmGlobalConfigKey,
   defaultEmailVerificationCooldownDays,
   defaultFollowUpDelayDays,
+  defaultOwnerConcurrentSendLimit,
   normalizeEmailVerificationCooldownDays,
   normalizeFollowUpDelayDays,
+  normalizeOwnerConcurrentSendLimit,
   serializeFollowUpDelayDays
 } from '../crm-global-config';
 import {
@@ -341,18 +343,21 @@ export class PrismaCrmStore implements CrmStore {
 
   async saveGlobalConfig(input: CrmGlobalConfigInput) {
     const emailVerificationCooldownDays = normalizeEmailVerificationCooldownDays(input.emailVerificationCooldownDays);
+    const ownerConcurrentSendLimit = normalizeOwnerConcurrentSendLimit(input.ownerConcurrentSendLimit);
     const followUpDelayDaysText = serializeFollowUpDelayDays(input.followUpDelayDays);
     const record = await this.prisma.crmGlobalConfig.upsert({
       where: { configKey: crmGlobalConfigKey },
       create: {
         configKey: crmGlobalConfigKey,
         emailVerificationCooldownDays,
+        ownerConcurrentSendLimit,
         followUpDelayDaysText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
       },
       update: {
         emailVerificationCooldownDays,
+        ownerConcurrentSendLimit,
         followUpDelayDaysText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
@@ -360,6 +365,16 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return toGlobalConfigRecord(record);
+  }
+
+  async countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }) {
+    return this.prisma.crmMessage.count({
+      where: {
+        organizationId: args.organizationId,
+        ownerUserId: args.ownerUserId,
+        status: 'queued'
+      }
+    });
   }
 
   async getOrganizationConfig(organizationId: string) {
@@ -3407,6 +3422,7 @@ function createDefaultGlobalConfig(): CrmGlobalConfigRecord {
   return {
     configKey: crmGlobalConfigKey,
     emailVerificationCooldownDays: defaultEmailVerificationCooldownDays,
+    ownerConcurrentSendLimit: defaultOwnerConcurrentSendLimit,
     followUpDelayDays: { ...defaultFollowUpDelayDays },
     updatedAt: new Date(0)
   };
@@ -3416,6 +3432,7 @@ function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalConfigReco
   return {
     configKey: record.configKey,
     emailVerificationCooldownDays: normalizeEmailVerificationCooldownDays(record.emailVerificationCooldownDays),
+    ownerConcurrentSendLimit: normalizeOwnerConcurrentSendLimit(record.ownerConcurrentSendLimit),
     followUpDelayDays: normalizeFollowUpDelayDays(record.followUpDelayDaysText),
     updatedAt: record.updatedAt
   };
