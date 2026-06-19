@@ -157,6 +157,46 @@ describe('CrmGmailWatchService', () => {
     });
   });
 
+  it('reinitializes the checkpoint and clears history expired issues on manual sync recovery', async () => {
+    const mailbox = createMailbox({
+      lastHistoryId: '100',
+      syncIssueType: 'history_expired',
+      syncIssueAt: new Date('2026-06-19T08:00:00.000Z'),
+      syncIssueMessage: 'Gmail History checkpoint 已过期，需要人工处理'
+    });
+    const store = createStore([mailbox]);
+    let queueCalled = false;
+    const service = new CrmGmailWatchService(store, createGateway(), undefined, undefined, {
+      async enqueueHistorySync() {
+        queueCalled = true;
+
+        return { jobId: 'job-1' };
+      }
+    });
+
+    const result = await service.syncMailboxNow('mailbox-1', createContext());
+
+    assert.deepEqual(result.sync, {
+      queued: false,
+      reason: 'checkpoint_reinitialized',
+      fromHistoryId: '100',
+      toHistoryId: '150'
+    });
+    assert.equal(result.mailbox.lastHistoryId, '150');
+    assert.equal(result.mailbox.lastSyncIssue, null);
+    assert.equal(queueCalled, false);
+    assert.deepEqual(store.mailboxUpdateCalls[0], {
+      id: 'mailbox-1',
+      input: {
+        watchExpiration: new Date('2026-06-26T08:00:00.000Z'),
+        lastHistoryId: '150',
+        syncIssueType: null,
+        syncIssueAt: null,
+        syncIssueMessage: null
+      }
+    });
+  });
+
   it('rejects inactive mailboxes before calling the gateway', async () => {
     const store = createStore([createMailbox({ status: 'paused' })]);
     let gatewayCalled = false;

@@ -114,7 +114,8 @@ Pub/Sub push
 - 生产环境必须配置 `CRM_GMAIL_PUBSUB_PUSH_SECRET`；缺少该变量时 webhook 会拒绝请求。
 - webhook secret 错误时应返回拒绝。
 - 非 active mailbox 的 push 不应入队。
-- `historyId` 异常时应进入补偿同步逻辑或提示手动同步。
+- `historyId` 异常时不应推进旧 checkpoint；系统会在邮箱行显示同步问题并通知 owner。
+- `history_expired` 恢复 runbook：在 `CRM -> CRM 配置 -> 邮箱账号` 对应邮箱点击“立即同步”。后端会续订 Gmail watch，用新的 `historyId` 重新初始化 checkpoint 并清空同步问题；这一步不会全量扫描旧邮件，仍需人工确认过期窗口内是否有漏同步回复。
 - Gmail watch 有过期时间，必须确认 watch 续订任务在实际环境运行。
 
 ## 5. Mock / Debug 开关

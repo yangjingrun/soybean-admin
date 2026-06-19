@@ -64,9 +64,17 @@ export class CrmGmailWatchService {
     const mailbox = await this.requireActiveScopedMailbox(id, context);
     const renewal = await this.renewWatchOrMarkAuthorizationExpired(mailbox, context);
     const fromHistoryId = mailbox.lastHistoryId;
+    const shouldReinitializeCheckpoint = hasHistoryExpiredSyncIssue(mailbox);
     const updatedMailbox = await this.store.updateMailbox(mailbox.id, {
       watchExpiration: renewal.watchExpiration,
-      ...(fromHistoryId ? {} : { lastHistoryId: renewal.historyId })
+      ...(!fromHistoryId || shouldReinitializeCheckpoint ? { lastHistoryId: renewal.historyId } : {}),
+      ...(shouldReinitializeCheckpoint
+        ? {
+            syncIssueType: null,
+            syncIssueAt: null,
+            syncIssueMessage: null
+          }
+        : {})
     });
 
     if (!updatedMailbox) {
@@ -75,7 +83,7 @@ export class CrmGmailWatchService {
 
     await this.recordWatchLog(context, updatedMailbox, renewal);
 
-    if (!fromHistoryId || isHistoryIdAtOrBefore(renewal.historyId, fromHistoryId)) {
+    if (shouldReinitializeCheckpoint || !fromHistoryId || isHistoryIdAtOrBefore(renewal.historyId, fromHistoryId)) {
       return {
         mailbox: toMailboxView(updatedMailbox),
         watch: {
@@ -84,7 +92,11 @@ export class CrmGmailWatchService {
         },
         sync: {
           queued: false,
-          reason: fromHistoryId ? 'already_current' : 'checkpoint_initialized',
+          reason: shouldReinitializeCheckpoint
+            ? 'checkpoint_reinitialized'
+            : fromHistoryId
+              ? 'already_current'
+              : 'checkpoint_initialized',
           fromHistoryId,
           toHistoryId: renewal.historyId
         }
@@ -244,12 +256,36 @@ export class CrmGmailWatchService {
 
 function toMailboxView(record: CrmMailboxRecord) {
   return {
-    ...record,
+    id: record.id,
+    organizationId: record.organizationId,
+    ownerUserId: record.ownerUserId,
+    ownerUserName: record.ownerUserName,
+    provider: record.provider,
+    emailAddress: record.emailAddress,
+    maskedEmail: record.maskedEmail,
+    status: record.status,
+    dailyLimit: record.dailyLimit,
+    hourlyLimit: record.hourlyLimit,
+    warmupStage: record.warmupStage,
+    lastHistoryId: record.lastHistoryId,
+    lastSyncIssue: toMailboxSyncIssueView(record),
     authorizedAt: record.authorizedAt.toISOString(),
     watchExpiration: record.watchExpiration?.toISOString() ?? null,
     pausedAt: record.pausedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toMailboxSyncIssueView(record: CrmMailboxRecord) {
+  if (!record.syncIssueType || !record.syncIssueAt || !record.syncIssueMessage) {
+    return null;
+  }
+
+  return {
+    type: record.syncIssueType,
+    message: record.syncIssueMessage,
+    happenedAt: record.syncIssueAt.toISOString()
   };
 }
 
@@ -263,4 +299,8 @@ function isOrganizationAdmin(context: CrmUserContext) {
 
 function isHistoryIdAtOrBefore(historyId: string, lastHistoryId: string) {
   return BigInt(historyId) <= BigInt(lastHistoryId);
+}
+
+function hasHistoryExpiredSyncIssue(mailbox: CrmMailboxRecord) {
+  return mailbox.syncIssueType === 'history_expired';
 }

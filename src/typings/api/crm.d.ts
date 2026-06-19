@@ -321,7 +321,7 @@ declare namespace Api {
           }
         | {
             queued: false;
-            reason: 'checkpoint_initialized' | 'already_current';
+            reason: 'checkpoint_initialized' | 'checkpoint_reinitialized' | 'already_current';
             fromHistoryId: string | null;
             toHistoryId: string;
           };

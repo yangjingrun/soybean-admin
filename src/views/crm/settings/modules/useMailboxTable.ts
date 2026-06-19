@@ -178,7 +178,7 @@ export function useMailboxTable() {
         return;
       }
 
-      message.success(data.sync.queued ? 'Gmail 同步任务已入队' : 'Gmail 同步检查点已更新');
+      message.success(formatMailboxSyncResultMessage(data.sync));
       await loadMailboxes();
     } finally {
       operatingMailboxId.value = null;
@@ -228,4 +228,12 @@ export function useMailboxTable() {
     pagination,
     records
   };
+}
+
+function formatMailboxSyncResultMessage(sync: Api.Crm.MailboxSyncNowResult['sync']) {
+  if (sync.queued) {
+    return 'Gmail 同步任务已入队';
+  }
+
+  return sync.reason === 'checkpoint_reinitialized' ? 'Gmail 同步检查点已重新初始化' : 'Gmail 同步检查点已更新';
 }

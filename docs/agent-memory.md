@@ -295,6 +295,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认归档策略不能设默认，后续草稿按绑定策略生成。
 
+### 2026-06-19 Gmail History expired 手动同步要重新初始化 checkpoint
+
+- 场景：Gmail History API 返回 checkpoint 过期后，worker 已保持 `lastHistoryId` 不推进，并在邮箱上写 `lastSyncIssue.type=history_expired`。
+- 坑点：如果用户点击“立即同步”仍按旧 `lastHistoryId` 入队增量同步，worker 会再次命中 history expired，形成重复失败和重复告警；不能在 worker 里无边界全量扫邮箱。
+- 正确做法：`CrmGmailWatchService.syncMailboxNow` 遇到 `history_expired` 同步问题时，先续订 watch，再把 mailbox 的 `lastHistoryId` 重置为新的 Gmail `historyId`，同时清空 `syncIssueType/syncIssueAt/syncIssueMessage`，返回 `checkpoint_reinitialized`，不入队 history sync。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch.service.spec.ts`、`src/views/crm/settings/modules/useMailboxTable.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch.service.spec.ts`，确认 history expired 邮箱手动同步不入队、重置 checkpoint 并清空同步问题。
+
 ### 记录模板
 
 ```md
