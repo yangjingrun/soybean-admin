@@ -27,5 +27,6 @@ export const defaultAiPromptKey: AiPromptKey = 'lead_keyword_optimize';
 
 export const defaultAiModelConfigKey = 'default';
 export const defaultSerperConfigKey = 'default';
+export const defaultHunterConfigKey = 'default';
 
 export const leadKeywordOptimizePromptKey: AiPromptKey = 'lead_keyword_optimize';

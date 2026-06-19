@@ -5,6 +5,10 @@ import { SystemNotificationService } from '../system-notification/system-notific
 import type { SearchRequestTrace } from './ai-lead-search-orchestrator.service';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 import { mapAiLeadTaskResultToCrmImportInputs } from './ai-lead-crm-import.adapter';
+import {
+  AiLeadHunterEnrichmentService,
+  type AiLeadHunterEnrichmentResult
+} from './ai-lead-hunter-enrichment.service';
 import { createLeadSearchProgressEmitter, type LeadSearchProgressEvent } from './ai-lead-search-progress';
 import { AI_LEAD_SEARCH_TASK_STORE } from './ai-leads.tokens';
 import type { AiLeadSearchTaskQueueJob } from './ai-lead-search-task-queue.service';
@@ -27,7 +31,9 @@ export class AiLeadSearchTaskWorkerService {
     @Inject(AI_LEAD_SEARCH_TASK_STORE) private readonly taskStore: AiLeadSearchTaskStore,
     @Inject(AiLeadSearchOrchestrator) private readonly orchestrator: AiLeadSearchOrchestrator,
     @Optional() @Inject(SystemNotificationService) private readonly notificationService?: SystemNotificationService,
-    @Optional() @Inject(CrmService) private readonly crmService?: CrmService
+    @Optional() @Inject(CrmService) private readonly crmService?: CrmService,
+    @Optional() @Inject(AiLeadHunterEnrichmentService)
+    private readonly hunterEnrichmentService?: AiLeadHunterEnrichmentService
   ) {}
 
   /** Interrupts tasks left running by a previous process before accepting new jobs. */
@@ -222,11 +228,12 @@ export class AiLeadSearchTaskWorkerService {
       return;
     }
 
+    const inputsToImport = await this.enrichCrmInputsWithHunterSafely(task.id, inputs);
     let successCount = 0;
     let failureCount = 0;
     let firstErrorMessage: string | null = null;
 
-    for (const input of inputs) {
+    for (const input of inputsToImport) {
       try {
         await this.crmService.importAccountFromLead(input, {
           userId: task.userId,
@@ -253,6 +260,48 @@ export class AiLeadSearchTaskWorkerService {
           failureCount
         }
       });
+    }
+  }
+
+  private async enrichCrmInputsWithHunterSafely(
+    taskId: string,
+    inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>
+  ) {
+    if (!this.hunterEnrichmentService) {
+      return inputs;
+    }
+
+    try {
+      const result = await this.hunterEnrichmentService.enrichCrmImportInputs(inputs);
+
+      if (result.attemptedCount > 0 || result.enrichedCount > 0 || result.failedCount > 0) {
+        await this.createTaskEventSafely({
+          taskId,
+          eventType: 'crm_hunter_enrichment_completed',
+          title: 'Hunter 联系人补全完成',
+          message: result.firstErrorMessage,
+          metadata: toHunterEnrichmentEventMetadata(result)
+        });
+      }
+
+      return result.inputs;
+    } catch (error) {
+      const firstErrorMessage = error instanceof Error ? error.message : String(error);
+
+      await this.createTaskEventSafely({
+        taskId,
+        eventType: 'crm_hunter_enrichment_failed',
+        title: 'Hunter 联系人补全失败',
+        message: firstErrorMessage,
+        metadata: {
+          attemptedCount: 0,
+          enrichedCount: 0,
+          failedCount: 1,
+          firstErrorMessage
+        }
+      });
+
+      return inputs;
     }
   }
 
@@ -352,4 +401,13 @@ export class AiLeadSearchTaskWorkerService {
       runVersion: task.runVersion
     };
   }
+}
+
+function toHunterEnrichmentEventMetadata(result: AiLeadHunterEnrichmentResult) {
+  return {
+    attemptedCount: result.attemptedCount,
+    enrichedCount: result.enrichedCount,
+    failedCount: result.failedCount,
+    firstErrorMessage: result.firstErrorMessage
+  };
 }

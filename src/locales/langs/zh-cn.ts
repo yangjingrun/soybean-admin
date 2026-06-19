@@ -1,3 +1,16 @@
+const aiSettingsHunterLocale = {
+  hunter: {
+    title: 'Hunter 邮箱补全配置',
+    description: '用于 CRM 阶段 Domain Search 联系人邮箱补全；API Key 仅密码态输入，不展示完整内容。',
+    save: '保存 Hunter',
+    loaded: 'Hunter 配置已加载',
+    saved: 'Hunter 配置已保存',
+    testPassed: 'Hunter 连接正常',
+    testResult: 'Hunter 测试返回',
+    apiKeyPlaceholder: '请输入 Hunter API Key'
+  }
+};
+
 const local: App.I18n.Schema = {
   system: {
     title: 'Soybean 管理系统',
@@ -296,6 +309,7 @@ const local: App.I18n.Schema = {
         testResult: 'Serper 测试返回',
         apiKeyPlaceholder: '请输入 Serper API Key'
       },
+      ...aiSettingsHunterLocale,
       messages: {
         loaded: '模型配置已加载',
         saved: '模型配置已保存',

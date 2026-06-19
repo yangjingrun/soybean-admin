@@ -263,6 +263,8 @@ tbs 规则：
 export const defaultAiModelConfigKey = 'default';
 export const defaultSerperConfigKey = 'default';
 export const defaultSerperApiBase = 'https://google.serper.dev';
+export const defaultHunterConfigKey = 'default';
+export const defaultHunterApiBase = 'https://api.hunter.io/v2';
 export const defaultAiTemperature = 0.2;
 
 export const leadKeywordOptimizePromptKey = 'lead_keyword_optimize';

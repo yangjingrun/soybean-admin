@@ -67,3 +67,16 @@ export interface SerperConfigStore {
   getSerperConfig(configKey: string): Promise<SerperConfigRecord | null>;
   saveSerperConfig(record: SerperConfigRecord): Promise<SerperConfigRecord>;
 }
+
+export interface HunterConfigRecord {
+  configKey: string;
+  title: string;
+  apiBase: string;
+  apiKey: string;
+  updatedAt: string;
+}
+
+export interface HunterConfigStore {
+  getHunterConfig(configKey: string): Promise<HunterConfigRecord | null>;
+  saveHunterConfig(record: HunterConfigRecord): Promise<HunterConfigRecord>;
+}

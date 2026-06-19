@@ -1,3 +1,17 @@
+const aiSettingsHunterLocale = {
+  hunter: {
+    title: 'Hunter Email Enrichment Config',
+    description:
+      'Used for CRM Domain Search contact email enrichment. API keys stay password-only and are not shown in full.',
+    save: 'Save Hunter',
+    loaded: 'Hunter config loaded',
+    saved: 'Hunter config saved',
+    testPassed: 'Hunter connection is healthy',
+    testResult: 'Hunter test result',
+    apiKeyPlaceholder: 'Enter the Hunter API Key'
+  }
+};
+
 const local: App.I18n.Schema = {
   system: {
     title: 'SoybeanAdmin',
@@ -300,6 +314,7 @@ const local: App.I18n.Schema = {
         testResult: 'Serper test result',
         apiKeyPlaceholder: 'Enter the Serper API Key'
       },
+      ...aiSettingsHunterLocale,
       messages: {
         loaded: 'Model config loaded',
         saved: 'Model config saved',

@@ -400,6 +400,7 @@ export const ModelName = {
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
+  HunterConfig: 'HunterConfig',
   AiLeadKeywordHistory: 'AiLeadKeywordHistory',
   AiLeadSearchTask: 'AiLeadSearchTask',
   AiLeadSearchTaskQuery: 'AiLeadSearchTaskQuery',
@@ -421,7 +422,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1609,6 +1610,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    HunterConfig: {
+      payload: Prisma.$HunterConfigPayload<ExtArgs>
+      fields: Prisma.HunterConfigFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.HunterConfigFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.HunterConfigFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>
+        }
+        findFirst: {
+          args: Prisma.HunterConfigFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.HunterConfigFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>
+        }
+        findMany: {
+          args: Prisma.HunterConfigFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>[]
+        }
+        create: {
+          args: Prisma.HunterConfigCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>
+        }
+        createMany: {
+          args: Prisma.HunterConfigCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.HunterConfigCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>[]
+        }
+        delete: {
+          args: Prisma.HunterConfigDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>
+        }
+        update: {
+          args: Prisma.HunterConfigUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>
+        }
+        deleteMany: {
+          args: Prisma.HunterConfigDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.HunterConfigUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.HunterConfigUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>[]
+        }
+        upsert: {
+          args: Prisma.HunterConfigUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HunterConfigPayload>
+        }
+        aggregate: {
+          args: Prisma.HunterConfigAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateHunterConfig>
+        }
+        groupBy: {
+          args: Prisma.HunterConfigGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.HunterConfigGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.HunterConfigCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.HunterConfigCountAggregateOutputType> | number
+        }
+      }
+    }
     AiLeadKeywordHistory: {
       payload: Prisma.$AiLeadKeywordHistoryPayload<ExtArgs>
       fields: Prisma.AiLeadKeywordHistoryFieldRefs
@@ -2402,6 +2477,19 @@ export const SerperConfigScalarFieldEnum = {
 export type SerperConfigScalarFieldEnum = (typeof SerperConfigScalarFieldEnum)[keyof typeof SerperConfigScalarFieldEnum]
 
 
+export const HunterConfigScalarFieldEnum = {
+  id: 'id',
+  configKey: 'configKey',
+  title: 'title',
+  apiBase: 'apiBase',
+  apiKey: 'apiKey',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type HunterConfigScalarFieldEnum = (typeof HunterConfigScalarFieldEnum)[keyof typeof HunterConfigScalarFieldEnum]
+
+
 export const AiLeadKeywordHistoryScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -2771,6 +2859,7 @@ export type GlobalOmitConfig = {
   aiPromptConfig?: Prisma.AiPromptConfigOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
   serperConfig?: Prisma.SerperConfigOmit
+  hunterConfig?: Prisma.HunterConfigOmit
   aiLeadKeywordHistory?: Prisma.AiLeadKeywordHistoryOmit
   aiLeadSearchTask?: Prisma.AiLeadSearchTaskOmit
   aiLeadSearchTaskQuery?: Prisma.AiLeadSearchTaskQueryOmit

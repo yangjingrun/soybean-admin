@@ -207,6 +207,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-webhook.controller.ts`、`apps/server/src/modules/crm/crm-gmail-webhook.service.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts apps/server/src/modules/crm/crm-gmail-webhook.service.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认错误 secret 拒绝、非 active 邮箱不入队/不调 Gmail、授权失效会标记邮箱并跳过重试。
 
+### 2026-06-19 AI 获客外部联系人补全不能阻断 CRM 导入
+
+- 场景：AI 获客任务完成后，后台 worker 会把候选公司导入 CRM，并在导入前调用 Hunter Domain Search 尝试补全联系人邮箱。
+- 坑点：Hunter 未配置、无官网域名、接口限流或单个域名失败时，如果直接抛错，会让已经采集完成的任务无法沉淀 CRM 线索；如果把 Hunter raw response 或 apiKey 写入事件/日志，又会泄漏外部服务数据和敏感凭据。
+- 正确做法：联系人补全作为 best-effort 步骤；无官网域名不读取配置也不调用 Hunter；已有联系人邮箱不覆盖；只合并缺失的 `fullName/title/email`；补全失败写任务事件摘要 `attemptedCount/enrichedCount/failedCount/firstErrorMessage` 后继续用原始 inputs 导入 CRM，事件和业务日志不记录 raw response 或 apiKey。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-hunter-enrichment.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`apps/server/src/modules/ai-gateway/ai-gateway.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-hunter-enrichment.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts`，确认无域名不调用 Hunter、失败不阻断 CRM 导入、日志不包含 API Key。
+
 ### 记录模板
 
 ```md

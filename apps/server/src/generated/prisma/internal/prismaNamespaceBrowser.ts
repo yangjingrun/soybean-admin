@@ -67,6 +67,7 @@ export const ModelName = {
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
+  HunterConfig: 'HunterConfig',
   AiLeadKeywordHistory: 'AiLeadKeywordHistory',
   AiLeadSearchTask: 'AiLeadSearchTask',
   AiLeadSearchTaskQuery: 'AiLeadSearchTaskQuery',
@@ -399,6 +400,19 @@ export const SerperConfigScalarFieldEnum = {
 } as const
 
 export type SerperConfigScalarFieldEnum = (typeof SerperConfigScalarFieldEnum)[keyof typeof SerperConfigScalarFieldEnum]
+
+
+export const HunterConfigScalarFieldEnum = {
+  id: 'id',
+  configKey: 'configKey',
+  title: 'title',
+  apiBase: 'apiBase',
+  apiKey: 'apiKey',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type HunterConfigScalarFieldEnum = (typeof HunterConfigScalarFieldEnum)[keyof typeof HunterConfigScalarFieldEnum]
 
 
 export const AiLeadKeywordHistoryScalarFieldEnum = {

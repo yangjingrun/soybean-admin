@@ -5,6 +5,8 @@ import type { SystemLogRecordInput } from '../system-log/system-log.types';
 import type {
   AiModelConfigRecord,
   AiModelConfigStore,
+  HunterConfigRecord,
+  HunterConfigStore,
   AiPromptRecord,
   AiPromptStore,
   AiTextGenerateParams,
@@ -359,6 +361,68 @@ describe('AiGatewayService', () => {
       }
     });
   });
+
+  it('saves and tests Hunter config without logging the API key', async () => {
+    const logRecorder = createMemoryLogRecorder();
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      logRecorder,
+      undefined,
+      undefined,
+      createMemoryHunterConfigStore(),
+      {
+        async domainSearch(config, request) {
+          assert.equal(config.apiKey, 'hunter-key');
+          assert.deepEqual(request, { domain: 'example.com', limit: 1, offset: 0 });
+
+          return {
+            data: {
+              emails: [{ value: 'alice@example.com' }]
+            }
+          };
+        }
+      }
+    );
+
+    const saved = await service.saveHunterConfig(
+      {
+        configKey: ' default ',
+        title: ' Hunter ',
+        apiBase: ' https://api.hunter.io/v2/ ',
+        apiKey: ' hunter-key '
+      },
+      {
+        user: {
+          userId: 'u-1',
+          userName: 'Super',
+          roles: ['R_SUPER'],
+          buttons: [],
+          organizationId: 'org-1',
+          organizationName: 'Org One',
+          organizationRole: 'admin'
+        }
+      }
+    );
+    const draft = await service.getHunterConfigDraft('default');
+    const testResult = await service.testHunterConfig({
+      configKey: 'default',
+      title: 'Hunter',
+      apiBase: 'https://api.hunter.io/v2',
+      apiKey: 'hunter-key'
+    });
+
+    assert.equal(saved.apiBase, 'https://api.hunter.io/v2/');
+    assert.equal(draft.apiKey, 'hunter-key');
+    assert.deepEqual(testResult, {
+      ok: true,
+      resultEmailCount: 1
+    });
+    assert.equal(JSON.stringify(testResult).includes('alice@example.com'), false);
+    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('hunter-key')), false);
+    assert.deepEqual(logRecorder.records.map(record => record.action), ['save-hunter-config', 'test-hunter-config']);
+  });
 });
 
 function createMemoryTextGenerator(): AiTextGenerator {
@@ -399,6 +463,20 @@ function createMemoryModelConfigStore(): AiModelConfigStore {
       return configs.get(configKey) ?? null;
     },
     async saveModelConfig(record) {
+      configs.set(record.configKey, record);
+      return record;
+    }
+  };
+}
+
+function createMemoryHunterConfigStore(): HunterConfigStore {
+  const configs = new Map<string, HunterConfigRecord>();
+
+  return {
+    async getHunterConfig(configKey) {
+      return configs.get(configKey) ?? null;
+    },
+    async saveHunterConfig(record) {
       configs.set(record.configKey, record);
       return record;
     }

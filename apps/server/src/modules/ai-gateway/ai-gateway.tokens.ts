@@ -5,3 +5,5 @@ export const AI_PROMPT_STORE = Symbol('AI_PROMPT_STORE');
 export const AI_MODEL_CONFIG_STORE = Symbol('AI_MODEL_CONFIG_STORE');
 
 export const SERPER_CONFIG_STORE = Symbol('SERPER_CONFIG_STORE');
+
+export const HUNTER_CONFIG_STORE = Symbol('HUNTER_CONFIG_STORE');

@@ -3,15 +3,18 @@ import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
-import { defaultAiModelConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
+import { defaultAiModelConfigKey, defaultHunterConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
 import {
   fetchAiLeadQueueConfig,
   generateAiText,
   getAiModelConfig,
+  getHunterConfig,
   getSerperConfig,
   saveAiLeadQueueConfig,
   saveAiModelConfig,
+  saveHunterConfig,
   saveSerperConfig,
+  testHunterConfig,
   testSerperConfig
 } from '@/service/api';
 
@@ -44,6 +47,12 @@ const serperForm = reactive<Api.AiGateway.SaveSerperConfigPayload>({
   apiBase: 'https://google.serper.dev',
   apiKey: ''
 });
+const hunterForm = reactive<Api.AiGateway.SaveHunterConfigPayload>({
+  configKey: defaultHunterConfigKey,
+  title: 'Hunter 邮箱补全',
+  apiBase: 'https://api.hunter.io/v2',
+  apiKey: ''
+});
 const queueConfigForm = reactive<QueueConfigForm>({
   workerConcurrency: 2
 });
@@ -54,13 +63,18 @@ const isModelTesting = shallowRef(false);
 const isSerperLoading = shallowRef(false);
 const isSerperSaving = shallowRef(false);
 const isSerperTesting = shallowRef(false);
+const isHunterLoading = shallowRef(false);
+const isHunterSaving = shallowRef(false);
+const isHunterTesting = shallowRef(false);
 const isQueueConfigLoading = shallowRef(false);
 const isQueueConfigSaving = shallowRef(false);
 const modelUpdatedAt = shallowRef('');
 const serperUpdatedAt = shallowRef('');
+const hunterUpdatedAt = shallowRef('');
 const queueConfigUpdatedAt = shallowRef<string | null>(null);
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
+const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
 
 const canSaveModel = computed(() =>
   Boolean(
@@ -80,6 +94,14 @@ const formattedSerperUpdatedAt = computed(() =>
     ? dayjs(serperUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
+const canSaveHunter = computed(() =>
+  Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
+);
+const formattedHunterUpdatedAt = computed(() =>
+  hunterUpdatedAt.value
+    ? dayjs(hunterUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
+    : t('page.aiSettings.status.notSaved')
+);
 const canSaveQueueConfig = computed(() => isValidWorkerConcurrency(queueConfigForm.workerConcurrency));
 const formattedQueueConfigUpdatedAt = computed(() => {
   const updatedAt = queueConfigUpdatedAt.value;
@@ -92,6 +114,7 @@ const formattedQueueConfigUpdatedAt = computed(() => {
 onMounted(() => {
   void handleLoadModelConfig(false);
   void handleLoadSerperConfig(false);
+  void handleLoadHunterConfig(false);
   void handleLoadQueueConfig(false);
 });
 
@@ -200,6 +223,58 @@ async function handleSaveSerperConfig() {
     message.success(t('page.aiSettings.serper.saved'));
   } finally {
     isSerperSaving.value = false;
+  }
+}
+
+/** Loads the default Hunter config into the settings form. */
+async function handleLoadHunterConfig(showMessage = true) {
+  isHunterLoading.value = true;
+
+  try {
+    const { data: record, error } = await getHunterConfig(defaultHunterConfigKey);
+
+    if (error) {
+      return;
+    }
+
+    Object.assign(hunterForm, {
+      configKey: record.configKey,
+      title: record.title,
+      apiBase: record.apiBase,
+      apiKey: record.apiKey
+    });
+    hunterUpdatedAt.value = record.updatedAt;
+    hunterTestResult.value = null;
+
+    if (showMessage) {
+      message.success(t('page.aiSettings.hunter.loaded'));
+    }
+  } finally {
+    isHunterLoading.value = false;
+  }
+}
+
+/** Saves the Hunter config used by CRM Domain Search enrichment. */
+async function handleSaveHunterConfig() {
+  isHunterSaving.value = true;
+
+  try {
+    const { data: record, error } = await saveHunterConfig({
+      configKey: defaultHunterConfigKey,
+      title: hunterForm.title.trim(),
+      apiBase: hunterForm.apiBase.trim(),
+      apiKey: hunterForm.apiKey.trim()
+    });
+
+    if (error) {
+      return;
+    }
+
+    hunterUpdatedAt.value = record.updatedAt;
+    hunterTestResult.value = null;
+    message.success(t('page.aiSettings.hunter.saved'));
+  } finally {
+    isHunterSaving.value = false;
   }
 }
 
@@ -335,6 +410,30 @@ async function handleTestSerperConfig() {
     message.success(t('page.aiSettings.serper.testPassed'));
   } finally {
     isSerperTesting.value = false;
+  }
+}
+
+/** Sends one lightweight Domain Search request with the current Hunter config. */
+async function handleTestHunterConfig() {
+  isHunterTesting.value = true;
+  hunterTestResult.value = null;
+
+  try {
+    const { data: result, error } = await testHunterConfig({
+      configKey: defaultHunterConfigKey,
+      title: hunterForm.title.trim(),
+      apiBase: hunterForm.apiBase.trim(),
+      apiKey: hunterForm.apiKey.trim()
+    });
+
+    if (error) {
+      return;
+    }
+
+    hunterTestResult.value = result;
+    message.success(t('page.aiSettings.hunter.testPassed'));
+  } finally {
+    isHunterTesting.value = false;
   }
 }
 </script>
@@ -512,6 +611,67 @@ async function handleTestSerperConfig() {
               @click="handleSaveSerperConfig"
             >
               {{ $t('page.aiSettings.serper.save') }}
+            </NButton>
+          </NSpace>
+        </div>
+      </NSpace>
+    </NCard>
+
+    <NCard :bordered="false" class="card-wrapper">
+      <NSpace vertical :size="14">
+        <div class="page-heading">
+          <div>
+            <h2 class="page-title">{{ $t('page.aiSettings.hunter.title') }}</h2>
+            <p class="panel-desc">{{ $t('page.aiSettings.hunter.description') }}</p>
+          </div>
+          <NTag v-if="hunterTestResult" type="success" :bordered="false">
+            {{ $t('page.aiSettings.status.connected') }}
+          </NTag>
+          <NTag v-else-if="hunterUpdatedAt" type="warning" :bordered="false">
+            {{ $t('page.aiSettings.status.savedUntested') }}
+          </NTag>
+          <NTag v-else :bordered="false">{{ $t('page.aiSettings.status.pending') }}</NTag>
+        </div>
+
+        <NForm :model="hunterForm" label-placement="top" size="small">
+          <NFormItem :label="$t('page.aiSettings.form.title')">
+            <NInput v-model:value="hunterForm.title" :placeholder="$t('page.aiSettings.hunter.title')" />
+          </NFormItem>
+          <NFormItem :label="$t('page.aiSettings.form.apiBase')">
+            <NInput v-model:value="hunterForm.apiBase" placeholder="https://api.hunter.io/v2" />
+          </NFormItem>
+          <NFormItem :label="$t('page.aiSettings.form.apiKey')">
+            <NInput
+              v-model:value="hunterForm.apiKey"
+              type="password"
+              :placeholder="$t('page.aiSettings.hunter.apiKeyPlaceholder')"
+            />
+          </NFormItem>
+        </NForm>
+
+        <NAlert v-if="hunterTestResult" type="success" :bordered="false">
+          <NText strong>{{ $t('page.aiSettings.hunter.testResult') }}：OK</NText>
+        </NAlert>
+
+        <div class="form-footer">
+          <NText depth="3" class="updated-time">
+            {{ $t('page.aiSettings.status.title') }}：{{ formattedHunterUpdatedAt }}
+          </NText>
+          <NSpace :size="8">
+            <NButton size="small" :loading="isHunterLoading" @click="handleLoadHunterConfig()">
+              {{ $t('page.aiSettings.actions.reload') }}
+            </NButton>
+            <NButton size="small" :loading="isHunterTesting" :disabled="!canSaveHunter" @click="handleTestHunterConfig">
+              {{ $t('page.aiSettings.actions.test') }}
+            </NButton>
+            <NButton
+              size="small"
+              type="primary"
+              :loading="isHunterSaving"
+              :disabled="!canSaveHunter"
+              @click="handleSaveHunterConfig"
+            >
+              {{ $t('page.aiSettings.hunter.save') }}
             </NButton>
           </NSpace>
         </div>

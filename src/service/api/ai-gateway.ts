@@ -58,6 +58,31 @@ export function testSerperConfig(data: Api.AiGateway.SaveSerperConfigPayload) {
   });
 }
 
+/** Save the backend Hunter config used by CRM Domain Search enrichment. */
+export function saveHunterConfig(data: Api.AiGateway.SaveHunterConfigPayload) {
+  return request<Api.AiGateway.HunterConfigRecord>({
+    url: '/ai-gateway/hunter-configs',
+    method: 'post',
+    data
+  });
+}
+
+/** Read one backend Hunter config by stable config key. */
+export function getHunterConfig(configKey = 'default') {
+  return request<Api.AiGateway.HunterConfigRecord>({
+    url: `/ai-gateway/hunter-configs/${configKey}`
+  });
+}
+
+/** Test one Hunter config before saving it. */
+export function testHunterConfig(data: Api.AiGateway.SaveHunterConfigPayload) {
+  return request<Api.AiGateway.HunterTestResult>({
+    url: '/ai-gateway/hunter-configs/test',
+    method: 'post',
+    data
+  });
+}
+
 /** Generate text through the backend AI gateway. */
 export function generateAiText(data: Api.AiGateway.GenerateTextPayload) {
   return request<Api.AiGateway.AiTextResult>(buildGenerateAiTextRequestConfig(data));

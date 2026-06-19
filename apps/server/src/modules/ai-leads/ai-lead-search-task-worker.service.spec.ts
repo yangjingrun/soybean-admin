@@ -13,6 +13,7 @@ import { AiLeadSearchTaskQueueService } from './ai-lead-search-task-queue.servic
 import { AiLeadSearchTaskWorkerHost } from './ai-lead-search-task-worker-host.service';
 import { AiLeadSearchTaskWorkerService } from './ai-lead-search-task-worker.service';
 import type {
+  AiLeadSearchTaskEventInput,
   AiLeadSearchTaskQueryRecord,
   AiLeadSearchTaskQueryStartInput,
   AiLeadSearchTaskRecord,
@@ -324,6 +325,128 @@ describe('AiLeadSearchTaskWorkerService', () => {
     assert.equal(imports[0].context.organizationId, 'org-1');
   });
 
+  it('passes Hunter enriched contact to CRM import before importing completed candidates', async () => {
+    const imports: Array<{ input: { name: string; contact?: { email?: string | null } | null } }> = [];
+    const events: AiLeadSearchTaskEventInput[] = [];
+    const task = createTask({ status: 'queued', organizationId: 'org-1', organizationRole: 'member' });
+    const store = createTaskStore({
+      task,
+      queries: [],
+      onEvent(input) {
+        events.push(input);
+      }
+    });
+    const orchestrator = {
+      async searchWithKeywordPlan() {
+        return {
+          ...createSearchResult(),
+          candidates: [{ title: 'ABC Bearing', website: 'https://abc.example' }]
+        };
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const notificationService = {
+      async create() {}
+    };
+    const crmService = {
+      async importAccountFromLead(input: { name: string; contact?: { email?: string | null } | null }) {
+        imports.push({ input });
+      }
+    };
+    const hunterEnrichmentService = {
+      async enrichCrmImportInputs(inputs: Array<{ name: string; contact?: { email?: string | null } | null }>) {
+        return {
+          inputs: inputs.map(input => ({
+            ...input,
+            contact: {
+              fullName: 'Alice Buyer',
+              title: 'Purchasing Manager',
+              email: 'alice@abc.example'
+            }
+          })),
+          attemptedCount: 1,
+          enrichedCount: 1,
+          failedCount: 0,
+          firstErrorMessage: null
+        };
+      }
+    };
+    const worker = new AiLeadSearchTaskWorkerService(
+      store,
+      orchestrator,
+      notificationService as never,
+      crmService as never,
+      hunterEnrichmentService as never
+    );
+
+    await worker.processTaskJob({ taskId: task.id, runVersion: task.runVersion, priority: 0 });
+
+    assert.equal(task.status, 'completed');
+    assert.equal(imports.length, 1);
+    assert.deepEqual(imports[0].input.contact, {
+      fullName: 'Alice Buyer',
+      title: 'Purchasing Manager',
+      email: 'alice@abc.example'
+    });
+    assert.deepEqual(events.find(event => event.eventType === 'crm_hunter_enrichment_completed')?.metadata, {
+      attemptedCount: 1,
+      enrichedCount: 1,
+      failedCount: 0,
+      firstErrorMessage: null
+    });
+  });
+
+  it('continues CRM import with original inputs and records an event when Hunter enrichment fails', async () => {
+    const importedContacts: Array<{ email?: string | null } | null | undefined> = [];
+    const events: AiLeadSearchTaskEventInput[] = [];
+    const task = createTask({ status: 'queued', organizationId: 'org-1', organizationRole: 'member' });
+    const store = createTaskStore({
+      task,
+      queries: [],
+      onEvent(input) {
+        events.push(input);
+      }
+    });
+    const orchestrator = {
+      async searchWithKeywordPlan() {
+        return {
+          ...createSearchResult(),
+          candidates: [{ title: 'ABC Bearing', website: 'https://abc.example' }]
+        };
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const notificationService = {
+      async create() {}
+    };
+    const crmService = {
+      async importAccountFromLead(input: { contact?: { email?: string | null } | null }) {
+        importedContacts.push(input.contact);
+      }
+    };
+    const hunterEnrichmentService = {
+      async enrichCrmImportInputs() {
+        throw new Error('Hunter config missing');
+      }
+    };
+    const worker = new AiLeadSearchTaskWorkerService(
+      store,
+      orchestrator,
+      notificationService as never,
+      crmService as never,
+      hunterEnrichmentService as never
+    );
+
+    await worker.processTaskJob({ taskId: task.id, runVersion: task.runVersion, priority: 0 });
+
+    assert.equal(task.status, 'completed');
+    assert.deepEqual(importedContacts, [null]);
+    assert.deepEqual(events.find(event => event.eventType === 'crm_hunter_enrichment_failed')?.metadata, {
+      attemptedCount: 0,
+      enrichedCount: 0,
+      failedCount: 1,
+      firstErrorMessage: 'Hunter config missing'
+    });
+  });
+
   it('keeps completion notification when CRM import fails', async () => {
     const notifications: Array<{ type: string }> = [];
     const events: string[] = [];
@@ -332,8 +455,8 @@ describe('AiLeadSearchTaskWorkerService', () => {
     const store = createTaskStore({
       task,
       queries: [],
-      onEvent(eventType) {
-        events.push(eventType);
+      onEvent(input) {
+        events.push(input.eventType);
       }
     });
     const orchestrator = {
@@ -552,7 +675,7 @@ function createTaskStore(options: {
   onRecover?: (activeJobIds: string[]) => void;
   failEventTypes?: string[];
   failProgressUpdate?: boolean;
-  onEvent?: (eventType: string) => void;
+  onEvent?: (input: AiLeadSearchTaskEventInput) => void;
 }): AiLeadSearchTaskStore {
   return {
     async createTask() {
@@ -603,7 +726,7 @@ function createTaskStore(options: {
       if (options.failEventTypes?.includes(input.eventType)) {
         throw new Error(`${input.eventType} event unavailable`);
       }
-      options.onEvent?.(input.eventType);
+      options.onEvent?.(input);
 
       return undefined;
     },

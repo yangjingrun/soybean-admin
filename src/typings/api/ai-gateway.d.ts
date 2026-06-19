@@ -45,6 +45,14 @@ declare namespace Api {
       updatedAt: string;
     }
 
+    interface HunterConfigRecord {
+      configKey: string;
+      title: string;
+      apiBase: string;
+      apiKey: string;
+      updatedAt: string;
+    }
+
     interface SaveModelConfigPayload {
       configKey: string;
       title: string;
@@ -61,9 +69,21 @@ declare namespace Api {
       apiKey: string;
     }
 
+    interface SaveHunterConfigPayload {
+      configKey: string;
+      title: string;
+      apiBase: string;
+      apiKey: string;
+    }
+
     interface SerperTestResult {
       ok: boolean;
       result: unknown;
+    }
+
+    interface HunterTestResult {
+      ok: boolean;
+      resultEmailCount: number;
     }
 
     interface GenerateTextPayload {

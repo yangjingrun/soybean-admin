@@ -6,6 +6,7 @@ import { AiGatewayService } from './ai-gateway.service';
 import { AiModelConfigKeyParamDto, SaveAiModelConfigDto } from './dto/ai-model-config.dto';
 import { AiPromptKeyParamDto, SaveAiPromptDto } from './dto/ai-prompt.dto';
 import { GenerateAiTextDto } from './dto/generate-ai-text.dto';
+import { HunterConfigKeyParamDto, SaveHunterConfigDto } from './dto/hunter-config.dto';
 import { SaveSerperConfigDto, SerperConfigKeyParamDto } from './dto/serper-config.dto';
 
 @Controller('ai-gateway')
@@ -63,6 +64,28 @@ export class AiGatewayController {
     const user = this.assertSuper(authorization);
 
     return ok(await this.aiGatewayService.testSerperConfig(dto, { user }));
+  }
+
+  @Post('hunter-configs')
+  async saveHunterConfig(@Body() dto: SaveHunterConfigDto, @Headers('authorization') authorization = '') {
+    const user = this.assertSuper(authorization);
+
+    return ok(await this.aiGatewayService.saveHunterConfig(dto, { user }));
+  }
+
+  @Get('hunter-configs/:configKey')
+  async getHunterConfig(@Param() params: HunterConfigKeyParamDto, @Headers('authorization') authorization = '') {
+    this.assertSuper(authorization);
+
+    return ok(await this.aiGatewayService.getHunterConfigDraft(params.configKey));
+  }
+
+  @Post('hunter-configs/test')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async testHunterConfig(@Body() dto: SaveHunterConfigDto, @Headers('authorization') authorization = '') {
+    const user = this.assertSuper(authorization);
+
+    return ok(await this.aiGatewayService.testHunterConfig(dto, { user }));
   }
 
   @Post('generate-text')
