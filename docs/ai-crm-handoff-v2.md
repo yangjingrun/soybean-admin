@@ -657,10 +657,11 @@ Hunter 原始长结果
       - `src/views/crm/leads/modules/shared/useLeadTable.ts`
 
 50. 黑名单/退订管理页
-    - CRM 配置页新增退订黑名单只读管理区块。
+    - CRM 配置页新增退订黑名单管理区块。
     - 后端新增组织级黑名单分页查询接口，只返回脱敏邮箱、原因、来源和时间，不暴露 `emailHash`。
     - 前端支持关键词搜索、分页、原因标签和来源线索展示。
-    - 当前只做只读管理；解除黑名单属于高风险操作，后续应结合审计和权限单独设计。
+    - 已支持解除黑名单：必须填写解除原因，后端按组织隔离删除记录，并写入 `blacklist-entry-removed` 系统日志。
+    - 解除黑名单不修改历史回信或时间线，只影响未来发送拦截。
     - 已通过验证：
       - `pnpm --filter @soybean/server typecheck`
       - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
@@ -814,7 +815,7 @@ Hunter 原始长结果
 - 邮件序列支持列表、创建首封草稿、跨页面预填、审核抽屉、保存/确认草稿、启动发送、停止序列、查看后续邮件。
 - 收件箱支持列表、筛选、详情、待处理统计、正文查看、状态更新、纯文本回复。
 - CRM 配置支持 Gmail 授权、OAuth 回调、邮箱列表、暂停/恢复、续订 watch、立即同步、产品线 CRUD、邮件模板库 CRUD/默认模板设置、全局邮箱验证冷却期配置。
-- CRM 配置支持退订黑名单只读分页管理。
+- CRM 配置支持退订黑名单分页管理和带原因审计的解除操作。
 - CRM 配置支持发送队列和 Gmail 同步/续订只读运维概览。
 - CRM 全局配置支持第 2-5 封 follow-up 延迟策略，发送 worker 按配置生成下一封草稿。
 - AI 设置页支持模型、Serper、Hunter 配置。
@@ -1409,7 +1410,7 @@ Hunter 原始长结果
 - 模板库 CRUD 已完成；首封和后续 follow-up 草稿均优先使用组织默认模板。
 - 序列策略配置已完成全局 follow-up 延迟策略；每组织/每序列策略仍可后续增强。
 - 后续 follow-up 自动策略已按全局延迟配置接入 worker；组织默认模板存在时延迟、主题、正文、线程模式按模板 step 执行。
-- 黑名单/退订管理页已完成只读列表；解除黑名单需后续结合审计和权限设计。
+- 黑名单/退订管理页已完成分页列表和带原因审计的解除操作。
 - 发送队列/同步日志运维页已完成薄视图和详情抽屉；完整队列历史、重试次数和系统日志详情可后续增强。
 - auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。
 - 手动新增/导入 CRM 线索入口已完成。
@@ -1504,7 +1505,7 @@ git diff --check
 5. 如果继续实现，P0 本地可做项已完成；真实 Gmail 全链路需要外部环境。下一步优先做 P1。
 6. 适合多 Agent 的拆分方式：
    - Agent A：模板库 CRUD 和序列策略配置。
-   - Agent B：黑名单/退订管理页已完成只读列表；后续可补解除黑名单审计流程。
+   - Agent B：黑名单/退订管理页已完成分页列表和带原因审计的解除操作。
    - Agent C：发送队列/同步日志运维薄视图已完成；完整队列历史可后续增强。
    - Agent D：前端 auth_expired 行级重新授权和邮箱同步状态 UI。
 7. 子 Agent 必须明确：不要提交代码，不要修改同一批文件，完成后只汇报 changed files。
@@ -1666,7 +1667,7 @@ AI 获客 / Hunter：
 然后再补：
 
 1. 每组织/每序列策略。
-2. 黑名单解除审计和完整运维日志。
+2. 完整运维日志。
 3. 模板初始化种子、多语言模板和 Persona 维护。
 4. 前端组件测试补强。
 5. 第二期 AI 回复草稿、资料解析、Hunter Finder 等。

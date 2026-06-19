@@ -209,6 +209,14 @@ declare namespace Api {
       keyword: string;
     }
 
+    interface BlacklistRemovePayload {
+      reason: string;
+    }
+
+    interface BlacklistRemoveResult {
+      blacklistEntry: BlacklistRecord;
+    }
+
     interface LeadArchiveResult {
       account: LeadRecord;
       event: LeadTimelineEvent;

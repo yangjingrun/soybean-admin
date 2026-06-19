@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Headers,
@@ -34,6 +35,7 @@ import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
 import { ReplyCrmInboxThreadDto } from './dto/reply-crm-inbox-thread.dto';
+import { RemoveCrmBlacklistEntryDto } from './dto/remove-crm-blacklist-entry.dto';
 import { SaveCrmGlobalConfigDto } from './dto/save-crm-global-config.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
@@ -121,6 +123,15 @@ export class CrmController {
   @Get('blacklist-entries')
   async listBlacklistEntries(@Headers('authorization') authorization = '', @Query() query: CrmBlacklistQueryDto) {
     return ok(await this.crmService.listBlacklistEntries(this.requireUserContext(authorization), query));
+  }
+
+  @Delete('blacklist-entries/:id')
+  async removeBlacklistEntry(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: RemoveCrmBlacklistEntryDto
+  ) {
+    return ok(await this.crmService.removeBlacklistEntry(id, dto, this.requireUserContext(authorization)));
   }
 
   @Post('mailboxes/mock-authorize')

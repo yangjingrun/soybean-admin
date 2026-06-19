@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NTag } from 'naive-ui';
+import { NButton, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { blacklistReasonLabelMap, formatBlacklistDate } from './shared';
 
-defineProps<{
+const props = defineProps<{
   records: Api.Crm.BlacklistRecord[];
   loading?: boolean;
   page: number;
   pageSize: number;
+  removingId?: string | null;
   total: number;
 }>();
 
 const emit = defineEmits<{
+  remove: [record: Api.Crm.BlacklistRecord];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
 }>();
@@ -66,6 +68,24 @@ const columns = computed<DataTableColumns<Api.Crm.BlacklistRecord>>(() => [
     title: '更新时间',
     minWidth: 180,
     render: row => formatBlacklistDate(row.updatedAt)
+  },
+  {
+    key: 'operate',
+    title: '操作',
+    width: 100,
+    fixed: 'right',
+    render: row =>
+      h(
+        NButton,
+        {
+          loading: props.removingId === row.id,
+          size: 'small',
+          text: true,
+          type: 'warning',
+          onClick: () => emit('remove', row)
+        },
+        { default: () => '解除' }
+      )
   }
 ]);
 </script>
@@ -77,7 +97,7 @@ const columns = computed<DataTableColumns<Api.Crm.BlacklistRecord>>(() => [
       :data="records"
       :loading="loading"
       :row-key="row => row.id"
-      :scroll-x="920"
+      :scroll-x="1020"
       size="small"
       remote
     >

@@ -78,6 +78,15 @@ export function fetchCrmBlacklistEntries(params: Api.Crm.BlacklistSearchParams) 
   });
 }
 
+/** Remove one organization unsubscribe blacklist entry with an audit reason. */
+export function removeCrmBlacklistEntry(id: string, data: Api.Crm.BlacklistRemovePayload) {
+  return request<Api.Crm.BlacklistRemoveResult>({
+    url: `/crm/blacklist-entries/${id}`,
+    method: 'delete',
+    data
+  });
+}
+
 /** Archive one CRM account with an optional reason. */
 export function archiveCrmAccount(id: string, data: Api.Crm.LeadArchivePayload = {}) {
   return request<Api.Crm.LeadArchiveResult>({

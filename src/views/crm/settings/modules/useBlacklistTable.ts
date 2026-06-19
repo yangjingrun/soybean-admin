@@ -1,11 +1,19 @@
 import { onMounted, reactive, shallowRef } from 'vue';
-import { fetchCrmBlacklistEntries } from '@/service/api';
+import { useMessage } from 'naive-ui';
+import { fetchCrmBlacklistEntries, removeCrmBlacklistEntry } from '@/service/api';
 import { buildBlacklistSearchParams, createDefaultBlacklistFilterModel } from './shared';
 
 /** Manage organization unsubscribe blacklist list requests and pagination. */
 export function useBlacklistTable() {
+  const message = useMessage();
   const records = shallowRef<Api.Crm.BlacklistRecord[]>([]);
   const loading = shallowRef(false);
+  const removeModalVisible = shallowRef(false);
+  const removeSubmitting = shallowRef(false);
+  const removingRecord = shallowRef<Api.Crm.BlacklistRecord | null>(null);
+  const removeFormModel = reactive<Api.Crm.BlacklistRemovePayload>({
+    reason: ''
+  });
   let latestRequestId = 0;
 
   const pagination = reactive({
@@ -76,15 +84,66 @@ export function useBlacklistTable() {
     void loadBlacklistEntries();
   }
 
+  function openRemoveModal(record: Api.Crm.BlacklistRecord) {
+    removingRecord.value = record;
+    removeFormModel.reason = '';
+    removeModalVisible.value = true;
+  }
+
+  function handleRemoveModalVisibleUpdate(show: boolean) {
+    removeModalVisible.value = show;
+
+    if (!show) {
+      removingRecord.value = null;
+      removeFormModel.reason = '';
+    }
+  }
+
+  /** Remove one blacklist entry with an explicit audit reason, then refresh the list. */
+  async function handleRemoveBlacklistEntry() {
+    const reason = removeFormModel.reason.trim();
+    const record = removingRecord.value;
+
+    if (!record) return;
+
+    if (!reason) {
+      message.warning('请输入解除原因');
+      return;
+    }
+
+    removeSubmitting.value = true;
+
+    try {
+      const { error } = await removeCrmBlacklistEntry(record.id, { reason });
+
+      if (error) {
+        return;
+      }
+
+      message.success('黑名单已解除');
+      handleRemoveModalVisibleUpdate(false);
+      await loadBlacklistEntries();
+    } finally {
+      removeSubmitting.value = false;
+    }
+  }
+
   return {
     filterModel,
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
+    handleRemoveBlacklistEntry,
+    handleRemoveModalVisibleUpdate,
     handleSearch,
     loadBlacklistEntries,
     loading,
     pagination,
+    openRemoveModal,
+    removeFormModel,
+    removeModalVisible,
+    removeSubmitting,
+    removingRecord,
     records
   };
 }

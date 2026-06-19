@@ -149,6 +149,32 @@ describe('CrmController', () => {
     assert.deepEqual(calls[0].query, { keyword: 'alice' });
   });
 
+  it('removes blacklist entries with the current user context', async () => {
+    const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async removeBlacklistEntry(id, dto, context) {
+          calls.push({ id, dto, context });
+
+          return {
+            blacklistEntry: createBlacklistView({ id })
+          };
+        }
+      })
+    );
+
+    const result = await controller.removeBlacklistEntry('Bearer token', 'blacklist-1', {
+      reason: '客户确认恢复联系'
+    });
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.blacklistEntry.id, 'blacklist-1');
+    assert.equal(calls[0].id, 'blacklist-1');
+    assert.equal(calls[0].context.userId, 'user-1');
+    assert.deepEqual(calls[0].dto, { reason: '客户确认恢复联系' });
+  });
+
   it('changes account status with the current user context', async () => {
     const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(

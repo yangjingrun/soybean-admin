@@ -498,6 +498,37 @@ export class CrmService {
     };
   }
 
+  /** Removes one organization blacklist entry after recording an audit reason. */
+  async removeBlacklistEntry(id: string, input: { reason?: string | null }, context: CrmUserContext) {
+    const reason = normalizeNullableString(input.reason);
+    if (!reason) {
+      throw new BadRequestException('解除黑名单必须填写解除原因');
+    }
+
+    const entry = await this.store.deleteBlacklistEntry({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!entry) {
+      throw new NotFoundException('黑名单记录不存在');
+    }
+
+    await this.recordCrmLog('blacklist-entry-removed', 'CRM 退订黑名单已解除', context, {
+      organizationId: context.organizationId,
+      blacklistEntryId: entry.id,
+      maskedEmail: entry.maskedEmail,
+      reason,
+      sourceAccountId: entry.sourceAccountId,
+      sourceContactId: entry.sourceContactId,
+      sourceMessageId: entry.sourceMessageId
+    });
+
+    return {
+      blacklistEntry: toBlacklistView(entry)
+    };
+  }
+
   /** Creates a Gmail mock authorization record without storing any OAuth token. */
   async mockAuthorizeMailbox(input: { emailAddress: string }, context: CrmUserContext) {
     const emailAddress = normalizeMailboxEmail(input.emailAddress);

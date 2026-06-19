@@ -195,6 +195,11 @@ export interface CrmBlacklistListInput {
   take: number;
 }
 
+export interface CrmBlacklistDeleteInput {
+  id: string;
+  organizationId: string;
+}
+
 export interface CrmArchivedFingerprintRecord {
   id: string;
   organizationId: string;
@@ -1050,6 +1055,7 @@ export interface CrmStore {
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;
   upsertBlacklistEntry(input: CrmBlacklistUpsertInput): Promise<CrmBlacklistRecord>;
   listBlacklistEntries(input: CrmBlacklistListInput): Promise<{ records: CrmBlacklistRecord[]; total: number }>;
+  deleteBlacklistEntry(input: CrmBlacklistDeleteInput): Promise<CrmBlacklistRecord | null>;
   findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput): Promise<CrmArchivedFingerprintRecord[]>;
   upsertArchivedFingerprint(input: CrmArchivedFingerprintUpsertInput): Promise<CrmArchivedFingerprintRecord>;
   listAccounts(args: {

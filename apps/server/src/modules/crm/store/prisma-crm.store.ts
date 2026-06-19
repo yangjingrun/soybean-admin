@@ -26,6 +26,7 @@ import type {
   CrmArchivedFingerprintLookupInput,
   CrmArchivedFingerprintRecord,
   CrmArchivedFingerprintUpsertInput,
+  CrmBlacklistDeleteInput,
   CrmBlacklistListInput,
   CrmBlacklistRecord,
   CrmBlacklistUpsertInput,
@@ -378,6 +379,27 @@ export class PrismaCrmStore implements CrmStore {
       records: records.map(toBlacklistRecord),
       total
     };
+  }
+
+  async deleteBlacklistEntry(input: CrmBlacklistDeleteInput) {
+    const record = await this.prisma.crmBlacklist.findFirst({
+      where: {
+        id: input.id,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!record) {
+      return null;
+    }
+
+    await this.prisma.crmBlacklist.delete({
+      where: {
+        id: record.id
+      }
+    });
+
+    return toBlacklistRecord(record);
   }
 
   async findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput) {

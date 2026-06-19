@@ -1429,6 +1429,55 @@ describe('CrmService', () => {
     assert.equal('emailHash' in result.records[0], false);
   });
 
+  it('removes organization blacklist entries with reason and audit log', async () => {
+    const logs = createLogRecorder();
+    const store = createStore([], {
+      blacklists: [
+        createBlacklist({
+          id: 'blacklist-1',
+          organizationId: 'org-1',
+          maskedEmail: 'a***@example.com',
+          sourceMessageId: 'inbox-message-1'
+        }),
+        createBlacklist({
+          id: 'blacklist-2',
+          organizationId: 'org-2',
+          maskedEmail: 'b***@example.com'
+        })
+      ]
+    });
+    const service = new CrmService(store, undefined, logs.service);
+
+    const result = await service.removeBlacklistEntry(
+      'blacklist-1',
+      { reason: '客户邮件确认可以重新联系' },
+      createContext()
+    );
+
+    assert.equal(result.blacklistEntry.id, 'blacklist-1');
+    assert.equal(store.blacklists.some(entry => entry.id === 'blacklist-1'), false);
+    assert.equal(store.blacklists.some(entry => entry.id === 'blacklist-2'), true);
+    assert.equal(logs.records.at(-1)?.action, 'blacklist-entry-removed');
+    assert.deepEqual(logs.records.at(-1)?.metadata, {
+      organizationId: 'org-1',
+      blacklistEntryId: 'blacklist-1',
+      maskedEmail: 'a***@example.com',
+      reason: '客户邮件确认可以重新联系',
+      sourceAccountId: 'account-1',
+      sourceContactId: 'contact-1',
+      sourceMessageId: 'inbox-message-1'
+    });
+  });
+
+  it('rejects blacklist removal without an audit reason', async () => {
+    const service = new CrmService(createStore([], { blacklists: [createBlacklist({ id: 'blacklist-1' })] }));
+
+    await assert.rejects(
+      () => service.removeBlacklistEntry('blacklist-1', { reason: '   ' }, createContext()),
+      /解除原因/
+    );
+  });
+
   it('lists sequence review items with member owner scope and generated checklist', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', emailStatus: 'valid' })],
@@ -2602,6 +2651,13 @@ function createStore(
         records: records.slice(args.skip, args.skip + args.take),
         total: records.length
       };
+    },
+    async deleteBlacklistEntry(args) {
+      const index = blacklists.findIndex(entry => entry.id === args.id && entry.organizationId === args.organizationId);
+      if (index === -1) return null;
+
+      const [entry] = blacklists.splice(index, 1);
+      return entry;
     },
     async listAccounts(args) {
       this.lastListArgs = args;

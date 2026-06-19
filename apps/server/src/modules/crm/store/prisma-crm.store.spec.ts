@@ -322,6 +322,25 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('deletes one organization blacklist entry by scoped id', async () => {
+    const prisma = createPrisma({ blacklistEntry: createPrismaBlacklist() });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const entry = await store.deleteBlacklistEntry({
+      id: 'blacklist-1',
+      organizationId: 'org-1'
+    });
+
+    assert.equal(entry?.id, 'blacklist-1');
+    assert.deepEqual(prisma.crmBlacklist.findFirstCalls[0].where, {
+      id: 'blacklist-1',
+      organizationId: 'org-1'
+    });
+    assert.deepEqual(prisma.crmBlacklist.deleteCalls[0].where, {
+      id: 'blacklist-1'
+    });
+  });
+
   it('finds archived fingerprints by organization and requested fingerprint pairs', async () => {
     const prisma = createPrisma({
       archivedFingerprintResults: [
@@ -2115,6 +2134,7 @@ function createPrisma(
     },
     crmBlacklist: {
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
         where: Record<string, unknown>;
         skip: number;
@@ -2122,6 +2142,7 @@ function createPrisma(
         orderBy: Record<string, unknown>;
       }>,
       countCalls: [] as Array<{ where: Record<string, unknown> }>,
+      deleteCalls: [] as Array<{ where: Record<string, unknown> }>,
       upsertCalls: [] as Array<{
         where: Record<string, unknown>;
         create: Record<string, unknown>;
@@ -2130,6 +2151,10 @@ function createPrisma(
       findUniqueResult: blacklist,
       async findUnique(args: { where: Record<string, unknown> }) {
         this.findUniqueCalls.push(args);
+        return this.findUniqueResult;
+      },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
         return this.findUniqueResult;
       },
       async findMany(args: {
@@ -2144,6 +2169,10 @@ function createPrisma(
       async count(args: { where: Record<string, unknown> }) {
         this.countCalls.push(args);
         return 1;
+      },
+      async delete(args: { where: Record<string, unknown> }) {
+        this.deleteCalls.push(args);
+        return this.findUniqueResult;
       },
       async upsert(args: {
         where: Record<string, unknown>;
