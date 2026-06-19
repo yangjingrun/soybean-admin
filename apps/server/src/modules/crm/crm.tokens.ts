@@ -2,3 +2,4 @@ export const CRM_STORE = Symbol('CRM_STORE');
 export const CRM_EMAIL_DNS_RESOLVER = Symbol('CRM_EMAIL_DNS_RESOLVER');
 export const CRM_SEND_QUEUE = Symbol('CRM_SEND_QUEUE');
 export const CRM_EMAIL_SEND_GATEWAY = Symbol('CRM_EMAIL_SEND_GATEWAY');
+export const CRM_GMAIL_HISTORY_SYNC_QUEUE = Symbol('CRM_GMAIL_HISTORY_SYNC_QUEUE');

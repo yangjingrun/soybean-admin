@@ -498,6 +498,21 @@ export interface CrmSendQueuePort {
   enqueueFirstMessage(input: CrmSendQueueJob): Promise<{ jobId: string }>;
 }
 
+export interface CrmGmailHistorySyncQueueJob {
+  mailboxId: string;
+  organizationId: string;
+  ownerUserId: string;
+  emailAddress: string;
+  emailHash: string;
+  historyId: string;
+  pubsubMessageId?: string | null;
+  publishTime?: string | null;
+}
+
+export interface CrmGmailHistorySyncQueuePort {
+  enqueueHistorySync(input: CrmGmailHistorySyncQueueJob): Promise<{ jobId: string }>;
+}
+
 export interface CrmEmailSendGatewayInput {
   enrollment: CrmSequenceEnrollmentRecord;
   message: CrmMessageRecord;
