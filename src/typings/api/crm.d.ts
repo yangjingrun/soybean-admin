@@ -391,6 +391,24 @@ declare namespace Api {
       snapshot: AiDraftSnapshot;
     }
 
+    interface InboxReplyDraftMetadata {
+      generated: boolean;
+      reason: string;
+      riskNotes: string[];
+      productLineId?: string | null;
+      productLineName?: string | null;
+      generatedAt?: string;
+    }
+
+    interface InboxReplyDraftRecord {
+      topic: string;
+      bodyText: string;
+      metadata: InboxReplyDraftMetadata | null;
+      updatedAt: string;
+      updatedById: string;
+      updatedByName: string | null;
+    }
+
     interface ProductLineSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
       status?: ProductLineStatus;
@@ -422,6 +440,27 @@ declare namespace Api {
     }
 
     type ProductLineList = Api.Common.PaginatingQueryRecord<ProductLineRecord>;
+
+    interface ProductLineAiPromptVersionRecord {
+      id: string;
+      organizationId: string;
+      productLineId: string;
+      version: number;
+      aiWritingConfig: ProductLineAiWritingConfig | null;
+      editorId: string;
+      editorName: string | null;
+      changeSummary: string | null;
+      createdAt: string;
+    }
+
+    interface ProductLineAiPromptVersionList {
+      records: ProductLineAiPromptVersionRecord[];
+    }
+
+    interface ProductLineAiPromptVersionRestoreResult {
+      productLine: ProductLineRecord;
+      version: ProductLineAiPromptVersionRecord;
+    }
 
     interface PersonaProfileRecord {
       id: string;
@@ -745,6 +784,7 @@ declare namespace Api {
       messageCount: number;
       lastMessageSnippet: string;
       canReadBody: boolean;
+      canOperate: boolean;
     }
 
     interface InboxMessageRecord {
@@ -782,9 +822,20 @@ declare namespace Api {
       messages: InboxMessageRecord[];
       timelineEvents: LeadTimelineEvent[];
       canOperate: boolean;
+      replyDraft: InboxReplyDraftRecord | null;
     }
 
     interface InboxReplyPayload {
+      bodyText: string;
+    }
+
+    interface InboxReplyPolishPayload {
+      topic: string;
+      productLineId?: string | null;
+    }
+
+    interface InboxReplyDraftPayload {
+      topic: string;
       bodyText: string;
     }
 

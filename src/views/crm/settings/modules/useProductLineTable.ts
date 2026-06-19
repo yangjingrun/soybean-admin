@@ -20,6 +20,8 @@ export function useProductLineTable() {
   const submitting = shallowRef(false);
   const operatingProductLineId = shallowRef<string | null>(null);
   const editingProductLineId = shallowRef<string | null>(null);
+  const editingProductLineRecord = shallowRef<Api.Crm.ProductLineRecord | null>(null);
+  const promptHistoryVisible = shallowRef(false);
   let latestRequestId = 0;
 
   const pagination = reactive({
@@ -74,14 +76,25 @@ export function useProductLineTable() {
 
   function openCreateModal() {
     editingProductLineId.value = null;
+    editingProductLineRecord.value = null;
+    promptHistoryVisible.value = false;
     Object.assign(formModel, createDefaultProductLineForm());
     formVisible.value = true;
   }
 
   function openEditModal(record: Api.Crm.ProductLineRecord) {
     editingProductLineId.value = record.id;
+    editingProductLineRecord.value = record;
     Object.assign(formModel, createProductLineFormFromRecord(record));
     formVisible.value = true;
+  }
+
+  function openPromptHistoryDrawer() {
+    if (!editingProductLineId.value) {
+      return;
+    }
+
+    promptHistoryVisible.value = true;
   }
 
   function handleFormVisibleUpdate(show: boolean) {
@@ -89,8 +102,25 @@ export function useProductLineTable() {
 
     if (!show) {
       editingProductLineId.value = null;
+      editingProductLineRecord.value = null;
+      promptHistoryVisible.value = false;
       Object.assign(formModel, createDefaultProductLineForm());
     }
+  }
+
+  function handlePromptHistoryVisibleUpdate(show: boolean) {
+    promptHistoryVisible.value = show;
+  }
+
+  /** Apply the restored backend product line to both the open form and current table page. */
+  function handlePromptVersionRestored(productLine: Api.Crm.ProductLineRecord) {
+    if (productLine.id !== editingProductLineId.value) {
+      return;
+    }
+
+    editingProductLineRecord.value = productLine;
+    Object.assign(formModel, createProductLineFormFromRecord(productLine));
+    records.value = records.value.map(record => (record.id === productLine.id ? productLine : record));
   }
 
   /** Create or update the current product line form, then refresh the list. */
@@ -174,6 +204,7 @@ export function useProductLineTable() {
 
   return {
     editingProductLineId,
+    editingProductLineRecord,
     filterModel,
     formModel,
     formVisible,
@@ -181,6 +212,8 @@ export function useProductLineTable() {
     handleFormVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
+    handlePromptHistoryVisibleUpdate,
+    handlePromptVersionRestored,
     handleReset,
     handleSearch,
     handleSubmitProductLine,
@@ -189,8 +222,10 @@ export function useProductLineTable() {
     loading,
     openCreateModal,
     openEditModal,
+    openPromptHistoryDrawer,
     operatingProductLineId,
     pagination,
+    promptHistoryVisible,
     records,
     submitting
   };

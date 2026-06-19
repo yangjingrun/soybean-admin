@@ -398,6 +398,7 @@ export const ModelName = {
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
   CrmProductLine: 'CrmProductLine',
+  CrmProductLineAiPromptVersion: 'CrmProductLineAiPromptVersion',
   CrmPersonaProfile: 'CrmPersonaProfile',
   CrmEmailTemplateGroup: 'CrmEmailTemplateGroup',
   CrmEmailTemplateStep: 'CrmEmailTemplateStep',
@@ -432,7 +433,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1469,6 +1470,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmProductLineCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmProductLineCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmProductLineAiPromptVersion: {
+      payload: Prisma.$CrmProductLineAiPromptVersionPayload<ExtArgs>
+      fields: Prisma.CrmProductLineAiPromptVersionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmProductLineAiPromptVersionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmProductLineAiPromptVersionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmProductLineAiPromptVersionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmProductLineAiPromptVersionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>
+        }
+        findMany: {
+          args: Prisma.CrmProductLineAiPromptVersionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>[]
+        }
+        create: {
+          args: Prisma.CrmProductLineAiPromptVersionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>
+        }
+        createMany: {
+          args: Prisma.CrmProductLineAiPromptVersionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmProductLineAiPromptVersionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmProductLineAiPromptVersionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>
+        }
+        update: {
+          args: Prisma.CrmProductLineAiPromptVersionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmProductLineAiPromptVersionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmProductLineAiPromptVersionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmProductLineAiPromptVersionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmProductLineAiPromptVersionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmProductLineAiPromptVersionPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmProductLineAiPromptVersionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmProductLineAiPromptVersion>
+        }
+        groupBy: {
+          args: Prisma.CrmProductLineAiPromptVersionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmProductLineAiPromptVersionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmProductLineAiPromptVersionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmProductLineAiPromptVersionCountAggregateOutputType> | number
         }
       }
     }
@@ -3181,6 +3256,21 @@ export const CrmProductLineScalarFieldEnum = {
 export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
 
 
+export const CrmProductLineAiPromptVersionScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  productLineId: 'productLineId',
+  version: 'version',
+  aiWritingConfig: 'aiWritingConfig',
+  editorId: 'editorId',
+  editorName: 'editorName',
+  changeSummary: 'changeSummary',
+  createdAt: 'createdAt'
+} as const
+
+export type CrmProductLineAiPromptVersionScalarFieldEnum = (typeof CrmProductLineAiPromptVersionScalarFieldEnum)[keyof typeof CrmProductLineAiPromptVersionScalarFieldEnum]
+
+
 export const CrmPersonaProfileScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -3342,6 +3432,12 @@ export const CrmInboxThreadScalarFieldEnum = {
   lastInboundAt: 'lastInboundAt',
   unreadCount: 'unreadCount',
   messageCount: 'messageCount',
+  replyDraftBodyText: 'replyDraftBodyText',
+  replyDraftTopic: 'replyDraftTopic',
+  replyDraftMetadata: 'replyDraftMetadata',
+  replyDraftUpdatedAt: 'replyDraftUpdatedAt',
+  replyDraftUpdatedById: 'replyDraftUpdatedById',
+  replyDraftUpdatedByName: 'replyDraftUpdatedByName',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -3797,6 +3893,7 @@ export type GlobalOmitConfig = {
   crmMailbox?: Prisma.CrmMailboxOmit
   crmMailboxSendUsage?: Prisma.CrmMailboxSendUsageOmit
   crmProductLine?: Prisma.CrmProductLineOmit
+  crmProductLineAiPromptVersion?: Prisma.CrmProductLineAiPromptVersionOmit
   crmPersonaProfile?: Prisma.CrmPersonaProfileOmit
   crmEmailTemplateGroup?: Prisma.CrmEmailTemplateGroupOmit
   crmEmailTemplateStep?: Prisma.CrmEmailTemplateStepOmit

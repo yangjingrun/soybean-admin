@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import ProductLineFormModal from './ProductLineFormModal.vue';
+import ProductLinePromptVersionDrawer from './ProductLinePromptVersionDrawer.vue';
 import ProductLineTable from './ProductLineTable.vue';
 import ProductLineToolbar from './ProductLineToolbar.vue';
 import { useProductLineTable } from './useProductLineTable';
 
 const {
   editingProductLineId,
+  editingProductLineRecord,
   filterModel,
   formModel,
   formVisible,
@@ -13,6 +15,8 @@ const {
   handleFormVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
+  handlePromptHistoryVisibleUpdate,
+  handlePromptVersionRestored,
   handleReset,
   handleSearch,
   handleSubmitProductLine,
@@ -21,8 +25,10 @@ const {
   loading,
   openCreateModal,
   openEditModal,
+  openPromptHistoryDrawer,
   operatingProductLineId,
   pagination,
+  promptHistoryVisible,
   records,
   submitting
 } = useProductLineTable();
@@ -61,7 +67,18 @@ const {
     :mode="editingProductLineId ? 'edit' : 'create'"
     :can-manage-ai-writing-config="canManageAiWritingConfig"
     :submitting="submitting"
+    @open-prompt-history="openPromptHistoryDrawer"
     @submit="handleSubmitProductLine"
     @update:visible="handleFormVisibleUpdate"
+  />
+
+  <ProductLinePromptVersionDrawer
+    v-model:visible="promptHistoryVisible"
+    :product-line-id="editingProductLineId"
+    :product-line-name="editingProductLineRecord?.name || formModel.name"
+    :current-config="formModel.aiWritingConfig"
+    :can-restore="canManageAiWritingConfig"
+    @restored="handlePromptVersionRestored"
+    @update:visible="handlePromptHistoryVisibleUpdate"
   />
 </template>

@@ -22,7 +22,7 @@ export * as $Enums from './enums'
 export * from "./enums"
 /**
  * ## Prisma Client
- * 
+ *
  * Type-safe database client for TypeScript
  * @example
  * ```
@@ -109,6 +109,11 @@ export type CrmMailboxSendUsage = Prisma.CrmMailboxSendUsageModel
  * 
  */
 export type CrmProductLine = Prisma.CrmProductLineModel
+/**
+ * Model CrmProductLineAiPromptVersion
+ *
+ */
+export type CrmProductLineAiPromptVersion = Prisma.CrmProductLineAiPromptVersionModel
 /**
  * Model CrmPersonaProfile
  * 

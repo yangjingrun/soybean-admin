@@ -39,10 +39,12 @@ import { CreateCrmSequencePolicyDto } from './dto/create-crm-sequence-policy.dto
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
+import { PolishCrmInboxReplyDraftDto } from './dto/polish-crm-inbox-reply-draft.dto';
 import { PreviewCrmAiDraftDto } from './dto/preview-crm-ai-draft.dto';
 import { ReplyCrmInboxThreadDto } from './dto/reply-crm-inbox-thread.dto';
 import { RemoveCrmBlacklistEntryDto } from './dto/remove-crm-blacklist-entry.dto';
 import { SaveCrmGlobalConfigDto } from './dto/save-crm-global-config.dto';
+import { SaveCrmInboxReplyDraftDto } from './dto/save-crm-inbox-reply-draft.dto';
 import { SaveCrmOrganizationConfigDto } from './dto/save-crm-organization-config.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
@@ -227,6 +229,20 @@ export class CrmController {
   @Patch('product-lines/:id/archive')
   async archiveProductLine(@Headers('authorization') authorization = '', @Param('id') id: string) {
     return ok(await this.crmService.archiveProductLine(id, this.requireUserContext(authorization)));
+  }
+
+  @Get('product-lines/:id/ai-prompt-versions')
+  async listProductLineAiPromptVersions(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.listProductLineAiPromptVersions(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('product-lines/:id/ai-prompt-versions/:versionId/restore')
+  async restoreProductLineAiPromptVersion(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Param('versionId') versionId: string
+  ) {
+    return ok(await this.crmService.restoreProductLineAiPromptVersion(id, versionId, this.requireUserContext(authorization)));
   }
 
   @Get('persona-profiles')
@@ -453,6 +469,24 @@ export class CrmController {
     @Body() dto: ReplyCrmInboxThreadDto
   ) {
     return ok(await this.crmService.replyInboxThread(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('inbox-threads/:id/ai-reply-polish')
+  async polishInboxReplyDraft(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: PolishCrmInboxReplyDraftDto
+  ) {
+    return ok(await this.crmService.polishInboxReplyDraft(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Patch('inbox-threads/:id/reply-draft')
+  async saveInboxReplyDraft(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: SaveCrmInboxReplyDraftDto
+  ) {
+    return ok(await this.crmService.saveInboxReplyDraft(id, dto, this.requireUserContext(authorization)));
   }
 
   @Post('messages/:id/mock-reply')

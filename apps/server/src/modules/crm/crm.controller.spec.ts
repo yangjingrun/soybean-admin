@@ -593,6 +593,65 @@ describe('CrmController', () => {
     );
   });
 
+  it('lists and restores product line AI prompt versions with the current organization context', async () => {
+    const calls: Array<{ action: string; id: string; versionId?: string; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listProductLineAiPromptVersions(id, context) {
+          calls.push({ action: 'list', id, context });
+
+          return {
+            records: [
+              {
+                id: 'prompt-version-1',
+                organizationId: context.organizationId,
+                productLineId: id,
+                version: 1,
+                aiWritingConfig: createAiWritingConfigView(),
+                editorId: 'user-1',
+                editorName: 'Alice',
+                changeSummary: '初始 AI 写信配置',
+                createdAt: '2026-06-18T10:00:00.000Z'
+              }
+            ]
+          };
+        },
+        async restoreProductLineAiPromptVersion(id, versionId, context) {
+          calls.push({ action: 'restore', id, versionId, context });
+
+          return {
+            productLine: createProductLineView({ id, aiWritingConfig: createAiWritingConfigView() }),
+            version: {
+              id: 'prompt-version-2',
+              organizationId: context.organizationId,
+              productLineId: id,
+              version: 2,
+              aiWritingConfig: createAiWritingConfigView(),
+              editorId: context.userId,
+              editorName: context.userName,
+              changeSummary: '恢复版本 1',
+              createdAt: '2026-06-18T10:00:00.000Z'
+            }
+          };
+        }
+      })
+    );
+
+    const versions = await controller.listProductLineAiPromptVersions('Bearer token', 'line-1');
+    const restored = await controller.restoreProductLineAiPromptVersion('Bearer token', 'line-1', 'prompt-version-1');
+
+    assert.equal(versions.data.records[0].version, 1);
+    assert.equal(restored.data.version.version, 2);
+    assert.deepEqual(
+      calls.map(call => [call.action, call.id, call.versionId, call.context.userId]),
+      [
+        ['list', 'line-1', undefined, 'user-1'],
+        ['restore', 'line-1', 'prompt-version-1', 'user-1']
+      ]
+    );
+  });
+
   it('manages persona profiles with the current organization context', async () => {
     const calls: Array<{ action: string; id?: string; dto?: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
@@ -1136,6 +1195,36 @@ describe('CrmController', () => {
             ]
           };
         },
+        async polishInboxReplyDraft(id, dto, context) {
+          calls.push({ action: 'reply-polish', id, payload: dto, context });
+
+          return createInboxThreadDetailView({
+            id,
+            replyDraft: {
+              topic: dto.topic,
+              bodyText: `Polished ${dto.topic}`,
+              metadata: { generated: true, reason: 'polished', riskNotes: [] },
+              updatedAt: '2026-06-18T12:00:00.000Z',
+              updatedById: context.userId,
+              updatedByName: context.userName
+            }
+          });
+        },
+        async saveInboxReplyDraft(id, dto, context) {
+          calls.push({ action: 'reply-draft-save', id, payload: dto, context });
+
+          return createInboxThreadDetailView({
+            id,
+            replyDraft: {
+              topic: dto.topic,
+              bodyText: dto.bodyText,
+              metadata: null,
+              updatedAt: '2026-06-18T12:05:00.000Z',
+              updatedById: context.userId,
+              updatedByName: context.userName
+            }
+          });
+        },
         async mockCustomerReply(id, dto, context) {
           calls.push({ action: 'mock-reply', id, payload: dto, context });
 
@@ -1148,6 +1237,14 @@ describe('CrmController', () => {
     const detail = await controller.getInboxThread('Bearer token', 'inbox-thread-1');
     const status = await controller.updateInboxThreadStatus('Bearer token', 'inbox-thread-1', { status: 'handled' });
     const sentReply = await controller.replyInboxThread('Bearer token', 'inbox-thread-1', { bodyText: 'Thanks.' });
+    const polishedDraft = await controller.polishInboxReplyDraft('Bearer token', 'inbox-thread-1', {
+      topic: 'send catalogue',
+      productLineId: 'product-line-1'
+    });
+    const savedDraft = await controller.saveInboxReplyDraft('Bearer token', 'inbox-thread-1', {
+      topic: 'send catalogue',
+      bodyText: 'Manual reply'
+    });
     const reply = await withCrmMockEndpointsEnabled(() =>
       controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' })
     );
@@ -1156,6 +1253,8 @@ describe('CrmController', () => {
     assert.equal(detail.data.thread.id, 'inbox-thread-1');
     assert.equal(status.data.thread.status, 'handled');
     assert.equal(sentReply.data.messages.at(-1)?.direction, 'outbound');
+    assert.equal(polishedDraft.data.replyDraft?.bodyText, 'Polished send catalogue');
+    assert.equal(savedDraft.data.replyDraft?.bodyText, 'Manual reply');
     assert.equal(reply.data.messages[0].direction, 'inbound');
     assert.deepEqual(
       calls.map(call => [call.action, call.id ?? null, call.context.organizationId]),
@@ -1164,6 +1263,8 @@ describe('CrmController', () => {
         ['detail-inbox', 'inbox-thread-1', 'org-1'],
         ['status-inbox', 'inbox-thread-1', 'org-1'],
         ['reply-inbox', 'inbox-thread-1', 'org-1'],
+        ['reply-polish', 'inbox-thread-1', 'org-1'],
+        ['reply-draft-save', 'inbox-thread-1', 'org-1'],
         ['mock-reply', 'message-1', 'org-1']
       ]
     );
@@ -1415,6 +1516,19 @@ function createProductLineView(
   };
 }
 
+function createAiWritingConfigView(): NonNullable<CrmProductLineView['aiWritingConfig']> {
+  return {
+    enabled: true,
+    commonRequirements: 'Write concise B2B emails.',
+    forbiddenClaims: 'Do not invent prices.',
+    productEmphasis: 'Focus on supply reliability.',
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
+      prompt: `Prompt ${stepIndex}`
+    }))
+  };
+}
+
 function createPersonaProfileView(overrides: Partial<CrmPersonaProfileView> = {}): CrmPersonaProfileView {
   return {
     id: 'persona-1',
@@ -1630,7 +1744,9 @@ function createInboxThreadView(overrides: Partial<CrmInboxThreadView> = {}): Crm
   };
 }
 
-function createInboxThreadDetailView(overrides: Partial<CrmInboxThreadView> = {}): CrmInboxThreadDetailView {
+function createInboxThreadDetailView(
+  overrides: Partial<CrmInboxThreadView> & Pick<Partial<CrmInboxThreadDetailView>, 'replyDraft'> = {}
+): CrmInboxThreadDetailView {
   const thread = createInboxThreadView(overrides);
 
   return {
@@ -1667,7 +1783,8 @@ function createInboxThreadDetailView(overrides: Partial<CrmInboxThreadView> = {}
       }
     ],
     timelineEvents: [createTimelineEventView({ eventType: 'customer_replied' })],
-    canOperate: true
+    canOperate: true,
+    replyDraft: overrides.replyDraft ?? null
   };
 }
 
@@ -1903,6 +2020,25 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     async archiveProductLine() {
       return { productLine: createProductLineView({ status: 'archived' }) };
     },
+    async listProductLineAiPromptVersions() {
+      return { records: [] };
+    },
+    async restoreProductLineAiPromptVersion() {
+      return {
+        productLine: createProductLineView({ aiWritingConfig: createAiWritingConfigView() }),
+        version: {
+          id: 'prompt-version-1',
+          organizationId: 'org-1',
+          productLineId: 'product-line-1',
+          version: 1,
+          aiWritingConfig: createAiWritingConfigView(),
+          editorId: 'user-1',
+          editorName: 'Alice',
+          changeSummary: '恢复版本 1',
+          createdAt: '2026-06-18T10:00:00.000Z'
+        }
+      };
+    },
     async listPersonaProfiles() {
       return {
         current: 1,
@@ -1992,6 +2128,30 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async replyInboxThread() {
       return createInboxThreadDetailView();
+    },
+    async polishInboxReplyDraft() {
+      return createInboxThreadDetailView({
+        replyDraft: {
+          topic: 'send catalogue',
+          bodyText: 'Polished reply',
+          metadata: { generated: true, reason: 'polished', riskNotes: [] },
+          updatedAt: '2026-06-18T12:00:00.000Z',
+          updatedById: 'user-1',
+          updatedByName: 'Alice'
+        }
+      });
+    },
+    async saveInboxReplyDraft() {
+      return createInboxThreadDetailView({
+        replyDraft: {
+          topic: 'send catalogue',
+          bodyText: 'Manual reply',
+          metadata: null,
+          updatedAt: '2026-06-18T12:05:00.000Z',
+          updatedById: 'user-1',
+          updatedByName: 'Alice'
+        }
+      });
     },
     async mockCustomerReply() {
       return createInboxThreadDetailView();

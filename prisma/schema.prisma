@@ -76,6 +76,7 @@ model Organization {
   crmMailboxes      CrmMailbox[]
   crmMailboxSendUsages CrmMailboxSendUsage[]
   crmProductLines   CrmProductLine[]
+  crmProductLineAiPromptVersions CrmProductLineAiPromptVersion[]
   crmPersonaProfiles CrmPersonaProfile[]
   crmEmailTemplateGroups CrmEmailTemplateGroup[]
   crmEmailTemplateSteps  CrmEmailTemplateStep[]
@@ -344,10 +345,30 @@ model CrmProductLine {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   enrollments  CrmSequenceEnrollment[]
+  aiPromptVersions CrmProductLineAiPromptVersion[]
 
   @@unique([organizationId, name])
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, updatedAt])
+}
+
+model CrmProductLineAiPromptVersion {
+  id              String   @id @default(uuid())
+  organizationId  String
+  productLineId   String
+  version         Int
+  aiWritingConfig Json?
+  editorId        String
+  editorName      String?
+  changeSummary   String?
+  createdAt       DateTime @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  productLine  CrmProductLine @relation(fields: [productLineId], references: [id], onDelete: Cascade)
+
+  @@unique([productLineId, version])
+  @@index([organizationId, productLineId, version])
+  @@index([organizationId, createdAt])
 }
 
 model CrmPersonaProfile {
@@ -561,6 +582,12 @@ model CrmInboxThread {
   lastInboundAt    DateTime
   unreadCount      Int      @default(1)
   messageCount     Int      @default(0)
+  replyDraftBodyText String?
+  replyDraftTopic    String?
+  replyDraftMetadata Json?
+  replyDraftUpdatedAt DateTime?
+  replyDraftUpdatedById String?
+  replyDraftUpdatedByName String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

@@ -284,6 +284,7 @@ export type CrmProductLineWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionListRelationFilter
 }
 
 export type CrmProductLineOrderByWithRelationInput = {
@@ -307,6 +308,7 @@ export type CrmProductLineOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   organization?: Prisma.OrganizationOrderByWithRelationInput
   enrollments?: Prisma.CrmSequenceEnrollmentOrderByRelationAggregateInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionOrderByRelationAggregateInput
 }
 
 export type CrmProductLineWhereUniqueInput = Prisma.AtLeast<{
@@ -334,6 +336,7 @@ export type CrmProductLineWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   enrollments?: Prisma.CrmSequenceEnrollmentListRelationFilter
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionListRelationFilter
 }, "id" | "organizationId_name">
 
 export type CrmProductLineOrderByWithAggregationInput = {
@@ -404,6 +407,7 @@ export type CrmProductLineCreateInput = {
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmProductLinesInput
   enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutProductLineInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineUncheckedCreateInput = {
@@ -426,6 +430,7 @@ export type CrmProductLineUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutProductLineInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineUpdateInput = {
@@ -448,6 +453,7 @@ export type CrmProductLineUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmProductLinesNestedInput
   enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutProductLineNestedInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineUncheckedUpdateInput = {
@@ -470,6 +476,7 @@ export type CrmProductLineUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutProductLineNestedInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineCreateManyInput = {
@@ -610,6 +617,11 @@ export type CrmProductLineMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
+export type CrmProductLineScalarRelationFilter = {
+  is?: Prisma.CrmProductLineWhereInput
+  isNot?: Prisma.CrmProductLineWhereInput
+}
+
 export type CrmProductLineNullableScalarRelationFilter = {
   is?: Prisma.CrmProductLineWhereInput | null
   isNot?: Prisma.CrmProductLineWhereInput | null
@@ -657,6 +669,20 @@ export type CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput = {
   deleteMany?: Prisma.CrmProductLineScalarWhereInput | Prisma.CrmProductLineScalarWhereInput[]
 }
 
+export type CrmProductLineCreateNestedOneWithoutAiPromptVersionsInput = {
+  create?: Prisma.XOR<Prisma.CrmProductLineCreateWithoutAiPromptVersionsInput, Prisma.CrmProductLineUncheckedCreateWithoutAiPromptVersionsInput>
+  connectOrCreate?: Prisma.CrmProductLineCreateOrConnectWithoutAiPromptVersionsInput
+  connect?: Prisma.CrmProductLineWhereUniqueInput
+}
+
+export type CrmProductLineUpdateOneRequiredWithoutAiPromptVersionsNestedInput = {
+  create?: Prisma.XOR<Prisma.CrmProductLineCreateWithoutAiPromptVersionsInput, Prisma.CrmProductLineUncheckedCreateWithoutAiPromptVersionsInput>
+  connectOrCreate?: Prisma.CrmProductLineCreateOrConnectWithoutAiPromptVersionsInput
+  upsert?: Prisma.CrmProductLineUpsertWithoutAiPromptVersionsInput
+  connect?: Prisma.CrmProductLineWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CrmProductLineUpdateToOneWithWhereWithoutAiPromptVersionsInput, Prisma.CrmProductLineUpdateWithoutAiPromptVersionsInput>, Prisma.CrmProductLineUncheckedUpdateWithoutAiPromptVersionsInput>
+}
+
 export type CrmProductLineCreateNestedOneWithoutEnrollmentsInput = {
   create?: Prisma.XOR<Prisma.CrmProductLineCreateWithoutEnrollmentsInput, Prisma.CrmProductLineUncheckedCreateWithoutEnrollmentsInput>
   connectOrCreate?: Prisma.CrmProductLineCreateOrConnectWithoutEnrollmentsInput
@@ -692,6 +718,7 @@ export type CrmProductLineCreateWithoutOrganizationInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutProductLineInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineUncheckedCreateWithoutOrganizationInput = {
@@ -713,6 +740,7 @@ export type CrmProductLineUncheckedCreateWithoutOrganizationInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutProductLineInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineCreateOrConnectWithoutOrganizationInput = {
@@ -765,6 +793,110 @@ export type CrmProductLineScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"CrmProductLine"> | Date | string
 }
 
+export type CrmProductLineCreateWithoutAiPromptVersionsInput = {
+  id?: string
+  name: string
+  targetCustomerType?: string | null
+  coreSellingPoints?: string | null
+  moq?: string | null
+  leadTime?: string | null
+  paymentTerms?: string | null
+  certifications?: string | null
+  catalogUrl?: string | null
+  websiteUrl?: string | null
+  commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdById: string
+  createdByName?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization: Prisma.OrganizationCreateNestedOneWithoutCrmProductLinesInput
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutProductLineInput
+}
+
+export type CrmProductLineUncheckedCreateWithoutAiPromptVersionsInput = {
+  id?: string
+  organizationId: string
+  name: string
+  targetCustomerType?: string | null
+  coreSellingPoints?: string | null
+  moq?: string | null
+  leadTime?: string | null
+  paymentTerms?: string | null
+  certifications?: string | null
+  catalogUrl?: string | null
+  websiteUrl?: string | null
+  commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdById: string
+  createdByName?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutProductLineInput
+}
+
+export type CrmProductLineCreateOrConnectWithoutAiPromptVersionsInput = {
+  where: Prisma.CrmProductLineWhereUniqueInput
+  create: Prisma.XOR<Prisma.CrmProductLineCreateWithoutAiPromptVersionsInput, Prisma.CrmProductLineUncheckedCreateWithoutAiPromptVersionsInput>
+}
+
+export type CrmProductLineUpsertWithoutAiPromptVersionsInput = {
+  update: Prisma.XOR<Prisma.CrmProductLineUpdateWithoutAiPromptVersionsInput, Prisma.CrmProductLineUncheckedUpdateWithoutAiPromptVersionsInput>
+  create: Prisma.XOR<Prisma.CrmProductLineCreateWithoutAiPromptVersionsInput, Prisma.CrmProductLineUncheckedCreateWithoutAiPromptVersionsInput>
+  where?: Prisma.CrmProductLineWhereInput
+}
+
+export type CrmProductLineUpdateToOneWithWhereWithoutAiPromptVersionsInput = {
+  where?: Prisma.CrmProductLineWhereInput
+  data: Prisma.XOR<Prisma.CrmProductLineUpdateWithoutAiPromptVersionsInput, Prisma.CrmProductLineUncheckedUpdateWithoutAiPromptVersionsInput>
+}
+
+export type CrmProductLineUpdateWithoutAiPromptVersionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  targetCustomerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coreSellingPoints?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  moq?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  leadTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentTerms?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  certifications?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdById?: Prisma.StringFieldUpdateOperationsInput | string
+  createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmProductLinesNestedInput
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutProductLineNestedInput
+}
+
+export type CrmProductLineUncheckedUpdateWithoutAiPromptVersionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  targetCustomerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coreSellingPoints?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  moq?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  leadTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentTerms?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  certifications?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdById?: Prisma.StringFieldUpdateOperationsInput | string
+  createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutProductLineNestedInput
+}
+
 export type CrmProductLineCreateWithoutEnrollmentsInput = {
   id?: string
   name: string
@@ -784,6 +916,7 @@ export type CrmProductLineCreateWithoutEnrollmentsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmProductLinesInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineUncheckedCreateWithoutEnrollmentsInput = {
@@ -805,6 +938,7 @@ export type CrmProductLineUncheckedCreateWithoutEnrollmentsInput = {
   createdByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedCreateNestedManyWithoutProductLineInput
 }
 
 export type CrmProductLineCreateOrConnectWithoutEnrollmentsInput = {
@@ -842,6 +976,7 @@ export type CrmProductLineUpdateWithoutEnrollmentsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmProductLinesNestedInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineUncheckedUpdateWithoutEnrollmentsInput = {
@@ -863,6 +998,7 @@ export type CrmProductLineUncheckedUpdateWithoutEnrollmentsInput = {
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineCreateManyOrganizationInput = {
@@ -904,6 +1040,7 @@ export type CrmProductLineUpdateWithoutOrganizationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutProductLineNestedInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineUncheckedUpdateWithoutOrganizationInput = {
@@ -925,6 +1062,7 @@ export type CrmProductLineUncheckedUpdateWithoutOrganizationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutProductLineNestedInput
+  aiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedUpdateManyWithoutProductLineNestedInput
 }
 
 export type CrmProductLineUncheckedUpdateManyWithoutOrganizationInput = {
@@ -954,10 +1092,12 @@ export type CrmProductLineUncheckedUpdateManyWithoutOrganizationInput = {
 
 export type CrmProductLineCountOutputType = {
   enrollments: number
+  aiPromptVersions: number
 }
 
 export type CrmProductLineCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   enrollments?: boolean | CrmProductLineCountOutputTypeCountEnrollmentsArgs
+  aiPromptVersions?: boolean | CrmProductLineCountOutputTypeCountAiPromptVersionsArgs
 }
 
 /**
@@ -975,6 +1115,13 @@ export type CrmProductLineCountOutputTypeDefaultArgs<ExtArgs extends runtime.Typ
  */
 export type CrmProductLineCountOutputTypeCountEnrollmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.CrmSequenceEnrollmentWhereInput
+}
+
+/**
+ * CrmProductLineCountOutputType without action
+ */
+export type CrmProductLineCountOutputTypeCountAiPromptVersionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmProductLineAiPromptVersionWhereInput
 }
 
 
@@ -999,6 +1146,7 @@ export type CrmProductLineSelect<ExtArgs extends runtime.Types.Extensions.Intern
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   enrollments?: boolean | Prisma.CrmProductLine$enrollmentsArgs<ExtArgs>
+  aiPromptVersions?: boolean | Prisma.CrmProductLine$aiPromptVersionsArgs<ExtArgs>
   _count?: boolean | Prisma.CrmProductLineCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["crmProductLine"]>
 
@@ -1071,6 +1219,7 @@ export type CrmProductLineOmit<ExtArgs extends runtime.Types.Extensions.Internal
 export type CrmProductLineInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   enrollments?: boolean | Prisma.CrmProductLine$enrollmentsArgs<ExtArgs>
+  aiPromptVersions?: boolean | Prisma.CrmProductLine$aiPromptVersionsArgs<ExtArgs>
   _count?: boolean | Prisma.CrmProductLineCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CrmProductLineIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1085,6 +1234,7 @@ export type $CrmProductLinePayload<ExtArgs extends runtime.Types.Extensions.Inte
   objects: {
     organization: Prisma.$OrganizationPayload<ExtArgs>
     enrollments: Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>[]
+    aiPromptVersions: Prisma.$CrmProductLineAiPromptVersionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1501,6 +1651,7 @@ export interface Prisma__CrmProductLineClient<T, Null = never, ExtArgs extends r
   readonly [Symbol.toStringTag]: "PrismaPromise"
   organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>): Prisma.Prisma__OrganizationClient<runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   enrollments<T extends Prisma.CrmProductLine$enrollmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmProductLine$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmSequenceEnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  aiPromptVersions<T extends Prisma.CrmProductLine$aiPromptVersionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CrmProductLine$aiPromptVersionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmProductLineAiPromptVersionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1970,6 +2121,30 @@ export type CrmProductLine$enrollmentsArgs<ExtArgs extends runtime.Types.Extensi
   take?: number
   skip?: number
   distinct?: Prisma.CrmSequenceEnrollmentScalarFieldEnum | Prisma.CrmSequenceEnrollmentScalarFieldEnum[]
+}
+
+/**
+ * CrmProductLine.aiPromptVersions
+ */
+export type CrmProductLine$aiPromptVersionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmProductLineAiPromptVersion
+   */
+  select?: Prisma.CrmProductLineAiPromptVersionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmProductLineAiPromptVersion
+   */
+  omit?: Prisma.CrmProductLineAiPromptVersionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmProductLineAiPromptVersionInclude<ExtArgs> | null
+  where?: Prisma.CrmProductLineAiPromptVersionWhereInput
+  orderBy?: Prisma.CrmProductLineAiPromptVersionOrderByWithRelationInput | Prisma.CrmProductLineAiPromptVersionOrderByWithRelationInput[]
+  cursor?: Prisma.CrmProductLineAiPromptVersionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmProductLineAiPromptVersionScalarFieldEnum | Prisma.CrmProductLineAiPromptVersionScalarFieldEnum[]
 }
 
 /**

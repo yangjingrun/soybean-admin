@@ -356,6 +356,18 @@ export interface CrmProductLineAiWritingConfig {
   steps: CrmProductLineAiWritingStepConfig[];
 }
 
+export interface CrmProductLineAiPromptVersionRecord {
+  id: string;
+  organizationId: string;
+  productLineId: string;
+  version: number;
+  aiWritingConfig: CrmProductLineAiWritingConfig | null;
+  editorId: string;
+  editorName: string | null;
+  changeSummary: string | null;
+  createdAt: Date;
+}
+
 export interface CrmAiDraftSnapshot {
   productLineId: string;
   productLineName: string;
@@ -514,8 +526,32 @@ export interface CrmInboxThreadRecord {
   lastInboundAt: Date;
   unreadCount: number;
   messageCount: number;
+  replyDraftBodyText?: string | null;
+  replyDraftTopic?: string | null;
+  replyDraftMetadata?: CrmInboxReplyDraftMetadata | null;
+  replyDraftUpdatedAt?: Date | null;
+  replyDraftUpdatedById?: string | null;
+  replyDraftUpdatedByName?: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CrmInboxReplyDraftMetadata {
+  generated: boolean;
+  reason: string;
+  riskNotes: string[];
+  productLineId?: string | null;
+  productLineName?: string | null;
+  generatedAt?: string;
+}
+
+export interface CrmInboxReplyDraftRecord {
+  topic: string;
+  bodyText: string;
+  metadata: CrmInboxReplyDraftMetadata | null;
+  updatedAt: Date;
+  updatedById: string;
+  updatedByName: string | null;
 }
 
 export interface CrmInboxMessageRecord {
@@ -717,6 +753,30 @@ export interface CrmProductLineUpdateInput {
   commonModelsText?: string | null;
   aiWritingConfig?: CrmProductLineAiWritingConfig | null;
   status?: CrmProductLineStatus;
+}
+
+export interface CrmProductLineAiPromptVersionCreateInput {
+  organizationId: string;
+  productLineId: string;
+  aiWritingConfig: CrmProductLineAiWritingConfig | null;
+  editorId: string;
+  editorName?: string | null;
+  changeSummary?: string | null;
+}
+
+export interface CrmProductLineAiPromptVersionRestoreInput {
+  organizationId: string;
+  productLineId: string;
+  versionId: string;
+  editorId: string;
+  editorName?: string | null;
+  changeSummary?: string | null;
+}
+
+export interface CrmProductLineAiPromptVersionRestoreRecord {
+  productLine: CrmProductLineRecord;
+  restoredVersion: CrmProductLineAiPromptVersionRecord;
+  currentVersion: CrmProductLineAiPromptVersionRecord;
 }
 
 export interface CrmPersonaProfileCreateInput {
@@ -1314,6 +1374,18 @@ export interface CrmInboxThreadReplyInput {
   providerMessageId?: string | null;
 }
 
+export interface CrmInboxReplyDraftSaveInput {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  topic: string;
+  bodyText: string;
+  metadata?: CrmInboxReplyDraftMetadata | null;
+  updatedAt: Date;
+  updatedById: string;
+  updatedByName?: string | null;
+}
+
 export interface CrmInboxThreadReplyRecord {
   thread: CrmInboxThreadRecord;
   message: CrmInboxMessageRecord;
@@ -1393,6 +1465,16 @@ export interface CrmStore {
     organizationId: string,
     input: CrmProductLineUpdateInput
   ): Promise<CrmProductLineRecord | null>;
+  createProductLineAiPromptVersion(
+    input: CrmProductLineAiPromptVersionCreateInput
+  ): Promise<CrmProductLineAiPromptVersionRecord>;
+  listProductLineAiPromptVersions(args: {
+    organizationId: string;
+    productLineId: string;
+  }): Promise<CrmProductLineAiPromptVersionRecord[]>;
+  restoreProductLineAiPromptVersion(
+    input: CrmProductLineAiPromptVersionRestoreInput
+  ): Promise<CrmProductLineAiPromptVersionRestoreRecord | null>;
   listPersonaProfiles(
     input: CrmPersonaProfileListInput
   ): Promise<{ records: CrmPersonaProfileRecord[]; total: number }>;
@@ -1521,5 +1603,6 @@ export interface CrmStore {
   }): Promise<CrmInboxThreadDetailRecord | null>;
   updateInboxThreadStatus(input: CrmInboxThreadStatusUpdateInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
   syncInboxThreadGmailState(input: CrmInboxThreadGmailStateSyncInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
+  saveInboxThreadReplyDraft(input: CrmInboxReplyDraftSaveInput): Promise<CrmInboxThreadDetailRecord | null>;
   replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null>;
 }

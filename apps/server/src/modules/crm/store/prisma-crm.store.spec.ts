@@ -872,6 +872,83 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('creates and lists product line AI prompt versions by version descending', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const aiWritingConfig = createAiWritingConfig();
+
+    const created = await store.createProductLineAiPromptVersion({
+      organizationId: 'org-1',
+      productLineId: 'product-line-1',
+      aiWritingConfig,
+      editorId: 'user-1',
+      editorName: 'Alice',
+      changeSummary: '初始 AI 写信配置'
+    });
+    const versions = await store.listProductLineAiPromptVersions({
+      organizationId: 'org-1',
+      productLineId: 'product-line-1'
+    });
+
+    assert.equal(created.version, 3);
+    assert.deepEqual(prisma.crmProductLineAiPromptVersion.createCalls[0].data, {
+      organizationId: 'org-1',
+      productLineId: 'product-line-1',
+      version: 3,
+      aiWritingConfig,
+      editorId: 'user-1',
+      editorName: 'Alice',
+      changeSummary: '初始 AI 写信配置'
+    });
+    assert.deepEqual(prisma.crmProductLineAiPromptVersion.findManyCalls[0], {
+      where: {
+        organizationId: 'org-1',
+        productLineId: 'product-line-1'
+      },
+      orderBy: { version: 'desc' }
+    });
+    assert.deepEqual(
+      versions.map(version => version.version),
+      [2, 1]
+    );
+  });
+
+  it('restores product line AI prompt versions in one Prisma transaction', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const restored = await store.restoreProductLineAiPromptVersion({
+      organizationId: 'org-1',
+      productLineId: 'product-line-1',
+      versionId: 'product-line-prompt-version-1',
+      editorId: 'admin-1',
+      editorName: 'Admin',
+      changeSummary: '恢复版本 1'
+    });
+
+    assert.equal(restored?.productLine.aiWritingConfig?.productEmphasis, 'Historic emphasis.');
+    assert.equal(restored?.currentVersion.version, 3);
+    assert.deepEqual(prisma.crmProductLineAiPromptVersion.findFirstCalls[0], {
+      where: {
+        id: 'product-line-prompt-version-1',
+        organizationId: 'org-1',
+        productLineId: 'product-line-1'
+      }
+    });
+    assert.deepEqual(prisma.crmProductLine.updateManyAndReturnCalls.at(-1), {
+      where: {
+        id: 'product-line-1',
+        organizationId: 'org-1'
+      },
+      data: {
+        aiWritingConfig: restored?.restoredVersion.aiWritingConfig
+      },
+      limit: 1
+    });
+    assert.equal(prisma.crmProductLineAiPromptVersion.createCalls.at(-1)?.data.version, 3);
+    assert.equal(prisma.crmProductLineAiPromptVersion.createCalls.at(-1)?.data.changeSummary, '恢复版本 1');
+  });
+
   it('creates, lists, updates and defaults persona profiles with organization scope', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1765,6 +1842,53 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'inbox_status_changed');
   });
 
+  it('saves inbox reply draft fields without creating messages or changing thread state', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.saveInboxThreadReplyDraft({
+      id: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      topic: 'send catalogue',
+      bodyText: 'Polished reply body',
+      metadata: {
+        generated: true,
+        reason: '根据用户主题润色扩写',
+        riskNotes: ['人工确认']
+      },
+      updatedAt: new Date('2026-06-18T12:00:00.000Z'),
+      updatedById: 'user-1',
+      updatedByName: 'Alice'
+    });
+
+    assert.equal(result?.thread.replyDraftBodyText, 'Polished reply body');
+    assert.equal(result?.thread.status, 'pending');
+    assert.equal(result?.thread.unreadCount, 1);
+    assert.equal(result?.thread.messageCount, 1);
+    assert.deepEqual(prisma.crmInboxThread.updateManyAndReturnCalls.at(-1)?.where, {
+      id: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmInboxThread.updateManyAndReturnCalls.at(-1)?.data, {
+      replyDraftTopic: 'send catalogue',
+      replyDraftBodyText: 'Polished reply body',
+      replyDraftMetadata: {
+        generated: true,
+        reason: '根据用户主题润色扩写',
+        riskNotes: ['人工确认']
+      },
+      replyDraftUpdatedAt: new Date('2026-06-18T12:00:00.000Z'),
+      replyDraftUpdatedById: 'user-1',
+      replyDraftUpdatedByName: 'Alice'
+    });
+    assert.equal(prisma.crmInboxMessage.createCalls.length, 0);
+    assert.equal('status' in prisma.crmInboxThread.updateManyAndReturnCalls.at(-1)!.data, false);
+    assert.equal('unreadCount' in prisma.crmInboxThread.updateManyAndReturnCalls.at(-1)!.data, false);
+    assert.equal('messageCount' in prisma.crmInboxThread.updateManyAndReturnCalls.at(-1)!.data, false);
+  });
+
   it('marks an inbox thread handled when Gmail removes UNREAD', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -2120,6 +2244,33 @@ function createPrismaDraftVersion(input: Record<string, unknown> = {}) {
   };
 }
 
+function createAiWritingConfig(input: Record<string, unknown> = {}) {
+  return {
+    enabled: true,
+    commonRequirements: 'Write concise B2B emails.',
+    forbiddenClaims: 'Do not invent prices.',
+    productEmphasis: typeof input.productEmphasis === 'string' ? input.productEmphasis : 'Focus on supply reliability.',
+    steps: ([1, 2, 3, 4, 5] as const).map(stepIndex => ({
+      stepIndex,
+      prompt: `Prompt ${stepIndex}`
+    }))
+  };
+}
+
+function createPrismaProductLinePromptVersion(input: Record<string, unknown> = {}) {
+  return {
+    id: input.id ?? 'product-line-prompt-version-1',
+    organizationId: input.organizationId ?? 'org-1',
+    productLineId: input.productLineId ?? 'product-line-1',
+    version: input.version ?? 1,
+    aiWritingConfig: input.aiWritingConfig ?? createAiWritingConfig({ productEmphasis: 'Historic emphasis.' }),
+    editorId: input.editorId ?? 'user-1',
+    editorName: input.editorName ?? 'Alice',
+    changeSummary: input.changeSummary ?? 'AI 写信配置更新',
+    createdAt: input.createdAt ?? new Date('2026-06-18T10:00:00.000Z')
+  };
+}
+
 function createPrismaBlacklist(input: Record<string, unknown> = {}) {
   return {
     id: 'blacklist-1',
@@ -2400,6 +2551,12 @@ function createPrisma(
     lastInboundAt: new Date('2026-06-18T11:00:00.000Z'),
     unreadCount: 1,
     messageCount: 1,
+    replyDraftBodyText: null,
+    replyDraftTopic: null,
+    replyDraftMetadata: null,
+    replyDraftUpdatedAt: null,
+    replyDraftUpdatedById: null,
+    replyDraftUpdatedByName: null,
     createdAt: new Date('2026-06-18T11:00:00.000Z'),
     updatedAt: new Date('2026-06-18T11:00:00.000Z'),
     account,
@@ -3005,6 +3162,31 @@ function createPrisma(
         return [{ ...productLine, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
       }
     },
+    crmProductLineAiPromptVersion: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown>; orderBy?: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return createPrismaProductLinePromptVersion(args.data);
+      },
+      async findFirst(args: { where: Record<string, unknown>; orderBy?: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+
+        if (args.orderBy) {
+          return createPrismaProductLinePromptVersion({ id: 'product-line-prompt-version-2', version: 2 });
+        }
+
+        return createPrismaProductLinePromptVersion();
+      },
+      async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
+        this.findManyCalls.push(args);
+        return [
+          createPrismaProductLinePromptVersion({ id: 'product-line-prompt-version-2', version: 2 }),
+          createPrismaProductLinePromptVersion({ id: 'product-line-prompt-version-1', version: 1 })
+        ];
+      }
+    },
     crmPersonaProfile: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
@@ -3250,14 +3432,16 @@ function createPrisma(
         this.updateCalls.push(args);
         return { ...inboxThread, ...args.data, updatedAt: new Date('2026-06-18T12:00:00.000Z') };
       },
-      async updateManyAndReturn(args: {
-        where: Record<string, unknown>;
-        data: Record<string, unknown>;
-        limit: number;
-      }) {
-        this.updateManyAndReturnCalls.push(args);
-        return [{ ...inboxThread, ...args.data, updatedAt: new Date('2026-06-18T12:00:00.000Z') }];
-      }
+	      async updateManyAndReturn(args: {
+	        where: Record<string, unknown>;
+	        data: Record<string, unknown>;
+	        limit: number;
+	      }) {
+	        this.updateManyAndReturnCalls.push(args);
+	        Object.assign(inboxThread, args.data, { updatedAt: new Date('2026-06-18T12:00:00.000Z') });
+
+	        return [inboxThread];
+	      }
     },
     crmInboxMessage: {
       findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,

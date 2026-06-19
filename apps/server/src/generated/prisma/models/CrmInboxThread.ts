@@ -51,6 +51,11 @@ export type CrmInboxThreadMinAggregateOutputType = {
   lastInboundAt: Date | null
   unreadCount: number | null
   messageCount: number | null
+  replyDraftBodyText: string | null
+  replyDraftTopic: string | null
+  replyDraftUpdatedAt: Date | null
+  replyDraftUpdatedById: string | null
+  replyDraftUpdatedByName: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -70,6 +75,11 @@ export type CrmInboxThreadMaxAggregateOutputType = {
   lastInboundAt: Date | null
   unreadCount: number | null
   messageCount: number | null
+  replyDraftBodyText: string | null
+  replyDraftTopic: string | null
+  replyDraftUpdatedAt: Date | null
+  replyDraftUpdatedById: string | null
+  replyDraftUpdatedByName: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -89,6 +99,12 @@ export type CrmInboxThreadCountAggregateOutputType = {
   lastInboundAt: number
   unreadCount: number
   messageCount: number
+  replyDraftBodyText: number
+  replyDraftTopic: number
+  replyDraftMetadata: number
+  replyDraftUpdatedAt: number
+  replyDraftUpdatedById: number
+  replyDraftUpdatedByName: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -120,6 +136,11 @@ export type CrmInboxThreadMinAggregateInputType = {
   lastInboundAt?: true
   unreadCount?: true
   messageCount?: true
+  replyDraftBodyText?: true
+  replyDraftTopic?: true
+  replyDraftUpdatedAt?: true
+  replyDraftUpdatedById?: true
+  replyDraftUpdatedByName?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -139,6 +160,11 @@ export type CrmInboxThreadMaxAggregateInputType = {
   lastInboundAt?: true
   unreadCount?: true
   messageCount?: true
+  replyDraftBodyText?: true
+  replyDraftTopic?: true
+  replyDraftUpdatedAt?: true
+  replyDraftUpdatedById?: true
+  replyDraftUpdatedByName?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -158,6 +184,12 @@ export type CrmInboxThreadCountAggregateInputType = {
   lastInboundAt?: true
   unreadCount?: true
   messageCount?: true
+  replyDraftBodyText?: true
+  replyDraftTopic?: true
+  replyDraftMetadata?: true
+  replyDraftUpdatedAt?: true
+  replyDraftUpdatedById?: true
+  replyDraftUpdatedByName?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -264,6 +296,12 @@ export type CrmInboxThreadGroupByOutputType = {
   lastInboundAt: Date
   unreadCount: number
   messageCount: number
+  replyDraftBodyText: string | null
+  replyDraftTopic: string | null
+  replyDraftMetadata: runtime.JsonValue | null
+  replyDraftUpdatedAt: Date | null
+  replyDraftUpdatedById: string | null
+  replyDraftUpdatedByName: string | null
   createdAt: Date
   updatedAt: Date
   _count: CrmInboxThreadCountAggregateOutputType | null
@@ -306,6 +344,12 @@ export type CrmInboxThreadWhereInput = {
   lastInboundAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   unreadCount?: Prisma.IntFilter<"CrmInboxThread"> | number
   messageCount?: Prisma.IntFilter<"CrmInboxThread"> | number
+  replyDraftBodyText?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftTopic?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftMetadata?: Prisma.JsonNullableFilter<"CrmInboxThread">
+  replyDraftUpdatedAt?: Prisma.DateTimeNullableFilter<"CrmInboxThread"> | Date | string | null
+  replyDraftUpdatedById?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftUpdatedByName?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
@@ -331,6 +375,12 @@ export type CrmInboxThreadOrderByWithRelationInput = {
   lastInboundAt?: Prisma.SortOrder
   unreadCount?: Prisma.SortOrder
   messageCount?: Prisma.SortOrder
+  replyDraftBodyText?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftTopic?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftMetadata?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftUpdatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftUpdatedById?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftUpdatedByName?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   organization?: Prisma.OrganizationOrderByWithRelationInput
@@ -360,6 +410,12 @@ export type CrmInboxThreadWhereUniqueInput = Prisma.AtLeast<{
   lastInboundAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   unreadCount?: Prisma.IntFilter<"CrmInboxThread"> | number
   messageCount?: Prisma.IntFilter<"CrmInboxThread"> | number
+  replyDraftBodyText?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftTopic?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftMetadata?: Prisma.JsonNullableFilter<"CrmInboxThread">
+  replyDraftUpdatedAt?: Prisma.DateTimeNullableFilter<"CrmInboxThread"> | Date | string | null
+  replyDraftUpdatedById?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftUpdatedByName?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
@@ -385,6 +441,12 @@ export type CrmInboxThreadOrderByWithAggregationInput = {
   lastInboundAt?: Prisma.SortOrder
   unreadCount?: Prisma.SortOrder
   messageCount?: Prisma.SortOrder
+  replyDraftBodyText?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftTopic?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftMetadata?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftUpdatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftUpdatedById?: Prisma.SortOrderInput | Prisma.SortOrder
+  replyDraftUpdatedByName?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.CrmInboxThreadCountOrderByAggregateInput
@@ -412,6 +474,12 @@ export type CrmInboxThreadScalarWhereWithAggregatesInput = {
   lastInboundAt?: Prisma.DateTimeWithAggregatesFilter<"CrmInboxThread"> | Date | string
   unreadCount?: Prisma.IntWithAggregatesFilter<"CrmInboxThread"> | number
   messageCount?: Prisma.IntWithAggregatesFilter<"CrmInboxThread"> | number
+  replyDraftBodyText?: Prisma.StringNullableWithAggregatesFilter<"CrmInboxThread"> | string | null
+  replyDraftTopic?: Prisma.StringNullableWithAggregatesFilter<"CrmInboxThread"> | string | null
+  replyDraftMetadata?: Prisma.JsonNullableWithAggregatesFilter<"CrmInboxThread">
+  replyDraftUpdatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"CrmInboxThread"> | Date | string | null
+  replyDraftUpdatedById?: Prisma.StringNullableWithAggregatesFilter<"CrmInboxThread"> | string | null
+  replyDraftUpdatedByName?: Prisma.StringNullableWithAggregatesFilter<"CrmInboxThread"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CrmInboxThread"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"CrmInboxThread"> | Date | string
 }
@@ -426,6 +494,12 @@ export type CrmInboxThreadCreateInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmInboxThreadsInput
@@ -451,6 +525,12 @@ export type CrmInboxThreadUncheckedCreateInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutThreadInput
@@ -466,6 +546,12 @@ export type CrmInboxThreadUpdateInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmInboxThreadsNestedInput
@@ -491,6 +577,12 @@ export type CrmInboxThreadUncheckedUpdateInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutThreadNestedInput
@@ -511,6 +603,12 @@ export type CrmInboxThreadCreateManyInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -525,6 +623,12 @@ export type CrmInboxThreadUpdateManyMutationInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -544,6 +648,12 @@ export type CrmInboxThreadUncheckedUpdateManyInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -580,6 +690,12 @@ export type CrmInboxThreadCountOrderByAggregateInput = {
   lastInboundAt?: Prisma.SortOrder
   unreadCount?: Prisma.SortOrder
   messageCount?: Prisma.SortOrder
+  replyDraftBodyText?: Prisma.SortOrder
+  replyDraftTopic?: Prisma.SortOrder
+  replyDraftMetadata?: Prisma.SortOrder
+  replyDraftUpdatedAt?: Prisma.SortOrder
+  replyDraftUpdatedById?: Prisma.SortOrder
+  replyDraftUpdatedByName?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -604,6 +720,11 @@ export type CrmInboxThreadMaxOrderByAggregateInput = {
   lastInboundAt?: Prisma.SortOrder
   unreadCount?: Prisma.SortOrder
   messageCount?: Prisma.SortOrder
+  replyDraftBodyText?: Prisma.SortOrder
+  replyDraftTopic?: Prisma.SortOrder
+  replyDraftUpdatedAt?: Prisma.SortOrder
+  replyDraftUpdatedById?: Prisma.SortOrder
+  replyDraftUpdatedByName?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -623,6 +744,11 @@ export type CrmInboxThreadMinOrderByAggregateInput = {
   lastInboundAt?: Prisma.SortOrder
   unreadCount?: Prisma.SortOrder
   messageCount?: Prisma.SortOrder
+  replyDraftBodyText?: Prisma.SortOrder
+  replyDraftTopic?: Prisma.SortOrder
+  replyDraftUpdatedAt?: Prisma.SortOrder
+  replyDraftUpdatedById?: Prisma.SortOrder
+  replyDraftUpdatedByName?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -871,6 +997,12 @@ export type CrmInboxThreadCreateWithoutOrganizationInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   account: Prisma.CrmAccountCreateNestedOneWithoutInboxThreadsInput
@@ -894,6 +1026,12 @@ export type CrmInboxThreadUncheckedCreateWithoutOrganizationInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutThreadInput
@@ -943,6 +1081,12 @@ export type CrmInboxThreadScalarWhereInput = {
   lastInboundAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   unreadCount?: Prisma.IntFilter<"CrmInboxThread"> | number
   messageCount?: Prisma.IntFilter<"CrmInboxThread"> | number
+  replyDraftBodyText?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftTopic?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftMetadata?: Prisma.JsonNullableFilter<"CrmInboxThread">
+  replyDraftUpdatedAt?: Prisma.DateTimeNullableFilter<"CrmInboxThread"> | Date | string | null
+  replyDraftUpdatedById?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
+  replyDraftUpdatedByName?: Prisma.StringNullableFilter<"CrmInboxThread"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CrmInboxThread"> | Date | string
 }
@@ -957,6 +1101,12 @@ export type CrmInboxThreadCreateWithoutAccountInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmInboxThreadsInput
@@ -980,6 +1130,12 @@ export type CrmInboxThreadUncheckedCreateWithoutAccountInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutThreadInput
@@ -1021,6 +1177,12 @@ export type CrmInboxThreadCreateWithoutContactInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmInboxThreadsInput
@@ -1044,6 +1206,12 @@ export type CrmInboxThreadUncheckedCreateWithoutContactInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutThreadInput
@@ -1085,6 +1253,12 @@ export type CrmInboxThreadCreateWithoutMailboxInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmInboxThreadsInput
@@ -1108,6 +1282,12 @@ export type CrmInboxThreadUncheckedCreateWithoutMailboxInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutThreadInput
@@ -1149,6 +1329,12 @@ export type CrmInboxThreadCreateWithoutEnrollmentInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmInboxThreadsInput
@@ -1172,6 +1358,12 @@ export type CrmInboxThreadUncheckedCreateWithoutEnrollmentInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutThreadInput
@@ -1213,6 +1405,12 @@ export type CrmInboxThreadCreateWithoutMessagesInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutCrmInboxThreadsInput
@@ -1237,6 +1435,12 @@ export type CrmInboxThreadUncheckedCreateWithoutMessagesInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1267,6 +1471,12 @@ export type CrmInboxThreadUpdateWithoutMessagesInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmInboxThreadsNestedInput
@@ -1291,6 +1501,12 @@ export type CrmInboxThreadUncheckedUpdateWithoutMessagesInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1309,6 +1525,12 @@ export type CrmInboxThreadCreateManyOrganizationInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1323,6 +1545,12 @@ export type CrmInboxThreadUpdateWithoutOrganizationInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   account?: Prisma.CrmAccountUpdateOneRequiredWithoutInboxThreadsNestedInput
@@ -1346,6 +1574,12 @@ export type CrmInboxThreadUncheckedUpdateWithoutOrganizationInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutThreadNestedInput
@@ -1365,6 +1599,12 @@ export type CrmInboxThreadUncheckedUpdateManyWithoutOrganizationInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1383,6 +1623,12 @@ export type CrmInboxThreadCreateManyAccountInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1397,6 +1643,12 @@ export type CrmInboxThreadUpdateWithoutAccountInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmInboxThreadsNestedInput
@@ -1420,6 +1672,12 @@ export type CrmInboxThreadUncheckedUpdateWithoutAccountInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutThreadNestedInput
@@ -1439,6 +1697,12 @@ export type CrmInboxThreadUncheckedUpdateManyWithoutAccountInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1457,6 +1721,12 @@ export type CrmInboxThreadCreateManyContactInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1471,6 +1741,12 @@ export type CrmInboxThreadUpdateWithoutContactInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmInboxThreadsNestedInput
@@ -1494,6 +1770,12 @@ export type CrmInboxThreadUncheckedUpdateWithoutContactInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutThreadNestedInput
@@ -1513,6 +1795,12 @@ export type CrmInboxThreadUncheckedUpdateManyWithoutContactInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1531,6 +1819,12 @@ export type CrmInboxThreadCreateManyMailboxInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1545,6 +1839,12 @@ export type CrmInboxThreadUpdateWithoutMailboxInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmInboxThreadsNestedInput
@@ -1568,6 +1868,12 @@ export type CrmInboxThreadUncheckedUpdateWithoutMailboxInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutThreadNestedInput
@@ -1587,6 +1893,12 @@ export type CrmInboxThreadUncheckedUpdateManyWithoutMailboxInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1605,6 +1917,12 @@ export type CrmInboxThreadCreateManyEnrollmentInput = {
   lastInboundAt: Date | string
   unreadCount?: number
   messageCount?: number
+  replyDraftBodyText?: string | null
+  replyDraftTopic?: string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Date | string | null
+  replyDraftUpdatedById?: string | null
+  replyDraftUpdatedByName?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1619,6 +1937,12 @@ export type CrmInboxThreadUpdateWithoutEnrollmentInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmInboxThreadsNestedInput
@@ -1642,6 +1966,12 @@ export type CrmInboxThreadUncheckedUpdateWithoutEnrollmentInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutThreadNestedInput
@@ -1661,6 +1991,12 @@ export type CrmInboxThreadUncheckedUpdateManyWithoutEnrollmentInput = {
   lastInboundAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unreadCount?: Prisma.IntFieldUpdateOperationsInput | number
   messageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  replyDraftBodyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftTopic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftMetadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  replyDraftUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  replyDraftUpdatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyDraftUpdatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1711,6 +2047,12 @@ export type CrmInboxThreadSelect<ExtArgs extends runtime.Types.Extensions.Intern
   lastInboundAt?: boolean
   unreadCount?: boolean
   messageCount?: boolean
+  replyDraftBodyText?: boolean
+  replyDraftTopic?: boolean
+  replyDraftMetadata?: boolean
+  replyDraftUpdatedAt?: boolean
+  replyDraftUpdatedById?: boolean
+  replyDraftUpdatedByName?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -1737,6 +2079,12 @@ export type CrmInboxThreadSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   lastInboundAt?: boolean
   unreadCount?: boolean
   messageCount?: boolean
+  replyDraftBodyText?: boolean
+  replyDraftTopic?: boolean
+  replyDraftMetadata?: boolean
+  replyDraftUpdatedAt?: boolean
+  replyDraftUpdatedById?: boolean
+  replyDraftUpdatedByName?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -1761,6 +2109,12 @@ export type CrmInboxThreadSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   lastInboundAt?: boolean
   unreadCount?: boolean
   messageCount?: boolean
+  replyDraftBodyText?: boolean
+  replyDraftTopic?: boolean
+  replyDraftMetadata?: boolean
+  replyDraftUpdatedAt?: boolean
+  replyDraftUpdatedById?: boolean
+  replyDraftUpdatedByName?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -1785,11 +2139,17 @@ export type CrmInboxThreadSelectScalar = {
   lastInboundAt?: boolean
   unreadCount?: boolean
   messageCount?: boolean
+  replyDraftBodyText?: boolean
+  replyDraftTopic?: boolean
+  replyDraftMetadata?: boolean
+  replyDraftUpdatedAt?: boolean
+  replyDraftUpdatedById?: boolean
+  replyDraftUpdatedByName?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CrmInboxThreadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "ownerUserId" | "accountId" | "contactId" | "enrollmentId" | "mailboxId" | "provider" | "providerThreadId" | "subject" | "status" | "lastInboundAt" | "unreadCount" | "messageCount" | "createdAt" | "updatedAt", ExtArgs["result"]["crmInboxThread"]>
+export type CrmInboxThreadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "ownerUserId" | "accountId" | "contactId" | "enrollmentId" | "mailboxId" | "provider" | "providerThreadId" | "subject" | "status" | "lastInboundAt" | "unreadCount" | "messageCount" | "replyDraftBodyText" | "replyDraftTopic" | "replyDraftMetadata" | "replyDraftUpdatedAt" | "replyDraftUpdatedById" | "replyDraftUpdatedByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmInboxThread"]>
 export type CrmInboxThreadInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   account?: boolean | Prisma.CrmAccountDefaultArgs<ExtArgs>
@@ -1839,6 +2199,12 @@ export type $CrmInboxThreadPayload<ExtArgs extends runtime.Types.Extensions.Inte
     lastInboundAt: Date
     unreadCount: number
     messageCount: number
+    replyDraftBodyText: string | null
+    replyDraftTopic: string | null
+    replyDraftMetadata: runtime.JsonValue | null
+    replyDraftUpdatedAt: Date | null
+    replyDraftUpdatedById: string | null
+    replyDraftUpdatedByName: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["crmInboxThread"]>
@@ -2284,6 +2650,12 @@ export interface CrmInboxThreadFieldRefs {
   readonly lastInboundAt: Prisma.FieldRef<"CrmInboxThread", 'DateTime'>
   readonly unreadCount: Prisma.FieldRef<"CrmInboxThread", 'Int'>
   readonly messageCount: Prisma.FieldRef<"CrmInboxThread", 'Int'>
+  readonly replyDraftBodyText: Prisma.FieldRef<"CrmInboxThread", 'String'>
+  readonly replyDraftTopic: Prisma.FieldRef<"CrmInboxThread", 'String'>
+  readonly replyDraftMetadata: Prisma.FieldRef<"CrmInboxThread", 'Json'>
+  readonly replyDraftUpdatedAt: Prisma.FieldRef<"CrmInboxThread", 'DateTime'>
+  readonly replyDraftUpdatedById: Prisma.FieldRef<"CrmInboxThread", 'String'>
+  readonly replyDraftUpdatedByName: Prisma.FieldRef<"CrmInboxThread", 'String'>
   readonly createdAt: Prisma.FieldRef<"CrmInboxThread", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"CrmInboxThread", 'DateTime'>
 }

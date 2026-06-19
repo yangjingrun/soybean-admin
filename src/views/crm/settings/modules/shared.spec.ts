@@ -11,6 +11,7 @@ import {
   buildEmailTemplateSearchParams,
   buildPersonaProfileSearchParams,
   buildSequencePolicySearchParams,
+  buildProductLineAiPromptVersionDiffItems,
   collectOperationQueueRows,
   collectRecentCrmOperationLogs,
   createDefaultBlacklistFilterModel,
@@ -34,6 +35,7 @@ import {
   normalizePersonaProfilePayload,
   normalizeProductLineAiWritingConfig,
   normalizeSequencePolicyPayload,
+  summarizeProductLineAiWritingConfig,
   validateProductLineAiWritingConfig,
   summarizeMailboxSyncHealth
 } from './shared';
@@ -197,6 +199,48 @@ describe('crm settings shared helpers', () => {
       tagType: 'warning'
     });
     assert.equal(getProductLineAiWritingStatus(null).label, '配置不完整');
+  });
+
+  it('summarizes product line AI writing config for prompt version history', () => {
+    const config = createEnabledAiWritingConfig();
+    config.commonRequirements = '  Natural English  ';
+    config.steps[1].prompt = '  Follow up with inventory models  ';
+
+    assert.deepEqual(summarizeProductLineAiWritingConfig(config), {
+      enabledLabel: '已开启',
+      commonRequirements: 'Natural English',
+      forbiddenClaims: 'No fake certificates',
+      productEmphasis: 'Stock models',
+      steps: [
+        { stepIndex: 1, prompt: 'Step 1', preview: 'Step 1' },
+        { stepIndex: 2, prompt: 'Follow up with inventory models', preview: 'Follow up with inventory models' },
+        { stepIndex: 3, prompt: 'Step 3', preview: 'Step 3' },
+        { stepIndex: 4, prompt: 'Step 4', preview: 'Step 4' },
+        { stepIndex: 5, prompt: 'Step 5', preview: 'Step 5' }
+      ]
+    });
+  });
+
+  it('builds prompt version diff items against the current form config', () => {
+    const versionConfig = createEnabledAiWritingConfig();
+    const currentConfig = createEnabledAiWritingConfig();
+    currentConfig.commonRequirements = 'Short and direct';
+    currentConfig.steps[1].prompt = 'Mention attached catalog';
+
+    assert.deepEqual(buildProductLineAiPromptVersionDiffItems(versionConfig, currentConfig), [
+      {
+        key: 'commonRequirements',
+        label: '通用要求',
+        versionValue: 'Natural English',
+        currentValue: 'Short and direct'
+      },
+      {
+        key: 'step-2',
+        label: '第 2 封 Prompt',
+        versionValue: 'Step 2',
+        currentValue: 'Mention attached catalog'
+      }
+    ]);
   });
 
   it('creates and normalizes sequence policy forms with five steps', () => {
@@ -750,6 +794,19 @@ function createEmailTemplateGroup(): Api.Crm.EmailTemplateGroupRecord {
     createdByName: 'Alice',
     createdAt: '2026-06-18T09:00:00.000Z',
     updatedAt: '2026-06-18T09:00:00.000Z'
+  };
+}
+
+function createEnabledAiWritingConfig(): Api.Crm.ProductLineAiWritingConfig {
+  return {
+    enabled: true,
+    commonRequirements: 'Natural English',
+    forbiddenClaims: 'No fake certificates',
+    productEmphasis: 'Stock models',
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      stepIndex: stepIndex as Api.Crm.AiWritingStepIndex,
+      prompt: `Step ${stepIndex}`
+    }))
   };
 }
 

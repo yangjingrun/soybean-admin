@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import {
+  buildInboxReplyDraftMetadataItems,
   formatInboxDate,
   formatInboxMessageTime,
   formatInboxText,
@@ -14,9 +15,11 @@ import {
 
 const props = defineProps<{
   detail: Api.Crm.InboxThreadDetail | null;
+  draftPolishing?: boolean;
+  draftSaving?: boolean;
   loading?: boolean;
   replyBody: string;
-  replySubmitting?: boolean;
+  replyTopic: string;
   show: boolean;
   statusOperating?: Api.Crm.InboxThreadStatus | null;
   statusSubmitting?: boolean;
@@ -24,9 +27,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   reload: [];
-  submitReply: [];
+  polishReplyDraft: [];
+  saveReplyDraft: [];
   submitStatus: [status: Api.Crm.InboxThreadStatus];
   'update:replyBody': [body: string];
+  'update:replyTopic': [topic: string];
   'update:show': [show: boolean];
 }>();
 
@@ -40,12 +45,25 @@ const contact = computed(() => props.detail?.contact ?? null);
 const mailbox = computed(() => props.detail?.mailbox ?? null);
 const enrollment = computed(() => props.detail?.enrollment ?? null);
 const messages = computed(() => props.detail?.messages ?? []);
+const replyDraft = computed(() => props.detail?.replyDraft ?? null);
 const canReadBody = computed(() => Boolean(thread.value?.canReadBody));
+const canEditDraft = computed(() => Boolean(props.detail?.canOperate));
+const hasReplyBody = computed(() => Boolean(props.replyBody.trim()));
+const draftMetadataItems = computed(() => buildInboxReplyDraftMetadataItems(replyDraft.value?.metadata));
+const replyTopicModel = computed({
+  get: () => props.replyTopic,
+  set: value => emit('update:replyTopic', value)
+});
 const replyBodyModel = computed({
   get: () => props.replyBody,
   set: value => emit('update:replyBody', value)
 });
-const canReply = computed(() => Boolean(props.detail?.canOperate && mailbox.value?.status === 'active'));
+const polishDisabled = computed(() =>
+  Boolean(!canEditDraft.value || !props.replyTopic.trim() || props.draftPolishing || props.draftSaving)
+);
+const saveDisabled = computed(() =>
+  Boolean(!canEditDraft.value || !props.replyTopic.trim() || !props.replyBody.trim() || props.draftPolishing || props.draftSaving)
+);
 const statusActions = [
   { label: '标记待处理', value: 'pending' },
   { label: '标记已处理', value: 'handled' },
@@ -132,17 +150,45 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
             <NEmpty v-else :description="canReadBody ? '暂无邮件正文' : '当前账号不可查看邮件正文'" />
           </div>
 
-          <div v-if="detail?.canOperate" class="drawer-section">
-            <div class="section-title">系统内回复</div>
-            <NInput
-              v-model:value="replyBodyModel"
-              type="textarea"
-              :autosize="{ minRows: 4, maxRows: 8 }"
-              :maxlength="10000"
-              show-count
-              :disabled="!canReply || replySubmitting"
-              placeholder="输入纯文本回复"
-            />
+          <div class="drawer-section">
+            <div class="section-title">回复草稿</div>
+            <NSpace vertical :size="10">
+              <NInput
+                v-model:value="replyTopicModel"
+                type="textarea"
+                :autosize="{ minRows: 2, maxRows: 5 }"
+                :maxlength="2000"
+                show-count
+                :disabled="!canEditDraft || draftPolishing || draftSaving"
+                placeholder="填写回复主题、要点或希望表达的信息，AI 会润色成回复草稿"
+              />
+              <NInput
+                v-model:value="replyBodyModel"
+                type="textarea"
+                :autosize="{ minRows: 5, maxRows: 10 }"
+                :maxlength="10000"
+                show-count
+                :disabled="!canEditDraft || draftPolishing || draftSaving"
+                placeholder="AI 润色后的回复草稿会显示在这里，也可以人工修改后保存"
+              />
+
+              <NDescriptions
+                v-if="draftMetadataItems.length"
+                :column="1"
+                label-placement="left"
+                bordered
+                size="small"
+              >
+                <NDescriptionsItem v-for="item in draftMetadataItems" :key="item.key" :label="item.label">
+                  {{ item.value }}
+                </NDescriptionsItem>
+              </NDescriptions>
+
+              <NText v-if="replyDraft" depth="3" class="draft-updated-text">
+                草稿更新时间 {{ formatInboxDate(replyDraft.updatedAt) }}
+                <template v-if="replyDraft.updatedByName"> · {{ replyDraft.updatedByName }}</template>
+              </NText>
+            </NSpace>
           </div>
         </NSpace>
         <NEmpty v-else description="请选择回复线程" />
@@ -155,13 +201,36 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
 
           <NSpace justify="end">
             <NButton @click="drawerVisible = false">关闭</NButton>
-            <NButton
-              type="primary"
-              :disabled="!canReply || !replyBody.trim()"
-              :loading="replySubmitting"
-              @click="emit('submitReply')"
+            <NPopconfirm
+              v-if="canEditDraft && hasReplyBody"
+              :disabled="polishDisabled"
+              positive-text="确认润色"
+              negative-text="取消"
+              @positive-click="emit('polishReplyDraft')"
             >
-              发送回复
+              <template #trigger>
+                <NButton type="primary" :disabled="polishDisabled" :loading="draftPolishing">AI 润色回复</NButton>
+              </template>
+              当前正文草稿会被 AI 润色结果覆盖，是否继续？
+            </NPopconfirm>
+            <NButton
+              v-else-if="canEditDraft"
+              type="primary"
+              :disabled="polishDisabled"
+              :loading="draftPolishing"
+              @click="emit('polishReplyDraft')"
+            >
+              AI 润色回复
+            </NButton>
+            <NButton
+              v-if="canEditDraft"
+              type="primary"
+              secondary
+              :disabled="saveDisabled"
+              :loading="draftSaving"
+              @click="emit('saveReplyDraft')"
+            >
+              保存草稿
             </NButton>
             <NButton
               v-for="item in statusActions"
@@ -207,7 +276,8 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
 }
 
 .inbox-summary-subtitle,
-.message-time {
+.message-time,
+.draft-updated-text {
   color: var(--n-text-color-3);
   font-size: 12px;
 }

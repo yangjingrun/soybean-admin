@@ -300,6 +300,27 @@ export interface ProductLineAiWritingStatusInfo {
   tagType: NaiveUI.ThemeColor;
 }
 
+export interface ProductLineAiWritingStepSummary {
+  stepIndex: Api.Crm.AiWritingStepIndex;
+  prompt: string;
+  preview: string;
+}
+
+export interface ProductLineAiWritingConfigSummary {
+  enabledLabel: string;
+  commonRequirements: string;
+  forbiddenClaims: string;
+  productEmphasis: string;
+  steps: ProductLineAiWritingStepSummary[];
+}
+
+export interface ProductLineAiPromptVersionDiffItem {
+  key: string;
+  label: string;
+  versionValue: string;
+  currentValue: string;
+}
+
 /** Create the default platform-wide CRM config form. */
 export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
   return {
@@ -742,6 +763,94 @@ export function getProductLineAiWritingStatus(
         label: '已开启 AI 写信',
         tagType: 'success'
       };
+}
+
+/** Build a compact summary for product-line AI prompt version display. */
+export function summarizeProductLineAiWritingConfig(
+  config?: Api.Crm.ProductLineAiWritingConfig | null
+): ProductLineAiWritingConfigSummary {
+  const normalized = normalizeProductLineAiWritingConfig(config) ?? createDefaultProductLineAiWritingConfig();
+
+  return {
+    enabledLabel: normalized.enabled ? '已开启' : '未开启',
+    commonRequirements: normalized.commonRequirements,
+    forbiddenClaims: normalized.forbiddenClaims,
+    productEmphasis: normalized.productEmphasis,
+    steps: normalized.steps.map(step => ({
+      stepIndex: step.stepIndex,
+      prompt: step.prompt,
+      preview: createProductLinePromptPreview(step.prompt)
+    }))
+  };
+}
+
+/** Compare one historical prompt version against the current editable config. */
+export function buildProductLineAiPromptVersionDiffItems(
+  versionConfig: Api.Crm.ProductLineAiWritingConfig | null | undefined,
+  currentConfig: Api.Crm.ProductLineAiWritingConfig | null | undefined
+): ProductLineAiPromptVersionDiffItem[] {
+  const versionSummary = summarizeProductLineAiWritingConfig(versionConfig);
+  const currentSummary = summarizeProductLineAiWritingConfig(currentConfig);
+  const diffItems: ProductLineAiPromptVersionDiffItem[] = [];
+
+  pushProductLinePromptDiffItem(diffItems, 'enabled', '启用状态', versionSummary.enabledLabel, currentSummary.enabledLabel);
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'commonRequirements',
+    '通用要求',
+    versionSummary.commonRequirements,
+    currentSummary.commonRequirements
+  );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'forbiddenClaims',
+    '禁止内容',
+    versionSummary.forbiddenClaims,
+    currentSummary.forbiddenClaims
+  );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'productEmphasis',
+    '产品重点',
+    versionSummary.productEmphasis,
+    currentSummary.productEmphasis
+  );
+
+  versionSummary.steps.forEach(versionStep => {
+    const currentStep = currentSummary.steps.find(step => step.stepIndex === versionStep.stepIndex);
+    pushProductLinePromptDiffItem(
+      diffItems,
+      `step-${versionStep.stepIndex}`,
+      `第 ${versionStep.stepIndex} 封 Prompt`,
+      versionStep.prompt,
+      currentStep?.prompt ?? ''
+    );
+  });
+
+  return diffItems;
+}
+
+function createProductLinePromptPreview(prompt: string) {
+  return prompt.length > 80 ? `${prompt.slice(0, 80)}...` : prompt;
+}
+
+function pushProductLinePromptDiffItem(
+  diffItems: ProductLineAiPromptVersionDiffItem[],
+  key: string,
+  label: string,
+  versionValue: string,
+  currentValue: string
+) {
+  if (versionValue === currentValue) {
+    return;
+  }
+
+  diffItems.push({
+    key,
+    label,
+    versionValue,
+    currentValue
+  });
 }
 
 /** Trim persona profile fields before submit. */

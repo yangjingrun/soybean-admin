@@ -8,6 +8,7 @@ import { SystemNotificationModule } from '../system-notification/system-notifica
 import { AiGatewayModule } from '../ai-gateway/ai-gateway.module';
 import { CrmController } from './crm.controller';
 import { CrmAiDraftService } from './crm-ai-draft.service';
+import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmArchiveSlimmingService } from './crm-archive-slimming.service';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
 import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
@@ -40,6 +41,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
   providers: [
     CrmService,
     CrmAiDraftService,
+    CrmAiReplyDraftService,
     CrmArchiveSlimmingService,
     CrmGmailPubSubOidcVerifier,
     CrmGmailWebhookService,

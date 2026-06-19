@@ -2,6 +2,12 @@ import dayjs from 'dayjs';
 
 type InboxMessageType = Api.Crm.InboxMessageRecord['messageType'];
 
+export interface InboxReplyDraftMetadataItem {
+  key: string;
+  label: string;
+  value: string;
+}
+
 export const inboxThreadStatusOptions = [
   { label: '待处理', value: 'pending' },
   { label: '已处理', value: 'handled' },
@@ -107,4 +113,45 @@ export function formatInboxText(value: string | null | undefined) {
 /** Use received time for inbound messages and sent time for outbound messages. */
 export function formatInboxMessageTime(message: Api.Crm.InboxMessageRecord) {
   return formatInboxDate(message.receivedAt || message.sentAt || message.createdAt);
+}
+
+/** Build compact AI reply draft metadata rows for the drawer. */
+export function buildInboxReplyDraftMetadataItems(
+  metadata: Api.Crm.InboxReplyDraftMetadata | null | undefined
+): InboxReplyDraftMetadataItem[] {
+  if (!metadata) {
+    return [];
+  }
+
+  const items: InboxReplyDraftMetadataItem[] = [];
+  const reason = metadata.reason.trim();
+
+  if (reason) {
+    items.push({
+      key: 'reason',
+      label: '润色说明',
+      value: reason
+    });
+  }
+
+  metadata.riskNotes
+    .map(note => note.trim())
+    .filter(Boolean)
+    .forEach((note, index) => {
+      items.push({
+        key: `risk-${index}`,
+        label: `风险提示 ${index + 1}`,
+        value: note
+      });
+    });
+
+  if (metadata.productLineName?.trim()) {
+    items.push({
+      key: 'product-line',
+      label: '产品资料',
+      value: metadata.productLineName.trim()
+    });
+  }
+
+  return items;
 }

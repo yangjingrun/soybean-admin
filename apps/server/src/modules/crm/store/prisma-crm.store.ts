@@ -15,6 +15,7 @@ import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbo
 import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
 import type { CrmOrganizationConfigModel } from '../../../generated/prisma/models/CrmOrganizationConfig';
 import type { CrmPersonaProfileModel } from '../../../generated/prisma/models/CrmPersonaProfile';
+import type { CrmProductLineAiPromptVersionModel } from '../../../generated/prisma/models/CrmProductLineAiPromptVersion';
 import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
 import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
 import type { CrmSequencePolicyModel } from '../../../generated/prisma/models/CrmSequencePolicy';
@@ -64,11 +65,16 @@ import type {
   CrmInboxMessageRecord,
   CrmInboxThreadRecord,
   CrmInboxThreadGmailStateSyncInput,
+  CrmInboxReplyDraftSaveInput,
   CrmInboxThreadReplyInput,
   CrmInboxThreadReplyRecord,
   CrmInboxThreadStatus,
   CrmInboxThreadStatusUpdateInput,
   CrmInboxThreadStatusUpdateRecord,
+  CrmProductLineAiPromptVersionCreateInput,
+  CrmProductLineAiPromptVersionRecord,
+  CrmProductLineAiPromptVersionRestoreInput,
+  CrmProductLineAiWritingConfig,
   CrmProductLineCreateInput,
   CrmProductLineRecord,
   CrmProductLineStatus,
@@ -757,6 +763,100 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return records[0] ? toProductLineRecord(records[0]) : null;
+  }
+
+  async createProductLineAiPromptVersion(input: CrmProductLineAiPromptVersionCreateInput) {
+    return this.prisma.$transaction(async tx => {
+      const latestVersion = await tx.crmProductLineAiPromptVersion.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          productLineId: input.productLineId
+        },
+        orderBy: { version: 'desc' }
+      });
+      const record = await tx.crmProductLineAiPromptVersion.create({
+        data: {
+          organizationId: input.organizationId,
+          productLineId: input.productLineId,
+          version: (latestVersion?.version ?? 0) + 1,
+          aiWritingConfig: toProductLineAiPromptVersionJson(input.aiWritingConfig),
+          editorId: input.editorId,
+          editorName: input.editorName ?? null,
+          changeSummary: input.changeSummary ?? null
+        }
+      });
+
+      return toProductLineAiPromptVersionRecord(record);
+    });
+  }
+
+  async listProductLineAiPromptVersions(args: { organizationId: string; productLineId: string }) {
+    const records = await this.prisma.crmProductLineAiPromptVersion.findMany({
+      where: {
+        organizationId: args.organizationId,
+        productLineId: args.productLineId
+      },
+      orderBy: { version: 'desc' }
+    });
+
+    return records.map(toProductLineAiPromptVersionRecord);
+  }
+
+  async restoreProductLineAiPromptVersion(input: CrmProductLineAiPromptVersionRestoreInput) {
+    return this.prisma.$transaction(async tx => {
+      const restoredVersion = await tx.crmProductLineAiPromptVersion.findFirst({
+        where: {
+          id: input.versionId,
+          organizationId: input.organizationId,
+          productLineId: input.productLineId
+        }
+      });
+
+      if (!restoredVersion) {
+        return null;
+      }
+
+      const productLines = await tx.crmProductLine.updateManyAndReturn({
+        where: {
+          id: input.productLineId,
+          organizationId: input.organizationId
+        },
+        data: {
+          aiWritingConfig: toProductLineAiPromptVersionJson(toProductLineAiWritingConfig(restoredVersion.aiWritingConfig))
+        },
+        limit: 1
+      });
+      const productLine = productLines[0];
+
+      if (!productLine) {
+        return null;
+      }
+
+      const latestVersion = await tx.crmProductLineAiPromptVersion.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          productLineId: input.productLineId
+        },
+        orderBy: { version: 'desc' }
+      });
+      const currentVersion = await tx.crmProductLineAiPromptVersion.create({
+        data: {
+          organizationId: input.organizationId,
+          productLineId: input.productLineId,
+          version: (latestVersion?.version ?? restoredVersion.version) + 1,
+          aiWritingConfig: toProductLineAiPromptVersionJson(toProductLineAiWritingConfig(restoredVersion.aiWritingConfig)),
+          editorId: input.editorId,
+          editorName: input.editorName ?? null,
+          changeSummary: input.changeSummary ?? `恢复版本 ${restoredVersion.version}`
+        }
+      });
+
+      return {
+        productLine: toProductLineRecord(productLine),
+        restoredVersion: toProductLineAiPromptVersionRecord(restoredVersion),
+        currentVersion: toProductLineAiPromptVersionRecord(currentVersion)
+      };
+    });
   }
 
   async listPersonaProfiles(input: CrmPersonaProfileListInput) {
@@ -2512,6 +2612,55 @@ export class PrismaCrmStore implements CrmStore {
     return toInboxThreadDetailRecord(record, timelineEvents);
   }
 
+  async saveInboxThreadReplyDraft(input: CrmInboxReplyDraftSaveInput): Promise<CrmInboxThreadDetailRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const threads = await tx.crmInboxThread.updateManyAndReturn({
+        where: {
+          id: input.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        },
+        data: {
+          replyDraftTopic: input.topic,
+          replyDraftBodyText: input.bodyText,
+          replyDraftMetadata: toNullableJsonInput(input.metadata ?? null),
+          replyDraftUpdatedAt: input.updatedAt,
+          replyDraftUpdatedById: input.updatedById,
+          replyDraftUpdatedByName: input.updatedByName ?? null
+        },
+        limit: 1
+      });
+      const thread = threads[0];
+
+      if (!thread) {
+        return null;
+      }
+
+      const record = await tx.crmInboxThread.findFirst({
+        where: {
+          id: thread.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        },
+        include: toInboxThreadDetailInclude()
+      });
+
+      if (!record) {
+        return null;
+      }
+
+      const timelineEvents = await tx.crmTimelineEvent.findMany({
+        where: {
+          organizationId: input.organizationId,
+          accountId: record.accountId
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return toInboxThreadDetailRecord(record, timelineEvents);
+    });
+  }
+
   async updateInboxThreadStatus(
     input: CrmInboxThreadStatusUpdateInput
   ): Promise<CrmInboxThreadStatusUpdateRecord | null> {
@@ -3312,6 +3461,23 @@ function toProductLineAiWritingConfig(value: unknown): CrmProductLineRecord['aiW
   return value as CrmProductLineRecord['aiWritingConfig'];
 }
 
+function toProductLineAiPromptVersionJson(config: CrmProductLineAiWritingConfig | null) {
+  return config === null ? Prisma.JsonNull : (config as unknown as Prisma.InputJsonValue);
+}
+
+function toNullableJsonInput(value: unknown) {
+  return value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+}
+
+function toProductLineAiPromptVersionRecord(
+  record: CrmProductLineAiPromptVersionModel
+): CrmProductLineAiPromptVersionRecord {
+  return {
+    ...record,
+    aiWritingConfig: toProductLineAiWritingConfig(record.aiWritingConfig)
+  };
+}
+
 function toPersonaProfileRecord(record: CrmPersonaProfileModel): CrmPersonaProfileRecord {
   return {
     id: record.id,
@@ -3480,8 +3646,24 @@ function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
 function toInboxThreadRecord(record: CrmInboxThreadModel): CrmInboxThreadRecord {
   return {
     ...record,
+    replyDraftMetadata: toInboxReplyDraftMetadata(record.replyDraftMetadata),
     provider: record.provider as CrmInboxThreadRecord['provider'],
     status: record.status as CrmInboxThreadRecord['status']
+  };
+}
+
+function toInboxReplyDraftMetadata(value: unknown): CrmInboxThreadRecord['replyDraftMetadata'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const record = value as Partial<NonNullable<CrmInboxThreadRecord['replyDraftMetadata']>>;
+
+  return {
+    generated: Boolean(record.generated),
+    reason: typeof record.reason === 'string' ? record.reason : '',
+    riskNotes: Array.isArray(record.riskNotes) ? record.riskNotes.filter(item => typeof item === 'string') : [],
+    productLineId: typeof record.productLineId === 'string' ? record.productLineId : null,
+    productLineName: typeof record.productLineName === 'string' ? record.productLineName : null,
+    generatedAt: typeof record.generatedAt === 'string' ? record.generatedAt : undefined
   };
 }
 

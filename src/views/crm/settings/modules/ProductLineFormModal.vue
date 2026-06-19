@@ -16,6 +16,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  openPromptHistory: [];
   submit: [];
 }>();
 
@@ -137,7 +138,13 @@ async function handleSubmit() {
         </NGi>
 
         <NGi span="24">
-          <NDivider class="my-2">AI 写信配置</NDivider>
+          <NDivider class="my-2" />
+          <NSpace align="center" justify="space-between" class="ai-writing-title">
+            <NText strong>AI 写信配置</NText>
+            <NButton v-if="mode === 'edit'" size="small" secondary @click="emit('openPromptHistory')">
+              AI Prompt 历史
+            </NButton>
+          </NSpace>
         </NGi>
 
         <NGi span="24">
@@ -224,5 +231,9 @@ async function handleSubmit() {
 <style scoped>
 .product-line-form-modal {
   width: min(760px, calc(100vw - 32px));
+}
+
+.ai-writing-title {
+  margin-bottom: 8px;
 }
 </style>

@@ -65,6 +65,7 @@ export const ModelName = {
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
   CrmProductLine: 'CrmProductLine',
+  CrmProductLineAiPromptVersion: 'CrmProductLineAiPromptVersion',
   CrmPersonaProfile: 'CrmPersonaProfile',
   CrmEmailTemplateGroup: 'CrmEmailTemplateGroup',
   CrmEmailTemplateStep: 'CrmEmailTemplateStep',
@@ -366,6 +367,21 @@ export const CrmProductLineScalarFieldEnum = {
 export type CrmProductLineScalarFieldEnum = (typeof CrmProductLineScalarFieldEnum)[keyof typeof CrmProductLineScalarFieldEnum]
 
 
+export const CrmProductLineAiPromptVersionScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  productLineId: 'productLineId',
+  version: 'version',
+  aiWritingConfig: 'aiWritingConfig',
+  editorId: 'editorId',
+  editorName: 'editorName',
+  changeSummary: 'changeSummary',
+  createdAt: 'createdAt'
+} as const
+
+export type CrmProductLineAiPromptVersionScalarFieldEnum = (typeof CrmProductLineAiPromptVersionScalarFieldEnum)[keyof typeof CrmProductLineAiPromptVersionScalarFieldEnum]
+
+
 export const CrmPersonaProfileScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -527,6 +543,12 @@ export const CrmInboxThreadScalarFieldEnum = {
   lastInboundAt: 'lastInboundAt',
   unreadCount: 'unreadCount',
   messageCount: 'messageCount',
+  replyDraftBodyText: 'replyDraftBodyText',
+  replyDraftTopic: 'replyDraftTopic',
+  replyDraftMetadata: 'replyDraftMetadata',
+  replyDraftUpdatedAt: 'replyDraftUpdatedAt',
+  replyDraftUpdatedById: 'replyDraftUpdatedById',
+  replyDraftUpdatedByName: 'replyDraftUpdatedByName',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

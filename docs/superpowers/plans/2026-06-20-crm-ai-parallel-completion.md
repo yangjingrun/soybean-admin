@@ -120,7 +120,7 @@
 - [x] Run `pnpm exec oxlint`
 - [x] Run `pnpm exec eslint --max-warnings=0 .`
 - [x] Run `git diff --check`
-- [ ] Commit with `git commit --no-verify -m "feat: 完善 CRM AI 草稿审核体验"`
+- [x] Commit with `git commit --no-verify -m "feat: 完善 CRM AI 草稿审核体验"`
 
 ## Wave 2: Add History And Reply Drafting
 
@@ -139,15 +139,15 @@
 - `apps/server/src/modules/crm/crm.service.spec.ts`
 
 **Requirements:**
-- [ ] Add a product-line AI prompt version table or version records.
-- [ ] Create a new version whenever AI writing config changes meaningfully.
-- [ ] Keep current `CrmMessage.metadata.aiDraft.snapshot` as immutable per-draft audit history.
-- [ ] Add APIs/service methods to list versions and restore a version to current product-line config.
+- [x] Add a product-line AI prompt version table or version records.
+- [x] Create a new version whenever AI writing config changes meaningfully.
+- [x] Keep current `CrmMessage.metadata.aiDraft.snapshot` as immutable per-draft audit history.
+- [x] Add APIs/service methods to list versions and restore a version to current product-line config.
 
 **Verification:**
-- [ ] `pnpm --filter @soybean/server exec prisma generate --schema ../../prisma/schema.prisma`
-- [ ] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm.service.spec.ts`
-- [ ] `pnpm --filter @soybean/server typecheck`
+- [x] `pnpm --filter @soybean/server exec prisma generate --schema ../../prisma/schema.prisma`
+- [x] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm.service.spec.ts`
+- [x] `pnpm --filter @soybean/server typecheck`
 
 ### Agent 6: Prompt Versioning Frontend
 
@@ -161,19 +161,19 @@
 - `src/views/crm/settings/modules/shared.spec.ts`
 
 **Requirements:**
-- [ ] Show product-line prompt version history.
-- [ ] Allow comparing current config with a selected historical version.
-- [ ] Allow organization admin to restore a previous version.
-- [ ] Keep ordinary members read-only.
+- [x] Show product-line prompt version history.
+- [x] Allow comparing current config with a selected historical version.
+- [x] Allow organization admin to restore a previous version.
+- [x] Keep ordinary members read-only.
 
 **Verification:**
-- [ ] `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`
-- [ ] `pnpm typecheck`
-- [ ] `pnpm exec eslint --max-warnings=0 .`
+- [x] `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`
+- [x] `pnpm typecheck`
+- [x] `pnpm exec eslint --max-warnings=0 .`
 
-### Agent 7: Customer Reply AI Draft Backend
+### Agent 7: Customer Reply AI Polish Backend
 
-**Covers:** Item 9 客户回信后的 AI 回复草稿 backend.
+**Covers:** Item 9 客户回信后的 AI 回复润色 backend.
 
 **Write scope:**
 - `apps/server/src/modules/crm/crm-ai-reply-draft.types.ts`
@@ -185,14 +185,14 @@
 - `apps/server/src/modules/crm/crm.controller.spec.ts`
 
 **Requirements:**
-- [ ] Add AI draft generation for an inbound customer reply thread.
-- [ ] Use inbound message body, previous outbound messages, product line, contact, account, and configured forbidden claims.
-- [ ] Save reply draft locally for human review; do not send Gmail.
-- [ ] Mark generated reply draft metadata with reason/risk notes.
+- [x] Require the user to provide a reply topic, outline, or key points before AI runs.
+- [x] Use inbound message body, previous outbound messages, product line, contact, account, configured forbidden claims, and the user's topic/outline.
+- [x] Polish the user-provided topic into a local reply draft for human review; do not send Gmail.
+- [x] Mark polished reply draft metadata with reason/risk notes and the user-provided topic.
 
 **Verification:**
-- [ ] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts`
-- [ ] `pnpm --filter @soybean/server typecheck`
+- [x] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts`
+- [x] `pnpm --filter @soybean/server typecheck`
 
 ### Agent 8: Customer Reply AI Draft Frontend
 
@@ -204,21 +204,22 @@
 - `src/views/crm/inbox/**`
 
 **Requirements:**
-- [ ] Add “AI 起草回复” action in inbox detail for owner-operable threads.
-- [ ] Show generated reply draft in an editable review area.
-- [ ] Allow save/replace draft locally; sending remains manual/out of scope unless existing inbox reply send flow is explicitly used by the user.
+- [x] Add “AI 润色回复” action in inbox detail for owner-operable threads.
+- [x] Let the user provide a reply topic, outline, or key points before AI runs.
+- [x] Show the polished reply draft in an editable review area.
+- [x] Allow save/replace draft locally; real Gmail sending remains out of scope for this local AI drafting flow.
 
 **Verification:**
-- [ ] `pnpm typecheck`
-- [ ] `pnpm exec oxlint`
-- [ ] Run any existing inbox shared tests if present.
+- [x] `pnpm typecheck`
+- [x] `pnpm exec oxlint`
+- [x] Run any existing inbox shared tests if present.
 
 ### Wave 2 Integration
 
-- [ ] Run Prisma generate once after schema tasks.
-- [ ] Run CRM backend service/controller/store tests.
-- [ ] Run settings and inbox frontend type/lint checks.
-- [ ] Run `git diff --check`.
+- [x] Run Prisma generate once after schema tasks.
+- [x] Run CRM backend service/controller/store tests.
+- [x] Run settings and inbox frontend type/lint checks.
+- [x] Run `git diff --check`.
 - [ ] Commit with `git commit --no-verify -m "feat: 补齐 CRM AI 提示词历史和回信草稿"`
 
 ## Wave 3: High-Volume AI Queue

@@ -4,7 +4,8 @@ import {
   fetchCrmInboxThreadDetail,
   fetchCrmInboxThreads,
   fetchCrmMailboxes,
-  replyCrmInboxThread,
+  polishCrmInboxReplyDraft,
+  saveCrmInboxReplyDraft,
   updateCrmInboxThreadStatus
 } from '@/service/api';
 import { buildInboxPendingCountParams, buildInboxThreadSearchParams, createDefaultInboxFilterModel } from '../shared';
@@ -19,8 +20,10 @@ export function useInboxTable() {
   const mailboxLoading = shallowRef(false);
   const detailVisible = shallowRef(false);
   const detailLoading = shallowRef(false);
+  const replyTopic = shallowRef('');
   const replyBody = shallowRef('');
-  const replySubmitting = shallowRef(false);
+  const draftPolishing = shallowRef(false);
+  const draftSaving = shallowRef(false);
   const statusSubmitting = shallowRef(false);
   const statusOperating = shallowRef<Api.Crm.InboxThreadStatus | null>(null);
   const selectedThreadId = shallowRef<string | null>(null);
@@ -129,6 +132,7 @@ export function useInboxTable() {
       }
 
       currentDetail.value = data;
+      syncReplyDraftFromDetail(data);
     } finally {
       if (requestId === latestDetailRequestId) {
         detailLoading.value = false;
@@ -140,6 +144,7 @@ export function useInboxTable() {
   function openThreadDetail(record: Api.Crm.InboxThreadRecord) {
     selectedThreadId.value = record.id;
     currentDetail.value = null;
+    replyTopic.value = '';
     replyBody.value = '';
     detailVisible.value = true;
     void loadThreadDetail(record.id);
@@ -152,6 +157,7 @@ export function useInboxTable() {
       latestDetailRequestId += 1;
       selectedThreadId.value = null;
       currentDetail.value = null;
+      replyTopic.value = '';
       replyBody.value = '';
       detailLoading.value = false;
     }
@@ -194,34 +200,86 @@ export function useInboxTable() {
     }
   }
 
-  /** Submit one plain-text reply from the bound mailbox and refresh the drawer. */
-  async function handleSubmitReply() {
+  /** Sync editable draft inputs from the owner-visible backend reply draft. */
+  function syncReplyDraftFromDetail(detail: Api.Crm.InboxThreadDetail) {
+    replyTopic.value = detail.replyDraft?.topic ?? '';
+    replyBody.value = detail.replyDraft?.bodyText ?? '';
+  }
+
+  /** Ask AI to polish the user's reply topic into a local draft without sending Gmail. */
+  async function handlePolishReplyDraft() {
     const threadId = selectedThreadId.value;
-    const bodyText = replyBody.value.trim();
+    const topic = replyTopic.value.trim();
 
-    if (!threadId || replySubmitting.value) {
+    if (!threadId || draftPolishing.value) {
       return;
     }
 
-    if (!bodyText) {
-      message.warning('回复正文不能为空');
+    if (!currentDetail.value?.canOperate) {
+      message.warning('当前账号不可润色该回复草稿');
       return;
     }
 
-    replySubmitting.value = true;
+    if (!topic) {
+      message.warning('请先填写回复主题或要点');
+      return;
+    }
+
+    draftPolishing.value = true;
     try {
-      const { data, error } = await replyCrmInboxThread(threadId, { bodyText });
+      const { data, error } = await polishCrmInboxReplyDraft(threadId, { topic });
 
       if (error || selectedThreadId.value !== threadId) {
         return;
       }
 
-      message.success('回复已发送');
+      message.success('AI 润色回复草稿已生成');
       currentDetail.value = data;
-      replyBody.value = '';
+      syncReplyDraftFromDetail(data);
       await loadThreads();
     } finally {
-      replySubmitting.value = false;
+      draftPolishing.value = false;
+    }
+  }
+
+  /** Save the locally edited reply draft without triggering Gmail sending. */
+  async function handleSaveReplyDraft() {
+    const threadId = selectedThreadId.value;
+    const topic = replyTopic.value.trim();
+    const bodyText = replyBody.value.trim();
+
+    if (!threadId || draftSaving.value) {
+      return;
+    }
+
+    if (!currentDetail.value?.canOperate) {
+      message.warning('当前账号不可保存该回复草稿');
+      return;
+    }
+
+    if (!topic) {
+      message.warning('请先填写回复主题或要点');
+      return;
+    }
+
+    if (!bodyText) {
+      message.warning('回复草稿正文不能为空');
+      return;
+    }
+
+    draftSaving.value = true;
+    try {
+      const { data, error } = await saveCrmInboxReplyDraft(threadId, { topic, bodyText });
+
+      if (error || selectedThreadId.value !== threadId) {
+        return;
+      }
+
+      message.success('回复草稿已保存');
+      currentDetail.value = data;
+      syncReplyDraftFromDetail(data);
+    } finally {
+      draftSaving.value = false;
     }
   }
 
@@ -251,13 +309,16 @@ export function useInboxTable() {
     currentDetail,
     detailLoading,
     detailVisible,
+    draftPolishing,
+    draftSaving,
     filterModel,
     handleDetailVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
+    handlePolishReplyDraft,
     handleReset,
+    handleSaveReplyDraft,
     handleSearch,
-    handleSubmitReply,
     handleUpdateStatus,
     loadThreadDetail,
     loadThreads,
@@ -269,7 +330,7 @@ export function useInboxTable() {
     pendingTotal,
     records,
     replyBody,
-    replySubmitting,
+    replyTopic,
     statusOperating,
     statusSubmitting
   };

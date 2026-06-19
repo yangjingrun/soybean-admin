@@ -8,6 +8,7 @@ import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gma
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
+import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import type {
   CrmArchivedFingerprintRecord,
@@ -21,6 +22,7 @@ import type {
   CrmEmailSendGateway,
   CrmOrganizationConfigRecord,
   CrmPersonaProfileRecord,
+  CrmProductLineAiPromptVersionRecord,
   CrmProductLineRecord,
   CrmSendQueueJob,
   CrmSendQueuePort,
@@ -1144,6 +1146,27 @@ describe('CrmService', () => {
     });
   });
 
+  it('creates the initial AI prompt version when a product line starts with AI writing config', async () => {
+    const store = createStore();
+    const service = new CrmService(store);
+    const aiWritingConfig = createAiWritingConfig();
+
+    const result = await service.createProductLine(
+      {
+        name: 'Bearing Series',
+        aiWritingConfig
+      },
+      createContext({ organizationRole: 'admin' })
+    );
+
+    assert.equal(result.productLine.aiWritingConfig?.enabled, true);
+    assert.equal(store.productLinePromptVersions.length, 1);
+    assert.equal(store.productLinePromptVersions[0].productLineId, 'product-line-1');
+    assert.equal(store.productLinePromptVersions[0].version, 1);
+    assert.deepEqual(store.productLinePromptVersions[0].aiWritingConfig, aiWritingConfig);
+    assert.equal(store.productLinePromptVersions[0].editorId, 'user-1');
+  });
+
   it('rejects duplicate product line names within the same organization', async () => {
     const store = createStore([], {
       productLines: [createProductLine({ id: 'line-1', name: 'Bearing Series' })]
@@ -1208,6 +1231,127 @@ describe('CrmService', () => {
       fromStatus: 'active',
       toStatus: 'archived'
     });
+  });
+
+  it('adds a product line AI prompt version only when the normalized config changes', async () => {
+    const aiWritingConfig = createAiWritingConfig();
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1', aiWritingConfig })],
+      productLinePromptVersions: [
+        createProductLinePromptVersion({
+          productLineId: 'line-1',
+          version: 1,
+          aiWritingConfig
+        })
+      ]
+    });
+    const service = new CrmService(store);
+    const adminContext = createContext({ organizationRole: 'admin' });
+
+    await service.updateProductLine(
+      'line-1',
+      {
+        aiWritingConfig: {
+          ...aiWritingConfig,
+          commonRequirements: `  ${aiWritingConfig.commonRequirements}  `
+        }
+      },
+      adminContext
+    );
+    await service.updateProductLine(
+      'line-1',
+      {
+        aiWritingConfig: {
+          ...aiWritingConfig,
+          productEmphasis: 'Focus on sealed bearings.'
+        }
+      },
+      adminContext
+    );
+
+    assert.equal(store.productLinePromptVersions.length, 2);
+    assert.equal(store.productLinePromptVersions[1].version, 2);
+    assert.equal(store.productLinePromptVersions[1].changeSummary, 'AI 写信配置更新');
+    assert.equal(store.productLinePromptVersions[1].aiWritingConfig?.productEmphasis, 'Focus on sealed bearings.');
+  });
+
+  it('lists product line AI prompt versions for organization members in version descending order', async () => {
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1' })],
+      productLinePromptVersions: [
+        createProductLinePromptVersion({ id: 'version-1', productLineId: 'line-1', version: 1 }),
+        createProductLinePromptVersion({ id: 'version-2', productLineId: 'line-1', version: 2 })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.listProductLineAiPromptVersions('line-1', createContext());
+
+    assert.deepEqual(
+      result.records.map(record => record.version),
+      [2, 1]
+    );
+    assert.deepEqual(store.lastProductLinePromptVersionListArgs, {
+      organizationId: 'org-1',
+      productLineId: 'line-1'
+    });
+  });
+
+  it('restores a product line AI prompt version for admins and writes a sanitized business log', async () => {
+    const currentConfig = createAiWritingConfig();
+    const historicConfig = { ...currentConfig, productEmphasis: 'Restore historic emphasis.' };
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1', aiWritingConfig: currentConfig })],
+      productLinePromptVersions: [
+        createProductLinePromptVersion({
+          id: 'version-1',
+          productLineId: 'line-1',
+          version: 1,
+          aiWritingConfig: historicConfig
+        }),
+        createProductLinePromptVersion({
+          id: 'version-2',
+          productLineId: 'line-1',
+          version: 2,
+          aiWritingConfig: currentConfig
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+
+    const result = await service.restoreProductLineAiPromptVersion(
+      'line-1',
+      'version-1',
+      createContext({ organizationRole: 'admin' })
+    );
+
+    assert.equal(result.productLine.aiWritingConfig?.productEmphasis, 'Restore historic emphasis.');
+    assert.equal(store.productLinePromptVersions.length, 3);
+    assert.equal(store.productLinePromptVersions[2].version, 3);
+    assert.equal(store.productLinePromptVersions[2].changeSummary, '恢复版本 1');
+    assert.deepEqual(logs.records.at(-1)?.metadata, {
+      organizationId: 'org-1',
+      productLineId: 'line-1',
+      restoredVersionId: 'version-1',
+      restoredVersion: 1,
+      newVersion: 3
+    });
+  });
+
+  it('rejects member attempts to restore product line AI prompt versions', async () => {
+    const store = createStore([], {
+      productLines: [createProductLine({ id: 'line-1', aiWritingConfig: createAiWritingConfig() })],
+      productLinePromptVersions: [createProductLinePromptVersion({ id: 'version-1', productLineId: 'line-1' })]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.restoreProductLineAiPromptVersion('line-1', 'version-1', createContext()),
+      ForbiddenException
+    );
+
+    assert.equal(store.productLinePromptVersions.length, 1);
   });
 
   it('maps concurrent product line rename unique conflicts to business errors', async () => {
@@ -2397,6 +2541,234 @@ describe('CrmService', () => {
       NotFoundException
     );
     assert.equal(store.messages[0].subject, 'Member subject');
+  });
+
+  it('rejects inbox reply polish when the user topic is empty', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      inboxThreads: [createInboxThread({ id: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })],
+      inboxMessages: [createInboxMessage({ threadId: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })]
+    });
+    const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      createAiReplyDraftService(aiReplyDraftCalls)
+    );
+
+    await assert.rejects(
+      () => service.polishInboxReplyDraft('inbox-thread-1', { topic: '   ' }, createContext()),
+      BadRequestException
+    );
+    assert.equal(aiReplyDraftCalls.length, 0);
+    assert.equal(store.inboxThreads[0].replyDraftBodyText, null);
+  });
+
+  it('lets the owner polish an inbox reply draft without sending Gmail or creating inbox messages', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'replied_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', fullName: 'Ali Hassan' })],
+      productLines: [
+        createProductLine({
+          id: 'product-line-1',
+          name: 'Bearing Series',
+          aiWritingConfig: createAiWritingConfig()
+        })
+      ],
+      inboxThreads: [
+        createInboxThread({
+          id: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          status: 'pending',
+          unreadCount: 2,
+          messageCount: 1
+        })
+      ],
+      inboxMessages: [
+        createInboxMessage({
+          id: 'inbox-message-1',
+          threadId: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          bodyText: 'Please send catalogue and MOQ.'
+        })
+      ]
+    });
+    const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
+    const sendGateway = createThrowingSendGateway();
+    const service = new CrmService(
+      store,
+      undefined,
+      createLogRecorder().service,
+      undefined,
+      undefined,
+      sendGateway,
+      undefined,
+      undefined,
+      undefined,
+      createAiReplyDraftService(aiReplyDraftCalls)
+    );
+
+    const result = await service.polishInboxReplyDraft(
+      'inbox-thread-1',
+      { topic: 'send catalogue and ask annual usage', productLineId: 'product-line-1' },
+      createContext()
+    );
+
+    assert.equal(result.replyDraft?.bodyText, 'Polished reply for send catalogue and ask annual usage');
+    assert.equal(result.thread.status, 'pending');
+    assert.equal(result.thread.unreadCount, 2);
+    assert.equal(result.thread.messageCount, 1);
+    assert.equal(store.inboxMessages.length, 1);
+    assert.equal(store.inboxThreads[0].replyDraftTopic, 'send catalogue and ask annual usage');
+    assert.equal(aiReplyDraftCalls.length, 1);
+    assert.equal(aiReplyDraftCalls[0].latestInboundMessage.bodyText, 'Please send catalogue and MOQ.');
+  });
+
+  it('rejects admin and peer attempts to polish or save another owner inbox reply draft', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      inboxThreads: [
+        createInboxThread({
+          id: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ],
+      inboxMessages: [
+        createInboxMessage({
+          threadId: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ]
+    });
+    const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      createAiReplyDraftService(aiReplyDraftCalls)
+    );
+
+    await assert.rejects(
+      () =>
+        service.polishInboxReplyDraft(
+          'inbox-thread-1',
+          { topic: 'reply politely' },
+          createContext({ organizationRole: 'admin' })
+        ),
+      NotFoundException
+    );
+    await assert.rejects(
+      () =>
+        service.saveInboxReplyDraft(
+          'inbox-thread-1',
+          { topic: 'manual topic', bodyText: 'Manual reply' },
+          createContext({ userId: 'user-3' })
+        ),
+      NotFoundException
+    );
+    assert.equal(aiReplyDraftCalls.length, 0);
+    assert.equal(store.inboxThreads[0].replyDraftBodyText, null);
+  });
+
+  it('returns owner reply draft in inbox detail but hides it from admin read-only detail', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      inboxThreads: [
+        createInboxThread({
+          id: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2',
+          replyDraftTopic: 'send catalogue',
+          replyDraftBodyText: 'Polished reply body',
+          replyDraftMetadata: { generated: true, reason: 'polished', riskNotes: [] },
+          replyDraftUpdatedAt: new Date('2026-06-18T12:00:00.000Z'),
+          replyDraftUpdatedById: 'user-2',
+          replyDraftUpdatedByName: 'Bob'
+        })
+      ],
+      inboxMessages: [
+        createInboxMessage({
+          threadId: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const ownerDetail = await service.getInboxThread('inbox-thread-1', createContext({ userId: 'user-2' }));
+    const adminDetail = await service.getInboxThread(
+      'inbox-thread-1',
+      createContext({ userId: 'admin-1', organizationRole: 'admin' })
+    );
+
+    assert.equal(ownerDetail.replyDraft?.bodyText, 'Polished reply body');
+    assert.equal(adminDetail.replyDraft, null);
+    assert.equal(adminDetail.canOperate, false);
+  });
+
+  it('saves an edited inbox reply draft without AI, Gmail or status changes', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'replied_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      inboxThreads: [
+        createInboxThread({
+          id: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          status: 'pending',
+          unreadCount: 1,
+          messageCount: 1
+        })
+      ],
+      inboxMessages: [createInboxMessage({ threadId: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })]
+    });
+    const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
+    const service = new CrmService(
+      store,
+      undefined,
+      createLogRecorder().service,
+      undefined,
+      undefined,
+      createThrowingSendGateway(),
+      undefined,
+      undefined,
+      undefined,
+      createAiReplyDraftService(aiReplyDraftCalls)
+    );
+
+    const result = await service.saveInboxReplyDraft(
+      'inbox-thread-1',
+      { topic: 'catalogue', bodyText: 'Manual polished reply' },
+      createContext()
+    );
+
+    assert.equal(result.replyDraft?.bodyText, 'Manual polished reply');
+    assert.equal(result.thread.status, 'pending');
+    assert.equal(result.thread.unreadCount, 1);
+    assert.equal(result.thread.messageCount, 1);
+    assert.equal(store.accounts[0].status, 'replied_pending');
+    assert.equal(store.inboxMessages.length, 1);
+    assert.equal(aiReplyDraftCalls.length, 0);
   });
 
   it('approves follow-up drafts by queueing their scheduled send jobs', async () => {
@@ -3801,6 +4173,7 @@ function createStore(
     timelineEvents?: TestTimelineEvent[];
     mailboxes?: TestMailbox[];
     productLines?: TestProductLine[];
+    productLinePromptVersions?: TestProductLinePromptVersion[];
     emailTemplateGroups?: TestEmailTemplateGroup[];
     sequencePolicies?: TestSequencePolicy[];
     enrollments?: TestEnrollment[];
@@ -3822,6 +4195,7 @@ function createStore(
   timelineEvents: TestTimelineEvent[];
   mailboxes: TestMailbox[];
   productLines: TestProductLine[];
+  productLinePromptVersions: TestProductLinePromptVersion[];
   emailTemplateGroups: TestEmailTemplateGroup[];
   sequencePolicies: TestSequencePolicy[];
   enrollments: TestEnrollment[];
@@ -3854,6 +4228,7 @@ function createStore(
     take: number;
   };
   lastProductLineDetailArgs?: { id: string; organizationId: string };
+  lastProductLinePromptVersionListArgs?: { organizationId: string; productLineId: string };
   lastPersonaProfileListArgs?: Parameters<CrmStore['listPersonaProfiles']>[0];
   lastPersonaProfileDetailArgs?: { id: string; organizationId: string };
   lastEmailTemplateListArgs?: Parameters<CrmStore['listEmailTemplateGroups']>[0];
@@ -3874,6 +4249,9 @@ function createStore(
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
   const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
+  const productLinePromptVersions: TestProductLinePromptVersion[] = [
+    ...(initialData.productLinePromptVersions ?? [])
+  ];
   const emailTemplateGroups: TestEmailTemplateGroup[] = [...(initialData.emailTemplateGroups ?? [])];
   const sequencePolicies: TestSequencePolicy[] = [...(initialData.sequencePolicies ?? [])];
   const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
@@ -3903,6 +4281,7 @@ function createStore(
     timelineEvents,
     mailboxes,
     productLines,
+    productLinePromptVersions,
     emailTemplateGroups,
     sequencePolicies,
     personaProfiles,
@@ -4280,6 +4659,64 @@ function createStore(
       if (!productLine) return null;
       Object.assign(productLine, input, { updatedAt: new Date('2026-06-18T10:00:00.000Z') });
       return productLine;
+    },
+    async createProductLineAiPromptVersion(input) {
+      const latestVersion =
+        productLinePromptVersions
+          .filter(version => version.organizationId === input.organizationId && version.productLineId === input.productLineId)
+          .toSorted((left, right) => right.version - left.version)[0]?.version ?? 0;
+      const version = createProductLinePromptVersion({
+        ...input,
+        id: `product-line-prompt-version-${productLinePromptVersions.length + 1}`,
+        version: latestVersion + 1
+      });
+      productLinePromptVersions.push(version);
+      return version;
+    },
+    async listProductLineAiPromptVersions(args) {
+      this.lastProductLinePromptVersionListArgs = args;
+      return productLinePromptVersions
+        .filter(version => version.organizationId === args.organizationId && version.productLineId === args.productLineId)
+        .toSorted((left, right) => right.version - left.version || right.createdAt.getTime() - left.createdAt.getTime());
+    },
+    async restoreProductLineAiPromptVersion(input) {
+      const historicVersion = productLinePromptVersions.find(
+        version =>
+          version.id === input.versionId &&
+          version.organizationId === input.organizationId &&
+          version.productLineId === input.productLineId
+      );
+      const productLine = productLines.find(
+        item => item.id === input.productLineId && item.organizationId === input.organizationId
+      );
+
+      if (!historicVersion || !productLine) return null;
+
+      Object.assign(productLine, {
+        aiWritingConfig: historicVersion.aiWritingConfig,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      const latestVersion =
+        productLinePromptVersions
+          .filter(version => version.organizationId === input.organizationId && version.productLineId === input.productLineId)
+          .toSorted((left, right) => right.version - left.version)[0]?.version ?? 0;
+      const newVersion = createProductLinePromptVersion({
+        organizationId: input.organizationId,
+        productLineId: input.productLineId,
+        version: latestVersion + 1,
+        aiWritingConfig: historicVersion.aiWritingConfig,
+        editorId: input.editorId,
+        editorName: input.editorName,
+        changeSummary: input.changeSummary ?? `恢复版本 ${historicVersion.version}`
+      });
+      productLinePromptVersions.push(newVersion);
+
+      return {
+        productLine,
+        restoredVersion: historicVersion,
+        currentVersion: newVersion
+      };
     },
     async listPersonaProfiles(args) {
       this.lastPersonaProfileListArgs = args;
@@ -5291,10 +5728,10 @@ function createStore(
         total: records.length
       };
     },
-    async getInboxThread(args) {
-      const thread = inboxThreads.find(item => {
-        if (item.id !== args.id) return false;
-        if (item.organizationId !== args.organizationId) return false;
+	    async getInboxThread(args) {
+	      const thread = inboxThreads.find(item => {
+	        if (item.id !== args.id) return false;
+	        if (item.organizationId !== args.organizationId) return false;
         if (args.ownerUserId && item.ownerUserId !== args.ownerUserId) return false;
         return true;
       });
@@ -5309,10 +5746,38 @@ function createStore(
         timelineEvents: timelineEvents.filter(event => event.accountId === thread.accountId)
       };
     },
-    async updateInboxThreadStatus(input) {
+    async saveInboxThreadReplyDraft(input) {
       const thread = inboxThreads.find(item => {
         if (item.id !== input.id) return false;
         if (item.organizationId !== input.organizationId) return false;
+        if (item.ownerUserId !== input.ownerUserId) return false;
+        return true;
+      });
+
+      if (!thread) return null;
+
+      Object.assign(thread, {
+        replyDraftBodyText: input.bodyText,
+        replyDraftTopic: input.topic,
+        replyDraftMetadata: input.metadata ?? null,
+        replyDraftUpdatedAt: input.updatedAt,
+        replyDraftUpdatedById: input.updatedById,
+        replyDraftUpdatedByName: input.updatedByName ?? null,
+        updatedAt: input.updatedAt
+      });
+
+	      return {
+	        ...buildInboxThreadListRecord(thread, { accounts, contacts, mailboxes, enrollments, inboxMessages }),
+	        messages: inboxMessages
+	          .filter(message => message.threadId === thread.id)
+	          .toSorted((left, right) => left.receivedAt.getTime() - right.receivedAt.getTime()),
+	        timelineEvents: timelineEvents.filter(event => event.accountId === thread.accountId)
+	      };
+	    },
+	    async updateInboxThreadStatus(input) {
+	      const thread = inboxThreads.find(item => {
+	        if (item.id !== input.id) return false;
+	        if (item.organizationId !== input.organizationId) return false;
         if (item.ownerUserId !== input.ownerUserId) return false;
         if (input.fromStatus && item.status !== input.fromStatus) return false;
         return true;
@@ -5645,6 +6110,28 @@ function createProductLine(input: Partial<TestProductLine> = {}): TestProductLin
   };
 }
 
+function createProductLinePromptVersion(
+  input: Partial<TestProductLinePromptVersion> & {
+    organizationId?: string;
+    productLineId?: string;
+    aiWritingConfig?: CrmProductLineRecord['aiWritingConfig'];
+  } = {}
+): TestProductLinePromptVersion {
+  return {
+    id: input.id || 'product-line-prompt-version-1',
+    organizationId: input.organizationId || 'org-1',
+    productLineId: input.productLineId || 'product-line-1',
+    version: input.version ?? 1,
+    aiWritingConfig: Object.prototype.hasOwnProperty.call(input, 'aiWritingConfig')
+      ? (input.aiWritingConfig ?? null)
+      : createAiWritingConfig(),
+    editorId: input.editorId ?? 'user-1',
+    editorName: input.editorName ?? 'Alice',
+    changeSummary: input.changeSummary ?? 'AI 写信配置更新',
+    createdAt: input.createdAt || new Date('2026-06-18T10:00:00.000Z')
+  };
+}
+
 function createPersonaProfile(input: Partial<TestPersonaProfile> = {}): TestPersonaProfile {
   return {
     id: input.id || 'persona-profile-1',
@@ -5840,6 +6327,39 @@ function createAiDraftService(calls: CrmAiDraftPromptInput[]): CrmAiDraftService
   } as CrmAiDraftService;
 }
 
+function createAiReplyDraftService(calls: CrmAiReplyDraftPromptInput[]) {
+  return {
+    async polishReplyDraft(input: CrmAiReplyDraftPromptInput) {
+      calls.push(input);
+
+      return {
+        bodyText: `Polished reply for ${input.userTopicOrOutline}`,
+        reason: '根据用户主题润色扩写',
+        riskNotes: ['人工确认后再发送'],
+        metadata: {
+          generated: true,
+          reason: '根据用户主题润色扩写',
+          riskNotes: ['人工确认后再发送'],
+          productLineId: input.productLine?.id ?? null,
+          productLineName: input.productLine?.name ?? null,
+          generatedAt: '2026-06-18T12:00:00.000Z'
+        }
+      };
+    }
+  };
+}
+
+function createThrowingSendGateway(): CrmEmailSendGateway {
+  return {
+    async sendPlainText() {
+      throw new Error('sendPlainText should not be called');
+    },
+    async replyPlainText() {
+      throw new Error('replyPlainText should not be called');
+    }
+  };
+}
+
 function getOrCreateTestStrategyStatRow(
   rows: TestStrategyStatRow[],
   dimension: TestStrategyStatRow['dimension'],
@@ -5927,6 +6447,12 @@ function createInboxThread(input: Partial<TestInboxThread> = {}): TestInboxThrea
     lastInboundAt: input.lastInboundAt || new Date('2026-06-18T11:00:00.000Z'),
     unreadCount: input.unreadCount ?? 1,
     messageCount: input.messageCount ?? 1,
+    replyDraftBodyText: input.replyDraftBodyText ?? null,
+    replyDraftTopic: input.replyDraftTopic ?? null,
+    replyDraftMetadata: input.replyDraftMetadata ?? null,
+    replyDraftUpdatedAt: input.replyDraftUpdatedAt ?? null,
+    replyDraftUpdatedById: input.replyDraftUpdatedById ?? null,
+    replyDraftUpdatedByName: input.replyDraftUpdatedByName ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T11:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T11:00:00.000Z')
   };
@@ -6032,6 +6558,7 @@ type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
 type TestEmailTemplateGroup = CrmEmailTemplateGroupRecord;
 type TestPersonaProfile = CrmPersonaProfileRecord;
+type TestProductLinePromptVersion = CrmProductLineAiPromptVersionRecord;
 type TestSequencePolicy = CrmSequencePolicyRecord;
 type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
 type TestMessage = Awaited<ReturnType<CrmStore['createMessage']>>;

@@ -9,13 +9,16 @@ const {
   currentDetail,
   detailLoading,
   detailVisible,
+  draftPolishing,
+  draftSaving,
   filterModel,
   handleDetailVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
+  handlePolishReplyDraft,
   handleReset,
+  handleSaveReplyDraft,
   handleSearch,
-  handleSubmitReply,
   handleUpdateStatus,
   loadThreadDetail,
   loading,
@@ -26,7 +29,7 @@ const {
   pendingTotal,
   records,
   replyBody,
-  replySubmitting,
+  replyTopic,
   statusOperating,
   statusSubmitting
 } = useInboxTable();
@@ -58,15 +61,18 @@ const {
 
     <InboxThreadDrawer
       v-model:reply-body="replyBody"
+      v-model:reply-topic="replyTopic"
       :show="detailVisible"
       :detail="currentDetail"
+      :draft-polishing="draftPolishing"
+      :draft-saving="draftSaving"
       :loading="detailLoading"
-      :reply-submitting="replySubmitting"
       :status-operating="statusOperating"
       :status-submitting="statusSubmitting"
       @update:show="handleDetailVisibleUpdate"
       @reload="loadThreadDetail()"
-      @submit-reply="handleSubmitReply"
+      @polish-reply-draft="handlePolishReplyDraft"
+      @save-reply-draft="handleSaveReplyDraft"
       @submit-status="handleUpdateStatus"
     />
   </NSpace>

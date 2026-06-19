@@ -214,6 +214,22 @@ export function archiveCrmProductLine(id: string) {
   });
 }
 
+/** List saved AI prompt versions for one organization product line. */
+export function fetchCrmProductLineAiPromptVersions(id: string) {
+  return request<Api.Crm.ProductLineAiPromptVersionList>({
+    url: `/crm/product-lines/${id}/ai-prompt-versions`,
+    method: 'get'
+  });
+}
+
+/** Restore one saved AI prompt version onto the product line current config. */
+export function restoreCrmProductLineAiPromptVersion(id: string, versionId: string) {
+  return request<Api.Crm.ProductLineAiPromptVersionRestoreResult>({
+    url: `/crm/product-lines/${id}/ai-prompt-versions/${versionId}/restore`,
+    method: 'post'
+  });
+}
+
 /** List organization persona profiles by filters and pagination. */
 export function fetchCrmPersonaProfiles(params: Api.Crm.PersonaProfileSearchParams) {
   return request<Api.Crm.PersonaProfileList>({
@@ -490,6 +506,24 @@ export function fetchCrmInboxThreadDetail(id: string) {
 export function updateCrmInboxThreadStatus(id: string, data: Api.Crm.InboxThreadStatusPayload) {
   return request<Api.Crm.InboxThreadStatusResult>({
     url: `/crm/inbox-threads/${id}/status`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Polish a user-provided reply topic into a local reply draft without sending Gmail. */
+export function polishCrmInboxReplyDraft(id: string, data: Api.Crm.InboxReplyPolishPayload) {
+  return request<Api.Crm.InboxThreadDetail>({
+    url: `/crm/inbox-threads/${id}/ai-reply-polish`,
+    method: 'post',
+    data
+  });
+}
+
+/** Save a local CRM inbox reply draft without sending Gmail. */
+export function saveCrmInboxReplyDraft(id: string, data: Api.Crm.InboxReplyDraftPayload) {
+  return request<Api.Crm.InboxThreadDetail>({
+    url: `/crm/inbox-threads/${id}/reply-draft`,
     method: 'patch',
     data
   });

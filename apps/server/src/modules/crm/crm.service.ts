@@ -17,7 +17,9 @@ import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
 import { normalizeEmailVerificationCooldownDays } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
+import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { normalizeCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
+import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
@@ -67,6 +69,7 @@ import type {
   CrmGlobalConfigRecord,
   CrmCustomerReplyIngestRecord,
   CrmInboxMessageType,
+  CrmInboxReplyDraftMetadata,
   CrmInboxThreadDetailRecord,
   CrmInboxThreadListRecord,
   CrmInboxMessageRecord,
@@ -82,6 +85,7 @@ import type {
   CrmPersonaProfileRecord,
   CrmPersonaProfileStatus,
   CrmPersonaProfileUpdateInput,
+  CrmProductLineAiPromptVersionRecord,
   CrmProductLineAiWritingConfig,
   CrmProductLineRecord,
   CrmProductLineStatus,
@@ -298,7 +302,10 @@ export class CrmService {
     private readonly gmailWatchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null,
     @Optional()
     @Inject(CrmAiDraftService)
-    private readonly aiDraftService?: CrmAiDraftService | null
+    private readonly aiDraftService?: CrmAiDraftService | null,
+    @Optional()
+    @Inject(CrmAiReplyDraftService)
+    private readonly aiReplyDraftService?: Pick<CrmAiReplyDraftService, 'polishReplyDraft'> | null
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -889,6 +896,7 @@ export class CrmService {
       null,
       productLine.status
     );
+    await this.createProductLineAiPromptVersionIfPresent(productLine, context, '初始 AI 写信配置');
 
     return { productLine: toProductLineView(productLine) };
   }
@@ -897,6 +905,7 @@ export class CrmService {
   async updateProductLine(id: string, input: ProductLineUpdateInput, context: CrmUserContext) {
     const currentProductLine = await this.requireScopedProductLine(id, context);
     const fromStatus = currentProductLine.status;
+    const previousAiWritingConfigKey = toStableAiWritingConfigKey(currentProductLine.aiWritingConfig);
     const data = normalizeProductLineUpdateInput(input);
     this.assertCanWriteProductLineAiConfig(input, data.aiWritingConfig, context);
 
@@ -920,8 +929,61 @@ export class CrmService {
       fromStatus,
       productLine.status
     );
+    await this.createProductLineAiPromptVersionIfChanged(
+      previousAiWritingConfigKey,
+      productLine,
+      context,
+      'AI 写信配置更新'
+    );
 
     return { productLine: toProductLineView(productLine) };
+  }
+
+  /** Lists AI prompt versions for an organization-scoped product line. */
+  async listProductLineAiPromptVersions(id: string, context: CrmUserContext) {
+    const productLine = await this.requireScopedProductLine(id, context);
+    const records = await this.store.listProductLineAiPromptVersions({
+      organizationId: context.organizationId,
+      productLineId: productLine.id
+    });
+
+    return {
+      records: records.map(toProductLineAiPromptVersionView)
+    };
+  }
+
+  /** Restores a saved AI prompt version to the current product-line config. */
+  async restoreProductLineAiPromptVersion(id: string, versionId: string, context: CrmUserContext) {
+    if (!isOrganizationAdmin(context)) {
+      throw new ForbiddenException('只有组织管理员可以恢复 AI 写信配置版本');
+    }
+
+    const productLine = await this.requireScopedProductLine(id, context);
+    const restored = await this.store.restoreProductLineAiPromptVersion({
+      organizationId: context.organizationId,
+      productLineId: productLine.id,
+      versionId,
+      editorId: context.userId,
+      editorName: context.userName,
+      changeSummary: undefined
+    });
+
+    if (!restored) {
+      throw new NotFoundException('AI 写信配置版本不存在');
+    }
+
+    await this.recordCrmLog('product-line-ai-prompt-version-restore', 'CRM 产品线 AI 写信配置恢复历史版本', context, {
+      organizationId: context.organizationId,
+      productLineId: productLine.id,
+      restoredVersionId: restored.restoredVersion.id,
+      restoredVersion: restored.restoredVersion.version,
+      newVersion: restored.currentVersion.version
+    });
+
+    return {
+      productLine: toProductLineView(restored.productLine),
+      version: toProductLineAiPromptVersionView(restored.currentVersion)
+    };
   }
 
   /** Archives an organization-level product line through organization scoped reads and writes. */
@@ -2449,6 +2511,68 @@ export class CrmService {
     return detail;
   }
 
+  /** Polishes a user-provided reply topic and saves it as an owner-only local draft. */
+  async polishInboxReplyDraft(
+    id: string,
+    input: {
+      topic: string;
+      productLineId?: string | null;
+    },
+    context: CrmUserContext
+  ) {
+    const topic = normalizeLimitedContent(input.topic, '回复主题或要点不能为空', 2000);
+    const detail = await this.requireOwnedInboxThreadDetail(id, context);
+
+    if (!this.aiReplyDraftService) {
+      throw new BadRequestException('AI 回复润色服务未配置');
+    }
+
+    const productLine = await this.resolveInboxReplyDraftProductLine(detail, input.productLineId, context);
+    const draft = await this.aiReplyDraftService.polishReplyDraft(
+      this.buildInboxReplyDraftPromptInput(detail, topic, productLine, context)
+    );
+    const saved = await this.saveOwnedInboxReplyDraft(detail.thread.id, topic, draft.bodyText, draft.metadata, context);
+
+    await this.recordCrmLog('inbox-reply-draft-ai-polished', 'CRM 收件箱回复草稿已由 AI 润色', context, {
+      organizationId: context.organizationId,
+      accountId: saved.thread.accountId,
+      contactId: saved.thread.contactId,
+      threadId: saved.thread.id,
+      productLineId: productLine?.id ?? null,
+      riskNoteCount: draft.riskNotes.length
+    });
+
+    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
+
+    return toInboxThreadDetailView(saved, context, organizationConfig);
+  }
+
+  /** Saves a manually edited local reply draft without AI or Gmail side effects. */
+  async saveInboxReplyDraft(
+    id: string,
+    input: {
+      topic: string;
+      bodyText: string;
+    },
+    context: CrmUserContext
+  ) {
+    const topic = normalizeLimitedContent(input.topic, '回复主题或要点不能为空', 2000);
+    const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
+    const detail = await this.requireOwnedInboxThreadDetail(id, context);
+    const saved = await this.saveOwnedInboxReplyDraft(detail.thread.id, topic, bodyText, null, context);
+
+    await this.recordCrmLog('inbox-reply-draft-saved', 'CRM 收件箱回复草稿已保存', context, {
+      organizationId: context.organizationId,
+      accountId: saved.thread.accountId,
+      contactId: saved.thread.contactId,
+      threadId: saved.thread.id
+    });
+
+    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
+
+    return toInboxThreadDetailView(saved, context, organizationConfig);
+  }
+
   /** Updates one owner-scoped inbox thread processing status. */
   async updateInboxThreadStatus(
     id: string,
@@ -3395,6 +3519,131 @@ export class CrmService {
     return thread.thread;
   }
 
+  private async requireOwnedInboxThreadDetail(id: string, context: CrmUserContext) {
+    const thread = await this.store.getInboxThread({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!thread) {
+      throw new NotFoundException('收件箱会话不存在');
+    }
+
+    return thread;
+  }
+
+  private async saveOwnedInboxReplyDraft(
+    id: string,
+    topic: string,
+    bodyText: string,
+    metadata: CrmInboxReplyDraftMetadata | null,
+    context: CrmUserContext
+  ) {
+    const saved = await this.store.saveInboxThreadReplyDraft({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      topic,
+      bodyText,
+      metadata,
+      updatedAt: new Date(),
+      updatedById: context.userId,
+      updatedByName: context.userName
+    });
+
+    if (!saved) {
+      throw new NotFoundException('收件箱会话不存在');
+    }
+
+    return saved;
+  }
+
+  private async resolveInboxReplyDraftProductLine(
+    detail: CrmInboxThreadDetailRecord,
+    productLineId: string | null | undefined,
+    context: CrmUserContext
+  ) {
+    const normalizedProductLineId = normalizeNullableString(productLineId) ?? detail.enrollment?.productLineId ?? null;
+
+    if (!normalizedProductLineId) {
+      return null;
+    }
+
+    const productLine = await this.store.findProductLineById({
+      id: normalizedProductLineId,
+      organizationId: context.organizationId
+    });
+
+    if (!productLine) {
+      throw new BadRequestException('产品线不存在');
+    }
+
+    return productLine;
+  }
+
+  private buildInboxReplyDraftPromptInput(
+    detail: CrmInboxThreadDetailRecord,
+    topic: string,
+    productLine: CrmProductLineRecord | null,
+    context: CrmUserContext
+  ): CrmAiReplyDraftPromptInput {
+    const latestInboundMessage = getLatestInboundInboxMessage(detail);
+
+    if (!latestInboundMessage) {
+      throw new BadRequestException('客户回信不存在');
+    }
+
+    const history = detail.messages.slice(-6).map(message => ({
+      subject: message.subject,
+      bodyText: message.bodyText,
+      receivedAt: message.receivedAt.toISOString()
+    }));
+    const writingConfig = normalizeCrmProductLineAiWritingConfig(productLine?.aiWritingConfig);
+
+    return {
+      account: {
+        name: detail.account.name,
+        country: detail.account.country,
+        domain: detail.account.domain,
+        customerType: detail.account.customerType
+      },
+      contact: {
+        fullName: detail.contact.fullName,
+        title: detail.contact.title,
+        maskedEmail: detail.contact.maskedEmail
+      },
+      thread: {
+        subject: detail.thread.subject,
+        status: detail.thread.status
+      },
+      latestInboundMessage: {
+        subject: latestInboundMessage.subject,
+        bodyText: latestInboundMessage.bodyText,
+        receivedAt: latestInboundMessage.receivedAt.toISOString()
+      },
+      history,
+      productLine: productLine
+        ? {
+            id: productLine.id,
+            name: productLine.name,
+            targetCustomerType: productLine.targetCustomerType,
+            coreSellingPoints: productLine.coreSellingPoints,
+            moq: productLine.moq,
+            leadTime: productLine.leadTime,
+            paymentTerms: productLine.paymentTerms,
+            certifications: productLine.certifications,
+            catalogUrl: productLine.catalogUrl,
+            websiteUrl: productLine.websiteUrl,
+            commonModelsText: productLine.commonModelsText,
+            forbiddenClaims: writingConfig?.forbiddenClaims ?? ''
+          }
+        : null,
+      userTopicOrOutline: topic,
+      senderName: context.userName
+    };
+  }
+
   private async notifyCustomerReply(
     thread: CrmInboxThreadRecord,
     message: CrmInboxMessageRecord,
@@ -3460,6 +3709,43 @@ export class CrmService {
     if (existingProductLine && existingProductLine.id !== ignoredId) {
       throw new BadRequestException('产品资料名称已存在');
     }
+  }
+
+  /** Creates a prompt version when the product line has a normalized AI writing config. */
+  private async createProductLineAiPromptVersionIfPresent(
+    productLine: CrmProductLineRecord,
+    context: CrmUserContext,
+    changeSummary: string
+  ) {
+    if (!productLine.aiWritingConfig) return;
+
+    await this.store.createProductLineAiPromptVersion({
+      organizationId: productLine.organizationId,
+      productLineId: productLine.id,
+      aiWritingConfig: productLine.aiWritingConfig,
+      editorId: context.userId,
+      editorName: context.userName,
+      changeSummary
+    });
+  }
+
+  /** Adds a prompt version only when normalized AI config JSON differs semantically. */
+  private async createProductLineAiPromptVersionIfChanged(
+    previousConfigKey: string,
+    productLine: CrmProductLineRecord,
+    context: CrmUserContext,
+    changeSummary: string
+  ) {
+    if (previousConfigKey === toStableAiWritingConfigKey(productLine.aiWritingConfig)) return;
+
+    await this.store.createProductLineAiPromptVersion({
+      organizationId: productLine.organizationId,
+      productLineId: productLine.id,
+      aiWritingConfig: productLine.aiWritingConfig,
+      editorId: context.userId,
+      editorName: context.userName,
+      changeSummary
+    });
   }
 
   private assertCanWriteProductLineAiConfig(
@@ -3805,6 +4091,13 @@ function toProductLineView(record: CrmProductLineRecord) {
   };
 }
 
+function toProductLineAiPromptVersionView(record: CrmProductLineAiPromptVersionRecord) {
+  return {
+    ...record,
+    createdAt: record.createdAt.toISOString()
+  };
+}
+
 function toPersonaProfileView(record: CrmPersonaProfileRecord) {
   return {
     ...record,
@@ -3863,7 +4156,19 @@ function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
 
 function toInboxThreadView(record: CrmInboxThreadRecord) {
   return {
-    ...record,
+    id: record.id,
+    organizationId: record.organizationId,
+    ownerUserId: record.ownerUserId,
+    accountId: record.accountId,
+    contactId: record.contactId,
+    enrollmentId: record.enrollmentId,
+    mailboxId: record.mailboxId,
+    provider: record.provider,
+    providerThreadId: record.providerThreadId,
+    subject: record.subject,
+    status: record.status,
+    unreadCount: record.unreadCount,
+    messageCount: record.messageCount,
     lastInboundAt: record.lastInboundAt.toISOString(),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
@@ -3919,7 +4224,23 @@ function toInboxThreadDetailView(
     enrollment: thread.enrollment,
     messages: canReadBody ? record.messages.map(message => toInboxMessageView(message, record.mailbox)) : [],
     timelineEvents: record.timelineEvents.map(toTimelineEventView),
-    canOperate: thread.canOperate
+    canOperate: thread.canOperate,
+    replyDraft: thread.canOperate ? toInboxReplyDraftView(record.thread) : null
+  };
+}
+
+function toInboxReplyDraftView(record: CrmInboxThreadRecord) {
+  if (!record.replyDraftBodyText || !record.replyDraftTopic || !record.replyDraftUpdatedAt || !record.replyDraftUpdatedById) {
+    return null;
+  }
+
+  return {
+    topic: record.replyDraftTopic,
+    bodyText: record.replyDraftBodyText,
+    metadata: record.replyDraftMetadata,
+    updatedAt: record.replyDraftUpdatedAt.toISOString(),
+    updatedById: record.replyDraftUpdatedById,
+    updatedByName: record.replyDraftUpdatedByName
   };
 }
 
@@ -3967,6 +4288,14 @@ function toInboxThreadReplyView(record: CrmInboxThreadReplyRecord, context: CrmU
     timelineEvents: [toTimelineEventView(record.event)],
     canOperate: thread.canOperate
   };
+}
+
+function getLatestInboundInboxMessage(detail: CrmInboxThreadDetailRecord): CrmInboxMessageRecord | null {
+  const messages = detail.mailbox
+    ? detail.messages.filter(message => message.fromEmailHash !== detail.mailbox?.emailHash)
+    : detail.messages;
+
+  return messages.at(-1) ?? null;
 }
 
 function toAccountDetailView(detail: CrmAccountDetailRecord) {
@@ -4229,6 +4558,10 @@ function normalizeProductLineUpdateInput(input: ProductLineUpdateInput): CrmProd
   if (hasOwn(input, 'status')) data.status = input.status;
 
   return data;
+}
+
+function toStableAiWritingConfigKey(config: CrmProductLineAiWritingConfig | null) {
+  return config ? JSON.stringify(normalizeCrmProductLineAiWritingConfig(config)) : '';
 }
 
 function normalizePersonaProfileCreateInput(input: PersonaProfileCreateInput) {
