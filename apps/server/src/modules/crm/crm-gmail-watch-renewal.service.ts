@@ -19,6 +19,7 @@ export interface CrmGmailWatchRenewalResult {
 
 @Injectable()
 export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestroy {
+  private renewalRunning = false;
   private renewalTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -37,9 +38,9 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
       return;
     }
 
-    void this.renewDueMailboxWatches();
+    void this.runScheduledRenewal();
     this.renewalTimer = setInterval(() => {
-      void this.renewDueMailboxWatches();
+      void this.runScheduledRenewal();
     }, getPositiveEnvNumber('CRM_GMAIL_WATCH_RENEWAL_INTERVAL_MS', defaultRenewalIntervalMs));
     this.renewalTimer.unref?.();
   }
@@ -98,6 +99,20 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
     }
 
     return result;
+  }
+
+  private async runScheduledRenewal() {
+    if (this.renewalRunning) {
+      return;
+    }
+
+    this.renewalRunning = true;
+
+    try {
+      await this.renewDueMailboxWatches();
+    } finally {
+      this.renewalRunning = false;
+    }
   }
 
   private async markMailboxAuthorizationExpired(mailbox: CrmMailboxRecord, error: CrmGmailAuthorizationExpiredError) {

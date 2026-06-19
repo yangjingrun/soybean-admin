@@ -303,6 +303,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-watch.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch.service.spec.ts`、`src/views/crm/settings/modules/useMailboxTable.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch.service.spec.ts`，确认 history expired 邮箱手动同步不入队、重置 checkpoint 并清空同步问题。
 
+### 2026-06-19 Gmail watch 自动续订定时任务不能重入
+
+- 场景：`CrmGmailWatchRenewalService.onModuleInit` 会立即执行一次自动续订，并按 `CRM_GMAIL_WATCH_RENEWAL_INTERVAL_MS` 定时续订即将过期的 Gmail watch。
+- 坑点：如果上一批 Gmail watch 续订还没结束，下一次 interval 又启动一批，会重复扫描同一批 mailbox，造成重复续订、重复日志或并发更新冲突。
+- 正确做法：只在自动调度路径加 in-flight guard；`renewDueMailboxWatches()` 保持可显式调用，便于测试和人工触发。首批未结束时跳过新的 interval tick，结束后下一次 tick 再执行。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认未完成的 scheduled renewal 不会被 interval 重入，完成后后续 tick 可继续执行。
+
 ### 记录模板
 
 ```md

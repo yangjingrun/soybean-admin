@@ -5,6 +5,49 @@ import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './
 import type { CrmMailboxRecord, CrmStore } from './crm.types';
 
 describe('CrmGmailWatchRenewalService', () => {
+  it('does not run overlapping scheduled renewal batches', async () => {
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    const intervalCallbacks: Array<() => void> = [];
+    const deferred = createDeferred<CrmMailboxRecord[]>();
+    const store = createStore([createMailbox()]);
+    const service = new CrmGmailWatchRenewalService(store, createGateway());
+
+    store.setListMailboxesForWatchRenewalOverride(async input => {
+      store.renewalListCalls.push(input);
+
+      return deferred.promise;
+    });
+
+    globalThis.setInterval = ((callback: () => void) => {
+      intervalCallbacks.push(callback);
+
+      return {
+        unref() {}
+      };
+    }) as typeof setInterval;
+    globalThis.clearInterval = (() => {}) as typeof clearInterval;
+
+    try {
+      service.onModuleInit();
+      intervalCallbacks[0]();
+
+      assert.equal(store.renewalListCalls.length, 1);
+
+      deferred.resolve([]);
+      await new Promise(resolve => {
+        setTimeout(resolve, 0);
+      });
+      intervalCallbacks[0]();
+
+      assert.equal(store.renewalListCalls.length, 2);
+    } finally {
+      service.onModuleDestroy();
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
+  });
+
   it('renews due active Gmail watches without advancing an existing history checkpoint', async () => {
     const mailbox = createMailbox({
       lastHistoryId: '100',
@@ -177,6 +220,9 @@ function createGateway(): CrmGmailWatchGateway {
 function createStore(mailboxes: CrmMailboxRecord[]) {
   const renewalListCalls: Array<Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]> = [];
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
+  let listMailboxesForWatchRenewalOverride:
+    | ((input: Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>)
+    | null = null;
   const authorizationExpiredCalls: Array<{
     mailboxId: string;
     organizationId: string;
@@ -189,7 +235,16 @@ function createStore(mailboxes: CrmMailboxRecord[]) {
     renewalListCalls,
     mailboxUpdateCalls,
     authorizationExpiredCalls,
+    setListMailboxesForWatchRenewalOverride(
+      override: (input: Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>
+    ) {
+      listMailboxesForWatchRenewalOverride = override;
+    },
     async listMailboxesForWatchRenewal(input) {
+      if (listMailboxesForWatchRenewalOverride) {
+        return listMailboxesForWatchRenewalOverride(input);
+      }
+
       renewalListCalls.push(input);
 
       return mailboxes.filter(mailbox => {
@@ -235,6 +290,9 @@ function createStore(mailboxes: CrmMailboxRecord[]) {
     mailboxes: CrmMailboxRecord[];
     renewalListCalls: Array<Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]>;
     mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
+    setListMailboxesForWatchRenewalOverride(
+      override: (input: Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>
+    ): void;
     authorizationExpiredCalls: Array<{
       mailboxId: string;
       organizationId: string;
@@ -242,6 +300,15 @@ function createStore(mailboxes: CrmMailboxRecord[]) {
       reason: string;
     }>;
   };
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(innerResolve => {
+    resolve = innerResolve;
+  });
+
+  return { promise, resolve };
 }
 
 function createMailbox(input: Partial<CrmMailboxRecord> = {}): CrmMailboxRecord {
