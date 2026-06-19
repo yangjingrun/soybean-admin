@@ -19,6 +19,7 @@ import {
   createDefaultSequencePolicyForm,
   createEmailTemplateFormFromRecord,
   createSequencePolicyFormFromRecord,
+  formatMailboxSyncActionLabel,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
   normalizeEmailTemplatePayload,
@@ -325,6 +326,23 @@ describe('crm settings shared helpers', () => {
         total: 1,
         watchNeedsAttention: 0
       }
+    );
+  });
+
+  it('labels history expired mailbox sync as a recovery action', () => {
+    assert.equal(formatMailboxSyncActionLabel(createMailbox({ id: 'mailbox-normal' })), '立即同步');
+    assert.equal(
+      formatMailboxSyncActionLabel(
+        createMailbox({
+          id: 'mailbox-history-expired',
+          lastSyncIssue: {
+            type: 'history_expired',
+            message: 'Gmail History checkpoint 已过期，需要人工处理',
+            happenedAt: '2026-06-19T08:00:00.000Z'
+          }
+        })
+      ),
+      '恢复同步'
     );
   });
 });

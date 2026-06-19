@@ -581,6 +581,11 @@ export function formatMailboxQuota(row: Pick<Api.Crm.MailboxRecord, 'dailyLimit'
   return `${row.dailyLimit}/日 · ${row.hourlyLimit}/时`;
 }
 
+/** Label mailbox sync action as recovery when Gmail history checkpoint is expired. */
+export function formatMailboxSyncActionLabel(row: Pick<Api.Crm.MailboxRecord, 'lastSyncIssue'>) {
+  return row.lastSyncIssue?.type === 'history_expired' ? '恢复同步' : '立即同步';
+}
+
 /** Format product line table datetime. */
 export function formatProductLineDate(value: string) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');

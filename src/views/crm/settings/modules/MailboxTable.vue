@@ -6,6 +6,7 @@ import {
   formatMailboxDate,
   formatMailboxHistoryId,
   formatMailboxQuota,
+  formatMailboxSyncActionLabel,
   formatMailboxWatchDescription,
   getMailboxWatchStatus,
   mailboxStatusLabelMap,
@@ -239,7 +240,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
                     loading: props.operatingMailboxId === row.id,
                     onClick: () => emit('syncNow', row)
                   },
-                  { default: () => '立即同步' }
+                  { default: () => formatMailboxSyncActionLabel(row) }
                 )
               : null,
             h(

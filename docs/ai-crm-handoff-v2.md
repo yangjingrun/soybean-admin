@@ -1367,18 +1367,20 @@ Hunter 原始长结果
    - 后续仍需要在真实 Gmail 环境验证续订效果，并补生命周期/env 开关测试。
 
 2. Pub/Sub webhook 生产安全
-   - 状态：本批已强化 secret 校验；OIDC/JWT 仍是后续增强项。
+   - 状态：本批已强化 secret 校验并补 Google OIDC tokeninfo 校验。
    - 生产环境缺 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 时 provider 初始化和 webhook 请求都会拒绝。
    - 配置 secret 后，请求头 `x-crm-gmail-pubsub-secret` 必须匹配。
+   - 配置 `CRM_GMAIL_PUBSUB_AUTH_AUDIENCE` 和 `CRM_GMAIL_PUBSUB_AUTH_SERVICE_ACCOUNT` 后，webhook 会校验 Pub/Sub push 的 `Authorization: Bearer <OIDC token>`。
    - 空白 secret 按缺失处理，比较前会裁剪首尾空白。
    - 不记录完整 secret。
-   - 后续仍可增强 Google OIDC/JWT 验证。
+   - 后续若要本地验签可换官方库，但新增生产依赖前需要确认。
 
 3. Gmail History expired 补偿
-   - 状态：已完成告警型补偿和 mailbox 级管理员可见态，仍缺正式恢复操作入口和补偿同步策略。
+   - 状态：已完成告警型补偿、mailbox 级管理员可见态和明确恢复入口。
    - 过期时不再推进 `lastHistoryId`，避免静默跳过历史回信。
    - 已写系统日志、站内通知和 mailbox 同步问题字段，提醒邮箱 owner/管理员人工处理。
-   - 后续仍需补明确恢复操作入口或 runbook，并继续设计更完整的补偿同步策略。
+   - 邮箱设置页 History expired 行会显示“恢复同步”，调用 `syncMailboxNow` 后续订 Gmail watch、用新 `historyId` 重置 checkpoint 并清空同步问题。
+   - 后续仍需在真实 Gmail 环境验证过期窗口内的人工补偿流程；不做固定 Gmail 轮询。
 
 4. 真实 Gmail 全链路联调
    - 状态：需要外部 Google Cloud/PubSub/Gmail 真实环境，当前本地线程无法直接完成。
@@ -1658,7 +1660,7 @@ AI 获客 / Hunter：
 最值得先补的是：
 
 1. Google Pub/Sub push OIDC/JWT 验证。
-2. History expired 恢复入口、runbook 和补偿同步策略。
+2. History expired 真实 Gmail 环境恢复验收和过期窗口人工补偿流程。
 3. Gmail 已读/未读、label change、删除/归档和外部 SENT 回复做真实 Gmail 验收；CRM 反向写 Gmail label 另列设计。
 4. webhook/history/watch/send 的运维可视化增强。
 5. 真实 Gmail 全链路和预发/生产部署演练。
