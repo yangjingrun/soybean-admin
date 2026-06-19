@@ -405,6 +405,7 @@ declare namespace Api {
       productLine: ProductLineRecord | null;
       mailbox: MailboxRecord | null;
       firstMessage: MessageRecord | null;
+      messages: MessageRecord[];
       canOperateDraft: boolean;
       canControlSequence: boolean;
       checklist: SequenceReviewChecklistItem[];

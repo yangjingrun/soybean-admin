@@ -857,7 +857,8 @@ export class CrmService {
           contact,
           productLine,
           mailbox,
-          firstMessage: bundle.message
+          firstMessage: bundle.message,
+          messages: [bundle.message]
         },
         context
       )
@@ -1950,6 +1951,7 @@ function toSequenceReviewView(record: CrmSequenceReviewRecord, context: CrmUserC
     productLine: record.productLine ? toProductLineView(record.productLine) : null,
     mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
     firstMessage: record.firstMessage ? toMessageView(record.firstMessage) : null,
+    messages: record.messages.map(toMessageView),
     canOperateDraft: record.enrollment.ownerUserId === context.userId,
     canControlSequence: record.enrollment.ownerUserId === context.userId || isOrganizationAdmin(context),
     checklist: buildReviewChecklist(record)

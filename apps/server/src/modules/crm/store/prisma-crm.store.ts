@@ -1788,9 +1788,7 @@ function toSequenceReviewInclude() {
     productLine: true,
     mailbox: true,
     messages: {
-      where: { stepIndex: 1 },
-      take: 1,
-      orderBy: { createdAt: 'asc' as const }
+      orderBy: [{ stepIndex: 'asc' as const }, { createdAt: 'asc' as const }]
     }
   };
 }
@@ -1901,13 +1899,16 @@ function toSequenceReviewRecord(
     messages: CrmMessageModel[];
   }
 ): CrmSequenceReviewRecord {
+  const messages = record.messages.map(toMessageRecord);
+
   return {
     enrollment: toSequenceEnrollmentRecord(record),
     account: toAccountRecord(record.account),
     contact: toContactRecord(record.contact),
     productLine: record.productLine ? toProductLineRecord(record.productLine) : null,
     mailbox: record.mailbox ? toMailboxRecord(record.mailbox) : null,
-    firstMessage: record.messages[0] ? toMessageRecord(record.messages[0]) : null
+    firstMessage: messages.find(message => message.stepIndex === 1) || messages[0] || null,
+    messages
   };
 }
 

@@ -267,10 +267,7 @@ export function useEmailSequenceTable() {
       }
 
       message.success('草稿已保存');
-      currentItem.value = {
-        ...currentItem.value,
-        firstMessage: data.message
-      };
+      currentItem.value = replaceReviewMessage(currentItem.value, data.message);
       await loadSequences();
     } finally {
       draftSaving.value = false;
@@ -299,11 +296,13 @@ export function useEmailSequenceTable() {
       }
 
       message.success('草稿已确认，等待后续发送队列接入');
-      currentItem.value = {
-        ...currentItem.value,
-        enrollment: data.enrollment,
-        firstMessage: data.message
-      };
+      currentItem.value = replaceReviewMessage(
+        {
+          ...currentItem.value,
+          enrollment: data.enrollment
+        },
+        data.message
+      );
       await loadSequenceDetail(data.enrollment.id);
       await loadSequences();
     } finally {
@@ -333,12 +332,14 @@ export function useEmailSequenceTable() {
       }
 
       message.success('首封开发信已进入发送队列');
-      currentItem.value = {
-        ...currentItem.value,
-        account: data.account,
-        enrollment: data.enrollment,
-        firstMessage: data.message
-      };
+      currentItem.value = replaceReviewMessage(
+        {
+          ...currentItem.value,
+          account: data.account,
+          enrollment: data.enrollment
+        },
+        data.message
+      );
       await loadSequenceDetail(data.enrollment.id);
       await loadSequences();
     } finally {
@@ -384,12 +385,20 @@ export function useEmailSequenceTable() {
       }
 
       message.success('开发信序列已停止');
-      currentItem.value = {
-        ...currentItem.value,
-        account: data.account,
-        enrollment: data.enrollment,
-        firstMessage: data.message ?? currentItem.value.firstMessage
-      };
+      currentItem.value = data.message
+        ? replaceReviewMessage(
+            {
+              ...currentItem.value,
+              account: data.account,
+              enrollment: data.enrollment
+            },
+            data.message
+          )
+        : {
+            ...currentItem.value,
+            account: data.account,
+            enrollment: data.enrollment
+          };
       await loadSequenceDetail(data.enrollment.id);
       await loadSequences();
     } finally {
@@ -468,5 +477,23 @@ export function useEmailSequenceTable() {
     resourceLoading,
     sendStarting,
     sequenceStopping
+  };
+}
+
+/** Replace one message inside a review item while keeping firstMessage compatible with old callers. */
+function replaceReviewMessage(
+  item: Api.Crm.SequenceReviewItem,
+  message: Api.Crm.MessageRecord
+): Api.Crm.SequenceReviewItem {
+  const hasMessage = item.messages.some(current => current.id === message.id);
+  const messages = (hasMessage
+    ? item.messages.map(current => (current.id === message.id ? message : current))
+    : [...item.messages, message]
+  ).sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt));
+
+  return {
+    ...item,
+    firstMessage: message.stepIndex === 1 ? message : item.firstMessage,
+    messages
   };
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, shallowRef, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   formatNullableText,
@@ -39,15 +39,26 @@ const draftForm = reactive<Api.Crm.MessageDraftPayload>({
   subject: '',
   bodyText: ''
 });
-const currentMessage = computed(() => props.item?.firstMessage ?? null);
+const selectedMessageId = shallowRef<string | null>(null);
+const reviewMessages = computed(() => {
+  if (props.item?.messages.length) return props.item.messages;
+  return props.item?.firstMessage ? [props.item.firstMessage] : [];
+});
+const currentMessage = computed(
+  () => reviewMessages.value.find(item => item.id === selectedMessageId.value) ?? reviewMessages.value[0] ?? null
+);
+const isFirstMessageSelected = computed(() => currentMessage.value?.stepIndex === 1);
 const canEdit = computed(() => {
   const status = currentMessage.value?.status;
-  return Boolean(props.item?.canOperateDraft && status === 'draft_pending_review');
+  return Boolean(props.item?.canOperateDraft && isFirstMessageSelected.value && status === 'draft_pending_review');
 });
-const canApprove = computed(() => Boolean(props.item?.canOperateDraft && currentMessage.value?.status === 'draft_pending_review'));
+const canApprove = computed(() =>
+  Boolean(props.item?.canOperateDraft && isFirstMessageSelected.value && currentMessage.value?.status === 'draft_pending_review')
+);
 const canStartSend = computed(() =>
   Boolean(
     props.item?.canOperateDraft &&
+      isFirstMessageSelected.value &&
       props.item.enrollment.status === 'ready_to_send' &&
       currentMessage.value?.status === 'draft_ready'
   )
@@ -63,21 +74,33 @@ const canStopSequence = computed(() =>
 );
 const statusTip = computed(() => {
   if (props.item?.enrollment.status === 'stopped') return '序列已停止，旧发送任务会在执行前跳过';
-  if (!props.item?.firstMessage) return '暂无首封草稿';
-  if (props.item.firstMessage.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
-  if (props.item.firstMessage.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
-  if (props.item.firstMessage.status === 'queued') return '首封开发信已进入发送队列';
-  if (props.item.firstMessage.status === 'sent') return '首封开发信已发送';
-  if (props.item.firstMessage.status === 'failed') return '首封发送失败，可刷新后重新处理';
-  if (props.item.firstMessage.status === 'skipped') return '首封开发信已跳过，不会继续发送';
+  if (!currentMessage.value) return '暂无草稿';
+  if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review') return '后续草稿已生成，可先查看内容';
+  if (currentMessage.value.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
+  if (currentMessage.value.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
+  if (currentMessage.value.status === 'queued') return '开发信已进入发送队列';
+  if (currentMessage.value.status === 'sent') return '开发信已发送';
+  if (currentMessage.value.status === 'failed') return '发送失败，可刷新后重新处理';
+  if (currentMessage.value.status === 'skipped') return '开发信已跳过，不会继续发送';
   return '当前邮件不可发送';
 });
 
 watch(
-  () => props.item?.firstMessage?.id,
+  () => [props.item?.enrollment.id, reviewMessages.value.map(item => item.id).join('|')] as const,
   () => {
-    draftForm.subject = props.item?.firstMessage?.subject ?? '';
-    draftForm.bodyText = props.item?.firstMessage?.bodyText ?? '';
+    const stillExists = reviewMessages.value.some(item => item.id === selectedMessageId.value);
+    selectedMessageId.value = stillExists
+      ? selectedMessageId.value
+      : reviewMessages.value.find(item => item.status === 'draft_pending_review')?.id ?? reviewMessages.value[0]?.id ?? null;
+  },
+  { immediate: true }
+);
+
+watch(
+  () => [currentMessage.value?.id, currentMessage.value?.subject, currentMessage.value?.bodyText] as const,
+  () => {
+    draftForm.subject = currentMessage.value?.subject ?? '';
+    draftForm.bodyText = currentMessage.value?.bodyText ?? '';
   },
   { immediate: true }
 );
@@ -102,7 +125,7 @@ function handleSave() {
 
 <template>
   <NDrawer v-model:show="drawerVisible" :width="760" placement="right">
-    <NDrawerContent title="首封草稿审核" closable>
+    <NDrawerContent title="开发信草稿审核" closable>
       <NSpin :show="loading">
         <NSpace v-if="item" vertical :size="16">
           <div class="review-summary">
@@ -111,12 +134,12 @@ function handleSave() {
                 {{ sequenceStatusLabelMap[item.enrollment.status] }}
               </NTag>
               <NTag
-                v-if="item.firstMessage"
-                :type="messageStatusTagTypeMap[item.firstMessage.status]"
+                v-if="currentMessage"
+                :type="messageStatusTagTypeMap[currentMessage.status]"
                 :bordered="false"
                 size="small"
               >
-                {{ messageStatusLabelMap[item.firstMessage.status] }}
+                {{ messageStatusLabelMap[currentMessage.status] }}
               </NTag>
             </NSpace>
             <div class="review-title">{{ item.account.name }}</div>
@@ -142,6 +165,14 @@ function handleSave() {
             </NDescriptionsItem>
           </NDescriptions>
 
+          <div v-if="reviewMessages.length > 1" class="message-switcher">
+            <NRadioGroup v-model:value="selectedMessageId" size="small">
+              <NRadioButton v-for="reviewMessage in reviewMessages" :key="reviewMessage.id" :value="reviewMessage.id">
+                第 {{ reviewMessage.stepIndex }} 封
+              </NRadioButton>
+            </NRadioGroup>
+          </div>
+
           <div class="drawer-section">
             <div class="section-title">发送前检查</div>
             <NSpace vertical :size="8">
@@ -158,7 +189,7 @@ function handleSave() {
           </div>
 
           <div class="drawer-section">
-            <div class="section-title">首封草稿</div>
+            <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封草稿</div>
             <NAlert type="info" :bordered="false" class="status-alert">
               {{ statusTip }}
             </NAlert>
@@ -210,14 +241,14 @@ function handleSave() {
             停止后当前序列不会继续发送，队列中的旧任务也会失效。
           </NPopconfirm>
           <NButton
-            :disabled="loading || approving || refreshing || sendStarting || stopping || !item?.firstMessage || !canEdit"
+            :disabled="loading || approving || refreshing || sendStarting || stopping || !currentMessage || !canEdit"
             :loading="saving"
             @click="handleSave"
           >
             保存草稿
           </NButton>
           <NButton
-            :disabled="loading || saving || refreshing || sendStarting || stopping || !item?.firstMessage || !canApprove"
+            :disabled="loading || saving || refreshing || sendStarting || stopping || !currentMessage || !canApprove"
             :loading="approving"
             @click="emit('approve')"
           >
@@ -225,7 +256,7 @@ function handleSave() {
           </NButton>
           <NButton
             type="primary"
-            :disabled="loading || saving || approving || refreshing || stopping || !item?.firstMessage || !canStartSend"
+            :disabled="loading || saving || approving || refreshing || stopping || !currentMessage || !canStartSend"
             :loading="sendStarting"
             @click="emit('startSend')"
           >
@@ -269,6 +300,11 @@ function handleSave() {
 
 .status-alert {
   margin-bottom: 10px;
+}
+
+.message-switcher {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .check-label {

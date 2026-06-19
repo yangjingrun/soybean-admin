@@ -155,7 +155,8 @@ function createWorkerStore(input: WorkerStoreInput, options: { claimResult?: Crm
     contact: input.contact ?? createContact(),
     productLine: null,
     mailbox: input.mailbox ?? createMailbox(),
-    firstMessage: input.firstMessage ?? input.message ?? createMessage()
+    firstMessage: input.firstMessage ?? input.message ?? createMessage(),
+    messages: input.messages ?? [input.firstMessage ?? input.message ?? createMessage()]
   } as CrmSequenceReviewRecord & { message?: CrmMessageRecord };
   const completed: Parameters<CrmStore['completeFirstMessageSend']>[0][] = [];
   const failed: Parameters<CrmStore['failFirstMessageSend']>[0][] = [];

@@ -939,7 +939,15 @@ describe('CrmService', () => {
           mailboxId: 'mailbox-1'
         })
       ],
-      messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1' })]
+      messages: [
+        createMessage({ id: 'message-1', enrollmentId: 'enrollment-1' }),
+        createMessage({
+          id: 'message-2',
+          enrollmentId: 'enrollment-1',
+          stepIndex: 2,
+          status: 'draft_pending_review'
+        })
+      ]
     });
     const service = new CrmService(store);
 
@@ -957,6 +965,10 @@ describe('CrmService', () => {
       take: 20
     });
     assert.equal(result.records[0].firstMessage?.id, 'message-1');
+    assert.deepEqual(
+      result.records[0].messages.map(message => message.id),
+      ['message-1', 'message-2']
+    );
     assert.equal(result.records[0].checklist.every(item => item.passed), true);
   });
 
@@ -2172,7 +2184,8 @@ function createStore(
         contact,
         productLine,
         mailbox,
-        firstMessage: message
+        firstMessage: message,
+        messages: [message]
       };
     },
     async stopSequenceEnrollment(input) {
@@ -2847,17 +2860,23 @@ function buildSequenceReviewRecords(
     messages: TestMessage[];
   }
 ): CrmSequenceReviewRecord[] {
-  return enrollments.map(enrollment => ({
-    enrollment,
-    account: data.accounts.find(account => account.id === enrollment.accountId) || createAccount({ id: enrollment.accountId }),
-    contact: data.contacts.find(contact => contact.id === enrollment.contactId) || createContact({ id: enrollment.contactId }),
-    productLine: enrollment.productLineId
-      ? data.productLines.find(productLine => productLine.id === enrollment.productLineId) || null
-      : null,
-    mailbox: enrollment.mailboxId ? data.mailboxes.find(mailbox => mailbox.id === enrollment.mailboxId) || null : null,
-    firstMessage:
-      data.messages.find(message => message.enrollmentId === enrollment.id && message.stepIndex === 1) || null
-  }));
+  return enrollments.map(enrollment => {
+    const messages = data.messages
+      .filter(message => message.enrollmentId === enrollment.id)
+      .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime());
+
+    return {
+      enrollment,
+      account: data.accounts.find(account => account.id === enrollment.accountId) || createAccount({ id: enrollment.accountId }),
+      contact: data.contacts.find(contact => contact.id === enrollment.contactId) || createContact({ id: enrollment.contactId }),
+      productLine: enrollment.productLineId
+        ? data.productLines.find(productLine => productLine.id === enrollment.productLineId) || null
+        : null,
+      mailbox: enrollment.mailboxId ? data.mailboxes.find(mailbox => mailbox.id === enrollment.mailboxId) || null : null,
+      firstMessage: messages.find(message => message.stepIndex === 1) || messages[0] || null,
+      messages
+    };
+  });
 }
 
 function buildInboxThreadListRecord(

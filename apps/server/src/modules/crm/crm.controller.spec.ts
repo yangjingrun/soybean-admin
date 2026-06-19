@@ -961,6 +961,7 @@ function createSequenceReviewItemView(overrides: { id?: string } = {}): CrmSeque
     productLine: createProductLineView(),
     mailbox: createMailboxView(),
     firstMessage: createMessageView(),
+    messages: [createMessageView()],
     canOperateDraft: true,
     canControlSequence: true,
     checklist: [

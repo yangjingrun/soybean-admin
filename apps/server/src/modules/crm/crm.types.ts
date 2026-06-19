@@ -247,6 +247,7 @@ export interface CrmSequenceReviewRecord {
   productLine: CrmProductLineRecord | null;
   mailbox: CrmMailboxRecord | null;
   firstMessage: CrmMessageRecord | null;
+  messages: CrmMessageRecord[];
 }
 
 export interface CrmInboxThreadListRecord {

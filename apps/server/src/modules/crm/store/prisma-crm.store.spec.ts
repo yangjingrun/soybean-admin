@@ -460,7 +460,20 @@ describe('PrismaCrmStore', () => {
       ]
     });
     assert.equal(result.records[0].firstMessage?.id, 'message-1');
+    assert.deepEqual(
+      result.records[0].messages.map(message => message.id),
+      ['message-1']
+    );
     assert.equal(result.total, 1);
+    assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls[0].include, {
+      account: true,
+      contact: true,
+      productLine: true,
+      mailbox: true,
+      messages: {
+        orderBy: [{ stepIndex: 'asc' }, { createdAt: 'asc' }]
+      }
+    });
   });
 
   it('finds active enrollments and updates draft messages through scoped identities', async () => {
