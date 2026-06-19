@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { sequenceStatusOptions } from './shared';
+import { sequenceStatusOptions, sequenceTodoTypeOptions } from './shared';
 
 defineProps<{
   loading?: boolean;
@@ -19,12 +19,12 @@ const emit = defineEmits<{
   <NCard :bordered="false" size="small" class="card-wrapper">
     <NForm :model="filterModel" label-placement="left" label-width="80" :show-feedback="false">
       <NGrid responsive="screen" item-responsive :x-gap="12" :y-gap="12">
-        <NGi span="24 s:12 m:8">
+        <NGi span="24 s:12 l:7">
           <NFormItem label="关键词">
             <NInput v-model:value="filterModel.keyword" clearable placeholder="公司、域名、联系人、职位" />
           </NFormItem>
         </NGi>
-        <NGi span="24 s:12 m:6">
+        <NGi span="24 s:12 l:5">
           <NFormItem label="状态">
             <NSelect
               v-model:value="filterModel.status"
@@ -34,7 +34,17 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGi>
-        <NGi span="24 m:10">
+        <NGi span="24 s:12 l:5">
+          <NFormItem label="待办">
+            <NSelect
+              v-model:value="filterModel.todoType"
+              clearable
+              :options="sequenceTodoTypeOptions"
+              placeholder="全部待办"
+            />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 l:7">
           <NSpace justify="end">
             <NButton :loading="loading" @click="emit('reset')">重置</NButton>
             <NButton type="primary" :loading="loading" @click="emit('search')">查询</NButton>

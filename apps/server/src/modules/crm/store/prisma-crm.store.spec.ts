@@ -892,6 +892,29 @@ describe('PrismaCrmStore', () => {
         orderBy: [{ stepIndex: 'asc' }, { createdAt: 'asc' }]
       }
     });
+
+    await store.listSequenceReviewItems({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      todoType: 'follow_up_draft_review',
+      skip: 0,
+      take: 20
+    });
+
+    assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls[1].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      AND: [
+        {
+          messages: {
+            some: {
+              stepIndex: { gt: 1 },
+              status: 'draft_pending_review'
+            }
+          }
+        }
+      ]
+    });
   });
 
   it('finds active enrollments and updates draft messages through scoped identities', async () => {

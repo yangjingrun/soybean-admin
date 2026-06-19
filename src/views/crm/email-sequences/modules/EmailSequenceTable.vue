@@ -152,7 +152,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
         {
           size: 'small',
           text: true,
-          type: nextAction.buttonLabel === '启动' ? 'success' : 'primary',
+          type: ['启动', '生成'].includes(nextAction.buttonLabel) ? 'success' : 'primary',
           onClick: () => emit('review', row)
         },
         { default: () => nextAction.buttonLabel }

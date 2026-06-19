@@ -49,6 +49,14 @@ export const crmSequenceEnrollmentStatuses = [
   'replied',
   'archived'
 ] as const;
+export const crmSequenceReviewTodoTypes = [
+  'draft_review_pending',
+  'follow_up_draft_review',
+  'ready_to_start',
+  'can_generate_next',
+  'send_failed',
+  'max_steps_reached'
+] as const;
 export const crmMessageStatuses = [
   'draft_pending_review',
   'draft_ready',
@@ -69,6 +77,7 @@ export type CrmMailboxSyncIssueType = (typeof crmMailboxSyncIssueTypes)[number];
 export type CrmProductLineStatus = (typeof crmProductLineStatuses)[number];
 export type CrmEmailTemplateStatus = (typeof crmEmailTemplateStatuses)[number];
 export type CrmSequenceEnrollmentStatus = (typeof crmSequenceEnrollmentStatuses)[number];
+export type CrmSequenceReviewTodoType = (typeof crmSequenceReviewTodoTypes)[number];
 export type CrmMessageStatus = (typeof crmMessageStatuses)[number];
 export type CrmMessageThreadMode = (typeof crmMessageThreadModes)[number];
 export type CrmInboxThreadStatus = (typeof crmInboxThreadStatuses)[number];
@@ -1239,6 +1248,7 @@ export interface CrmStore {
     ownerUserId?: string;
     keyword?: string;
     status?: CrmSequenceEnrollmentStatus;
+    todoType?: CrmSequenceReviewTodoType;
     skip: number;
     take: number;
   }): Promise<{ records: CrmSequenceReviewRecord[]; total: number }>;

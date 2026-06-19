@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDraftReviewOperationPayload,
+  buildSequenceReviewSearchParams,
   buildSequencePolicyReviewHints,
   createDefaultSequenceCreateForm,
+  createDefaultSequenceFilterModel,
   getCurrentSequenceMessage,
   getFailedSequenceMessages,
   getMaxSequenceMessageStep,
@@ -173,6 +175,29 @@ describe('email sequence review shared helpers', () => {
     assert.equal(createDefaultSequenceCreateForm().policyId, null);
   });
 
+  it('builds sequence review search params with status and todo filters', () => {
+    const filterModel = createDefaultSequenceFilterModel();
+    filterModel.keyword = ' ABC ';
+    filterModel.status = 'sequence_running';
+    filterModel.todoType = 'can_generate_next';
+
+    assert.deepEqual(
+      buildSequenceReviewSearchParams({
+        current: 2,
+        size: 50,
+        filterModel
+      }),
+      {
+        current: 2,
+        size: 50,
+        keyword: 'ABC',
+        status: 'sequence_running',
+        todoType: 'can_generate_next'
+      }
+    );
+    assert.equal(createDefaultSequenceFilterModel().todoType, null);
+  });
+
   it('builds draft operation payload with the selected message id', () => {
     const payload = buildDraftReviewOperationPayload('message-2', {
       subject: ' Follow up ',
@@ -307,11 +332,27 @@ describe('email sequence review shared helpers', () => {
       messages: [createMessage({ status: 'sent' })],
       enrollment: { status: 'replied' }
     });
+    const canGenerateNext = createSequenceItem({
+      firstMessage: createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+      messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' })],
+      enrollment: { status: 'sequence_running', totalSteps: 5 }
+    });
+    const reachedLastStep = createSequenceItem({
+      firstMessage: createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({ id: 'message-5', stepIndex: 5, status: 'sent' })
+      ],
+      enrollment: { status: 'sequence_running', totalSteps: 5 }
+    });
 
     assert.equal(getCurrentSequenceMessage(pending)?.id, 'message-2');
     assert.equal(getSequenceNextAction(pending).label, '审核草稿');
     assert.equal(getSequenceNextAction(ready).label, '启动首封');
     assert.equal(getSequenceNextAction(failed).label, '处理失败');
+    assert.equal(getSequenceNextAction(canGenerateNext).label, '生成下一封');
+    assert.equal(getSequenceNextAction(canGenerateNext).buttonLabel, '生成');
+    assert.equal(getSequenceNextAction(reachedLastStep).label, '已到最后一封');
     assert.equal(getSequenceNextAction(replied).description, '同公司当前序列已停发');
   });
 

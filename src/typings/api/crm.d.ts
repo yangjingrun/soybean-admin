@@ -44,6 +44,13 @@ declare namespace Api {
       | 'stopped'
       | 'replied'
       | 'archived';
+    type SequenceReviewTodoType =
+      | 'draft_review_pending'
+      | 'follow_up_draft_review'
+      | 'ready_to_start'
+      | 'can_generate_next'
+      | 'send_failed'
+      | 'max_steps_reached';
 
     type MessageStatus = 'draft_pending_review' | 'draft_ready' | 'queued' | 'sent' | 'failed' | 'skipped';
 
@@ -662,6 +669,7 @@ declare namespace Api {
     interface SequenceReviewSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
       status?: SequenceEnrollmentStatus;
+      todoType?: SequenceReviewTodoType;
     }
 
     interface InboxThreadSearchParams extends Api.Common.CommonSearchParams {
@@ -673,6 +681,7 @@ declare namespace Api {
     interface SequenceReviewFilterModel {
       keyword: string;
       status: SequenceEnrollmentStatus | null;
+      todoType: SequenceReviewTodoType | null;
     }
 
     interface InboxThreadFilterModel {

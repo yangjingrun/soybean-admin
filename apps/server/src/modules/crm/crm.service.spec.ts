@@ -1745,7 +1745,8 @@ describe('CrmService', () => {
 
     const result = await service.listSequenceReviewItems(createContext(), {
       keyword: ' ABC ',
-      status: 'draft_review_pending'
+      status: 'draft_review_pending',
+      todoType: 'follow_up_draft_review'
     });
 
     assert.deepEqual(store.lastSequenceReviewListArgs, {
@@ -1753,6 +1754,7 @@ describe('CrmService', () => {
       ownerUserId: 'user-1',
       keyword: 'ABC',
       status: 'draft_review_pending',
+      todoType: 'follow_up_draft_review',
       skip: 0,
       take: 20
     });

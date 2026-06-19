@@ -1,6 +1,11 @@
 import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { crmSequenceEnrollmentStatuses, type CrmSequenceEnrollmentStatus } from '../crm.types';
+import {
+  crmSequenceEnrollmentStatuses,
+  crmSequenceReviewTodoTypes,
+  type CrmSequenceEnrollmentStatus,
+  type CrmSequenceReviewTodoType
+} from '../crm.types';
 
 function trimOptionalString({ value }: { value: unknown }) {
   if (typeof value !== 'string') return value;
@@ -33,4 +38,9 @@ export class CrmSequenceReviewQueryDto {
   @IsIn(crmSequenceEnrollmentStatuses)
   @Transform(trimOptionalString)
   status?: CrmSequenceEnrollmentStatus;
+
+  @IsOptional()
+  @IsIn(crmSequenceReviewTodoTypes)
+  @Transform(trimOptionalString)
+  todoType?: CrmSequenceReviewTodoType;
 }

@@ -77,6 +77,7 @@ import type {
   CrmSequenceEnrollmentStatus,
   CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
+  CrmSequenceReviewTodoType,
   CrmSendQueuePort,
   CrmStore,
   CrmTimelineEventRecord,
@@ -1292,6 +1293,7 @@ export class CrmService {
       size?: number | string;
       keyword?: string;
       status?: CrmSequenceEnrollmentStatus;
+      todoType?: CrmSequenceReviewTodoType;
     } = {}
   ) {
     const current = normalizePositiveInteger(query.current, defaultPage);
@@ -1302,6 +1304,7 @@ export class CrmService {
       ...toOwnerScope(context),
       ...(keyword ? { keyword } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.todoType ? { todoType: query.todoType } : {}),
       skip: (current - 1) * size,
       take: size
     });

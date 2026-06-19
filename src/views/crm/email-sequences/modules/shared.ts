@@ -10,6 +10,15 @@ export const sequenceStatusOptions = [
   { label: '已归档', value: 'archived' }
 ] satisfies Array<{ label: string; value: Api.Crm.SequenceEnrollmentStatus }>;
 
+export const sequenceTodoTypeOptions = [
+  { label: '草稿待审', value: 'draft_review_pending' },
+  { label: '后续待审', value: 'follow_up_draft_review' },
+  { label: '待启动首封', value: 'ready_to_start' },
+  { label: '可生成下一封', value: 'can_generate_next' },
+  { label: '发送失败', value: 'send_failed' },
+  { label: '已到最后一封', value: 'max_steps_reached' }
+] satisfies Array<{ label: string; value: Api.Crm.SequenceReviewTodoType }>;
+
 export const sequenceStatusLabelMap: Record<Api.Crm.SequenceEnrollmentStatus, string> = {
   draft_review_pending: '草稿待审',
   ready_to_send: '待发送',
@@ -86,7 +95,8 @@ export interface SequencePolicyReviewHint {
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
   return {
     keyword: '',
-    status: null
+    status: null,
+    todoType: null
   };
 }
 
@@ -120,6 +130,10 @@ export function buildSequenceReviewSearchParams(options: {
 
   if (filterModel.status) {
     params.status = filterModel.status;
+  }
+
+  if (filterModel.todoType) {
+    params.todoType = filterModel.todoType;
   }
 
   return params;
@@ -370,6 +384,24 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
       description: currentMessage.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '已进入发送队列',
       buttonLabel: '查看',
       tagType: 'info'
+    };
+  }
+
+  if (canGenerateNextSequenceDraft(item)) {
+    return {
+      label: '生成下一封',
+      description: `已生成到第 ${getMaxSequenceMessageStep(item.messages)} 封，可继续生成后续草稿`,
+      buttonLabel: '生成',
+      tagType: 'success'
+    };
+  }
+
+  if (getMaxSequenceMessageStep(item.messages) >= item.enrollment.totalSteps) {
+    return {
+      label: '已到最后一封',
+      description: '全部步骤已生成，等待发送或回复结果',
+      buttonLabel: '查看',
+      tagType: 'default'
     };
   }
 

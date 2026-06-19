@@ -92,6 +92,7 @@ import type {
   CrmSequencePolicyUpdateInput,
   CrmSequenceDraftBundleRecord,
   CrmSequenceReviewRecord,
+  CrmSequenceReviewTodoType,
   CrmSendCompletionInput,
   CrmSendCompletionRecord,
   CrmSendDeliveryClaimInput,
@@ -1169,6 +1170,7 @@ export class PrismaCrmStore implements CrmStore {
     ownerUserId?: string;
     keyword?: string;
     status?: CrmSequenceEnrollmentStatus;
+    todoType?: CrmSequenceReviewTodoType;
     skip: number;
     take: number;
   }) {
@@ -2575,15 +2577,57 @@ function toSequenceEnrollmentListWhere(args: {
   ownerUserId?: string;
   keyword?: string;
   status?: CrmSequenceEnrollmentStatus;
+  todoType?: CrmSequenceReviewTodoType;
 }): Prisma.CrmSequenceEnrollmentWhereInput {
   const keywordFilter = args.keyword ? toSequenceEnrollmentKeywordFilter(args.keyword) : undefined;
+  const todoTypeFilter = toSequenceEnrollmentTodoTypeWhere(args.todoType);
 
   return {
     organizationId: args.organizationId,
     ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
     ...(args.status ? { status: args.status } : {}),
-    ...(keywordFilter ? { OR: keywordFilter } : {})
+    ...(keywordFilter ? { OR: keywordFilter } : {}),
+    ...(todoTypeFilter ? { AND: [todoTypeFilter] } : {})
   };
+}
+
+/** Maps sequence review workbench filters to relation-aware Prisma conditions. */
+function toSequenceEnrollmentTodoTypeWhere(
+  todoType?: CrmSequenceReviewTodoType
+): Prisma.CrmSequenceEnrollmentWhereInput | undefined {
+  if (!todoType) return undefined;
+
+  if (todoType === 'draft_review_pending') {
+    return { messages: { some: { status: 'draft_pending_review' } } };
+  }
+
+  if (todoType === 'follow_up_draft_review') {
+    return { messages: { some: { stepIndex: { gt: 1 }, status: 'draft_pending_review' } } };
+  }
+
+  if (todoType === 'ready_to_start') {
+    return { status: 'ready_to_send', messages: { some: { stepIndex: 1, status: 'draft_ready' } } };
+  }
+
+  if (todoType === 'can_generate_next') {
+    return {
+      status: { in: ['ready_to_send', 'sequence_running'] },
+      messages: {
+        none: {
+          OR: [
+            { status: { in: ['draft_pending_review', 'queued', 'failed'] } },
+            { stepIndex: 5 }
+          ]
+        }
+      }
+    };
+  }
+
+  if (todoType === 'send_failed') {
+    return { messages: { some: { status: 'failed' } } };
+  }
+
+  return { messages: { some: { stepIndex: 5 } } };
 }
 
 /** Builds the inbox thread list scope and optional UI filters. */
