@@ -26,6 +26,7 @@ import { CreateCrmProductLineDto } from './dto/create-crm-product-line.dto';
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
+import { ReplyCrmInboxThreadDto } from './dto/reply-crm-inbox-thread.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
@@ -202,6 +203,15 @@ export class CrmController {
     @Body() dto: UpdateCrmInboxThreadStatusDto
   ) {
     return ok(await this.crmService.updateInboxThreadStatus(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('inbox-threads/:id/reply')
+  async replyInboxThread(
+    @Headers('authorization') authorization = '',
+    @Param('id') id: string,
+    @Body() dto: ReplyCrmInboxThreadDto
+  ) {
+    return ok(await this.crmService.replyInboxThread(id, dto, this.requireUserContext(authorization)));
   }
 
   @Post('messages/:id/mock-reply')

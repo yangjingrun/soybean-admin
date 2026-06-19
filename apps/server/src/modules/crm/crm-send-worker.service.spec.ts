@@ -165,6 +165,9 @@ function createGateway(error?: Error): CrmEmailSendGateway & { calls: Parameters
 
       calls.push(input);
       return { providerMessageId: `mock:${input.message.id}` };
+    },
+    async replyPlainText(input) {
+      return { providerMessageId: `mock:reply:${input.thread.id}` };
     }
   };
 }

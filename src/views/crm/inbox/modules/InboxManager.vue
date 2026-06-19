@@ -15,6 +15,7 @@ const {
   handlePageUpdate,
   handleReset,
   handleSearch,
+  handleSubmitReply,
   handleUpdateStatus,
   loadThreadDetail,
   loading,
@@ -24,6 +25,8 @@ const {
   pagination,
   pendingTotal,
   records,
+  replyBody,
+  replySubmitting,
   statusOperating,
   statusSubmitting
 } = useInboxTable();
@@ -54,13 +57,16 @@ const {
     />
 
     <InboxThreadDrawer
+      v-model:reply-body="replyBody"
       :show="detailVisible"
       :detail="currentDetail"
       :loading="detailLoading"
+      :reply-submitting="replySubmitting"
       :status-operating="statusOperating"
       :status-submitting="statusSubmitting"
       @update:show="handleDetailVisibleUpdate"
       @reload="loadThreadDetail()"
+      @submit-reply="handleSubmitReply"
       @submit-status="handleUpdateStatus"
     />
   </NSpace>

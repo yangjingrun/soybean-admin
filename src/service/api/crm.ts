@@ -214,6 +214,15 @@ export function updateCrmInboxThreadStatus(id: string, data: Api.Crm.InboxThread
   });
 }
 
+/** Reply to one CRM inbox thread with plain text from the bound mailbox. */
+export function replyCrmInboxThread(id: string, data: Api.Crm.InboxReplyPayload) {
+  return request<Api.Crm.InboxThreadDetail>({
+    url: `/crm/inbox-threads/${id}/reply`,
+    method: 'post',
+    data
+  });
+}
+
 /** Create a development-only mocked inbound reply for one CRM message. */
 export function mockReplyCrmMessage(id: string, data: Api.Crm.MessageMockReplyPayload) {
   return request<Api.Crm.InboxThreadDetail>({

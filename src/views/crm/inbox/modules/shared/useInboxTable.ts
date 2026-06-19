@@ -4,6 +4,7 @@ import {
   fetchCrmInboxThreadDetail,
   fetchCrmInboxThreads,
   fetchCrmMailboxes,
+  replyCrmInboxThread,
   updateCrmInboxThreadStatus
 } from '@/service/api';
 import { buildInboxPendingCountParams, buildInboxThreadSearchParams, createDefaultInboxFilterModel } from '../shared';
@@ -18,6 +19,8 @@ export function useInboxTable() {
   const mailboxLoading = shallowRef(false);
   const detailVisible = shallowRef(false);
   const detailLoading = shallowRef(false);
+  const replyBody = shallowRef('');
+  const replySubmitting = shallowRef(false);
   const statusSubmitting = shallowRef(false);
   const statusOperating = shallowRef<Api.Crm.InboxThreadStatus | null>(null);
   const selectedThreadId = shallowRef<string | null>(null);
@@ -137,6 +140,7 @@ export function useInboxTable() {
   function openThreadDetail(record: Api.Crm.InboxThreadRecord) {
     selectedThreadId.value = record.id;
     currentDetail.value = null;
+    replyBody.value = '';
     detailVisible.value = true;
     void loadThreadDetail(record.id);
   }
@@ -148,6 +152,7 @@ export function useInboxTable() {
       latestDetailRequestId += 1;
       selectedThreadId.value = null;
       currentDetail.value = null;
+      replyBody.value = '';
       detailLoading.value = false;
     }
   }
@@ -189,6 +194,37 @@ export function useInboxTable() {
     }
   }
 
+  /** Submit one plain-text reply from the bound mailbox and refresh the drawer. */
+  async function handleSubmitReply() {
+    const threadId = selectedThreadId.value;
+    const bodyText = replyBody.value.trim();
+
+    if (!threadId || replySubmitting.value) {
+      return;
+    }
+
+    if (!bodyText) {
+      message.warning('回复正文不能为空');
+      return;
+    }
+
+    replySubmitting.value = true;
+    try {
+      const { data, error } = await replyCrmInboxThread(threadId, { bodyText });
+
+      if (error || selectedThreadId.value !== threadId) {
+        return;
+      }
+
+      message.success('回复已发送');
+      currentDetail.value = data;
+      replyBody.value = '';
+      await loadThreads();
+    } finally {
+      replySubmitting.value = false;
+    }
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadThreads();
@@ -221,6 +257,7 @@ export function useInboxTable() {
     handlePageUpdate,
     handleReset,
     handleSearch,
+    handleSubmitReply,
     handleUpdateStatus,
     loadThreadDetail,
     loadThreads,
@@ -231,6 +268,8 @@ export function useInboxTable() {
     pagination,
     pendingTotal,
     records,
+    replyBody,
+    replySubmitting,
     statusOperating,
     statusSubmitting
   };

@@ -9,4 +9,11 @@ export class MockCrmEmailSendGateway implements CrmEmailSendGateway {
       providerMessageId: `mock:${input.message.id}`
     };
   }
+
+  /** Mock plain-text inbox reply until the real Gmail thread reply API is wired. */
+  async replyPlainText(input: Parameters<CrmEmailSendGateway['replyPlainText']>[0]) {
+    return {
+      providerMessageId: `mock:reply:${input.thread.id}:${Date.now()}`
+    };
+  }
 }

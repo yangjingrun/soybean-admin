@@ -30,6 +30,8 @@ import type {
   CrmInboxThreadListRecord,
   CrmInboxMessageRecord,
   CrmInboxThreadRecord,
+  CrmInboxThreadReplyInput,
+  CrmInboxThreadReplyRecord,
   CrmInboxThreadStatus,
   CrmInboxThreadStatusUpdateInput,
   CrmInboxThreadStatusUpdateRecord,
@@ -1244,6 +1246,95 @@ export class PrismaCrmStore implements CrmStore {
       return {
         thread: toInboxThreadRecord(thread),
         account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const record = await tx.crmInboxThread.findFirst({
+        where: {
+          id: input.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        },
+        include: {
+          account: true,
+          contact: true,
+          mailbox: true,
+          enrollment: true,
+          messages: {
+            orderBy: { receivedAt: 'desc' },
+            take: 1
+          }
+        }
+      });
+
+      if (!record?.mailbox || record.mailbox.status !== 'active') {
+        return null;
+      }
+
+      const inboxMessage = await tx.crmInboxMessage.create({
+        data: {
+          threadId: record.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          accountId: record.accountId,
+          contactId: record.contactId,
+          enrollmentId: record.enrollmentId,
+          mailboxId: record.mailboxId,
+          provider: record.provider,
+          providerMessageId: input.providerMessageId ?? null,
+          replyToMessageId: record.messages[0]?.id ?? null,
+          fromEmail: record.mailbox.emailAddress,
+          fromEmailHash: record.mailbox.emailHash,
+          maskedFromEmail: record.mailbox.maskedEmail,
+          subject: input.subject,
+          snippet: toSnippet(input.bodyText),
+          bodyText: input.bodyText,
+          receivedAt: input.sentAt,
+          messageType: 'customer_reply'
+        } as Prisma.CrmInboxMessageUncheckedCreateInput
+      });
+      const [thread, account, event] = await Promise.all([
+        tx.crmInboxThread.update({
+          where: { id: record.id },
+          data: {
+            status: 'handled',
+            unreadCount: 0,
+            messageCount: { increment: 1 }
+          }
+        }),
+        tx.crmAccount.update({
+          where: { id: record.accountId },
+          data: { status: 'followed_up' }
+        }),
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: record.accountId,
+            contactId: record.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: 'inbox_replied',
+            title: '已在系统内回复',
+            content: input.subject,
+            metadata: {
+              threadId: record.id,
+              inboxMessageId: inboxMessage.id,
+              providerMessageId: input.providerMessageId ?? null
+            }
+          }
+        })
+      ]);
+
+      return {
+        thread: toInboxThreadRecord(thread),
+        message: toInboxMessageRecord(inboxMessage),
+        account: toAccountRecord(account),
+        contact: toContactRecord(record.contact),
+        mailbox: toMailboxRecord(record.mailbox),
+        enrollment: record.enrollment ? toSequenceEnrollmentRecord(record.enrollment) : null,
         event: toTimelineEventRecord(event)
       };
     });

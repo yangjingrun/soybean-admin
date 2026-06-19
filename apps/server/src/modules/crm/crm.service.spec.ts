@@ -9,6 +9,7 @@ import type {
   CrmInboxMessageRecord,
   CrmInboxThreadRecord,
   CrmMailboxRecord,
+  CrmEmailSendGateway,
   CrmSendQueueJob,
   CrmSendQueuePort,
   CrmSequenceReviewRecord,
@@ -1310,6 +1311,93 @@ describe('CrmService', () => {
       NotFoundException
     );
   });
+
+  it('sends a plain-text inbox reply through the owner mailbox and marks the thread handled', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'replied_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [
+        createMailbox({ id: 'mailbox-1', emailAddress: 'sender@example.com', emailHash: hashTestEmail('sender@example.com') })
+      ],
+      inboxThreads: [
+        createInboxThread({
+          id: 'thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'pending',
+          unreadCount: 2,
+          subject: 'Re: Bearings'
+        })
+      ],
+      inboxMessages: [
+        createInboxMessage({
+          id: 'inbound-1',
+          threadId: 'thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          subject: 'Re: Bearings',
+          bodyText: 'Please send details.',
+          receivedAt: new Date('2026-06-18T09:30:00.000Z')
+        })
+      ]
+    });
+    const replyCalls: Array<{ subject: string; bodyText: string; mailboxId: string }> = [];
+    const sendGateway: CrmEmailSendGateway = {
+      async sendPlainText() {
+        return { providerMessageId: 'mock:first-message' };
+      },
+      async replyPlainText(input) {
+        replyCalls.push({
+          subject: input.subject,
+          bodyText: input.bodyText,
+          mailboxId: input.mailbox.id
+        });
+
+        return { providerMessageId: 'mock:reply-1' };
+      }
+    };
+    const service = new CrmService(store, undefined, undefined, undefined, undefined, sendGateway);
+
+    const result = await service.replyInboxThread('thread-1', { bodyText: '  Thanks, I will send details today.  ' }, createContext());
+
+    assert.deepEqual(replyCalls, [
+      {
+        subject: 'Re: Bearings',
+        bodyText: 'Thanks, I will send details today.',
+        mailboxId: 'mailbox-1'
+      }
+    ]);
+    assert.equal(result.thread.status, 'handled');
+    assert.equal(result.thread.unreadCount, 0);
+    assert.equal(result.account.status, 'followed_up');
+    assert.equal(result.messages.at(-1)?.direction, 'outbound');
+    assert.equal(result.messages.at(-1)?.providerMessageId, 'mock:reply-1');
+    assert.equal(result.timelineEvents[0].eventType, 'inbox_replied');
+  });
+
+  it('rejects empty inbox replies and peer inbox replies', async () => {
+    const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'peer-contact', accountId: 'peer-account', ownerUserId: 'user-2' })],
+      mailboxes: [createMailbox({ id: 'peer-mailbox', ownerUserId: 'user-2' })],
+      inboxThreads: [
+        createInboxThread({
+          id: 'peer-thread',
+          accountId: 'peer-account',
+          contactId: 'peer-contact',
+          mailboxId: 'peer-mailbox',
+          ownerUserId: 'user-2'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.replyInboxThread('peer-thread', { bodyText: 'Hello' }, createContext()),
+      NotFoundException
+    );
+    await assert.rejects(() => service.replyInboxThread('peer-thread', { bodyText: '   ' }, createContext()), BadRequestException);
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -2175,6 +2263,65 @@ function createStore(
       timelineEvents.push(event);
 
       return { thread, account, event };
+    },
+    async replyInboxThread(input) {
+      const thread = inboxThreads.find(item => {
+        if (item.id !== input.id) return false;
+        if (item.organizationId !== input.organizationId) return false;
+        if (item.ownerUserId !== input.ownerUserId) return false;
+        return true;
+      });
+      const account = thread ? accounts.find(item => item.id === thread.accountId) : null;
+      const contact = thread ? contacts.find(item => item.id === thread.contactId) : null;
+      const mailbox = thread?.mailboxId ? mailboxes.find(item => item.id === thread.mailboxId) : null;
+      const enrollment = thread?.enrollmentId ? enrollments.find(item => item.id === thread.enrollmentId) : null;
+
+      if (!thread || !account || !contact || !mailbox || mailbox.status !== 'active') return null;
+
+      const message = createInboxMessage({
+        id: `outbox-message-${inboxMessages.length + 1}`,
+        threadId: thread.id,
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        accountId: thread.accountId,
+        contactId: thread.contactId,
+        enrollmentId: thread.enrollmentId,
+        mailboxId: thread.mailboxId,
+        providerMessageId: input.providerMessageId ?? null,
+        replyToMessageId: inboxMessages.filter(item => item.threadId === thread.id).at(-1)?.id ?? null,
+        fromEmail: mailbox.emailAddress,
+        fromEmailHash: mailbox.emailHash,
+        maskedFromEmail: mailbox.maskedEmail,
+        subject: input.subject,
+        snippet: input.bodyText,
+        bodyText: input.bodyText,
+        receivedAt: input.sentAt,
+        messageType: 'customer_reply'
+      });
+      inboxMessages.push(message);
+      Object.assign(thread, {
+        status: 'handled',
+        unreadCount: 0,
+        messageCount: thread.messageCount + 1,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+      Object.assign(account, { status: 'followed_up', updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      const event = createTimelineEvent({
+        accountId: thread.accountId,
+        contactId: thread.contactId,
+        ownerUserId: input.ownerUserId,
+        eventType: 'inbox_replied',
+        title: '已在系统内回复',
+        content: input.subject,
+        metadata: {
+          threadId: thread.id,
+          inboxMessageId: message.id,
+          providerMessageId: input.providerMessageId ?? null
+        }
+      });
+      timelineEvents.push(event);
+
+      return { thread, message, account, contact, mailbox, enrollment: enrollment ?? null, event };
     }
   };
 }

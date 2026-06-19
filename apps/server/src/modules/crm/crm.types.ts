@@ -500,12 +500,22 @@ export interface CrmEmailSendGatewayInput {
   mailbox: CrmMailboxRecord;
 }
 
+export interface CrmInboxReplySendGatewayInput {
+  thread: CrmInboxThreadRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  mailbox: CrmMailboxRecord;
+  subject: string;
+  bodyText: string;
+}
+
 export interface CrmEmailSendGatewayResult {
   providerMessageId?: string | null;
 }
 
 export interface CrmEmailSendGateway {
   sendPlainText(input: CrmEmailSendGatewayInput): Promise<CrmEmailSendGatewayResult>;
+  replyPlainText(input: CrmInboxReplySendGatewayInput): Promise<CrmEmailSendGatewayResult>;
 }
 
 export interface CrmSendStartInput {
@@ -643,6 +653,26 @@ export interface CrmInboxThreadStatusUpdateRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmInboxThreadReplyInput {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  subject: string;
+  bodyText: string;
+  sentAt: Date;
+  providerMessageId?: string | null;
+}
+
+export interface CrmInboxThreadReplyRecord {
+  thread: CrmInboxThreadRecord;
+  message: CrmInboxMessageRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  mailbox: CrmMailboxRecord;
+  enrollment: CrmSequenceEnrollmentRecord | null;
+  event: CrmTimelineEventRecord;
+}
+
 export interface CrmStore {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
@@ -770,4 +800,5 @@ export interface CrmStore {
   updateInboxThreadStatus(
     input: CrmInboxThreadStatusUpdateInput
   ): Promise<CrmInboxThreadStatusUpdateRecord | null>;
+  replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null>;
 }

@@ -15,6 +15,8 @@ import {
 const props = defineProps<{
   detail: Api.Crm.InboxThreadDetail | null;
   loading?: boolean;
+  replyBody: string;
+  replySubmitting?: boolean;
   show: boolean;
   statusOperating?: Api.Crm.InboxThreadStatus | null;
   statusSubmitting?: boolean;
@@ -22,7 +24,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   reload: [];
+  submitReply: [];
   submitStatus: [status: Api.Crm.InboxThreadStatus];
+  'update:replyBody': [body: string];
   'update:show': [show: boolean];
 }>();
 
@@ -36,6 +40,11 @@ const contact = computed(() => props.detail?.contact ?? null);
 const mailbox = computed(() => props.detail?.mailbox ?? null);
 const enrollment = computed(() => props.detail?.enrollment ?? null);
 const messages = computed(() => props.detail?.messages ?? []);
+const replyBodyModel = computed({
+  get: () => props.replyBody,
+  set: value => emit('update:replyBody', value)
+});
+const canReply = computed(() => Boolean(props.detail?.canOperate && mailbox.value?.status === 'active'));
 const statusActions = [
   { label: '标记待处理', value: 'pending' },
   { label: '标记已处理', value: 'handled' },
@@ -121,6 +130,19 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
             </NSpace>
             <NEmpty v-else description="暂无邮件正文" />
           </div>
+
+          <div v-if="detail?.canOperate" class="drawer-section">
+            <div class="section-title">系统内回复</div>
+            <NInput
+              v-model:value="replyBodyModel"
+              type="textarea"
+              :autosize="{ minRows: 4, maxRows: 8 }"
+              :maxlength="10000"
+              show-count
+              :disabled="!canReply || replySubmitting"
+              placeholder="输入纯文本回复"
+            />
+          </div>
         </NSpace>
         <NEmpty v-else description="请选择回复线程" />
       </NSpin>
@@ -132,6 +154,14 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
 
           <NSpace justify="end">
             <NButton @click="drawerVisible = false">关闭</NButton>
+            <NButton
+              type="primary"
+              :disabled="!canReply || !replyBody.trim()"
+              :loading="replySubmitting"
+              @click="emit('submitReply')"
+            >
+              发送回复
+            </NButton>
             <NButton
               v-for="item in statusActions"
               :key="item.value"

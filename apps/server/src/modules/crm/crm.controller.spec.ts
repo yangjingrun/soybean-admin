@@ -517,6 +517,27 @@ describe('CrmController', () => {
             event: createTimelineEventView({ eventType: 'inbox_status_changed' })
           };
         },
+        async replyInboxThread(id, dto, context) {
+          calls.push({ action: 'reply-inbox', id, payload: dto, context });
+          const detail = createInboxThreadDetailView({ id });
+
+          return {
+            ...detail,
+            thread: { ...detail.thread, status: 'handled' as const, unreadCount: 0 },
+            account: createAccountView({ status: 'followed_up' }),
+            messages: [
+              ...detail.messages,
+              {
+                ...detail.messages[0],
+                id: 'outbound-reply-1',
+                direction: 'outbound' as const,
+                bodyText: dto.bodyText,
+                sentAt: '2026-06-18T11:30:00.000Z',
+                receivedAt: null
+              }
+            ]
+          };
+        },
         async mockCustomerReply(id, dto, context) {
           calls.push({ action: 'mock-reply', id, payload: dto, context });
 
@@ -528,11 +549,13 @@ describe('CrmController', () => {
     const listed = await controller.listInboxThreads('Bearer token', { current: '1', size: '20', status: 'pending' });
     const detail = await controller.getInboxThread('Bearer token', 'inbox-thread-1');
     const status = await controller.updateInboxThreadStatus('Bearer token', 'inbox-thread-1', { status: 'handled' });
+    const sentReply = await controller.replyInboxThread('Bearer token', 'inbox-thread-1', { bodyText: 'Thanks.' });
     const reply = await controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' });
 
     assert.equal(listed.data.records[0].id, 'inbox-thread-1');
     assert.equal(detail.data.thread.id, 'inbox-thread-1');
     assert.equal(status.data.thread.status, 'handled');
+    assert.equal(sentReply.data.messages.at(-1)?.direction, 'outbound');
     assert.equal(reply.data.messages[0].direction, 'inbound');
     assert.deepEqual(
       calls.map(call => [call.action, call.id ?? null, call.context.organizationId]),
@@ -540,6 +563,7 @@ describe('CrmController', () => {
         ['list-inbox', null, 'org-1'],
         ['detail-inbox', 'inbox-thread-1', 'org-1'],
         ['status-inbox', 'inbox-thread-1', 'org-1'],
+        ['reply-inbox', 'inbox-thread-1', 'org-1'],
         ['mock-reply', 'message-1', 'org-1']
       ]
     );
@@ -1012,6 +1036,9 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
         account: createAccountView(),
         event: createTimelineEventView({ eventType: 'inbox_status_changed' })
       };
+    },
+    async replyInboxThread() {
+      return createInboxThreadDetailView();
     },
     async mockCustomerReply() {
       return createInboxThreadDetailView();

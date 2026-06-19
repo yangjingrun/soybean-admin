@@ -5,7 +5,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
-import { CRM_EMAIL_DNS_RESOLVER, CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
+import { CRM_EMAIL_DNS_RESOLVER, CRM_EMAIL_SEND_GATEWAY, CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
 import type {
   CrmAccountDetailRecord,
   CrmAccountRecord,
@@ -15,11 +15,13 @@ import type {
   CrmMailboxStatus,
   CrmContactRecord,
   CrmEmailStatus,
+  CrmEmailSendGateway,
   CrmCustomerReplyIngestRecord,
   CrmInboxMessageType,
   CrmInboxThreadDetailRecord,
   CrmInboxThreadListRecord,
   CrmInboxMessageRecord,
+  CrmInboxThreadReplyRecord,
   CrmInboxThreadRecord,
   CrmInboxThreadStatus,
   CrmMessageRecord,
@@ -290,7 +292,10 @@ export class CrmService {
     private readonly sendQueue?: CrmSendQueuePort,
     @Optional()
     @Inject(SystemNotificationService)
-    private readonly systemNotificationService?: SystemNotificationService
+    private readonly systemNotificationService?: SystemNotificationService,
+    @Optional()
+    @Inject(CRM_EMAIL_SEND_GATEWAY)
+    private readonly sendGateway?: CrmEmailSendGateway
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -1104,6 +1109,74 @@ export class CrmService {
     };
   }
 
+  /** Sends a plain-text reply from the owner mailbox and marks the inbox thread handled. */
+  async replyInboxThread(
+    id: string,
+    input: {
+      bodyText: string;
+    },
+    context: CrmUserContext
+  ) {
+    const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
+    const detail = await this.store.getInboxThread({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!detail) {
+      throw new NotFoundException('收件箱会话不存在');
+    }
+
+    if (!detail.mailbox || detail.mailbox.status !== 'active') {
+      throw new BadRequestException('发送邮箱不可用，请重新授权或更换邮箱');
+    }
+
+    if (!this.sendGateway) {
+      throw new BadRequestException('邮件发送网关未配置');
+    }
+
+    const sentAt = new Date();
+    const sent = await this.sendGateway.replyPlainText({
+      thread: detail.thread,
+      account: detail.account,
+      contact: detail.contact,
+      mailbox: detail.mailbox,
+      subject: detail.thread.subject,
+      bodyText
+    });
+    const replied = await this.store.replyInboxThread({
+      id: detail.thread.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      subject: detail.thread.subject,
+      bodyText,
+      sentAt,
+      providerMessageId: sent.providerMessageId ?? null
+    });
+
+    if (!replied) {
+      throw new BadRequestException('回复保存失败，请刷新后重试');
+    }
+
+    await this.recordCrmLog('inbox-thread-reply', 'CRM 收件箱系统内回复', context, {
+      organizationId: context.organizationId,
+      accountId: replied.account.id,
+      contactId: replied.contact.id,
+      threadId: replied.thread.id,
+      inboxMessageId: replied.message.id,
+      providerMessageId: sent.providerMessageId ?? null
+    });
+
+    const nextDetail = await this.store.getInboxThread({
+      id: replied.thread.id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    return nextDetail ? toInboxThreadDetailView(nextDetail, context) : toInboxThreadReplyView(replied, context);
+  }
+
   /** Mock-ingests a customer reply for a sent outbound message before Gmail sync is wired. */
   async mockCustomerReply(
     outboundMessageId: string,
@@ -1670,12 +1743,15 @@ function toInboxThreadView(record: CrmInboxThreadRecord) {
   };
 }
 
-function toInboxMessageView(record: CrmInboxMessageRecord) {
+function toInboxMessageView(record: CrmInboxMessageRecord, mailbox?: CrmMailboxRecord | null) {
+  const isOutbound = Boolean(mailbox && record.fromEmailHash === mailbox.emailHash);
+  const timestamp = record.receivedAt.toISOString();
+
   return {
     ...record,
-    direction: 'inbound',
-    sentAt: null,
-    receivedAt: record.receivedAt.toISOString(),
+    direction: isOutbound ? 'outbound' : 'inbound',
+    sentAt: isOutbound ? timestamp : null,
+    receivedAt: isOutbound ? null : timestamp,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.createdAt.toISOString()
   };
@@ -1705,7 +1781,7 @@ function toInboxThreadDetailView(record: CrmInboxThreadDetailRecord, context: Cr
     contact: thread.contact,
     mailbox: thread.mailbox,
     enrollment: thread.enrollment,
-    messages: canReadBody ? record.messages.map(toInboxMessageView) : [],
+    messages: canReadBody ? record.messages.map(message => toInboxMessageView(message, record.mailbox)) : [],
     timelineEvents: record.timelineEvents.map(toTimelineEventView),
     canOperate: thread.canOperate
   };
@@ -1728,7 +1804,30 @@ function toInboxReplyIngestView(record: CrmCustomerReplyIngestRecord, context: C
     contact: thread.contact,
     mailbox: thread.mailbox,
     enrollment: thread.enrollment,
-    messages: [toInboxMessageView(record.message)],
+    messages: [toInboxMessageView(record.message, record.mailbox)],
+    timelineEvents: [toTimelineEventView(record.event)],
+    canOperate: thread.canOperate
+  };
+}
+
+function toInboxThreadReplyView(record: CrmInboxThreadReplyRecord, context: CrmUserContext) {
+  const thread = {
+    ...toInboxThreadView(record.thread),
+    account: toAccountView(record.account),
+    contact: toContactView(record.contact),
+    mailbox: toMailboxView(record.mailbox),
+    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
+    lastMessageSnippet: record.message.snippet ?? '',
+    canOperate: record.thread.ownerUserId === context.userId
+  };
+
+  return {
+    thread,
+    account: thread.account,
+    contact: thread.contact,
+    mailbox: thread.mailbox,
+    enrollment: thread.enrollment,
+    messages: [toInboxMessageView(record.message, record.mailbox)],
     timelineEvents: [toTimelineEventView(record.event)],
     canOperate: thread.canOperate
   };

@@ -684,6 +684,60 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'inbox_status_changed');
   });
 
+  it('replies to inbox thread with mailbox sender and marks it handled', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const sentAt = new Date('2026-06-18T11:30:00.000Z');
+
+    const result = await store.replyInboxThread({
+      id: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      subject: 'Re: Bearing Series for ABC Trading',
+      bodyText: 'Thanks, I will send details today.',
+      sentAt,
+      providerMessageId: 'mock:reply-1'
+    });
+
+    assert.equal(result?.thread.status, 'handled');
+    assert.equal(result?.account.status, 'followed_up');
+    assert.deepEqual(prisma.crmInboxThread.findFirstCalls.at(-1)?.where, {
+      id: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmInboxMessage.createCalls.at(-1)?.data, {
+      threadId: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      enrollmentId: 'enrollment-1',
+      mailboxId: 'mailbox-1',
+      provider: 'gmail',
+      providerMessageId: 'mock:reply-1',
+      replyToMessageId: 'inbox-message-1',
+      fromEmail: 'alice@gmail.com',
+      fromEmailHash: 'hash-1',
+      maskedFromEmail: 'a***@gmail.com',
+      subject: 'Re: Bearing Series for ABC Trading',
+      snippet: 'Thanks, I will send details today.',
+      bodyText: 'Thanks, I will send details today.',
+      receivedAt: sentAt,
+      messageType: 'customer_reply'
+    });
+    assert.deepEqual(prisma.crmInboxThread.updateCalls.at(-1)?.data, {
+      status: 'handled',
+      unreadCount: 0,
+      messageCount: { increment: 1 }
+    });
+    assert.deepEqual(prisma.crmAccount.updateCalls.at(-1), {
+      where: { id: 'account-1' },
+      data: { status: 'followed_up' }
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'inbox_replied');
+  });
+
   it('marks contact unsubscribed when ingesting an unsubscribe reply', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);

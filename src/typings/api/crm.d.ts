@@ -368,6 +368,10 @@ declare namespace Api {
       canOperate: boolean;
     }
 
+    interface InboxReplyPayload {
+      bodyText: string;
+    }
+
     interface SequenceReviewChecklistItem {
       key: string;
       label: string;
