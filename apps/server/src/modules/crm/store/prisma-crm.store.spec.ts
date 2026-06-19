@@ -904,6 +904,12 @@ describe('PrismaCrmStore', () => {
       contactId: 'contact-1',
       statuses: ['draft_review_pending', 'ready_to_send']
     });
+    const accountEnrollment = await store.findActiveEnrollmentByAccount({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      statuses: ['draft_review_pending', 'ready_to_send']
+    });
     const message = await store.findMessageById({
       id: 'message-1',
       organizationId: 'org-1',
@@ -921,6 +927,7 @@ describe('PrismaCrmStore', () => {
     });
 
     assert.equal(enrollment?.id, 'enrollment-1');
+    assert.equal(accountEnrollment?.id, 'enrollment-1');
     assert.equal(message?.id, 'message-1');
     assert.equal(providerMessage?.id, 'message-1');
     assert.equal(updated?.status, 'draft_ready');

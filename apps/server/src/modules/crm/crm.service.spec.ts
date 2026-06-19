@@ -1529,6 +1529,47 @@ describe('CrmService', () => {
     );
   });
 
+  it('applies sequence policy same-company contact strategy when creating review items', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-1' })], {
+      contacts: [
+        createContact({ id: 'contact-1', ownerUserId: 'user-1', accountId: 'account-1' }),
+        createContact({ id: 'contact-2', ownerUserId: 'user-1', accountId: 'account-1' })
+      ],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-active',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          status: 'sequence_running'
+        })
+      ],
+      sequencePolicies: [
+        createSequencePolicy({
+          id: 'policy-single',
+          isDefault: true,
+          sameCompanyContactStrategy: 'single_active_per_company'
+        }),
+        createSequencePolicy({
+          id: 'policy-multiple',
+          sameCompanyContactStrategy: 'allow_multiple_contacts'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-2' }, createContext()),
+      /同公司已有进行中的开发信序列/
+    );
+
+    const created = await service.createSequenceReviewItem(
+      { accountId: 'account-1', contactId: 'contact-2', policyId: 'policy-multiple' },
+      createContext()
+    );
+
+    assert.equal(created.item.enrollment.policyId, 'policy-multiple');
+  });
+
   it('rejects sequence review creation for organization blacklisted contact emails', async () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-1' })], {
       contacts: [
@@ -3156,6 +3197,17 @@ function createStore(
             enrollment.organizationId === args.organizationId &&
             enrollment.ownerUserId === args.ownerUserId &&
             enrollment.contactId === args.contactId &&
+            args.statuses.includes(enrollment.status)
+        ) ?? null
+      );
+    },
+    async findActiveEnrollmentByAccount(args) {
+      return (
+        enrollments.find(
+          enrollment =>
+            enrollment.organizationId === args.organizationId &&
+            enrollment.ownerUserId === args.ownerUserId &&
+            enrollment.accountId === args.accountId &&
             args.statuses.includes(enrollment.status)
         ) ?? null
       );

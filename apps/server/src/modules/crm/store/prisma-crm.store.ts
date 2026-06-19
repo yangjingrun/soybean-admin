@@ -1055,6 +1055,25 @@ export class PrismaCrmStore implements CrmStore {
       .then(record => (record ? toSequenceEnrollmentRecord(record) : null));
   }
 
+  findActiveEnrollmentByAccount(args: {
+    organizationId: string;
+    ownerUserId: string;
+    accountId: string;
+    statuses: CrmSequenceEnrollmentStatus[];
+  }) {
+    return this.prisma.crmSequenceEnrollment
+      .findFirst({
+        where: {
+          organizationId: args.organizationId,
+          ownerUserId: args.ownerUserId,
+          accountId: args.accountId,
+          status: { in: args.statuses }
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+      .then(record => (record ? toSequenceEnrollmentRecord(record) : null));
+  }
+
   async createSequenceEnrollment(input: CrmSequenceEnrollmentCreateInput) {
     const record = await this.prisma.crmSequenceEnrollment.create({
       data: input as Prisma.CrmSequenceEnrollmentUncheckedCreateInput

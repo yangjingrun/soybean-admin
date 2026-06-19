@@ -1219,6 +1219,12 @@ export interface CrmStore {
     contactId: string;
     statuses: CrmSequenceEnrollmentStatus[];
   }): Promise<CrmSequenceEnrollmentRecord | null>;
+  findActiveEnrollmentByAccount(args: {
+    organizationId: string;
+    ownerUserId: string;
+    accountId: string;
+    statuses: CrmSequenceEnrollmentStatus[];
+  }): Promise<CrmSequenceEnrollmentRecord | null>;
   createSequenceEnrollment(input: CrmSequenceEnrollmentCreateInput): Promise<CrmSequenceEnrollmentRecord>;
   createSequenceDraftBundle(input: CrmSequenceDraftBundleCreateInput): Promise<CrmSequenceDraftBundleRecord>;
   listSequenceReviewItems(args: {

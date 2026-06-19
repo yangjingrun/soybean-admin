@@ -1167,6 +1167,7 @@ export class CrmService {
       input.policyId ? Promise.resolve(null) : this.store.findDefaultSequencePolicy(context.organizationId)
     ]);
     const policy = selectedPolicy ?? defaultPolicy;
+    await this.assertSameCompanySequencePolicy(account, contact, policy, context);
     const defaultTemplateGroup = await this.store.findDefaultEmailTemplateGroup(context.organizationId);
     const draft = generateFirstDraft({ account, contact, productLine, context, templateGroup: defaultTemplateGroup });
     const bundle = await this.runSequenceWrite(() =>
@@ -2199,6 +2200,31 @@ export class CrmService {
     }
 
     return policy;
+  }
+
+  /**
+   * Applies the sequence policy before creating another active sequence for the same account.
+   */
+  private async assertSameCompanySequencePolicy(
+    account: CrmAccountRecord,
+    contact: CrmContactRecord,
+    policy: CrmSequencePolicyRecord | null,
+    context: CrmUserContext
+  ) {
+    if (policy?.sameCompanyContactStrategy === 'allow_multiple_contacts') {
+      return;
+    }
+
+    const existingEnrollment = await this.store.findActiveEnrollmentByAccount({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      accountId: account.id,
+      statuses: activeSequenceStatuses
+    });
+
+    if (existingEnrollment && existingEnrollment.contactId !== contact.id) {
+      throw new BadRequestException('同公司已有进行中的开发信序列，请使用允许多联系人策略后再创建');
+    }
   }
 
   private async requireOwnedActiveMailbox(id: string, context: CrmUserContext) {
