@@ -677,6 +677,64 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('creates only the next follow-up draft when completing first message send', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const sentAt = new Date('2026-06-18T10:45:00.000Z');
+    const scheduledAt = new Date('2026-06-21T10:45:00.000Z');
+
+    const result = await store.completeFirstMessageSend({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      sentAt,
+      providerMessageId: 'gmail-message-1',
+      providerThreadId: 'gmail-thread-1',
+      nextMessage: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        mailboxId: 'mailbox-1',
+        stepIndex: 2,
+        threadMode: 'same_thread',
+        subject: 'Bearing Series for ABC Trading',
+        bodyText: 'Hi Ali,\n\nJust following up.',
+        status: 'draft_pending_review',
+        scheduledAt,
+        providerThreadId: 'gmail-thread-1'
+      }
+    });
+
+    assert.equal(result?.nextMessage?.stepIndex, 2);
+    assert.equal(prisma.crmMessage.createCalls.length, 1);
+    assert.deepEqual(prisma.crmMessage.createCalls[0].data, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      mailboxId: 'mailbox-1',
+      stepIndex: 2,
+      threadMode: 'same_thread',
+      subject: 'Bearing Series for ABC Trading',
+      bodyText: 'Hi Ali,\n\nJust following up.',
+      status: 'draft_pending_review',
+      scheduledAt,
+      providerThreadId: 'gmail-thread-1',
+      enrollmentId: 'enrollment-1'
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'message_sent');
+    assert.deepEqual(prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata, {
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      runVersion: 1,
+      nextMessageId: 'message-2',
+      nextStepIndex: 2
+    });
+  });
+
   it('marks Gmail mailbox auth expired and pauses pending sends for that mailbox', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1520,7 +1578,12 @@ function createPrisma() {
       }>,
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
-        return message;
+        return createPrismaMessage({
+          ...args.data,
+          id: `message-${this.createCalls.length + 1}`,
+          createdAt: new Date('2026-06-18T10:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        });
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);

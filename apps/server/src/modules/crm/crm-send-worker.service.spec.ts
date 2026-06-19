@@ -52,7 +52,21 @@ describe('CrmSendWorkerService', () => {
       runVersion: 2,
       sentAt: store.completed[0].sentAt,
       providerMessageId: 'mock:message-1',
-      providerThreadId: 'mock-thread:enrollment-1'
+      providerThreadId: 'mock-thread:enrollment-1',
+      nextMessage: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        mailboxId: 'mailbox-1',
+        stepIndex: 2,
+        threadMode: 'same_thread',
+        subject: 'Bearing Series for ABC Trading',
+        bodyText: 'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
+        status: 'draft_pending_review',
+        scheduledAt: new Date(store.completed[0].sentAt.getTime() + 3 * 24 * 60 * 60 * 1000),
+        providerThreadId: 'mock-thread:enrollment-1'
+      }
     });
   });
 

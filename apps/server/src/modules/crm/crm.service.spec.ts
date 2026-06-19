@@ -2264,9 +2264,21 @@ function createStore(
         title: '首封开发信已发送',
         content: message.subject
       });
+      const nextMessage = input.nextMessage
+        ? createMessage({
+            ...input.nextMessage,
+            id: `message-${messages.length + 1}`,
+            enrollmentId: enrollment.id
+          })
+        : null;
+
+      if (nextMessage) {
+        messages.push(nextMessage);
+      }
+
       timelineEvents.push(event);
 
-      return { enrollment, message, account, event };
+      return { enrollment, message, nextMessage, account, event };
     },
     async failFirstMessageSend(input) {
       const enrollment = enrollments.find(

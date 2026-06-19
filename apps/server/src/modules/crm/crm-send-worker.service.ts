@@ -2,7 +2,15 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_STORE } from './crm.tokens';
-import type { CrmEmailSendGateway, CrmMailboxRecord, CrmSendQueueJob, CrmStore } from './crm.types';
+import type {
+  CrmEmailSendGateway,
+  CrmMailboxRecord,
+  CrmSendDeliveryClaimRecord,
+  CrmSendQueueJob,
+  CrmStore
+} from './crm.types';
+
+const followUpDelayMsByStep = new Map([[2, 3 * 24 * 60 * 60 * 1000]]);
 
 @Injectable()
 export class CrmSendWorkerService {
@@ -33,15 +41,17 @@ export class CrmSendWorkerService {
         contact: item.contact,
         mailbox: item.mailbox
       });
+      const sentAt = new Date();
       await this.store.completeFirstMessageSend({
         enrollmentId: job.enrollmentId,
         messageId: job.messageId,
         organizationId: job.organizationId,
         ownerUserId: job.ownerUserId,
         runVersion: job.runVersion,
-        sentAt: new Date(),
+        sentAt,
         providerMessageId: sent.providerMessageId ?? null,
-        providerThreadId: sent.providerThreadId ?? null
+        providerThreadId: sent.providerThreadId ?? null,
+        nextMessage: buildNextFollowUpDraft(item, sent.providerThreadId ?? null, sentAt)
       });
     } catch (error) {
       if (error instanceof CrmGmailAuthorizationExpiredError) {
@@ -96,4 +106,40 @@ export class CrmSendWorkerService {
       }
     });
   }
+}
+
+function buildNextFollowUpDraft(
+  item: CrmSendDeliveryClaimRecord,
+  providerThreadId: string | null,
+  sentAt: Date
+): Parameters<CrmStore['completeFirstMessageSend']>[0]['nextMessage'] {
+  const nextStepIndex = item.firstMessage.stepIndex + 1;
+
+  if (nextStepIndex > item.enrollment.totalSteps) {
+    return null;
+  }
+
+  const delayMs = followUpDelayMsByStep.get(nextStepIndex);
+
+  if (!delayMs) {
+    return null;
+  }
+
+  const contactName = item.contact.fullName || item.contact.title || 'there';
+  const senderName = item.mailbox.ownerUserName || 'there';
+
+  return {
+    organizationId: item.firstMessage.organizationId,
+    ownerUserId: item.firstMessage.ownerUserId,
+    accountId: item.firstMessage.accountId,
+    contactId: item.firstMessage.contactId,
+    mailboxId: item.mailbox.id,
+    stepIndex: nextStepIndex,
+    threadMode: 'same_thread',
+    subject: item.firstMessage.subject,
+    bodyText: `Hi ${contactName},\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\n${senderName}`,
+    status: 'draft_pending_review',
+    scheduledAt: new Date(sentAt.getTime() + delayMs),
+    providerThreadId
+  };
 }

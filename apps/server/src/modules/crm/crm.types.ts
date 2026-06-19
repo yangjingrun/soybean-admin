@@ -649,11 +649,13 @@ export interface CrmSendCompletionInput {
   sentAt: Date;
   providerMessageId?: string | null;
   providerThreadId?: string | null;
+  nextMessage?: Omit<CrmMessageCreateInput, 'enrollmentId'> | null;
 }
 
 export interface CrmSendCompletionRecord {
   enrollment: CrmSequenceEnrollmentRecord;
   message: CrmMessageRecord;
+  nextMessage: CrmMessageRecord | null;
   account: CrmAccountRecord;
   event: CrmTimelineEventRecord;
 }

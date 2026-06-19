@@ -953,6 +953,14 @@ export class PrismaCrmStore implements CrmStore {
         return null;
       }
 
+      const nextMessage = input.nextMessage
+        ? await tx.crmMessage.create({
+            data: {
+              ...input.nextMessage,
+              enrollmentId: enrollment.id
+            } as Prisma.CrmMessageUncheckedCreateInput
+          })
+        : null;
       const account = await tx.crmAccount.update({
         where: { id: enrollment.accountId },
         data: { status: 'sequence_running' }
@@ -969,7 +977,9 @@ export class PrismaCrmStore implements CrmStore {
           metadata: {
             enrollmentId: enrollment.id,
             messageId: message.id,
-            runVersion: enrollment.runVersion
+            runVersion: enrollment.runVersion,
+            nextMessageId: nextMessage?.id ?? null,
+            nextStepIndex: nextMessage?.stepIndex ?? null
           }
         }
       });
@@ -977,6 +987,7 @@ export class PrismaCrmStore implements CrmStore {
       return {
         enrollment: toSequenceEnrollmentRecord(enrollment),
         message: toMessageRecord(message),
+        nextMessage: nextMessage ? toMessageRecord(nextMessage) : null,
         account: toAccountRecord(account),
         event: toTimelineEventRecord(event)
       };
