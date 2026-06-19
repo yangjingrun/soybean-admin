@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
+import BlacklistManager from './BlacklistManager.vue';
 import DefaultEmailTemplateCard from './DefaultEmailTemplateCard.vue';
 import GlobalConfigCard from './GlobalConfigCard.vue';
 import MailboxTable from './MailboxTable.vue';
@@ -91,6 +92,10 @@ const {
 
       <NGi>
         <ProductLineManager />
+      </NGi>
+
+      <NGi>
+        <BlacklistManager />
       </NGi>
     </NGrid>
 

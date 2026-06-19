@@ -191,6 +191,34 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmBlacklist.upsertCalls[0].create.sourceMessageId, 'inbox-message-1');
   });
 
+  it('lists organization blacklist entries by keyword without exposing other organizations', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    await store.listBlacklistEntries({
+      organizationId: 'org-1',
+      keyword: 'alice',
+      skip: 0,
+      take: 20
+    });
+
+    assert.deepEqual(prisma.crmBlacklist.findManyCalls[0], {
+      where: {
+        organizationId: 'org-1',
+        OR: [
+          { maskedEmail: { contains: 'alice', mode: 'insensitive' } },
+          { createdByName: { contains: 'alice', mode: 'insensitive' } }
+        ]
+      },
+      skip: 0,
+      take: 20,
+      orderBy: { updatedAt: 'desc' }
+    });
+    assert.deepEqual(prisma.crmBlacklist.countCalls[0], {
+      where: prisma.crmBlacklist.findManyCalls[0].where
+    });
+  });
+
   it('finds archived fingerprints by organization and requested fingerprint pairs', async () => {
     const prisma = createPrisma({
       archivedFingerprintResults: [
@@ -1797,6 +1825,13 @@ function createPrisma(
     },
     crmBlacklist: {
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+      }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
       upsertCalls: [] as Array<{
         where: Record<string, unknown>;
         create: Record<string, unknown>;
@@ -1806,6 +1841,19 @@ function createPrisma(
       async findUnique(args: { where: Record<string, unknown> }) {
         this.findUniqueCalls.push(args);
         return this.findUniqueResult;
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Record<string, unknown>;
+      }) {
+        this.findManyCalls.push(args);
+        return [createPrismaBlacklist()];
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
       },
       async upsert(args: {
         where: Record<string, unknown>;

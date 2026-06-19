@@ -170,6 +170,28 @@ declare namespace Api {
       emailVerificationCooldownDays: number | null;
     }
 
+    interface BlacklistRecord {
+      id: string;
+      organizationId: string;
+      maskedEmail: string;
+      reason: 'unsubscribe';
+      sourceAccountId: string | null;
+      sourceContactId: string | null;
+      sourceMessageId: string | null;
+      createdById: string | null;
+      createdByName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface BlacklistSearchParams extends Api.Common.CommonSearchParams {
+      keyword?: string;
+    }
+
+    interface BlacklistFilterModel {
+      keyword: string;
+    }
+
     interface LeadArchiveResult {
       account: LeadRecord;
       event: LeadTimelineEvent;
@@ -181,6 +203,8 @@ declare namespace Api {
     }
 
     type LeadList = Api.Common.PaginatingQueryRecord<LeadRecord>;
+
+    type BlacklistList = Api.Common.PaginatingQueryRecord<BlacklistRecord>;
 
     interface MailboxRecord {
       id: string;

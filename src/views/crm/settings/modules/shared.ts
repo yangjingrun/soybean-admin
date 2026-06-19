@@ -63,10 +63,21 @@ export const productLineStatusTagTypeMap: Record<Api.Crm.ProductLineStatus, Naiv
   archived: 'default'
 };
 
+export const blacklistReasonLabelMap: Record<Api.Crm.BlacklistRecord['reason'], string> = {
+  unsubscribe: '客户退订'
+};
+
 /** Create the default platform-wide CRM config form. */
 export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
   return {
     emailVerificationCooldownDays: 30
+  };
+}
+
+/** Create the default blacklist filter object for initial load and reset. */
+export function createDefaultBlacklistFilterModel(): Api.Crm.BlacklistFilterModel {
+  return {
+    keyword: ''
   };
 }
 
@@ -137,6 +148,26 @@ export function buildMailboxSearchParams(options: {
 
   if (filterModel.status) {
     params.status = filterModel.status;
+  }
+
+  return params;
+}
+
+/** Build CRM blacklist query params from pagination and current filters. */
+export function buildBlacklistSearchParams(options: {
+  current: number;
+  size: number;
+  filterModel: Api.Crm.BlacklistFilterModel;
+}): Api.Crm.BlacklistSearchParams {
+  const { current, filterModel, size } = options;
+  const params: Api.Crm.BlacklistSearchParams = {
+    current,
+    size
+  };
+  const keyword = filterModel.keyword.trim();
+
+  if (keyword) {
+    params.keyword = keyword;
   }
 
   return params;
@@ -233,6 +264,11 @@ export function formatMailboxQuota(row: Pick<Api.Crm.MailboxRecord, 'dailyLimit'
 
 /** Format product line table datetime. */
 export function formatProductLineDate(value: string) {
+  return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
+}
+
+/** Format blacklist table datetime. */
+export function formatBlacklistDate(value: string) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
 }
 

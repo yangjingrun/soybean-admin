@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createDefaultGlobalConfigForm, isValidEmailVerificationCooldownDays } from './shared';
+import {
+  buildBlacklistSearchParams,
+  createDefaultBlacklistFilterModel,
+  createDefaultGlobalConfigForm,
+  isValidEmailVerificationCooldownDays
+} from './shared';
 
 describe('crm settings shared helpers', () => {
   it('creates the platform global config form with the documented cooldown default', () => {
@@ -16,5 +21,23 @@ describe('crm settings shared helpers', () => {
     assert.equal(isValidEmailVerificationCooldownDays(366), false);
     assert.equal(isValidEmailVerificationCooldownDays(30.5), false);
     assert.equal(isValidEmailVerificationCooldownDays(null), false);
+  });
+
+  it('builds blacklist search params from trimmed keyword filters', () => {
+    assert.deepEqual(createDefaultBlacklistFilterModel(), {
+      keyword: ''
+    });
+    assert.deepEqual(
+      buildBlacklistSearchParams({
+        current: 1,
+        size: 20,
+        filterModel: { keyword: '  alice  ' }
+      }),
+      {
+        current: 1,
+        size: 20,
+        keyword: 'alice'
+      }
+    );
   });
 });

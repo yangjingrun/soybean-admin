@@ -120,6 +120,32 @@ describe('CrmController', () => {
     assert.equal(calls[0].context.userId, 'user-1');
   });
 
+  it('lists blacklist entries with the current organization context', async () => {
+    const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listBlacklistEntries(context, query) {
+          calls.push({ context, query });
+
+          return {
+            current: 1,
+            size: 20,
+            total: 1,
+            records: [createBlacklistView()]
+          };
+        }
+      })
+    );
+
+    const result = await controller.listBlacklistEntries('Bearer token', { keyword: 'alice' });
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.records[0].maskedEmail, 'a***@example.com');
+    assert.equal(calls[0].context.organizationId, 'org-1');
+    assert.deepEqual(calls[0].query, { keyword: 'alice' });
+  });
+
   it('changes account status with the current user context', async () => {
     const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
@@ -1106,6 +1132,23 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
     configKey: 'default',
     emailVerificationCooldownDays: 30,
     updatedAt: '1970-01-01T00:00:00.000Z',
+    ...overrides
+  };
+}
+
+function createBlacklistView(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'blacklist-1',
+    organizationId: 'org-1',
+    maskedEmail: 'a***@example.com',
+    reason: 'unsubscribe' as const,
+    sourceAccountId: 'account-1',
+    sourceContactId: 'contact-1',
+    sourceMessageId: 'inbox-message-1',
+    createdById: 'user-1',
+    createdByName: 'Alice',
+    createdAt: '2026-06-18T09:00:00.000Z',
+    updatedAt: '2026-06-18T09:00:00.000Z',
     ...overrides
   };
 }

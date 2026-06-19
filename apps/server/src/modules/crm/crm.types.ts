@@ -175,6 +175,13 @@ export interface CrmBlacklistUpsertInput {
   createdByName?: string | null;
 }
 
+export interface CrmBlacklistListInput {
+  organizationId: string;
+  keyword?: string;
+  skip: number;
+  take: number;
+}
+
 export interface CrmArchivedFingerprintRecord {
   id: string;
   organizationId: string;
@@ -923,6 +930,7 @@ export interface CrmStore {
   saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;
   upsertBlacklistEntry(input: CrmBlacklistUpsertInput): Promise<CrmBlacklistRecord>;
+  listBlacklistEntries(input: CrmBlacklistListInput): Promise<{ records: CrmBlacklistRecord[]; total: number }>;
   findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput): Promise<CrmArchivedFingerprintRecord[]>;
   upsertArchivedFingerprint(input: CrmArchivedFingerprintUpsertInput): Promise<CrmArchivedFingerprintRecord>;
   listAccounts(args: {

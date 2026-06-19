@@ -22,6 +22,7 @@ import type {
   CrmArchivedFingerprintLookupInput,
   CrmArchivedFingerprintRecord,
   CrmArchivedFingerprintUpsertInput,
+  CrmBlacklistListInput,
   CrmBlacklistRecord,
   CrmBlacklistUpsertInput,
   CrmMailboxCreateInput,
@@ -294,6 +295,24 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return toBlacklistRecord(record);
+  }
+
+  async listBlacklistEntries(input: CrmBlacklistListInput) {
+    const where = toBlacklistListWhere(input);
+    const [records, total] = await Promise.all([
+      this.prisma.crmBlacklist.findMany({
+        where,
+        skip: input.skip,
+        take: input.take,
+        orderBy: { updatedAt: 'desc' }
+      }),
+      this.prisma.crmBlacklist.count({ where })
+    ]);
+
+    return {
+      records: records.map(toBlacklistRecord),
+      total
+    };
   }
 
   async findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput) {
@@ -1961,6 +1980,15 @@ function toProductLineListWhere(args: {
   };
 }
 
+function toBlacklistListWhere(args: CrmBlacklistListInput): Prisma.CrmBlacklistWhereInput {
+  const keywordFilter = args.keyword ? toBlacklistKeywordFilter(args.keyword) : undefined;
+
+  return {
+    organizationId: args.organizationId,
+    ...(keywordFilter ? { OR: keywordFilter } : {})
+  };
+}
+
 /** Builds the sequence review list scope and optional UI filters. */
 function toSequenceEnrollmentListWhere(args: {
   organizationId: string;
@@ -2026,6 +2054,15 @@ function toProductLineKeywordFilter(keyword: string): Prisma.CrmProductLineWhere
     'certifications',
     'commonModelsText'
   ].map(field => ({
+    [field]: {
+      contains: keyword,
+      mode: 'insensitive'
+    }
+  }));
+}
+
+function toBlacklistKeywordFilter(keyword: string): Prisma.CrmBlacklistWhereInput[] {
+  return ['maskedEmail', 'createdByName'].map(field => ({
     [field]: {
       contains: keyword,
       mode: 'insensitive'

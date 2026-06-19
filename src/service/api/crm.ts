@@ -69,6 +69,15 @@ export function saveCrmGlobalConfig(data: Api.Crm.SaveGlobalConfigPayload) {
   });
 }
 
+/** List organization unsubscribe blacklist entries. */
+export function fetchCrmBlacklistEntries(params: Api.Crm.BlacklistSearchParams) {
+  return request<Api.Crm.BlacklistList>({
+    url: '/crm/blacklist-entries',
+    method: 'get',
+    params
+  });
+}
+
 /** Archive one CRM account with an optional reason. */
 export function archiveCrmAccount(id: string, data: Api.Crm.LeadArchivePayload = {}) {
   return request<Api.Crm.LeadArchiveResult>({

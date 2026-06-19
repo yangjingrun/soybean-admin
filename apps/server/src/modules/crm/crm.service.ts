@@ -23,6 +23,7 @@ import type {
   CrmArchivedFingerprintRecord,
   CrmArchivedFingerprintType,
   CrmArchivedFingerprintUpsertInput,
+  CrmBlacklistRecord,
   CrmMailboxProvider,
   CrmMailboxRecord,
   CrmMailboxStatus,
@@ -511,6 +512,33 @@ export class CrmService {
     });
 
     return toGlobalConfigView(record);
+  }
+
+  /** Lists organization-level unsubscribe blacklist entries without exposing raw emails. */
+  async listBlacklistEntries(
+    context: CrmUserContext,
+    query: {
+      current?: number | string;
+      size?: number | string;
+      keyword?: string;
+    } = {}
+  ) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const keyword = normalizeNullableString(query.keyword);
+    const result = await this.store.listBlacklistEntries({
+      organizationId: context.organizationId,
+      ...(keyword ? { keyword } : {}),
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(toBlacklistView)
+    };
   }
 
   /** Creates a Gmail mock authorization record without storing any OAuth token. */
@@ -2081,6 +2109,16 @@ function toContactView(record: CrmContactRecord) {
 function toGlobalConfigView(record: CrmGlobalConfigRecord) {
   return {
     ...record,
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toBlacklistView(record: CrmBlacklistRecord) {
+  const { emailHash: _emailHash, ...safeRecord } = record;
+
+  return {
+    ...safeRecord,
+    createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
 }

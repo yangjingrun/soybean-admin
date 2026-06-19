@@ -21,6 +21,7 @@ import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
 import { CompleteCrmGmailOAuthDto } from './dto/complete-crm-gmail-oauth.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
+import { CrmBlacklistQueryDto } from './dto/crm-blacklist-query.dto';
 import { CrmInboxThreadQueryDto } from './dto/crm-inbox-thread-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
 import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
@@ -107,6 +108,11 @@ export class CrmController {
   @Post('global-config')
   async saveGlobalConfig(@Headers('authorization') authorization = '', @Body() dto: SaveCrmGlobalConfigDto) {
     return ok(await this.crmService.saveGlobalConfig(dto, this.requireSuperUserContext(authorization)));
+  }
+
+  @Get('blacklist-entries')
+  async listBlacklistEntries(@Headers('authorization') authorization = '', @Query() query: CrmBlacklistQueryDto) {
+    return ok(await this.crmService.listBlacklistEntries(this.requireUserContext(authorization), query));
   }
 
   @Post('mailboxes/mock-authorize')

@@ -1252,6 +1252,43 @@ describe('CrmService', () => {
     );
   });
 
+  it('lists organization blacklist entries without exposing email hashes', async () => {
+    const store = createStore([], {
+      blacklists: [
+        createBlacklist({
+          id: 'blacklist-1',
+          organizationId: 'org-1',
+          emailHash: hashTestEmail('ali@example.com'),
+          maskedEmail: 'a***@example.com',
+          createdByName: 'Alice'
+        }),
+        createBlacklist({
+          id: 'blacklist-2',
+          organizationId: 'org-2',
+          emailHash: hashTestEmail('bob@example.com'),
+          maskedEmail: 'b***@example.com'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.listBlacklistEntries(createContext(), {
+      current: 1,
+      size: 10,
+      keyword: 'alice'
+    });
+
+    assert.deepEqual(store.lastBlacklistListArgs, {
+      organizationId: 'org-1',
+      keyword: 'alice',
+      skip: 0,
+      take: 10
+    });
+    assert.equal(result.total, 1);
+    assert.equal(result.records[0].maskedEmail, 'a***@example.com');
+    assert.equal('emailHash' in result.records[0], false);
+  });
+
   it('lists sequence review items with member owner scope and generated checklist', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', emailStatus: 'valid' })],
@@ -2185,6 +2222,7 @@ function createStore(
     take: number;
   };
   lastProductLineDetailArgs?: { id: string; organizationId: string };
+  lastBlacklistListArgs?: Parameters<CrmStore['listBlacklistEntries']>[0];
   lastSequenceReviewListArgs?: Parameters<CrmStore['listSequenceReviewItems']>[0];
   lastSequenceReviewDetailArgs?: Parameters<CrmStore['getSequenceReviewItem']>[0];
   lastMessageDetailArgs?: Parameters<CrmStore['findMessageById']>[0];
@@ -2387,6 +2425,23 @@ function createStore(
       });
       blacklists.push(entry);
       return entry;
+    },
+    async listBlacklistEntries(args) {
+      this.lastBlacklistListArgs = args;
+      const records = blacklists.filter(entry => {
+        if (entry.organizationId !== args.organizationId) return false;
+        if (args.keyword) {
+          const keyword = args.keyword.toLowerCase();
+          return [entry.maskedEmail, entry.createdByName].some(value => value?.toLowerCase().includes(keyword));
+        }
+
+        return true;
+      });
+
+      return {
+        records: records.slice(args.skip, args.skip + args.take),
+        total: records.length
+      };
     },
     async listAccounts(args) {
       this.lastListArgs = args;

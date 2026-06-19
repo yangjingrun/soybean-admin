@@ -633,6 +633,32 @@ Hunter 原始长结果
       - `src/views/crm/leads/modules/shared.spec.ts`
       - `src/views/crm/leads/modules/shared/useLeadTable.ts`
 
+50. 黑名单/退订管理页
+    - CRM 配置页新增退订黑名单只读管理区块。
+    - 后端新增组织级黑名单分页查询接口，只返回脱敏邮箱、原因、来源和时间，不暴露 `emailHash`。
+    - 前端支持关键词搜索、分页、原因标签和来源线索展示。
+    - 当前只做只读管理；解除黑名单属于高风险操作，后续应结合审计和权限单独设计。
+    - 已通过验证：
+      - `pnpm --filter @soybean/server typecheck`
+      - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
+      - `pnpm typecheck`
+      - `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`
+      - `pnpm exec oxlint src/views/crm/settings/modules/BlacklistManager.vue src/views/crm/settings/modules/BlacklistTable.vue src/views/crm/settings/modules/BlacklistToolbar.vue src/views/crm/settings/modules/useBlacklistTable.ts src/views/crm/settings/modules/shared.ts src/views/crm/settings/modules/MailboxManager.vue src/service/api/crm.ts src/typings/api/crm.d.ts`
+    - 涉及文件：
+      - `apps/server/src/modules/crm/crm.controller.ts`
+      - `apps/server/src/modules/crm/crm.service.ts`
+      - `apps/server/src/modules/crm/crm.types.ts`
+      - `apps/server/src/modules/crm/dto/crm-blacklist-query.dto.ts`
+      - `apps/server/src/modules/crm/store/prisma-crm.store.ts`
+      - `src/service/api/crm.ts`
+      - `src/typings/api/crm.d.ts`
+      - `src/views/crm/settings/modules/BlacklistManager.vue`
+      - `src/views/crm/settings/modules/BlacklistTable.vue`
+      - `src/views/crm/settings/modules/BlacklistToolbar.vue`
+      - `src/views/crm/settings/modules/MailboxManager.vue`
+      - `src/views/crm/settings/modules/shared.ts`
+      - `src/views/crm/settings/modules/useBlacklistTable.ts`
+
 ## 4. 当前代码已实现能力概览
 
 后端已实现较多基础闭环：
@@ -674,6 +700,7 @@ Hunter 原始长结果
 - 邮件序列支持列表、创建首封草稿、跨页面预填、审核抽屉、保存/确认草稿、启动发送、停止序列、查看后续邮件。
 - 收件箱支持列表、筛选、详情、待处理统计、正文查看、状态更新、纯文本回复。
 - CRM 配置支持 Gmail 授权、OAuth 回调、邮箱列表、暂停/恢复、续订 watch、立即同步、产品线 CRUD、默认模板只读展示、全局邮箱验证冷却期配置。
+- CRM 配置支持退订黑名单只读分页管理。
 - AI 设置页支持模型、Serper、Hunter 配置。
 
 ## 5. 第一期 1A 对照：组织体系 + CRM 线索库
@@ -715,7 +742,6 @@ Hunter 原始长结果
 - 超管查看正文的完整审计闭环。
 - 归档 30 天自动瘦身定时任务。
 - 归档后 30 天内恢复完整线索的前端入口和后端完整流程。
-- 手动新增/导入 CRM 线索前端入口，虽然后端有 `accounts/import-lead`。
 - 组织级历史触达提醒的产品化 UI。
 
 ### 风险点
@@ -1272,7 +1298,7 @@ Hunter 原始长结果
 - 模板库 CRUD。
 - 序列策略配置。
 - 后续 follow-up 自动策略。
-- 黑名单/退订管理页。
+- 黑名单/退订管理页已完成只读列表；解除黑名单需后续结合审计和权限设计。
 - 发送队列/同步日志运维页。
 - auth_expired 行级重新授权已完成，仍需真实 OAuth 环境验收。
 - 手动新增/导入 CRM 线索入口已完成。
@@ -1367,7 +1393,7 @@ git diff --check
 5. 如果继续实现，P0 本地可做项已完成；真实 Gmail 全链路需要外部环境。下一步优先做 P1。
 6. 适合多 Agent 的拆分方式：
    - Agent A：模板库 CRUD 和序列策略配置。
-   - Agent B：黑名单/退订管理页。
+   - Agent B：黑名单/退订管理页已完成只读列表；后续可补解除黑名单审计流程。
    - Agent C：发送队列/同步日志运维视图。
    - Agent D：前端 auth_expired 行级重新授权和邮箱同步状态 UI。
 7. 子 Agent 必须明确：不要提交代码，不要修改同一批文件，完成后只汇报 changed files。
