@@ -86,6 +86,14 @@ export function resumeCrmMailbox(id: string) {
   });
 }
 
+/** Renew Gmail watch for one active CRM mailbox. */
+export function renewCrmMailboxWatch(id: string) {
+  return request<Api.Crm.MailboxWatchRenewResult>({
+    url: `/crm/mailboxes/${id}/renew-watch`,
+    method: 'post'
+  });
+}
+
 /** List organization product lines by filters and pagination. */
 export function fetchCrmProductLines(params: Api.Crm.ProductLineSearchParams) {
   return request<Api.Crm.ProductLineList>({

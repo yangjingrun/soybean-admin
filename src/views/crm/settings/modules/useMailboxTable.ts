@@ -1,6 +1,12 @@
 import { onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
-import { fetchCrmMailboxes, mockAuthorizeCrmMailbox, pauseCrmMailbox, resumeCrmMailbox } from '@/service/api';
+import {
+  fetchCrmMailboxes,
+  mockAuthorizeCrmMailbox,
+  pauseCrmMailbox,
+  renewCrmMailboxWatch,
+  resumeCrmMailbox
+} from '@/service/api';
 import { buildMailboxSearchParams, createDefaultMailboxAuthorizeForm, createDefaultMailboxFilterModel } from './shared';
 
 /** Manage CRM mailbox list requests, authorization modal state and row operations. */
@@ -119,6 +125,28 @@ export function useMailboxTable() {
     }
   }
 
+  /** Renew Gmail watch for one active mailbox, then refresh the current list. */
+  async function handleRenewMailboxWatch(record: Api.Crm.MailboxRecord) {
+    if (operatingMailboxId.value || record.status !== 'active' || record.provider !== 'gmail') {
+      return;
+    }
+
+    operatingMailboxId.value = record.id;
+
+    try {
+      const { error } = await renewCrmMailboxWatch(record.id);
+
+      if (error) {
+        return;
+      }
+
+      message.success('Gmail watch 已续订');
+      await loadMailboxes();
+    } finally {
+      operatingMailboxId.value = null;
+    }
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadMailboxes();
@@ -150,6 +178,7 @@ export function useMailboxTable() {
     handleAuthorizeVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
+    handleRenewMailboxWatch,
     handleReset,
     handleSearch,
     handleToggleMailbox,

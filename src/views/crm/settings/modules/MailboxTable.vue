@@ -26,6 +26,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  renewWatch: [record: Api.Crm.MailboxRecord];
   toggle: [record: Api.Crm.MailboxRecord];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
@@ -160,11 +161,12 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   {
     key: 'operate',
     title: '操作',
-    width: 120,
+    width: 180,
     fixed: 'right',
     render: row => {
       const isActive = row.status === 'active';
       const isPaused = row.status === 'paused';
+      const canRenewWatch = isActive && row.provider === 'gmail';
       const actionText = isActive ? '暂停' : '恢复';
 
       if (!isActive && !isPaused) {
@@ -187,6 +189,19 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
         },
         {
           default: () => [
+            canRenewWatch
+              ? h(
+                  NButton,
+                  {
+                    size: 'small',
+                    text: true,
+                    type: 'primary',
+                    loading: props.operatingMailboxId === row.id,
+                    onClick: () => emit('renewWatch', row)
+                  },
+                  { default: () => '续订 watch' }
+                )
+              : null,
             h(
               NPopconfirm,
               {
@@ -222,7 +237,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
       :data="records"
       :loading="loading"
       :row-key="row => row.id"
-      :scroll-x="1450"
+      :scroll-x="1530"
       size="small"
       remote
     >

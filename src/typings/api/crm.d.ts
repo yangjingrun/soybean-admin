@@ -181,6 +181,13 @@ declare namespace Api {
       mailbox: MailboxRecord;
     }
 
+    interface MailboxWatchRenewResult extends MailboxOperateResult {
+      watch: {
+        historyId: string;
+        watchExpiration: string;
+      };
+    }
+
     type MailboxList = Api.Common.PaginatingQueryRecord<MailboxRecord>;
 
     interface ProductLineRecord {
