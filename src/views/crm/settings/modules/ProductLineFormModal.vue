@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useMessage, type FormInst, type FormRules } from 'naive-ui';
+import { useAuthStore } from '@/store/modules/auth';
 import { normalizeProductLinePayload, validateProductLineAiWritingConfig } from './shared';
 
 const visible = defineModel<boolean>('visible', { required: true });
@@ -10,6 +11,7 @@ const formModel = defineModel<Api.Crm.ProductLineFormModel>('modelValue', {
 
 const props = defineProps<{
   mode: 'create' | 'edit';
+  canManageAiWritingConfig?: boolean;
   submitting?: boolean;
 }>();
 
@@ -19,7 +21,14 @@ const emit = defineEmits<{
 
 const formRef = ref<FormInst | null>(null);
 const message = useMessage();
+const authStore = useAuthStore();
 const modalTitle = computed(() => (props.mode === 'edit' ? '编辑产品线' : '新增产品线'));
+const canManageAiWritingConfig = computed(() => {
+  if (typeof props.canManageAiWritingConfig === 'boolean') return props.canManageAiWritingConfig;
+
+  return authStore.userInfo.organizationRole === 'admin' || authStore.userInfo.roles.includes('R_SUPER');
+});
+const isAiWritingConfigReadonly = computed(() => !canManageAiWritingConfig.value);
 
 const rules = reactive<FormRules>({
   name: [
@@ -50,7 +59,9 @@ async function handleSubmit() {
 
   Object.assign(formModel.value, normalizeProductLinePayload(formModel.value));
 
-  const aiWritingError = validateProductLineAiWritingConfig(formModel.value.aiWritingConfig);
+  const aiWritingError = canManageAiWritingConfig.value
+    ? validateProductLineAiWritingConfig(formModel.value.aiWritingConfig)
+    : null;
 
   if (aiWritingError) {
     message.warning(aiWritingError);
@@ -131,9 +142,13 @@ async function handleSubmit() {
 
         <NGi span="24">
           <NSpace vertical :size="12">
+            <NAlert v-if="isAiWritingConfigReadonly" type="info" :bordered="false">
+              普通成员仅可查看 AI 写信配置，修改请联系组织管理员。
+            </NAlert>
+
             <NSpace align="center" justify="space-between">
               <NText>启用产品线 AI 写信</NText>
-              <NSwitch v-model:value="formModel.aiWritingConfig.enabled" />
+              <NSwitch v-model:value="formModel.aiWritingConfig.enabled" :disabled="isAiWritingConfigReadonly" />
             </NSpace>
 
             <NGrid v-if="formModel.aiWritingConfig.enabled" :cols="24" :x-gap="12" responsive="screen" item-responsive>
@@ -143,6 +158,7 @@ async function handleSubmit() {
                     v-model:value="formModel.aiWritingConfig.commonRequirements"
                     type="textarea"
                     :autosize="{ minRows: 2, maxRows: 4 }"
+                    :disabled="isAiWritingConfigReadonly"
                     placeholder="例如：英文自然商务语气，控制在 120 词内，不要像群发邮件"
                   />
                 </NFormItem>
@@ -154,6 +170,7 @@ async function handleSubmit() {
                     v-model:value="formModel.aiWritingConfig.forbiddenClaims"
                     type="textarea"
                     :autosize="{ minRows: 2, maxRows: 4 }"
+                    :disabled="isAiWritingConfigReadonly"
                     placeholder="例如：不承诺最低价，不编造认证，不写未确认交期"
                   />
                 </NFormItem>
@@ -165,6 +182,7 @@ async function handleSubmit() {
                     v-model:value="formModel.aiWritingConfig.productEmphasis"
                     type="textarea"
                     :autosize="{ minRows: 2, maxRows: 4 }"
+                    :disabled="isAiWritingConfigReadonly"
                     placeholder="例如：优先强调库存型号、快速报价、稳定交付"
                   />
                 </NFormItem>
@@ -182,6 +200,7 @@ async function handleSubmit() {
                       v-model:value="step.prompt"
                       type="textarea"
                       :autosize="{ minRows: 4, maxRows: 7 }"
+                      :disabled="isAiWritingConfigReadonly"
                       :placeholder="`配置第 ${step.stepIndex} 封开发信的 AI 写法`"
                     />
                   </NTabPane>

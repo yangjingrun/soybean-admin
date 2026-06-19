@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, shallowRef } from 'vue';
+import { computed, onMounted, provide, reactive, shallowRef } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
@@ -23,15 +23,19 @@ import {
 } from '@/service/api';
 import {
   buildSequenceReviewSearchParams,
+  buildSequenceBatchResultDisplayItems,
   canApproveSequenceDraftInBatch,
   canGenerateNextSequenceDraft,
   canStopSequenceInBatch,
   createDefaultSequenceCreateForm,
   createDefaultSequenceFilterModel,
+  formatSequenceBatchResultText,
   getPendingReviewMessage,
   normalizeSequenceCreatePayload,
+  sequenceBatchResultDisplayKey,
   type DraftReviewApprovePayload,
-  type DraftReviewSavePayload
+  type DraftReviewSavePayload,
+  type SequenceBatchResultDisplayItem
 } from './shared';
 
 /** Manage sequence review list, creation resources and draft drawer operations. */
@@ -47,6 +51,7 @@ export function useEmailSequenceTable() {
   const currentItem = shallowRef<Api.Crm.SequenceReviewItem | null>(null);
   const draftVersions = shallowRef<Api.Crm.MessageDraftVersionRecord[]>([]);
   const checkedRowKeys = shallowRef<string[]>([]);
+  const batchNextDraftResultDisplays = shallowRef<SequenceBatchResultDisplayItem[]>([]);
   const loading = shallowRef(false);
   const createResourceLoading = shallowRef(false);
   const contactLoading = shallowRef(false);
@@ -106,7 +111,8 @@ export function useEmailSequenceTable() {
   const productLineSelectOptions = computed(() =>
     productLineOptions.value.map(productLine => ({
       label: productLine.name,
-      value: productLine.id
+      value: productLine.id,
+      aiWritingConfig: productLine.aiWritingConfig
     }))
   );
   const sequencePolicySelectOptions = computed(() =>
@@ -121,6 +127,8 @@ export function useEmailSequenceTable() {
 
     return records.value.filter(record => checkedSet.has(record.enrollment.id));
   });
+
+  provide(sequenceBatchResultDisplayKey, batchNextDraftResultDisplays);
 
   onMounted(() => {
     void loadSequences();
@@ -549,6 +557,7 @@ export function useEmailSequenceTable() {
       return;
     }
 
+    batchNextDraftResultDisplays.value = [];
     batchNextDraftGenerating.value = true;
 
     try {
@@ -558,7 +567,8 @@ export function useEmailSequenceTable() {
         return;
       }
 
-      const resultText = formatBatchResultText('批量生成下一封草稿', data);
+      batchNextDraftResultDisplays.value = buildSequenceBatchResultDisplayItems(data);
+      const resultText = formatSequenceBatchResultText('批量生成下一封草稿', data);
       if (data.failedCount > 0) {
         message.warning(resultText);
       } else {
@@ -580,6 +590,7 @@ export function useEmailSequenceTable() {
       return;
     }
 
+    batchNextDraftResultDisplays.value = [];
     batchDraftApproving.value = true;
 
     try {
@@ -589,7 +600,7 @@ export function useEmailSequenceTable() {
         return;
       }
 
-      const resultText = formatBatchResultText('批量确认草稿', data);
+      const resultText = formatSequenceBatchResultText('批量确认草稿', data);
       if (data.failedCount > 0) {
         message.warning(resultText);
       } else {
@@ -707,6 +718,7 @@ export function useEmailSequenceTable() {
       return;
     }
 
+    batchNextDraftResultDisplays.value = [];
     batchSequenceStopping.value = true;
 
     try {
@@ -716,7 +728,7 @@ export function useEmailSequenceTable() {
         return;
       }
 
-      const resultText = formatBatchResultText('批量停止序列', data);
+      const resultText = formatSequenceBatchResultText('批量停止序列', data);
       if (data.failedCount > 0) {
         message.warning(resultText);
       } else {
@@ -852,8 +864,4 @@ function getRouteQueryString(value: unknown) {
   if (typeof value === 'string') return value;
   if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
   return '';
-}
-
-function formatBatchResultText(action: string, result: Api.Crm.SequenceBatchOperateResult) {
-  return `${action}完成：成功 ${result.successCount} 条，跳过 ${result.skippedCount} 条，失败 ${result.failedCount} 条`;
 }

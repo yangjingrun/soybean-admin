@@ -292,6 +292,14 @@ export const blacklistReasonLabelMap: Record<Api.Crm.BlacklistRecord['reason'], 
   unsubscribe: '客户退订'
 };
 
+export type ProductLineAiWritingStatusKey = 'enabled' | 'disabled' | 'incomplete';
+
+export interface ProductLineAiWritingStatusInfo {
+  key: ProductLineAiWritingStatusKey;
+  label: string;
+  tagType: NaiveUI.ThemeColor;
+}
+
 /** Create the default platform-wide CRM config form. */
 export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
   return {
@@ -699,6 +707,41 @@ export function validateProductLineAiWritingConfig(config: Api.Crm.ProductLineAi
   const emptyStep = normalized.steps.find(step => !step.prompt);
 
   return emptyStep ? `请填写第 ${emptyStep.stepIndex} 封 AI 写信提示词` : null;
+}
+
+/** Get the display status of a product-line AI writing config. */
+export function getProductLineAiWritingStatus(
+  config?: Api.Crm.ProductLineAiWritingConfig | null
+): ProductLineAiWritingStatusInfo {
+  const normalized = normalizeProductLineAiWritingConfig(config);
+
+  if (!normalized) {
+    return {
+      key: 'incomplete',
+      label: '配置不完整',
+      tagType: 'warning'
+    };
+  }
+
+  if (!normalized.enabled) {
+    return {
+      key: 'disabled',
+      label: '未开启 AI 写信',
+      tagType: 'default'
+    };
+  }
+
+  return validateProductLineAiWritingConfig(normalized)
+    ? {
+        key: 'incomplete',
+        label: '配置不完整',
+        tagType: 'warning'
+      }
+    : {
+        key: 'enabled',
+        label: '已开启 AI 写信',
+        tagType: 'success'
+      };
 }
 
 /** Trim persona profile fields before submit. */

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import type { InjectionKey, Ref } from 'vue';
 
 export const sequenceStatusOptions = [
   { label: '草稿待审', value: 'draft_review_pending' },
@@ -145,6 +146,32 @@ export interface SequenceBatchSelectionSummary {
   skippedCount: number;
   stopCount: number;
 }
+
+export interface SequenceBatchResultDisplayItem {
+  enrollmentId: string;
+  message: string;
+  resultId: string;
+  status: Api.Crm.SequenceBatchItemStatus;
+  statusLabel: string;
+  stepText: string | null;
+  tagType: NaiveUI.ThemeColor;
+}
+
+export const sequenceBatchResultDisplayKey = Symbol('sequence-batch-result-display') as InjectionKey<
+  Readonly<Ref<SequenceBatchResultDisplayItem[]>>
+>;
+
+export const sequenceBatchResultStatusLabelMap: Record<Api.Crm.SequenceBatchItemStatus, string> = {
+  success: '成功',
+  skipped: '跳过',
+  failed: '失败'
+};
+
+export const sequenceBatchResultTagTypeMap: Record<Api.Crm.SequenceBatchItemStatus, NaiveUI.ThemeColor> = {
+  success: 'success',
+  skipped: 'warning',
+  failed: 'error'
+};
 
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
@@ -378,6 +405,31 @@ export function summarizeSequenceBatchSelection(items: Api.Crm.SequenceReviewIte
     skippedCount: items.length - Math.max(approveDraftCount, generateNextDraftCount, stopCount),
     stopCount
   };
+}
+
+/** Format a compact batch result summary for user messages and recent-result panels. */
+export function formatSequenceBatchResultText(action: string, result: Api.Crm.SequenceBatchOperateResult) {
+  return `${action}完成：成功 ${result.successCount} 条，跳过 ${result.skippedCount} 条，失败 ${result.failedCount} 条`;
+}
+
+/** Convert backend per-item results into row display view models keyed by enrollment. */
+export function buildSequenceBatchResultDisplayItems(
+  result: Api.Crm.SequenceBatchOperateResult
+): SequenceBatchResultDisplayItem[] {
+  return result.results.map(item => ({
+    enrollmentId: item.enrollmentId ?? item.id,
+    message: item.message,
+    resultId: item.id,
+    status: item.status,
+    statusLabel: sequenceBatchResultStatusLabelMap[item.status],
+    stepText: item.stepIndex ? `第 ${item.stepIndex} 封` : null,
+    tagType: sequenceBatchResultTagTypeMap[item.status]
+  }));
+}
+
+/** Build a row lookup map for recent batch result rendering. */
+export function buildSequenceBatchResultDisplayMap(items: SequenceBatchResultDisplayItem[]) {
+  return new Map(items.map(item => [item.enrollmentId, item]));
 }
 
 /** Build strategy hints for the draft review drawer. */

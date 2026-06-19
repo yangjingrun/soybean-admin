@@ -51,6 +51,7 @@ import type {
   CrmArchivedFingerprintRecord,
   CrmArchivedFingerprintType,
   CrmArchivedFingerprintUpsertInput,
+  CrmAiDraftPreviewInput,
   CrmBlacklistRecord,
   CrmMailboxProvider,
   CrmMailboxRecord,
@@ -1530,6 +1531,66 @@ export class CrmService {
     };
   }
 
+  /** Previews a configured AI draft without creating messages or send jobs. */
+  async previewAiDraft(input: CrmAiDraftPreviewInput, context: CrmUserContext) {
+    const stepIndex = toAiWritingStepIndex(input.stepIndex);
+    const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
+    const productLine = this.requireAiWritingProductLine(
+      await this.requireActiveProductLine(input.productLineId, context)
+    );
+    const sequenceItem = input.enrollmentId ? await this.requireOwnedSequenceReviewItem(input.enrollmentId, context) : null;
+
+    if (sequenceItem) {
+      this.assertPreviewMatchesSequence(input, sequenceItem, productLine.id);
+    }
+
+    const [defaultTemplateGroup, personaMatch] =
+      stepIndex === initialDraftStepIndex
+        ? await Promise.all([
+            this.store.findDefaultEmailTemplateGroup(context.organizationId),
+            this.resolvePersonaProfileMatch(account, contact, context)
+          ])
+        : [null, null];
+    const previousMessages =
+      input.previousMessages?.map(message => ({
+        stepIndex: toAiWritingStepIndex(message.stepIndex),
+        subject: message.subject,
+        bodyText: message.bodyText
+      })) ??
+      sequenceItem?.messages
+        .filter(message => message.stepIndex < stepIndex)
+        .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()) ??
+      [];
+    const fallbackDraft =
+      stepIndex === initialDraftStepIndex
+        ? generateFirstDraft({
+            account,
+            contact,
+            productLine,
+            context,
+            personaProfile: personaMatch?.templatePersona ?? null,
+            templateGroup: defaultTemplateGroup
+          })
+        : { subject: '', bodyText: '' };
+    const draft = await this.generateConfiguredReviewDraft({
+      account,
+      contact,
+      productLine,
+      context,
+      stepIndex,
+      previousMessages,
+      fallbackDraft
+    });
+
+    return {
+      preview: {
+        subject: draft.subject,
+        bodyText: draft.bodyText,
+        aiDraft: draft.aiDraft ?? null
+      }
+    };
+  }
+
   /** Lists first-email review items within the current organization scope. */
   async listSequenceReviewItems(
     context: CrmUserContext,
@@ -1629,6 +1690,96 @@ export class CrmService {
         enrollmentId: updatedMessage.enrollmentId,
         messageId: updatedMessage.id
       }
+    });
+
+    return {
+      message: toMessageView(updatedMessage)
+    };
+  }
+
+  /** Regenerates the current owner pending-review draft with product-line AI writing config. */
+  async regenerateMessageAiDraft(id: string, context: CrmUserContext) {
+    const message = await this.requireOwnedEditableMessage(id, context);
+    const item = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
+    const productLine = this.requireAiWritingProductLine(item.productLine);
+    const targetMessage = item.messages.find(itemMessage => itemMessage.id === message.id);
+
+    if (!targetMessage) {
+      throw new NotFoundException('邮件草稿不存在');
+    }
+
+    const draft = await this.generateConfiguredReviewDraft({
+      account: item.account,
+      contact: item.contact,
+      productLine,
+      context,
+      stepIndex: toAiWritingStepIndex(message.stepIndex),
+      previousMessages: item.messages
+        .filter(itemMessage => itemMessage.stepIndex < message.stepIndex)
+        .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()),
+      fallbackDraft: {
+        subject: message.subject,
+        bodyText: message.bodyText
+      }
+    });
+    const updatedMessage = await this.store.updateMessage(
+      message.id,
+      context.organizationId,
+      {
+        subject: normalizeRequiredString(draft.subject, '邮件主题不能为空'),
+        bodyText: normalizeRequiredString(draft.bodyText, '邮件正文不能为空'),
+        status: 'draft_pending_review',
+        metadata: mergeAiDraftMessageMetadata(message.metadata, draft.aiDraft)
+      },
+      {
+        status: 'draft_pending_review'
+      }
+    );
+
+    if (!updatedMessage) {
+      throw new NotFoundException('邮件草稿不存在');
+    }
+
+    await this.store.createMessageDraftVersion({
+      organizationId: updatedMessage.organizationId,
+      ownerUserId: updatedMessage.ownerUserId,
+      accountId: updatedMessage.accountId,
+      contactId: updatedMessage.contactId,
+      enrollmentId: updatedMessage.enrollmentId,
+      messageId: updatedMessage.id,
+      mailboxId: updatedMessage.mailboxId,
+      stepIndex: updatedMessage.stepIndex,
+      subject: updatedMessage.subject,
+      bodyText: updatedMessage.bodyText,
+      editorId: context.userId,
+      editorName: context.userName
+    });
+
+    await this.store.createTimelineEvent({
+      organizationId: updatedMessage.organizationId,
+      accountId: updatedMessage.accountId,
+      contactId: updatedMessage.contactId,
+      ownerUserId: context.userId,
+      eventType: 'ai_draft_regenerated',
+      title: '重新生成 AI 开发信草稿',
+      content: updatedMessage.subject,
+      metadata: {
+        enrollmentId: updatedMessage.enrollmentId,
+        messageId: updatedMessage.id,
+        productLineId: productLine.id,
+        stepIndex: updatedMessage.stepIndex,
+        aiDraft: draft.aiDraft ?? null
+      }
+    });
+
+    await this.recordCrmLog('ai-draft-regenerate', 'CRM AI 开发信草稿重新生成', context, {
+      organizationId: context.organizationId,
+      accountId: updatedMessage.accountId,
+      contactId: updatedMessage.contactId,
+      enrollmentId: updatedMessage.enrollmentId,
+      messageId: updatedMessage.id,
+      productLineId: productLine.id,
+      stepIndex: updatedMessage.stepIndex
     });
 
     return {
@@ -2999,6 +3150,40 @@ export class CrmService {
     return item;
   }
 
+  private assertPreviewMatchesSequence(
+    input: CrmAiDraftPreviewInput,
+    item: CrmSequenceReviewRecord,
+    productLineId: string
+  ) {
+    if (
+      item.account.id !== input.accountId ||
+      item.contact.id !== input.contactId ||
+      item.productLine?.id !== productLineId
+    ) {
+      throw new BadRequestException('预览参数与邮件序列不匹配');
+    }
+
+    if (input.messageId && !item.messages.some(message => message.id === input.messageId)) {
+      throw new BadRequestException('预览参考邮件不属于当前序列');
+    }
+  }
+
+  private requireAiWritingProductLine(productLine: CrmProductLineRecord | null) {
+    if (!productLine) {
+      throw new BadRequestException('请选择已启用 AI 写信的产品资料');
+    }
+
+    if (productLine.status !== 'active') {
+      throw new BadRequestException('产品资料已归档');
+    }
+
+    if (!productLine.aiWritingConfig?.enabled) {
+      throw new BadRequestException('产品资料未启用 AI 写信');
+    }
+
+    return productLine;
+  }
+
   /** Runs a sequence batch with per-item isolation and computes the summary counters. */
   private async runSequenceBatch(
     ids: string[],
@@ -3104,7 +3289,7 @@ export class CrmService {
     productLine: CrmProductLineRecord | null;
     context: CrmUserContext;
     stepIndex: CrmAiWritingStepIndex;
-    previousMessages: CrmMessageRecord[];
+    previousMessages: Array<Pick<CrmMessageRecord, 'stepIndex' | 'subject' | 'bodyText'>>;
     fallbackDraft: GeneratedDraft;
   }): Promise<GeneratedDraft> {
     const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex } = input;
@@ -4411,6 +4596,19 @@ function toTemplatePersonaProfile(record: CrmPersonaProfileRecord): PersonaProfi
 
 function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {
   return aiDraft ? { aiDraft } : null;
+}
+
+function mergeAiDraftMessageMetadata(metadata: unknown, aiDraft?: CrmAiDraftMetadata | null) {
+  if (!aiDraft) return metadata ?? null;
+
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return { aiDraft };
+  }
+
+  return {
+    ...metadata,
+    aiDraft
+  };
 }
 
 function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | null {

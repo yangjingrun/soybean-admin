@@ -1789,6 +1789,50 @@ describe('CrmService', () => {
     assert.equal(Boolean((store.timelineEvents.at(-1)?.metadata as { aiDraft?: unknown } | undefined)?.aiDraft), true);
   });
 
+  it('previews an AI draft without creating messages or timeline events', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', title: 'Purchasing Manager' })],
+      productLines: [
+        createProductLine({
+          id: 'line-ai',
+          name: 'Bearing Series',
+          coreSellingPoints: 'stable supply',
+          aiWritingConfig: createAiWritingConfig()
+        })
+      ]
+    });
+    const aiCalls: CrmAiDraftPromptInput[] = [];
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      createAiDraftService(aiCalls)
+    );
+
+    const result = await service.previewAiDraft(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        productLineId: 'line-ai',
+        stepIndex: 2,
+        previousMessages: [{ stepIndex: 1, subject: 'Previous subject', bodyText: 'Previous body' }]
+      },
+      createContext()
+    );
+
+    assert.equal(result.preview.subject, 'AI subject step 2');
+    assert.equal(result.preview.bodyText, 'AI body step 2');
+    assert.equal(result.preview.aiDraft?.snapshot.stepIndex, 2);
+    assert.equal(aiCalls[0].previousMessages[0].subject, 'Previous subject');
+    assert.equal(store.messages.length, 0);
+    assert.equal(store.timelineEvents.length, 0);
+  });
+
   it('binds sequence review drafts to the selected or default sequence policy', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
       contacts: [
@@ -2176,6 +2220,108 @@ describe('CrmService', () => {
     assert.equal(store.draftVersions[0].bodyText, 'First body');
     assert.equal(store.draftVersions[0].enrollmentId, 'enrollment-1');
     assert.equal(store.draftVersions[0].stepIndex, 1);
+  });
+
+  it('regenerates the owner pending draft and stores AI metadata with a version snapshot', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'manual_review_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', title: 'Purchasing Manager' })],
+      productLines: [
+        createProductLine({
+          id: 'line-ai',
+          name: 'Bearing Series',
+          aiWritingConfig: createAiWritingConfig()
+        })
+      ],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          productLineId: 'line-ai'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          subject: 'Old subject',
+          bodyText: 'Old body',
+          metadata: { keep: 'value' }
+        })
+      ]
+    });
+    const aiCalls: CrmAiDraftPromptInput[] = [];
+    const logs = createLogRecorder();
+    const service = new CrmService(
+      store,
+      undefined,
+      logs.service,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      createAiDraftService(aiCalls)
+    );
+
+    const result = await service.regenerateMessageAiDraft('message-1', createContext());
+    const metadata = store.messages[0].metadata as { keep?: string; aiDraft?: { snapshot?: { stepIndex?: number } } };
+
+    assert.equal(result.message.subject, 'AI subject step 1');
+    assert.equal(result.message.bodyText, 'AI body step 1');
+    assert.equal(store.messages[0].status, 'draft_pending_review');
+    assert.equal(metadata.keep, 'value');
+    assert.equal(metadata.aiDraft?.snapshot?.stepIndex, 1);
+    assert.equal(store.draftVersions.at(-1)?.subject, 'AI subject step 1');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'ai_draft_regenerated');
+    assert.equal(logs.records.at(-1)?.action, 'ai-draft-regenerate');
+    assert.equal(aiCalls[0].stepIndex, 1);
+  });
+
+  it('rejects AI draft regeneration for peer owners and non-pending messages', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      productLines: [createProductLine({ id: 'line-ai', aiWritingConfig: createAiWritingConfig() })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2',
+          productLineId: 'line-ai'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-peer',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2',
+          enrollmentId: 'enrollment-1'
+        }),
+        createMessage({
+          id: 'message-ready',
+          status: 'draft_ready'
+        })
+      ]
+    });
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      createAiDraftService([])
+    );
+
+    await assert.rejects(
+      () => service.regenerateMessageAiDraft('message-peer', createContext({ organizationRole: 'admin' })),
+      NotFoundException
+    );
+    await assert.rejects(() => service.regenerateMessageAiDraft('message-ready', createContext()), BadRequestException);
   });
 
   it('restores an owner draft version only when the current message is still pending review', async () => {

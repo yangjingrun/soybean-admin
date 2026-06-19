@@ -26,6 +26,7 @@ import {
   createEmailTemplateFormFromRecord,
   createPersonaProfileFormFromRecord,
   createSequencePolicyFormFromRecord,
+  getProductLineAiWritingStatus,
   formatMailboxSyncActionLabel,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
@@ -162,6 +163,40 @@ describe('crm settings shared helpers', () => {
     config.steps[2].prompt = '';
 
     assert.equal(validateProductLineAiWritingConfig(config), '请填写第 3 封 AI 写信提示词');
+  });
+
+  it('labels product line AI writing status for sequence creation hints', () => {
+    const disabledConfig = createDefaultProductLineAiWritingConfig();
+    const enabledConfig = createDefaultProductLineAiWritingConfig();
+    enabledConfig.enabled = true;
+    enabledConfig.commonRequirements = 'Natural English';
+    enabledConfig.forbiddenClaims = 'No fake certificates';
+    enabledConfig.productEmphasis = 'Stock models';
+    enabledConfig.steps.forEach(step => {
+      step.prompt = `Step ${step.stepIndex}`;
+    });
+    const incompleteConfig = createDefaultProductLineAiWritingConfig();
+    incompleteConfig.enabled = true;
+    incompleteConfig.commonRequirements = 'Natural English';
+    incompleteConfig.forbiddenClaims = 'No fake certificates';
+    incompleteConfig.productEmphasis = 'Stock models';
+
+    assert.deepEqual(getProductLineAiWritingStatus(enabledConfig), {
+      key: 'enabled',
+      label: '已开启 AI 写信',
+      tagType: 'success'
+    });
+    assert.deepEqual(getProductLineAiWritingStatus(disabledConfig), {
+      key: 'disabled',
+      label: '未开启 AI 写信',
+      tagType: 'default'
+    });
+    assert.deepEqual(getProductLineAiWritingStatus(incompleteConfig), {
+      key: 'incomplete',
+      label: '配置不完整',
+      tagType: 'warning'
+    });
+    assert.equal(getProductLineAiWritingStatus(null).label, '配置不完整');
   });
 
   it('creates and normalizes sequence policy forms with five steps', () => {

@@ -46,6 +46,22 @@ const emit = defineEmits<{
   'update:show': [show: boolean];
 }>();
 
+type AiDraftDisplayInfo = Api.Crm.AiDraftMetadata & {
+  qualityNotes?: string[];
+};
+
+interface AiDraftDescriptionRow {
+  key: string;
+  label: string;
+  value: string;
+}
+
+interface AiDraftReviewTag {
+  key: string;
+  label: string;
+  type: NaiveUI.ThemeColor;
+}
+
 const message = useMessage();
 const drawerVisible = computed({
   get: () => props.show,
@@ -121,8 +137,85 @@ const canGenerateNextDraft = computed(() => Boolean(props.item && canGenerateNex
 const policyReviewHints = computed(() =>
   props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
 );
-const aiDraftInfo = computed(() => currentMessage.value?.aiDraft ?? null);
-const aiDraftRiskNotes = computed(() => aiDraftInfo.value?.riskNotes ?? []);
+const aiDraftInfo = computed<AiDraftDisplayInfo | null>(() => currentMessage.value?.aiDraft ?? null);
+const aiDraftSnapshot = computed(() => aiDraftInfo.value?.snapshot ?? null);
+const aiDraftGeneratedAtText = computed(() => {
+  const generatedAt = aiDraftSnapshot.value?.generatedAt;
+
+  return generatedAt ? formatSequenceDate(generatedAt) : '-';
+});
+const aiDraftSummaryRows = computed<AiDraftDescriptionRow[]>(() => {
+  const snapshot = aiDraftSnapshot.value;
+
+  if (!snapshot) return [];
+
+  return [
+    {
+      key: 'product-line',
+      label: '产品线',
+      value: formatNullableText(snapshot.productLineName)
+    },
+    {
+      key: 'step',
+      label: 'Step',
+      value: `第 ${snapshot.stepIndex} 封`
+    },
+    {
+      key: 'generated-at',
+      label: '生成时间',
+      value: aiDraftGeneratedAtText.value
+    },
+    {
+      key: 'reason',
+      label: '生成说明',
+      value: aiDraftInfo.value?.reason || snapshot.reason || '请人工复核后确认。'
+    }
+  ];
+});
+const aiDraftPromptSnapshotRows = computed<AiDraftDescriptionRow[]>(() => {
+  const snapshot = aiDraftSnapshot.value;
+
+  if (!snapshot) return [];
+
+  const writingConfig = snapshot.writingConfig;
+
+  return [
+    {
+      key: 'common-requirements',
+      label: '通用要求',
+      value: formatPromptSnapshotText(writingConfig.commonRequirements)
+    },
+    {
+      key: 'forbidden-claims',
+      label: '禁止内容',
+      value: formatPromptSnapshotText(writingConfig.forbiddenClaims)
+    },
+    {
+      key: 'product-emphasis',
+      label: '产品重点',
+      value: formatPromptSnapshotText(writingConfig.productEmphasis)
+    },
+    {
+      key: 'step-prompt',
+      label: `Step ${snapshot.stepIndex} Prompt`,
+      value: formatPromptSnapshotText(findAiDraftStepPrompt(writingConfig.steps, snapshot.stepIndex))
+    }
+  ];
+});
+const aiDraftReviewTags = computed<AiDraftReviewTag[]>(() => {
+  const riskTags = (aiDraftInfo.value?.riskNotes ?? aiDraftSnapshot.value?.riskNotes ?? []).map((note, index) => ({
+    key: `risk-${index}-${note}`,
+    label: `风险：${note}`,
+    type: 'warning' as const
+  }));
+  const qualityTags = (aiDraftInfo.value?.qualityNotes ?? []).map((note, index) => ({
+    key: `quality-${index}-${note}`,
+    label: `质量：${note}`,
+    type: 'warning' as const
+  }));
+
+  return [...riskTags, ...qualityTags];
+});
 const personaMatchMethodLabelMap: Record<Api.Crm.PersonaMatchMethod, string> = {
   title: '职位关键词',
   customer_type: '客户类型关键词',
@@ -283,6 +376,16 @@ function handleRestoreVersion(versionId: string) {
 
   emit('restoreDraftVersion', { messageId, versionId });
 }
+
+/** Keep prompt snapshot blanks compact while preserving actual prompt line breaks. */
+function formatPromptSnapshotText(value: string | null | undefined) {
+  return value?.trim() || '-';
+}
+
+/** Find the prompt used for the selected step from the immutable AI snapshot. */
+function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] | undefined, stepIndex: number) {
+  return steps?.find(step => step.stepIndex === stepIndex)?.prompt ?? '';
+}
 </script>
 
 <template>
@@ -381,17 +484,35 @@ function handleRestoreVersion(versionId: string) {
             <NAlert type="info" :bordered="false" class="status-alert">
               {{ statusTip }}
             </NAlert>
-            <NAlert v-if="aiDraftInfo" type="warning" :bordered="false" class="status-alert">
-              <NSpace vertical :size="6">
-                <div>
-                  AI 已按「{{ aiDraftInfo.snapshot.productLineName }}」第
-                  {{ aiDraftInfo.snapshot.stepIndex }} 封配置生成。{{ aiDraftInfo.reason || '请人工复核后确认。' }}
-                </div>
-                <NSpace v-if="aiDraftRiskNotes.length" :size="6">
-                  <NTag v-for="note in aiDraftRiskNotes" :key="note" size="small" type="warning" :bordered="false">
-                    {{ note }}
+            <NAlert v-if="aiDraftInfo" title="AI 生成信息" type="warning" :bordered="false" class="status-alert">
+              <NSpace vertical :size="10">
+                <NDescriptions :column="1" bordered size="small" label-placement="left">
+                  <NDescriptionsItem v-for="row in aiDraftSummaryRows" :key="row.key" :label="row.label">
+                    <span class="ai-draft-text">{{ row.value }}</span>
+                  </NDescriptionsItem>
+                </NDescriptions>
+
+                <NSpace v-if="aiDraftReviewTags.length" :size="6">
+                  <NTag
+                    v-for="tag in aiDraftReviewTags"
+                    :key="tag.key"
+                    size="small"
+                    :type="tag.type"
+                    :bordered="false"
+                  >
+                    {{ tag.label }}
                   </NTag>
                 </NSpace>
+
+                <NCollapse v-if="aiDraftPromptSnapshotRows.length">
+                  <NCollapseItem title="Prompt 快照" name="prompt-snapshot">
+                    <NDescriptions :column="1" bordered size="small" label-placement="left">
+                      <NDescriptionsItem v-for="row in aiDraftPromptSnapshotRows" :key="row.key" :label="row.label">
+                        <pre class="ai-prompt-text">{{ row.value }}</pre>
+                      </NDescriptionsItem>
+                    </NDescriptions>
+                  </NCollapseItem>
+                </NCollapse>
               </NSpace>
             </NAlert>
             <NForm :model="draftForm" label-placement="top" size="small">
@@ -615,6 +736,20 @@ function handleRestoreVersion(versionId: string) {
 .persona-match-text {
   color: var(--n-text-color-2);
   font-size: 12px;
+}
+
+.ai-draft-text {
+  word-break: break-word;
+}
+
+.ai-prompt-text {
+  margin: 0;
+  color: var(--n-text-color-2);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .section-title {

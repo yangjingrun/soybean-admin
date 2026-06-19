@@ -23,6 +23,7 @@ type CrmGlobalConfigView = Awaited<ReturnType<CrmService['getGlobalConfig']>>;
 type CrmOrganizationConfigView = Awaited<ReturnType<CrmService['getOrganizationConfig']>>;
 type CrmPersonaProfileView = Awaited<ReturnType<CrmService['listPersonaProfiles']>>['records'][number];
 type CrmProductLineView = Awaited<ReturnType<CrmService['listProductLines']>>['records'][number];
+type CrmAiDraftPreviewView = Awaited<ReturnType<CrmService['previewAiDraft']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -959,6 +960,74 @@ describe('CrmController', () => {
         ['restore-version', 'message-1', 'draft-version-1', 'user-1']
       ]
     );
+  });
+
+  it('routes AI draft preview and regeneration with the current user context', async () => {
+    const calls: Array<{ action: string; id?: string; input?: unknown; context: CrmUserContext }> = [];
+    const previewResult: CrmAiDraftPreviewView = {
+      preview: {
+        subject: 'AI subject step 2',
+        bodyText: 'AI body step 2',
+        aiDraft: {
+          generated: true,
+          reason: 'Focused on supply reliability.',
+          riskNotes: ['需要人工确认'],
+          snapshot: {
+            productLineId: 'line-ai',
+            productLineName: 'Bearing Series',
+            stepIndex: 2,
+            writingConfig: {
+              enabled: true,
+              commonRequirements: 'Write concise B2B emails.',
+              forbiddenClaims: 'Do not invent prices.',
+              productEmphasis: 'Focus on supply reliability.',
+              steps: [{ stepIndex: 2, prompt: 'Prompt 2' }]
+            },
+            reason: 'Focused on supply reliability.',
+            riskNotes: ['需要人工确认'],
+            generatedAt: '2026-06-18T09:00:00.000Z'
+          }
+        }
+      }
+    };
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async previewAiDraft(input, context) {
+          calls.push({ action: 'preview', input, context });
+
+          return previewResult;
+        },
+        async regenerateMessageAiDraft(id, context) {
+          calls.push({ action: 'regenerate', id, context });
+
+          return {
+            message: createMessageView({ id, subject: 'AI subject step 1', bodyText: 'AI body step 1' })
+          };
+        }
+      })
+    );
+    const input = {
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      productLineId: 'line-ai',
+      stepIndex: 2 as const,
+      previousMessages: [{ stepIndex: 1, subject: 'Previous subject', bodyText: 'Previous body' }]
+    };
+
+    const preview = await controller.previewAiDraft('Bearer token', input);
+    const regenerated = await controller.regenerateMessageAiDraft('Bearer token', 'message-1');
+
+    assert.equal(preview.data.preview.subject, 'AI subject step 2');
+    assert.equal(regenerated.data.message.subject, 'AI subject step 1');
+    assert.deepEqual(
+      calls.map(call => [call.action, call.id ?? null, call.context.userId]),
+      [
+        ['preview', null, 'user-1'],
+        ['regenerate', 'message-1', 'user-1']
+      ]
+    );
+    assert.equal(calls[0].input, input);
   });
 
   it('routes sequence batch operations with ids and current user context', async () => {

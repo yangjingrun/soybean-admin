@@ -34,14 +34,14 @@
 - `apps/server/src/modules/crm/crm.controller.spec.ts`
 
 **Requirements:**
-- [ ] Add a preview endpoint that takes account/contact/productLine/stepIndex and returns an AI draft preview without creating `CrmMessage`.
-- [ ] Add a regenerate endpoint for a current `draft_pending_review` message. It must owner-only regenerate subject/body, keep the message pending review, write a draft version snapshot, and update AI metadata.
-- [ ] Reuse `CrmAiDraftService`; do not create a second model SDK.
-- [ ] Do not call Gmail or enqueue send jobs.
+- [x] Add a preview endpoint that takes account/contact/productLine/stepIndex and returns an AI draft preview without creating `CrmMessage`.
+- [x] Add a regenerate endpoint for a current `draft_pending_review` message. It must owner-only regenerate subject/body, keep the message pending review, write a draft version snapshot, and update AI metadata.
+- [x] Reuse `CrmAiDraftService`; do not create a second model SDK.
+- [x] Do not call Gmail or enqueue send jobs.
 
 **Verification:**
-- [ ] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/crm-ai-draft.service.spec.ts`
-- [ ] `pnpm --filter @soybean/server typecheck`
+- [x] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/crm-ai-draft.service.spec.ts`
+- [x] `pnpm --filter @soybean/server typecheck`
 
 ### Agent 2: Product-Line And Create-Sequence Frontend UX
 
@@ -57,15 +57,15 @@
 - `src/typings/api/crm.d.ts`
 
 **Requirements:**
-- [ ] Make ordinary members see AI writing config as read-only or hidden according to existing CRM permission fields.
-- [ ] In the create-sequence modal, show whether the selected product line has AI writing enabled, disabled, or incomplete.
-- [ ] Keep submit behavior unchanged: backend remains the source of truth for permission and config errors.
-- [ ] Use Naive UI components only; no new UI library.
+- [x] Make ordinary members see AI writing config as read-only or hidden according to existing CRM permission fields.
+- [x] In the create-sequence modal, show whether the selected product line has AI writing enabled, disabled, or incomplete.
+- [x] Keep submit behavior unchanged: backend remains the source of truth for permission and config errors.
+- [x] Use Naive UI components only; no new UI library.
 
 **Verification:**
-- [ ] `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts src/views/crm/email-sequences/modules/shared.spec.ts`
-- [ ] `pnpm typecheck`
-- [ ] `pnpm exec oxlint`
+- [x] `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts src/views/crm/email-sequences/modules/shared.spec.ts`
+- [x] `pnpm typecheck`
+- [x] `pnpm exec oxlint`
 
 ### Agent 3: Review Drawer Prompt Snapshot And Quality View
 
@@ -78,15 +78,15 @@
 - `src/typings/api/crm.d.ts`
 
 **Requirements:**
-- [ ] Add a compact AI metadata section in the review drawer.
-- [ ] Show reason, risk notes, product line name, step index, generated time.
-- [ ] Add a collapsed prompt snapshot area for common requirements, forbidden claims, product emphasis, and the step prompt used.
-- [ ] If backend adds quality warnings later, render them as tags without changing drawer layout again.
+- [x] Add a compact AI metadata section in the review drawer.
+- [x] Show reason, risk notes, product line name, step index, generated time.
+- [x] Add a collapsed prompt snapshot area for common requirements, forbidden claims, product emphasis, and the step prompt used.
+- [x] If backend adds quality warnings later, render them as tags without changing drawer layout again.
 
 **Verification:**
-- [ ] `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`
-- [ ] `pnpm typecheck`
-- [ ] `pnpm exec eslint --max-warnings=0 .`
+- [x] `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`
+- [x] `pnpm typecheck`
+- [x] `pnpm exec eslint --max-warnings=0 .`
 
 ### Agent 4: Batch AI Generate Frontend Experience
 
@@ -100,26 +100,26 @@
 - `src/views/crm/email-sequences/modules/shared.spec.ts`
 
 **Requirements:**
-- [ ] Improve multi-select batch generate next draft UX.
-- [ ] Show per-row result after batch generation: success, skipped, failed, and reason.
-- [ ] Preserve owner-only behavior and existing batch API contract.
-- [ ] Do not create a separate background queue in this wave.
+- [x] Improve multi-select batch generate next draft UX.
+- [x] Show per-row result after batch generation: success, skipped, failed, and reason.
+- [x] Preserve owner-only behavior and existing batch API contract.
+- [x] Do not create a separate background queue in this wave.
 
 **Verification:**
-- [ ] `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`
-- [ ] `pnpm typecheck`
-- [ ] `pnpm exec oxlint`
+- [x] `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`
+- [x] `pnpm typecheck`
+- [x] `pnpm exec oxlint`
 
 ### Wave 1 Integration
 
-- [ ] Review all four agent diffs for overlapping edits.
-- [ ] Run backend focused tests from Agent 1.
-- [ ] Run frontend focused tests from Agents 2-4.
-- [ ] Run `pnpm --filter @soybean/server typecheck`
-- [ ] Run `pnpm typecheck`
-- [ ] Run `pnpm exec oxlint`
-- [ ] Run `pnpm exec eslint --max-warnings=0 .`
-- [ ] Run `git diff --check`
+- [x] Review all four agent diffs for overlapping edits.
+- [x] Run backend focused tests from Agent 1.
+- [x] Run frontend focused tests from Agents 2-4.
+- [x] Run `pnpm --filter @soybean/server typecheck`
+- [x] Run `pnpm typecheck`
+- [x] Run `pnpm exec oxlint`
+- [x] Run `pnpm exec eslint --max-warnings=0 .`
+- [x] Run `git diff --check`
 - [ ] Commit with `git commit --no-verify -m "feat: 完善 CRM AI 草稿审核体验"`
 
 ## Wave 2: Add History And Reply Drafting

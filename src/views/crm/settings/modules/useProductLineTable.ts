@@ -1,6 +1,7 @@
-import { onMounted, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import { archiveCrmProductLine, createCrmProductLine, fetchCrmProductLines, updateCrmProductLine } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
 import {
   buildProductLineSearchParams,
   createDefaultProductLineFilterModel,
@@ -12,6 +13,7 @@ import {
 /** Manage organization product line list requests, form modal state and row operations. */
 export function useProductLineTable() {
   const message = useMessage();
+  const authStore = useAuthStore();
   const records = shallowRef<Api.Crm.ProductLineRecord[]>([]);
   const loading = shallowRef(false);
   const formVisible = shallowRef(false);
@@ -28,6 +30,9 @@ export function useProductLineTable() {
 
   const filterModel = reactive<Api.Crm.ProductLineFilterModel>(createDefaultProductLineFilterModel());
   const formModel = reactive<Api.Crm.ProductLineFormModel>(createDefaultProductLineForm());
+  const canManageAiWritingConfig = computed(
+    () => authStore.userInfo.organizationRole === 'admin' || authStore.userInfo.roles.includes('R_SUPER')
+  );
 
   onMounted(() => {
     void loadProductLines();
@@ -95,6 +100,11 @@ export function useProductLineTable() {
     try {
       const payload = normalizeProductLinePayload(formModel);
       const isEdit = Boolean(editingProductLineId.value);
+
+      if (isEdit && !canManageAiWritingConfig.value) {
+        delete (payload as Partial<Api.Crm.ProductLinePayload>).aiWritingConfig;
+      }
+
       const { error } = editingProductLineId.value
         ? await updateCrmProductLine(editingProductLineId.value, payload)
         : await createCrmProductLine(payload);
@@ -174,6 +184,7 @@ export function useProductLineTable() {
     handleReset,
     handleSearch,
     handleSubmitProductLine,
+    canManageAiWritingConfig,
     loadProductLines,
     loading,
     openCreateModal,

@@ -16,6 +16,7 @@ const {
   handleReset,
   handleSearch,
   handleSubmitProductLine,
+  canManageAiWritingConfig,
   loadProductLines,
   loading,
   openCreateModal,
@@ -58,6 +59,7 @@ const {
     v-model:visible="formVisible"
     v-model="formModel"
     :mode="editingProductLineId ? 'edit' : 'create'"
+    :can-manage-ai-writing-config="canManageAiWritingConfig"
     :submitting="submitting"
     @submit="handleSubmitProductLine"
     @update:visible="handleFormVisibleUpdate"

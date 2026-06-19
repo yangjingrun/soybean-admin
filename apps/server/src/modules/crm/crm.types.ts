@@ -373,6 +373,22 @@ export interface CrmAiDraftMetadata {
   snapshot: CrmAiDraftSnapshot;
 }
 
+export interface CrmAiDraftPreviewPreviousMessageInput {
+  stepIndex: number;
+  subject: string;
+  bodyText: string;
+}
+
+export interface CrmAiDraftPreviewInput {
+  accountId: string;
+  contactId: string;
+  productLineId: string;
+  stepIndex: number;
+  enrollmentId?: string | null;
+  messageId?: string | null;
+  previousMessages?: CrmAiDraftPreviewPreviousMessageInput[];
+}
+
 export interface CrmSequenceEnrollmentRecord {
   id: string;
   organizationId: string;

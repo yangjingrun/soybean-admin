@@ -18,6 +18,9 @@ import {
   getSequenceNextAction,
   getSequenceProgressText,
   getSequenceSendAuditSummary,
+  buildSequenceBatchResultDisplayItems,
+  buildSequenceBatchResultDisplayMap,
+  formatSequenceBatchResultText,
   canGenerateNextSequenceDraft,
   canApproveSequenceDraftInBatch,
   canStopSequenceInBatch,
@@ -671,6 +674,86 @@ describe('email sequence review shared helpers', () => {
       stopCount: 3,
       skippedCount: 2
     });
+  });
+
+  it('formats batch operation summary counts for toolbar messages', () => {
+    const text = formatSequenceBatchResultText('批量生成下一封草稿', {
+      totalCount: 4,
+      successCount: 1,
+      skippedCount: 2,
+      failedCount: 1,
+      results: []
+    });
+
+    assert.equal(text, '批量生成下一封草稿完成：成功 1 条，跳过 2 条，失败 1 条');
+  });
+
+  it('builds per-row batch result display items by enrollment id', () => {
+    const displayItems = buildSequenceBatchResultDisplayItems({
+      totalCount: 3,
+      successCount: 1,
+      skippedCount: 1,
+      failedCount: 1,
+      results: [
+        {
+          id: 'input-1',
+          enrollmentId: 'enrollment-1',
+          messageId: 'message-2',
+          stepIndex: 2,
+          status: 'success',
+          message: '第 2 封草稿已生成'
+        },
+        {
+          id: 'enrollment-2',
+          status: 'skipped',
+          message: '当前序列没有可生成的后续草稿'
+        },
+        {
+          id: 'input-3',
+          enrollmentId: 'enrollment-3',
+          status: 'failed',
+          message: 'AI 服务暂时不可用'
+        }
+      ]
+    });
+
+    assert.deepEqual(
+      displayItems.map(item => ({
+        enrollmentId: item.enrollmentId,
+        message: item.message,
+        statusLabel: item.statusLabel,
+        stepText: item.stepText,
+        tagType: item.tagType
+      })),
+      [
+        {
+          enrollmentId: 'enrollment-1',
+          message: '第 2 封草稿已生成',
+          statusLabel: '成功',
+          stepText: '第 2 封',
+          tagType: 'success'
+        },
+        {
+          enrollmentId: 'enrollment-2',
+          message: '当前序列没有可生成的后续草稿',
+          statusLabel: '跳过',
+          stepText: null,
+          tagType: 'warning'
+        },
+        {
+          enrollmentId: 'enrollment-3',
+          message: 'AI 服务暂时不可用',
+          statusLabel: '失败',
+          stepText: null,
+          tagType: 'error'
+        }
+      ]
+    );
+
+    const displayMap = buildSequenceBatchResultDisplayMap(displayItems);
+    assert.equal(displayMap.get('enrollment-1')?.message, '第 2 封草稿已生成');
+    assert.equal(displayMap.get('enrollment-2')?.statusLabel, '跳过');
+    assert.equal(displayMap.get('enrollment-3')?.tagType, 'error');
   });
 
   it('builds policy review hints for blocked links and manual-only sending', () => {

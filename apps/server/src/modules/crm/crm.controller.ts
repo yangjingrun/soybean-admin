@@ -39,6 +39,7 @@ import { CreateCrmSequencePolicyDto } from './dto/create-crm-sequence-policy.dto
 import { ImportCrmLeadDto } from './dto/import-crm-lead.dto';
 import { MockAuthorizeCrmMailboxDto } from './dto/mock-authorize-crm-mailbox.dto';
 import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
+import { PreviewCrmAiDraftDto } from './dto/preview-crm-ai-draft.dto';
 import { ReplyCrmInboxThreadDto } from './dto/reply-crm-inbox-thread.dto';
 import { RemoveCrmBlacklistEntryDto } from './dto/remove-crm-blacklist-entry.dto';
 import { SaveCrmGlobalConfigDto } from './dto/save-crm-global-config.dto';
@@ -373,6 +374,11 @@ export class CrmController {
     return ok(await this.crmService.batchStopSequenceEnrollments(dto, this.requireUserContext(authorization)));
   }
 
+  @Post('ai-drafts/preview')
+  async previewAiDraft(@Headers('authorization') authorization = '', @Body() dto: PreviewCrmAiDraftDto) {
+    return ok(await this.crmService.previewAiDraft(dto, this.requireUserContext(authorization)));
+  }
+
   @Patch('messages/:id/draft')
   async updateMessageDraft(
     @Headers('authorization') authorization = '',
@@ -380,6 +386,11 @@ export class CrmController {
     @Body() dto: UpdateCrmMessageDraftDto
   ) {
     return ok(await this.crmService.updateMessageDraft(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('messages/:id/regenerate-ai-draft')
+  async regenerateMessageAiDraft(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.regenerateMessageAiDraft(id, this.requireUserContext(authorization)));
   }
 
   @Post('messages/:id/approve')

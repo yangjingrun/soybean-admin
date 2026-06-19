@@ -1,10 +1,19 @@
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue';
+import type { SelectOption } from 'naive-ui';
+import { getProductLineAiWritingStatus } from '../../settings/modules/shared';
+
+interface ProductLineSelectOption extends SelectOption {
+  value: string;
+  aiWritingConfig?: Api.Crm.ProductLineAiWritingConfig | null;
+}
+
+const props = defineProps<{
   accountOptions: Array<{ label: string; value: string }>;
   contactOptions: Array<{ label: string; value: string }>;
   loading?: boolean;
   mailboxOptions: Array<{ label: string; value: string }>;
-  productLineOptions: Array<{ label: string; value: string }>;
+  productLineOptions: ProductLineSelectOption[];
   sequencePolicyOptions: Array<{ label: string; value: string }>;
   submitting?: boolean;
 }>();
@@ -16,6 +25,13 @@ const emit = defineEmits<{
   accountChange: [accountId: string | null];
   submit: [];
 }>();
+
+const selectedProductLineOption = computed(() =>
+  props.productLineOptions.find(option => option.value === formModel.value.productLineId)
+);
+const selectedProductLineAiWritingStatus = computed(() =>
+  selectedProductLineOption.value ? getProductLineAiWritingStatus(selectedProductLineOption.value.aiWritingConfig) : null
+);
 </script>
 
 <template>
@@ -43,13 +59,21 @@ const emit = defineEmits<{
           />
         </NFormItem>
         <NFormItem label="产品线">
-          <NSelect
-            v-model:value="formModel.productLineId"
-            filterable
-            clearable
-            :options="productLineOptions"
-            placeholder="可选，建议选择"
-          />
+          <NSpace vertical :size="8" class="w-full">
+            <NSelect
+              v-model:value="formModel.productLineId"
+              filterable
+              clearable
+              :options="productLineOptions"
+              placeholder="可选，建议选择"
+            />
+            <NSpace v-if="selectedProductLineAiWritingStatus" align="center" :size="8">
+              <NText depth="3">AI 状态</NText>
+              <NTag size="small" :type="selectedProductLineAiWritingStatus.tagType" :bordered="false">
+                {{ selectedProductLineAiWritingStatus.label }}
+              </NTag>
+            </NSpace>
+          </NSpace>
         </NFormItem>
         <NFormItem label="发送邮箱">
           <NSelect
