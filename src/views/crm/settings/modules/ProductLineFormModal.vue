@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
-import type { FormInst, FormRules } from 'naive-ui';
-import { normalizeProductLinePayload } from './shared';
+import { useMessage, type FormInst, type FormRules } from 'naive-ui';
+import { normalizeProductLinePayload, validateProductLineAiWritingConfig } from './shared';
 
 const visible = defineModel<boolean>('visible', { required: true });
 const formModel = defineModel<Api.Crm.ProductLineFormModel>('modelValue', {
@@ -18,6 +18,7 @@ const emit = defineEmits<{
 }>();
 
 const formRef = ref<FormInst | null>(null);
+const message = useMessage();
 const modalTitle = computed(() => (props.mode === 'edit' ? '编辑产品线' : '新增产品线'));
 
 const rules = reactive<FormRules>({
@@ -48,6 +49,14 @@ async function handleSubmit() {
   }
 
   Object.assign(formModel.value, normalizeProductLinePayload(formModel.value));
+
+  const aiWritingError = validateProductLineAiWritingConfig(formModel.value.aiWritingConfig);
+
+  if (aiWritingError) {
+    message.warning(aiWritingError);
+    return;
+  }
+
   emit('submit');
 }
 </script>
@@ -114,6 +123,72 @@ async function handleSubmit() {
           <NFormItem label="常见型号">
             <NInput v-model:value="formModel.commonModelsText" type="textarea" :autosize="{ minRows: 3, maxRows: 5 }" />
           </NFormItem>
+        </NGi>
+
+        <NGi span="24">
+          <NDivider class="my-2">AI 写信配置</NDivider>
+        </NGi>
+
+        <NGi span="24">
+          <NSpace vertical :size="12">
+            <NSpace align="center" justify="space-between">
+              <NText>启用产品线 AI 写信</NText>
+              <NSwitch v-model:value="formModel.aiWritingConfig.enabled" />
+            </NSpace>
+
+            <NGrid v-if="formModel.aiWritingConfig.enabled" :cols="24" :x-gap="12" responsive="screen" item-responsive>
+              <NGi span="24">
+                <NFormItem label="通用要求">
+                  <NInput
+                    v-model:value="formModel.aiWritingConfig.commonRequirements"
+                    type="textarea"
+                    :autosize="{ minRows: 2, maxRows: 4 }"
+                    placeholder="例如：英文自然商务语气，控制在 120 词内，不要像群发邮件"
+                  />
+                </NFormItem>
+              </NGi>
+
+              <NGi span="24">
+                <NFormItem label="禁止内容">
+                  <NInput
+                    v-model:value="formModel.aiWritingConfig.forbiddenClaims"
+                    type="textarea"
+                    :autosize="{ minRows: 2, maxRows: 4 }"
+                    placeholder="例如：不承诺最低价，不编造认证，不写未确认交期"
+                  />
+                </NFormItem>
+              </NGi>
+
+              <NGi span="24">
+                <NFormItem label="产品重点">
+                  <NInput
+                    v-model:value="formModel.aiWritingConfig.productEmphasis"
+                    type="textarea"
+                    :autosize="{ minRows: 2, maxRows: 4 }"
+                    placeholder="例如：优先强调库存型号、快速报价、稳定交付"
+                  />
+                </NFormItem>
+              </NGi>
+
+              <NGi span="24">
+                <NTabs type="segment" animated>
+                  <NTabPane
+                    v-for="step in formModel.aiWritingConfig.steps"
+                    :key="step.stepIndex"
+                    :name="String(step.stepIndex)"
+                    :tab="`第 ${step.stepIndex} 封`"
+                  >
+                    <NInput
+                      v-model:value="step.prompt"
+                      type="textarea"
+                      :autosize="{ minRows: 4, maxRows: 7 }"
+                      :placeholder="`配置第 ${step.stepIndex} 封开发信的 AI 写法`"
+                    />
+                  </NTabPane>
+                </NTabs>
+              </NGi>
+            </NGrid>
+          </NSpace>
         </NGi>
       </NGrid>
     </NForm>

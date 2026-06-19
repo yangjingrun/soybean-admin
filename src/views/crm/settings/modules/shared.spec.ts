@@ -20,6 +20,7 @@ import {
   createDefaultGlobalConfigForm,
   createDefaultPersonaProfileFilterModel,
   createDefaultPersonaProfileForm,
+  createDefaultProductLineAiWritingConfig,
   createDefaultSequencePolicyFilterModel,
   createDefaultSequencePolicyForm,
   createEmailTemplateFormFromRecord,
@@ -30,7 +31,9 @@ import {
   isValidFollowUpDelayDays,
   normalizeEmailTemplatePayload,
   normalizePersonaProfilePayload,
+  normalizeProductLineAiWritingConfig,
   normalizeSequencePolicyPayload,
+  validateProductLineAiWritingConfig,
   summarizeMailboxSyncHealth
 } from './shared';
 
@@ -115,6 +118,50 @@ describe('crm settings shared helpers', () => {
     assert.equal(normalizeEmailTemplatePayload(form).name, 'Distributor sequence');
     assert.equal(normalizeEmailTemplatePayload(form).steps[0].subjectTemplate, 'Hello {{account.name}}');
     assert.equal(createEmailTemplateFormFromRecord(createEmailTemplateGroup()).steps[0].bodyTemplate, 'Body 1');
+  });
+
+  it('creates default product line form with disabled five-step AI writing config', () => {
+    const config = createDefaultProductLineAiWritingConfig();
+
+    assert.equal(config.enabled, false);
+    assert.equal(config.steps.length, 5);
+    assert.deepEqual(
+      config.steps.map(step => step.stepIndex),
+      [1, 2, 3, 4, 5]
+    );
+  });
+
+  it('normalizes enabled product line AI writing config with five trimmed step prompts', () => {
+    const config = createDefaultProductLineAiWritingConfig();
+    config.enabled = true;
+    config.commonRequirements = '  Natural English  ';
+    config.forbiddenClaims = '  No fake certificates  ';
+    config.productEmphasis = '  Stock models  ';
+    config.steps[0].prompt = '  Step 1  ';
+    config.steps[1].prompt = '  Step 2  ';
+    config.steps[2].prompt = '  Step 3  ';
+    config.steps[3].prompt = '  Step 4  ';
+    config.steps[4].prompt = '  Step 5  ';
+
+    const normalized = normalizeProductLineAiWritingConfig(config);
+
+    assert.equal(normalized?.commonRequirements, 'Natural English');
+    assert.equal(normalized?.steps[4].prompt, 'Step 5');
+    assert.equal(validateProductLineAiWritingConfig(config), null);
+  });
+
+  it('rejects enabled product line AI writing config with empty step prompt', () => {
+    const config = createDefaultProductLineAiWritingConfig();
+    config.enabled = true;
+    config.commonRequirements = 'Natural English';
+    config.forbiddenClaims = 'No fake certificates';
+    config.productEmphasis = 'Stock models';
+    config.steps.forEach(step => {
+      step.prompt = `Step ${step.stepIndex}`;
+    });
+    config.steps[2].prompt = '';
+
+    assert.equal(validateProductLineAiWritingConfig(config), '请填写第 3 封 AI 写信提示词');
   });
 
   it('creates and normalizes sequence policy forms with five steps', () => {

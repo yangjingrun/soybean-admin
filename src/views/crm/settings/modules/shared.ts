@@ -369,7 +369,22 @@ export function createDefaultProductLineForm(): Api.Crm.ProductLineFormModel {
     certifications: '',
     catalogUrl: '',
     websiteUrl: '',
-    commonModelsText: ''
+    commonModelsText: '',
+    aiWritingConfig: createDefaultProductLineAiWritingConfig()
+  };
+}
+
+/** Create a disabled five-step product-line AI writing config. */
+export function createDefaultProductLineAiWritingConfig(): Api.Crm.ProductLineAiWritingConfig {
+  return {
+    enabled: false,
+    commonRequirements: '',
+    forbiddenClaims: '',
+    productEmphasis: '',
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      stepIndex: stepIndex as Api.Crm.AiWritingStepIndex,
+      prompt: ''
+    }))
   };
 }
 
@@ -399,7 +414,8 @@ export function createProductLineFormFromRecord(record: Api.Crm.ProductLineRecor
     certifications: record.certifications ?? '',
     catalogUrl: record.catalogUrl ?? '',
     websiteUrl: record.websiteUrl ?? '',
-    commonModelsText: record.commonModelsText ?? ''
+    commonModelsText: record.commonModelsText ?? '',
+    aiWritingConfig: normalizeProductLineAiWritingConfig(record.aiWritingConfig) ?? createDefaultProductLineAiWritingConfig()
   };
 }
 
@@ -644,8 +660,45 @@ export function normalizeProductLinePayload(formModel: Api.Crm.ProductLineFormMo
     certifications: formModel.certifications.trim(),
     catalogUrl: formModel.catalogUrl.trim(),
     websiteUrl: formModel.websiteUrl.trim(),
-    commonModelsText: formModel.commonModelsText.trim()
+    commonModelsText: formModel.commonModelsText.trim(),
+    aiWritingConfig: normalizeProductLineAiWritingConfig(formModel.aiWritingConfig) ?? createDefaultProductLineAiWritingConfig()
   };
+}
+
+/** Normalize product-line AI writing config for backend submission. */
+export function normalizeProductLineAiWritingConfig(
+  config?: Api.Crm.ProductLineAiWritingConfig | null
+): Api.Crm.ProductLineAiWritingConfig | null {
+  if (!config) return null;
+
+  return {
+    enabled: Boolean(config.enabled),
+    commonRequirements: config.commonRequirements.trim(),
+    forbiddenClaims: config.forbiddenClaims.trim(),
+    productEmphasis: config.productEmphasis.trim(),
+    steps: [1, 2, 3, 4, 5].map(stepIndex => {
+      const step = config.steps.find(item => item.stepIndex === stepIndex);
+
+      return {
+        stepIndex: stepIndex as Api.Crm.AiWritingStepIndex,
+        prompt: step?.prompt.trim() ?? ''
+      };
+    })
+  };
+}
+
+/** Validate enabled product-line AI writing config before submit. */
+export function validateProductLineAiWritingConfig(config: Api.Crm.ProductLineAiWritingConfig): string | null {
+  const normalized = normalizeProductLineAiWritingConfig(config);
+
+  if (!normalized?.enabled) return null;
+  if (!normalized.commonRequirements) return '请填写 AI 写信通用要求';
+  if (!normalized.forbiddenClaims) return '请填写 AI 写信禁止内容';
+  if (!normalized.productEmphasis) return '请填写 AI 写信产品重点';
+
+  const emptyStep = normalized.steps.find(step => !step.prompt);
+
+  return emptyStep ? `请填写第 ${emptyStep.stepIndex} 封 AI 写信提示词` : null;
 }
 
 /** Trim persona profile fields before submit. */

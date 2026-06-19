@@ -351,11 +351,44 @@ declare namespace Api {
       catalogUrl: string | null;
       websiteUrl: string | null;
       commonModelsText: string | null;
+      aiWritingConfig: ProductLineAiWritingConfig | null;
       status: ProductLineStatus;
       createdById: string;
       createdByName: string | null;
       createdAt: string;
       updatedAt: string;
+    }
+
+    type AiWritingStepIndex = 1 | 2 | 3 | 4 | 5;
+
+    interface ProductLineAiWritingStepConfig {
+      stepIndex: AiWritingStepIndex;
+      prompt: string;
+    }
+
+    interface ProductLineAiWritingConfig {
+      enabled: boolean;
+      commonRequirements: string;
+      forbiddenClaims: string;
+      productEmphasis: string;
+      steps: ProductLineAiWritingStepConfig[];
+    }
+
+    interface AiDraftSnapshot {
+      productLineId: string;
+      productLineName: string;
+      stepIndex: AiWritingStepIndex;
+      writingConfig: ProductLineAiWritingConfig;
+      reason: string;
+      riskNotes: string[];
+      generatedAt: string;
+    }
+
+    interface AiDraftMetadata {
+      generated: true;
+      reason: string;
+      riskNotes: string[];
+      snapshot: AiDraftSnapshot;
     }
 
     interface ProductLineSearchParams extends Api.Common.CommonSearchParams {
@@ -379,6 +412,7 @@ declare namespace Api {
       catalogUrl: string;
       websiteUrl: string;
       commonModelsText: string;
+      aiWritingConfig: ProductLineAiWritingConfig;
     }
 
     type ProductLineFormModel = ProductLinePayload;
@@ -664,6 +698,8 @@ declare namespace Api {
       bullJobId: string | null;
       providerMessageId: string | null;
       providerThreadId: string | null;
+      metadata?: unknown | null;
+      aiDraft?: AiDraftMetadata | null;
       createdAt: string;
       updatedAt: string;
     }

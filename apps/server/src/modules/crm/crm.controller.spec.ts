@@ -22,6 +22,7 @@ type CrmInboxThreadDetailView = Awaited<ReturnType<CrmService['getInboxThread']>
 type CrmGlobalConfigView = Awaited<ReturnType<CrmService['getGlobalConfig']>>;
 type CrmOrganizationConfigView = Awaited<ReturnType<CrmService['getOrganizationConfig']>>;
 type CrmPersonaProfileView = Awaited<ReturnType<CrmService['listPersonaProfiles']>>['records'][number];
+type CrmProductLineView = Awaited<ReturnType<CrmService['listProductLines']>>['records'][number];
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -1314,6 +1315,7 @@ function createProductLineView(
     catalogUrl: string | null;
     websiteUrl: string | null;
     commonModelsText: string | null;
+    aiWritingConfig: CrmProductLineView['aiWritingConfig'];
     status: 'active' | 'archived';
     createdById: string;
     createdByName: string | null;
@@ -1334,6 +1336,7 @@ function createProductLineView(
     catalogUrl: null,
     websiteUrl: null,
     commonModelsText: null,
+    aiWritingConfig: null,
     status: 'active' as const,
     createdById: 'user-1',
     createdByName: 'Alice',
@@ -1494,6 +1497,7 @@ function createMessageView(overrides: Partial<CrmMessageView> = {}): CrmMessageV
     bullJobId: null,
     providerMessageId: null,
     providerThreadId: null,
+    aiDraft: null,
     createdAt: '2026-06-18T09:00:00.000Z',
     updatedAt: '2026-06-18T09:00:00.000Z',
     ...overrides

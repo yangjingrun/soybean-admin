@@ -121,6 +121,8 @@ const canGenerateNextDraft = computed(() => Boolean(props.item && canGenerateNex
 const policyReviewHints = computed(() =>
   props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
 );
+const aiDraftInfo = computed(() => currentMessage.value?.aiDraft ?? null);
+const aiDraftRiskNotes = computed(() => aiDraftInfo.value?.riskNotes ?? []);
 const personaMatchMethodLabelMap: Record<Api.Crm.PersonaMatchMethod, string> = {
   title: '职位关键词',
   customer_type: '客户类型关键词',
@@ -378,6 +380,19 @@ function handleRestoreVersion(versionId: string) {
             <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封草稿</div>
             <NAlert type="info" :bordered="false" class="status-alert">
               {{ statusTip }}
+            </NAlert>
+            <NAlert v-if="aiDraftInfo" type="warning" :bordered="false" class="status-alert">
+              <NSpace vertical :size="6">
+                <div>
+                  AI 已按「{{ aiDraftInfo.snapshot.productLineName }}」第
+                  {{ aiDraftInfo.snapshot.stepIndex }} 封配置生成。{{ aiDraftInfo.reason || '请人工复核后确认。' }}
+                </div>
+                <NSpace v-if="aiDraftRiskNotes.length" :size="6">
+                  <NTag v-for="note in aiDraftRiskNotes" :key="note" size="small" type="warning" :bordered="false">
+                    {{ note }}
+                  </NTag>
+                </NSpace>
+              </NSpace>
             </NAlert>
             <NForm :model="draftForm" label-placement="top" size="small">
               <NFormItem label="主题">

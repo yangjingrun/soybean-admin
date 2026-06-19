@@ -5,7 +5,9 @@ import { DatabaseModule } from '../database/database.module';
 import { RedisModule } from '../redis/redis.module';
 import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
+import { AiGatewayModule } from '../ai-gateway/ai-gateway.module';
 import { CrmController } from './crm.controller';
+import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmArchiveSlimmingService } from './crm-archive-slimming.service';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
 import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
@@ -33,10 +35,11 @@ import {
 import { PrismaCrmStore } from './store/prisma-crm.store';
 
 @Module({
-  imports: [AuthModule, DatabaseModule, RedisModule, SystemLogModule, SystemNotificationModule],
+  imports: [AuthModule, DatabaseModule, RedisModule, SystemLogModule, SystemNotificationModule, AiGatewayModule],
   controllers: [CrmController, CrmGmailWebhookController],
   providers: [
     CrmService,
+    CrmAiDraftService,
     CrmArchiveSlimmingService,
     CrmGmailPubSubOidcVerifier,
     CrmGmailWebhookService,

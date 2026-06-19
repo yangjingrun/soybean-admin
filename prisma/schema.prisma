@@ -335,6 +335,7 @@ model CrmProductLine {
   catalogUrl         String?
   websiteUrl         String?
   commonModelsText   String?
+  aiWritingConfig    Json?
   status             String   @default("active")
   createdById        String
   createdByName      String?
@@ -495,6 +496,7 @@ model CrmMessage {
   bullJobId      String?
   providerMessageId String?
   providerThreadId  String?
+  metadata       Json?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

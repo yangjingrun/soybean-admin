@@ -6,6 +6,8 @@ import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gmail-oauth-flow';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
+import { CrmAiDraftService } from './crm-ai-draft.service';
+import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import { CrmService } from './crm.service';
 import type {
   CrmArchivedFingerprintRecord,
@@ -19,6 +21,7 @@ import type {
   CrmEmailSendGateway,
   CrmOrganizationConfigRecord,
   CrmPersonaProfileRecord,
+  CrmProductLineRecord,
   CrmSendQueueJob,
   CrmSendQueuePort,
   CrmSequencePolicyRecord,
@@ -1742,6 +1745,50 @@ describe('CrmService', () => {
     assert.equal(JSON.stringify(logs.records[0].metadata).includes('stable supply'), false);
   });
 
+  it('uses product line AI writing config when creating the first review draft', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', title: 'Purchasing Manager' })],
+      productLines: [
+        createProductLine({
+          id: 'line-ai',
+          name: 'Bearing Series',
+          coreSellingPoints: 'stable supply',
+          leadTime: '15 days',
+          aiWritingConfig: createAiWritingConfig()
+        })
+      ]
+    });
+    const aiCalls: CrmAiDraftPromptInput[] = [];
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      createAiDraftService(aiCalls)
+    );
+
+    const result = await service.createSequenceReviewItem(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        productLineId: 'line-ai'
+      },
+      createContext()
+    );
+
+    assert.equal(aiCalls[0].stepIndex, 1);
+    assert.equal(aiCalls[0].writingConfig.steps[0].prompt, 'Prompt 1');
+    assert.equal(result.item.firstMessage?.subject, 'AI subject step 1');
+    assert.equal(result.item.firstMessage?.bodyText, 'AI body step 1');
+    assert.equal(result.item.firstMessage?.aiDraft?.snapshot.productLineId, 'line-ai');
+    assert.equal(Boolean((store.messages[0].metadata as { aiDraft?: unknown }).aiDraft), true);
+    assert.equal(Boolean((store.timelineEvents.at(-1)?.metadata as { aiDraft?: unknown } | undefined)?.aiDraft), true);
+  });
+
   it('binds sequence review drafts to the selected or default sequence policy', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
       contacts: [
@@ -2378,6 +2425,64 @@ describe('CrmService', () => {
     assert.ok(scheduledAtMs <= afterGenerate + 5 * 24 * 60 * 60 * 1000);
     assert.equal(sendQueue.jobs.length, 0);
     assert.equal(store.messages[0].status, 'draft_ready');
+  });
+
+  it('uses product line AI writing config when generating the next local draft', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', title: 'Purchasing Manager' })],
+      productLines: [
+        createProductLine({
+          id: 'line-ai',
+          name: 'Bearing Series',
+          coreSellingPoints: 'stable supply',
+          leadTime: '15 days',
+          aiWritingConfig: createAiWritingConfig()
+        })
+      ],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          productLineId: 'line-ai',
+          status: 'ready_to_send',
+          currentStep: 1
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          stepIndex: 1,
+          status: 'sent',
+          subject: 'Previous subject',
+          bodyText: 'Previous body'
+        })
+      ]
+    });
+    const aiCalls: CrmAiDraftPromptInput[] = [];
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      createAiDraftService(aiCalls)
+    );
+
+    const result = await service.generateNextDraft('enrollment-1', createContext());
+
+    assert.equal(aiCalls[0].stepIndex, 2);
+    assert.equal(aiCalls[0].previousMessages[0].bodyText, 'Previous body');
+    assert.equal(result.message.subject, 'AI subject step 2');
+    assert.equal(result.message.bodyText, 'AI body step 2');
+    assert.equal(result.message.aiDraft?.snapshot.stepIndex, 2);
+    assert.equal(Boolean((store.messages.at(-1)?.metadata as { aiDraft?: unknown } | undefined)?.aiDraft), true);
   });
 
   it('removes template links from generated follow-up drafts when the policy blocks new links', async () => {
@@ -5385,6 +5490,7 @@ function createProductLine(input: Partial<TestProductLine> = {}): TestProductLin
     catalogUrl: input.catalogUrl ?? null,
     websiteUrl: input.websiteUrl ?? null,
     commonModelsText: input.commonModelsText ?? null,
+    aiWritingConfig: input.aiWritingConfig ?? null,
     status: input.status || 'active',
     createdById: input.createdById || 'user-1',
     createdByName: input.createdByName ?? 'Alice',
@@ -5540,9 +5646,52 @@ function createMessage(input: Partial<TestMessage> = {}): TestMessage {
     bullJobId: input.bullJobId ?? null,
     providerMessageId: input.providerMessageId ?? null,
     providerThreadId: input.providerThreadId ?? null,
+    metadata: input.metadata ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };
+}
+
+function createAiWritingConfig(): NonNullable<CrmProductLineRecord['aiWritingConfig']> {
+  return {
+    enabled: true,
+    commonRequirements: 'Write concise B2B emails.',
+    forbiddenClaims: 'Do not invent prices.',
+    productEmphasis: 'Focus on supply reliability.',
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
+      prompt: `Prompt ${stepIndex}`
+    }))
+  };
+}
+
+function createAiDraftService(calls: CrmAiDraftPromptInput[]): CrmAiDraftService {
+  return {
+    async generateDraft(input: CrmAiDraftPromptInput) {
+      calls.push(input);
+
+      return {
+        subject: `AI subject step ${input.stepIndex}`,
+        bodyText: `AI body step ${input.stepIndex}`,
+        reason: `Reason step ${input.stepIndex}`,
+        riskNotes: ['需要人工确认'],
+        metadata: {
+          generated: true,
+          reason: `Reason step ${input.stepIndex}`,
+          riskNotes: ['需要人工确认'],
+          snapshot: {
+            productLineId: input.productLine.id,
+            productLineName: input.productLine.name,
+            stepIndex: input.stepIndex,
+            writingConfig: input.writingConfig,
+            reason: `Reason step ${input.stepIndex}`,
+            riskNotes: ['需要人工确认'],
+            generatedAt: '2026-06-18T09:00:00.000Z'
+          }
+        }
+      };
+    }
+  } as CrmAiDraftService;
 }
 
 function getOrCreateTestStrategyStatRow(
@@ -5774,6 +5923,7 @@ interface TestProductLine {
   catalogUrl: string | null;
   websiteUrl: string | null;
   commonModelsText: string | null;
+  aiWritingConfig: CrmProductLineRecord['aiWritingConfig'];
   status: 'active' | 'archived';
   createdById: string;
   createdByName: string | null;

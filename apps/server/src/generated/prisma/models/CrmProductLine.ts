@@ -77,6 +77,7 @@ export type CrmProductLineCountAggregateOutputType = {
   catalogUrl: number
   websiteUrl: number
   commonModelsText: number
+  aiWritingConfig: number
   status: number
   createdById: number
   createdByName: number
@@ -139,6 +140,7 @@ export type CrmProductLineCountAggregateInputType = {
   catalogUrl?: true
   websiteUrl?: true
   commonModelsText?: true
+  aiWritingConfig?: true
   status?: true
   createdById?: true
   createdByName?: true
@@ -232,6 +234,7 @@ export type CrmProductLineGroupByOutputType = {
   catalogUrl: string | null
   websiteUrl: string | null
   commonModelsText: string | null
+  aiWritingConfig: runtime.JsonValue | null
   status: string
   createdById: string
   createdByName: string | null
@@ -273,6 +276,7 @@ export type CrmProductLineWhereInput = {
   catalogUrl?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
   websiteUrl?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
   commonModelsText?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
+  aiWritingConfig?: Prisma.JsonNullableFilter<"CrmProductLine">
   status?: Prisma.StringFilter<"CrmProductLine"> | string
   createdById?: Prisma.StringFilter<"CrmProductLine"> | string
   createdByName?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
@@ -295,6 +299,7 @@ export type CrmProductLineOrderByWithRelationInput = {
   catalogUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   websiteUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   commonModelsText?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiWritingConfig?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
   createdByName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -321,6 +326,7 @@ export type CrmProductLineWhereUniqueInput = Prisma.AtLeast<{
   catalogUrl?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
   websiteUrl?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
   commonModelsText?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
+  aiWritingConfig?: Prisma.JsonNullableFilter<"CrmProductLine">
   status?: Prisma.StringFilter<"CrmProductLine"> | string
   createdById?: Prisma.StringFilter<"CrmProductLine"> | string
   createdByName?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
@@ -343,6 +349,7 @@ export type CrmProductLineOrderByWithAggregationInput = {
   catalogUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   websiteUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   commonModelsText?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiWritingConfig?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
   createdByName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -369,6 +376,7 @@ export type CrmProductLineScalarWhereWithAggregatesInput = {
   catalogUrl?: Prisma.StringNullableWithAggregatesFilter<"CrmProductLine"> | string | null
   websiteUrl?: Prisma.StringNullableWithAggregatesFilter<"CrmProductLine"> | string | null
   commonModelsText?: Prisma.StringNullableWithAggregatesFilter<"CrmProductLine"> | string | null
+  aiWritingConfig?: Prisma.JsonNullableWithAggregatesFilter<"CrmProductLine">
   status?: Prisma.StringWithAggregatesFilter<"CrmProductLine"> | string
   createdById?: Prisma.StringWithAggregatesFilter<"CrmProductLine"> | string
   createdByName?: Prisma.StringNullableWithAggregatesFilter<"CrmProductLine"> | string | null
@@ -388,6 +396,7 @@ export type CrmProductLineCreateInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -410,6 +419,7 @@ export type CrmProductLineUncheckedCreateInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -430,6 +440,7 @@ export type CrmProductLineUpdateInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -452,6 +463,7 @@ export type CrmProductLineUncheckedUpdateInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -473,6 +485,7 @@ export type CrmProductLineCreateManyInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -492,6 +505,7 @@ export type CrmProductLineUpdateManyMutationInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -512,6 +526,7 @@ export type CrmProductLineUncheckedUpdateManyInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -547,6 +562,7 @@ export type CrmProductLineCountOrderByAggregateInput = {
   catalogUrl?: Prisma.SortOrder
   websiteUrl?: Prisma.SortOrder
   commonModelsText?: Prisma.SortOrder
+  aiWritingConfig?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
   createdByName?: Prisma.SortOrder
@@ -669,6 +685,7 @@ export type CrmProductLineCreateWithoutOrganizationInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -689,6 +706,7 @@ export type CrmProductLineUncheckedCreateWithoutOrganizationInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -739,6 +757,7 @@ export type CrmProductLineScalarWhereInput = {
   catalogUrl?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
   websiteUrl?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
   commonModelsText?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
+  aiWritingConfig?: Prisma.JsonNullableFilter<"CrmProductLine">
   status?: Prisma.StringFilter<"CrmProductLine"> | string
   createdById?: Prisma.StringFilter<"CrmProductLine"> | string
   createdByName?: Prisma.StringNullableFilter<"CrmProductLine"> | string | null
@@ -758,6 +777,7 @@ export type CrmProductLineCreateWithoutEnrollmentsInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -779,6 +799,7 @@ export type CrmProductLineUncheckedCreateWithoutEnrollmentsInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -814,6 +835,7 @@ export type CrmProductLineUpdateWithoutEnrollmentsInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -835,6 +857,7 @@ export type CrmProductLineUncheckedUpdateWithoutEnrollmentsInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -854,6 +877,7 @@ export type CrmProductLineCreateManyOrganizationInput = {
   catalogUrl?: string | null
   websiteUrl?: string | null
   commonModelsText?: string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdById: string
   createdByName?: string | null
@@ -873,6 +897,7 @@ export type CrmProductLineUpdateWithoutOrganizationInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -893,6 +918,7 @@ export type CrmProductLineUncheckedUpdateWithoutOrganizationInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -913,6 +939,7 @@ export type CrmProductLineUncheckedUpdateManyWithoutOrganizationInput = {
   catalogUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   commonModelsText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiWritingConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
   createdByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -964,6 +991,7 @@ export type CrmProductLineSelect<ExtArgs extends runtime.Types.Extensions.Intern
   catalogUrl?: boolean
   websiteUrl?: boolean
   commonModelsText?: boolean
+  aiWritingConfig?: boolean
   status?: boolean
   createdById?: boolean
   createdByName?: boolean
@@ -987,6 +1015,7 @@ export type CrmProductLineSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   catalogUrl?: boolean
   websiteUrl?: boolean
   commonModelsText?: boolean
+  aiWritingConfig?: boolean
   status?: boolean
   createdById?: boolean
   createdByName?: boolean
@@ -1008,6 +1037,7 @@ export type CrmProductLineSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   catalogUrl?: boolean
   websiteUrl?: boolean
   commonModelsText?: boolean
+  aiWritingConfig?: boolean
   status?: boolean
   createdById?: boolean
   createdByName?: boolean
@@ -1029,6 +1059,7 @@ export type CrmProductLineSelectScalar = {
   catalogUrl?: boolean
   websiteUrl?: boolean
   commonModelsText?: boolean
+  aiWritingConfig?: boolean
   status?: boolean
   createdById?: boolean
   createdByName?: boolean
@@ -1036,7 +1067,7 @@ export type CrmProductLineSelectScalar = {
   updatedAt?: boolean
 }
 
-export type CrmProductLineOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "name" | "targetCustomerType" | "coreSellingPoints" | "moq" | "leadTime" | "paymentTerms" | "certifications" | "catalogUrl" | "websiteUrl" | "commonModelsText" | "status" | "createdById" | "createdByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmProductLine"]>
+export type CrmProductLineOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "name" | "targetCustomerType" | "coreSellingPoints" | "moq" | "leadTime" | "paymentTerms" | "certifications" | "catalogUrl" | "websiteUrl" | "commonModelsText" | "aiWritingConfig" | "status" | "createdById" | "createdByName" | "createdAt" | "updatedAt", ExtArgs["result"]["crmProductLine"]>
 export type CrmProductLineInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   enrollments?: boolean | Prisma.CrmProductLine$enrollmentsArgs<ExtArgs>
@@ -1068,6 +1099,7 @@ export type $CrmProductLinePayload<ExtArgs extends runtime.Types.Extensions.Inte
     catalogUrl: string | null
     websiteUrl: string | null
     commonModelsText: string | null
+    aiWritingConfig: runtime.JsonValue | null
     status: string
     createdById: string
     createdByName: string | null
@@ -1510,6 +1542,7 @@ export interface CrmProductLineFieldRefs {
   readonly catalogUrl: Prisma.FieldRef<"CrmProductLine", 'String'>
   readonly websiteUrl: Prisma.FieldRef<"CrmProductLine", 'String'>
   readonly commonModelsText: Prisma.FieldRef<"CrmProductLine", 'String'>
+  readonly aiWritingConfig: Prisma.FieldRef<"CrmProductLine", 'Json'>
   readonly status: Prisma.FieldRef<"CrmProductLine", 'String'>
   readonly createdById: Prisma.FieldRef<"CrmProductLine", 'String'>
   readonly createdByName: Prisma.FieldRef<"CrmProductLine", 'String'>

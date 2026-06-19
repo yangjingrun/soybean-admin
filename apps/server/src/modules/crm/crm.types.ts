@@ -333,11 +333,44 @@ export interface CrmProductLineRecord {
   catalogUrl: string | null;
   websiteUrl: string | null;
   commonModelsText: string | null;
+  aiWritingConfig: CrmProductLineAiWritingConfig | null;
   status: CrmProductLineStatus;
   createdById: string;
   createdByName: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export type CrmAiWritingStepIndex = 1 | 2 | 3 | 4 | 5;
+
+export interface CrmProductLineAiWritingStepConfig {
+  stepIndex: CrmAiWritingStepIndex;
+  prompt: string;
+}
+
+export interface CrmProductLineAiWritingConfig {
+  enabled: boolean;
+  commonRequirements: string;
+  forbiddenClaims: string;
+  productEmphasis: string;
+  steps: CrmProductLineAiWritingStepConfig[];
+}
+
+export interface CrmAiDraftSnapshot {
+  productLineId: string;
+  productLineName: string;
+  stepIndex: CrmAiWritingStepIndex;
+  writingConfig: CrmProductLineAiWritingConfig;
+  reason: string;
+  riskNotes: string[];
+  generatedAt: string;
+}
+
+export interface CrmAiDraftMetadata {
+  generated: true;
+  reason: string;
+  riskNotes: string[];
+  snapshot: CrmAiDraftSnapshot;
 }
 
 export interface CrmSequenceEnrollmentRecord {
@@ -427,6 +460,7 @@ export interface CrmMessageRecord {
   bullJobId: string | null;
   providerMessageId: string | null;
   providerThreadId: string | null;
+  metadata?: unknown | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -648,6 +682,7 @@ export interface CrmProductLineCreateInput {
   catalogUrl?: string | null;
   websiteUrl?: string | null;
   commonModelsText?: string | null;
+  aiWritingConfig?: CrmProductLineAiWritingConfig | null;
   status: CrmProductLineStatus;
   createdById: string;
   createdByName?: string | null;
@@ -664,6 +699,7 @@ export interface CrmProductLineUpdateInput {
   catalogUrl?: string | null;
   websiteUrl?: string | null;
   commonModelsText?: string | null;
+  aiWritingConfig?: CrmProductLineAiWritingConfig | null;
   status?: CrmProductLineStatus;
 }
 
@@ -841,6 +877,7 @@ export interface CrmMessageCreateInput {
   bullJobId?: string | null;
   providerMessageId?: string | null;
   providerThreadId?: string | null;
+  metadata?: unknown | null;
 }
 
 export interface CrmMessageUpdateInput {
@@ -854,6 +891,7 @@ export interface CrmMessageUpdateInput {
   bullJobId?: string | null;
   providerMessageId?: string | null;
   providerThreadId?: string | null;
+  metadata?: unknown | null;
 }
 
 export interface CrmMessageDraftVersionCreateInput {
@@ -891,6 +929,7 @@ export interface CrmSequenceDraftBundleCreateInput {
       personaMatchMethod?: CrmPersonaMatchMethod;
       personaMatchedKeywords?: string[];
       personaFallbackReason?: string | null;
+      aiDraft?: CrmAiDraftMetadata | null;
     };
   };
   accountStatus: CrmAccountStatus;

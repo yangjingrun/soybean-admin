@@ -744,12 +744,15 @@ export class PrismaCrmStore implements CrmStore {
   }
 
   async updateProductLine(id: string, organizationId: string, input: CrmProductLineUpdateInput) {
+    const data = (
+      input.aiWritingConfig === null ? { ...input, aiWritingConfig: Prisma.JsonNull } : input
+    ) as Prisma.CrmProductLineUpdateManyMutationInput;
     const records = await this.prisma.crmProductLine.updateManyAndReturn({
       where: {
         id,
         organizationId
       },
-      data: input,
+      data,
       limit: 1
     });
 
@@ -1252,7 +1255,7 @@ export class PrismaCrmStore implements CrmStore {
             ...input.timelineEvent.metadata,
             enrollmentId: enrollment.id,
             messageId: message.id
-          }
+          } as Prisma.InputJsonValue
         }
       });
 
@@ -1488,7 +1491,7 @@ export class PrismaCrmStore implements CrmStore {
         organizationId,
         ...(guard ? { status: guard.status } : {})
       },
-      data: input,
+      data: input as Prisma.CrmMessageUpdateManyMutationInput,
       limit: 1
     });
 
@@ -3298,8 +3301,15 @@ function toMailboxRecord(record: CrmMailboxModel): CrmMailboxRecord {
 function toProductLineRecord(record: CrmProductLineModel): CrmProductLineRecord {
   return {
     ...record,
+    aiWritingConfig: toProductLineAiWritingConfig(record.aiWritingConfig),
     status: record.status as CrmProductLineRecord['status']
   };
+}
+
+function toProductLineAiWritingConfig(value: unknown): CrmProductLineRecord['aiWritingConfig'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  return value as CrmProductLineRecord['aiWritingConfig'];
 }
 
 function toPersonaProfileRecord(record: CrmPersonaProfileModel): CrmPersonaProfileRecord {
@@ -3454,6 +3464,7 @@ function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
   const message = record as CrmMessageModel & {
     providerMessageId?: string | null;
     providerThreadId?: string | null;
+    metadata?: unknown | null;
   };
 
   return {
@@ -3461,7 +3472,8 @@ function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
     threadMode: message.threadMode as CrmMessageRecord['threadMode'],
     status: message.status as CrmMessageRecord['status'],
     providerMessageId: message.providerMessageId ?? null,
-    providerThreadId: message.providerThreadId ?? null
+    providerThreadId: message.providerThreadId ?? null,
+    metadata: message.metadata ?? null
   };
 }
 

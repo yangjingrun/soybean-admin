@@ -3170,6 +3170,7 @@ export const CrmProductLineScalarFieldEnum = {
   catalogUrl: 'catalogUrl',
   websiteUrl: 'websiteUrl',
   commonModelsText: 'commonModelsText',
+  aiWritingConfig: 'aiWritingConfig',
   status: 'status',
   createdById: 'createdById',
   createdByName: 'createdByName',
@@ -3297,6 +3298,7 @@ export const CrmMessageScalarFieldEnum = {
   bullJobId: 'bullJobId',
   providerMessageId: 'providerMessageId',
   providerThreadId: 'providerThreadId',
+  metadata: 'metadata',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

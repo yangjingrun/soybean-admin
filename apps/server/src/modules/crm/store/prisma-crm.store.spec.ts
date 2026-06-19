@@ -834,6 +834,44 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('persists product line AI writing config through Prisma', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const aiWritingConfig = {
+      enabled: true,
+      commonRequirements: 'Natural English, under 120 words.',
+      forbiddenClaims: 'Do not promise price, MOQ, certificates, or lead time unless present.',
+      productEmphasis: 'Prioritize stock models and fast quotation.',
+      steps: [
+        { stepIndex: 1 as const, prompt: 'Open with a relevant sourcing angle.' },
+        { stepIndex: 2 as const, prompt: 'Light reminder without repeating step 1.' },
+        { stepIndex: 3 as const, prompt: 'Switch to delivery and quality angle.' },
+        { stepIndex: 4 as const, prompt: 'Add trust and review offer.' },
+        { stepIndex: 5 as const, prompt: 'Polite close-out.' }
+      ]
+    };
+
+    const created = await store.createProductLine({
+      organizationId: 'org-1',
+      name: 'Bearing Series',
+      aiWritingConfig,
+      status: 'active',
+      createdById: 'user-1',
+      createdByName: 'User One'
+    });
+    const updated = await store.updateProductLine(created.id, 'org-1', {
+      aiWritingConfig: { ...aiWritingConfig, productEmphasis: 'Focus on sealed bearings.' }
+    });
+
+    assert.deepEqual(prisma.crmProductLine.createCalls[0].data.aiWritingConfig, aiWritingConfig);
+    assert.deepEqual(created.aiWritingConfig, aiWritingConfig);
+    assert.equal(updated?.aiWritingConfig?.productEmphasis, 'Focus on sealed bearings.');
+    assert.deepEqual(prisma.crmProductLine.updateManyAndReturnCalls[0].data.aiWritingConfig, {
+      ...aiWritingConfig,
+      productEmphasis: 'Focus on sealed bearings.'
+    });
+  });
+
   it('creates, lists, updates and defaults persona profiles with organization scope', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -2205,6 +2243,7 @@ function createPrisma(
     catalogUrl: '/catalog/bearing.pdf',
     websiteUrl: 'https://example.com/bearing',
     commonModelsText: '6204, 6205',
+    aiWritingConfig: null,
     status: 'active',
     createdById: 'user-1',
     createdByName: 'Alice',
@@ -2935,7 +2974,7 @@ function createPrisma(
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
         if (this.createError) throw this.createError;
-        return productLine;
+        return { ...productLine, ...args.data };
       },
       async findUnique(args: { where: Record<string, unknown> }) {
         this.findUniqueCalls.push(args);

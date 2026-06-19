@@ -16,6 +16,8 @@ import { SystemNotificationService } from '../system-notification/system-notific
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
 import { normalizeEmailVerificationCooldownDays } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
+import { CrmAiDraftService } from './crm-ai-draft.service';
+import { normalizeCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
@@ -41,6 +43,8 @@ import {
   CRM_STORE
 } from './crm.tokens';
 import type {
+  CrmAiDraftMetadata,
+  CrmAiWritingStepIndex,
   CrmAccountDetailRecord,
   CrmAccountRecord,
   CrmAccountStatus,
@@ -77,6 +81,7 @@ import type {
   CrmPersonaProfileRecord,
   CrmPersonaProfileStatus,
   CrmPersonaProfileUpdateInput,
+  CrmProductLineAiWritingConfig,
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmProductLineUpdateInput,
@@ -161,6 +166,7 @@ interface ProductLineCreateInput {
   catalogUrl?: string | null;
   websiteUrl?: string | null;
   commonModelsText?: string | null;
+  aiWritingConfig?: unknown;
 }
 
 interface ProductLineUpdateInput extends Partial<ProductLineCreateInput> {
@@ -259,6 +265,7 @@ interface GmailOAuthCompleteInput {
 interface GeneratedDraft {
   subject: string;
   bodyText: string;
+  aiDraft?: CrmAiDraftMetadata | null;
 }
 
 @Injectable()
@@ -287,7 +294,10 @@ export class CrmService {
     private readonly gmailOAuthFlow?: CrmGmailOAuthFlowPort | null,
     @Optional()
     @Inject(CrmGmailWatchService)
-    private readonly gmailWatchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null
+    private readonly gmailWatchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null,
+    @Optional()
+    @Inject(CrmAiDraftService)
+    private readonly aiDraftService?: CrmAiDraftService | null
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -858,6 +868,7 @@ export class CrmService {
   /** Creates an organization-level product line after checking name uniqueness. */
   async createProductLine(input: ProductLineCreateInput, context: CrmUserContext) {
     const data = normalizeProductLineCreateInput(input);
+    this.assertCanWriteProductLineAiConfig(input, data.aiWritingConfig, context);
     await this.assertProductLineNameAvailable(context.organizationId, data.name);
     const productLine = await this.runProductLineWrite(() =>
       this.store.createProductLine({
@@ -886,6 +897,7 @@ export class CrmService {
     const currentProductLine = await this.requireScopedProductLine(id, context);
     const fromStatus = currentProductLine.status;
     const data = normalizeProductLineUpdateInput(input);
+    this.assertCanWriteProductLineAiConfig(input, data.aiWritingConfig, context);
 
     if (data.name && data.name !== currentProductLine.name) {
       await this.assertProductLineNameAvailable(context.organizationId, data.name, currentProductLine.id);
@@ -1418,13 +1430,21 @@ export class CrmService {
       this.store.findDefaultEmailTemplateGroup(context.organizationId),
       this.resolvePersonaProfileMatch(account, contact, context)
     ]);
-    const draft = generateFirstDraft({
+    const draft = await this.generateConfiguredReviewDraft({
       account,
       contact,
       productLine,
       context,
-      personaProfile: personaMatch.templatePersona,
-      templateGroup: defaultTemplateGroup
+      stepIndex: initialDraftStepIndex,
+      previousMessages: [],
+      fallbackDraft: generateFirstDraft({
+        account,
+        contact,
+        productLine,
+        context,
+        personaProfile: personaMatch.templatePersona,
+        templateGroup: defaultTemplateGroup
+      })
     });
     const bundle = await this.runSequenceWrite(() =>
       this.store.createSequenceDraftBundle({
@@ -1454,7 +1474,8 @@ export class CrmService {
           threadMode: getSequencePolicyStep(policy, initialDraftStepIndex)?.threadMode ?? 'new_subject',
           subject: draft.subject,
           bodyText: draft.bodyText,
-          status: 'draft_pending_review'
+          status: 'draft_pending_review',
+          metadata: createAiDraftMessageMetadata(draft.aiDraft)
         },
         timelineEvent: {
           organizationId: context.organizationId,
@@ -1472,7 +1493,8 @@ export class CrmService {
             personaProfileName: personaMatch.persona?.name ?? null,
             personaMatchMethod: personaMatch.matchMethod,
             personaMatchedKeywords: personaMatch.matchedKeywords,
-            personaFallbackReason: personaMatch.fallbackReason
+            personaFallbackReason: personaMatch.fallbackReason,
+            aiDraft: draft.aiDraft ?? null
           }
         },
         accountStatus: 'manual_review_pending'
@@ -1744,7 +1766,7 @@ export class CrmService {
       this.store.findDefaultEmailTemplateGroup(context.organizationId),
       this.resolvePersonaProfileMatch(item.account, item.contact, context)
     ]);
-    const nextMessage = buildNextFollowUpDraft({
+    const baseNextMessage = buildNextFollowUpDraft({
       item,
       sourceMessage,
       providerThreadId: sourceMessage.providerThreadId,
@@ -1755,9 +1777,28 @@ export class CrmService {
       senderName: context.userName
     });
 
-    if (!nextMessage) {
+    if (!baseNextMessage) {
       throw new BadRequestException('当前序列没有可生成的下一步草稿');
     }
+
+    const configuredDraft = await this.generateConfiguredReviewDraft({
+      account: item.account,
+      contact: item.contact,
+      productLine: item.productLine,
+      context,
+      stepIndex: toAiWritingStepIndex(baseNextMessage.stepIndex),
+      previousMessages: item.messages,
+      fallbackDraft: {
+        subject: baseNextMessage.subject,
+        bodyText: baseNextMessage.bodyText
+      }
+    });
+    const nextMessage: typeof baseNextMessage = {
+      ...baseNextMessage,
+      subject: configuredDraft.subject,
+      bodyText: configuredDraft.bodyText,
+      metadata: createAiDraftMessageMetadata(configuredDraft.aiDraft)
+    };
 
     const bundle = await this.runFollowUpDraftWrite(() =>
       this.store.createFollowUpDraftBundle({
@@ -1780,7 +1821,8 @@ export class CrmService {
             personaMatchMethod: personaMatch.matchMethod,
             personaMatchedKeywords: personaMatch.matchedKeywords,
             personaFallbackReason: personaMatch.fallbackReason,
-            stepIndex: nextMessage.stepIndex
+            stepIndex: nextMessage.stepIndex,
+            aiDraft: configuredDraft.aiDraft ?? null
           }
         }
       })
@@ -3055,6 +3097,73 @@ export class CrmService {
     return item;
   }
 
+  /** Generates an AI draft only when the selected product line explicitly enables it. */
+  private async generateConfiguredReviewDraft(input: {
+    account: CrmAccountRecord;
+    contact: CrmContactRecord;
+    productLine: CrmProductLineRecord | null;
+    context: CrmUserContext;
+    stepIndex: CrmAiWritingStepIndex;
+    previousMessages: CrmMessageRecord[];
+    fallbackDraft: GeneratedDraft;
+  }): Promise<GeneratedDraft> {
+    const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex } = input;
+
+    if (!productLine?.aiWritingConfig?.enabled) {
+      return fallbackDraft;
+    }
+
+    if (!this.aiDraftService) {
+      throw new BadRequestException('AI 写信服务未初始化');
+    }
+
+    const draft = await this.aiDraftService.generateDraft({
+      account: {
+        name: account.name,
+        country: account.country,
+        domain: account.domain,
+        customerType: account.customerType
+      },
+      contact: {
+        fullName: contact.fullName,
+        title: contact.title,
+        maskedEmail: contact.maskedEmail,
+        emailStatus: contact.emailStatus
+      },
+      productLine: {
+        id: productLine.id,
+        name: productLine.name,
+        targetCustomerType: productLine.targetCustomerType,
+        coreSellingPoints: productLine.coreSellingPoints,
+        moq: productLine.moq,
+        leadTime: productLine.leadTime,
+        paymentTerms: productLine.paymentTerms,
+        certifications: productLine.certifications,
+        catalogUrl: productLine.catalogUrl,
+        websiteUrl: productLine.websiteUrl,
+        commonModelsText: productLine.commonModelsText
+      },
+      writingConfig: productLine.aiWritingConfig,
+      stepIndex,
+      previousMessages: previousMessages.map(message => ({
+        stepIndex: message.stepIndex,
+        subject: message.subject,
+        bodyText: message.bodyText
+      })),
+      senderName: context.userName
+    });
+
+    if (!draft.subject && stepIndex === initialDraftStepIndex) {
+      throw new BadRequestException('AI 返回首封主题不能为空');
+    }
+
+    return {
+      subject: draft.subject || fallbackDraft.subject,
+      bodyText: draft.bodyText,
+      aiDraft: draft.metadata
+    };
+  }
+
   private async requireOwnedMessage(id: string, context: CrmUserContext) {
     const message = await this.store.findMessageById({
       id,
@@ -3165,6 +3274,26 @@ export class CrmService {
 
     if (existingProductLine && existingProductLine.id !== ignoredId) {
       throw new BadRequestException('产品资料名称已存在');
+    }
+  }
+
+  private assertCanWriteProductLineAiConfig(
+    input: ProductLineCreateInput | ProductLineUpdateInput,
+    config: CrmProductLineAiWritingConfig | null | undefined,
+    context: CrmUserContext
+  ) {
+    if (!hasOwn(input, 'aiWritingConfig')) return;
+
+    const hasInstruction = Boolean(
+      config?.enabled ||
+        config?.commonRequirements ||
+        config?.forbiddenClaims ||
+        config?.productEmphasis ||
+        config?.steps.some(step => step.prompt)
+    );
+
+    if (hasInstruction && !isOrganizationAdmin(context)) {
+      throw new ForbiddenException('只有组织管理员可以编辑 AI 写信配置');
     }
   }
 
@@ -3532,6 +3661,7 @@ function toSequenceEnrollmentView(record: CrmSequenceEnrollmentRecord) {
 function toMessageView(record: CrmMessageRecord) {
   return {
     ...record,
+    aiDraft: readCrmMessageAiDraftMetadata(record.metadata),
     scheduledAt: record.scheduledAt?.toISOString() ?? null,
     sentAt: record.sentAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
@@ -3890,7 +4020,8 @@ function normalizeProductLineCreateInput(input: ProductLineCreateInput) {
     certifications: normalizeNullableString(input.certifications),
     catalogUrl: normalizeNullableString(input.catalogUrl),
     websiteUrl: normalizeNullableString(input.websiteUrl),
-    commonModelsText: normalizeNullableString(input.commonModelsText)
+    commonModelsText: normalizeNullableString(input.commonModelsText),
+    aiWritingConfig: normalizeCrmProductLineAiWritingConfig(input.aiWritingConfig)
   };
 }
 
@@ -3907,6 +4038,9 @@ function normalizeProductLineUpdateInput(input: ProductLineUpdateInput): CrmProd
   if (hasOwn(input, 'catalogUrl')) data.catalogUrl = normalizeNullableString(input.catalogUrl);
   if (hasOwn(input, 'websiteUrl')) data.websiteUrl = normalizeNullableString(input.websiteUrl);
   if (hasOwn(input, 'commonModelsText')) data.commonModelsText = normalizeNullableString(input.commonModelsText);
+  if (hasOwn(input, 'aiWritingConfig')) {
+    data.aiWritingConfig = normalizeCrmProductLineAiWritingConfig(input.aiWritingConfig);
+  }
   if (hasOwn(input, 'status')) data.status = input.status;
 
   return data;
@@ -4273,6 +4407,38 @@ function toTemplatePersonaProfile(record: CrmPersonaProfileRecord): PersonaProfi
     avoidText: record.avoidText,
     source: 'organization'
   };
+}
+
+function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {
+  return aiDraft ? { aiDraft } : null;
+}
+
+function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+
+  const value = (metadata as { aiDraft?: unknown }).aiDraft;
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const record = value as Partial<CrmAiDraftMetadata>;
+
+  if (record.generated !== true || typeof record.reason !== 'string' || !Array.isArray(record.riskNotes)) {
+    return null;
+  }
+
+  if (!record.snapshot || typeof record.snapshot !== 'object' || Array.isArray(record.snapshot)) {
+    return null;
+  }
+
+  return record as CrmAiDraftMetadata;
+}
+
+function toAiWritingStepIndex(stepIndex: number): CrmAiWritingStepIndex {
+  if (stepIndex < 1 || stepIndex > defaultSequenceStepCount) {
+    throw new BadRequestException('AI 写信步骤超出范围');
+  }
+
+  return stepIndex as CrmAiWritingStepIndex;
 }
 
 /** Splits persisted persona keyword text for lightweight title/customer-type matching. */

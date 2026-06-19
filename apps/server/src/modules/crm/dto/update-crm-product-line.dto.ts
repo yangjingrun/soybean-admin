@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { crmProductLineStatuses, type CrmProductLineStatus } from '../crm.types';
 
 function trimOptionalString({ value }: { value: unknown }) {
@@ -70,6 +70,10 @@ export class UpdateCrmProductLineDto {
   @MaxLength(2000)
   @Transform(trimOptionalString)
   commonModelsText?: string | null;
+
+  @IsOptional()
+  @IsObject()
+  aiWritingConfig?: unknown;
 
   @IsOptional()
   @IsIn(crmProductLineStatuses)
