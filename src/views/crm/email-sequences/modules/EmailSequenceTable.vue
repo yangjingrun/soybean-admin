@@ -5,8 +5,10 @@ import type { DataTableColumns } from 'naive-ui';
 import {
   formatNullableText,
   formatSequenceDate,
+  getCurrentSequenceMessage,
   getNextScheduledReviewMessage,
-  getPendingReviewMessage,
+  getSequenceChecklistSummary,
+  getSequenceNextAction,
   getSequenceProgressText,
   messageStatusLabelMap,
   messageStatusTagTypeMap,
@@ -73,9 +75,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
     title: '当前邮件',
     minWidth: 240,
     render: row => {
-      const pendingMessage = getPendingReviewMessage(row.messages);
-      const currentMessage =
-        pendingMessage ?? row.messages.find(message => message.stepIndex === row.enrollment.currentStep) ?? row.firstMessage;
+      const currentMessage = getCurrentSequenceMessage(row);
 
       return currentMessage
         ? h('div', { class: 'sequence-cell' }, [
@@ -87,6 +87,38 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
             )
           ])
         : '-';
+    }
+  },
+  {
+    key: 'checklist',
+    title: '检查',
+    width: 120,
+    render: row => {
+      const summary = getSequenceChecklistSummary(row);
+      const hasWarning = summary.failedCount > 0;
+
+      return h(
+        NTag,
+        { bordered: false, size: 'small', type: hasWarning ? 'warning' : 'success' },
+        { default: () => (hasWarning ? `${summary.failedCount} 项预警` : `${summary.total} 项通过`) }
+      );
+    }
+  },
+  {
+    key: 'nextAction',
+    title: '下一步',
+    minWidth: 190,
+    render: row => {
+      const nextAction = getSequenceNextAction(row);
+
+      return h('div', { class: 'sequence-cell' }, [
+        h(
+          NTag,
+          { bordered: false, size: 'small', type: nextAction.tagType },
+          { default: () => nextAction.label }
+        ),
+        h('span', { class: 'sequence-secondary-text' }, nextAction.description)
+      ]);
     }
   },
   {
@@ -110,17 +142,20 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => [
     title: '操作',
     width: 100,
     fixed: 'right',
-    render: row =>
-      h(
+    render: row => {
+      const nextAction = getSequenceNextAction(row);
+
+      return h(
         NButton,
         {
           size: 'small',
           text: true,
-          type: 'primary',
+          type: nextAction.buttonLabel === '启动' ? 'success' : 'primary',
           onClick: () => emit('review', row)
         },
-        { default: () => (getPendingReviewMessage(row.messages) ? '审核' : '查看') }
-      )
+        { default: () => nextAction.buttonLabel }
+      );
+    }
   }
 ]);
 
@@ -136,7 +171,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
       :data="records"
       :loading="loading"
       :row-key="getRowKey"
-      :scroll-x="1160"
+      :scroll-x="1470"
       size="small"
       remote
       :pagination="{
