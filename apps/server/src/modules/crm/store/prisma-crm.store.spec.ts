@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Prisma } from '../../../generated/prisma/client';
-import type { CrmEmailTemplateStepInput } from '../crm.types';
+import type { CrmEmailTemplateStepInput, CrmStore } from '../crm.types';
 import { PrismaCrmStore } from './prisma-crm.store';
 
 describe('PrismaCrmStore', () => {
@@ -1298,6 +1298,91 @@ describe('PrismaCrmStore', () => {
       unreadCount: 0
     });
     assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'inbox_status_changed');
+  });
+
+  it('marks an inbox thread handled when Gmail removes UNREAD', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await (
+      store as unknown as {
+        syncInboxThreadGmailState(input: {
+          organizationId: string;
+          ownerUserId: string;
+          mailboxId: string;
+          providerThreadId: string;
+          providerMessageId: string;
+          changeType: 'labels_removed';
+          labelIds: string[];
+        }): ReturnType<CrmStore['updateInboxThreadStatus']>;
+      }
+    ).syncInboxThreadGmailState({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerThreadId: 'enrollment-1',
+      providerMessageId: 'gmail-message-1',
+      changeType: 'labels_removed',
+      labelIds: ['UNREAD']
+    });
+
+    assert.equal(result?.thread.status, 'handled');
+    assert.equal(result?.thread.unreadCount, 0);
+    assert.deepEqual(prisma.crmInboxThread.findFirstCalls.at(-1)?.where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerThreadId: 'enrollment-1'
+    });
+    assert.deepEqual(prisma.crmInboxThread.updateCalls.at(-1)?.data, {
+      status: 'handled',
+      unreadCount: 0
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'gmail_label_synced');
+    assert.deepEqual(prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata, {
+      providerMessageId: 'gmail-message-1',
+      providerThreadId: 'enrollment-1',
+      changeType: 'labels_removed',
+      labelIds: ['UNREAD'],
+      fromStatus: 'pending',
+      toStatus: 'handled'
+    });
+  });
+
+  it('archives an inbox thread when Gmail removes INBOX without deleting local messages', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await (
+      store as unknown as {
+        syncInboxThreadGmailState(input: {
+          organizationId: string;
+          ownerUserId: string;
+          mailboxId: string;
+          providerThreadId: string;
+          providerMessageId: string;
+          changeType: 'labels_removed';
+          labelIds: string[];
+        }): ReturnType<CrmStore['updateInboxThreadStatus']>;
+      }
+    ).syncInboxThreadGmailState({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerThreadId: 'enrollment-1',
+      providerMessageId: 'gmail-message-1',
+      changeType: 'labels_removed',
+      labelIds: ['INBOX']
+    });
+
+    assert.equal(result?.thread.status, 'archived');
+    assert.equal(result?.thread.unreadCount, 0);
+    assert.deepEqual(prisma.crmInboxThread.updateCalls.at(-1)?.data, {
+      status: 'archived',
+      unreadCount: 0
+    });
+    assert.equal(prisma.crmInboxMessage.createCalls.length, 0);
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'gmail_thread_archived');
   });
 
   it('replies to inbox thread with mailbox sender and marks it handled', async () => {

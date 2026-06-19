@@ -61,6 +61,7 @@ export type CrmMessageThreadMode = (typeof crmMessageThreadModes)[number];
 export type CrmInboxThreadStatus = (typeof crmInboxThreadStatuses)[number];
 export type CrmInboxMessageType = (typeof crmInboxMessageTypes)[number];
 export type CrmGmailHistoryMessageDirection = 'inbound' | 'outbound';
+export type CrmGmailHistoryLabelChangeType = 'labels_added' | 'labels_removed' | 'message_deleted';
 
 export interface CrmUserContext {
   userId: string;
@@ -758,9 +759,17 @@ export interface CrmGmailHistoryMessage {
   messageType?: CrmInboxMessageType;
 }
 
+export interface CrmGmailHistoryLabelChange {
+  changeType: CrmGmailHistoryLabelChangeType;
+  providerMessageId: string;
+  providerThreadId: string | null;
+  labelIds: string[];
+}
+
 export interface CrmGmailHistoryListResult {
   nextHistoryId: string;
   messages: CrmGmailHistoryMessage[];
+  labelChanges?: CrmGmailHistoryLabelChange[];
 }
 
 export interface CrmGmailHistoryGateway {
@@ -981,6 +990,16 @@ export interface CrmInboxThreadStatusUpdateRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmInboxThreadGmailStateSyncInput {
+  organizationId: string;
+  ownerUserId: string;
+  mailboxId: string;
+  providerThreadId: string;
+  providerMessageId: string;
+  changeType: CrmGmailHistoryLabelChangeType;
+  labelIds: string[];
+}
+
 export interface CrmInboxThreadReplyInput {
   id: string;
   organizationId: string;
@@ -1173,5 +1192,6 @@ export interface CrmStore {
   updateInboxThreadStatus(
     input: CrmInboxThreadStatusUpdateInput
   ): Promise<CrmInboxThreadStatusUpdateRecord | null>;
+  syncInboxThreadGmailState(input: CrmInboxThreadGmailStateSyncInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
   replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null>;
 }

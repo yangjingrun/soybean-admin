@@ -82,10 +82,92 @@ describe('CrmGmailApiHistoryGateway', () => {
     assert.match(httpClient.calls[0].url, /\/gmail\/v1\/users\/me\/history\?/);
     assert.match(httpClient.calls[0].url, /startHistoryId=100/);
     assert.match(httpClient.calls[0].url, /historyTypes=messageAdded/);
+    assert.match(httpClient.calls[0].url, /historyTypes=messageDeleted/);
+    assert.match(httpClient.calls[0].url, /historyTypes=labelAdded/);
+    assert.match(httpClient.calls[0].url, /historyTypes=labelRemoved/);
     assert.match(httpClient.calls[1].url, /pageToken=page-2/);
     assert.match(httpClient.calls[2].url, /\/gmail\/v1\/users\/me\/messages\/message-1\?/);
     assert.match(httpClient.calls[2].url, /format=full/);
     assert.match(httpClient.calls[3].url, /\/gmail\/v1\/users\/me\/messages\/message-2\?/);
+  });
+
+  it('lists Gmail label changes and deletions without fetching full message bodies', async () => {
+    const httpClient = createHttpClient([
+      {
+        status: 200,
+        body: {
+          history: [
+            {
+              labelsRemoved: [
+                {
+                  message: { id: 'message-read-1', threadId: 'thread-1' },
+                  labelIds: ['UNREAD']
+                },
+                {
+                  message: { id: 'message-archived-1', threadId: 'thread-2' },
+                  labelIds: ['INBOX']
+                }
+              ],
+              labelsAdded: [
+                {
+                  message: { id: 'message-unread-1', threadId: 'thread-3' },
+                  labelIds: ['UNREAD']
+                },
+                {
+                  message: { id: 'message-trash-1', threadId: 'thread-4' },
+                  labelIds: ['TRASH']
+                }
+              ],
+              messagesDeleted: [{ message: { id: 'message-deleted-1', threadId: 'thread-5' } }]
+            }
+          ],
+          historyId: '103'
+        }
+      }
+    ]);
+    const gateway = new CrmGmailApiHistoryGateway(createTokenProvider('access-token-1'), httpClient);
+
+    const result = await gateway.listHistory({
+      mailbox: createMailbox(),
+      startHistoryId: '100',
+      targetHistoryId: '103'
+    });
+
+    assert.equal(result.nextHistoryId, '103');
+    assert.deepEqual(result.messages, []);
+    assert.deepEqual(result.labelChanges, [
+      {
+        changeType: 'labels_removed',
+        providerMessageId: 'message-read-1',
+        providerThreadId: 'thread-1',
+        labelIds: ['UNREAD']
+      },
+      {
+        changeType: 'labels_removed',
+        providerMessageId: 'message-archived-1',
+        providerThreadId: 'thread-2',
+        labelIds: ['INBOX']
+      },
+      {
+        changeType: 'labels_added',
+        providerMessageId: 'message-unread-1',
+        providerThreadId: 'thread-3',
+        labelIds: ['UNREAD']
+      },
+      {
+        changeType: 'labels_added',
+        providerMessageId: 'message-trash-1',
+        providerThreadId: 'thread-4',
+        labelIds: ['TRASH']
+      },
+      {
+        changeType: 'message_deleted',
+        providerMessageId: 'message-deleted-1',
+        providerThreadId: 'thread-5',
+        labelIds: []
+      }
+    ]);
+    assert.equal(httpClient.calls.length, 1);
   });
 
   it('does not call Gmail history when there is no checkpoint yet', async () => {

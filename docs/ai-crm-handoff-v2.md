@@ -912,7 +912,7 @@ Hunter 原始长结果
 - mock watch gateway 返回模拟 history/expiration。
 - mock send gateway 返回 `mock:*` provider id。
 - mock HTTP 调试接口仍保留，但默认关闭且限制 R_SUPER。
-- Gmail 已读/未读双向同步没有充分确认，当前更多是 CRM 独立待处理/已处理状态。
+- Gmail History 已开始同步 Gmail 侧 label/delete 边界：`UNREAD` 去除会把 CRM thread 标为 `handled` 并清零未读；`UNREAD` 新增会标为 `pending`；`INBOX` 去除、`TRASH` 新增或 `messageDeleted` 会把 CRM thread 标为 `archived`；本地已同步正文和历史不删除。
 - Gmail 外部手动发送回复已支持本地代码链路：History 不再跳过 `SENT` 且非 `INBOX` 消息，parser 标记 `direction: outbound`，worker 会按 Gmail thread 匹配原 CRM 已发送邮件并写入 `external_gmail_reply_sent` 时间线事件；仍需真实 Gmail/预发环境验收。
 
 ### 当前未完成
@@ -920,9 +920,8 @@ Hunter 原始长结果
 - Google Pub/Sub push OIDC/JWT 验证。
 - Gmail watch 自动续订真实环境验收和生命周期/env 开关测试补强。
 - History checkpoint expired 后的正式恢复操作入口、runbook 和更完整补偿同步。
-- Gmail 已读/未读双向同步完整实现和 UI。
-- Gmail label change 处理。
-- Gmail 删除/归档状态同步策略的完整测试。
+- Gmail 已读/未读、label change、删除/归档的真实 Gmail/预发环境验收。
+- CRM 侧状态反向写回 Gmail label 的双向同步和 UI 明确入口。
 - auth_expired 邮箱行级重新授权交互。
 - Gmail webhook/history 同步日志和失败重试可视化页面。
 
@@ -930,7 +929,7 @@ Hunter 原始长结果
 
 - Pub/Sub webhook 当前先用自定义 secret 硬化，尚未实现 Google Pub/Sub push OIDC/JWT 验证。
 - History 过期时已不推进 checkpoint，并会记录日志、通知 owner、写 mailbox 同步问题供管理员在设置/运维页查看；但正式恢复操作入口、runbook 和自动补偿同步仍未闭环。
-- Gmail 外部手动发送回复当前主要依赖 `providerThreadId` 匹配；`In-Reply-To/References` 支持需确认。
+- Gmail label/delete 同步和外部手动发送回复当前主要依赖 `providerThreadId` 匹配；`In-Reply-To/References` 支持需确认。
 - 系统内回复是先 Gmail 发送再 DB 入库，DB 失败会出现 Gmail 已发但 CRM 无记录。
 - 非 production 配置不完整时使用 mock gateway，预发环境可能误以为真实 Gmail 已接通。
 
@@ -1555,7 +1554,7 @@ git diff --check
 目标：
 
 - 真实 Gmail/预发环境验收外部手动发送回复同步入 CRM 时间线；本地代码链路已支持 `SENT` outbound 分流和 `external_gmail_reply_sent` 时间线事件。
-- 明确已读/未读、label change、删除/归档与 CRM 待处理状态的边界。
+- 真实 Gmail/预发环境验收已读/未读、label change、删除/归档与 CRM 待处理状态的边界；本地代码链路已支持 Gmail label/delete -> CRM thread 状态单向同步。
 - 确认 `SENT`、thread、`In-Reply-To/References` 的真实 Gmail 覆盖；当前代码主要按 `providerThreadId` 匹配。
 - 删除/归档 Gmail 原件不能删除 CRM 已同步正文和历史。
 
@@ -1659,7 +1658,7 @@ AI 获客 / Hunter：
 
 1. Google Pub/Sub push OIDC/JWT 验证。
 2. History expired 恢复入口、runbook 和补偿同步策略。
-3. Gmail 已读/未读、label change、删除/归档边界实现与测试，外部 SENT 回复做真实 Gmail 验收。
+3. Gmail 已读/未读、label change、删除/归档和外部 SENT 回复做真实 Gmail 验收；CRM 反向写 Gmail label 另列设计。
 4. webhook/history/watch/send 的运维可视化增强。
 5. 真实 Gmail 全链路和预发/生产部署演练。
 

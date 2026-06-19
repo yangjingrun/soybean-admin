@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { parseGmailApiMessage } from './crm-gmail-message';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
-import type { CrmGmailHistoryGateway } from './crm.types';
+import type { CrmGmailHistoryGateway, CrmGmailHistoryLabelChange, CrmGmailHistoryLabelChangeType } from './crm.types';
 import type { CrmMailboxRecord } from './crm.types';
 
 export interface CrmGmailAccessTokenProvider {
@@ -25,14 +25,23 @@ interface GmailHistoryListResponse {
 
 interface GmailHistoryRecord {
   messagesAdded?: unknown;
+  messagesDeleted?: unknown;
+  labelsAdded?: unknown;
+  labelsRemoved?: unknown;
 }
 
 interface GmailMessageAddedRecord {
   message?: unknown;
 }
 
+interface GmailLabelChangeRecord {
+  message?: unknown;
+  labelIds?: unknown;
+}
+
 interface GmailHistoryMessageRef {
   id?: unknown;
+  threadId?: unknown;
 }
 
 interface GmailApiErrorResponse {
@@ -45,6 +54,7 @@ interface GmailApiErrorResponse {
 
 const gmailApiBase = 'https://gmail.googleapis.com';
 const gmailHistoryMaxResults = '100';
+const gmailHistoryTypes = ['messageAdded', 'messageDeleted', 'labelAdded', 'labelRemoved'] as const;
 const authorizationErrorReasons = new Set(['authError', 'forbidden', 'insufficientPermissions', 'domainPolicy']);
 
 export class CrmGmailHistoryExpiredError extends Error {
@@ -82,6 +92,7 @@ export class CrmGmailApiHistoryGateway implements CrmGmailHistoryGateway {
     const accessToken = await this.tokenProvider.getAccessToken(input.mailbox);
     const headers = { Authorization: `Bearer ${accessToken}` };
     const messageIds = new Set<string>();
+    const labelChanges: CrmGmailHistoryLabelChange[] = [];
     let nextPageToken: string | null = null;
     let nextHistoryId = input.targetHistoryId;
 
@@ -97,6 +108,8 @@ export class CrmGmailApiHistoryGateway implements CrmGmailHistoryGateway {
       for (const messageId of collectAddedMessageIds(body.history)) {
         messageIds.add(messageId);
       }
+
+      labelChanges.push(...collectLabelChanges(body.history));
     } while (nextPageToken);
 
     const messages = [];
@@ -108,13 +121,15 @@ export class CrmGmailApiHistoryGateway implements CrmGmailHistoryGateway {
       messages.push(parseGmailApiMessage(body));
     }
 
-    return { nextHistoryId, messages };
+    return { nextHistoryId, messages, labelChanges };
   }
 
   private buildHistoryUrl(startHistoryId: string, pageToken: string | null) {
     const url = new URL('/gmail/v1/users/me/history', this.apiBase);
     url.searchParams.set('startHistoryId', startHistoryId);
-    url.searchParams.set('historyTypes', 'messageAdded');
+    for (const historyType of gmailHistoryTypes) {
+      url.searchParams.append('historyTypes', historyType);
+    }
     url.searchParams.set('maxResults', gmailHistoryMaxResults);
 
     if (pageToken) {
@@ -172,6 +187,63 @@ function collectAddedMessageIds(history: unknown): string[] {
       return typeof message.id === 'string' && message.id ? [message.id] : [];
     });
   });
+}
+
+function collectLabelChanges(history: unknown): CrmGmailHistoryLabelChange[] {
+  if (!Array.isArray(history)) return [];
+
+  return history.flatMap(record => {
+    if (!isRecord(record)) return [];
+
+    const historyRecord = record as GmailHistoryRecord;
+    return [
+      ...collectTypedLabelChanges(historyRecord.labelsRemoved, 'labels_removed'),
+      ...collectTypedLabelChanges(historyRecord.labelsAdded, 'labels_added'),
+      ...collectTypedLabelChanges(historyRecord.messagesDeleted, 'message_deleted')
+    ];
+  });
+}
+
+function collectTypedLabelChanges(
+  entries: unknown,
+  changeType: CrmGmailHistoryLabelChangeType
+): CrmGmailHistoryLabelChange[] {
+  if (!Array.isArray(entries)) return [];
+
+  return entries.flatMap(item => {
+    if (!isRecord(item)) return [];
+
+    const change = item as GmailLabelChangeRecord;
+    const message = parseHistoryMessageRef(change.message);
+    if (!message) return [];
+
+    return [
+      {
+        changeType,
+        providerMessageId: message.providerMessageId,
+        providerThreadId: message.providerThreadId,
+        labelIds: changeType === 'message_deleted' ? [] : parseLabelIds(change.labelIds)
+      }
+    ];
+  });
+}
+
+function parseHistoryMessageRef(message: unknown) {
+  if (!isRecord(message)) return null;
+
+  const messageRef = message as GmailHistoryMessageRef;
+  if (typeof messageRef.id !== 'string' || !messageRef.id) return null;
+
+  return {
+    providerMessageId: messageRef.id,
+    providerThreadId: typeof messageRef.threadId === 'string' && messageRef.threadId ? messageRef.threadId : null
+  };
+}
+
+function parseLabelIds(labelIds: unknown) {
+  if (!Array.isArray(labelIds)) return [];
+
+  return labelIds.filter((item): item is string => typeof item === 'string');
 }
 
 function normalizeOptionalString(value: unknown) {

@@ -563,6 +563,116 @@ describe('CrmGmailHistorySyncWorkerService', () => {
       sentAt: '2026-06-19T09:00:00.000Z'
     });
   });
+
+  it('syncs Gmail read unread archive and delete label changes without ingesting message bodies', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const syncCalls: Array<{
+      organizationId: string;
+      ownerUserId: string;
+      mailboxId: string;
+      providerThreadId: string;
+      providerMessageId: string;
+      changeType: string;
+      labelIds: string[];
+    }> = [];
+    const ingested: Parameters<CrmStore['ingestCustomerReply']>[0][] = [];
+    const service = new CrmGmailHistorySyncWorkerService(
+      createStore({
+        mailbox,
+        async advanceMailboxHistoryId(input) {
+          return { ...mailbox, lastHistoryId: input.toHistoryId };
+        },
+        async syncInboxThreadGmailState(input) {
+          syncCalls.push(input);
+
+          return input.providerThreadId === 'gmail-thread-missing' ? null : createInboxThreadStatusUpdate();
+        },
+        async ingestCustomerReply(input) {
+          ingested.push(input);
+
+          return { isDuplicate: false } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+        }
+      }),
+      {
+        async listHistory(input) {
+          return {
+            nextHistoryId: input.targetHistoryId,
+            messages: [],
+            labelChanges: [
+              {
+                changeType: 'labels_removed',
+                providerMessageId: 'gmail-message-read',
+                providerThreadId: 'gmail-thread-read',
+                labelIds: ['UNREAD']
+              },
+              {
+                changeType: 'labels_added',
+                providerMessageId: 'gmail-message-unread',
+                providerThreadId: 'gmail-thread-unread',
+                labelIds: ['UNREAD']
+              },
+              {
+                changeType: 'labels_removed',
+                providerMessageId: 'gmail-message-archived',
+                providerThreadId: 'gmail-thread-archived',
+                labelIds: ['INBOX']
+              },
+              {
+                changeType: 'message_deleted',
+                providerMessageId: 'gmail-message-missing',
+                providerThreadId: 'gmail-thread-missing',
+                labelIds: []
+              }
+            ]
+          };
+        }
+      }
+    );
+
+    const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
+
+    assert.equal(result.ingestedCount, 3);
+    assert.equal(result.skippedMessageCount, 1);
+    assert.deepEqual(ingested, []);
+    assert.deepEqual(syncCalls, [
+      {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        providerThreadId: 'gmail-thread-read',
+        providerMessageId: 'gmail-message-read',
+        changeType: 'labels_removed',
+        labelIds: ['UNREAD']
+      },
+      {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        providerThreadId: 'gmail-thread-unread',
+        providerMessageId: 'gmail-message-unread',
+        changeType: 'labels_added',
+        labelIds: ['UNREAD']
+      },
+      {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        providerThreadId: 'gmail-thread-archived',
+        providerMessageId: 'gmail-message-archived',
+        changeType: 'labels_removed',
+        labelIds: ['INBOX']
+      },
+      {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        providerThreadId: 'gmail-thread-missing',
+        providerMessageId: 'gmail-message-missing',
+        changeType: 'message_deleted',
+        labelIds: []
+      }
+    ]);
+  });
 });
 
 function createStore(options: {
@@ -587,6 +697,15 @@ function createStore(options: {
   updateMailbox?: (id: string, input: Parameters<CrmStore['updateMailbox']>[1]) => ReturnType<CrmStore['updateMailbox']>;
   advanceMailboxHistoryId?: (input: CrmMailboxHistoryAdvanceInput) => Promise<CrmMailboxRecord | null>;
   createTimelineEvent?: (input: Parameters<CrmStore['createTimelineEvent']>[0]) => ReturnType<CrmStore['createTimelineEvent']>;
+  syncInboxThreadGmailState?: (input: {
+    organizationId: string;
+    ownerUserId: string;
+    mailboxId: string;
+    providerThreadId: string;
+    providerMessageId: string;
+    changeType: string;
+    labelIds: string[];
+  }) => Promise<Awaited<ReturnType<CrmStore['updateInboxThreadStatus']>> | null>;
   ingestCustomerReply?: (input: Parameters<CrmStore['ingestCustomerReply']>[0]) => ReturnType<CrmStore['ingestCustomerReply']>;
 }) {
   const sentMessages = options.sentMessages ?? (options.sentMessage ? [options.sentMessage] : []);
@@ -632,6 +751,9 @@ function createStore(options: {
     async createTimelineEvent(input) {
       return options.createTimelineEvent ? options.createTimelineEvent(input) : createTimelineEvent(input);
     },
+    async syncInboxThreadGmailState(input) {
+      return options.syncInboxThreadGmailState ? options.syncInboxThreadGmailState(input) : null;
+    },
     async updateMailbox(id, input) {
       return options.updateMailbox ? options.updateMailbox(id, input) : options.mailbox;
     },
@@ -650,6 +772,7 @@ function createStore(options: {
     | 'updateMailbox'
     | 'advanceMailboxHistoryId'
     | 'createTimelineEvent'
+    | 'syncInboxThreadGmailState'
     | 'ingestCustomerReply'
   > as CrmStore;
 }
@@ -732,6 +855,48 @@ function createTimelineEvent(
     content: input.content ?? null,
     metadata: input.metadata ?? {},
     createdAt: new Date('2026-06-19T09:00:00.000Z')
+  };
+}
+
+function createInboxThreadStatusUpdate(): Awaited<ReturnType<CrmStore['updateInboxThreadStatus']>> {
+  return {
+    thread: {
+      id: 'inbox-thread-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      enrollmentId: 'enrollment-1',
+      mailboxId: 'mailbox-1',
+      provider: 'gmail',
+      providerThreadId: 'gmail-thread-1',
+      subject: 'Re: Bearings',
+      status: 'handled',
+      lastInboundAt: new Date('2026-06-19T08:30:00.000Z'),
+      unreadCount: 0,
+      messageCount: 1,
+      createdAt: new Date('2026-06-19T08:00:00.000Z'),
+      updatedAt: new Date('2026-06-19T08:30:00.000Z')
+    },
+    account: {
+      id: 'account-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      name: 'ABC Trading',
+      normalizedName: 'abc trading',
+      websiteUrl: 'https://abc.example',
+      domain: 'abc.example',
+      country: 'AE',
+      customerType: 'distributor',
+      status: 'replied_pending',
+      sourceTaskId: null,
+      archivedAt: null,
+      archiveReason: null,
+      archiveSlimmedAt: null,
+      createdAt: new Date('2026-06-18T09:00:00.000Z'),
+      updatedAt: new Date('2026-06-19T08:30:00.000Z')
+    },
+    event: createTimelineEvent({ eventType: 'gmail_label_synced' })
   };
 }
 

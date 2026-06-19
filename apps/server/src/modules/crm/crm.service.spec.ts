@@ -3527,6 +3527,56 @@ function createStore(
 
       return { thread, account, event };
     },
+    async syncInboxThreadGmailState(input) {
+      const thread = inboxThreads.find(item => {
+        if (item.organizationId !== input.organizationId) return false;
+        if (item.ownerUserId !== input.ownerUserId) return false;
+        if (item.mailboxId !== input.mailboxId) return false;
+        if (item.providerThreadId !== input.providerThreadId) return false;
+        return true;
+      });
+      const account = thread ? accounts.find(item => item.id === thread.accountId) : null;
+
+      if (!thread || !account) return null;
+
+      const isArchived =
+        input.changeType === 'message_deleted' ||
+        (input.changeType === 'labels_removed' && input.labelIds.includes('INBOX')) ||
+        (input.changeType === 'labels_added' && input.labelIds.includes('TRASH'));
+      const nextStatus = isArchived
+        ? 'archived'
+        : input.changeType === 'labels_removed' && input.labelIds.includes('UNREAD')
+          ? 'handled'
+          : input.changeType === 'labels_added' && input.labelIds.includes('UNREAD')
+            ? 'pending'
+            : null;
+
+      if (!nextStatus) return null;
+
+      Object.assign(thread, {
+        status: nextStatus,
+        unreadCount: nextStatus === 'pending' ? Math.max(thread.unreadCount, 1) : 0,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      const event = createTimelineEvent({
+        accountId: thread.accountId,
+        contactId: thread.contactId,
+        ownerUserId: input.ownerUserId,
+        eventType: isArchived ? 'gmail_thread_archived' : 'gmail_label_synced',
+        title: isArchived ? 'Gmail 状态同步为归档' : 'Gmail 标签状态同步',
+        content: thread.subject,
+        metadata: {
+          providerMessageId: input.providerMessageId,
+          providerThreadId: input.providerThreadId,
+          changeType: input.changeType,
+          labelIds: input.labelIds
+        }
+      });
+      timelineEvents.push(event);
+
+      return { thread, account, event };
+    },
     async replyInboxThread(input) {
       const thread = inboxThreads.find(item => {
         if (item.id !== input.id) return false;

@@ -58,6 +58,7 @@ import type {
   CrmInboxThreadListRecord,
   CrmInboxMessageRecord,
   CrmInboxThreadRecord,
+  CrmInboxThreadGmailStateSyncInput,
   CrmInboxThreadReplyInput,
   CrmInboxThreadReplyRecord,
   CrmInboxThreadStatus,
@@ -1985,6 +1986,68 @@ export class PrismaCrmStore implements CrmStore {
     });
   }
 
+  async syncInboxThreadGmailState(
+    input: CrmInboxThreadGmailStateSyncInput
+  ): Promise<CrmInboxThreadStatusUpdateRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const thread = await tx.crmInboxThread.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          mailboxId: input.mailboxId,
+          providerThreadId: input.providerThreadId
+        }
+      });
+
+      if (!thread) {
+        return null;
+      }
+
+      const threadRecord = toInboxThreadRecord(thread);
+      const update = resolveGmailThreadStateUpdate(threadRecord, input);
+      if (!update) {
+        return null;
+      }
+
+      const account = await tx.crmAccount.findUnique({ where: { id: thread.accountId } });
+      if (!account) {
+        return null;
+      }
+
+      const [updatedThread, event] = await Promise.all([
+        tx.crmInboxThread.update({
+          where: { id: thread.id },
+          data: update.data
+        }),
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: thread.accountId,
+            contactId: thread.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: update.eventType,
+            title: update.title,
+            content: thread.subject,
+            metadata: {
+              providerMessageId: input.providerMessageId,
+              providerThreadId: input.providerThreadId,
+              changeType: input.changeType,
+              labelIds: input.labelIds,
+              fromStatus: thread.status,
+              toStatus: update.nextStatus
+            }
+          }
+        })
+      ]);
+
+      return {
+        thread: toInboxThreadRecord(updatedThread),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
   async replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null> {
     return this.prisma.$transaction(async tx => {
       const record = await tx.crmInboxThread.findFirst({
@@ -2730,6 +2793,61 @@ function toMailboxSendQuotaBuckets(at: Date) {
 function toSnippet(bodyText: string) {
   const normalized = bodyText.replace(/\s+/g, ' ').trim();
   return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
+}
+
+function resolveGmailThreadStateUpdate(
+  thread: Pick<CrmInboxThreadRecord, 'status' | 'unreadCount'>,
+  input: Pick<CrmInboxThreadGmailStateSyncInput, 'changeType' | 'labelIds'>
+) {
+  const labelIds = new Set(input.labelIds);
+  const isArchived =
+    input.changeType === 'message_deleted' ||
+    (input.changeType === 'labels_removed' && labelIds.has('INBOX')) ||
+    (input.changeType === 'labels_added' && labelIds.has('TRASH'));
+
+  if (isArchived) {
+    if (thread.status === 'archived' && thread.unreadCount === 0) return null;
+
+    return {
+      nextStatus: 'archived' as CrmInboxThreadStatus,
+      eventType: 'gmail_thread_archived',
+      title: 'Gmail 状态同步为归档',
+      data: {
+        status: 'archived',
+        unreadCount: 0
+      }
+    };
+  }
+
+  if (input.changeType === 'labels_removed' && labelIds.has('UNREAD')) {
+    if (thread.status === 'handled' && thread.unreadCount === 0) return null;
+
+    return {
+      nextStatus: 'handled' as CrmInboxThreadStatus,
+      eventType: 'gmail_label_synced',
+      title: 'Gmail 状态同步为已读',
+      data: {
+        status: 'handled',
+        unreadCount: 0
+      }
+    };
+  }
+
+  if (input.changeType === 'labels_added' && labelIds.has('UNREAD')) {
+    if (thread.status === 'pending' && thread.unreadCount > 0) return null;
+
+    return {
+      nextStatus: 'pending' as CrmInboxThreadStatus,
+      eventType: 'gmail_label_synced',
+      title: 'Gmail 状态同步为未读',
+      data: {
+        status: 'pending',
+        unreadCount: Math.max(thread.unreadCount, 1)
+      }
+    };
+  }
+
+  return null;
 }
 
 function isPrismaUniqueConflict(error: unknown) {

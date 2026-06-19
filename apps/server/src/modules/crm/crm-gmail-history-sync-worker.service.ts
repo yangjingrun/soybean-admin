@@ -7,6 +7,7 @@ import { CRM_GMAIL_HISTORY_GATEWAY, CRM_STORE } from './crm.tokens';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type {
   CrmGmailHistoryGateway,
+  CrmGmailHistoryLabelChange,
   CrmGmailHistoryListResult,
   CrmGmailHistoryMessage,
   CrmGmailHistorySyncQueueJob,
@@ -103,7 +104,10 @@ export class CrmGmailHistorySyncWorkerService {
       };
     }
 
-    const ingestResult = await this.ingestHistoryMessages(job, history.messages);
+    const ingestResult = mergeIngestResults(
+      await this.ingestHistoryMessages(job, history.messages),
+      await this.syncGmailLabelChanges(job, history.labelChanges ?? [])
+    );
     const advancedMailbox = await this.store.advanceMailboxHistoryId({
       mailboxId: mailbox.id,
       organizationId: mailbox.organizationId,
@@ -266,6 +270,36 @@ export class CrmGmailHistorySyncWorkerService {
     return { ingestedCount, skippedMessageCount };
   }
 
+  private async syncGmailLabelChanges(job: CrmGmailHistorySyncQueueJob, labelChanges: CrmGmailHistoryLabelChange[]) {
+    let ingestedCount = 0;
+    let skippedMessageCount = 0;
+
+    for (const change of labelChanges) {
+      if (!change.providerThreadId) {
+        skippedMessageCount += 1;
+        continue;
+      }
+
+      const synced = await this.store.syncInboxThreadGmailState({
+        organizationId: job.organizationId,
+        ownerUserId: job.ownerUserId,
+        mailboxId: job.mailboxId,
+        providerThreadId: change.providerThreadId,
+        providerMessageId: change.providerMessageId,
+        changeType: change.changeType,
+        labelIds: change.labelIds
+      });
+
+      if (synced) {
+        ingestedCount += 1;
+      } else {
+        skippedMessageCount += 1;
+      }
+    }
+
+    return { ingestedCount, skippedMessageCount };
+  }
+
   private async recordExternalSentMessage(job: CrmGmailHistorySyncQueueJob, message: CrmGmailHistoryMessage) {
     if (!message.providerThreadId) {
       return false;
@@ -342,4 +376,14 @@ function toSyncIssueDate(value?: string | null) {
   const date = new Date(value);
 
   return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function mergeIngestResults(
+  left: { ingestedCount: number; skippedMessageCount: number },
+  right: { ingestedCount: number; skippedMessageCount: number }
+) {
+  return {
+    ingestedCount: left.ingestedCount + right.ingestedCount,
+    skippedMessageCount: left.skippedMessageCount + right.skippedMessageCount
+  };
 }

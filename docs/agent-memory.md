@@ -279,6 +279,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-message.ts`、`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-message.spec.ts apps/server/src/modules/crm/crm-gmail-history.gateway.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认 SENT-only 被解析为 outbound、gateway 不跳过、worker 写时间线且不走客户回信入库。
 
+### 2026-06-19 Gmail label/delete 同步不能删除本地 CRM 历史
+
+- 场景：用户在 Gmail 里标记已读/未读、归档、移入垃圾箱或删除消息时，Gmail History 会推 `labelAdded/labelRemoved/messageDeleted`，但 CRM 已同步的正文和时间线是业务记录。
+- 坑点：如果 History gateway 只订阅 `messageAdded`，CRM 收件箱状态不会跟随 Gmail 侧处理；如果把 `messageDeleted` 或归档误做成本地 hard delete，会抹掉已经入库的客户回信和时间线。
+- 正确做法：History gateway 同时订阅 `messageAdded/messageDeleted/labelAdded/labelRemoved`，把 label/delete 解析成轻量 `labelChanges`；worker 对 labelChanges 只调用 `syncInboxThreadGmailState`。`UNREAD` 去除 -> `handled + unreadCount=0`，`UNREAD` 新增 -> `pending + unreadCount>=1`，`INBOX` 去除、`TRASH` 新增或 `messageDeleted` -> `archived + unreadCount=0`；不删除 `CrmInboxMessage` 正文。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history.gateway.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认 label/delete delta 能推进 checkpoint、更新 thread 状态、写时间线且不删除本地 message。
+
 ### 记录模板
 
 ```md
