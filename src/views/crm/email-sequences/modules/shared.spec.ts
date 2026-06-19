@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDraftReviewOperationPayload,
+  buildSequenceMessageTimelineItems,
   buildSequenceReviewSearchParams,
   buildSequencePolicyReviewHints,
   createDefaultSequenceCreateForm,
@@ -246,6 +247,48 @@ describe('email sequence review shared helpers', () => {
     ];
 
     assert.equal(getNextScheduledReviewMessage(messages)?.id, 'message-3');
+  });
+
+  it('builds sequence message timeline items for drawer navigation', () => {
+    const items = buildSequenceMessageTimelineItems(
+      [
+        createMessage({
+          id: 'message-3',
+          stepIndex: 3,
+          status: 'draft_pending_review',
+          subject: 'Third',
+          updatedAt: '2026-06-21T06:00:00.000Z'
+        }),
+        createMessage({
+          id: 'message-1',
+          stepIndex: 1,
+          status: 'sent',
+          subject: 'First',
+          sentAt: '2026-06-19T06:00:00.000Z'
+        }),
+        createMessage({
+          id: 'message-2',
+          stepIndex: 2,
+          status: 'queued',
+          subject: 'Second',
+          scheduledAt: '2026-06-20T06:00:00.000Z'
+        })
+      ],
+      'message-2'
+    );
+
+    assert.deepEqual(
+      items.map(item => [item.id, item.title, item.statusLabel, item.selected]),
+      [
+        ['message-1', '第 1 封', '已发送', false],
+        ['message-2', '第 2 封', '队列中', true],
+        ['message-3', '第 3 封', '草稿待审', false]
+      ]
+    );
+    assert.match(items[0].metaText, /^已发送 /);
+    assert.match(items[1].metaText, /^计划发送 /);
+    assert.match(items[2].metaText, /^更新于 /);
+    assert.equal(items[2].subject, 'Third');
   });
 
   it('summarizes checklist warnings for table scanning', () => {

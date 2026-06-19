@@ -91,6 +91,17 @@ export interface SequencePolicyReviewHint {
   tagType: NaiveUI.ThemeColor;
 }
 
+export interface SequenceMessageTimelineItem {
+  id: string;
+  metaText: string;
+  selected: boolean;
+  statusLabel: string;
+  statusTagType: NaiveUI.ThemeColor;
+  stepIndex: number;
+  subject: string;
+  title: string;
+}
+
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
   return {
@@ -211,6 +222,25 @@ export function getMaxSequenceMessageStep(messages: Api.Crm.MessageRecord[]) {
   return messages.reduce((maxStep, message) => Math.max(maxStep, message.stepIndex), 0);
 }
 
+/** Build drawer navigation items for generated sequence messages. */
+export function buildSequenceMessageTimelineItems(
+  messages: Api.Crm.MessageRecord[],
+  selectedMessageId: string | null
+): SequenceMessageTimelineItem[] {
+  return [...messages]
+    .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt))
+    .map(message => ({
+      id: message.id,
+      metaText: formatSequenceMessageTimelineMeta(message),
+      selected: message.id === selectedMessageId,
+      statusLabel: messageStatusLabelMap[message.status],
+      statusTagType: messageStatusTagTypeMap[message.status],
+      stepIndex: message.stepIndex,
+      subject: message.subject || '-',
+      title: `第 ${message.stepIndex} 封`
+    }));
+}
+
 /** Check whether the current enrollment can create one local follow-up draft. */
 export function canGenerateNextSequenceDraft(item: Api.Crm.SequenceReviewItem) {
   const canAppendDraftByStatus = ['ready_to_send', 'sequence_running'].includes(item.enrollment.status);
@@ -282,6 +312,12 @@ export function getCurrentSequenceMessage(item: Api.Crm.SequenceReviewItem) {
 
 function containsLink(text: string) {
   return /\b(?:https?:\/\/|www\.)\S+/i.test(text);
+}
+
+function formatSequenceMessageTimelineMeta(message: Api.Crm.MessageRecord) {
+  if (message.sentAt) return `已发送 ${formatSequenceDate(message.sentAt)}`;
+  if (message.scheduledAt) return `计划发送 ${formatSequenceDate(message.scheduledAt)}`;
+  return `更新于 ${formatSequenceDate(message.updatedAt)}`;
 }
 
 /** Summarize the row checklist for dense table scanning. */
