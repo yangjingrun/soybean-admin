@@ -69,6 +69,23 @@ export function saveCrmGlobalConfig(data: Api.Crm.SaveGlobalConfigPayload) {
   });
 }
 
+/** Read organization-level CRM permission settings. */
+export function fetchCrmOrganizationConfig() {
+  return request<Api.Crm.OrganizationConfig>({
+    url: '/crm/organization-config',
+    method: 'get'
+  });
+}
+
+/** Save organization-level CRM permission settings. */
+export function saveCrmOrganizationConfig(data: Api.Crm.SaveOrganizationConfigPayload) {
+  return request<Api.Crm.OrganizationConfig>({
+    url: '/crm/organization-config',
+    method: 'post',
+    data
+  });
+}
+
 /** List organization unsubscribe blacklist entries. */
 export function fetchCrmBlacklistEntries(params: Api.Crm.BlacklistSearchParams) {
   return request<Api.Crm.BlacklistList>({

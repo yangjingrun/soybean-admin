@@ -40,6 +40,7 @@ const contact = computed(() => props.detail?.contact ?? null);
 const mailbox = computed(() => props.detail?.mailbox ?? null);
 const enrollment = computed(() => props.detail?.enrollment ?? null);
 const messages = computed(() => props.detail?.messages ?? []);
+const canReadBody = computed(() => Boolean(thread.value?.canReadBody));
 const replyBodyModel = computed({
   get: () => props.replyBody,
   set: value => emit('update:replyBody', value)
@@ -128,7 +129,7 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
                 </NSpace>
               </NCard>
             </NSpace>
-            <NEmpty v-else description="暂无邮件正文" />
+            <NEmpty v-else :description="canReadBody ? '暂无邮件正文' : '当前账号不可查看邮件正文'" />
           </div>
 
           <div v-if="detail?.canOperate" class="drawer-section">

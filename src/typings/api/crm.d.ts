@@ -187,6 +187,17 @@ declare namespace Api {
       followUpDelayDays: FollowUpDelayDays;
     }
 
+    interface OrganizationConfig {
+      id: string | null;
+      organizationId: string;
+      allowAdminViewMemberEmailBody: boolean;
+      updatedAt: string | null;
+    }
+
+    interface SaveOrganizationConfigPayload {
+      allowAdminViewMemberEmailBody: boolean;
+    }
+
     interface BlacklistRecord {
       id: string;
       organizationId: string;
@@ -526,6 +537,7 @@ declare namespace Api {
       enrollment: SequenceEnrollmentRecord | null;
       messageCount: number;
       lastMessageSnippet: string;
+      canReadBody: boolean;
     }
 
     interface InboxMessageRecord {

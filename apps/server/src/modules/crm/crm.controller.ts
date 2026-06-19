@@ -37,6 +37,7 @@ import { MockCrmReplyDto } from './dto/mock-crm-reply.dto';
 import { ReplyCrmInboxThreadDto } from './dto/reply-crm-inbox-thread.dto';
 import { RemoveCrmBlacklistEntryDto } from './dto/remove-crm-blacklist-entry.dto';
 import { SaveCrmGlobalConfigDto } from './dto/save-crm-global-config.dto';
+import { SaveCrmOrganizationConfigDto } from './dto/save-crm-organization-config.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
@@ -118,6 +119,19 @@ export class CrmController {
   @Post('global-config')
   async saveGlobalConfig(@Headers('authorization') authorization = '', @Body() dto: SaveCrmGlobalConfigDto) {
     return ok(await this.crmService.saveGlobalConfig(dto, this.requireSuperUserContext(authorization)));
+  }
+
+  @Get('organization-config')
+  async getOrganizationConfig(@Headers('authorization') authorization = '') {
+    return ok(await this.crmService.getOrganizationConfig(this.requireUserContext(authorization)));
+  }
+
+  @Post('organization-config')
+  async saveOrganizationConfig(
+    @Headers('authorization') authorization = '',
+    @Body() dto: SaveCrmOrganizationConfigDto
+  ) {
+    return ok(await this.crmService.saveOrganizationConfig(dto, this.requireUserContext(authorization)));
   }
 
   @Get('blacklist-entries')

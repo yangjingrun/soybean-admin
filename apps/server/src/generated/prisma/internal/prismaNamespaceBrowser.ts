@@ -58,6 +58,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
+  CrmOrganizationConfig: 'CrmOrganizationConfig',
   CrmBlacklist: 'CrmBlacklist',
   CrmArchivedFingerprint: 'CrmArchivedFingerprint',
   CrmTimelineEvent: 'CrmTimelineEvent',
@@ -226,6 +227,19 @@ export const CrmGlobalConfigScalarFieldEnum = {
 } as const
 
 export type CrmGlobalConfigScalarFieldEnum = (typeof CrmGlobalConfigScalarFieldEnum)[keyof typeof CrmGlobalConfigScalarFieldEnum]
+
+
+export const CrmOrganizationConfigScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  allowAdminViewMemberEmailBody: 'allowAdminViewMemberEmailBody',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmOrganizationConfigScalarFieldEnum = (typeof CrmOrganizationConfigScalarFieldEnum)[keyof typeof CrmOrganizationConfigScalarFieldEnum]
 
 
 export const CrmBlacklistScalarFieldEnum = {

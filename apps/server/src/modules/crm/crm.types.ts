@@ -161,6 +161,23 @@ export interface CrmGlobalConfigInput {
   updatedByName?: string | null;
 }
 
+export interface CrmOrganizationConfigRecord {
+  id: string;
+  organizationId: string;
+  allowAdminViewMemberEmailBody: boolean;
+  updatedById: string | null;
+  updatedByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmOrganizationConfigInput {
+  organizationId: string;
+  allowAdminViewMemberEmailBody: boolean;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+}
+
 export interface CrmBlacklistRecord {
   id: string;
   organizationId: string;
@@ -1052,6 +1069,8 @@ export interface CrmStore {
   ): Promise<CrmEmailVerificationCacheRecord>;
   getGlobalConfig(): Promise<CrmGlobalConfigRecord>;
   saveGlobalConfig(input: CrmGlobalConfigInput): Promise<CrmGlobalConfigRecord>;
+  getOrganizationConfig(organizationId: string): Promise<CrmOrganizationConfigRecord | null>;
+  saveOrganizationConfig(input: CrmOrganizationConfigInput): Promise<CrmOrganizationConfigRecord>;
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;
   upsertBlacklistEntry(input: CrmBlacklistUpsertInput): Promise<CrmBlacklistRecord>;
   listBlacklistEntries(input: CrmBlacklistListInput): Promise<{ records: CrmBlacklistRecord[]; total: number }>;

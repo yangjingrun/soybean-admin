@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
 import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gmail-oauth-flow';
@@ -17,6 +17,7 @@ import type {
   CrmInboxThreadRecord,
   CrmMailboxRecord,
   CrmEmailSendGateway,
+  CrmOrganizationConfigRecord,
   CrmSendQueueJob,
   CrmSendQueuePort,
   CrmSequenceReviewRecord,
@@ -177,6 +178,26 @@ describe('CrmService', () => {
     assert.equal(result.contact?.emailStatus, 'valid');
     assert.equal(dnsResolver.calls.length, 0);
     assert.equal((store.timelineEvents.at(-1)?.metadata as { cacheHit?: boolean } | undefined)?.cacheHit, true);
+  });
+
+  it('reads and saves organization CRM permission config by organization administrators', async () => {
+    const store = createStore();
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+    const adminContext = createContext({ organizationRole: 'admin' });
+
+    const current = await service.getOrganizationConfig(createContext());
+    const saved = await service.saveOrganizationConfig({ allowAdminViewMemberEmailBody: true }, adminContext);
+
+    assert.equal(current.allowAdminViewMemberEmailBody, false);
+    assert.equal(current.updatedAt, null);
+    assert.equal(saved.allowAdminViewMemberEmailBody, true);
+    assert.equal(store.organizationConfig?.organizationId, 'org-1');
+    assert.equal(logs.records[0]?.action, 'save-organization-config');
+    await assert.rejects(
+      () => service.saveOrganizationConfig({ allowAdminViewMemberEmailBody: false }, createContext()),
+      ForbiddenException
+    );
   });
 
   it('refreshes stale global email verification cache after cooldown', async () => {
@@ -2214,13 +2235,14 @@ describe('CrmService', () => {
         ]
       }
     );
-    const service = new CrmService(store);
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service);
+    const adminContext = createContext({ organizationRole: 'admin' });
+    const superContext = createContext({ roles: ['R_SUPER'], organizationRole: 'member' });
 
     const memberResult = await service.listInboxThreads(createContext());
-    const adminResult = await service.listInboxThreads(createContext({ organizationRole: 'admin' }));
-    const superResult = await service.listInboxThreads(
-      createContext({ roles: ['R_SUPER'], organizationRole: 'member' })
-    );
+    const adminResult = await service.listInboxThreads(adminContext);
+    const superResult = await service.listInboxThreads(superContext);
 
     assert.deepEqual(
       memberResult.records.map(record => record.id),
@@ -2232,17 +2254,17 @@ describe('CrmService', () => {
     );
     assert.equal(memberResult.records[0].lastMessageSnippet, 'Please send details.');
     assert.equal(adminResult.records.find(record => record.id === 'peer-thread')?.lastMessageSnippet, '');
-    assert.equal((await service.getInboxThread('peer-thread', createContext({ organizationRole: 'admin' }))).messages.length, 0);
+    assert.equal((await service.getInboxThread('peer-thread', adminContext)).messages.length, 0);
     assert.equal(superResult.records.find(record => record.id === 'peer-thread')?.lastMessageSnippet, 'Please send details.');
-    assert.equal(
-      (
-        await service.getInboxThread(
-          'peer-thread',
-          createContext({ roles: ['R_SUPER'], organizationRole: 'member' })
-        )
-      ).messages.length,
-      1
-    );
+    assert.equal((await service.getInboxThread('peer-thread', superContext)).messages.length, 1);
+    assert.equal(logs.records.some(record => record.action === 'inbox-body-viewed-by-super-admin'), true);
+    assert.equal(JSON.stringify(logs.records).includes('Please send details.'), false);
+
+    await service.saveOrganizationConfig({ allowAdminViewMemberEmailBody: true }, adminContext);
+    const adminAllowedResult = await service.listInboxThreads(adminContext);
+
+    assert.equal(adminAllowedResult.records.find(record => record.id === 'peer-thread')?.lastMessageSnippet, 'Please send details.');
+    assert.equal((await service.getInboxThread('peer-thread', adminContext)).messages.length, 1);
   });
 
   it('rejects member handling inbox threads owned by another user', async () => {
@@ -2380,6 +2402,7 @@ function createStore(
     inboxMessages?: TestInboxMessage[];
     emailVerificationCaches?: TestEmailVerificationCache[];
     globalConfig?: TestGlobalConfig;
+    organizationConfig?: TestOrganizationConfig | null;
   } = {}
 ): CrmStore & {
   accounts: TestAccount[];
@@ -2396,6 +2419,7 @@ function createStore(
   inboxThreads: TestInboxThread[];
   inboxMessages: TestInboxMessage[];
   globalConfig: TestGlobalConfig;
+  organizationConfig: TestOrganizationConfig | null;
   mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
   productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }>;
   emailTemplateUpdateCalls: Array<{ id: string; organizationId: string; input: Parameters<CrmStore['updateEmailTemplateGroup']>[2] }>;
@@ -2435,6 +2459,7 @@ function createStore(
   const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
   const inboxMessages: TestInboxMessage[] = [...(initialData.inboxMessages ?? [])];
   const globalConfig = initialData.globalConfig ?? createGlobalConfig();
+  let organizationConfig = initialData.organizationConfig ?? null;
   const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
   const productLineUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestProductLine> }> = [];
   const emailTemplateUpdateCalls: Array<{
@@ -2460,6 +2485,9 @@ function createStore(
     inboxThreads,
     inboxMessages,
     globalConfig,
+    get organizationConfig() {
+      return organizationConfig;
+    },
     mailboxUpdateCalls,
     productLineUpdateCalls,
     emailTemplateUpdateCalls,
@@ -2579,6 +2607,21 @@ function createStore(
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
       return globalConfig;
+    },
+    async getOrganizationConfig(organizationId) {
+      return organizationConfig?.organizationId === organizationId ? organizationConfig : null;
+    },
+    async saveOrganizationConfig(input) {
+      organizationConfig = createOrganizationConfig({
+        ...(organizationConfig ?? {}),
+        organizationId: input.organizationId,
+        allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
+        updatedById: input.updatedById ?? null,
+        updatedByName: input.updatedByName ?? null,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      return organizationConfig;
     },
     async findArchivedFingerprints(input) {
       return archivedFingerprints.filter(fingerprint => {
@@ -3803,6 +3846,18 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
   };
 }
 
+function createOrganizationConfig(input: Partial<TestOrganizationConfig> = {}): TestOrganizationConfig {
+  return {
+    id: input.id || 'crm-organization-config-1',
+    organizationId: input.organizationId || 'org-1',
+    allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody ?? false,
+    updatedById: input.updatedById ?? 'user-1',
+    updatedByName: input.updatedByName ?? 'Alice',
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T10:00:00.000Z')
+  };
+}
+
 function createTimelineEvent(input: Partial<TestTimelineEvent> = {}): TestTimelineEvent {
   return {
     id: input.id || 'event-1',
@@ -4079,6 +4134,7 @@ type TestBlacklist = CrmBlacklistRecord;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestEmailVerificationCache = CrmEmailVerificationCacheRecord;
 type TestGlobalConfig = CrmGlobalConfigRecord;
+type TestOrganizationConfig = CrmOrganizationConfigRecord;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
 type TestMailbox = CrmMailboxRecord;
 type TestEmailTemplateGroup = CrmEmailTemplateGroupRecord;

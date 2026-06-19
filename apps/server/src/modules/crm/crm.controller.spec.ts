@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
+import type { UserInfo } from '../auth/auth.types';
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
 import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
@@ -18,6 +19,7 @@ type CrmSequenceStopView = Awaited<ReturnType<CrmService['stopSequenceEnrollment
 type CrmInboxThreadView = Awaited<ReturnType<CrmService['listInboxThreads']>>['records'][number];
 type CrmInboxThreadDetailView = Awaited<ReturnType<CrmService['getInboxThread']>>;
 type CrmGlobalConfigView = Awaited<ReturnType<CrmService['getGlobalConfig']>>;
+type CrmOrganizationConfigView = Awaited<ReturnType<CrmService['getOrganizationConfig']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -874,6 +876,40 @@ describe('CrmController', () => {
     await assert.rejects(() => controller.listAccounts('', {}), UnauthorizedException);
   });
 
+  it('reads and saves organization CRM config with the current organization context', async () => {
+    const calls: Array<{ action: string; dto?: { allowAdminViewMemberEmailBody: boolean }; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(createUser({ organizationRole: 'admin' })),
+      createCrmService({
+        async getOrganizationConfig(context) {
+          calls.push({ action: 'get', context });
+
+          return createOrganizationConfigView({ allowAdminViewMemberEmailBody: false });
+        },
+        async saveOrganizationConfig(dto, context) {
+          calls.push({ action: 'save', dto, context });
+
+          return createOrganizationConfigView({ allowAdminViewMemberEmailBody: dto.allowAdminViewMemberEmailBody });
+        }
+      })
+    );
+
+    const loaded = await controller.getOrganizationConfig('Bearer token');
+    const saved = await controller.saveOrganizationConfig('Bearer token', {
+      allowAdminViewMemberEmailBody: true
+    });
+
+    assert.equal(loaded.data.allowAdminViewMemberEmailBody, false);
+    assert.equal(saved.data.allowAdminViewMemberEmailBody, true);
+    assert.deepEqual(
+      calls.map(call => [call.action, call.context.organizationId, call.context.organizationRole]),
+      [
+        ['get', 'org-1', 'admin'],
+        ['save', 'org-1', 'admin']
+      ]
+    );
+  });
+
   it('lets super admins read and save CRM global config', async () => {
     const calls: Array<{
       dto?: {
@@ -932,7 +968,7 @@ function createAuthService(user: ReturnType<typeof createUser> | null = createUs
   } as unknown as AuthService;
 }
 
-function createUser(overrides: Partial<ReturnType<typeof createUserBase>> = {}) {
+function createUser(overrides: Partial<UserInfo> = {}) {
   return {
     ...createUserBase(),
     ...overrides
@@ -1248,6 +1284,7 @@ function createInboxThreadView(overrides: Partial<CrmInboxThreadView> = {}): Crm
     mailbox: createMailboxView(),
     enrollment: createEnrollmentView({ status: 'replied' }),
     lastMessageSnippet: 'Please send details.',
+    canReadBody: true,
     canOperate: true,
     ...overrides,
     provider: 'gmail'
@@ -1340,6 +1377,18 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
       step5Days: 21
     },
     updatedAt: '1970-01-01T00:00:00.000Z',
+    ...overrides
+  };
+}
+
+function createOrganizationConfigView(
+  overrides: Partial<CrmOrganizationConfigView> = {}
+): CrmOrganizationConfigView {
+  return {
+    id: 'crm-organization-config-1',
+    organizationId: 'org-1',
+    allowAdminViewMemberEmailBody: false,
+    updatedAt: '2026-06-18T10:00:00.000Z',
     ...overrides
   };
 }
@@ -1437,6 +1486,12 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async saveGlobalConfig() {
       return createGlobalConfigView();
+    },
+    async getOrganizationConfig() {
+      return createOrganizationConfigView();
+    },
+    async saveOrganizationConfig() {
+      return createOrganizationConfigView();
     },
     async mockAuthorizeMailbox() {
       return { mailbox: createMailboxView() };

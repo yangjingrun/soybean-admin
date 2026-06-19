@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
@@ -54,6 +54,7 @@ import type {
   CrmMessageRecord,
   CrmMessageStatus,
   CrmMessageThreadMode,
+  CrmOrganizationConfigRecord,
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmProductLineUpdateInput,
@@ -469,6 +470,37 @@ export class CrmService {
     });
 
     return toGlobalConfigView(record);
+  }
+
+  /** Reads organization-level CRM permission settings. */
+  async getOrganizationConfig(context: CrmUserContext) {
+    const record = await this.store.getOrganizationConfig(context.organizationId);
+
+    return toOrganizationConfigView(record, context.organizationId);
+  }
+
+  /** Saves organization-level CRM permission settings for organization administrators. */
+  async saveOrganizationConfig(
+    input: {
+      allowAdminViewMemberEmailBody: boolean;
+    },
+    context: CrmUserContext
+  ) {
+    this.requireOrganizationConfigManager(context);
+
+    const record = await this.store.saveOrganizationConfig({
+      organizationId: context.organizationId,
+      allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
+      updatedById: context.userId,
+      updatedByName: context.userName
+    });
+
+    await this.recordCrmLog('save-organization-config', 'CRM 组织权限配置已保存', context, {
+      organizationId: context.organizationId,
+      allowAdminViewMemberEmailBody: record.allowAdminViewMemberEmailBody
+    });
+
+    return toOrganizationConfigView(record, context.organizationId);
   }
 
   /** Lists organization-level unsubscribe blacklist entries without exposing raw emails. */
@@ -1394,6 +1426,7 @@ export class CrmService {
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
     const mailboxId = normalizeNullableString(query.mailboxId);
+    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
     const result = await this.store.listInboxThreads({
       organizationId: context.organizationId,
       ...toOwnerScope(context),
@@ -1408,7 +1441,7 @@ export class CrmService {
       current,
       size,
       total: result.total,
-      records: result.records.map(record => toInboxThreadListView(record, context))
+      records: result.records.map(record => toInboxThreadListView(record, context, organizationConfig))
     };
   }
 
@@ -1424,7 +1457,11 @@ export class CrmService {
       throw new NotFoundException('收件箱会话不存在');
     }
 
-    return toInboxThreadDetailView(thread, context);
+    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
+    const detail = toInboxThreadDetailView(thread, context, organizationConfig);
+    await this.recordSuperAdminInboxBodyAudit(thread, detail.messages.length, context);
+
+    return detail;
   }
 
   /** Updates one owner-scoped inbox thread processing status. */
@@ -1533,8 +1570,11 @@ export class CrmService {
       organizationId: context.organizationId,
       ownerUserId: context.userId
     });
+    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
 
-    return nextDetail ? toInboxThreadDetailView(nextDetail, context) : toInboxThreadReplyView(replied, context);
+    return nextDetail
+      ? toInboxThreadDetailView(nextDetail, context, organizationConfig)
+      : toInboxThreadReplyView(replied, context);
   }
 
   /** Mock-ingests a customer reply for a sent outbound message before Gmail sync is wired. */
@@ -1596,8 +1636,9 @@ export class CrmService {
       organizationId: context.organizationId,
       ownerUserId: context.userId
     });
+    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
 
-    return detail ? toInboxThreadDetailView(detail, context) : toInboxReplyIngestView(ingested, context);
+    return detail ? toInboxThreadDetailView(detail, context, organizationConfig) : toInboxReplyIngestView(ingested, context);
   }
 
   private async importContactIfPresent(
@@ -2222,6 +2263,36 @@ export class CrmService {
     });
   }
 
+  private requireOrganizationConfigManager(context: CrmUserContext) {
+    if (context.organizationRole === 'admin' || context.roles.includes('R_SUPER')) {
+      return;
+    }
+
+    throw new ForbiddenException('仅组织管理员可修改 CRM 权限配置');
+  }
+
+  private recordSuperAdminInboxBodyAudit(
+    record: CrmInboxThreadDetailRecord,
+    visibleMessageCount: number,
+    context: CrmUserContext
+  ) {
+    if (!context.roles.includes('R_SUPER') || record.thread.ownerUserId === context.userId || visibleMessageCount <= 0) {
+      return undefined;
+    }
+
+    return this.recordCrmLog('inbox-body-viewed-by-super-admin', '平台超管查看 CRM 邮件正文', context, {
+      organizationId: record.thread.organizationId,
+      threadId: record.thread.id,
+      accountId: record.thread.accountId,
+      contactId: record.thread.contactId,
+      mailboxId: record.thread.mailboxId,
+      ownerUserId: record.thread.ownerUserId,
+      provider: record.thread.provider,
+      providerThreadId: record.thread.providerThreadId,
+      visibleMessageCount
+    });
+  }
+
   private recordMailboxLog(
     action: string,
     message: string,
@@ -2300,6 +2371,15 @@ function toGlobalConfigView(record: CrmGlobalConfigRecord) {
   return {
     ...record,
     updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toOrganizationConfigView(record: CrmOrganizationConfigRecord | null, organizationId: string) {
+  return {
+    id: record?.id ?? null,
+    organizationId,
+    allowAdminViewMemberEmailBody: record?.allowAdminViewMemberEmailBody ?? false,
+    updatedAt: record?.updatedAt.toISOString() ?? null
   };
 }
 
@@ -2414,8 +2494,12 @@ function toInboxMessageView(record: CrmInboxMessageRecord, mailbox?: CrmMailboxR
   };
 }
 
-function toInboxThreadListView(record: CrmInboxThreadListRecord, context: CrmUserContext) {
-  const canReadBody = canReadInboxBody(record.thread, context);
+function toInboxThreadListView(
+  record: CrmInboxThreadListRecord,
+  context: CrmUserContext,
+  organizationConfig: CrmOrganizationConfigRecord | null
+) {
+  const canReadBody = canReadInboxBody(record.thread, context, organizationConfig);
 
   return {
     ...toInboxThreadView(record.thread),
@@ -2424,13 +2508,18 @@ function toInboxThreadListView(record: CrmInboxThreadListRecord, context: CrmUse
     mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
     enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
     lastMessageSnippet: canReadBody ? record.lastMessage?.snippet ?? '' : '',
+    canReadBody,
     canOperate: record.thread.ownerUserId === context.userId
   };
 }
 
-function toInboxThreadDetailView(record: CrmInboxThreadDetailRecord, context: CrmUserContext) {
-  const thread = toInboxThreadListView(record, context);
-  const canReadBody = canReadInboxBody(record.thread, context);
+function toInboxThreadDetailView(
+  record: CrmInboxThreadDetailRecord,
+  context: CrmUserContext,
+  organizationConfig: CrmOrganizationConfigRecord | null
+) {
+  const thread = toInboxThreadListView(record, context, organizationConfig);
+  const canReadBody = canReadInboxBody(record.thread, context, organizationConfig);
 
   return {
     thread,
@@ -2647,8 +2736,16 @@ function isOwnedMailbox(mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'owne
   return mailbox.organizationId === context.organizationId && mailbox.ownerUserId === context.userId;
 }
 
-function canReadInboxBody(thread: Pick<CrmInboxThreadRecord, 'ownerUserId'>, context: CrmUserContext) {
-  return thread.ownerUserId === context.userId || context.roles.includes('R_SUPER');
+function canReadInboxBody(
+  thread: Pick<CrmInboxThreadRecord, 'ownerUserId'>,
+  context: CrmUserContext,
+  organizationConfig: Pick<CrmOrganizationConfigRecord, 'allowAdminViewMemberEmailBody'> | null
+) {
+  if (thread.ownerUserId === context.userId || context.roles.includes('R_SUPER')) {
+    return true;
+  }
+
+  return context.organizationRole === 'admin' && Boolean(organizationConfig?.allowAdminViewMemberEmailBody);
 }
 
 function normalizeDomain(value?: string | null) {

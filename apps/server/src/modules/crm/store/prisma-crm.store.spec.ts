@@ -198,6 +198,26 @@ describe('PrismaCrmStore', () => {
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.followUpDelayDaysText, '3,7,14,21');
   });
 
+  it('reads and saves organization CRM permission config', async () => {
+    const prisma = createPrisma({ organizationConfig: createPrismaOrganizationConfig() });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const current = await store.getOrganizationConfig('org-1');
+    const saved = await store.saveOrganizationConfig({
+      organizationId: 'org-1',
+      allowAdminViewMemberEmailBody: true,
+      updatedById: 'user-1',
+      updatedByName: 'Alice'
+    });
+
+    assert.equal(current?.allowAdminViewMemberEmailBody, false);
+    assert.equal(saved.allowAdminViewMemberEmailBody, true);
+    assert.deepEqual(prisma.crmOrganizationConfig.findUniqueCalls[0].where, { organizationId: 'org-1' });
+    assert.deepEqual(prisma.crmOrganizationConfig.upsertCalls[0].where, { organizationId: 'org-1' });
+    assert.equal(prisma.crmOrganizationConfig.upsertCalls[0].create.allowAdminViewMemberEmailBody, true);
+    assert.equal(prisma.crmOrganizationConfig.upsertCalls[0].update.updatedByName, 'Alice');
+  });
+
   it('creates, lists, updates and sets default organization email template groups', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1692,6 +1712,19 @@ function createPrismaArchivedFingerprint(input: Record<string, unknown> = {}) {
   };
 }
 
+function createPrismaOrganizationConfig(input: Record<string, unknown> = {}) {
+  return {
+    id: 'crm-organization-config-1',
+    organizationId: 'org-1',
+    allowAdminViewMemberEmailBody: false,
+    updatedById: 'user-1',
+    updatedByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T10:00:00.000Z'),
+    ...input
+  };
+}
+
 function createEmailTemplateSteps(): CrmEmailTemplateStepInput[] {
   return [1, 2, 3, 4, 5].map(stepIndex => ({
     stepIndex,
@@ -1707,6 +1740,7 @@ function createPrisma(
   options: {
     archivedFingerprintResults?: ReturnType<typeof createPrismaArchivedFingerprint>[];
     blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
+    organizationConfig?: ReturnType<typeof createPrismaOrganizationConfig> | null;
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
   } = {}
@@ -2074,6 +2108,33 @@ function createPrisma(
           updatedById: args.update.updatedById ?? null,
           updatedByName: args.update.updatedByName ?? null,
           createdAt: new Date('2026-06-18T09:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T10:00:00.000Z')
+        };
+      }
+    },
+    crmOrganizationConfig: {
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return options.organizationConfig ?? null;
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+
+        return {
+          ...createPrismaOrganizationConfig(),
+          ...(options.organizationConfig ?? {}),
+          ...args.create,
+          ...args.update,
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         };
       }

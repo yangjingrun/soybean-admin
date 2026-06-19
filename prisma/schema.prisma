@@ -72,6 +72,7 @@ model Organization {
   crmTimelineEvents CrmTimelineEvent[]
   crmBlacklists     CrmBlacklist[]
   crmArchivedFingerprints CrmArchivedFingerprint[]
+  crmOrganizationConfig CrmOrganizationConfig?
   crmMailboxes      CrmMailbox[]
   crmMailboxSendUsages CrmMailboxSendUsage[]
   crmProductLines   CrmProductLine[]
@@ -177,6 +178,20 @@ model CrmGlobalConfig {
   updatedByName                 String?
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
+}
+
+model CrmOrganizationConfig {
+  id                            String   @id @default(uuid())
+  organizationId                String   @unique
+  allowAdminViewMemberEmailBody Boolean  @default(false)
+  updatedById                   String?
+  updatedByName                 String?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
 }
 
 model CrmBlacklist {

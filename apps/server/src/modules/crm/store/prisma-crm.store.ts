@@ -12,6 +12,7 @@ import type { CrmInboxMessageModel } from '../../../generated/prisma/models/CrmI
 import type { CrmInboxThreadModel } from '../../../generated/prisma/models/CrmInboxThread';
 import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
 import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
+import type { CrmOrganizationConfigModel } from '../../../generated/prisma/models/CrmOrganizationConfig';
 import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
 import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
@@ -73,6 +74,8 @@ import type {
   CrmMessageDraftUpdateGuard,
   CrmMessageRecord,
   CrmMessageUpdateInput,
+  CrmOrganizationConfigInput,
+  CrmOrganizationConfigRecord,
   CrmDraftApprovalInput,
   CrmDraftApprovalRecord,
   CrmSequenceEnrollmentCreateInput,
@@ -325,6 +328,33 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return toGlobalConfigRecord(record);
+  }
+
+  async getOrganizationConfig(organizationId: string) {
+    const record = await this.prisma.crmOrganizationConfig.findUnique({
+      where: { organizationId }
+    });
+
+    return record ? toOrganizationConfigRecord(record) : null;
+  }
+
+  async saveOrganizationConfig(input: CrmOrganizationConfigInput) {
+    const record = await this.prisma.crmOrganizationConfig.upsert({
+      where: { organizationId: input.organizationId },
+      create: {
+        organizationId: input.organizationId,
+        allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
+        updatedById: input.updatedById ?? null,
+        updatedByName: input.updatedByName ?? null
+      },
+      update: {
+        allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
+        updatedById: input.updatedById ?? null,
+        updatedByName: input.updatedByName ?? null
+      }
+    });
+
+    return toOrganizationConfigRecord(record);
   }
 
   findBlacklistEntry(args: { organizationId: string; emailHash: string }) {
@@ -2514,6 +2544,18 @@ function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalConfigReco
     configKey: record.configKey,
     emailVerificationCooldownDays: normalizeEmailVerificationCooldownDays(record.emailVerificationCooldownDays),
     followUpDelayDays: normalizeFollowUpDelayDays(record.followUpDelayDaysText),
+    updatedAt: record.updatedAt
+  };
+}
+
+function toOrganizationConfigRecord(record: CrmOrganizationConfigModel): CrmOrganizationConfigRecord {
+  return {
+    id: record.id,
+    organizationId: record.organizationId,
+    allowAdminViewMemberEmailBody: record.allowAdminViewMemberEmailBody,
+    updatedById: record.updatedById,
+    updatedByName: record.updatedByName,
+    createdAt: record.createdAt,
     updatedAt: record.updatedAt
   };
 }

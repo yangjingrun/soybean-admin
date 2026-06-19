@@ -391,6 +391,7 @@ export const ModelName = {
   CrmContact: 'CrmContact',
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
+  CrmOrganizationConfig: 'CrmOrganizationConfig',
   CrmBlacklist: 'CrmBlacklist',
   CrmArchivedFingerprint: 'CrmArchivedFingerprint',
   CrmTimelineEvent: 'CrmTimelineEvent',
@@ -428,7 +429,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequenceEnrollment" | "crmMessage" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -947,6 +948,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmGlobalConfigCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmGlobalConfigCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmOrganizationConfig: {
+      payload: Prisma.$CrmOrganizationConfigPayload<ExtArgs>
+      fields: Prisma.CrmOrganizationConfigFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmOrganizationConfigFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmOrganizationConfigFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmOrganizationConfigFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmOrganizationConfigFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>
+        }
+        findMany: {
+          args: Prisma.CrmOrganizationConfigFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>[]
+        }
+        create: {
+          args: Prisma.CrmOrganizationConfigCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>
+        }
+        createMany: {
+          args: Prisma.CrmOrganizationConfigCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmOrganizationConfigCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmOrganizationConfigDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>
+        }
+        update: {
+          args: Prisma.CrmOrganizationConfigUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmOrganizationConfigDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmOrganizationConfigUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmOrganizationConfigUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmOrganizationConfigUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmOrganizationConfigPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmOrganizationConfigAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmOrganizationConfig>
+        }
+        groupBy: {
+          args: Prisma.CrmOrganizationConfigGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmOrganizationConfigGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmOrganizationConfigCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmOrganizationConfigCountAggregateOutputType> | number
         }
       }
     }
@@ -2747,6 +2822,19 @@ export const CrmGlobalConfigScalarFieldEnum = {
 export type CrmGlobalConfigScalarFieldEnum = (typeof CrmGlobalConfigScalarFieldEnum)[keyof typeof CrmGlobalConfigScalarFieldEnum]
 
 
+export const CrmOrganizationConfigScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  allowAdminViewMemberEmailBody: 'allowAdminViewMemberEmailBody',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmOrganizationConfigScalarFieldEnum = (typeof CrmOrganizationConfigScalarFieldEnum)[keyof typeof CrmOrganizationConfigScalarFieldEnum]
+
+
 export const CrmBlacklistScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -3411,6 +3499,7 @@ export type GlobalOmitConfig = {
   crmContact?: Prisma.CrmContactOmit
   crmEmailVerificationCache?: Prisma.CrmEmailVerificationCacheOmit
   crmGlobalConfig?: Prisma.CrmGlobalConfigOmit
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigOmit
   crmBlacklist?: Prisma.CrmBlacklistOmit
   crmArchivedFingerprint?: Prisma.CrmArchivedFingerprintOmit
   crmTimelineEvent?: Prisma.CrmTimelineEventOmit

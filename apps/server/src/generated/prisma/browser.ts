@@ -53,6 +53,11 @@ export type CrmEmailVerificationCache = Prisma.CrmEmailVerificationCacheModel
  */
 export type CrmGlobalConfig = Prisma.CrmGlobalConfigModel
 /**
+ * Model CrmOrganizationConfig
+ *
+ */
+export type CrmOrganizationConfig = Prisma.CrmOrganizationConfigModel
+/**
  * Model CrmBlacklist
  *
  */

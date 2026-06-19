@@ -7,6 +7,7 @@ import EmailTemplateManager from './EmailTemplateManager.vue';
 import GlobalConfigCard from './GlobalConfigCard.vue';
 import MailboxTable from './MailboxTable.vue';
 import MailboxToolbar from './MailboxToolbar.vue';
+import OrganizationPermissionCard from './OrganizationPermissionCard.vue';
 import ProductLineManager from './ProductLineManager.vue';
 import { useMailboxTable } from './useMailboxTable';
 
@@ -44,6 +45,10 @@ const {
 
       <NGi>
         <GlobalConfigCard />
+      </NGi>
+
+      <NGi>
+        <OrganizationPermissionCard />
       </NGi>
 
       <NGi>
