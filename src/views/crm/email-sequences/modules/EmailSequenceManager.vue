@@ -7,6 +7,7 @@ import { useEmailSequenceTable } from './useEmailSequenceTable';
 
 const {
   accountSelectOptions,
+  batchDraftApproving,
   batchNextDraftGenerating,
   batchSequenceStopping,
   checkedRowKeys,
@@ -26,6 +27,7 @@ const {
   filterModel,
   handleAccountChange,
   handleApproveDraft,
+  handleBatchApproveDrafts,
   handleBatchGenerateNextDrafts,
   handleBatchStopSequences,
   handleCheckedRowKeysUpdate,
@@ -77,12 +79,14 @@ const {
     />
 
     <EmailSequenceTable
+      :batch-draft-approving="batchDraftApproving"
       :batch-next-draft-generating="batchNextDraftGenerating"
       :batch-sequence-stopping="batchSequenceStopping"
       :checked-row-keys="checkedRowKeys"
       :loading="loading"
       :pagination="pagination"
       :records="records"
+      @batch-approve-drafts="handleBatchApproveDrafts"
       @batch-generate-next-drafts="handleBatchGenerateNextDrafts"
       @batch-stop-sequences="handleBatchStopSequences"
       @review="openDraftDrawer"

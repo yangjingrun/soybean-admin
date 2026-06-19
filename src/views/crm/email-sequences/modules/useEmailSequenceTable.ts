@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
   approveCrmMessageDraft,
+  batchApproveCrmMessageDrafts,
   batchGenerateCrmNextSequenceDrafts,
   batchStopCrmSequenceEnrollments,
   createCrmSequenceReviewItem,
@@ -22,6 +23,7 @@ import {
 } from '@/service/api';
 import {
   buildSequenceReviewSearchParams,
+  canApproveSequenceDraftInBatch,
   canGenerateNextSequenceDraft,
   canStopSequenceInBatch,
   createDefaultSequenceCreateForm,
@@ -58,6 +60,7 @@ export function useEmailSequenceTable() {
   const draftVersionRestoring = shallowRef(false);
   const detailRefreshing = shallowRef(false);
   const nextDraftGenerating = shallowRef(false);
+  const batchDraftApproving = shallowRef(false);
   const batchNextDraftGenerating = shallowRef(false);
   const batchSequenceStopping = shallowRef(false);
   const sendStarting = shallowRef(false);
@@ -568,6 +571,37 @@ export function useEmailSequenceTable() {
     }
   }
 
+  async function handleBatchApproveDrafts() {
+    const executableRows = checkedRows.value.filter(canApproveSequenceDraftInBatch);
+    const ids = executableRows.map(item => item.enrollment.id);
+
+    if (ids.length === 0) {
+      message.warning('当前选中序列没有可确认的待审草稿');
+      return;
+    }
+
+    batchDraftApproving.value = true;
+
+    try {
+      const { data, error } = await batchApproveCrmMessageDrafts({ ids });
+
+      if (error) {
+        return;
+      }
+
+      const resultText = formatBatchResultText('批量确认草稿', data);
+      if (data.failedCount > 0) {
+        message.warning(resultText);
+      } else {
+        message.success(resultText);
+      }
+      checkedRowKeys.value = [];
+      await loadSequences();
+    } finally {
+      batchDraftApproving.value = false;
+    }
+  }
+
   async function handleStartSend() {
     const enrollmentId = selectedEnrollmentId.value;
     const messageId = selectedMessageId.value;
@@ -740,6 +774,7 @@ export function useEmailSequenceTable() {
 
   return {
     accountSelectOptions,
+    batchDraftApproving,
     batchNextDraftGenerating,
     batchSequenceStopping,
     checkedRowKeys,
@@ -759,6 +794,7 @@ export function useEmailSequenceTable() {
     filterModel,
     handleAccountChange,
     handleApproveDraft,
+    handleBatchApproveDrafts,
     handleBatchGenerateNextDrafts,
     handleBatchStopSequences,
     handleCheckedRowKeysUpdate,

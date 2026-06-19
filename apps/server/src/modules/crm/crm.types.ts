@@ -395,6 +395,20 @@ export interface CrmPersonaProfileRecord {
   updatedAt: Date;
 }
 
+export type CrmPersonaMatchMethod = 'title' | 'customer_type' | 'default' | 'builtin' | 'none';
+export type CrmPersonaMatchSource = 'organization' | 'builtin';
+
+export interface CrmPersonaMatchInfo {
+  persona: {
+    id: string | null;
+    name: string;
+    source: CrmPersonaMatchSource;
+  } | null;
+  matchMethod: CrmPersonaMatchMethod;
+  matchedKeywords: string[];
+  fallbackReason: string | null;
+}
+
 export interface CrmMessageRecord {
   id: string;
   organizationId: string;
@@ -874,6 +888,9 @@ export interface CrmSequenceDraftBundleCreateInput {
       policyId?: string | null;
       personaProfileId?: string | null;
       personaProfileName?: string | null;
+      personaMatchMethod?: CrmPersonaMatchMethod;
+      personaMatchedKeywords?: string[];
+      personaFallbackReason?: string | null;
     };
   };
   accountStatus: CrmAccountStatus;
@@ -884,6 +901,27 @@ export interface CrmSequenceDraftBundleRecord {
   message: CrmMessageRecord;
   account: CrmAccountRecord;
   event: CrmTimelineEventRecord;
+}
+
+export type CrmStrategyStatDimension = 'template' | 'policy' | 'persona' | 'productLine';
+
+export interface CrmStrategyStatRow {
+  dimension: CrmStrategyStatDimension;
+  key: string;
+  name: string;
+  sequenceCount: number;
+  draftPendingCount: number;
+  readyCount: number;
+  queuedCount: number;
+  sentCount: number;
+  failedCount: number;
+  repliedCount: number;
+  stoppedCount: number;
+}
+
+export interface CrmStrategyStatsRecord {
+  generatedAt: Date;
+  rows: Record<CrmStrategyStatDimension, CrmStrategyStatRow[]>;
 }
 
 export interface CrmFollowUpDraftBundleCreateInput {
@@ -1363,6 +1401,7 @@ export interface CrmStore {
     skip: number;
     take: number;
   }): Promise<{ records: CrmSequenceReviewRecord[]; total: number }>;
+  listStrategyStats(args: { organizationId: string; ownerUserId?: string }): Promise<CrmStrategyStatsRecord>;
   getSequenceReviewItem(args: {
     id: string;
     organizationId: string;

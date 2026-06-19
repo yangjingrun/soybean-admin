@@ -113,6 +113,9 @@ import type {
   CrmSequenceStopInput,
   CrmSequenceStopRecord,
   CrmStore,
+  CrmStrategyStatDimension,
+  CrmStrategyStatRow,
+  CrmStrategyStatsRecord,
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
 } from '../crm.types';
@@ -1327,6 +1330,73 @@ export class PrismaCrmStore implements CrmStore {
     return {
       records: records.map(toSequenceReviewRecord),
       total
+    };
+  }
+
+  async listStrategyStats(args: { organizationId: string; ownerUserId?: string }): Promise<CrmStrategyStatsRecord> {
+    const where = toScopedOrganizationWhere(args);
+    const [enrollments, personaEvents] = await Promise.all([
+      this.prisma.crmSequenceEnrollment.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          productLine: true,
+          policy: true,
+          messages: {
+            orderBy: [{ stepIndex: 'asc' as const }, { createdAt: 'asc' as const }]
+          }
+        }
+      }),
+      this.prisma.crmTimelineEvent.findMany({
+        where: {
+          ...where,
+          eventType: { in: ['sequence_draft_generated', 'sequence_follow_up_draft_generated'] }
+        },
+        orderBy: { createdAt: 'asc' }
+      })
+    ]);
+    const personaByEnrollmentId = buildPersonaStatMap(personaEvents);
+    const rows = createEmptyStrategyRows();
+
+    for (const enrollment of enrollments) {
+      const statInputs: Array<{ dimension: CrmStrategyStatDimension; key: string; name: string }> = [
+        { dimension: 'template', key: 'default_template', name: '默认模板' },
+        {
+          dimension: 'policy',
+          key: enrollment.policy?.id ?? 'none',
+          name: enrollment.policy?.name ?? '未设置策略'
+        },
+        {
+          dimension: 'productLine',
+          key: enrollment.productLine?.id ?? 'none',
+          name: enrollment.productLine?.name ?? '未设置产品线'
+        },
+        {
+          dimension: 'persona',
+          key: personaByEnrollmentId.get(enrollment.id)?.key ?? 'unknown',
+          name: personaByEnrollmentId.get(enrollment.id)?.name ?? '未匹配画像'
+        }
+      ];
+
+      for (const input of statInputs) {
+        const row = getOrCreateStrategyStatRow(rows[input.dimension], input);
+        applyEnrollmentStat(row, enrollment.status as CrmSequenceEnrollmentStatus);
+
+        // ready/queued/sent/failed 统计本地 message 状态，不依赖 Gmail 真实投递结果。
+        for (const message of enrollment.messages) {
+          applyMessageStat(row, message.status as CrmMessageRecord['status']);
+        }
+      }
+    }
+
+    return {
+      generatedAt: new Date(),
+      rows: {
+        template: sortStrategyRows(rows.template),
+        policy: sortStrategyRows(rows.policy),
+        persona: sortStrategyRows(rows.persona),
+        productLine: sortStrategyRows(rows.productLine)
+      }
     };
   }
 
@@ -2826,6 +2896,105 @@ function toBlacklistListWhere(args: CrmBlacklistListInput): Prisma.CrmBlacklistW
     organizationId: args.organizationId,
     ...(keywordFilter ? { OR: keywordFilter } : {})
   };
+}
+
+function toScopedOrganizationWhere(args: {
+  organizationId: string;
+  ownerUserId?: string;
+}): { organizationId: string; ownerUserId?: string } {
+  return {
+    organizationId: args.organizationId,
+    ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+  };
+}
+
+function createEmptyStrategyRows(): Record<CrmStrategyStatDimension, CrmStrategyStatRow[]> {
+  return {
+    template: [],
+    policy: [],
+    persona: [],
+    productLine: []
+  };
+}
+
+function getOrCreateStrategyStatRow(
+  rows: CrmStrategyStatRow[],
+  input: { dimension: CrmStrategyStatDimension; key: string; name: string }
+) {
+  const existing = rows.find(row => row.key === input.key);
+
+  if (existing) return existing;
+
+  const row: CrmStrategyStatRow = {
+    dimension: input.dimension,
+    key: input.key,
+    name: input.name,
+    sequenceCount: 0,
+    draftPendingCount: 0,
+    readyCount: 0,
+    queuedCount: 0,
+    sentCount: 0,
+    failedCount: 0,
+    repliedCount: 0,
+    stoppedCount: 0
+  };
+  rows.push(row);
+
+  return row;
+}
+
+function applyEnrollmentStat(row: CrmStrategyStatRow, status: CrmSequenceEnrollmentStatus) {
+  row.sequenceCount += 1;
+
+  if (status === 'replied') {
+    row.repliedCount += 1;
+  }
+
+  if (status === 'stopped') {
+    row.stoppedCount += 1;
+  }
+}
+
+function applyMessageStat(row: CrmStrategyStatRow, status: CrmMessageRecord['status']) {
+  if (status === 'draft_pending_review') {
+    row.draftPendingCount += 1;
+  } else if (status === 'draft_ready') {
+    row.readyCount += 1;
+  } else if (status === 'queued') {
+    row.queuedCount += 1;
+  } else if (status === 'sent') {
+    row.sentCount += 1;
+  } else if (status === 'failed') {
+    row.failedCount += 1;
+  }
+}
+
+function sortStrategyRows(rows: CrmStrategyStatRow[]) {
+  return [...rows].sort((left, right) => {
+    if (right.sequenceCount !== left.sequenceCount) return right.sequenceCount - left.sequenceCount;
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function buildPersonaStatMap(events: CrmTimelineEventModel[]) {
+  const result = new Map<string, { key: string; name: string }>();
+
+  for (const event of events) {
+    const metadata = event.metadata;
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) continue;
+
+    const enrollmentId = (metadata as Record<string, unknown>).enrollmentId;
+    if (typeof enrollmentId !== 'string' || result.has(enrollmentId)) continue;
+
+    const personaProfileId = (metadata as Record<string, unknown>).personaProfileId;
+    const personaProfileName = (metadata as Record<string, unknown>).personaProfileName;
+    result.set(enrollmentId, {
+      key: typeof personaProfileId === 'string' && personaProfileId ? personaProfileId : 'unknown',
+      name: typeof personaProfileName === 'string' && personaProfileName ? personaProfileName : '未匹配画像'
+    });
+  }
+
+  return result;
 }
 
 /** Builds the sequence review list scope and optional UI filters. */

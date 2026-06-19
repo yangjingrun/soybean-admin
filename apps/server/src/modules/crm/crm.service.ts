@@ -73,6 +73,7 @@ import type {
   CrmMessageStatus,
   CrmMessageThreadMode,
   CrmOrganizationConfigRecord,
+  CrmPersonaMatchInfo,
   CrmPersonaProfileRecord,
   CrmPersonaProfileStatus,
   CrmPersonaProfileUpdateInput,
@@ -84,12 +85,17 @@ import type {
   CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmSequenceReviewTodoType,
+  CrmStrategyStatsRecord,
   CrmSendQueuePort,
   CrmStore,
   CrmTimelineEventRecord,
   CrmUserContext,
   ImportCrmLeadInput
 } from './crm.types';
+
+type ResolvedPersonaMatch = CrmPersonaMatchInfo & {
+  templatePersona: PersonaProfile | null;
+};
 
 const defaultPage = 1;
 const defaultPageSize = 20;
@@ -1408,16 +1414,16 @@ export class CrmService {
     ]);
     const policy = selectedPolicy ?? defaultPolicy;
     await this.assertSameCompanySequencePolicy(account, contact, policy, context);
-    const [defaultTemplateGroup, personaProfile] = await Promise.all([
+    const [defaultTemplateGroup, personaMatch] = await Promise.all([
       this.store.findDefaultEmailTemplateGroup(context.organizationId),
-      this.resolvePersonaProfile(account, contact, context)
+      this.resolvePersonaProfileMatch(account, contact, context)
     ]);
     const draft = generateFirstDraft({
       account,
       contact,
       productLine,
       context,
-      personaProfile,
+      personaProfile: personaMatch.templatePersona,
       templateGroup: defaultTemplateGroup
     });
     const bundle = await this.runSequenceWrite(() =>
@@ -1462,8 +1468,11 @@ export class CrmService {
             productLineId: productLine?.id ?? null,
             mailboxId: mailbox?.id ?? null,
             policyId: policy?.id ?? null,
-            personaProfileId: personaProfile?.id ?? null,
-            personaProfileName: personaProfile?.label ?? null
+            personaProfileId: personaMatch.persona?.id ?? null,
+            personaProfileName: personaMatch.persona?.name ?? null,
+            personaMatchMethod: personaMatch.matchMethod,
+            personaMatchedKeywords: personaMatch.matchedKeywords,
+            personaFallbackReason: personaMatch.fallbackReason
           }
         },
         accountStatus: 'manual_review_pending'
@@ -1493,7 +1502,8 @@ export class CrmService {
           firstMessage: bundle.message,
           messages: [bundle.message]
         },
-        context
+        context,
+        personaMatch
       )
     };
   }
@@ -1522,19 +1532,32 @@ export class CrmService {
       take: size
     });
 
+    const organizationProfiles = await this.store.listActivePersonaProfiles(context.organizationId);
+
     return {
       current,
       size,
       total: result.total,
-      records: result.records.map(record => toSequenceReviewView(record, context))
+      records: result.records.map(record =>
+        toSequenceReviewView(record, context, buildPersonaMatch(organizationProfiles, record.account, record.contact))
+      )
     };
+  }
+
+  /** Reads local CRM funnel stats grouped by template, policy, persona and product line. */
+  async listStrategyStats(context: CrmUserContext): Promise<CrmStrategyStatsRecord> {
+    return this.store.listStrategyStats({
+      organizationId: context.organizationId,
+      ...toOwnerScope(context)
+    });
   }
 
   /** Returns one review item detail with the first draft message. */
   async getSequenceReviewItem(id: string, context: CrmUserContext) {
     const item = await this.requireScopedSequenceReviewItem(id, context);
+    const personaMatch = await this.resolvePersonaProfileMatch(item.account, item.contact, context);
 
-    return toSequenceReviewView(item, context);
+    return toSequenceReviewView(item, context, personaMatch);
   }
 
   /** Saves human edits to one draft and keeps it in pending review. */
@@ -1716,10 +1739,10 @@ export class CrmService {
       throw new BadRequestException('已存在下一步草稿或待发送消息，请先处理后再生成');
     }
 
-    const [globalConfig, defaultTemplateGroup, personaProfile] = await Promise.all([
+    const [globalConfig, defaultTemplateGroup, personaMatch] = await Promise.all([
       this.store.getGlobalConfig(),
       this.store.findDefaultEmailTemplateGroup(context.organizationId),
-      this.resolvePersonaProfile(item.account, item.contact, context)
+      this.resolvePersonaProfileMatch(item.account, item.contact, context)
     ]);
     const nextMessage = buildNextFollowUpDraft({
       item,
@@ -1727,7 +1750,7 @@ export class CrmService {
       providerThreadId: sourceMessage.providerThreadId,
       baseTime: new Date(),
       followUpDelayDays: globalConfig.followUpDelayDays,
-      personaProfile,
+      personaProfile: personaMatch.templatePersona,
       templateGroup: defaultTemplateGroup,
       senderName: context.userName
     });
@@ -1752,8 +1775,11 @@ export class CrmService {
           content: nextMessage.subject,
           metadata: {
             enrollmentId: item.enrollment.id,
-            personaProfileId: personaProfile?.id ?? null,
-            personaProfileName: personaProfile?.label ?? null,
+            personaProfileId: personaMatch.persona?.id ?? null,
+            personaProfileName: personaMatch.persona?.name ?? null,
+            personaMatchMethod: personaMatch.matchMethod,
+            personaMatchedKeywords: personaMatch.matchedKeywords,
+            personaFallbackReason: personaMatch.fallbackReason,
             stepIndex: nextMessage.stepIndex
           }
         }
@@ -1810,6 +1836,78 @@ export class CrmService {
           enrollmentId: generated.enrollment.id,
           messageId: generated.message.id,
           stepIndex: generated.message.stepIndex
+        });
+      } catch (error) {
+        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
+      }
+    });
+  }
+
+  /** Confirms pending owner drafts locally without Gmail, BullMQ, or send queue side effects. */
+  async batchApproveMessageDrafts(
+    input: SequenceBatchOperationInput,
+    context: CrmUserContext
+  ): Promise<SequenceBatchOperateResult> {
+    return this.runSequenceBatch(input.ids, async id => {
+      const item = await this.store.getSequenceReviewItem({
+        id,
+        organizationId: context.organizationId,
+        ownerUserId: context.userId
+      });
+
+      if (!item) {
+        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
+      }
+
+      const pendingMessage = this.getPendingLocalApprovalMessage(item);
+
+      if (!pendingMessage) {
+        return this.createSequenceBatchResult(id, 'skipped', '当前序列没有可本地确认的待审草稿', {
+          enrollmentId: item.enrollment.id
+        });
+      }
+
+      const toEnrollmentStatus: CrmSequenceEnrollmentStatus =
+        pendingMessage.stepIndex === initialDraftStepIndex ? 'ready_to_send' : item.enrollment.status;
+
+      try {
+        const approval = await this.store.approveMessageDraft({
+          messageId: pendingMessage.id,
+          enrollmentId: item.enrollment.id,
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          accountId: pendingMessage.accountId,
+          contactId: pendingMessage.contactId,
+          fromEnrollmentStatus: item.enrollment.status,
+          toEnrollmentStatus,
+          fromMessageStatus: 'draft_pending_review',
+          toMessageStatus: approvedDraftStatus,
+          accountStatus: 'ready'
+        });
+
+        if (!approval) {
+          return this.createSequenceBatchResult(id, 'skipped', '当前草稿状态已变化，请刷新后重试', {
+            enrollmentId: item.enrollment.id,
+            messageId: pendingMessage.id,
+            stepIndex: pendingMessage.stepIndex
+          });
+        }
+
+        await this.recordCrmLog('draft-approve-batch', 'CRM 开发信草稿批量确认', context, {
+          organizationId: context.organizationId,
+          accountId: approval.message.accountId,
+          contactId: approval.message.contactId,
+          enrollmentId: approval.enrollment.id,
+          messageId: approval.message.id,
+          stepIndex: approval.message.stepIndex,
+          fromStatus: item.enrollment.status,
+          toStatus: approval.enrollment.status
+        });
+
+        return this.createSequenceBatchResult(id, 'success', '草稿已确认', {
+          enrollmentId: approval.enrollment.id,
+          messageId: approval.message.id,
+          stepIndex: approval.message.stepIndex
         });
       } catch (error) {
         return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
@@ -2724,19 +2822,13 @@ export class CrmService {
     return personaProfile;
   }
 
-  private async resolvePersonaProfile(
+  private async resolvePersonaProfileMatch(
     account: Pick<CrmAccountRecord, 'customerType'>,
     contact: Pick<CrmContactRecord, 'title'>,
     context: CrmUserContext
-  ): Promise<PersonaProfile | null> {
+  ): Promise<ResolvedPersonaMatch> {
     const organizationProfiles = await this.store.listActivePersonaProfiles(context.organizationId);
-    const matchedProfile = selectOrganizationPersonaProfile(organizationProfiles, account, contact);
-
-    if (matchedProfile) {
-      return toTemplatePersonaProfile(matchedProfile);
-    }
-
-    return findPersonaProfile(contact.title);
+    return buildPersonaMatch(organizationProfiles, account, contact);
   }
 
   private async requireScopedEmailTemplateGroup(id: string, context: CrmUserContext) {
@@ -2931,6 +3023,22 @@ export class CrmService {
     }
 
     return null;
+  }
+
+  /** Returns the pending draft that can be confirmed locally without queueing a send job. */
+  private getPendingLocalApprovalMessage(item: CrmSequenceReviewRecord) {
+    const pendingMessage = [...item.messages]
+      .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime())
+      .find(message => message.status === 'draft_pending_review');
+
+    if (!pendingMessage) return null;
+
+    if (pendingMessage.stepIndex === initialDraftStepIndex) {
+      return item.enrollment.status === 'draft_review_pending' ? pendingMessage : null;
+    }
+
+    // sequence_running follow-up confirmation would enqueue a send job, so batch approval skips it.
+    return item.enrollment.status === 'ready_to_send' ? pendingMessage : null;
   }
 
   private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
@@ -3554,7 +3662,11 @@ function toAccountDetailView(detail: CrmAccountDetailRecord) {
   };
 }
 
-function toSequenceReviewView(record: CrmSequenceReviewRecord, context: CrmUserContext) {
+function toSequenceReviewView(
+  record: CrmSequenceReviewRecord,
+  context: CrmUserContext,
+  personaMatch = buildPersonaMatch([], record.account, record.contact)
+) {
   return {
     enrollment: toSequenceEnrollmentView(record.enrollment),
     account: toAccountView(record.account),
@@ -3566,13 +3678,12 @@ function toSequenceReviewView(record: CrmSequenceReviewRecord, context: CrmUserC
     messages: record.messages.map(toMessageView),
     canOperateDraft: record.enrollment.ownerUserId === context.userId,
     canControlSequence: record.enrollment.ownerUserId === context.userId || isOrganizationAdmin(context),
-    checklist: buildReviewChecklist(record)
+    personaMatch: toPersonaMatchView(personaMatch),
+    checklist: buildReviewChecklist(record, personaMatch)
   };
 }
 
-function buildReviewChecklist(record: CrmSequenceReviewRecord) {
-  const persona = findPersonaProfile(record.contact.title);
-
+function buildReviewChecklist(record: CrmSequenceReviewRecord, personaMatch: ResolvedPersonaMatch) {
   return [
     {
       key: 'mailbox_active',
@@ -3601,12 +3712,8 @@ function buildReviewChecklist(record: CrmSequenceReviewRecord) {
     {
       key: 'persona_focus',
       label: '职位画像',
-      passed: Boolean(persona),
-      message: persona
-        ? `已匹配 ${persona.label}：${persona.focusText}`
-        : record.contact.title
-          ? `未匹配职位画像：${record.contact.title}`
-          : '缺少联系人职位，按通用开发信生成'
+      passed: Boolean(personaMatch.persona),
+      message: buildPersonaMatchChecklistMessage(personaMatch, record.contact)
     },
     {
       key: 'draft_content',
@@ -4003,36 +4110,152 @@ function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex
   return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
 }
 
-function selectOrganizationPersonaProfile(
+function buildPersonaMatch(
   profiles: CrmPersonaProfileRecord[],
   account: Pick<CrmAccountRecord, 'customerType'>,
   contact: Pick<CrmContactRecord, 'title'>
-) {
+): ResolvedPersonaMatch {
   const normalizedTitle = contact.title?.trim().toLowerCase() ?? '';
   const normalizedCustomerType = account.customerType?.trim().toLowerCase() ?? '';
-  const titleMatchedProfile = normalizedTitle
-    ? profiles.find(profile =>
-        splitPersonaKeywords(profile.titleKeywordsText).some(keyword => normalizedTitle.includes(keyword.toLowerCase()))
-      )
-    : null;
+  const titleMatchedProfile = findMatchedPersonaProfile(profiles, normalizedTitle, 'titleKeywordsText');
 
-  if (titleMatchedProfile) {
-    return titleMatchedProfile;
+  if (titleMatchedProfile.profile) {
+    return toResolvedPersonaMatch(titleMatchedProfile.profile, 'title', [titleMatchedProfile.keyword], null);
   }
 
-  const customerTypeMatchedProfile = normalizedCustomerType
-    ? profiles.find(profile =>
-        splitPersonaKeywords(profile.customerTypeKeywordsText).some(keyword =>
-          normalizedCustomerType.includes(keyword.toLowerCase())
-        )
-      )
-    : null;
+  const customerTypeMatchedProfile = findMatchedPersonaProfile(
+    profiles,
+    normalizedCustomerType,
+    'customerTypeKeywordsText'
+  );
 
-  return customerTypeMatchedProfile ?? findDefaultPersonaProfile(profiles);
+  if (customerTypeMatchedProfile.profile) {
+    return toResolvedPersonaMatch(
+      customerTypeMatchedProfile.profile,
+      'customer_type',
+      [customerTypeMatchedProfile.keyword],
+      null
+    );
+  }
+
+  const defaultProfile = findDefaultPersonaProfile(profiles);
+
+  if (defaultProfile) {
+    return toResolvedPersonaMatch(defaultProfile, 'default', [], '未命中职位或客户类型关键词，使用默认画像');
+  }
+
+  const builtInProfile = findPersonaProfile(contact.title);
+
+  if (builtInProfile) {
+    const matchedKeyword = findMatchedBuiltinPersonaKeyword(builtInProfile, normalizedTitle);
+
+    return {
+      persona: {
+        id: null,
+        name: builtInProfile.label,
+        source: 'builtin'
+      },
+      matchMethod: 'builtin',
+      matchedKeywords: matchedKeyword ? [matchedKeyword] : [],
+      fallbackReason: '未配置或未命中组织画像，使用内置职位画像',
+      templatePersona: {
+        ...builtInProfile,
+        aliases: [...builtInProfile.aliases],
+        source: 'built_in'
+      }
+    };
+  }
+
+  return {
+    persona: null,
+    matchMethod: 'none',
+    matchedKeywords: [],
+    fallbackReason: '未命中组织画像或内置职位画像，按通用开发信生成',
+    templatePersona: null
+  };
 }
 
 function findDefaultPersonaProfile(profiles: CrmPersonaProfileRecord[]) {
   return profiles.find(profile => profile.isDefault) ?? null;
+}
+
+/** Finds the first profile keyword contained by a normalized CRM field value. */
+function findMatchedPersonaProfile(
+  profiles: CrmPersonaProfileRecord[],
+  normalizedValue: string,
+  keywordField: 'titleKeywordsText' | 'customerTypeKeywordsText'
+) {
+  if (!normalizedValue) {
+    return { profile: null, keyword: '' };
+  }
+
+  for (const profile of profiles) {
+    const keyword = splitPersonaKeywords(profile[keywordField]).find(item =>
+      normalizedValue.includes(item.toLowerCase())
+    );
+
+    if (keyword) {
+      return { profile, keyword };
+    }
+  }
+
+  return { profile: null, keyword: '' };
+}
+
+function toResolvedPersonaMatch(
+  profile: CrmPersonaProfileRecord,
+  matchMethod: 'title' | 'customer_type' | 'default',
+  matchedKeywords: string[],
+  fallbackReason: string | null
+): ResolvedPersonaMatch {
+  return {
+    persona: {
+      id: profile.id,
+      name: profile.name,
+      source: 'organization'
+    },
+    matchMethod,
+    matchedKeywords,
+    fallbackReason,
+    templatePersona: toTemplatePersonaProfile(profile)
+  };
+}
+
+function findMatchedBuiltinPersonaKeyword(profile: PersonaProfile, normalizedTitle: string) {
+  if (!normalizedTitle) {
+    return '';
+  }
+
+  return profile.aliases.find(alias => normalizedTitle.includes(alias.toLowerCase())) ?? '';
+}
+
+function toPersonaMatchView(match: ResolvedPersonaMatch): CrmPersonaMatchInfo {
+  return {
+    persona: match.persona,
+    matchMethod: match.matchMethod,
+    matchedKeywords: match.matchedKeywords,
+    fallbackReason: match.fallbackReason
+  };
+}
+
+function buildPersonaMatchChecklistMessage(
+  match: ResolvedPersonaMatch,
+  contact: Pick<CrmContactRecord, 'title'>
+) {
+  if (match.persona) {
+    const reason =
+      match.matchMethod === 'title'
+        ? `因职位关键词 ${match.matchedKeywords.join('、')} 命中`
+        : match.matchMethod === 'customer_type'
+          ? `因客户类型关键词 ${match.matchedKeywords.join('、')} 命中`
+          : match.matchMethod === 'default'
+            ? match.fallbackReason
+            : match.fallbackReason;
+
+    return reason ? `已匹配 ${match.persona.name}：${reason}` : `已匹配 ${match.persona.name}`;
+  }
+
+  return contact.title ? match.fallbackReason : '缺少联系人职位，按通用开发信生成';
 }
 
 function toTemplatePersonaProfile(record: CrmPersonaProfileRecord): PersonaProfile {

@@ -64,6 +64,13 @@ export interface MailboxSyncHealthSummary {
   synced: number;
 }
 
+export interface StrategyStatSection {
+  key: Api.Crm.StrategyStatDimension;
+  title: string;
+  empty: boolean;
+  rows: Api.Crm.StrategyStatRow[];
+}
+
 export const mailboxStatusOptions = [
   { label: '启用', value: 'active' },
   { label: '暂停', value: 'paused' },
@@ -157,6 +164,14 @@ export const operationLogCategoryEmptyTextMap: Record<OperationLogCategory, stri
 };
 
 const operationLogCategoryOrder: OperationLogCategory[] = ['webhook', 'history', 'watch', 'send'];
+const strategyStatDimensionOrder: Api.Crm.StrategyStatDimension[] = ['template', 'policy', 'persona', 'productLine'];
+
+export const strategyStatDimensionTitleMap: Record<Api.Crm.StrategyStatDimension, string> = {
+  template: '模板效果',
+  policy: '策略效果',
+  persona: '画像效果',
+  productLine: '产品线效果'
+};
 
 const sensitiveMetadataKeys = new Set([
   'apikey',
@@ -861,6 +876,25 @@ export function buildOperationLogSummaryRows(options: {
       action: latest.action,
       count: categoryEvents.length,
       empty: false
+    };
+  });
+}
+
+/** Builds the fixed CRM local strategy stat sections shown on the settings page. */
+export function buildStrategyStatSections(stats: Api.Crm.StrategyStats, limit = 5): StrategyStatSection[] {
+  return strategyStatDimensionOrder.map(key => {
+    const rows = [...(stats.rows[key] ?? [])]
+      .sort((left, right) => {
+        if (right.sequenceCount !== left.sequenceCount) return right.sequenceCount - left.sequenceCount;
+        return left.name.localeCompare(right.name);
+      })
+      .slice(0, limit);
+
+    return {
+      key,
+      title: strategyStatDimensionTitleMap[key],
+      empty: rows.length === 0,
+      rows
     };
   });
 }

@@ -18,6 +18,7 @@ import {
 } from './shared';
 
 const emit = defineEmits<{
+  batchApproveDrafts: [];
   batchGenerateNextDrafts: [];
   batchStopSequences: [];
   review: [record: Api.Crm.SequenceReviewItem];
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const props = defineProps<{
+  batchDraftApproving?: boolean;
   batchNextDraftGenerating?: boolean;
   batchSequenceStopping?: boolean;
   checkedRowKeys: DataTableRowKey[];
@@ -39,7 +41,9 @@ const props = defineProps<{
   records: Api.Crm.SequenceReviewItem[];
 }>();
 
-const batchBusy = computed(() => Boolean(props.loading || props.batchNextDraftGenerating || props.batchSequenceStopping));
+const batchBusy = computed(() =>
+  Boolean(props.loading || props.batchDraftApproving || props.batchNextDraftGenerating || props.batchSequenceStopping)
+);
 const batchSelectionSummary = computed(() => {
   const checkedSet = new Set(props.checkedRowKeys.map(String));
   const selectedRecords = props.records.filter(record => checkedSet.has(record.enrollment.id));
@@ -192,6 +196,16 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
         <NText v-if="batchSelectionSummary.selectedCount > 0" depth="3">
           已选 {{ batchSelectionSummary.selectedCount }} 条
         </NText>
+        <NButton
+          size="small"
+          type="primary"
+          secondary
+          :disabled="batchSelectionSummary.approveDraftCount === 0 || batchBusy"
+          :loading="batchDraftApproving"
+          @click="emit('batchApproveDrafts')"
+        >
+          批量确认草稿
+        </NButton>
         <NButton
           size="small"
           type="success"

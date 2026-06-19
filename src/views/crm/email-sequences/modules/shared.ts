@@ -111,7 +111,35 @@ export interface DraftVersionListItem {
   versionNo: number;
 }
 
+export type DraftDiffFieldKey = 'subject' | 'bodyText';
+
+export type DraftDiffChangeType = 'added' | 'removed' | 'modified';
+
+export interface DraftDiffFieldSummary {
+  addedLineCount: number;
+  changeType: DraftDiffChangeType;
+  changedLineCount: number;
+  currentText: string;
+  key: DraftDiffFieldKey;
+  label: string;
+  removedLineCount: number;
+  summary: string;
+  versionText: string;
+}
+
+export interface DraftVersionDiffSummary {
+  addedLineCount: number;
+  changedFieldCount: number;
+  changedLineCount: number;
+  fields: DraftDiffFieldSummary[];
+  hasChanges: boolean;
+  previewLines: string[];
+  removedLineCount: number;
+  summaryText: string;
+}
+
 export interface SequenceBatchSelectionSummary {
+  approveDraftCount: number;
   generateNextDraftCount: number;
   selectedCount: number;
   skippedCount: number;
@@ -226,6 +254,34 @@ export function buildDraftVersionListItems(versions: Api.Crm.MessageDraftVersion
     }));
 }
 
+/** Build a compact field and line diff from the current draft to one saved version. */
+export function buildDraftVersionDiffSummary(
+  currentDraft: Pick<Api.Crm.MessageDraftPayload, 'subject' | 'bodyText'>,
+  versionDraft: Pick<Api.Crm.MessageDraftPayload, 'subject' | 'bodyText'>
+): DraftVersionDiffSummary {
+  const fields = [
+    buildDraftDiffFieldSummary('subject', '主题', currentDraft.subject, versionDraft.subject),
+    buildDraftDiffFieldSummary('bodyText', '正文', currentDraft.bodyText, versionDraft.bodyText)
+  ].filter((field): field is DraftDiffFieldSummary => Boolean(field));
+  const addedLineCount = fields.reduce((total, field) => total + field.addedLineCount, 0);
+  const removedLineCount = fields.reduce((total, field) => total + field.removedLineCount, 0);
+  const changedLineCount = fields.reduce((total, field) => total + field.changedLineCount, 0);
+  const previewLines = fields.map(field => `${field.label}：${formatDraftDiffLineStats(field)}`);
+
+  return {
+    addedLineCount,
+    changedFieldCount: fields.length,
+    changedLineCount,
+    fields,
+    hasChanges: fields.length > 0,
+    previewLines,
+    removedLineCount,
+    summaryText: fields.length
+      ? `将恢复 ${fields.length} 项：${formatDraftDiffLineStats({ addedLineCount, removedLineCount, changedLineCount })}`
+      : '与当前草稿一致'
+  };
+}
+
 /** Return the current pending review message ordered by sequence step. */
 export function getPendingReviewMessage(messages: Api.Crm.MessageRecord[]) {
   return [...messages]
@@ -286,6 +342,21 @@ export function canGenerateNextSequenceDraft(item: Api.Crm.SequenceReviewItem) {
   );
 }
 
+/** Check whether one selected row can be approved by an owner-only batch action. */
+export function canApproveSequenceDraftInBatch(item: Api.Crm.SequenceReviewItem) {
+  if (!item.canOperateDraft) return false;
+
+  const pendingMessage = getPendingReviewMessage(item.messages);
+  if (!pendingMessage) return false;
+
+  if (pendingMessage.stepIndex === 1) {
+    return item.enrollment.status === 'draft_review_pending';
+  }
+
+  // Running sequences require queue scheduling on approval, so batch approval intentionally skips them.
+  return item.enrollment.status === 'ready_to_send';
+}
+
 /** Check whether one selected row can be stopped by an owner-only batch action. */
 export function canStopSequenceInBatch(item: Api.Crm.SequenceReviewItem) {
   return (
@@ -296,13 +367,15 @@ export function canStopSequenceInBatch(item: Api.Crm.SequenceReviewItem) {
 
 /** Summarize currently selected sequence rows for the batch toolbar. */
 export function summarizeSequenceBatchSelection(items: Api.Crm.SequenceReviewItem[]): SequenceBatchSelectionSummary {
+  const approveDraftCount = items.filter(canApproveSequenceDraftInBatch).length;
   const generateNextDraftCount = items.filter(canGenerateNextSequenceDraft).length;
   const stopCount = items.filter(canStopSequenceInBatch).length;
 
   return {
+    approveDraftCount,
     generateNextDraftCount,
     selectedCount: items.length,
-    skippedCount: items.length - Math.max(generateNextDraftCount, stopCount),
+    skippedCount: items.length - Math.max(approveDraftCount, generateNextDraftCount, stopCount),
     stopCount
   };
 }
@@ -376,6 +449,97 @@ function formatSequenceMessageTimelineMeta(message: Api.Crm.MessageRecord) {
 function truncateText(value: string, maxLength: number) {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength)}...`;
+}
+
+function buildDraftDiffFieldSummary(
+  key: DraftDiffFieldKey,
+  label: string,
+  currentText: string,
+  versionText: string
+): DraftDiffFieldSummary | null {
+  const normalizedCurrent = normalizeDraftDiffText(currentText);
+  const normalizedVersion = normalizeDraftDiffText(versionText);
+
+  if (normalizedCurrent === normalizedVersion) return null;
+
+  const currentLines = splitDraftDiffLines(normalizedCurrent);
+  const versionLines = splitDraftDiffLines(normalizedVersion);
+  const addedLineCount = Math.max(versionLines.length - currentLines.length, 0);
+  const removedLineCount = Math.max(currentLines.length - versionLines.length, 0);
+  const commonLineCount = Math.min(currentLines.length, versionLines.length);
+  let changedLineCount = 0;
+
+  // 只做同位置轻量比较，避免引入复杂 diff 算法。
+  for (let index = 0; index < commonLineCount; index += 1) {
+    if (currentLines[index] !== versionLines[index]) {
+      changedLineCount += 1;
+    }
+  }
+
+  const changeType = getDraftDiffChangeType(currentLines.length, versionLines.length, changedLineCount);
+
+  return {
+    addedLineCount,
+    changeType,
+    changedLineCount,
+    currentText: normalizedCurrent,
+    key,
+    label,
+    removedLineCount,
+    summary: buildDraftDiffFieldText(label, normalizedCurrent, normalizedVersion, {
+      addedLineCount,
+      removedLineCount,
+      changedLineCount
+    }),
+    versionText: normalizedVersion
+  };
+}
+
+function buildDraftDiffFieldText(
+  label: string,
+  currentText: string,
+  versionText: string,
+  stats: Pick<DraftDiffFieldSummary, 'addedLineCount' | 'removedLineCount' | 'changedLineCount'>
+) {
+  if (label === '主题') {
+    if (!currentText) return `主题将恢复为「${versionText || '-'}」`;
+    if (!versionText) return `主题将被清空`;
+    return `主题将从「${truncateText(currentText, 32)}」恢复为「${truncateText(versionText, 32)}」`;
+  }
+
+  return `${label}：${formatDraftDiffLineStats(stats)}`;
+}
+
+function formatDraftDiffLineStats(
+  stats: Pick<DraftDiffFieldSummary, 'addedLineCount' | 'removedLineCount' | 'changedLineCount'>
+) {
+  const parts: string[] = [];
+
+  if (stats.addedLineCount > 0) parts.push(`新增 ${stats.addedLineCount} 行`);
+  if (stats.removedLineCount > 0) parts.push(`删除 ${stats.removedLineCount} 行`);
+  if (stats.changedLineCount > 0) parts.push(`改 ${stats.changedLineCount} 行`);
+
+  return parts.length ? parts.join('，') : '内容已调整';
+}
+
+function getDraftDiffChangeType(
+  currentLineCount: number,
+  versionLineCount: number,
+  changedLineCount: number
+): DraftDiffChangeType {
+  if (currentLineCount === 0 && versionLineCount > 0) return 'added';
+  if (currentLineCount > 0 && versionLineCount === 0) return 'removed';
+  if (changedLineCount > 0) return 'modified';
+  return versionLineCount > currentLineCount ? 'added' : 'removed';
+}
+
+function normalizeDraftDiffText(value: string) {
+  return value.replace(/\r\n?/g, '\n').trim();
+}
+
+function splitDraftDiffLines(value: string) {
+  if (!value) return [];
+  return value.split('\n');
 }
 
 /** Summarize the row checklist for dense table scanning. */

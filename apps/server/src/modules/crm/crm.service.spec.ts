@@ -1525,6 +1525,168 @@ describe('CrmService', () => {
     assert.equal(metadata?.personaProfileId, 'persona-procurement');
   });
 
+  it('explains organization persona profile matches by contact title keyword', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          title: 'Head of Procurement',
+          emailStatus: 'valid'
+        })
+      ],
+      personaProfiles: [
+        createPersonaProfile({
+          id: 'persona-procurement',
+          name: 'Procurement lead',
+          titleKeywordsText: 'procurement',
+          customerTypeKeywordsText: 'distributor'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext());
+
+    assert.deepEqual(result.item.personaMatch, {
+      persona: {
+        id: 'persona-procurement',
+        name: 'Procurement lead',
+        source: 'organization'
+      },
+      matchMethod: 'title',
+      matchedKeywords: ['procurement'],
+      fallbackReason: null
+    });
+    assert.match(
+      result.item.checklist.find(item => item.key === 'persona_focus')?.message ?? '',
+      /职位关键词 procurement/
+    );
+  });
+
+  it('explains organization persona profile matches by account customer type keyword', async () => {
+    const store = createStore(
+      [createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready', customerType: 'Industrial Distributor' })],
+      {
+        contacts: [
+          createContact({
+            id: 'contact-1',
+            accountId: 'account-1',
+            title: 'Operations Assistant',
+            emailStatus: 'valid'
+          })
+        ],
+        personaProfiles: [
+          createPersonaProfile({
+            id: 'persona-distributor',
+            name: 'Distributor buyer',
+            titleKeywordsText: 'procurement',
+            customerTypeKeywordsText: 'distributor'
+          })
+        ]
+      }
+    );
+    const service = new CrmService(store);
+
+    const result = await service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext());
+
+    assert.deepEqual(result.item.personaMatch, {
+      persona: {
+        id: 'persona-distributor',
+        name: 'Distributor buyer',
+        source: 'organization'
+      },
+      matchMethod: 'customer_type',
+      matchedKeywords: ['distributor'],
+      fallbackReason: null
+    });
+  });
+
+  it('explains default persona profile fallback when keywords do not match', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          title: 'Warehouse Coordinator',
+          emailStatus: 'valid'
+        })
+      ],
+      personaProfiles: [
+        createPersonaProfile({
+          id: 'persona-default',
+          name: 'General buyer',
+          titleKeywordsText: 'procurement',
+          customerTypeKeywordsText: 'distributor',
+          isDefault: true
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext());
+
+    assert.deepEqual(result.item.personaMatch, {
+      persona: {
+        id: 'persona-default',
+        name: 'General buyer',
+        source: 'organization'
+      },
+      matchMethod: 'default',
+      matchedKeywords: [],
+      fallbackReason: '未命中职位或客户类型关键词，使用默认画像'
+    });
+  });
+
+  it('explains built-in persona fallback and no-persona fallback when organization profiles are absent', async () => {
+    const builtInStore = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          title: 'Purchasing Manager',
+          emailStatus: 'valid'
+        })
+      ]
+    });
+    const noPersonaStore = createStore([createAccount({ id: 'account-2', name: 'XYZ Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-2',
+          accountId: 'account-2',
+          title: 'Warehouse Coordinator',
+          emailStatus: 'valid'
+        })
+      ]
+    });
+
+    const builtInResult = await new CrmService(builtInStore).createSequenceReviewItem(
+      { accountId: 'account-1', contactId: 'contact-1' },
+      createContext()
+    );
+    const noPersonaResult = await new CrmService(noPersonaStore).createSequenceReviewItem(
+      { accountId: 'account-2', contactId: 'contact-2' },
+      createContext()
+    );
+
+    assert.deepEqual(builtInResult.item.personaMatch, {
+      persona: {
+        id: null,
+        name: 'Purchasing Manager',
+        source: 'builtin'
+      },
+      matchMethod: 'builtin',
+      matchedKeywords: ['purchasing manager'],
+      fallbackReason: '未配置或未命中组织画像，使用内置职位画像'
+    });
+    assert.deepEqual(noPersonaResult.item.personaMatch, {
+      persona: null,
+      matchMethod: 'none',
+      matchedKeywords: [],
+      fallbackReason: '未命中组织画像或内置职位画像，按通用开发信生成'
+    });
+  });
+
   it('creates first draft review items with scoped resources and sanitized logs', async () => {
     const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
       contacts: [
@@ -1571,7 +1733,7 @@ describe('CrmService', () => {
         key: 'persona_focus',
         label: '职位画像',
         passed: true,
-        message: '已匹配 Purchasing Manager：价格、MOQ、交期、付款方式'
+        message: '已匹配 Purchasing Manager：未配置或未命中组织画像，使用内置职位画像'
       }
     );
     assert.equal(store.accounts[0].status, 'manual_review_pending');
@@ -1875,6 +2037,35 @@ describe('CrmService', () => {
       result.records[0].checklist.every(item => item.passed),
       true
     );
+  });
+
+  it('lists local strategy stats with owner scope for members', async () => {
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
+      messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1', status: 'draft_pending_review' })]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.listStrategyStats(createContext());
+
+    assert.deepEqual(store.lastStrategyStatsArgs, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.equal(result.rows.template[0].sequenceCount, 1);
+    assert.equal(result.rows.template[0].draftPendingCount, 1);
+  });
+
+  it('lists local strategy stats with organization scope for admins', async () => {
+    const store = createStore();
+    const service = new CrmService(store);
+
+    await service.listStrategyStats(createContext({ organizationRole: 'admin' }));
+
+    assert.deepEqual(store.lastStrategyStatsArgs, {
+      organizationId: 'org-1'
+    });
   });
 
   it('updates and approves editable message drafts without sending them', async () => {
@@ -2392,6 +2583,92 @@ describe('CrmService', () => {
     assert.ok(store.messages.some(message => message.enrollmentId === 'enrollment-ready' && message.stepIndex === 2));
     assert.equal(store.messages.filter(message => message.enrollmentId === 'enrollment-blocked').length, 2);
     assert.equal(store.messages.filter(message => message.enrollmentId === 'enrollment-member').length, 1);
+  });
+
+  it('batch-approves only owner pending drafts and skips non-pending or member sequences', async () => {
+    const store = createStore(
+      [
+        createAccount({ id: 'account-owned', status: 'manual_review_pending' }),
+        createAccount({ id: 'account-ready', status: 'ready' }),
+        createAccount({ id: 'account-member', ownerUserId: 'user-2', status: 'manual_review_pending' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'contact-owned', accountId: 'account-owned' }),
+          createContact({ id: 'contact-ready', accountId: 'account-ready' }),
+          createContact({ id: 'contact-member', accountId: 'account-member', ownerUserId: 'user-2' })
+        ],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-owned',
+            accountId: 'account-owned',
+            contactId: 'contact-owned',
+            status: 'draft_review_pending'
+          }),
+          createEnrollment({
+            id: 'enrollment-ready',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            status: 'ready_to_send'
+          }),
+          createEnrollment({
+            id: 'enrollment-member',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            ownerUserId: 'user-2',
+            status: 'draft_review_pending'
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-owned',
+            accountId: 'account-owned',
+            contactId: 'contact-owned',
+            enrollmentId: 'enrollment-owned',
+            status: 'draft_pending_review'
+          }),
+          createMessage({
+            id: 'message-ready',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            enrollmentId: 'enrollment-ready',
+            status: 'draft_ready'
+          }),
+          createMessage({
+            id: 'message-member',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            enrollmentId: 'enrollment-member',
+            ownerUserId: 'user-2',
+            status: 'draft_pending_review'
+          })
+        ]
+      }
+    );
+    const queue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, queue);
+
+    const result = await service.batchApproveMessageDrafts(
+      { ids: ['enrollment-owned', 'enrollment-ready', 'enrollment-member'] },
+      createContext({ organizationRole: 'admin' })
+    );
+
+    assert.deepEqual(
+      result.results.map(item => [item.id, item.status]),
+      [
+        ['enrollment-owned', 'success'],
+        ['enrollment-ready', 'skipped'],
+        ['enrollment-member', 'skipped']
+      ]
+    );
+    assert.equal(result.successCount, 1);
+    assert.equal(result.skippedCount, 2);
+    assert.equal(result.failedCount, 0);
+    assert.equal(store.enrollments.find(item => item.id === 'enrollment-owned')?.status, 'ready_to_send');
+    assert.equal(store.messages.find(item => item.id === 'message-owned')?.status, 'draft_ready');
+    assert.equal(store.enrollments.find(item => item.id === 'enrollment-member')?.status, 'draft_review_pending');
+    assert.equal(store.messages.find(item => item.id === 'message-member')?.status, 'draft_pending_review');
+    assert.equal(queue.jobs.length, 0);
   });
 
   it('rejects admin attempts to edit or approve another member draft', async () => {
@@ -3334,6 +3611,7 @@ function createStore(
   lastSequencePolicyDetailArgs?: { id: string; organizationId: string };
   lastBlacklistListArgs?: Parameters<CrmStore['listBlacklistEntries']>[0];
   lastSequenceReviewListArgs?: Parameters<CrmStore['listSequenceReviewItems']>[0];
+  lastStrategyStatsArgs?: Parameters<CrmStore['listStrategyStats']>[0];
   lastSequenceReviewDetailArgs?: Parameters<CrmStore['getSequenceReviewItem']>[0];
   lastMessageDetailArgs?: Parameters<CrmStore['findMessageById']>[0];
 } {
@@ -4071,6 +4349,49 @@ function createStore(
       return {
         records: records.slice(args.skip, args.skip + args.take),
         total: records.length
+      };
+    },
+    async listStrategyStats(args) {
+      this.lastStrategyStatsArgs = args;
+      const rows: Awaited<ReturnType<CrmStore['listStrategyStats']>>['rows'] = {
+        template: [],
+        policy: [],
+        persona: [],
+        productLine: []
+      };
+      const scopedEnrollments = enrollments.filter(enrollment => {
+        if (enrollment.organizationId !== args.organizationId) return false;
+        if (args.ownerUserId && enrollment.ownerUserId !== args.ownerUserId) return false;
+        return true;
+      });
+
+      for (const enrollment of scopedEnrollments) {
+        const relatedMessages = messages.filter(message => message.enrollmentId === enrollment.id);
+        const statRows = [
+          getOrCreateTestStrategyStatRow(rows.template, 'template', 'default_template', '默认模板'),
+          getOrCreateTestStrategyStatRow(rows.policy, 'policy', enrollment.policyId ?? 'none', '未设置策略'),
+          getOrCreateTestStrategyStatRow(rows.persona, 'persona', 'unknown', '未匹配画像'),
+          getOrCreateTestStrategyStatRow(rows.productLine, 'productLine', enrollment.productLineId ?? 'none', '未设置产品线')
+        ];
+
+        for (const row of statRows) {
+          row.sequenceCount += 1;
+          if (enrollment.status === 'replied') row.repliedCount += 1;
+          if (enrollment.status === 'stopped') row.stoppedCount += 1;
+
+          for (const message of relatedMessages) {
+            if (message.status === 'draft_pending_review') row.draftPendingCount += 1;
+            if (message.status === 'draft_ready') row.readyCount += 1;
+            if (message.status === 'queued') row.queuedCount += 1;
+            if (message.status === 'sent') row.sentCount += 1;
+            if (message.status === 'failed') row.failedCount += 1;
+          }
+        }
+      }
+
+      return {
+        generatedAt: new Date('2026-06-20T08:00:00.000Z'),
+        rows
       };
     },
     async getSequenceReviewItem(args) {
@@ -5224,6 +5545,34 @@ function createMessage(input: Partial<TestMessage> = {}): TestMessage {
   };
 }
 
+function getOrCreateTestStrategyStatRow(
+  rows: TestStrategyStatRow[],
+  dimension: TestStrategyStatRow['dimension'],
+  key: string,
+  name: string
+): TestStrategyStatRow {
+  const existing = rows.find(row => row.key === key);
+
+  if (existing) return existing;
+
+  const row: TestStrategyStatRow = {
+    dimension,
+    key,
+    name,
+    sequenceCount: 0,
+    draftPendingCount: 0,
+    readyCount: 0,
+    queuedCount: 0,
+    sentCount: 0,
+    failedCount: 0,
+    repliedCount: 0,
+    stoppedCount: 0
+  };
+  rows.push(row);
+
+  return row;
+}
+
 function createDraftVersion(
   message: {
     id?: string;
@@ -5391,6 +5740,7 @@ type TestPersonaProfile = CrmPersonaProfileRecord;
 type TestSequencePolicy = CrmSequencePolicyRecord;
 type TestEnrollment = Awaited<ReturnType<CrmStore['createSequenceEnrollment']>>;
 type TestMessage = Awaited<ReturnType<CrmStore['createMessage']>>;
+type TestStrategyStatRow = Awaited<ReturnType<CrmStore['listStrategyStats']>>['rows']['template'][number];
 type TestDraftVersion = {
   id: string;
   organizationId: string;

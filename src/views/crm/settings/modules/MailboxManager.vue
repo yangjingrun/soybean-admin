@@ -12,6 +12,7 @@ import OrganizationPermissionCard from './OrganizationPermissionCard.vue';
 import PersonaProfileManager from './PersonaProfileManager.vue';
 import ProductLineManager from './ProductLineManager.vue';
 import SequencePolicyManager from './SequencePolicyManager.vue';
+import StrategyStatsPanel from './StrategyStatsPanel.vue';
 import { useMailboxTable } from './useMailboxTable';
 import { useTemplateDefaults } from './useTemplateDefaults';
 
@@ -71,6 +72,10 @@ const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults
 
       <NGi>
         <SequencePolicyManager />
+      </NGi>
+
+      <NGi>
+        <StrategyStatsPanel />
       </NGi>
 
       <NGi>

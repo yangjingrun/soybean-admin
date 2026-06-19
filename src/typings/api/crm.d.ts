@@ -436,6 +436,21 @@ declare namespace Api {
 
     type PersonaProfileList = Api.Common.PaginatingQueryRecord<PersonaProfileRecord>;
 
+    type PersonaMatchMethod = 'title' | 'customer_type' | 'default' | 'builtin' | 'none';
+
+    type PersonaMatchSource = 'organization' | 'builtin';
+
+    interface PersonaMatchInfo {
+      persona: {
+        id: string | null;
+        name: string;
+        source: PersonaMatchSource;
+      } | null;
+      matchMethod: PersonaMatchMethod;
+      matchedKeywords: string[];
+      fallbackReason: string | null;
+    }
+
     interface EmailTemplateStepRecord {
       id: string;
       organizationId: string;
@@ -591,6 +606,27 @@ declare namespace Api {
       personas: PersonaProfile[];
     }
 
+    type StrategyStatDimension = 'template' | 'policy' | 'persona' | 'productLine';
+
+    interface StrategyStatRow {
+      dimension: StrategyStatDimension;
+      key: string;
+      name: string;
+      sequenceCount: number;
+      draftPendingCount: number;
+      readyCount: number;
+      queuedCount: number;
+      sentCount: number;
+      failedCount: number;
+      repliedCount: number;
+      stoppedCount: number;
+    }
+
+    interface StrategyStats {
+      generatedAt: string;
+      rows: Record<StrategyStatDimension, StrategyStatRow[]>;
+    }
+
     interface SequenceEnrollmentRecord {
       id: string;
       organizationId: string;
@@ -734,6 +770,7 @@ declare namespace Api {
       messages: MessageRecord[];
       canOperateDraft: boolean;
       canControlSequence: boolean;
+      personaMatch: PersonaMatchInfo;
       checklist: SequenceReviewChecklistItem[];
     }
 

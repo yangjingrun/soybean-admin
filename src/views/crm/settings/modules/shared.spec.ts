@@ -5,6 +5,7 @@ import {
   buildMailboxOperationDetailItems,
   buildOperationLogDetailItems,
   buildOperationQueueDetailItems,
+  buildStrategyStatSections,
   buildOperationLogSummaryRows,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
@@ -215,6 +216,52 @@ describe('crm settings shared helpers', () => {
         { accountName: 'Acme', id: 'msg-queued', status: 'queued' }
       ]
     );
+  });
+
+  it('builds top local strategy stat sections for CRM settings', () => {
+    const sections = buildStrategyStatSections({
+      generatedAt: '2026-06-20T08:00:00.000Z',
+      rows: {
+        template: [
+          createStrategyStatRow({
+            dimension: 'template',
+            key: 'default_template',
+            name: '默认模板',
+            sequenceCount: 3,
+            draftPendingCount: 1
+          })
+        ],
+        policy: [
+          createStrategyStatRow({
+            dimension: 'policy',
+            key: 'policy-fast',
+            name: '快速跟进',
+            queuedCount: 2
+          })
+        ],
+        persona: [],
+        productLine: [
+          createStrategyStatRow({
+            dimension: 'productLine',
+            key: 'line-bearing',
+            name: '轴承',
+            sentCount: 4
+          })
+        ]
+      }
+    });
+
+    assert.deepEqual(
+      sections.map(section => [section.key, section.title, section.empty, section.rows[0]?.sequenceCount ?? 0]),
+      [
+        ['template', '模板效果', false, 3],
+        ['policy', '策略效果', false, 0],
+        ['persona', '画像效果', true, 0],
+        ['productLine', '产品线效果', false, 0]
+      ]
+    );
+    assert.equal(sections[1].rows[0].queuedCount, 2);
+    assert.equal(sections[3].rows[0].sentCount, 4);
   });
 
   it('builds queue operation detail rows without exposing message body', () => {
@@ -541,6 +588,12 @@ function createSequenceReviewItem(options: {
     firstMessage: null,
     mailbox: { maskedEmail: 'm***@example.com' } as Api.Crm.MailboxRecord,
     messages: options.messages,
+    personaMatch: {
+      persona: null,
+      matchMethod: 'none',
+      matchedKeywords: [],
+      fallbackReason: null
+    },
     policy: null,
     productLine: null
   };
@@ -658,6 +711,23 @@ function createPersonaProfile(): Api.Crm.PersonaProfileRecord {
     createdByName: 'Alice',
     createdAt: '2026-06-18T09:00:00.000Z',
     updatedAt: '2026-06-18T09:00:00.000Z'
+  };
+}
+
+function createStrategyStatRow(input: Partial<Api.Crm.StrategyStatRow> = {}): Api.Crm.StrategyStatRow {
+  return {
+    dimension: 'template',
+    key: 'default_template',
+    name: '默认模板',
+    sequenceCount: 0,
+    draftPendingCount: 0,
+    readyCount: 0,
+    queuedCount: 0,
+    sentCount: 0,
+    failedCount: 0,
+    repliedCount: 0,
+    stoppedCount: 0,
+    ...input
   };
 }
 

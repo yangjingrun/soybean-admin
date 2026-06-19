@@ -807,6 +807,34 @@ describe('CrmController', () => {
     );
   });
 
+  it('lists local strategy stats with the current user context', async () => {
+    const calls: CrmUserContext[] = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async listStrategyStats(context) {
+          calls.push(context);
+
+          return {
+            generatedAt: new Date('2026-06-20T08:00:00.000Z'),
+            rows: {
+              template: [],
+              policy: [],
+              persona: [],
+              productLine: []
+            }
+          };
+        }
+      })
+    );
+
+    const result = await controller.listStrategyStats('Bearer token');
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].userId, 'user-1');
+    assert.deepEqual(Object.keys(result.data.rows), ['template', 'policy', 'persona', 'productLine']);
+  });
+
   it('updates, approves, starts and stops message drafts with the current user context', async () => {
     const calls: Array<{ action: string; id: string; payload?: unknown; context: CrmUserContext }> = [];
     const controller = new CrmController(
@@ -952,6 +980,11 @@ describe('CrmController', () => {
 
           return batchResult;
         },
+        async batchApproveMessageDrafts(dto, context) {
+          calls.push({ action: 'batch-approve-draft', ids: dto.ids, context });
+
+          return batchResult;
+        },
         async batchStopSequenceEnrollments(dto, context) {
           calls.push({ action: 'batch-stop', ids: dto.ids, context });
 
@@ -963,16 +996,21 @@ describe('CrmController', () => {
     const generated = await controller.batchGenerateNextDrafts('Bearer token', {
       ids: ['enrollment-1', 'enrollment-2']
     });
+    const approved = await controller.batchApproveMessageDrafts('Bearer token', {
+      ids: ['enrollment-1', 'enrollment-2']
+    });
     const stopped = await controller.batchStopSequenceEnrollments('Bearer token', {
       ids: ['enrollment-1', 'enrollment-2']
     });
 
     assert.equal(generated.data.successCount, 1);
+    assert.equal(approved.data.successCount, 1);
     assert.equal(stopped.data.skippedCount, 1);
     assert.deepEqual(
       calls.map(call => [call.action, call.ids, call.context.userId]),
       [
         ['batch-generate-next-draft', ['enrollment-1', 'enrollment-2'], 'user-1'],
+        ['batch-approve-draft', ['enrollment-1', 'enrollment-2'], 'user-1'],
         ['batch-stop', ['enrollment-1', 'enrollment-2'], 'user-1']
       ]
     );
@@ -1572,6 +1610,12 @@ function createSequenceReviewItemView(overrides: { id?: string } = {}): CrmSeque
     messages: [createMessageView()],
     canOperateDraft: true,
     canControlSequence: true,
+    personaMatch: {
+      persona: null,
+      matchMethod: 'none',
+      matchedKeywords: [],
+      fallbackReason: null
+    },
     checklist: [
       {
         key: 'draft_content',
@@ -1820,6 +1864,17 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     async getSequenceReviewItem() {
       return createSequenceReviewItemView();
     },
+    async listStrategyStats() {
+      return {
+        generatedAt: new Date('2026-06-20T08:00:00.000Z'),
+        rows: {
+          template: [],
+          policy: [],
+          persona: [],
+          productLine: []
+        }
+      };
+    },
     async updateMessageDraft() {
       return { message: createMessageView() };
     },
@@ -1833,6 +1888,9 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
       return createSendStartView();
     },
     async batchGenerateNextDrafts() {
+      return createSequenceBatchOperateView();
+    },
+    async batchApproveMessageDrafts() {
       return createSequenceBatchOperateView();
     },
     async stopSequenceEnrollment() {

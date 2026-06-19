@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDraftReviewOperationPayload,
+  buildDraftVersionDiffSummary,
   buildDraftVersionListItems,
   buildSequenceMessageTimelineItems,
   buildSequenceReviewSearchParams,
@@ -18,6 +19,7 @@ import {
   getSequenceProgressText,
   getSequenceSendAuditSummary,
   canGenerateNextSequenceDraft,
+  canApproveSequenceDraftInBatch,
   canStopSequenceInBatch,
   summarizeSequenceBatchSelection,
   normalizeSequenceCreatePayload
@@ -119,6 +121,12 @@ function createSequenceItem(
     messages,
     canOperateDraft: true,
     canControlSequence: true,
+    personaMatch: {
+      persona: null,
+      matchMethod: 'none',
+      matchedKeywords: [],
+      fallbackReason: null
+    },
     checklist: overrides.checklist ?? [
       {
         key: 'email',
@@ -277,6 +285,93 @@ describe('email sequence review shared helpers', () => {
         }
       ]
     );
+  });
+
+  it('summarizes subject changed draft version diffs', () => {
+    const summary = buildDraftVersionDiffSummary(
+      {
+        subject: 'Current subject',
+        bodyText: 'Same body'
+      },
+      {
+        subject: 'Saved subject',
+        bodyText: 'Same body'
+      }
+    );
+
+    assert.equal(summary.hasChanges, true);
+    assert.equal(summary.changedFieldCount, 1);
+    assert.equal(summary.addedLineCount, 0);
+    assert.equal(summary.removedLineCount, 0);
+    assert.equal(summary.changedLineCount, 1);
+    assert.deepEqual(
+      summary.fields.map(field => [field.key, field.changeType, field.summary]),
+      [['subject', 'modified', '主题将从「Current subject」恢复为「Saved subject」']]
+    );
+    assert.equal(summary.summaryText, '将恢复 1 项：改 1 行');
+  });
+
+  it('summarizes body changed draft version diffs', () => {
+    const summary = buildDraftVersionDiffSummary(
+      {
+        subject: 'Same subject',
+        bodyText: ['Hi Ali,', 'Current offer', 'Regards'].join('\n')
+      },
+      {
+        subject: 'Same subject',
+        bodyText: ['Hi Ali,', 'Saved offer', 'Regards', 'Catalog attached'].join('\n')
+      }
+    );
+
+    assert.equal(summary.hasChanges, true);
+    assert.equal(summary.changedFieldCount, 1);
+    assert.equal(summary.addedLineCount, 1);
+    assert.equal(summary.removedLineCount, 0);
+    assert.equal(summary.changedLineCount, 1);
+    assert.deepEqual(summary.previewLines, ['正文：新增 1 行，改 1 行']);
+    assert.equal(summary.summaryText, '将恢复 1 项：新增 1 行，改 1 行');
+  });
+
+  it('summarizes unchanged draft version diffs', () => {
+    const summary = buildDraftVersionDiffSummary(
+      {
+        subject: 'Same subject',
+        bodyText: 'Same body'
+      },
+      {
+        subject: 'Same subject',
+        bodyText: 'Same body'
+      }
+    );
+
+    assert.equal(summary.hasChanges, false);
+    assert.equal(summary.changedFieldCount, 0);
+    assert.equal(summary.addedLineCount, 0);
+    assert.equal(summary.removedLineCount, 0);
+    assert.equal(summary.changedLineCount, 0);
+    assert.deepEqual(summary.fields, []);
+    assert.equal(summary.summaryText, '与当前草稿一致');
+  });
+
+  it('summarizes empty current draft version diffs', () => {
+    const summary = buildDraftVersionDiffSummary(
+      {
+        subject: '',
+        bodyText: ''
+      },
+      {
+        subject: 'Saved subject',
+        bodyText: ['Line one', 'Line two'].join('\n')
+      }
+    );
+
+    assert.equal(summary.hasChanges, true);
+    assert.equal(summary.changedFieldCount, 2);
+    assert.equal(summary.addedLineCount, 3);
+    assert.equal(summary.removedLineCount, 0);
+    assert.equal(summary.changedLineCount, 0);
+    assert.deepEqual(summary.previewLines, ['主题：新增 1 行', '正文：新增 2 行']);
+    assert.equal(summary.summaryText, '将恢复 2 项：新增 3 行');
   });
 
   it('selects the current pending review message instead of always using the first message', () => {
@@ -540,6 +635,10 @@ describe('email sequence review shared helpers', () => {
   });
 
   it('summarizes selected rows for owner-only batch actions', () => {
+    const approvable = createSequenceItem({
+      enrollment: { id: 'enrollment-0', status: 'draft_review_pending' },
+      messages: [createMessage({ id: 'message-0', enrollmentId: 'enrollment-0', status: 'draft_pending_review' })]
+    });
     const generateReady = createSequenceItem({
       enrollment: { id: 'enrollment-1', status: 'sequence_running', totalSteps: 5 },
       messages: [createMessage({ id: 'message-1', status: 'sent', stepIndex: 1 })]
@@ -559,13 +658,17 @@ describe('email sequence review shared helpers', () => {
       messages: [createMessage({ id: 'message-4', enrollmentId: 'enrollment-4', status: 'sent' })]
     });
 
+    assert.equal(canApproveSequenceDraftInBatch(approvable), true);
+    assert.equal(canApproveSequenceDraftInBatch(adminVisibleMember), false);
+    assert.equal(canApproveSequenceDraftInBatch(terminal), false);
     assert.equal(canStopSequenceInBatch(stoppable), true);
     assert.equal(canStopSequenceInBatch(adminVisibleMember), false);
     assert.equal(canStopSequenceInBatch(terminal), false);
-    assert.deepEqual(summarizeSequenceBatchSelection([generateReady, stoppable, adminVisibleMember, terminal]), {
-      selectedCount: 4,
+    assert.deepEqual(summarizeSequenceBatchSelection([approvable, generateReady, stoppable, adminVisibleMember, terminal]), {
+      selectedCount: 5,
+      approveDraftCount: 1,
       generateNextDraftCount: 1,
-      stopCount: 2,
+      stopCount: 3,
       skippedCount: 2
     });
   });

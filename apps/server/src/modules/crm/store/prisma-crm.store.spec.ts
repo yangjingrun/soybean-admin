@@ -976,6 +976,34 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('aggregates local strategy stats from enrollments, messages and timeline metadata', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.listStrategyStats({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+
+    assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls.at(-1)?.where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmTimelineEvent.findManyCalls.at(-1)?.where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      eventType: { in: ['sequence_draft_generated', 'sequence_follow_up_draft_generated'] }
+    });
+    assert.equal(result.rows.template[0].key, 'default_template');
+    assert.equal(result.rows.template[0].sequenceCount, 1);
+    assert.equal(result.rows.policy[0].key, 'policy-1');
+    assert.equal(result.rows.policy[0].queuedCount, 1);
+    assert.equal(result.rows.productLine[0].key, 'product-line-1');
+    assert.equal(result.rows.productLine[0].sentCount, 1);
+    assert.equal(result.rows.persona[0].key, 'persona-procurement');
+    assert.equal(result.rows.persona[0].draftPendingCount, 1);
+  });
+
   it('finds active enrollments and updates draft messages through scoped identities', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -2762,6 +2790,26 @@ function createPrisma(
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
         this.findManyCalls.push(args);
+        if (args.where.eventType) {
+          return [
+            {
+              id: 'event-persona-1',
+              organizationId: 'org-1',
+              accountId: 'account-1',
+              contactId: 'contact-1',
+              ownerUserId: 'user-1',
+              eventType: 'sequence_draft_generated',
+              title: '生成首封开发信草稿',
+              content: null,
+              metadata: {
+                enrollmentId: 'enrollment-1',
+                personaProfileId: 'persona-procurement',
+                personaProfileName: '采购负责人'
+              },
+              createdAt: new Date('2026-06-18T10:00:00.000Z')
+            }
+          ];
+        }
         return [
           {
             id: 'event-1',
@@ -2979,8 +3027,8 @@ function createPrisma(
       findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
         where: Record<string, unknown>;
-        skip: number;
-        take: number;
+        skip?: number;
+        take?: number;
         orderBy: Record<string, unknown>;
         include: Record<string, unknown>;
       }>,
@@ -3019,12 +3067,26 @@ function createPrisma(
       },
       async findMany(args: {
         where: Record<string, unknown>;
-        skip: number;
-        take: number;
+        skip?: number;
+        take?: number;
         orderBy: Record<string, unknown>;
         include: Record<string, unknown>;
       }) {
         this.findManyCalls.push(args);
+        if (args.skip === undefined) {
+          return [
+            {
+              ...enrollment,
+              policyId: 'policy-1',
+              policy: sequencePolicy,
+              messages: [
+                createPrismaMessage({ id: 'message-draft', status: 'draft_pending_review' }),
+                createPrismaMessage({ id: 'message-queued', status: 'queued' }),
+                createPrismaMessage({ id: 'message-sent', status: 'sent' })
+              ]
+            }
+          ];
+        }
         return [enrollment];
       },
       async count() {

@@ -6,6 +6,7 @@ import {
   formatNullableText,
   formatSequenceDate,
   buildDraftReviewOperationPayload,
+  buildDraftVersionDiffSummary,
   buildDraftVersionListItems,
   buildSequenceMessageTimelineItems,
   buildSequencePolicyReviewHints,
@@ -77,6 +78,37 @@ const canEdit = computed(() => {
 });
 const canApprove = computed(() => canOperateSelectedDraft.value);
 const draftVersionItems = computed(() => buildDraftVersionListItems(props.versions ?? []));
+const selectedDraftVersionId = shallowRef<string | null>(null);
+const hoveredDraftVersionId = shallowRef<string | null>(null);
+const draftVersionRecordMap = computed(() => {
+  return new Map((props.versions ?? []).map(version => [version.id, version]));
+});
+const activeDraftVersionId = computed(
+  () => hoveredDraftVersionId.value ?? selectedDraftVersionId.value ?? draftVersionItems.value[0]?.id ?? null
+);
+const draftVersionPreviewItems = computed(() =>
+  draftVersionItems.value.map(version => {
+    const record = draftVersionRecordMap.value.get(version.id);
+
+    return {
+      ...version,
+      diff: record
+        ? buildDraftVersionDiffSummary(
+            {
+              subject: draftForm.subject,
+              bodyText: draftForm.bodyText
+            },
+            record
+          )
+        : null,
+      record: record ?? null,
+      selected: version.id === activeDraftVersionId.value
+    };
+  })
+);
+const activeDraftVersionPreview = computed(
+  () => draftVersionPreviewItems.value.find(version => version.id === activeDraftVersionId.value) ?? null
+);
 const canStartSend = computed(() =>
   Boolean(
     props.item?.canOperateDraft &&
@@ -89,6 +121,47 @@ const canGenerateNextDraft = computed(() => Boolean(props.item && canGenerateNex
 const policyReviewHints = computed(() =>
   props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
 );
+const personaMatchMethodLabelMap: Record<Api.Crm.PersonaMatchMethod, string> = {
+  title: '职位关键词',
+  customer_type: '客户类型关键词',
+  default: '默认画像',
+  builtin: '内置画像',
+  none: '未匹配'
+};
+const personaMatchSourceLabelMap: Record<Api.Crm.PersonaMatchSource, string> = {
+  organization: '组织画像',
+  builtin: '内置画像'
+};
+const personaMatchRows = computed(() => {
+  const match = props.item?.personaMatch;
+
+  if (!match) return [];
+
+  return [
+    {
+      key: 'persona',
+      label: '使用画像',
+      value: match.persona
+        ? `${match.persona.name}（${personaMatchSourceLabelMap[match.persona.source]}）`
+        : '通用开发信'
+    },
+    {
+      key: 'method',
+      label: '匹配方式',
+      value: personaMatchMethodLabelMap[match.matchMethod]
+    },
+    {
+      key: 'keywords',
+      label: '命中关键词',
+      value: match.matchedKeywords.length ? match.matchedKeywords.join('、') : '-'
+    },
+    {
+      key: 'reason',
+      label: '使用原因',
+      value: match.fallbackReason || '命中关键词后使用该画像生成草稿'
+    }
+  ];
+});
 const canRefreshSequence = computed(() =>
   Boolean(props.item && ['sequence_running', 'paused', 'stopped'].includes(props.item.enrollment.status))
 );
@@ -130,8 +203,25 @@ watch(
   () => {
     draftForm.subject = currentMessage.value?.subject ?? '';
     draftForm.bodyText = currentMessage.value?.bodyText ?? '';
+    selectedDraftVersionId.value = null;
+    hoveredDraftVersionId.value = null;
   },
   { immediate: true }
+);
+
+watch(
+  () => draftVersionItems.value.map(version => version.id).join('|'),
+  () => {
+    const versionIds = new Set(draftVersionItems.value.map(version => version.id));
+
+    if (selectedDraftVersionId.value && !versionIds.has(selectedDraftVersionId.value)) {
+      selectedDraftVersionId.value = null;
+    }
+
+    if (hoveredDraftVersionId.value && !versionIds.has(hoveredDraftVersionId.value)) {
+      hoveredDraftVersionId.value = null;
+    }
+  }
 );
 
 watch(
@@ -176,6 +266,10 @@ function handleApprove() {
   }
 
   emit('approveDraft', { messageId });
+}
+
+function handleSelectDraftVersion(versionId: string) {
+  selectedDraftVersionId.value = versionId;
 }
 
 function handleRestoreVersion(versionId: string) {
@@ -254,6 +348,18 @@ function handleRestoreVersion(versionId: string) {
           <SendAuditPanel :item="item" :current-message="currentMessage" />
 
           <NDescriptions
+            v-if="personaMatchRows.length"
+            :column="1"
+            bordered
+            size="small"
+            label-placement="left"
+          >
+            <NDescriptionsItem v-for="row in personaMatchRows" :key="row.key" :label="row.label">
+              <span class="persona-match-text">{{ row.value }}</span>
+            </NDescriptionsItem>
+          </NDescriptions>
+
+          <NDescriptions
             v-if="policyReviewHints.length"
             :column="1"
             bordered
@@ -293,14 +399,26 @@ function handleRestoreVersion(versionId: string) {
           <div class="drawer-section">
             <div class="section-title">历史版本</div>
             <NSpin :show="versionLoading">
-              <NSpace v-if="draftVersionItems.length" vertical :size="8">
-                <div v-for="version in draftVersionItems" :key="version.id" class="draft-version-row">
+              <NSpace v-if="draftVersionPreviewItems.length" vertical :size="8">
+                <div
+                  v-for="version in draftVersionPreviewItems"
+                  :key="version.id"
+                  class="draft-version-row"
+                  :class="{ 'draft-version-row--selected': version.selected }"
+                  role="button"
+                  tabindex="0"
+                  @click="handleSelectDraftVersion(version.id)"
+                  @keydown.enter.prevent="handleSelectDraftVersion(version.id)"
+                  @mouseenter="hoveredDraftVersionId = version.id"
+                  @mouseleave="hoveredDraftVersionId = null"
+                >
                   <div class="draft-version-main">
                     <NSpace align="center" :size="8">
                       <NTag size="small" :bordered="false" type="info">{{ version.versionLabel }}</NTag>
                       <span class="draft-version-time">{{ version.createdAtText }}</span>
                     </NSpace>
                     <div class="draft-version-subject">{{ version.subjectSummary }}</div>
+                    <div class="draft-version-diff">{{ version.diff?.summaryText }}</div>
                     <div class="draft-version-editor">编辑人：{{ version.editorName }}</div>
                   </div>
                   <NPopconfirm positive-text="恢复" negative-text="取消" @positive-click="handleRestoreVersion(version.id)">
@@ -314,8 +432,34 @@ function handleRestoreVersion(versionId: string) {
                         恢复
                       </NButton>
                     </template>
-                    恢复后会覆盖当前待审草稿内容。
+                    <div class="restore-confirm">
+                      <div>恢复后会覆盖当前待审草稿内容。</div>
+                      <div class="restore-confirm-diff">{{ version.diff?.summaryText }}</div>
+                      <div class="restore-confirm-label">将恢复主题</div>
+                      <div class="restore-confirm-subject">{{ version.record?.subject || '-' }}</div>
+                      <div class="restore-confirm-label">将恢复正文</div>
+                      <pre class="restore-confirm-body">{{ version.record?.bodyText || '-' }}</pre>
+                    </div>
                   </NPopconfirm>
+                </div>
+                <div v-if="activeDraftVersionPreview" class="draft-version-preview">
+                  <div class="draft-version-preview-header">
+                    <span>{{ activeDraftVersionPreview.versionLabel }} 对比当前草稿</span>
+                    <NTag
+                      size="small"
+                      :bordered="false"
+                      :type="activeDraftVersionPreview.diff?.hasChanges ? 'warning' : 'success'"
+                    >
+                      {{ activeDraftVersionPreview.diff?.summaryText }}
+                    </NTag>
+                  </div>
+                  <div v-if="activeDraftVersionPreview.diff?.previewLines.length" class="draft-version-preview-lines">
+                    <span v-for="line in activeDraftVersionPreview.diff.previewLines" :key="line">{{ line }}</span>
+                  </div>
+                  <div class="draft-version-preview-label">恢复后主题</div>
+                  <div class="draft-version-preview-subject">{{ activeDraftVersionPreview.record?.subject || '-' }}</div>
+                  <div class="draft-version-preview-label">恢复后正文</div>
+                  <pre class="draft-version-preview-body">{{ activeDraftVersionPreview.record?.bodyText || '-' }}</pre>
                 </div>
               </NSpace>
               <NEmpty v-else description="暂无历史版本" />
@@ -453,6 +597,11 @@ function handleRestoreVersion(versionId: string) {
   font-size: 12px;
 }
 
+.persona-match-text {
+  color: var(--n-text-color-2);
+  font-size: 12px;
+}
+
 .section-title {
   color: var(--n-text-color);
   font-size: 14px;
@@ -529,6 +678,16 @@ function handleRestoreVersion(versionId: string) {
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
   padding: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.draft-version-row:hover,
+.draft-version-row--selected {
+  border-color: var(--n-primary-color);
+  box-shadow: 0 0 0 1px var(--n-primary-color);
 }
 
 .draft-version-main {
@@ -548,5 +707,83 @@ function handleRestoreVersion(versionId: string) {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.draft-version-diff {
+  margin-top: 4px;
+  color: var(--n-warning-color);
+  font-size: 12px;
+}
+
+.draft-version-preview {
+  display: flex;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background: var(--n-table-color);
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.draft-version-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--n-text-color);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.draft-version-preview-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--n-text-color-2);
+  font-size: 12px;
+}
+
+.draft-version-preview-label,
+.restore-confirm-label {
+  color: var(--n-text-color-3);
+  font-size: 12px;
+}
+
+.draft-version-preview-subject,
+.restore-confirm-subject {
+  color: var(--n-text-color);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.draft-version-preview-body,
+.restore-confirm-body {
+  overflow: auto;
+  max-height: 180px;
+  margin: 0;
+  border: 1px solid var(--n-border-color);
+  border-radius: 6px;
+  background: var(--n-color);
+  color: var(--n-text-color-2);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.restore-confirm {
+  display: flex;
+  width: 320px;
+  max-width: 70vw;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.restore-confirm-diff {
+  color: var(--n-warning-color);
+  font-size: 12px;
 }
 </style>

@@ -294,6 +294,11 @@ export class CrmController {
     return ok(await this.crmService.getTemplateDefaults(this.requireUserContext(authorization)));
   }
 
+  @Get('strategy-stats')
+  async listStrategyStats(@Headers('authorization') authorization = '') {
+    return ok(await this.crmService.listStrategyStats(this.requireUserContext(authorization)));
+  }
+
   @Get('sequence-policies')
   async listSequencePolicies(@Headers('authorization') authorization = '', @Query() query: CrmSequencePolicyQueryDto) {
     return ok(await this.crmService.listSequencePolicies(this.requireUserContext(authorization), query));
@@ -350,6 +355,14 @@ export class CrmController {
     @Body() dto: BatchCrmSequenceReviewItemsDto
   ) {
     return ok(await this.crmService.batchGenerateNextDrafts(dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('sequence-review-items/batch-approve-draft')
+  async batchApproveMessageDrafts(
+    @Headers('authorization') authorization = '',
+    @Body() dto: BatchCrmSequenceReviewItemsDto
+  ) {
+    return ok(await this.crmService.batchApproveMessageDrafts(dto, this.requireUserContext(authorization)));
   }
 
   @Post('sequence-review-items/batch-stop')

@@ -351,6 +351,14 @@ export function fetchCrmTemplateDefaults() {
   });
 }
 
+/** Read local CRM sequence funnel stats grouped by strategy dimensions. */
+export function fetchCrmStrategyStats() {
+  return request<Api.Crm.StrategyStats>({
+    url: '/crm/strategy-stats',
+    method: 'get'
+  });
+}
+
 /** List sequence review items by filters and pagination. */
 export function fetchCrmSequenceReviewItems(params: Api.Crm.SequenceReviewSearchParams) {
   return request<Api.Crm.SequenceReviewList>({
@@ -422,6 +430,15 @@ export function generateCrmNextSequenceDraft(enrollmentId: string) {
 export function batchGenerateCrmNextSequenceDrafts(data: Api.Crm.SequenceReviewBatchPayload) {
   return request<Api.Crm.SequenceBatchOperateResult>({
     url: '/crm/sequence-review-items/batch-generate-next-draft',
+    method: 'post',
+    data
+  });
+}
+
+/** Confirm selected owner drafts locally without queueing Gmail sends. */
+export function batchApproveCrmMessageDrafts(data: Api.Crm.SequenceReviewBatchPayload) {
+  return request<Api.Crm.SequenceBatchOperateResult>({
+    url: '/crm/sequence-review-items/batch-approve-draft',
     method: 'post',
     data
   });
