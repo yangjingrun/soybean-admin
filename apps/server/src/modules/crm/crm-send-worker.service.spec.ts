@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import type {
   CrmAccountRecord,
@@ -85,6 +86,48 @@ describe('CrmSendWorkerService', () => {
     await assert.rejects(() => worker.processSendJob(createJob()), /gmail unavailable/);
     assert.equal(store.failed[0].reason, 'gmail unavailable');
   });
+
+  it('marks mailbox auth expired and notifies owner when Gmail send rejects authorization', async () => {
+    const store = createWorkerStore({
+      enrollment: createEnrollment({ status: 'sequence_running' }),
+      message: createMessage({ status: 'queued' }),
+      mailbox: createMailbox({ status: 'active', ownerUserName: 'Alice' })
+    });
+    const notifications = createNotificationRecorder();
+    const worker = new CrmSendWorkerService(
+      store as never,
+      createGateway(new CrmGmailAuthorizationExpiredError('invalid_grant')),
+      notifications.service as never
+    );
+
+    await assert.rejects(() => worker.processSendJob(createJob()), CrmGmailAuthorizationExpiredError);
+
+    assert.equal(store.failed.length, 0);
+    assert.deepEqual(store.authExpired[0], {
+      mailboxId: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      reason: 'invalid_grant',
+      expiredAt: store.authExpired[0].expiredAt
+    });
+    assert.deepEqual(notifications.records[0], {
+      userId: 'user-1',
+      userName: 'Alice',
+      module: 'crm',
+      type: 'crm_mailbox_auth_expired',
+      title: 'Gmail 授权已失效',
+      content: 'a***@gmail.com 授权已失效，已暂停该邮箱待发送邮件，请重新授权后再继续发送。',
+      targetType: 'crmMailbox',
+      targetId: 'mailbox-1',
+      routePath: '/crm/settings',
+      metadata: {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        provider: 'gmail',
+        maskedEmail: 'a***@gmail.com'
+      }
+    });
+  });
 });
 
 interface WorkerStoreInput extends Partial<CrmSequenceReviewRecord> {
@@ -103,11 +146,19 @@ function createWorkerStore(input: WorkerStoreInput, options: { claimResult?: Crm
   const completed: Parameters<CrmStore['completeFirstMessageSend']>[0][] = [];
   const failed: Parameters<CrmStore['failFirstMessageSend']>[0][] = [];
   const claims: Parameters<CrmStore['claimFirstMessageSendDelivery']>[0][] = [];
+  const authExpired: Array<{
+    mailboxId: string;
+    organizationId: string;
+    ownerUserId: string;
+    reason: string;
+    expiredAt: Date;
+  }> = [];
 
   return {
     completed,
     failed,
     claims,
+    authExpired,
     async getSequenceReviewItem() {
       return item;
     },
@@ -147,11 +198,27 @@ function createWorkerStore(input: WorkerStoreInput, options: { claimResult?: Crm
     async failFirstMessageSend(args) {
       failed.push(args);
       return null;
+    },
+    async markMailboxAuthorizationExpired(args) {
+      authExpired.push(args);
+      return {
+        mailbox: createMailbox({
+          id: args.mailboxId,
+          organizationId: args.organizationId,
+          ownerUserId: args.ownerUserId,
+          status: 'auth_expired',
+          pausedAt: args.expiredAt,
+          watchExpiration: null
+        }),
+        pausedEnrollmentCount: 1,
+        resetMessageCount: 1
+      };
     }
   } satisfies Partial<CrmStore> & {
     completed: Parameters<CrmStore['completeFirstMessageSend']>[0][];
     failed: Parameters<CrmStore['failFirstMessageSend']>[0][];
     claims: Parameters<CrmStore['claimFirstMessageSendDelivery']>[0][];
+    authExpired: typeof authExpired;
   };
 }
 
@@ -173,6 +240,20 @@ function createGateway(error?: Error): CrmEmailSendGateway & { calls: Parameters
     },
     async replyPlainText(input) {
       return { providerMessageId: `mock:reply:${input.thread.id}` };
+    }
+  };
+}
+
+function createNotificationRecorder() {
+  const records: unknown[] = [];
+
+  return {
+    records,
+    service: {
+      async create(input: unknown) {
+        records.push(input);
+        return input;
+      }
     }
   };
 }

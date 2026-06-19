@@ -1,12 +1,17 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { SystemNotificationService } from '../system-notification/system-notification.service';
+import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_STORE } from './crm.tokens';
-import type { CrmEmailSendGateway, CrmSendQueueJob, CrmStore } from './crm.types';
+import type { CrmEmailSendGateway, CrmMailboxRecord, CrmSendQueueJob, CrmStore } from './crm.types';
 
 @Injectable()
 export class CrmSendWorkerService {
   constructor(
     @Inject(CRM_STORE) private readonly store: CrmStore,
-    @Inject(CRM_EMAIL_SEND_GATEWAY) private readonly sendGateway: CrmEmailSendGateway
+    @Inject(CRM_EMAIL_SEND_GATEWAY) private readonly sendGateway: CrmEmailSendGateway,
+    @Optional()
+    @Inject(SystemNotificationService)
+    private readonly systemNotificationService?: SystemNotificationService
   ) {}
 
   /** Processes one queued CRM email with persisted guards before mock/real sending. */
@@ -39,6 +44,11 @@ export class CrmSendWorkerService {
         providerThreadId: sent.providerThreadId ?? null
       });
     } catch (error) {
+      if (error instanceof CrmGmailAuthorizationExpiredError) {
+        await this.markMailboxAuthorizationExpired(item.mailbox, job, error);
+        throw error;
+      }
+
       await this.store.failFirstMessageSend({
         enrollmentId: job.enrollmentId,
         messageId: job.messageId,
@@ -49,5 +59,41 @@ export class CrmSendWorkerService {
       });
       throw error;
     }
+  }
+
+  private async markMailboxAuthorizationExpired(
+    mailbox: CrmMailboxRecord,
+    job: CrmSendQueueJob,
+    error: CrmGmailAuthorizationExpiredError
+  ) {
+    const result = await this.store.markMailboxAuthorizationExpired({
+      mailboxId: mailbox.id,
+      organizationId: job.organizationId,
+      ownerUserId: job.ownerUserId,
+      reason: error.message,
+      expiredAt: new Date()
+    });
+
+    if (!result) {
+      return;
+    }
+
+    await this.systemNotificationService?.create({
+      userId: result.mailbox.ownerUserId,
+      userName: result.mailbox.ownerUserName,
+      module: 'crm',
+      type: 'crm_mailbox_auth_expired',
+      title: 'Gmail 授权已失效',
+      content: `${result.mailbox.maskedEmail} 授权已失效，已暂停该邮箱待发送邮件，请重新授权后再继续发送。`,
+      targetType: 'crmMailbox',
+      targetId: result.mailbox.id,
+      routePath: '/crm/settings',
+      metadata: {
+        organizationId: result.mailbox.organizationId,
+        mailboxId: result.mailbox.id,
+        provider: result.mailbox.provider,
+        maskedEmail: result.mailbox.maskedEmail
+      }
+    });
   }
 }

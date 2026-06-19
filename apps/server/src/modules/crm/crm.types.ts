@@ -674,6 +674,20 @@ export interface CrmSendFailureRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmMailboxAuthorizationExpiredInput {
+  mailboxId: string;
+  organizationId: string;
+  ownerUserId: string;
+  reason: string;
+  expiredAt: Date;
+}
+
+export interface CrmMailboxAuthorizationExpiredRecord {
+  mailbox: CrmMailboxRecord;
+  pausedEnrollmentCount: number;
+  resetMessageCount: number;
+}
+
 export interface CrmInboxMessageCreateInput {
   threadId: string;
   organizationId: string;
@@ -874,6 +888,9 @@ export interface CrmStore {
   stopSequenceEnrollment(input: CrmSequenceStopInput): Promise<CrmSequenceStopRecord | null>;
   completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null>;
   failFirstMessageSend(input: CrmSendFailureInput): Promise<CrmSendFailureRecord | null>;
+  markMailboxAuthorizationExpired(
+    input: CrmMailboxAuthorizationExpiredInput
+  ): Promise<CrmMailboxAuthorizationExpiredRecord | null>;
   advanceMailboxHistoryId(input: CrmMailboxHistoryAdvanceInput): Promise<CrmMailboxRecord | null>;
   ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null>;
   listInboxThreads(args: {

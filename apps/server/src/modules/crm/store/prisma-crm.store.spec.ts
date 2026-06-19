@@ -677,6 +677,61 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('marks Gmail mailbox auth expired and pauses pending sends for that mailbox', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const expiredAt = new Date('2026-06-18T10:50:00.000Z');
+
+    const result = await store.markMailboxAuthorizationExpired({
+      mailboxId: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      reason: 'invalid_grant',
+      expiredAt
+    });
+
+    assert.equal(result?.mailbox.status, 'auth_expired');
+    assert.equal(result?.pausedEnrollmentCount, 1);
+    assert.equal(result?.resetMessageCount, 1);
+    assert.deepEqual(prisma.crmMailbox.updateManyAndReturnCalls.at(-1), {
+      where: {
+        id: 'mailbox-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1'
+      },
+      data: {
+        status: 'auth_expired',
+        watchExpiration: null,
+        pausedAt: expiredAt
+      },
+      limit: 1
+    });
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        status: { in: ['ready_to_send', 'sequence_running'] }
+      },
+      data: {
+        status: 'paused',
+        runVersion: { increment: 1 }
+      }
+    });
+    assert.deepEqual(prisma.crmMessage.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        mailboxId: 'mailbox-1',
+        status: 'queued'
+      },
+      data: {
+        status: 'draft_ready',
+        bullJobId: null
+      }
+    });
+  });
+
   it('stops one sequence and skips queued first message with status guard', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1459,6 +1514,10 @@ function createPrisma() {
         data: Record<string, unknown>;
         limit: number;
       }>,
+      updateManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      }>,
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
         return message;
@@ -1480,6 +1539,10 @@ function createPrisma() {
       async updateManyAndReturn(args: { where: Record<string, unknown>; data: Record<string, unknown>; limit: number }) {
         this.updateManyAndReturnCalls.push(args);
         return [{ ...message, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') }];
+      },
+      async updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+        this.updateManyCalls.push(args);
+        return { count: 1 };
       }
     },
     crmInboxThread: {

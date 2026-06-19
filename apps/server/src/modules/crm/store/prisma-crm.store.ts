@@ -16,6 +16,8 @@ import type {
   CrmAccountStatus,
   CrmAccountUpdateInput,
   CrmMailboxCreateInput,
+  CrmMailboxAuthorizationExpiredInput,
+  CrmMailboxAuthorizationExpiredRecord,
   CrmMailboxProvider,
   CrmMailboxRecord,
   CrmMailboxStatus,
@@ -1046,6 +1048,64 @@ export class PrismaCrmStore implements CrmStore {
         message: toMessageRecord(message),
         account: toAccountRecord(account),
         event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async markMailboxAuthorizationExpired(
+    input: CrmMailboxAuthorizationExpiredInput
+  ): Promise<CrmMailboxAuthorizationExpiredRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const mailboxes = await tx.crmMailbox.updateManyAndReturn({
+        where: {
+          id: input.mailboxId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        },
+        data: {
+          status: 'auth_expired',
+          watchExpiration: null,
+          pausedAt: input.expiredAt
+        },
+        limit: 1
+      });
+      const mailbox = mailboxes[0];
+
+      if (!mailbox) {
+        return null;
+      }
+
+      const [pausedEnrollments, resetMessages] = await Promise.all([
+        tx.crmSequenceEnrollment.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            mailboxId: input.mailboxId,
+            status: { in: ['ready_to_send', 'sequence_running'] }
+          },
+          data: {
+            status: 'paused',
+            runVersion: { increment: 1 }
+          }
+        }),
+        tx.crmMessage.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            mailboxId: input.mailboxId,
+            status: 'queued'
+          },
+          data: {
+            status: 'draft_ready',
+            bullJobId: null
+          }
+        })
+      ]);
+
+      return {
+        mailbox: toMailboxRecord(mailbox),
+        pausedEnrollmentCount: pausedEnrollments.count,
+        resetMessageCount: resetMessages.count
       };
     });
   }

@@ -2307,6 +2307,60 @@ function createStore(
 
       return { enrollment, message, account, event };
     },
+    async markMailboxAuthorizationExpired(input) {
+      const mailbox = mailboxes.find(
+        item =>
+          item.id === input.mailboxId &&
+          item.organizationId === input.organizationId &&
+          item.ownerUserId === input.ownerUserId
+      );
+
+      if (!mailbox) return null;
+
+      Object.assign(mailbox, {
+        status: 'auth_expired',
+        watchExpiration: null,
+        pausedAt: input.expiredAt,
+        updatedAt: new Date('2026-06-18T10:00:00.000Z')
+      });
+
+      let pausedEnrollmentCount = 0;
+      let resetMessageCount = 0;
+
+      for (const enrollment of enrollments) {
+        if (
+          enrollment.organizationId === input.organizationId &&
+          enrollment.ownerUserId === input.ownerUserId &&
+          enrollment.mailboxId === input.mailboxId &&
+          ['ready_to_send', 'sequence_running'].includes(enrollment.status)
+        ) {
+          Object.assign(enrollment, {
+            status: 'paused',
+            runVersion: enrollment.runVersion + 1,
+            updatedAt: new Date('2026-06-18T10:00:00.000Z')
+          });
+          pausedEnrollmentCount += 1;
+        }
+      }
+
+      for (const message of messages) {
+        if (
+          message.organizationId === input.organizationId &&
+          message.ownerUserId === input.ownerUserId &&
+          message.mailboxId === input.mailboxId &&
+          message.status === 'queued'
+        ) {
+          Object.assign(message, {
+            status: 'draft_ready',
+            bullJobId: null,
+            updatedAt: new Date('2026-06-18T10:00:00.000Z')
+          });
+          resetMessageCount += 1;
+        }
+      }
+
+      return { mailbox, pausedEnrollmentCount, resetMessageCount };
+    },
     async advanceMailboxHistoryId(input) {
       const mailbox = mailboxes.find(
         item =>
