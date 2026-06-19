@@ -25,6 +25,7 @@ declare module "@elegant-router/types" {
     "ai-settings": "/ai-settings";
     "crm": "/crm";
     "crm_email-sequences": "/crm/email-sequences";
+    "crm_gmail-oauth-callback": "/crm/gmail-oauth-callback";
     "crm_inbox": "/crm/inbox";
     "crm_leads": "/crm/leads";
     "crm_settings": "/crm/settings";
@@ -101,6 +102,7 @@ declare module "@elegant-router/types" {
     | "ai-prompt-settings"
     | "ai-settings"
     | "crm_email-sequences"
+    | "crm_gmail-oauth-callback"
     | "crm_inbox"
     | "crm_leads"
     | "crm_settings"

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import type { SystemLogRecordInput, SystemLogRecorder } from '../system-log/system-log.types';
+import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gmail-oauth-flow';
 import { CrmService } from './crm.service';
 import type {
   CrmInboxMessageRecord,
@@ -462,6 +463,110 @@ describe('CrmService', () => {
       () => service.mockAuthorizeMailbox({ emailAddress: 'alice@example.com' }, createContext()),
       BadRequestException
     );
+  });
+
+  it('creates a Gmail OAuth URL bound to the current user context', () => {
+    const flow = createOAuthFlow();
+    const service = new CrmService(createStore(), undefined, undefined, undefined, undefined, undefined, flow);
+
+    const result = service.createGmailOAuthAuthorizationUrl(createContext());
+
+    assert.equal(result.authorizationUrl, 'https://accounts.google.com/o/oauth2/v2/auth?state=state-1');
+    assert.deepEqual(flow.createUrlCalls[0], {
+      organizationId: 'org-1',
+      userId: 'user-1'
+    });
+  });
+
+  it('completes Gmail OAuth authorization and stores only the encrypted refresh token', async () => {
+    const store = createStore();
+    const logs = createLogRecorder();
+    const flow = createOAuthFlow({
+      mailbox: {
+        emailAddress: 'Alice@Gmail.COM',
+        historyId: '1001',
+        encryptedRefreshToken: 'encrypted-refresh-token-1'
+      }
+    });
+    const service = new CrmService(store, undefined, logs.service, undefined, undefined, undefined, flow);
+
+    const result = await service.completeGmailOAuthAuthorization({ code: 'code-1', state: 'state-1' }, createContext());
+
+    assert.equal(result.mailbox.emailAddress, 'alice@gmail.com');
+    assert.equal(result.mailbox.lastHistoryId, '1001');
+    assert.equal('encryptedRefreshToken' in result.mailbox, false);
+    assert.equal(store.mailboxes[0].encryptedRefreshToken, 'encrypted-refresh-token-1');
+    assert.equal(flow.verifyStateCalls[0]?.state, 'state-1');
+    assert.deepEqual(flow.verifyStateCalls[0]?.context, { organizationId: 'org-1', userId: 'user-1' });
+    assert.equal(flow.exchangeCodeCalls[0], 'code-1');
+    assert.deepEqual(logs.records[0].metadata, {
+      organizationId: 'org-1',
+      mailboxId: 'mailbox-1',
+      provider: 'gmail',
+      maskedEmail: 'a***@gmail.com',
+      fromStatus: null,
+      toStatus: 'active'
+    });
+  });
+
+  it('updates the current user mailbox when completing Gmail OAuth for an existing address', async () => {
+    const existingMailbox = createMailbox({
+      id: 'mailbox-existing',
+      emailAddress: 'alice@gmail.com',
+      emailHash: hashTestEmail('alice@gmail.com'),
+      encryptedRefreshToken: null,
+      status: 'auth_expired'
+    });
+    const store = createStore([], { mailboxes: [existingMailbox] });
+    const flow = createOAuthFlow({
+      mailbox: {
+        emailAddress: 'alice@gmail.com',
+        historyId: '2002',
+        encryptedRefreshToken: 'encrypted-refresh-token-2'
+      }
+    });
+    const service = new CrmService(store, undefined, undefined, undefined, undefined, undefined, flow);
+
+    const result = await service.completeGmailOAuthAuthorization({ code: 'code-2', state: 'state-2' }, createContext());
+
+    assert.equal(result.mailbox.id, 'mailbox-existing');
+    assert.equal(result.mailbox.status, 'active');
+    assert.equal(store.mailboxes.length, 1);
+    assert.equal(store.mailboxes[0].encryptedRefreshToken, 'encrypted-refresh-token-2');
+    assert.equal(store.mailboxUpdateCalls[0]?.input.lastHistoryId, '2002');
+  });
+
+  it('rejects Gmail OAuth authorization when the Gmail address belongs to another owner', async () => {
+    const peerMailbox = createMailbox({
+      id: 'peer-mailbox',
+      organizationId: 'org-2',
+      ownerUserId: 'user-2',
+      emailAddress: 'alice@gmail.com',
+      emailHash: hashTestEmail('alice@gmail.com')
+    });
+    const store = createStore([], { mailboxes: [peerMailbox] });
+    const logs = createLogRecorder();
+    const service = new CrmService(
+      store,
+      undefined,
+      logs.service,
+      undefined,
+      undefined,
+      undefined,
+      createOAuthFlow({
+        mailbox: {
+          emailAddress: 'alice@gmail.com',
+          historyId: '3003',
+          encryptedRefreshToken: 'encrypted-refresh-token-3'
+        }
+      })
+    );
+
+    await assert.rejects(
+      () => service.completeGmailOAuthAuthorization({ code: 'code-3', state: 'state-3' }, createContext()),
+      BadRequestException
+    );
+    assert.equal(logs.records.length, 0);
   });
 
   it('lists only owner mailboxes for members and all organization mailboxes for admins', async () => {
@@ -2727,6 +2832,54 @@ function createDnsResolver(result: Array<{ exchange: string; priority: number }>
 
 function createDnsError(code: string) {
   return Object.assign(new Error(code), { code });
+}
+
+function createOAuthFlow(input: {
+  mailbox?: Awaited<ReturnType<CrmGmailOAuthFlowPort['exchangeCodeForMailbox']>>;
+} = {}) {
+  const createUrlCalls: Array<{ organizationId: string; userId: string }> = [];
+  const verifyStateCalls: Array<{ state: string; context: { organizationId: string; userId: string } }> = [];
+  const exchangeCodeCalls: string[] = [];
+  const flow: CrmGmailOAuthFlowPort & {
+    createUrlCalls: typeof createUrlCalls;
+    verifyStateCalls: typeof verifyStateCalls;
+    exchangeCodeCalls: typeof exchangeCodeCalls;
+  } = {
+    createUrlCalls,
+    verifyStateCalls,
+    exchangeCodeCalls,
+    createAuthorizationUrl(context) {
+      createUrlCalls.push(context);
+
+      return {
+        authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth?state=state-1',
+        state: 'state-1'
+      };
+    },
+    verifyState(state, context): CrmGmailOAuthStatePayload {
+      verifyStateCalls.push({ state, context });
+
+      return {
+        organizationId: context.organizationId,
+        userId: context.userId,
+        issuedAt: '2026-06-19T08:00:00.000Z',
+        nonce: 'nonce-1'
+      };
+    },
+    async exchangeCodeForMailbox(code) {
+      exchangeCodeCalls.push(code);
+
+      return (
+        input.mailbox ?? {
+          emailAddress: 'alice@gmail.com',
+          historyId: '1001',
+          encryptedRefreshToken: 'encrypted-refresh-token-1'
+        }
+      );
+    }
+  };
+
+  return flow;
 }
 
 function createSendQueue(error?: Error): CrmSendQueuePort & { jobs: CrmSendQueueJob[] } {

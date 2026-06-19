@@ -235,6 +235,52 @@ describe('CrmController', () => {
     assert.equal(result.data.mailbox.emailAddress, 'alice@gmail.com');
   });
 
+  it('creates a Gmail OAuth URL with the current user context', async () => {
+    const calls: CrmUserContext[] = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        createGmailOAuthAuthorizationUrl(context) {
+          calls.push(context);
+
+          return {
+            authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth?state=state-1',
+            state: 'state-1'
+          };
+        }
+      })
+    );
+
+    const result = controller.createGmailOAuthUrl('Bearer token');
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].userId, 'user-1');
+    assert.equal(calls[0].organizationId, 'org-1');
+    assert.equal(result.data.state, 'state-1');
+  });
+
+  it('completes Gmail OAuth callback with the current user context', async () => {
+    const calls: Array<{ dto: { code: string; state: string }; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async completeGmailOAuthAuthorization(dto, context) {
+          calls.push({ dto, context });
+
+          return { mailbox: createMailboxView({ emailAddress: 'alice@gmail.com' }) };
+        }
+      })
+    );
+
+    const dto = { code: 'code-1', state: 'state-1' };
+    const result = await controller.completeGmailOAuthCallback('Bearer token', dto);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].dto, dto);
+    assert.equal(calls[0].context.userId, 'user-1');
+    assert.equal(result.data.mailbox.emailAddress, 'alice@gmail.com');
+  });
+
   it('lists mailboxes with the current organization context', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
     const controller = new CrmController(
@@ -982,6 +1028,15 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
       return createEmailVerificationView();
     },
     async mockAuthorizeMailbox() {
+      return { mailbox: createMailboxView() };
+    },
+    createGmailOAuthAuthorizationUrl() {
+      return {
+        authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth?state=state-1',
+        state: 'state-1'
+      };
+    },
+    async completeGmailOAuthAuthorization() {
       return { mailbox: createMailboxView() };
     },
     async listMailboxes() {

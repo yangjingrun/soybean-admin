@@ -97,6 +97,17 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'crm_gmail-oauth-callback',
+        path: '/crm/gmail-oauth-callback',
+        component: 'view.crm_gmail-oauth-callback',
+        meta: {
+          title: 'crm_gmail-oauth-callback',
+          i18nKey: 'route.crm_gmail-oauth-callback',
+          hideInMenu: true,
+          activeMenu: 'crm_settings'
+        }
+      },
+      {
         name: 'crm_inbox',
         path: '/crm/inbox',
         component: 'view.crm_inbox',

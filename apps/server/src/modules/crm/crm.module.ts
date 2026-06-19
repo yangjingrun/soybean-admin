@@ -7,6 +7,7 @@ import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
 import { MockCrmEmailSendGateway } from './crm-email-send.gateway';
 import { CrmController } from './crm.controller';
+import { CrmGmailOAuthFlow } from './crm-gmail-oauth-flow';
 import { MockCrmGmailHistoryGateway } from './crm-gmail-history.gateway';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
 import { CrmGmailHistorySyncWorkerHost } from './crm-gmail-history-sync-worker-host.service';
@@ -24,6 +25,7 @@ import {
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_HISTORY_GATEWAY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
+  CRM_GMAIL_OAUTH_FLOW,
   CRM_GMAIL_WATCH_GATEWAY,
   CRM_SEND_QUEUE,
   CRM_STORE
@@ -62,6 +64,28 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     {
       provide: CRM_GMAIL_WATCH_GATEWAY,
       useClass: MockCrmGmailWatchGateway
+    },
+    {
+      provide: CRM_GMAIL_OAUTH_FLOW,
+      useFactory: () => {
+        const clientId = process.env.CRM_GMAIL_OAUTH_CLIENT_ID;
+        const clientSecret = process.env.CRM_GMAIL_OAUTH_CLIENT_SECRET;
+        const redirectUri = process.env.CRM_GMAIL_OAUTH_REDIRECT_URI;
+        const tokenEncryptionKey = process.env.CRM_GMAIL_TOKEN_ENCRYPTION_KEY;
+        const stateSecret = process.env.CRM_GMAIL_OAUTH_STATE_SECRET;
+
+        if (!clientId || !clientSecret || !redirectUri || !tokenEncryptionKey || !stateSecret) {
+          return null;
+        }
+
+        return new CrmGmailOAuthFlow({
+          clientId,
+          clientSecret,
+          redirectUri,
+          tokenEncryptionKey,
+          stateSecret
+        });
+      }
     },
     {
       provide: CRM_EMAIL_SEND_GATEWAY,

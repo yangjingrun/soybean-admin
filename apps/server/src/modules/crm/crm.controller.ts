@@ -17,6 +17,7 @@ import type { UserInfo } from '../auth/auth.types';
 import { CrmService } from './crm.service';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
+import { CompleteCrmGmailOAuthDto } from './dto/complete-crm-gmail-oauth.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
 import { CrmInboxThreadQueryDto } from './dto/crm-inbox-thread-query.dto';
@@ -100,6 +101,19 @@ export class CrmController {
     @Body() dto: MockAuthorizeCrmMailboxDto
   ) {
     return ok(await this.crmService.mockAuthorizeMailbox(dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('mailboxes/gmail/oauth-url')
+  createGmailOAuthUrl(@Headers('authorization') authorization = '') {
+    return ok(this.crmService.createGmailOAuthAuthorizationUrl(this.requireUserContext(authorization)));
+  }
+
+  @Post('mailboxes/gmail/oauth-callback')
+  async completeGmailOAuthCallback(
+    @Headers('authorization') authorization = '',
+    @Body() dto: CompleteCrmGmailOAuthDto
+  ) {
+    return ok(await this.crmService.completeGmailOAuthAuthorization(dto, this.requireUserContext(authorization)));
   }
 
   @Get('mailboxes')

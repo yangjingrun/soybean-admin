@@ -82,6 +82,11 @@ export function setupElegantRouter() {
         meta.order = 4;
       }
 
+      if (key === 'crm_gmail-oauth-callback') {
+        meta.hideInMenu = true;
+        meta.activeMenu = 'crm_settings';
+      }
+
       if (key === 'manage') {
         meta.icon = 'carbon:cloud-service-management';
         meta.order = 6;

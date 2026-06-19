@@ -171,6 +171,7 @@ const routeMap: RouteMap = {
   "ai-settings": "/ai-settings",
   "crm": "/crm",
   "crm_email-sequences": "/crm/email-sequences",
+  "crm_gmail-oauth-callback": "/crm/gmail-oauth-callback",
   "crm_inbox": "/crm/inbox",
   "crm_leads": "/crm/leads",
   "crm_settings": "/crm/settings",

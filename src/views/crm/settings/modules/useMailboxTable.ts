@@ -1,13 +1,13 @@
 import { onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
+  createCrmGmailOAuthUrl,
   fetchCrmMailboxes,
-  mockAuthorizeCrmMailbox,
   pauseCrmMailbox,
   renewCrmMailboxWatch,
   resumeCrmMailbox
 } from '@/service/api';
-import { buildMailboxSearchParams, createDefaultMailboxAuthorizeForm, createDefaultMailboxFilterModel } from './shared';
+import { buildMailboxSearchParams, createDefaultMailboxFilterModel } from './shared';
 
 /** Manage CRM mailbox list requests, authorization modal state and row operations. */
 export function useMailboxTable() {
@@ -26,7 +26,6 @@ export function useMailboxTable() {
   });
 
   const filterModel = reactive<Api.Crm.MailboxFilterModel>(createDefaultMailboxFilterModel());
-  const authorizeForm = reactive<Api.Crm.MailboxAuthorizeFormModel>(createDefaultMailboxAuthorizeForm());
 
   onMounted(() => {
     void loadMailboxes();
@@ -67,36 +66,25 @@ export function useMailboxTable() {
   }
 
   function openAuthorizeModal() {
-    Object.assign(authorizeForm, createDefaultMailboxAuthorizeForm());
     authorizeVisible.value = true;
   }
 
   function handleAuthorizeVisibleUpdate(show: boolean) {
     authorizeVisible.value = show;
-
-    if (!show) {
-      Object.assign(authorizeForm, createDefaultMailboxAuthorizeForm());
-    }
   }
 
-  /** Create a mocked mailbox authorization and refresh the first page. */
+  /** Create a Gmail OAuth URL and send the user to Google consent. */
   async function handleAuthorizeMailbox() {
     authorizeSubmitting.value = true;
 
     try {
-      const { error } = await mockAuthorizeCrmMailbox({
-        emailAddress: authorizeForm.emailAddress.trim()
-      });
+      const { data, error } = await createCrmGmailOAuthUrl();
 
       if (error) {
         return;
       }
 
-      message.success('授权已创建');
-      authorizeVisible.value = false;
-      Object.assign(authorizeForm, createDefaultMailboxAuthorizeForm());
-      pagination.current = 1;
-      await loadMailboxes();
+      window.location.assign(data.authorizationUrl);
     } finally {
       authorizeSubmitting.value = false;
     }
@@ -170,7 +158,6 @@ export function useMailboxTable() {
   }
 
   return {
-    authorizeForm,
     authorizeSubmitting,
     authorizeVisible,
     filterModel,

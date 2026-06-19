@@ -177,6 +177,16 @@ declare namespace Api {
       emailAddress: string;
     }
 
+    interface GmailOAuthUrlResult {
+      authorizationUrl: string;
+      state: string;
+    }
+
+    interface GmailOAuthCallbackPayload {
+      code: string;
+      state: string;
+    }
+
     interface MailboxOperateResult {
       mailbox: MailboxRecord;
     }

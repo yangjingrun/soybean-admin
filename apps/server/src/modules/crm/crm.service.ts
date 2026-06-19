@@ -5,8 +5,15 @@ import { Prisma } from '../../generated/prisma/client';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
+import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
-import { CRM_EMAIL_DNS_RESOLVER, CRM_EMAIL_SEND_GATEWAY, CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
+import {
+  CRM_EMAIL_DNS_RESOLVER,
+  CRM_EMAIL_SEND_GATEWAY,
+  CRM_GMAIL_OAUTH_FLOW,
+  CRM_SEND_QUEUE,
+  CRM_STORE
+} from './crm.tokens';
 import type {
   CrmAccountDetailRecord,
   CrmAccountRecord,
@@ -112,6 +119,11 @@ interface SequenceReviewCreateInput {
 interface MessageDraftUpdateInput {
   subject: string;
   bodyText: string;
+}
+
+interface GmailOAuthCompleteInput {
+  code: string;
+  state: string;
 }
 
 interface GeneratedDraft {
@@ -271,7 +283,10 @@ export class CrmService {
     private readonly systemNotificationService?: SystemNotificationService,
     @Optional()
     @Inject(CRM_EMAIL_SEND_GATEWAY)
-    private readonly sendGateway?: CrmEmailSendGateway
+    private readonly sendGateway?: CrmEmailSendGateway,
+    @Optional()
+    @Inject(CRM_GMAIL_OAUTH_FLOW)
+    private readonly gmailOAuthFlow?: CrmGmailOAuthFlowPort | null
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -508,6 +523,92 @@ export class CrmService {
     }
 
     await this.recordMailboxLog('mailbox-mock-authorize', 'CRM 邮箱 mock 授权完成', context, mailbox, null, mailbox.status);
+
+    return { mailbox: toMailboxView(mailbox) };
+  }
+
+  /** Creates a Google consent URL for the current user mailbox authorization flow. */
+  createGmailOAuthAuthorizationUrl(context: CrmUserContext) {
+    return this.requireGmailOAuthFlow().createAuthorizationUrl({
+      organizationId: context.organizationId,
+      userId: context.userId
+    });
+  }
+
+  /** Completes Gmail OAuth authorization and stores the encrypted refresh token for the mailbox owner. */
+  async completeGmailOAuthAuthorization(input: GmailOAuthCompleteInput, context: CrmUserContext) {
+    const flow = this.requireGmailOAuthFlow();
+    flow.verifyState(input.state, {
+      organizationId: context.organizationId,
+      userId: context.userId
+    });
+
+    const gmailMailbox = await flow.exchangeCodeForMailbox(input.code);
+    const emailAddress = normalizeMailboxEmail(gmailMailbox.emailAddress);
+    const emailHash = hashEmail(emailAddress);
+    const existingMailbox = await this.store.findMailboxByProviderAndEmailHash(gmailProvider, emailHash);
+
+    if (existingMailbox) {
+      if (!isOwnedMailbox(existingMailbox, context)) {
+        throw new BadRequestException('该 Gmail 地址已绑定');
+      }
+
+      const updatedMailbox = await this.store.updateMailbox(existingMailbox.id, {
+        status: 'active',
+        encryptedRefreshToken: gmailMailbox.encryptedRefreshToken,
+        watchExpiration: null,
+        lastHistoryId: gmailMailbox.historyId,
+        authorizedAt: new Date(),
+        pausedAt: null
+      });
+
+      if (!updatedMailbox) {
+        throw new NotFoundException('邮箱不存在');
+      }
+
+      await this.recordMailboxLog(
+        'mailbox-gmail-oauth-authorize',
+        'CRM Gmail OAuth 授权完成',
+        context,
+        updatedMailbox,
+        existingMailbox.status,
+        updatedMailbox.status
+      );
+
+      return { mailbox: toMailboxView(updatedMailbox) };
+    }
+
+    const mailbox = await this.store.createMailbox({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      ownerUserName: context.userName,
+      provider: gmailProvider,
+      emailAddress,
+      emailHash,
+      maskedEmail: maskEmail(emailAddress),
+      status: 'active',
+      dailyLimit: defaultMailboxDailyLimit,
+      hourlyLimit: defaultMailboxHourlyLimit,
+      warmupStage: 'new',
+      encryptedRefreshToken: gmailMailbox.encryptedRefreshToken,
+      watchExpiration: null,
+      lastHistoryId: gmailMailbox.historyId,
+      authorizedAt: new Date(),
+      pausedAt: null
+    });
+
+    if (!isOwnedMailbox(mailbox, context)) {
+      throw new BadRequestException('该 Gmail 地址已绑定');
+    }
+
+    await this.recordMailboxLog(
+      'mailbox-gmail-oauth-authorize',
+      'CRM Gmail OAuth 授权完成',
+      context,
+      mailbox,
+      null,
+      mailbox.status
+    );
 
     return { mailbox: toMailboxView(mailbox) };
   }
@@ -1388,6 +1489,14 @@ export class CrmService {
     }
 
     return mailbox;
+  }
+
+  private requireGmailOAuthFlow() {
+    if (!this.gmailOAuthFlow) {
+      throw new BadRequestException('Gmail OAuth 未配置');
+    }
+
+    return this.gmailOAuthFlow;
   }
 
   private async requireScopedProductLine(id: string, context: CrmUserContext) {

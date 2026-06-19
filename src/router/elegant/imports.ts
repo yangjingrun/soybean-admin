@@ -24,6 +24,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "ai-prompt-settings": () => import("@/views/ai-prompt-settings/index.vue"),
   "ai-settings": () => import("@/views/ai-settings/index.vue"),
   "crm_email-sequences": () => import("@/views/crm/email-sequences/index.vue"),
+  "crm_gmail-oauth-callback": () => import("@/views/crm/gmail-oauth-callback/index.vue"),
   crm_inbox: () => import("@/views/crm/inbox/index.vue"),
   crm_leads: () => import("@/views/crm/leads/index.vue"),
   crm_settings: () => import("@/views/crm/settings/index.vue"),

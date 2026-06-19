@@ -230,6 +230,7 @@ const local: App.I18n.Schema = {
     'ai-prompt-settings': '提示词配置',
     crm: 'CRM',
     crm_leads: '线索库',
+    'crm_gmail-oauth-callback': 'Gmail授权回调',
     'crm_email-sequences': '邮件序列',
     crm_inbox: '收件箱',
     crm_settings: 'CRM配置',

@@ -9,7 +9,6 @@ import { useMailboxTable } from './useMailboxTable';
 import { useTemplateDefaults } from './useTemplateDefaults';
 
 const {
-  authorizeForm,
   authorizeSubmitting,
   authorizeVisible,
   filterModel,
@@ -88,7 +87,6 @@ const {
 
     <AuthorizeMailboxModal
       v-model:visible="authorizeVisible"
-      v-model="authorizeForm"
       :submitting="authorizeSubmitting"
       @submit="handleAuthorizeMailbox"
       @update:visible="handleAuthorizeVisibleUpdate"

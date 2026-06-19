@@ -70,6 +70,23 @@ export function mockAuthorizeCrmMailbox(data: Api.Crm.MailboxAuthorizePayload) {
   });
 }
 
+/** Create the Google OAuth consent URL for authorizing a Gmail mailbox. */
+export function createCrmGmailOAuthUrl() {
+  return request<Api.Crm.GmailOAuthUrlResult>({
+    url: '/crm/mailboxes/gmail/oauth-url',
+    method: 'post'
+  });
+}
+
+/** Complete Gmail OAuth after Google redirects back with code and state. */
+export function completeCrmGmailOAuthCallback(data: Api.Crm.GmailOAuthCallbackPayload) {
+  return request<Api.Crm.MailboxOperateResult>({
+    url: '/crm/mailboxes/gmail/oauth-callback',
+    method: 'post',
+    data
+  });
+}
+
 /** Pause one CRM mailbox. */
 export function pauseCrmMailbox(id: string) {
   return request<Api.Crm.MailboxOperateResult>({
