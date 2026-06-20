@@ -6,7 +6,6 @@ import {
   Optional
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
-import { createPageResult } from '../../shared/pagination';
 import { assertOrganizationAdmin } from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -69,7 +68,6 @@ import type {
   CrmAiDraftQueueConfigInput,
   CrmAccountStatus,
   CrmAiDraftPreviewInput,
-  CrmBlacklistRecord,
   CrmMailboxStatus,
   CrmEmailTemplateStatus,
   CrmEmailSendGateway,
@@ -91,9 +89,6 @@ import type {
   ImportCrmLeadInput
 } from './crm.types';
 
-const defaultPage = 1;
-const defaultPageSize = 20;
-const maxPageSize = 100;
 const initialDraftStepIndex = 1;
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
@@ -391,61 +386,12 @@ export class CrmService {
       keyword?: string;
     } = {}
   ) {
-    if (this.suppressionService) {
-      return this.suppressionService.listBlacklistEntries(context, query);
-    }
-
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const result = await this.store.listBlacklistEntries({
-      organizationId: context.organizationId,
-      ...(keyword ? { keyword } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
-
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toBlacklistView)
-    });
+    return this.requireSuppressionService().listBlacklistEntries(context, query);
   }
 
   /** Removes one organization blacklist entry after recording an audit reason. */
   async removeBlacklistEntry(id: string, input: { reason?: string | null }, context: CrmUserContext) {
-    if (this.suppressionService) {
-      return this.suppressionService.removeBlacklistEntry(id, input, context);
-    }
-
-    const reason = normalizeNullableString(input.reason);
-    if (!reason) {
-      throw new BadRequestException('解除黑名单必须填写解除原因');
-    }
-
-    const entry = await this.store.deleteBlacklistEntry({
-      id,
-      organizationId: context.organizationId
-    });
-
-    if (!entry) {
-      throw new NotFoundException('黑名单记录不存在');
-    }
-
-    await this.recordCrmLog('blacklist-entry-removed', 'CRM 退订黑名单已解除', context, {
-      organizationId: context.organizationId,
-      blacklistEntryId: entry.id,
-      maskedEmail: entry.maskedEmail,
-      reason,
-      sourceAccountId: entry.sourceAccountId,
-      sourceContactId: entry.sourceContactId,
-      sourceMessageId: entry.sourceMessageId
-    });
-
-    return {
-      blacklistEntry: toBlacklistView(entry)
-    };
+    return this.requireSuppressionService().removeBlacklistEntry(id, input, context);
   }
 
   /** Creates a Gmail mock authorization record without storing any OAuth token. */
@@ -1299,6 +1245,14 @@ export class CrmService {
     return this.mailboxService;
   }
 
+  private requireSuppressionService() {
+    if (!this.suppressionService) {
+      throw new BadRequestException('CRM 退订黑名单服务未启用');
+    }
+
+    return this.suppressionService;
+  }
+
   private requireSequenceService() {
     if (!this.sequenceService) {
       throw new BadRequestException('CRM 邮件序列服务未启用');
@@ -1457,16 +1411,6 @@ export class CrmService {
 
 }
 
-function toBlacklistView(record: CrmBlacklistRecord) {
-  const { emailHash: _emailHash, ...safeRecord } = record;
-
-  return {
-    ...safeRecord,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
 function toSequenceEnrollmentView(record: CrmSequenceEnrollmentRecord) {
   return {
     ...record,
@@ -1498,11 +1442,6 @@ function toOwnerScope(context: CrmUserContext) {
   return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
 }
 
-function normalizeNullableString(value?: string | null) {
-  const normalized = value?.trim();
-  return normalized || null;
-}
-
 function normalizeRequiredString(value: string, emptyMessage: string) {
   const normalized = value.trim();
 
@@ -1531,22 +1470,6 @@ function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | 
   }
 
   return record as CrmAiDraftMetadata;
-}
-
-function normalizePositiveInteger(
-  value: number | string | undefined,
-  fallback: number,
-  min = 1,
-  max = Number.MAX_SAFE_INTEGER
-) {
-  if (value === undefined || value === '') {
-    return fallback;
-  }
-
-  const numberValue = Number(value);
-  if (!Number.isInteger(numberValue) || numberValue < min) return fallback;
-
-  return Math.min(numberValue, max);
 }
 
 function isPrismaUniqueConflict(error: unknown) {

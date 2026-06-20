@@ -33,6 +33,7 @@ import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-polic
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import type { CrmEmailDnsResolver } from './shared/crm-email-utils';
+import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
 import type {
   CrmArchivedFingerprintRecord,
@@ -2727,7 +2728,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSuppressionService(store);
 
     const result = await service.listBlacklistEntries(createContext(), {
       current: 1,
@@ -2763,7 +2764,9 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSuppressionService(store, {
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
 
     const result = await service.removeBlacklistEntry(
       'blacklist-1',
@@ -2793,7 +2796,9 @@ describe('CrmService', () => {
   });
 
   it('rejects blacklist removal without an audit reason', async () => {
-    const service = new CrmService(createStore([], { blacklists: [createBlacklist({ id: 'blacklist-1' })] }));
+    const service = createServiceWithSuppressionService(
+      createStore([], { blacklists: [createBlacklist({ id: 'blacklist-1' })] })
+    );
 
     await assert.rejects(
       () => service.removeBlacklistEntry('blacklist-1', { reason: '   ' }, createContext()),
@@ -9502,7 +9507,7 @@ function createServiceWithSplitServices(options: {
     undefined,
     undefined,
     (options.settingsService ?? createSettingsService(store)) as never,
-    options.suppressionService as never,
+    (options.suppressionService ?? createSuppressionService(store)) as never,
     (options.accountService ?? createAccountService(store)) as never,
     (options.mailboxService ?? createMailboxService(store)) as never,
     (options.personaProfileService ?? createPersonaProfileService(store)) as never,
@@ -9549,6 +9554,20 @@ function createAccountService(
   options: { dnsResolver?: CrmEmailDnsResolver; crmLogger?: CrmLoggerService } = {}
 ) {
   return new CrmAccountService(store, store, options.dnsResolver, options.crmLogger);
+}
+
+function createServiceWithSuppressionService(
+  store: CrmStore,
+  options: { crmLogger?: CrmLoggerService } = {}
+) {
+  return createServiceWithSplitServices({
+    store,
+    suppressionService: createSuppressionService(store, options)
+  });
+}
+
+function createSuppressionService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmSuppressionService(store, options.crmLogger);
 }
 
 function createServiceWithMailboxService(
