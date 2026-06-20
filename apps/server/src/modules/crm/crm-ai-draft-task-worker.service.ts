@@ -13,12 +13,10 @@ import type {
   CrmAiDraftTaskRecord,
   CrmAiDraftTaskResultSummary
 } from './crm-ai-draft-task.types';
-import {
-  CRM_AI_DRAFT_WORKER_REPOSITORY,
-  type CrmAiDraftWorkerRepository
-} from './crm-ai-draft-worker.repository';
+import type { CrmAiDraftWorkerRepository } from './crm-ai-draft-worker.repository';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { buildPersonaMatch } from './crm-persona-match';
+import { CRM_AI_DRAFT_WORKER_REPOSITORY } from './crm.tokens';
 import type {
   CrmAiWritingStepIndex,
   CrmMessageStatus,

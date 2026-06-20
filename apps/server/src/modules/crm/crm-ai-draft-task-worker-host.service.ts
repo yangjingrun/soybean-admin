@@ -10,11 +10,8 @@ import { crmAiDraftTaskQueueName } from './crm-ai-draft-task-queue.service';
 import { normalizeCrmAiDraftItemConcurrency } from './crm-ai-draft-task-state';
 import { CrmAiDraftTaskWorkerService } from './crm-ai-draft-task-worker.service';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
-import {
-  CRM_AI_DRAFT_WORKER_REPOSITORY,
-  type CrmAiDraftWorkerRepository
-} from './crm-ai-draft-worker.repository';
-import { CRM_AI_DRAFT_TASK_QUEUE } from './crm.tokens';
+import type { CrmAiDraftWorkerRepository } from './crm-ai-draft-worker.repository';
+import { CRM_AI_DRAFT_TASK_QUEUE, CRM_AI_DRAFT_WORKER_REPOSITORY } from './crm.tokens';
 
 @Injectable()
 export class CrmAiDraftTaskWorkerHost implements OnModuleInit, OnModuleDestroy {
