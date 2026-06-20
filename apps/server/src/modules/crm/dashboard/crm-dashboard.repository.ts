@@ -1,3 +1,10 @@
-import type { CrmStore } from '../crm.types';
+import type { CrmStrategyStatsRecord, CrmWorkbenchOverviewRecord } from '../crm.types';
 
-export type CrmDashboardRepository = Pick<CrmStore, 'listStrategyStats' | 'getWorkbenchOverview'>;
+export interface CrmDashboardRepository {
+  listStrategyStats(args: { organizationId: string; ownerUserId?: string }): Promise<CrmStrategyStatsRecord>;
+  getWorkbenchOverview(args: {
+    organizationId: string;
+    ownerUserId: string;
+    now: Date;
+  }): Promise<CrmWorkbenchOverviewRecord>;
+}

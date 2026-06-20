@@ -1,7 +1,7 @@
-import type { CrmStore } from './crm.types';
+import type { CrmAccountRecord, CrmArchiveSlimInput, CrmArchiveSlimmingListInput } from './crm.types';
 
 /** Data port for CRM archived account slimming. */
-export type CrmArchiveSlimmingRepository = Pick<
-  CrmStore,
-  'listAccountsForArchiveSlimming' | 'slimArchivedAccount'
->;
+export interface CrmArchiveSlimmingRepository {
+  listAccountsForArchiveSlimming(input: CrmArchiveSlimmingListInput): Promise<CrmAccountRecord[]>;
+  slimArchivedAccount(input: CrmArchiveSlimInput): Promise<CrmAccountRecord | null>;
+}
