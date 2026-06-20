@@ -13,8 +13,8 @@ import type {
   CrmSequenceStopInput,
   CrmSequenceStopRecord
 } from '../crm.types';
+import { reserveMailboxSendQuota } from './prisma-crm-mailbox-quota.helpers';
 import {
-  reserveMailboxSendQuota,
   toAccountRecord,
   toContactRecord,
   toMailboxRecord,
