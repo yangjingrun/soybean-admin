@@ -306,11 +306,7 @@ export class CrmService {
 
   /** Reads platform-wide CRM settings maintained by super administrators. */
   async getGlobalConfig() {
-    if (!this.settingsService) {
-      throw new BadRequestException('CRM 配置服务未启用');
-    }
-
-    return this.settingsService.getGlobalConfig();
+    return this.requireSettingsService().getGlobalConfig();
   }
 
   /** Saves platform-wide CRM settings maintained by super administrators. */
@@ -323,20 +319,12 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (!this.settingsService) {
-      throw new BadRequestException('CRM 配置服务未启用');
-    }
-
-    return this.settingsService.saveGlobalConfig(input, context);
+    return this.requireSettingsService().saveGlobalConfig(input, context);
   }
 
   /** Reads the current owner's send scheduling preference with platform cap context. */
   async getSendPreference(context: CrmUserContext) {
-    if (!this.settingsService) {
-      throw new BadRequestException('CRM 配置服务未启用');
-    }
-
-    return this.settingsService.getSendPreference(context);
+    return this.requireSettingsService().getSendPreference(context);
   }
 
   /** Saves the current owner's daily send scheduling preference. */
@@ -347,20 +335,12 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (!this.settingsService) {
-      throw new BadRequestException('CRM 配置服务未启用');
-    }
-
-    return this.settingsService.saveSendPreference(input, context);
+    return this.requireSettingsService().saveSendPreference(input, context);
   }
 
   /** Reads organization-level CRM permission settings. */
   async getOrganizationConfig(context: CrmUserContext) {
-    if (!this.settingsService) {
-      throw new BadRequestException('CRM 配置服务未启用');
-    }
-
-    return this.settingsService.getOrganizationConfig(context);
+    return this.requireSettingsService().getOrganizationConfig(context);
   }
 
   /** Saves organization-level CRM permission settings for organization administrators. */
@@ -370,11 +350,7 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (!this.settingsService) {
-      throw new BadRequestException('CRM 配置服务未启用');
-    }
-
-    return this.settingsService.saveOrganizationConfig(input, context);
+    return this.requireSettingsService().saveOrganizationConfig(input, context);
   }
 
   /** Lists organization-level unsubscribe blacklist entries without exposing raw emails. */
@@ -442,56 +418,32 @@ export class CrmService {
       status?: CrmProductLineStatus;
     } = {}
   ) {
-    if (!this.productLineService) {
-      throw new BadRequestException('CRM 产品资料服务未启用');
-    }
-
-    return this.productLineService.listProductLines(context, query);
+    return this.requireProductLineService().listProductLines(context, query);
   }
 
   /** Creates an organization-level product line after checking name uniqueness. */
   async createProductLine(input: ProductLineCreateInput, context: CrmUserContext) {
-    if (!this.productLineService) {
-      throw new BadRequestException('CRM 产品资料服务未启用');
-    }
-
-    return this.productLineService.createProductLine(input, context);
+    return this.requireProductLineService().createProductLine(input, context);
   }
 
   /** Updates an organization-level product line through organization scoped reads and writes. */
   async updateProductLine(id: string, input: ProductLineUpdateInput, context: CrmUserContext) {
-    if (!this.productLineService) {
-      throw new BadRequestException('CRM 产品资料服务未启用');
-    }
-
-    return this.productLineService.updateProductLine(id, input, context);
+    return this.requireProductLineService().updateProductLine(id, input, context);
   }
 
   /** Lists AI prompt versions for an organization-scoped product line. */
   async listProductLineAiPromptVersions(id: string, context: CrmUserContext) {
-    if (!this.productLineService) {
-      throw new BadRequestException('CRM 产品资料服务未启用');
-    }
-
-    return this.productLineService.listProductLineAiPromptVersions(id, context);
+    return this.requireProductLineService().listProductLineAiPromptVersions(id, context);
   }
 
   /** Restores a saved AI prompt version to the current product-line config. */
   async restoreProductLineAiPromptVersion(id: string, versionId: string, context: CrmUserContext) {
-    if (!this.productLineService) {
-      throw new BadRequestException('CRM 产品资料服务未启用');
-    }
-
-    return this.productLineService.restoreProductLineAiPromptVersion(id, versionId, context);
+    return this.requireProductLineService().restoreProductLineAiPromptVersion(id, versionId, context);
   }
 
   /** Archives an organization-level product line through organization scoped reads and writes. */
   async archiveProductLine(id: string, context: CrmUserContext) {
-    if (!this.productLineService) {
-      throw new BadRequestException('CRM 产品资料服务未启用');
-    }
-
-    return this.productLineService.archiveProductLine(id, context);
+    return this.requireProductLineService().archiveProductLine(id, context);
   }
 
   /** Lists organization-level persona profiles used by CRM draft generation. */
@@ -504,47 +456,27 @@ export class CrmService {
       status?: CrmPersonaProfileStatus;
     } = {}
   ) {
-    if (!this.personaProfileService) {
-      throw new BadRequestException('CRM 画像服务未启用');
-    }
-
-    return this.personaProfileService.listPersonaProfiles(context, query);
+    return this.requirePersonaProfileService().listPersonaProfiles(context, query);
   }
 
   /** Creates an organization-level persona profile after checking manager permission. */
   async createPersonaProfile(input: PersonaProfileCreateInput, context: CrmUserContext) {
-    if (!this.personaProfileService) {
-      throw new BadRequestException('CRM 画像服务未启用');
-    }
-
-    return this.personaProfileService.createPersonaProfile(input, context);
+    return this.requirePersonaProfileService().createPersonaProfile(input, context);
   }
 
   /** Updates one organization persona profile through scoped reads and writes. */
   async updatePersonaProfile(id: string, input: PersonaProfileUpdateInput, context: CrmUserContext) {
-    if (!this.personaProfileService) {
-      throw new BadRequestException('CRM 画像服务未启用');
-    }
-
-    return this.personaProfileService.updatePersonaProfile(id, input, context);
+    return this.requirePersonaProfileService().updatePersonaProfile(id, input, context);
   }
 
   /** Archives one persona profile instead of deleting it. */
   async archivePersonaProfile(id: string, context: CrmUserContext) {
-    if (!this.personaProfileService) {
-      throw new BadRequestException('CRM 画像服务未启用');
-    }
-
-    return this.personaProfileService.archivePersonaProfile(id, context);
+    return this.requirePersonaProfileService().archivePersonaProfile(id, context);
   }
 
   /** Marks one active persona profile as the organization default. */
   async setDefaultPersonaProfile(id: string, context: CrmUserContext) {
-    if (!this.personaProfileService) {
-      throw new BadRequestException('CRM 画像服务未启用');
-    }
-
-    return this.personaProfileService.setDefaultPersonaProfile(id, context);
+    return this.requirePersonaProfileService().setDefaultPersonaProfile(id, context);
   }
 
   /** Lists organization-level email template groups for CRM sequence drafting. */
@@ -557,56 +489,32 @@ export class CrmService {
       status?: CrmEmailTemplateStatus;
     } = {}
   ) {
-    if (!this.templateGroupService) {
-      throw new BadRequestException('CRM 邮件模板服务未启用');
-    }
-
-    return this.templateGroupService.listEmailTemplateGroups(context, query);
+    return this.requireTemplateGroupService().listEmailTemplateGroups(context, query);
   }
 
   /** Creates one organization-level email template group with exactly five sequence steps. */
   async createEmailTemplateGroup(input: EmailTemplateGroupCreateInput, context: CrmUserContext) {
-    if (!this.templateGroupService) {
-      throw new BadRequestException('CRM 邮件模板服务未启用');
-    }
-
-    return this.templateGroupService.createEmailTemplateGroup(input, context);
+    return this.requireTemplateGroupService().createEmailTemplateGroup(input, context);
   }
 
   /** Updates one organization-level email template group and replaces step rows when provided. */
   async updateEmailTemplateGroup(id: string, input: EmailTemplateGroupUpdateInput, context: CrmUserContext) {
-    if (!this.templateGroupService) {
-      throw new BadRequestException('CRM 邮件模板服务未启用');
-    }
-
-    return this.templateGroupService.updateEmailTemplateGroup(id, input, context);
+    return this.requireTemplateGroupService().updateEmailTemplateGroup(id, input, context);
   }
 
   /** Archives one organization-level email template group instead of deleting it. */
   async archiveEmailTemplateGroup(id: string, context: CrmUserContext) {
-    if (!this.templateGroupService) {
-      throw new BadRequestException('CRM 邮件模板服务未启用');
-    }
-
-    return this.templateGroupService.archiveEmailTemplateGroup(id, context);
+    return this.requireTemplateGroupService().archiveEmailTemplateGroup(id, context);
   }
 
   /** Marks one active organization-level email template group as the default drafting template. */
   async setDefaultEmailTemplateGroup(id: string, context: CrmUserContext) {
-    if (!this.templateGroupService) {
-      throw new BadRequestException('CRM 邮件模板服务未启用');
-    }
-
-    return this.templateGroupService.setDefaultEmailTemplateGroup(id, context);
+    return this.requireTemplateGroupService().setDefaultEmailTemplateGroup(id, context);
   }
 
   /** Returns the read-only default template and persona rules used by first-draft generation. */
   async getTemplateDefaults(context: CrmUserContext) {
-    if (!this.templateGroupService) {
-      throw new BadRequestException('CRM 邮件模板服务未启用');
-    }
-
-    return this.templateGroupService.getTemplateDefaults(context);
+    return this.requireTemplateGroupService().getTemplateDefaults(context);
   }
 
   /** Lists organization sequence policies for sequence creation and settings. */
@@ -619,47 +527,27 @@ export class CrmService {
       status?: unknown;
     } = {}
   ) {
-    if (!this.sequencePolicyService) {
-      throw new BadRequestException('CRM 序列策略服务未启用');
-    }
-
-    return this.sequencePolicyService.listSequencePolicies(context, query);
+    return this.requireSequencePolicyService().listSequencePolicies(context, query);
   }
 
   /** Creates one organization sequence policy. */
   async createSequencePolicy(input: SequencePolicyWriteInput, context: CrmUserContext) {
-    if (!this.sequencePolicyService) {
-      throw new BadRequestException('CRM 序列策略服务未启用');
-    }
-
-    return this.sequencePolicyService.createSequencePolicy(input, context);
+    return this.requireSequencePolicyService().createSequencePolicy(input, context);
   }
 
   /** Updates one organization sequence policy. */
   async updateSequencePolicy(id: string, input: SequencePolicyWriteInput, context: CrmUserContext) {
-    if (!this.sequencePolicyService) {
-      throw new BadRequestException('CRM 序列策略服务未启用');
-    }
-
-    return this.sequencePolicyService.updateSequencePolicy(id, input, context);
+    return this.requireSequencePolicyService().updateSequencePolicy(id, input, context);
   }
 
   /** Archives one sequence policy instead of deleting it. */
   async archiveSequencePolicy(id: string, context: CrmUserContext) {
-    if (!this.sequencePolicyService) {
-      throw new BadRequestException('CRM 序列策略服务未启用');
-    }
-
-    return this.sequencePolicyService.archiveSequencePolicy(id, context);
+    return this.requireSequencePolicyService().archiveSequencePolicy(id, context);
   }
 
   /** Marks one active organization sequence policy as default. */
   async setDefaultSequencePolicy(id: string, context: CrmUserContext) {
-    if (!this.sequencePolicyService) {
-      throw new BadRequestException('CRM 序列策略服务未启用');
-    }
-
-    return this.sequencePolicyService.setDefaultSequencePolicy(id, context);
+    return this.requireSequencePolicyService().setDefaultSequencePolicy(id, context);
   }
 
   /** Creates one first-email review item and deterministic draft without queueing any send job. */
@@ -1251,6 +1139,46 @@ export class CrmService {
     }
 
     return this.suppressionService;
+  }
+
+  private requireSettingsService() {
+    if (!this.settingsService) {
+      throw new BadRequestException('CRM 配置服务未启用');
+    }
+
+    return this.settingsService;
+  }
+
+  private requireProductLineService() {
+    if (!this.productLineService) {
+      throw new BadRequestException('CRM 产品资料服务未启用');
+    }
+
+    return this.productLineService;
+  }
+
+  private requirePersonaProfileService() {
+    if (!this.personaProfileService) {
+      throw new BadRequestException('CRM 画像服务未启用');
+    }
+
+    return this.personaProfileService;
+  }
+
+  private requireTemplateGroupService() {
+    if (!this.templateGroupService) {
+      throw new BadRequestException('CRM 邮件模板服务未启用');
+    }
+
+    return this.templateGroupService;
+  }
+
+  private requireSequencePolicyService() {
+    if (!this.sequencePolicyService) {
+      throw new BadRequestException('CRM 序列策略服务未启用');
+    }
+
+    return this.sequencePolicyService;
   }
 
   private requireSequenceService() {
