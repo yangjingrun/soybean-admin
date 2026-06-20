@@ -381,7 +381,9 @@ describe('AiGatewayService', () => {
         requestId: failedRequestId,
         stage: 'failed',
         providerName: 'openrouter',
-        model: 'openai/gpt-4o-mini'
+        model: 'openai/gpt-4o-mini',
+        errorCategory: 'external_service',
+        errorName: 'Error'
       }
     });
   });

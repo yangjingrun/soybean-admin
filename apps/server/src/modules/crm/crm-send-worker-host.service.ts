@@ -3,6 +3,7 @@ import { Job, Worker } from 'bullmq';
 import { AppConfigService } from '../app-config/app-config.service';
 import { canRunWorkers } from '../app-config/app-config.loader';
 import { RedisService } from '../redis/redis.service';
+import { createSystemLogErrorMetadata } from '../system-log/system-log-error-taxonomy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { crmSendQueueName } from './crm-send.constants';
@@ -64,7 +65,7 @@ export class CrmSendWorkerHost implements OnModuleInit, OnModuleDestroy {
         action,
         message,
         errorMessage: error instanceof Error ? error.message : String(error),
-        metadata
+        metadata: createSystemLogErrorMetadata(error, metadata)
       });
     } catch {
       // 运行期事件回调不能因为日志服务异常产生新的未处理异常。

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type { RequestUserContext } from '../../shared/request-context';
+import { createSystemLogErrorMetadata } from '../system-log/system-log-error-taxonomy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import {
@@ -355,9 +356,13 @@ export class AiGatewayService {
         userId: context.user?.userId,
         userName: context.user?.userName,
         errorMessage: error instanceof Error ? error.message : String(error),
-        metadata: params
-          ? this.toLogMetadata(params, undefined, 'failed', requestId)
-          : this.toRequestLogMetadata(dto, 'failed-before-model-call', requestId)
+        metadata: createSystemLogErrorMetadata(
+          error,
+          params
+            ? this.toLogMetadata(params, undefined, 'failed', requestId)
+            : this.toRequestLogMetadata(dto, 'failed-before-model-call', requestId),
+          { defaultCategory: 'external_service' }
+        )
       });
 
       throw error;
