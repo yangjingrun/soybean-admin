@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { AiGatewayController } from '../ai-gateway/ai-gateway.controller';
 import { AiLeadsController } from '../ai-leads/ai-leads.controller';
-import { CrmController } from '../crm/crm.controller';
+import { CrmAccountController } from '../crm/controllers/crm-account.controller';
+import { CrmInboxController } from '../crm/controllers/crm-inbox.controller';
+import { CrmMailboxController } from '../crm/controllers/crm-mailbox.controller';
+import { CrmSettingsController } from '../crm/controllers/crm-settings.controller';
 import { SystemLogController } from '../system-log/system-log.controller';
 import { SystemUserController } from '../system-user/system-user.controller';
 import { AUTH_POLICY_KEY, OrganizationAdminOnly, ROLE_DENIED_MESSAGE_KEY, ROLES_KEY } from './auth.decorators';
@@ -44,12 +47,12 @@ describe('platform super route policy', () => {
       'saveAiDraftQueueConfig',
       'reconcileSendQueue'
     ]) {
-      assertSuperOnly(getMethod(CrmController, method), '无权维护 CRM 全局配置');
+      assertSuperOnly(getMethod(CrmSettingsController, method), '无权维护 CRM 全局配置');
     }
 
-    assertSuperOnly(getMethod(CrmController, 'mockAuthorizeMailbox'), '无权使用 CRM mock 接口');
-    assertSuperOnly(getMethod(CrmController, 'mockCustomerReply'), '无权使用 CRM mock 接口');
-    assert.equal(Reflect.getMetadata(ROLES_KEY, getMethod(CrmController, 'listAccounts')), undefined);
+    assertSuperOnly(getMethod(CrmMailboxController, 'mockAuthorizeMailbox'), '无权使用 CRM mock 接口');
+    assertSuperOnly(getMethod(CrmInboxController, 'mockCustomerReply'), '无权使用 CRM mock 接口');
+    assert.equal(Reflect.getMetadata(ROLES_KEY, getMethod(CrmAccountController, 'listAccounts')), undefined);
   });
 
   it('keeps organization-admin policy metadata available for future route-level policies', () => {
