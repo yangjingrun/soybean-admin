@@ -634,6 +634,8 @@ model CrmMessage {
 
   @@unique([enrollmentId, stepIndex])
   @@index([organizationId, ownerUserId, status, updatedAt])
+  @@index([status, scheduledAt, updatedAt])
+  @@index([status, bullJobId, scheduledAt, updatedAt])
   @@index([organizationId, accountId, createdAt])
   @@index([organizationId, contactId, createdAt])
   @@index([organizationId, bullJobId])

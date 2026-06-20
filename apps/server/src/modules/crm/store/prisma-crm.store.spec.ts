@@ -310,6 +310,44 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('pushes due send candidate guards into the Prisma query', async () => {
+    const prisma = createPrisma({
+      message: createPrismaMessage({
+        id: 'message-due',
+        status: 'draft_ready',
+        mailboxId: 'mailbox-1',
+        scheduledAt: new Date('2026-06-18T10:00:00.000Z')
+      })
+    });
+    const store = new PrismaCrmStore(prisma as never);
+    const now = new Date('2026-06-18T10:30:00.000Z');
+
+    await store.listDueSendCandidates({ now, take: 50 });
+
+    assert.deepEqual(prisma.crmMessage.findManyCalls[0].where, {
+      status: 'draft_ready',
+      scheduledAt: {
+        lte: now
+      },
+      mailboxId: {
+        not: null
+      },
+      mailbox: {
+        is: {
+          status: 'active'
+        }
+      },
+      enrollment: {
+        status: 'sequence_running'
+      },
+      contact: {
+        emailStatus: {
+          not: 'unsubscribed'
+        }
+      }
+    });
+  });
+
   it('reads and saves organization CRM permission config', async () => {
     const prisma = createPrisma({ organizationConfig: createPrismaOrganizationConfig() });
     const store = new PrismaCrmStore(prisma as never);

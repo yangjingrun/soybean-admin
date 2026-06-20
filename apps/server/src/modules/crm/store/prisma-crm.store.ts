@@ -1021,6 +1021,19 @@ export class PrismaCrmStore implements CrmStore {
         },
         mailboxId: {
           not: null
+        },
+        mailbox: {
+          is: {
+            status: 'active'
+          }
+        },
+        enrollment: {
+          status: 'sequence_running'
+        },
+        contact: {
+          emailStatus: {
+            not: 'unsubscribed'
+          }
         }
       },
       include: {

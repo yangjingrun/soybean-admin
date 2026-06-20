@@ -26,6 +26,13 @@ describe('CRM list query indexes', () => {
     assertModelIndex(model, ['organizationId', 'mailboxId', 'lastInboundAt']);
     assertModelIndex(model, ['organizationId', 'ownerUserId', 'mailboxId', 'lastInboundAt']);
   });
+
+  it('keeps message queue scan indexes aligned with scheduler filters', () => {
+    const model = extractPrismaModel(schema, 'CrmMessage');
+
+    assertModelIndex(model, ['status', 'scheduledAt', 'updatedAt']);
+    assertModelIndex(model, ['status', 'bullJobId', 'scheduledAt', 'updatedAt']);
+  });
 });
 
 function extractPrismaModel(schema: string, modelName: string) {
