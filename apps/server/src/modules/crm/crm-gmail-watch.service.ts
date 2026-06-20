@@ -22,7 +22,7 @@ export class CrmGmailWatchService {
     private readonly historySyncQueue?: CrmGmailHistorySyncQueuePort
   ) {}
 
-  /** Renews Gmail watch for a scoped active mailbox and stores the returned checkpoint. */
+  /** Renews Gmail watch for a scoped active mailbox without advancing an initialized checkpoint. */
   async renewMailboxWatch(id: string, context: CrmUserContext) {
     const mailbox = await this.store.findMailboxById({
       id,
@@ -41,7 +41,7 @@ export class CrmGmailWatchService {
     const renewal = await this.renewWatchOrMarkAuthorizationExpired(mailbox, context);
     const updatedMailbox = await this.store.updateMailbox(mailbox.id, {
       watchExpiration: renewal.watchExpiration,
-      lastHistoryId: renewal.historyId
+      ...(mailbox.lastHistoryId ? {} : { lastHistoryId: renewal.historyId })
     });
 
     if (!updatedMailbox) {

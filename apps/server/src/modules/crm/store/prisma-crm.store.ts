@@ -81,6 +81,8 @@ import type {
   CrmInboxMessageRecord,
   CrmInboxThreadRecord,
   CrmInboxThreadGmailStateSyncInput,
+  CrmInboxUnsubscribeConfirmInput,
+  CrmInboxUnsubscribeConfirmRecord,
   CrmInboxReplyDraftSaveInput,
   CrmInboxThreadReplyInput,
   CrmInboxThreadReplyRecord,
@@ -404,12 +406,9 @@ export class PrismaCrmStore implements CrmStore {
 
   async createAiDraftTask(input: CrmAiDraftTaskCreateInput) {
     try {
-      return await this.prisma.$transaction(
-        async tx => this.createAiDraftTaskInsideTransaction(tx, input),
-        {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
-        }
-      );
+      return await this.prisma.$transaction(async tx => this.createAiDraftTaskInsideTransaction(tx, input), {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      });
     } catch (error) {
       // Serializable conflicts mean another creator won the same capacity window.
       if (isPrismaConcurrentTaskCreateConflict(error)) {
@@ -800,6 +799,24 @@ export class PrismaCrmStore implements CrmStore {
     }
 
     return candidates;
+  }
+
+  async listStaleQueuedMessages(input: { before: Date; take: number }): Promise<CrmMessageRecord[]> {
+    const records = await this.prisma.crmMessage.findMany({
+      where: {
+        status: 'queued',
+        bullJobId: {
+          not: null
+        },
+        scheduledAt: {
+          lte: input.before
+        }
+      },
+      orderBy: [{ scheduledAt: 'asc' }, { updatedAt: 'asc' }],
+      take: input.take
+    });
+
+    return records.map(toMessageRecord);
   }
 
   async getOrganizationConfig(organizationId: string) {
@@ -1262,7 +1279,9 @@ export class PrismaCrmStore implements CrmStore {
           organizationId: input.organizationId
         },
         data: {
-          aiWritingConfig: toProductLineAiPromptVersionJson(toProductLineAiWritingConfig(restoredVersion.aiWritingConfig))
+          aiWritingConfig: toProductLineAiPromptVersionJson(
+            toProductLineAiWritingConfig(restoredVersion.aiWritingConfig)
+          )
         },
         limit: 1
       });
@@ -1284,7 +1303,9 @@ export class PrismaCrmStore implements CrmStore {
           organizationId: input.organizationId,
           productLineId: input.productLineId,
           version: (latestVersion?.version ?? restoredVersion.version) + 1,
-          aiWritingConfig: toProductLineAiPromptVersionJson(toProductLineAiWritingConfig(restoredVersion.aiWritingConfig)),
+          aiWritingConfig: toProductLineAiPromptVersionJson(
+            toProductLineAiWritingConfig(restoredVersion.aiWritingConfig)
+          ),
           editorId: input.editorId,
           editorName: input.editorName ?? null,
           changeSummary: input.changeSummary ?? `恢复版本 ${restoredVersion.version}`
@@ -1848,9 +1869,7 @@ export class PrismaCrmStore implements CrmStore {
           ownerUserId: input.ownerUserId,
           OR: [
             { stepIndex: input.message.stepIndex },
-            ...(input.blockingMessageStatuses?.length
-              ? [{ status: { in: input.blockingMessageStatuses } }]
-              : [])
+            ...(input.blockingMessageStatuses?.length ? [{ status: { in: input.blockingMessageStatuses } }] : [])
           ]
         }
       });
@@ -3258,6 +3277,146 @@ export class PrismaCrmStore implements CrmStore {
     });
   }
 
+  async confirmInboxMessageUnsubscribe(
+    input: CrmInboxUnsubscribeConfirmInput
+  ): Promise<CrmInboxUnsubscribeConfirmRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const inboxMessage = await tx.crmInboxMessage.findFirst({
+        where: {
+          id: input.messageId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          messageType: {
+            in: ['unsubscribe_hint', 'unsubscribe_review_pending']
+          }
+        },
+        include: {
+          thread: true,
+          account: true,
+          contact: true,
+          mailbox: true,
+          enrollment: true
+        }
+      });
+
+      if (!inboxMessage) {
+        return null;
+      }
+
+      const message =
+        inboxMessage.messageType === 'unsubscribe_hint'
+          ? inboxMessage
+          : await tx.crmInboxMessage.update({
+              where: { id: inboxMessage.id },
+              data: { messageType: 'unsubscribe_hint' },
+              include: {
+                thread: true,
+                account: true,
+                contact: true,
+                mailbox: true,
+                enrollment: true
+              }
+            });
+
+      await tx.crmBlacklist.upsert({
+        where: {
+          organizationId_emailHash: {
+            organizationId: input.organizationId,
+            emailHash: inboxMessage.contact.emailHash
+          }
+        },
+        create: {
+          organizationId: input.organizationId,
+          emailHash: inboxMessage.contact.emailHash,
+          maskedEmail: inboxMessage.contact.maskedEmail,
+          reason: 'unsubscribe',
+          sourceAccountId: inboxMessage.accountId,
+          sourceContactId: inboxMessage.contactId,
+          sourceMessageId: inboxMessage.id,
+          createdById: input.confirmedById,
+          createdByName: input.confirmedByName ?? null
+        },
+        update: {
+          maskedEmail: inboxMessage.contact.maskedEmail,
+          reason: 'unsubscribe',
+          sourceAccountId: inboxMessage.accountId,
+          sourceContactId: inboxMessage.contactId,
+          sourceMessageId: inboxMessage.id,
+          createdById: input.confirmedById,
+          createdByName: input.confirmedByName ?? null
+        }
+      });
+
+      await Promise.all([
+        tx.crmSequenceEnrollment.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            accountId: inboxMessage.accountId,
+            status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
+          },
+          data: {
+            status: 'replied',
+            runVersion: { increment: 1 }
+          }
+        }),
+        tx.crmMessage.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            accountId: inboxMessage.accountId,
+            status: 'queued'
+          },
+          data: {
+            status: 'skipped',
+            bullJobId: null
+          }
+        })
+      ]);
+
+      const [account, contact, enrollment, event] = await Promise.all([
+        tx.crmAccount.update({
+          where: { id: inboxMessage.accountId },
+          data: { status: 'blocked' }
+        }),
+        tx.crmContact.update({
+          where: { id: inboxMessage.contactId },
+          data: { emailStatus: 'unsubscribed' }
+        }),
+        inboxMessage.enrollmentId
+          ? tx.crmSequenceEnrollment.findUnique({ where: { id: inboxMessage.enrollmentId } })
+          : null,
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: inboxMessage.accountId,
+            contactId: inboxMessage.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: 'customer_unsubscribed',
+            title: '确认客户退订',
+            content: inboxMessage.subject,
+            metadata: {
+              inboxThreadId: inboxMessage.threadId,
+              inboxMessageId: inboxMessage.id,
+              confirmedAt: input.confirmedAt.toISOString(),
+              confirmedById: input.confirmedById
+            }
+          }
+        })
+      ]);
+
+      return {
+        thread: toInboxThreadRecord(message.thread),
+        message: toInboxMessageRecord(message),
+        account: toAccountRecord(account),
+        contact: toContactRecord(contact),
+        mailbox: message.mailbox ? toMailboxRecord(message.mailbox) : null,
+        enrollment: enrollment ? toSequenceEnrollmentRecord(enrollment) : null,
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
   async replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null> {
     return this.prisma.$transaction(async tx => {
       const record = await tx.crmInboxThread.findFirst({
@@ -3525,10 +3684,10 @@ function toBlacklistListWhere(args: CrmBlacklistListInput): Prisma.CrmBlacklistW
   };
 }
 
-function toScopedOrganizationWhere(args: {
+function toScopedOrganizationWhere(args: { organizationId: string; ownerUserId?: string }): {
   organizationId: string;
   ownerUserId?: string;
-}): { organizationId: string; ownerUserId?: string } {
+} {
   return {
     organizationId: args.organizationId,
     ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
@@ -3667,10 +3826,7 @@ function toSequenceEnrollmentTodoTypeWhere(
       status: { in: ['ready_to_send', 'sequence_running'] },
       messages: {
         none: {
-          OR: [
-            { status: { in: ['draft_pending_review', 'queued', 'failed'] } },
-            { stepIndex: 5 }
-          ]
+          OR: [{ status: { in: ['draft_pending_review', 'queued', 'failed'] } }, { stepIndex: 5 }]
         }
       }
     };
@@ -4185,7 +4341,9 @@ function toSequencePolicyRecord(record: CrmSequencePolicyModel): CrmSequencePoli
   };
 }
 
-function toPersonaProfileCreateInput(input: CrmPersonaProfileCreateInput): Prisma.CrmPersonaProfileUncheckedCreateInput {
+function toPersonaProfileCreateInput(
+  input: CrmPersonaProfileCreateInput
+): Prisma.CrmPersonaProfileUncheckedCreateInput {
   return {
     organizationId: input.organizationId,
     name: input.name,
@@ -4202,7 +4360,9 @@ function toPersonaProfileCreateInput(input: CrmPersonaProfileCreateInput): Prism
   };
 }
 
-function toPersonaProfileUpdateInput(input: CrmPersonaProfileUpdateInput): Prisma.CrmPersonaProfileUncheckedUpdateInput {
+function toPersonaProfileUpdateInput(
+  input: CrmPersonaProfileUpdateInput
+): Prisma.CrmPersonaProfileUncheckedUpdateInput {
   return {
     name: input.name,
     description: input.description,

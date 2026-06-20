@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  buildAiLeadCandidateImportPayload,
+  buildAiLeadCandidateImportRows,
   buildKeywordHistoryUpdatePayload,
   createKeywordOptimizationViewModel,
   createAiResultFromKeywordHistory,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
   parseKeywordOptimizationPlan,
+  normalizeAiLeadCandidateDomain,
   resolveTargetLeadCountAfterOptimization
 } from './shared';
 
@@ -184,5 +187,78 @@ describe('ai leads keyword optimization helpers', () => {
     });
 
     assert.equal(count, null);
+  });
+
+  it('filters low-quality AI lead candidates before CRM import', () => {
+    const rows = buildAiLeadCandidateImportRows([
+      {
+        title: 'Bearing House',
+        website: 'https://www.bearing.example.com/products',
+        snippet: 'Bearing supplier and industrial distributor',
+        sourceLabel: '公开线索',
+        sourceType: 'search',
+        sourceUrl: 'https://google.example.com/result',
+        score: 82,
+        reason: 'Matches importer signal'
+      },
+      {
+        title: 'Bearing House Branch',
+        website: 'bearing.example.com/contact',
+        snippet: 'Same company branch',
+        sourceLabel: '公开线索'
+      },
+      {
+        title: '',
+        website: '',
+        sourceLabel: '公开线索'
+      },
+      {
+        title: 'Home',
+        website: 'https://low.example.com',
+        sourceLabel: '公开线索',
+        score: 20
+      }
+    ]);
+
+    assert.equal(rows[0].importState.canImport, true);
+    assert.equal(rows[0].importState.domain, 'bearing.example.com');
+    assert.deepEqual(rows[1].importState.reasons, ['重复域名']);
+    assert.deepEqual(rows[2].importState.reasons, ['缺少公司名', '缺少官网或域名', '候选质量偏低']);
+    assert.deepEqual(rows[3].importState.reasons, ['候选质量偏低']);
+  });
+
+  it('builds CRM import payload with AI candidate source snapshot', () => {
+    const candidate: Api.AiLeads.LeadSearchCandidateView = {
+      title: ' Bearing House ',
+      website: ' https://bearing.example.com ',
+      snippet: 'Industrial bearing distributor',
+      address: 'Riyadh',
+      phoneNumber: '+966 123',
+      sourceLabel: '公开线索',
+      sourceType: 'search',
+      sourceUrl: 'https://google.example.com/result',
+      score: 88,
+      reason: 'Good buyer signal'
+    };
+
+    assert.equal(normalizeAiLeadCandidateDomain(candidate), 'bearing.example.com');
+    assert.deepEqual(buildAiLeadCandidateImportPayload(candidate, { sourceTaskId: 'task-1' }), {
+      name: 'Bearing House',
+      websiteUrl: 'https://bearing.example.com',
+      customerType: '公开线索',
+      sourceTaskId: 'task-1',
+      sourceSnapshot: {
+        title: 'Bearing House',
+        website: 'https://bearing.example.com',
+        snippet: 'Industrial bearing distributor',
+        address: 'Riyadh',
+        phoneNumber: '+966 123',
+        sourceType: 'search',
+        sourceLabel: '公开线索',
+        sourceUrl: 'https://google.example.com/result',
+        score: 88,
+        reason: 'Good buyer signal'
+      }
+    });
   });
 });

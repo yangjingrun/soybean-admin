@@ -31,6 +31,7 @@ import {
   buildSequenceReviewSearchParams,
   buildSequenceBatchResultDisplayItems,
   canApproveSequenceDraftInBatch,
+  canCreateAiDraftTaskForSequence,
   canGenerateNextSequenceDraft,
   canStopSequenceInBatch,
   createDefaultSequenceCreateForm,
@@ -43,6 +44,7 @@ import {
   type DraftReviewSavePayload,
   type SequenceBatchResultDisplayItem
 } from './shared';
+import { isMailboxAvailableForSequence } from '../../settings/modules/shared';
 
 /** Manage sequence review list, creation resources and draft drawer operations. */
 export function useEmailSequenceTable() {
@@ -117,10 +119,12 @@ export function useEmailSequenceTable() {
     }))
   );
   const mailboxSelectOptions = computed(() =>
-    mailboxOptions.value.map(mailbox => ({
-      label: mailbox.maskedEmail,
-      value: mailbox.id
-    }))
+    mailboxOptions.value
+      .filter(mailbox => isMailboxAvailableForSequence(mailbox))
+      .map(mailbox => ({
+        label: mailbox.maskedEmail,
+        value: mailbox.id
+      }))
   );
   const productLineSelectOptions = computed(() =>
     productLineOptions.value.map(productLine => ({
@@ -460,7 +464,11 @@ export function useEmailSequenceTable() {
         return;
       }
 
-      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== payload.messageId || !currentItem.value) {
+      if (
+        selectedEnrollmentId.value !== enrollmentId ||
+        selectedMessageId.value !== payload.messageId ||
+        !currentItem.value
+      ) {
         return;
       }
 
@@ -564,10 +572,10 @@ export function useEmailSequenceTable() {
   }
 
   async function handleBatchGenerateNextDrafts() {
-    const executableCount = checkedRows.value.filter(canGenerateNextSequenceDraft).length;
-    const ids = checkedRows.value.map(item => item.enrollment.id);
+    const executableRows = checkedRows.value.filter(canGenerateNextSequenceDraft);
+    const ids = executableRows.map(item => item.enrollment.id);
 
-    if (executableCount === 0) {
+    if (ids.length === 0) {
       message.warning('当前选中序列没有可生成下一封的记录');
       return;
     }
@@ -609,7 +617,9 @@ export function useEmailSequenceTable() {
       }
 
       aiDraftTaskDetail.value = data;
-      aiDraftTaskDrawerVisible.value = Boolean(data && ['queued', 'running', 'failed', 'completed'].includes(data.task.status));
+      aiDraftTaskDrawerVisible.value = Boolean(
+        data && ['queued', 'running', 'failed', 'completed'].includes(data.task.status)
+      );
     } finally {
       if (requestId === latestAiDraftTaskRequestId) {
         aiDraftTaskLoading.value = false;
@@ -643,10 +653,11 @@ export function useEmailSequenceTable() {
   }
 
   async function handleCreateAiDraftTask() {
-    const ids = checkedRows.value.map(item => item.enrollment.id);
+    const executableRows = checkedRows.value.filter(canCreateAiDraftTaskForSequence);
+    const ids = executableRows.map(item => item.enrollment.id);
 
     if (ids.length === 0) {
-      message.warning('请选择要生成草稿的序列');
+      message.warning('当前选中序列没有可 AI 生成草稿的记录');
       return;
     }
 

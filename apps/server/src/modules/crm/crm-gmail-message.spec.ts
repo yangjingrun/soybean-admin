@@ -128,6 +128,22 @@ describe('parseGmailApiMessage', () => {
     assert.equal(result.messageType, 'unsubscribe_hint');
   });
 
+  it('classifies vague rejection replies as pending unsubscribe review', () => {
+    const result = parseGmailApiMessage(
+      createMessage({
+        payload: {
+          mimeType: 'text/plain',
+          headers: [{ name: 'Subject', value: 'Re: Product' }],
+          body: {
+            data: encodeBase64Url('Not interested right now, thanks.')
+          }
+        }
+      })
+    );
+
+    assert.equal(result.messageType, 'unsubscribe_review_pending');
+  });
+
   it('classifies delivery status messages as bounce', () => {
     const result = parseGmailApiMessage(
       createMessage({

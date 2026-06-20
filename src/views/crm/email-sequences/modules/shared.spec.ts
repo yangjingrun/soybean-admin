@@ -24,7 +24,9 @@ import {
   formatSequenceBatchResultText,
   canGenerateNextSequenceDraft,
   canApproveSequenceDraftInBatch,
+  canCreateAiDraftTaskForSequence,
   canStopSequenceInBatch,
+  isDraftBlockedBySequencePolicy,
   summarizeSequenceBatchSelection,
   normalizeSequenceCreatePayload
 } from './shared';
@@ -142,9 +144,7 @@ function createSequenceItem(
   };
 }
 
-function createSequencePolicy(
-  overrides: Partial<Api.Crm.SequencePolicyRecord> = {}
-): Api.Crm.SequencePolicyRecord {
+function createSequencePolicy(overrides: Partial<Api.Crm.SequencePolicyRecord> = {}): Api.Crm.SequencePolicyRecord {
   return {
     id: 'policy-1',
     organizationId: 'org-1',
@@ -669,6 +669,7 @@ describe('email sequence review shared helpers', () => {
       enrollment: { id: 'enrollment-1', status: 'sequence_running', totalSteps: 5 },
       messages: [createMessage({ id: 'message-1', status: 'sent', stepIndex: 1 })]
     });
+    generateReady.productLine = { aiWritingConfig: { enabled: true } } as Api.Crm.ProductLineRecord;
     const stoppable = createSequenceItem({
       enrollment: { id: 'enrollment-2', status: 'paused' },
       messages: [createMessage({ id: 'message-2', enrollmentId: 'enrollment-2', status: 'queued' })]
@@ -687,16 +688,32 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canApproveSequenceDraftInBatch(approvable), true);
     assert.equal(canApproveSequenceDraftInBatch(adminVisibleMember), false);
     assert.equal(canApproveSequenceDraftInBatch(terminal), false);
+    assert.equal(canCreateAiDraftTaskForSequence(generateReady), true);
+    assert.equal(canCreateAiDraftTaskForSequence(stoppable), false);
     assert.equal(canStopSequenceInBatch(stoppable), true);
     assert.equal(canStopSequenceInBatch(adminVisibleMember), false);
     assert.equal(canStopSequenceInBatch(terminal), false);
-    assert.deepEqual(summarizeSequenceBatchSelection([approvable, generateReady, stoppable, adminVisibleMember, terminal]), {
-      selectedCount: 5,
-      approveDraftCount: 1,
-      generateNextDraftCount: 1,
-      stopCount: 3,
-      skippedCount: 2
-    });
+    assert.deepEqual(
+      summarizeSequenceBatchSelection([approvable, generateReady, stoppable, adminVisibleMember, terminal]),
+      {
+        selectedCount: 5,
+        aiDraftTaskCount: 1,
+        approveDraftCount: 1,
+        generateNextDraftCount: 1,
+        stopCount: 3,
+        skippedCount: 2
+      }
+    );
+  });
+
+  it('blocks draft approval when link policy forbids remaining links', () => {
+    const item = createSequenceItem({
+      messages: [createMessage({ id: 'message-link', bodyText: 'Read https://example.com/catalog' })]
+    }) as Api.Crm.SequenceReviewItem & { policy: Api.Crm.SequencePolicyRecord };
+    item.policy = createSequencePolicy({ linkPolicy: 'block_new_links' });
+
+    assert.equal(isDraftBlockedBySequencePolicy(item, item.messages[0]), true);
+    assert.equal(canApproveSequenceDraftInBatch(item), false);
   });
 
   it('formats batch operation summary counts for toolbar messages', () => {

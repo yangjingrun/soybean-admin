@@ -108,6 +108,18 @@ export const mailboxStatusTagTypeMap: Record<Api.Crm.MailboxStatus, NaiveUI.Them
   auth_expired: 'error'
 };
 
+export const mailboxSyncModeLabelMap: Record<Api.Crm.MailboxSyncMode, string> = {
+  full_sync: '完整同步',
+  send_only: '仅发信',
+  mock_watch: 'Mock Watch'
+};
+
+export const mailboxSyncModeTagTypeMap: Record<Api.Crm.MailboxSyncMode, NaiveUI.ThemeColor> = {
+  full_sync: 'success',
+  send_only: 'warning',
+  mock_watch: 'info'
+};
+
 export const mailboxWarmupLabelMap: Record<Api.Crm.MailboxWarmupStage, string> = {
   new: '新账号',
   warming: '预热中',
@@ -538,12 +550,15 @@ export function createProductLineFormFromRecord(record: Api.Crm.ProductLineRecor
     catalogUrl: record.catalogUrl ?? '',
     websiteUrl: record.websiteUrl ?? '',
     commonModelsText: record.commonModelsText ?? '',
-    aiWritingConfig: normalizeProductLineAiWritingConfig(record.aiWritingConfig) ?? createDefaultProductLineAiWritingConfig()
+    aiWritingConfig:
+      normalizeProductLineAiWritingConfig(record.aiWritingConfig) ?? createDefaultProductLineAiWritingConfig()
   };
 }
 
 /** Convert one backend persona profile into the editable form model. */
-export function createPersonaProfileFormFromRecord(record: Api.Crm.PersonaProfileRecord): Api.Crm.PersonaProfileFormModel {
+export function createPersonaProfileFormFromRecord(
+  record: Api.Crm.PersonaProfileRecord
+): Api.Crm.PersonaProfileFormModel {
   return {
     name: record.name,
     description: record.description ?? '',
@@ -594,7 +609,9 @@ export function createDefaultSequencePolicyForm(): Api.Crm.SequencePolicyFormMod
 }
 
 /** Convert one backend email template group into the editable form model. */
-export function createEmailTemplateFormFromRecord(record: Api.Crm.EmailTemplateGroupRecord): Api.Crm.EmailTemplateFormModel {
+export function createEmailTemplateFormFromRecord(
+  record: Api.Crm.EmailTemplateGroupRecord
+): Api.Crm.EmailTemplateFormModel {
   return {
     name: record.name,
     language: record.language,
@@ -613,7 +630,9 @@ export function createEmailTemplateFormFromRecord(record: Api.Crm.EmailTemplateG
 }
 
 /** Convert one backend sequence policy into the editable form model. */
-export function createSequencePolicyFormFromRecord(record: Api.Crm.SequencePolicyRecord): Api.Crm.SequencePolicyFormModel {
+export function createSequencePolicyFormFromRecord(
+  record: Api.Crm.SequencePolicyRecord
+): Api.Crm.SequencePolicyFormModel {
   return {
     name: record.name,
     description: record.description ?? '',
@@ -784,7 +803,8 @@ export function normalizeProductLinePayload(formModel: Api.Crm.ProductLineFormMo
     catalogUrl: formModel.catalogUrl.trim(),
     websiteUrl: formModel.websiteUrl.trim(),
     commonModelsText: formModel.commonModelsText.trim(),
-    aiWritingConfig: normalizeProductLineAiWritingConfig(formModel.aiWritingConfig) ?? createDefaultProductLineAiWritingConfig()
+    aiWritingConfig:
+      normalizeProductLineAiWritingConfig(formModel.aiWritingConfig) ?? createDefaultProductLineAiWritingConfig()
   };
 }
 
@@ -887,7 +907,13 @@ export function buildProductLineAiPromptVersionDiffItems(
   const currentSummary = summarizeProductLineAiWritingConfig(currentConfig);
   const diffItems: ProductLineAiPromptVersionDiffItem[] = [];
 
-  pushProductLinePromptDiffItem(diffItems, 'enabled', '启用状态', versionSummary.enabledLabel, currentSummary.enabledLabel);
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'enabled',
+    '启用状态',
+    versionSummary.enabledLabel,
+    currentSummary.enabledLabel
+  );
   pushProductLinePromptDiffItem(
     diffItems,
     'commonRequirements',
@@ -987,7 +1013,9 @@ export function normalizeEmailTemplatePayload(formModel: Api.Crm.EmailTemplateFo
 }
 
 /** Trim sequence policy fields before submit while preserving the five configured steps. */
-export function normalizeSequencePolicyPayload(formModel: Api.Crm.SequencePolicyFormModel): Api.Crm.SequencePolicyPayload {
+export function normalizeSequencePolicyPayload(
+  formModel: Api.Crm.SequencePolicyFormModel
+): Api.Crm.SequencePolicyPayload {
   return {
     name: formModel.name.trim(),
     description: formModel.description.trim(),
@@ -1104,6 +1132,19 @@ export function formatMailboxWatchDescription(watchExpiration: string | null) {
   return `到期时间 ${formatMailboxDate(watchExpiration)}`;
 }
 
+/** Explain whether a mailbox can support the real receive-sync loop. */
+export function formatMailboxSyncModeDescription(row: Pick<Api.Crm.MailboxRecord, 'syncMode'>) {
+  if (row.syncMode === 'send_only') {
+    return '仅承诺真实发信，不同步客户回复';
+  }
+
+  if (row.syncMode === 'mock_watch') {
+    return '缺少真实 Pub/Sub watch，不能视为完整闭环';
+  }
+
+  return '可接入 Gmail history 增量同步';
+}
+
 /** Mask Gmail history checkpoint while keeping it recognizable in the table. */
 export function formatMailboxHistoryId(value: string | null) {
   if (!value) {
@@ -1121,6 +1162,17 @@ export function formatMailboxQuota(row: Pick<Api.Crm.MailboxRecord, 'dailyLimit'
 /** Label mailbox sync action as recovery when Gmail history checkpoint is expired. */
 export function formatMailboxSyncActionLabel(row: Pick<Api.Crm.MailboxRecord, 'lastSyncIssue'>) {
   return row.lastSyncIssue?.type === 'history_expired' ? '恢复同步' : '立即同步';
+}
+
+/** Check whether a mailbox is ready for sequence creation and real reply sync. */
+export function isMailboxAvailableForSequence(row: Api.Crm.MailboxRecord, now: Dayjs = dayjs()) {
+  return (
+    row.status === 'active' &&
+    row.syncMode === 'full_sync' &&
+    Boolean(row.lastHistoryId) &&
+    !row.lastSyncIssue &&
+    getMailboxWatchStatus(row.watchExpiration, now) === 'normal'
+  );
 }
 
 /** Format product line table datetime. */
@@ -1198,6 +1250,7 @@ export function buildMailboxOperationDetailItems(
     { label: '邮箱', value: row.maskedEmail },
     { label: '负责人', value: row.ownerUserName || row.ownerUserId },
     { label: '授权状态', value: mailboxStatusLabelMap[row.status] },
+    { label: '闭环模式', value: mailboxSyncModeLabelMap[row.syncMode] },
     { label: 'Gmail watch', value: mailboxWatchStatusLabelMap[watchStatus] },
     { label: 'Watch 到期', value: formatMailboxWatchDescription(row.watchExpiration) },
     { label: 'History checkpoint', value: formatMailboxHistoryId(row.lastHistoryId) },
@@ -1299,10 +1352,7 @@ export function formatProductLineSupply(row: Pick<Api.Crm.ProductLineRecord, 'mo
 }
 
 /** Flatten sequence review items into the queue rows that need operational attention. */
-export function collectOperationQueueRows(
-  items: Api.Crm.SequenceReviewItem[],
-  limit = 8
-): OperationQueueRow[] {
+export function collectOperationQueueRows(items: Api.Crm.SequenceReviewItem[], limit = 8): OperationQueueRow[] {
   return items
     .flatMap(item =>
       item.messages
@@ -1345,6 +1395,7 @@ export function summarizeMailboxSyncHealth(
   return records.reduce<MailboxSyncHealthSummary>(
     (summary, record) => {
       const watchStatus = getMailboxWatchStatus(record.watchExpiration, now);
+      const isFullSync = record.syncMode === 'full_sync';
 
       summary.total += 1;
 
@@ -1352,11 +1403,11 @@ export function summarizeMailboxSyncHealth(
         summary.authExpired += 1;
       }
 
-      if (watchStatus !== 'normal') {
+      if (isFullSync && watchStatus !== 'normal') {
         summary.watchNeedsAttention += 1;
       }
 
-      if (record.lastHistoryId) {
+      if (isFullSync && record.lastHistoryId) {
         summary.synced += 1;
       }
 

@@ -3,6 +3,25 @@ import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { HunterClient } from '../ai-gateway/hunter-client.service';
 import type { ImportCrmLeadInput } from '../crm/crm.types';
 
+const minimumAutoEnrichConfidence = 70;
+const buyerRoleKeywords = [
+  'buyer',
+  'buying',
+  'purchase',
+  'purchasing',
+  'procurement',
+  'sourcing',
+  'supply chain',
+  'sales',
+  'business development',
+  'owner',
+  'founder',
+  'director',
+  'manager',
+  'ceo',
+  'general manager'
+];
+
 interface HunterEmailCandidate {
   value?: unknown;
   email?: unknown;
@@ -97,7 +116,7 @@ export class AiLeadHunterEnrichmentService {
 
   private async findBestContact(config: Awaited<ReturnType<AiGatewayService['getHunterConfig']>>, domain: string) {
     const result = await this.hunterClient.domainSearch(config, { domain, limit: 10, offset: 0 });
-    const candidates = readHunterEmails(result);
+    const candidates = readHunterEmails(result).filter(isAutoEnrichableHunterCandidate);
     const best = candidates.sort(compareHunterEmailCandidates)[0];
     const email = normalizeString(best?.value) || normalizeString(best?.email);
 
@@ -143,7 +162,10 @@ function mergeMissingContactFields(existing: ImportCrmLeadInput['contact'], cont
   };
 }
 
-function hasContactChanged(existing: ImportCrmLeadInput['contact'], merged: NonNullable<ImportCrmLeadInput['contact']>) {
+function hasContactChanged(
+  existing: ImportCrmLeadInput['contact'],
+  merged: NonNullable<ImportCrmLeadInput['contact']>
+) {
   return (
     normalizeString(existing?.fullName) !== normalizeString(merged.fullName) ||
     normalizeString(existing?.title) !== normalizeString(merged.title) ||
@@ -170,6 +192,20 @@ function compareHunterEmailCandidates(left: HunterEmailCandidate, right: HunterE
   }
 
   return normalizeNumber(right.confidence) - normalizeNumber(left.confidence);
+}
+
+function isAutoEnrichableHunterCandidate(candidate: HunterEmailCandidate) {
+  const email = normalizeString(candidate.value) || normalizeString(candidate.email);
+  const confidence = normalizeNumber(candidate.confidence);
+  const title = normalizeString(candidate.position).toLowerCase();
+
+  return (
+    !!email &&
+    normalizeString(candidate.type) === 'personal' &&
+    confidence >= minimumAutoEnrichConfidence &&
+    !!normalizeFullName(candidate) &&
+    buyerRoleKeywords.some(keyword => title.includes(keyword))
+  );
 }
 
 function normalizeFullName(candidate: HunterEmailCandidate | undefined) {

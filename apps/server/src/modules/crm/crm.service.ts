@@ -97,6 +97,7 @@ import type {
   CrmInboxThreadReplyRecord,
   CrmInboxThreadRecord,
   CrmInboxThreadStatus,
+  CrmInboxUnsubscribeConfirmRecord,
   CrmMessageDraftVersionRecord,
   CrmMessageRecord,
   CrmMessageStatus,
@@ -130,6 +131,12 @@ const defaultPageSize = 20;
 const maxPageSize = 100;
 const maxNoteLength = 2000;
 const gmailProvider: CrmMailboxProvider = 'gmail';
+const gmailHistorySyncScopes = new Set([
+  'https://mail.google.com/',
+  'https://www.googleapis.com/auth/gmail.modify',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.metadata'
+]);
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
 const defaultProductLineStatus: CrmProductLineStatus = 'active';
@@ -376,7 +383,8 @@ export class CrmService {
         title: 'AI 获客导入客户公司',
         metadata: {
           sourceTaskId: input.sourceTaskId ?? null,
-          domain
+          domain,
+          sourceSnapshot: normalizeLeadSourceSnapshot(input.sourceSnapshot)
         }
       });
     }
@@ -1696,7 +1704,9 @@ export class CrmService {
     const productLine = this.requireAiWritingProductLine(
       await this.requireActiveProductLine(input.productLineId, context)
     );
-    const sequenceItem = input.enrollmentId ? await this.requireOwnedSequenceReviewItem(input.enrollmentId, context) : null;
+    const sequenceItem = input.enrollmentId
+      ? await this.requireOwnedSequenceReviewItem(input.enrollmentId, context)
+      : null;
 
     if (sequenceItem) {
       this.assertPreviewMatchesSequence(input, sequenceItem, productLine.id);
@@ -1717,7 +1727,9 @@ export class CrmService {
       })) ??
       sequenceItem?.messages
         .filter(message => message.stepIndex < stepIndex)
-        .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()) ??
+        .sort(
+          (left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()
+        ) ??
       [];
     const fallbackDraft =
       stepIndex === initialDraftStepIndex
@@ -1874,7 +1886,9 @@ export class CrmService {
       stepIndex: toAiWritingStepIndex(message.stepIndex),
       previousMessages: item.messages
         .filter(itemMessage => itemMessage.stepIndex < message.stepIndex)
-        .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()),
+        .sort(
+          (left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()
+        ),
       fallbackDraft: {
         subject: message.subject,
         bodyText: message.bodyText
@@ -2930,6 +2944,80 @@ export class CrmService {
     });
   }
 
+  /** Repairs stale queued messages that lost their BullMQ job. */
+  async reconcileSendQueue(input: { now?: Date; staleMinutes?: number; take?: number } = {}, context: CrmUserContext) {
+    if (!context.roles.includes('R_SUPER')) {
+      throw new ForbiddenException('无权维护 CRM 发送队列');
+    }
+
+    if (!this.sendQueue) {
+      throw new BadRequestException('CRM 邮件发送队列未启用');
+    }
+
+    const now = input.now ?? new Date();
+    const staleMinutes = normalizePositiveInteger(input.staleMinutes, 10, 1, 1440);
+    const take = normalizePositiveInteger(input.take, 100, 1, 500);
+    const before = new Date(now.getTime() - staleMinutes * 60 * 1000);
+    const candidates = await this.store.listStaleQueuedMessages({ before, take });
+    let repairedCount = 0;
+    let skippedCount = 0;
+
+    for (const message of candidates) {
+      if (!message.bullJobId) {
+        skippedCount += 1;
+        continue;
+      }
+
+      if (await this.sendQueue.hasJob(message.bullJobId)) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const repaired = await this.store.updateMessage(
+        message.id,
+        message.organizationId,
+        { status: 'draft_ready', bullJobId: null },
+        { status: 'queued' }
+      );
+
+      if (!repaired) {
+        skippedCount += 1;
+        continue;
+      }
+
+      repairedCount += 1;
+      await this.store.createTimelineEvent({
+        organizationId: repaired.organizationId,
+        accountId: repaired.accountId,
+        contactId: repaired.contactId,
+        ownerUserId: repaired.ownerUserId,
+        eventType: 'send_queue_reconciled',
+        title: '发送队列对账修复',
+        content: '数据库 queued 但 BullMQ job 不存在，已回退为待发送草稿',
+        metadata: {
+          messageId: repaired.id,
+          previousBullJobId: message.bullJobId,
+          repairedAt: now.toISOString()
+        }
+      });
+    }
+
+    const result = {
+      scannedCount: candidates.length,
+      repairedCount,
+      skippedCount
+    };
+
+    await this.recordCrmLog('send-queue-reconcile', 'CRM 发送队列对账修复', context, {
+      organizationId: context.organizationId,
+      before: before.toISOString(),
+      take,
+      ...result
+    });
+
+    return result;
+  }
+
   /** Lists customer reply inbox threads in the current organization scope. */
   async listInboxThreads(
     context: CrmUserContext,
@@ -3227,6 +3315,38 @@ export class CrmService {
     return detail
       ? toInboxThreadDetailView(detail, context, organizationConfig)
       : toInboxReplyIngestView(ingested, context);
+  }
+
+  /** Confirms a weak unsubscribe signal and applies the blacklist transaction for the owner. */
+  async confirmInboxMessageUnsubscribe(id: string, context: CrmUserContext) {
+    const confirmed = await this.store.confirmInboxMessageUnsubscribe({
+      messageId: id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      confirmedAt: new Date(),
+      confirmedById: context.userId,
+      confirmedByName: context.userName
+    });
+
+    if (!confirmed) {
+      throw new NotFoundException('收件箱消息不存在或不可确认退订');
+    }
+
+    await this.systemNotificationService?.markTargetReadForUser(
+      inboxNotificationTargetType,
+      confirmed.thread.id,
+      context.userId
+    );
+    await this.recordCrmLog('inbox-unsubscribe-confirm', 'CRM 收件箱退订已人工确认', context, {
+      organizationId: context.organizationId,
+      accountId: confirmed.account.id,
+      contactId: confirmed.contact.id,
+      threadId: confirmed.thread.id,
+      inboxMessageId: confirmed.message.id,
+      messageType: confirmed.message.messageType
+    });
+
+    return toInboxUnsubscribeConfirmView(confirmed, context);
   }
 
   private async importContactIfPresent(
@@ -4341,10 +4461,10 @@ export class CrmService {
 
     const hasInstruction = Boolean(
       config?.enabled ||
-        config?.commonRequirements ||
-        config?.forbiddenClaims ||
-        config?.productEmphasis ||
-        config?.steps.some(step => step.prompt)
+      config?.commonRequirements ||
+      config?.forbiddenClaims ||
+      config?.productEmphasis ||
+      config?.steps.some(step => step.prompt)
     );
 
     if (hasInstruction && !isOrganizationAdmin(context)) {
@@ -4656,11 +4776,36 @@ function toMailboxView(record: CrmMailboxRecord) {
     ...safeRecord,
     authorizedAt: record.authorizedAt.toISOString(),
     watchExpiration: record.watchExpiration?.toISOString() ?? null,
+    syncMode: resolveMailboxSyncMode(),
     lastSyncIssue: toMailboxSyncIssueView(record),
     pausedAt: record.pausedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
+}
+
+function resolveMailboxSyncMode() {
+  const scopes = parseConfiguredGmailScopes(process.env.CRM_GMAIL_OAUTH_SCOPES);
+  const supportsHistorySync = scopes.length === 0 || scopes.some(scope => gmailHistorySyncScopes.has(scope));
+
+  if (!supportsHistorySync) return 'send_only';
+  if (!normalizeEnvString(process.env.CRM_GMAIL_PUBSUB_TOPIC_NAME)) return 'mock_watch';
+
+  return 'full_sync';
+}
+
+function parseConfiguredGmailScopes(value?: string) {
+  return (
+    normalizeEnvString(value)
+      ?.split(/[\s,]+/)
+      .filter(Boolean) ?? []
+  );
+}
+
+function normalizeEnvString(value?: string) {
+  const normalized = value?.trim();
+
+  return normalized || null;
 }
 
 function toMailboxSyncIssueView(record: CrmMailboxRecord) {
@@ -4851,7 +4996,12 @@ function toInboxThreadDetailView(
 }
 
 function toInboxReplyDraftView(record: CrmInboxThreadRecord) {
-  if (!record.replyDraftBodyText || !record.replyDraftTopic || !record.replyDraftUpdatedAt || !record.replyDraftUpdatedById) {
+  if (
+    !record.replyDraftBodyText ||
+    !record.replyDraftTopic ||
+    !record.replyDraftUpdatedAt ||
+    !record.replyDraftUpdatedById
+  ) {
     return null;
   }
 
@@ -4905,6 +5055,30 @@ function toInboxThreadReplyView(record: CrmInboxThreadReplyRecord, context: CrmU
     contact: thread.contact,
     mailbox: thread.mailbox,
     enrollment: thread.enrollment,
+    messages: [toInboxMessageView(record.message, record.mailbox)],
+    timelineEvents: [toTimelineEventView(record.event)],
+    canOperate: thread.canOperate
+  };
+}
+
+function toInboxUnsubscribeConfirmView(record: CrmInboxUnsubscribeConfirmRecord, context: CrmUserContext) {
+  const thread = {
+    ...toInboxThreadView(record.thread),
+    account: toAccountView(record.account),
+    contact: toContactView(record.contact),
+    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
+    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
+    lastMessageSnippet: record.message.snippet ?? '',
+    canOperate: record.thread.ownerUserId === context.userId
+  };
+
+  return {
+    thread,
+    account: thread.account,
+    contact: thread.contact,
+    mailbox: thread.mailbox,
+    enrollment: thread.enrollment,
+    message: toInboxMessageView(record.message, record.mailbox),
     messages: [toInboxMessageView(record.message, record.mailbox)],
     timelineEvents: [toTimelineEventView(record.event)],
     canOperate: thread.canOperate
@@ -5110,6 +5284,31 @@ function normalizeName(value: string) {
 function normalizeNullableString(value?: string | null) {
   const normalized = value?.trim();
   return normalized || null;
+}
+
+function normalizeLeadSourceSnapshot(value: ImportCrmLeadInput['sourceSnapshot']) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const snapshot: Record<string, string | number | boolean | null> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!key) continue;
+    if (typeof item === 'string') {
+      const normalized = item.trim();
+      if (normalized) snapshot[key] = normalized;
+      continue;
+    }
+
+    if (typeof item === 'number' && Number.isFinite(item)) {
+      snapshot[key] = item;
+      continue;
+    }
+
+    if (typeof item === 'boolean' || item === null) {
+      snapshot[key] = item;
+    }
+  }
+
+  return Object.keys(snapshot).length ? snapshot : null;
 }
 
 function normalizeLimitedContent(value: string, emptyMessage: string, maxLength = maxNoteLength) {
@@ -5410,10 +5609,7 @@ function toPersonaMatchView(match: ResolvedPersonaMatch): CrmPersonaMatchInfo {
   };
 }
 
-function buildPersonaMatchChecklistMessage(
-  match: ResolvedPersonaMatch,
-  contact: Pick<CrmContactRecord, 'title'>
-) {
+function buildPersonaMatchChecklistMessage(match: ResolvedPersonaMatch, contact: Pick<CrmContactRecord, 'title'>) {
   if (match.persona) {
     const reason =
       match.matchMethod === 'title'
@@ -5666,13 +5862,20 @@ function toInboxNotificationCopy(
   };
 }
 
-function normalizePositiveInteger(value: number | string | undefined, fallback: number) {
+function normalizePositiveInteger(
+  value: number | string | undefined,
+  fallback: number,
+  min = 1,
+  max = Number.MAX_SAFE_INTEGER
+) {
   if (value === undefined || value === '') {
     return fallback;
   }
 
   const numberValue = Number(value);
-  return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
+  if (!Number.isInteger(numberValue) || numberValue < min) return fallback;
+
+  return Math.min(numberValue, max);
 }
 
 function toAiDraftTaskCreateLimitMessage(reason: CrmAiDraftTaskCreateLimitReason | undefined) {

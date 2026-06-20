@@ -6,7 +6,7 @@ import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './
 import type { CrmGmailHistorySyncQueueJob, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
 
 describe('CrmGmailWatchService', () => {
-  it('renews an active mailbox watch and persists the returned checkpoint', async () => {
+  it('renews an active mailbox watch without advancing an existing checkpoint', async () => {
     const mailbox = createMailbox({ lastHistoryId: '100' });
     const store = createStore([mailbox]);
     const logs = createLogRecorder();
@@ -29,7 +29,7 @@ describe('CrmGmailWatchService', () => {
     const result = await service.renewMailboxWatch('mailbox-1', createContext());
 
     assert.equal(result.mailbox.watchExpiration, '2026-06-26T08:00:00.000Z');
-    assert.equal(result.mailbox.lastHistoryId, '150');
+    assert.equal(result.mailbox.lastHistoryId, '100');
     assert.deepEqual(result.watch, {
       historyId: '150',
       watchExpiration: '2026-06-26T08:00:00.000Z'
@@ -43,8 +43,7 @@ describe('CrmGmailWatchService', () => {
     assert.deepEqual(store.mailboxUpdateCalls[0], {
       id: 'mailbox-1',
       input: {
-        watchExpiration: new Date('2026-06-26T08:00:00.000Z'),
-        lastHistoryId: '150'
+        watchExpiration: new Date('2026-06-26T08:00:00.000Z')
       }
     });
     assert.deepEqual(logs.records[0].metadata, {
@@ -54,6 +53,23 @@ describe('CrmGmailWatchService', () => {
       maskedEmail: 'a***@gmail.com',
       historyId: '150',
       watchExpiration: '2026-06-26T08:00:00.000Z'
+    });
+  });
+
+  it('initializes checkpoint when renewing an active mailbox with no history id', async () => {
+    const mailbox = createMailbox({ lastHistoryId: null });
+    const store = createStore([mailbox]);
+    const service = new CrmGmailWatchService(store, createGateway());
+
+    const result = await service.renewMailboxWatch('mailbox-1', createContext());
+
+    assert.equal(result.mailbox.lastHistoryId, '150');
+    assert.deepEqual(store.mailboxUpdateCalls[0], {
+      id: 'mailbox-1',
+      input: {
+        watchExpiration: new Date('2026-06-26T08:00:00.000Z'),
+        lastHistoryId: '150'
+      }
     });
   });
 

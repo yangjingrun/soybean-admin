@@ -40,6 +40,6 @@ export class CrmGmailHistorySyncQueueService implements CrmGmailHistorySyncQueue
   }
 }
 
-export function toCrmGmailHistorySyncJobId(mailboxId: string, historyId: string, pubsubMessageId?: string | null) {
-  return [mailboxId, historyId, pubsubMessageId || 'manual'].join(':');
+export function toCrmGmailHistorySyncJobId(mailboxId: string, historyId: string, _pubsubMessageId?: string | null) {
+  return [mailboxId, historyId].join(':');
 }

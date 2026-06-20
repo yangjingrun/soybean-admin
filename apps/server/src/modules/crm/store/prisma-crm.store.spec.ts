@@ -217,6 +217,36 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('lists stale queued messages that still carry BullMQ job ids', async () => {
+    const prisma = createPrisma({
+      message: createPrismaMessage({
+        id: 'message-stale',
+        status: 'queued',
+        bullJobId: 'send-job-1',
+        scheduledAt: new Date('2026-06-18T10:00:00.000Z')
+      })
+    });
+    const store = new PrismaCrmStore(prisma as never);
+    const before = new Date('2026-06-18T10:50:00.000Z');
+
+    const result = await store.listStaleQueuedMessages({ before, take: 50 });
+
+    assert.equal(result[0]?.id, 'message-stale');
+    assert.deepEqual(prisma.crmMessage.findManyCalls[0], {
+      where: {
+        status: 'queued',
+        bullJobId: {
+          not: null
+        },
+        scheduledAt: {
+          lte: before
+        }
+      },
+      orderBy: [{ scheduledAt: 'asc' }, { updatedAt: 'asc' }],
+      take: 50
+    });
+  });
+
   it('reads and saves organization CRM permission config', async () => {
     const prisma = createPrisma({ organizationConfig: createPrismaOrganizationConfig() });
     const store = new PrismaCrmStore(prisma as never);
@@ -2287,6 +2317,76 @@ describe('PrismaCrmStore', () => {
     assert.equal(metadata?.messageType, 'unsubscribe_hint');
   });
 
+  it('confirms a pending unsubscribe review with blacklist and queued message updates in one transaction', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const confirmedAt = new Date('2026-06-18T12:00:00.000Z');
+
+    const result = await store.confirmInboxMessageUnsubscribe({
+      messageId: 'inbox-message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      confirmedAt,
+      confirmedById: 'user-1',
+      confirmedByName: 'Alice'
+    });
+
+    assert.equal(result?.message.messageType, 'unsubscribe_hint');
+    assert.deepEqual(prisma.crmInboxMessage.findFirstCalls.at(-1)?.where, {
+      id: 'inbox-message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      messageType: {
+        in: ['unsubscribe_hint', 'unsubscribe_review_pending']
+      }
+    });
+    assert.deepEqual(prisma.crmInboxMessage.updateCalls.at(-1), {
+      where: { id: 'inbox-message-1' },
+      data: { messageType: 'unsubscribe_hint' },
+      include: {
+        thread: true,
+        account: true,
+        contact: true,
+        mailbox: true,
+        enrollment: true
+      }
+    });
+    assert.equal(prisma.crmBlacklist.upsertCalls.at(-1)?.create.reason, 'unsubscribe');
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
+      },
+      data: {
+        status: 'replied',
+        runVersion: { increment: 1 }
+      }
+    });
+    assert.deepEqual(prisma.crmMessage.updateManyCalls.at(-1), {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        status: 'queued'
+      },
+      data: {
+        status: 'skipped',
+        bullJobId: null
+      }
+    });
+    assert.deepEqual(prisma.crmContact.updateCalls.at(-1), {
+      where: { id: 'contact-1' },
+      data: { emailStatus: 'unsubscribed' }
+    });
+    assert.deepEqual(prisma.crmAccount.updateCalls.at(-1), {
+      where: { id: 'account-1' },
+      data: { status: 'blocked' }
+    });
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'customer_unsubscribed');
+  });
+
   it('marks contact unreachable when ingesting a bounce reply', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -2350,7 +2450,9 @@ describe('PrismaCrmStore', () => {
     assert.equal(task.task?.skippedCount, 1);
     assert.equal(task.task?.effectiveConcurrency, 3);
     assert.equal(prisma.transactionCalls, 1);
-    assert.deepEqual(prisma.transactionOptionsCalls[0], { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    assert.deepEqual(prisma.transactionOptionsCalls[0], {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+    });
     assert.deepEqual(prisma.crmAiDraftQueueConfig.findUniqueCalls[0].where, { configKey: 'crm-ai-draft' });
     assert.deepEqual(prisma.crmAiDraftTask.countCalls[0].where, {
       organizationId: 'org-1',
@@ -2384,7 +2486,9 @@ describe('PrismaCrmStore', () => {
     assert.equal(result.limitReason, 'user_active_limit');
     assert.equal(prisma.crmAiDraftTask.createCalls.length, 0);
     assert.equal(prisma.transactionCalls, 1);
-    assert.deepEqual(prisma.transactionOptionsCalls[0], { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    assert.deepEqual(prisma.transactionOptionsCalls[0], {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+    });
   });
 
   it('maps serializable CRM AI draft task create conflicts to a business conflict result', async () => {
@@ -2616,6 +2720,7 @@ function createPrisma(
     aiDraftActiveCountResults?: number[];
     aiDraftQueueConfig?: ReturnType<typeof createPrismaAiDraftQueueConfig> | null;
     organizationConfig?: ReturnType<typeof createPrismaOrganizationConfig> | null;
+    message?: ReturnType<typeof createPrismaMessage>;
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
     transactionError?: Error;
@@ -2764,7 +2869,7 @@ function createPrisma(
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
   };
   const blacklist = options.blacklistEntry ?? null;
-  const message = createPrismaMessage();
+  const message = options.message ?? createPrismaMessage();
   const enrollment = {
     id: 'enrollment-1',
     organizationId: 'org-1',
@@ -3109,7 +3214,9 @@ function createPrisma(
       },
       async findFirst(args: { where: Record<string, unknown>; orderBy?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
-        return options.aiDraftTaskFindFirstResult === undefined ? createPrismaAiDraftTask() : options.aiDraftTaskFindFirstResult;
+        return options.aiDraftTaskFindFirstResult === undefined
+          ? createPrismaAiDraftTask()
+          : options.aiDraftTaskFindFirstResult;
       },
       async findMany(args: {
         where: Record<string, unknown>;
@@ -3595,12 +3702,7 @@ function createPrisma(
         this.findFirstCalls.push(args);
         return personaProfile;
       },
-      async findMany(args: {
-        where: Record<string, unknown>;
-        skip?: number;
-        take?: number;
-        orderBy?: unknown;
-      }) {
+      async findMany(args: { where: Record<string, unknown>; skip?: number; take?: number; orderBy?: unknown }) {
         this.findManyCalls.push(args);
         return [personaProfile];
       },
@@ -3624,6 +3726,7 @@ function createPrisma(
     },
     crmSequenceEnrollment: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -3643,6 +3746,10 @@ function createPrisma(
       }>,
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);
+        return enrollment;
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
         return enrollment;
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
@@ -3708,6 +3815,11 @@ function createPrisma(
     crmMessage: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        orderBy?: Array<Record<string, unknown>>;
+        take?: number;
+      }>,
       countCalls: [] as Array<{ where: Record<string, unknown> }>,
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -3726,6 +3838,14 @@ function createPrisma(
           createdAt: new Date('2026-06-18T10:00:00.000Z'),
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         });
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        orderBy?: Array<Record<string, unknown>>;
+        take?: number;
+      }) {
+        this.findManyCalls.push(args);
+        return [message];
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
@@ -3819,20 +3939,25 @@ function createPrisma(
         this.updateCalls.push(args);
         return { ...inboxThread, ...args.data, updatedAt: new Date('2026-06-18T12:00:00.000Z') };
       },
-	      async updateManyAndReturn(args: {
-	        where: Record<string, unknown>;
-	        data: Record<string, unknown>;
-	        limit: number;
-	      }) {
-	        this.updateManyAndReturnCalls.push(args);
-	        Object.assign(inboxThread, args.data, { updatedAt: new Date('2026-06-18T12:00:00.000Z') });
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit: number;
+      }) {
+        this.updateManyAndReturnCalls.push(args);
+        Object.assign(inboxThread, args.data, { updatedAt: new Date('2026-06-18T12:00:00.000Z') });
 
-	        return [inboxThread];
-	      }
+        return [inboxThread];
+      }
     },
     crmInboxMessage: {
       findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      updateCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        include?: Record<string, unknown>;
+      }>,
       createError: null as Error | null,
       findFirstResult: 'default' as 'default' | null,
       findFirstResults: [] as Array<'default' | null>,
@@ -3848,6 +3973,16 @@ function createPrisma(
         this.createCalls.push(args);
         if (this.createError) throw this.createError;
         return { ...inboxMessage, ...args.data };
+      },
+      async update(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        include?: Record<string, unknown>;
+      }) {
+        this.updateCalls.push(args);
+        return args.include
+          ? { ...inboxMessage, ...args.data, thread: inboxThread, account, contact, mailbox, enrollment }
+          : { ...inboxMessage, ...args.data };
       }
     }
   };

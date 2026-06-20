@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NProgress, NTag } from 'naive-ui';
+import { NButton, NProgress, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { getMetricDisplayText } from './search-progress';
 import type { LeadSearchProgressState } from './search-progress';
+import { buildAiLeadCandidateImportRows, type AiLeadCandidateImportRow } from './shared';
 
 const props = defineProps<{
   state: LeadSearchProgressState;
+  importingCandidateKey?: string;
   loading?: boolean;
   showSerperDetails?: boolean;
+}>();
+
+const emit = defineEmits<{
+  importCandidate: [row: AiLeadCandidateImportRow];
 }>();
 
 const statusTextMap: Record<LeadSearchProgressState['status'], string> = {
@@ -55,7 +61,7 @@ const summaryItems = computed(() => {
     { label: '完成原因', value: summary.stopReason }
   ];
 });
-const candidateRows = computed(() => props.state.result?.candidates ?? []);
+const candidateRows = computed(() => buildAiLeadCandidateImportRows(props.state.result?.candidates ?? []));
 const serperResultRows = computed(() =>
   (props.showSerperDetails ? (props.state.result?.serperResults ?? []) : []).map((item, index) => ({
     key: `${item.endpoint}-${index}`,
@@ -64,13 +70,13 @@ const serperResultRows = computed(() =>
     resultCode: formatJson(item.result)
   }))
 );
-const candidateColumns: DataTableColumns<Api.AiLeads.LeadSearchCandidateView> = [
+const candidateColumns: DataTableColumns<AiLeadCandidateImportRow> = [
   {
     title: '线索名称',
     key: 'title',
     minWidth: 180,
     ellipsis: { tooltip: true },
-    render: row => row.title || '-'
+    render: row => row.candidate.title || '-'
   },
   {
     title: '网站',
@@ -78,16 +84,16 @@ const candidateColumns: DataTableColumns<Api.AiLeads.LeadSearchCandidateView> = 
     minWidth: 220,
     ellipsis: { tooltip: true },
     render: row =>
-      row.website
+      row.candidate.website
         ? h(
             'a',
             {
               class: 'candidate-link',
-              href: row.website,
+              href: row.candidate.website,
               rel: 'noopener noreferrer',
               target: '_blank'
             },
-            row.website
+            row.candidate.website
           )
         : '-'
   },
@@ -96,21 +102,21 @@ const candidateColumns: DataTableColumns<Api.AiLeads.LeadSearchCandidateView> = 
     key: 'snippet',
     minWidth: 260,
     ellipsis: { tooltip: true },
-    render: row => row.snippet || '-'
+    render: row => row.candidate.snippet || '-'
   },
   {
     title: '地区',
     key: 'address',
     minWidth: 180,
     ellipsis: { tooltip: true },
-    render: row => row.address || '-'
+    render: row => row.candidate.address || '-'
   },
   {
     title: '电话',
     key: 'phoneNumber',
     width: 150,
     ellipsis: { tooltip: true },
-    render: row => row.phoneNumber || '-'
+    render: row => row.candidate.phoneNumber || '-'
   },
   {
     title: '来源',
@@ -122,9 +128,49 @@ const candidateColumns: DataTableColumns<Api.AiLeads.LeadSearchCandidateView> = 
         {
           size: 'small',
           bordered: false,
-          type: row.sourceLabel.includes('本地') ? 'success' : 'info'
+          type: row.candidate.sourceLabel.includes('本地') ? 'success' : 'info'
         },
-        { default: () => row.sourceLabel }
+        { default: () => row.candidate.sourceLabel }
+      )
+  },
+  {
+    title: '导入判断',
+    key: 'importState',
+    minWidth: 170,
+    render: row =>
+      h('div', { class: 'candidate-quality-cell' }, [
+        h(
+          NTag,
+          {
+            size: 'small',
+            bordered: false,
+            type: row.importState.canImport ? 'success' : 'warning'
+          },
+          { default: () => (row.importState.canImport ? '可导入' : '已过滤') }
+        ),
+        h(
+          'span',
+          { class: 'candidate-quality-text' },
+          row.importState.reasons.join('、') || row.importState.domain || '-'
+        )
+      ])
+  },
+  {
+    title: '操作',
+    key: 'operate',
+    width: 110,
+    fixed: 'right',
+    render: row =>
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          type: 'primary',
+          disabled: !row.importState.canImport || Boolean(props.importingCandidateKey),
+          loading: props.importingCandidateKey === row.importState.key,
+          onClick: () => emit('importCandidate', row)
+        },
+        { default: () => '导入 CRM' }
       )
   }
 ];
@@ -224,6 +270,8 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
         :data="candidateRows"
         :bordered="false"
         :pagination="{ pageSize: 8 }"
+        :row-key="row => row.importState.key"
+        scroll-x="1220"
       />
       <NEmpty v-else description="暂未采集到候选客户" />
     </section>
@@ -442,6 +490,19 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
 
 :deep(.candidate-link:hover) {
   text-decoration: underline;
+}
+
+:deep(.candidate-quality-cell) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.35;
+}
+
+:deep(.candidate-quality-text) {
+  color: var(--n-text-color-3);
+  font-size: 12px;
 }
 
 .serper-json-grid {

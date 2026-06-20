@@ -991,10 +991,10 @@ describe('CrmService', () => {
       historyId: '1500',
       watchExpiration: '2026-06-26T08:00:00.000Z'
     });
-    assert.equal(result.mailbox.lastHistoryId, '1500');
+    assert.equal(result.mailbox.lastHistoryId, '1001');
     assert.equal(result.mailbox.watchExpiration, '2026-06-26T08:00:00.000Z');
-    assert.equal(store.mailboxes[0].lastHistoryId, '1500');
-    assert.equal(store.mailboxUpdateCalls[0]?.input.lastHistoryId, '1500');
+    assert.equal(store.mailboxes[0].lastHistoryId, '1001');
+    assert.equal('lastHistoryId' in (store.mailboxUpdateCalls[0]?.input ?? {}), false);
   });
 
   it('updates the current user mailbox when completing Gmail OAuth for an existing address', async () => {
@@ -1517,7 +1517,10 @@ describe('CrmService', () => {
     const defaulted = await service.setDefaultPersonaProfile(created.personaProfile.id, adminContext);
     const archived = await service.archivePersonaProfile(created.personaProfile.id, adminContext);
 
-    assert.deepEqual(list.records.map(record => record.id), ['persona-1']);
+    assert.deepEqual(
+      list.records.map(record => record.id),
+      ['persona-1']
+    );
     assert.deepEqual(store.lastPersonaProfileListArgs, {
       organizationId: 'org-1',
       skip: 0,
@@ -1762,7 +1765,10 @@ describe('CrmService', () => {
     });
     const service = new CrmService(store);
 
-    const result = await service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext());
+    const result = await service.createSequenceReviewItem(
+      { accountId: 'account-1', contactId: 'contact-1' },
+      createContext()
+    );
 
     assert.deepEqual(result.item.personaMatch, {
       persona: {
@@ -1782,7 +1788,9 @@ describe('CrmService', () => {
 
   it('explains organization persona profile matches by account customer type keyword', async () => {
     const store = createStore(
-      [createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready', customerType: 'Industrial Distributor' })],
+      [
+        createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready', customerType: 'Industrial Distributor' })
+      ],
       {
         contacts: [
           createContact({
@@ -1804,7 +1812,10 @@ describe('CrmService', () => {
     );
     const service = new CrmService(store);
 
-    const result = await service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext());
+    const result = await service.createSequenceReviewItem(
+      { accountId: 'account-1', contactId: 'contact-1' },
+      createContext()
+    );
 
     assert.deepEqual(result.item.personaMatch, {
       persona: {
@@ -1840,7 +1851,10 @@ describe('CrmService', () => {
     });
     const service = new CrmService(store);
 
-    const result = await service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext());
+    const result = await service.createSequenceReviewItem(
+      { accountId: 'account-1', contactId: 'contact-1' },
+      createContext()
+    );
 
     assert.deepEqual(result.item.personaMatch, {
       persona: {
@@ -2436,33 +2450,36 @@ describe('CrmService', () => {
   });
 
   it('regenerates the owner pending draft and stores AI metadata with a version snapshot', async () => {
-    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'manual_review_pending' })], {
-      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', title: 'Purchasing Manager' })],
-      productLines: [
-        createProductLine({
-          id: 'line-ai',
-          name: 'Bearing Series',
-          aiWritingConfig: createAiWritingConfig()
-        })
-      ],
-      enrollments: [
-        createEnrollment({
-          id: 'enrollment-1',
-          accountId: 'account-1',
-          contactId: 'contact-1',
-          productLineId: 'line-ai'
-        })
-      ],
-      messages: [
-        createMessage({
-          id: 'message-1',
-          enrollmentId: 'enrollment-1',
-          subject: 'Old subject',
-          bodyText: 'Old body',
-          metadata: { keep: 'value' }
-        })
-      ]
-    });
+    const store = createStore(
+      [createAccount({ id: 'account-1', name: 'ABC Trading', status: 'manual_review_pending' })],
+      {
+        contacts: [createContact({ id: 'contact-1', accountId: 'account-1', title: 'Purchasing Manager' })],
+        productLines: [
+          createProductLine({
+            id: 'line-ai',
+            name: 'Bearing Series',
+            aiWritingConfig: createAiWritingConfig()
+          })
+        ],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-1',
+            accountId: 'account-1',
+            contactId: 'contact-1',
+            productLineId: 'line-ai'
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-1',
+            enrollmentId: 'enrollment-1',
+            subject: 'Old subject',
+            bodyText: 'Old body',
+            metadata: { keep: 'value' }
+          })
+        ]
+      }
+    );
     const aiCalls: CrmAiDraftPromptInput[] = [];
     const logs = createLogRecorder();
     const service = new CrmService(
@@ -2552,8 +2569,16 @@ describe('CrmService', () => {
     });
     const service = new CrmService(store);
 
-    await service.updateMessageDraft('message-1', { subject: 'Saved subject', bodyText: 'Saved body' }, createContext());
-    await service.updateMessageDraft('message-1', { subject: 'Changed subject', bodyText: 'Changed body' }, createContext());
+    await service.updateMessageDraft(
+      'message-1',
+      { subject: 'Saved subject', bodyText: 'Saved body' },
+      createContext()
+    );
+    await service.updateMessageDraft(
+      'message-1',
+      { subject: 'Changed subject', bodyText: 'Changed body' },
+      createContext()
+    );
     const restored = await service.restoreMessageDraftVersion('message-1', 'draft-version-1', createContext());
 
     assert.equal(restored.message.subject, 'Saved subject');
@@ -2616,7 +2641,9 @@ describe('CrmService', () => {
     const store = createStore([createAccount({ id: 'account-1' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
       inboxThreads: [createInboxThread({ id: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })],
-      inboxMessages: [createInboxMessage({ threadId: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })]
+      inboxMessages: [
+        createInboxMessage({ threadId: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })
+      ]
     });
     const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
     const service = new CrmService(
@@ -2809,7 +2836,9 @@ describe('CrmService', () => {
           messageCount: 1
         })
       ],
-      inboxMessages: [createInboxMessage({ threadId: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })]
+      inboxMessages: [
+        createInboxMessage({ threadId: 'inbox-thread-1', accountId: 'account-1', contactId: 'contact-1' })
+      ]
     });
     const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
     const service = new CrmService(
@@ -3661,6 +3690,70 @@ describe('CrmService', () => {
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'message_send_scheduled');
   });
 
+  it('reconciles queued messages whose BullMQ jobs no longer exist', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-missing-job',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'queued',
+          bullJobId: 'send-job-missing',
+          scheduledAt: new Date('2026-06-18T10:00:00.000Z')
+        }),
+        createMessage({
+          id: 'message-existing-job',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'queued',
+          bullJobId: 'send-job-existing',
+          scheduledAt: new Date('2026-06-18T10:01:00.000Z')
+        }),
+        createMessage({
+          id: 'message-fresh',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'queued',
+          bullJobId: 'send-job-fresh',
+          scheduledAt: new Date('2026-06-18T10:58:00.000Z')
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = new CrmService(store, undefined, logs.service, {
+      async enqueueFirstMessage() {
+        return { jobId: 'unused' };
+      },
+      async hasJob(jobId) {
+        return jobId === 'send-job-existing';
+      }
+    });
+
+    const result = await service.reconcileSendQueue(
+      { now: new Date('2026-06-18T11:00:00.000Z'), staleMinutes: 10, take: 10 },
+      createContext({ roles: ['R_SUPER'] })
+    );
+
+    assert.deepEqual(result, { scannedCount: 2, repairedCount: 1, skippedCount: 1 });
+    assert.equal(store.messages.find(message => message.id === 'message-missing-job')?.status, 'draft_ready');
+    assert.equal(store.messages.find(message => message.id === 'message-missing-job')?.bullJobId, null);
+    assert.equal(store.messages.find(message => message.id === 'message-existing-job')?.status, 'queued');
+    assert.equal(store.messages.find(message => message.id === 'message-fresh')?.status, 'queued');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'send_queue_reconciled');
+    assert.equal(logs.records.at(-1)?.action, 'send-queue-reconcile');
+  });
+
   it('lets organization admins stop member sequences without editing or sending drafts', async () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2', status: 'sequence_running' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
@@ -4232,7 +4325,10 @@ describe('CrmService', () => {
     assert.equal(result.task.runVersion, 3);
     assert.equal(result.task.pendingCount, 0);
     assert.equal(result.task.skippedCount, 2);
-    assert.equal(store.aiDraftTaskItems.every(item => item.status === 'skipped'), true);
+    assert.equal(
+      store.aiDraftTaskItems.every(item => item.status === 'skipped'),
+      true
+    );
     assert.deepEqual(aiDraftTaskQueue.removedJobIds, ['ai-draft-task-1:2']);
   });
 
@@ -4542,6 +4638,119 @@ describe('CrmService', () => {
     assert.equal(store.blacklists[0].organizationId, 'org-1');
     assert.equal(store.blacklists[0].emailHash, 'hash-1');
     assert.equal(store.blacklists[0].reason, 'unsubscribe');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_unsubscribed');
+  });
+
+  it('keeps vague unsubscribe replies pending for owner confirmation', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [
+        createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com', emailStatus: 'valid' })
+      ],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 3
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'sent',
+          sentAt: new Date('2026-06-18T10:00:00.000Z')
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.mockCustomerReply(
+      'message-1',
+      {
+        subject: 'Re: Bearing Series',
+        bodyText: 'Not interested right now, thanks.',
+        receivedAt: '2026-06-18T11:00:00.000Z'
+      },
+      createContext()
+    );
+
+    assert.equal(result.messages[0].messageType, 'unsubscribe_review_pending');
+    assert.equal(store.contacts[0].emailStatus, 'valid');
+    assert.equal(store.accounts[0].status, 'replied_pending');
+    assert.equal(store.blacklists.length, 0);
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_replied');
+  });
+
+  it('confirms a pending unsubscribe review before blacklisting and skipping queued messages', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [
+        createContact({ id: 'contact-1', accountId: 'account-1', email: 'ali@example.com', emailStatus: 'valid' })
+      ],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'ready_to_send',
+          runVersion: 3
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-queued',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          status: 'queued',
+          bullJobId: 'send-job-queued'
+        })
+      ],
+      inboxThreads: [
+        createInboxThread({
+          id: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1'
+        })
+      ],
+      inboxMessages: [
+        createInboxMessage({
+          id: 'inbox-message-1',
+          threadId: 'inbox-thread-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          mailboxId: 'mailbox-1',
+          fromEmail: 'ali@example.com',
+          fromEmailHash: 'hash-1',
+          maskedFromEmail: 'a***@example.com',
+          messageType: 'unsubscribe_review_pending'
+        })
+      ]
+    });
+    const service = new CrmService(store);
+
+    const result = await service.confirmInboxMessageUnsubscribe('inbox-message-1', createContext());
+
+    assert.equal(result.message.messageType, 'unsubscribe_hint');
+    assert.equal(store.contacts[0].emailStatus, 'unsubscribed');
+    assert.equal(store.accounts[0].status, 'blocked');
+    assert.equal(store.enrollments[0].status, 'replied');
+    assert.equal(store.enrollments[0].runVersion, 4);
+    assert.equal(store.messages[0].status, 'skipped');
+    assert.equal(store.messages[0].bullJobId, null);
+    assert.equal(store.blacklists.length, 1);
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'customer_unsubscribed');
   });
 
@@ -4909,9 +5118,7 @@ function createStore(
   const timelineEvents: TestTimelineEvent[] = [...(initialData.timelineEvents ?? [])];
   const mailboxes: TestMailbox[] = [...(initialData.mailboxes ?? [])];
   const productLines: TestProductLine[] = [...(initialData.productLines ?? [])];
-  const productLinePromptVersions: TestProductLinePromptVersion[] = [
-    ...(initialData.productLinePromptVersions ?? [])
-  ];
+  const productLinePromptVersions: TestProductLinePromptVersion[] = [...(initialData.productLinePromptVersions ?? [])];
   const emailTemplateGroups: TestEmailTemplateGroup[] = [...(initialData.emailTemplateGroups ?? [])];
   const sequencePolicies: TestSequencePolicy[] = [...(initialData.sequencePolicies ?? [])];
   const enrollments: TestEnrollment[] = [...(initialData.enrollments ?? [])];
@@ -5227,15 +5434,13 @@ function createStore(
     async getSendPreference(args) {
       return (
         sendPreferences.find(
-          preference =>
-            preference.organizationId === args.organizationId && preference.ownerUserId === args.ownerUserId
+          preference => preference.organizationId === args.organizationId && preference.ownerUserId === args.ownerUserId
         ) ?? null
       );
     },
     async saveSendPreference(input) {
       const existing = sendPreferences.find(
-        preference =>
-          preference.organizationId === input.organizationId && preference.ownerUserId === input.ownerUserId
+        preference => preference.organizationId === input.organizationId && preference.ownerUserId === input.ownerUserId
       );
 
       if (existing) {
@@ -5294,6 +5499,21 @@ function createStore(
     },
     async listDueSendCandidates() {
       return [];
+    },
+    async listStaleQueuedMessages(input) {
+      return messages
+        .filter(message => {
+          if (message.status !== 'queued') return false;
+          if (!message.bullJobId) return false;
+          if (!message.scheduledAt || message.scheduledAt > input.before) return false;
+          return true;
+        })
+        .toSorted(
+          (left, right) =>
+            (left.scheduledAt?.getTime() ?? 0) - (right.scheduledAt?.getTime() ?? 0) ||
+            left.updatedAt.getTime() - right.updatedAt.getTime()
+        )
+        .slice(0, input.take);
     },
     async getOrganizationConfig(organizationId) {
       return organizationConfig?.organizationId === organizationId ? organizationConfig : null;
@@ -5546,7 +5766,9 @@ function createStore(
     async createProductLineAiPromptVersion(input) {
       const latestVersion =
         productLinePromptVersions
-          .filter(version => version.organizationId === input.organizationId && version.productLineId === input.productLineId)
+          .filter(
+            version => version.organizationId === input.organizationId && version.productLineId === input.productLineId
+          )
           .toSorted((left, right) => right.version - left.version)[0]?.version ?? 0;
       const version = createProductLinePromptVersion({
         ...input,
@@ -5559,8 +5781,12 @@ function createStore(
     async listProductLineAiPromptVersions(args) {
       this.lastProductLinePromptVersionListArgs = args;
       return productLinePromptVersions
-        .filter(version => version.organizationId === args.organizationId && version.productLineId === args.productLineId)
-        .toSorted((left, right) => right.version - left.version || right.createdAt.getTime() - left.createdAt.getTime());
+        .filter(
+          version => version.organizationId === args.organizationId && version.productLineId === args.productLineId
+        )
+        .toSorted(
+          (left, right) => right.version - left.version || right.createdAt.getTime() - left.createdAt.getTime()
+        );
     },
     async restoreProductLineAiPromptVersion(input) {
       const historicVersion = productLinePromptVersions.find(
@@ -5582,7 +5808,9 @@ function createStore(
 
       const latestVersion =
         productLinePromptVersions
-          .filter(version => version.organizationId === input.organizationId && version.productLineId === input.productLineId)
+          .filter(
+            version => version.organizationId === input.organizationId && version.productLineId === input.productLineId
+          )
           .toSorted((left, right) => right.version - left.version)[0]?.version ?? 0;
       const newVersion = createProductLinePromptVersion({
         organizationId: input.organizationId,
@@ -5625,10 +5853,14 @@ function createStore(
       };
     },
     async listActivePersonaProfiles(organizationId) {
-      return personaProfiles.filter(profile => profile.organizationId === organizationId && profile.status === 'active');
+      return personaProfiles.filter(
+        profile => profile.organizationId === organizationId && profile.status === 'active'
+      );
     },
     async findPersonaProfileByName(organizationId, name) {
-      return personaProfiles.find(profile => profile.organizationId === organizationId && profile.name === name) ?? null;
+      return (
+        personaProfiles.find(profile => profile.organizationId === organizationId && profile.name === name) ?? null
+      );
     },
     async findPersonaProfileById(args) {
       this.lastPersonaProfileDetailArgs = args;
@@ -5958,7 +6190,12 @@ function createStore(
           getOrCreateTestStrategyStatRow(rows.template, 'template', 'default_template', '默认模板'),
           getOrCreateTestStrategyStatRow(rows.policy, 'policy', enrollment.policyId ?? 'none', '未设置策略'),
           getOrCreateTestStrategyStatRow(rows.persona, 'persona', 'unknown', '未匹配画像'),
-          getOrCreateTestStrategyStatRow(rows.productLine, 'productLine', enrollment.productLineId ?? 'none', '未设置产品线')
+          getOrCreateTestStrategyStatRow(
+            rows.productLine,
+            'productLine',
+            enrollment.productLineId ?? 'none',
+            '未设置产品线'
+          )
         ];
 
         for (const row of statRows) {
@@ -6075,7 +6312,9 @@ function createStore(
           if (args.ownerUserId && version.ownerUserId !== args.ownerUserId) return false;
           return true;
         })
-        .sort((left, right) => right.versionNo - left.versionNo || right.createdAt.getTime() - left.createdAt.getTime());
+        .sort(
+          (left, right) => right.versionNo - left.versionNo || right.createdAt.getTime() - left.createdAt.getTime()
+        );
     },
     async restoreMessageDraftVersion(args) {
       const message = messages.find(item => {
@@ -6439,6 +6678,94 @@ function createStore(
 
       return mailbox;
     },
+    async confirmInboxMessageUnsubscribe(input) {
+      const inboxMessage = inboxMessages.find(
+        message =>
+          message.id === input.messageId &&
+          message.organizationId === input.organizationId &&
+          message.ownerUserId === input.ownerUserId &&
+          ['unsubscribe_hint', 'unsubscribe_review_pending'].includes(message.messageType)
+      );
+      const thread = inboxMessage ? inboxThreads.find(item => item.id === inboxMessage.threadId) : null;
+      const account = inboxMessage ? accounts.find(item => item.id === inboxMessage.accountId) : null;
+      const contact = inboxMessage ? contacts.find(item => item.id === inboxMessage.contactId) : null;
+      const mailbox = inboxMessage?.mailboxId ? mailboxes.find(item => item.id === inboxMessage.mailboxId) : null;
+      const enrollment = inboxMessage?.enrollmentId
+        ? enrollments.find(item => item.id === inboxMessage.enrollmentId)
+        : null;
+
+      if (!inboxMessage || !thread || !account || !contact) return null;
+
+      Object.assign(inboxMessage, { messageType: 'unsubscribe_hint' });
+      await this.upsertBlacklistEntry({
+        organizationId: input.organizationId,
+        emailHash: contact.emailHash,
+        maskedEmail: contact.maskedEmail,
+        reason: 'unsubscribe',
+        sourceAccountId: account.id,
+        sourceContactId: contact.id,
+        sourceMessageId: inboxMessage.id,
+        createdById: input.confirmedById,
+        createdByName: input.confirmedByName ?? null
+      });
+      Object.assign(account, { status: 'blocked', updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+      Object.assign(contact, { emailStatus: 'unsubscribed', updatedAt: new Date('2026-06-18T10:00:00.000Z') });
+
+      for (const activeEnrollment of enrollments) {
+        if (
+          activeEnrollment.organizationId === input.organizationId &&
+          activeEnrollment.ownerUserId === input.ownerUserId &&
+          activeEnrollment.accountId === account.id &&
+          ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(activeEnrollment.status)
+        ) {
+          Object.assign(activeEnrollment, {
+            status: 'replied',
+            runVersion: activeEnrollment.runVersion + 1,
+            updatedAt: new Date('2026-06-18T10:00:00.000Z')
+          });
+        }
+      }
+
+      for (const queuedMessage of messages) {
+        if (
+          queuedMessage.organizationId === input.organizationId &&
+          queuedMessage.ownerUserId === input.ownerUserId &&
+          queuedMessage.accountId === account.id &&
+          queuedMessage.status === 'queued'
+        ) {
+          Object.assign(queuedMessage, {
+            status: 'skipped',
+            bullJobId: null,
+            updatedAt: new Date('2026-06-18T10:00:00.000Z')
+          });
+        }
+      }
+
+      const event = createTimelineEvent({
+        accountId: account.id,
+        contactId: contact.id,
+        ownerUserId: input.ownerUserId,
+        eventType: 'customer_unsubscribed',
+        title: '确认客户退订',
+        content: inboxMessage.subject,
+        metadata: {
+          inboxThreadId: thread.id,
+          inboxMessageId: inboxMessage.id,
+          confirmedAt: input.confirmedAt.toISOString()
+        }
+      });
+      timelineEvents.push(event);
+
+      return {
+        thread,
+        message: inboxMessage,
+        account,
+        contact,
+        mailbox: mailbox ?? null,
+        enrollment: enrollment ?? null,
+        event
+      };
+    },
     async ingestCustomerReply(input) {
       const outboundMessage = messages.find(
         message =>
@@ -6627,10 +6954,10 @@ function createStore(
         total: records.length
       };
     },
-	    async getInboxThread(args) {
-	      const thread = inboxThreads.find(item => {
-	        if (item.id !== args.id) return false;
-	        if (item.organizationId !== args.organizationId) return false;
+    async getInboxThread(args) {
+      const thread = inboxThreads.find(item => {
+        if (item.id !== args.id) return false;
+        if (item.organizationId !== args.organizationId) return false;
         if (args.ownerUserId && item.ownerUserId !== args.ownerUserId) return false;
         return true;
       });
@@ -6665,18 +6992,18 @@ function createStore(
         updatedAt: input.updatedAt
       });
 
-	      return {
-	        ...buildInboxThreadListRecord(thread, { accounts, contacts, mailboxes, enrollments, inboxMessages }),
-	        messages: inboxMessages
-	          .filter(message => message.threadId === thread.id)
-	          .toSorted((left, right) => left.receivedAt.getTime() - right.receivedAt.getTime()),
-	        timelineEvents: timelineEvents.filter(event => event.accountId === thread.accountId)
-	      };
-	    },
-	    async updateInboxThreadStatus(input) {
-	      const thread = inboxThreads.find(item => {
-	        if (item.id !== input.id) return false;
-	        if (item.organizationId !== input.organizationId) return false;
+      return {
+        ...buildInboxThreadListRecord(thread, { accounts, contacts, mailboxes, enrollments, inboxMessages }),
+        messages: inboxMessages
+          .filter(message => message.threadId === thread.id)
+          .toSorted((left, right) => left.receivedAt.getTime() - right.receivedAt.getTime()),
+        timelineEvents: timelineEvents.filter(event => event.accountId === thread.accountId)
+      };
+    },
+    async updateInboxThreadStatus(input) {
+      const thread = inboxThreads.find(item => {
+        if (item.id !== input.id) return false;
+        if (item.organizationId !== input.organizationId) return false;
         if (item.ownerUserId !== input.ownerUserId) return false;
         if (input.fromStatus && item.status !== input.fromStatus) return false;
         return true;
@@ -7683,13 +8010,22 @@ function createSendQueue(
       jobs.push(input);
       options.push(enqueueOptions ?? {});
       return { jobId: `send-job-${jobs.length}` };
+    },
+    async hasJob(jobId) {
+      const jobIndex = Number(jobId.replace(/^send-job-/, ''));
+
+      return Number.isInteger(jobIndex) && jobIndex > 0 && jobIndex <= jobs.length;
     }
   };
 }
 
 function createAiDraftTaskQueue(
   error?: Error
-): CrmAiDraftTaskQueuePort & { jobs: CrmAiDraftTaskQueueJob[]; removedJobIds: string[]; globalConcurrencies: number[] } {
+): CrmAiDraftTaskQueuePort & {
+  jobs: CrmAiDraftTaskQueueJob[];
+  removedJobIds: string[];
+  globalConcurrencies: number[];
+} {
   const jobs: CrmAiDraftTaskQueueJob[] = [];
   const removedJobIds: string[] = [];
   const globalConcurrencies: number[] = [];

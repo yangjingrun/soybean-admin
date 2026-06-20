@@ -206,7 +206,11 @@ declare namespace Api {
       snippet?: string;
       address?: string;
       phoneNumber?: string;
+      sourceType?: string;
       sourceLabel: string;
+      sourceUrl?: string;
+      score?: number;
+      reason?: string;
     }
 
     interface LeadSearchSerperResultView {

@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  CrmGmailHistorySyncQueueService,
-  toCrmGmailHistorySyncJobId
-} from './crm-gmail-history-sync-queue.service';
+import { CrmGmailHistorySyncQueueService, toCrmGmailHistorySyncJobId } from './crm-gmail-history-sync-queue.service';
 
 describe('CrmGmailHistorySyncQueueService', () => {
   it('enqueues Gmail history sync jobs with deterministic ids and retained failures', async () => {
@@ -44,7 +41,7 @@ describe('CrmGmailHistorySyncQueueService', () => {
       publishTime: '2026-06-19T09:00:00.000Z'
     });
 
-    assert.equal(result.jobId, 'mailbox-1:12345:pubsub-1');
+    assert.equal(result.jobId, 'mailbox-1:12345');
     assert.equal(addCall?.name, 'gmail-history-sync');
     assert.deepEqual(addCall?.input, {
       mailboxId: 'mailbox-1',
@@ -57,13 +54,15 @@ describe('CrmGmailHistorySyncQueueService', () => {
       publishTime: '2026-06-19T09:00:00.000Z'
     });
     assert.deepEqual(addCall?.options, {
-      jobId: 'mailbox-1:12345:pubsub-1',
+      jobId: 'mailbox-1:12345',
       removeOnComplete: true,
       removeOnFail: { age: 604_800, count: 1000 }
     });
   });
 
-  it('uses a manual suffix when the sync was not created from Pub/Sub', () => {
-    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345'), 'mailbox-1:12345:manual');
+  it('deduplicates manual and Pub/Sub sync jobs by mailbox and history id', () => {
+    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345'), 'mailbox-1:12345');
+    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345', 'pubsub-1'), 'mailbox-1:12345');
+    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345', 'pubsub-2'), 'mailbox-1:12345');
   });
 });

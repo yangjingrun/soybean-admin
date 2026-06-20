@@ -12,9 +12,12 @@ import {
   formatAiDraftTaskCounts,
   formatMailboxDate,
   formatMailboxHistoryId,
+  formatMailboxSyncModeDescription,
   formatMailboxWatchDescription,
   formatOperationDate,
   getMailboxWatchStatus,
+  mailboxSyncModeLabelMap,
+  mailboxSyncModeTagTypeMap,
   mailboxStatusLabelMap,
   mailboxStatusTagTypeMap,
   mailboxWatchStatusLabelMap,
@@ -34,6 +37,7 @@ import { useCrmOperationsPanel } from './useCrmOperationsPanel';
 const {
   activeAiDraftTaskCount,
   aiDraftTasks,
+  handleReconcileSendQueue,
   isSuperAdmin,
   loadOperations,
   loading,
@@ -41,7 +45,9 @@ const {
   mailboxHealth,
   mailboxes,
   operationSummaryRows,
-  queueRows
+  queueRows,
+  sendQueueReconcileResult,
+  sendQueueReconciling
 } = useCrmOperationsPanel();
 const selectedLog = shallowRef<Api.SystemLog.SystemLogRecord | null>(null);
 const selectedQueueRow = shallowRef<OperationQueueRow | null>(null);
@@ -179,6 +185,21 @@ function renderMailboxStatus(row: Api.Crm.MailboxRecord) {
 }
 
 function renderWatchStatus(row: Api.Crm.MailboxRecord) {
+  if (row.syncMode !== 'full_sync') {
+    return h('div', { class: 'mailbox-stack-cell' }, [
+      h(
+        NTag,
+        {
+          bordered: false,
+          size: 'small',
+          type: mailboxSyncModeTagTypeMap[row.syncMode]
+        },
+        { default: () => mailboxSyncModeLabelMap[row.syncMode] }
+      ),
+      h('span', { class: 'mailbox-secondary-text' }, formatMailboxSyncModeDescription(row))
+    ]);
+  }
+
   const watchStatus = getMailboxWatchStatus(row.watchExpiration);
 
   return h('div', { class: 'mailbox-stack-cell' }, [
@@ -195,7 +216,29 @@ function renderWatchStatus(row: Api.Crm.MailboxRecord) {
   ]);
 }
 
+function renderSyncMode(row: Api.Crm.MailboxRecord) {
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: mailboxSyncModeTagTypeMap[row.syncMode]
+      },
+      { default: () => mailboxSyncModeLabelMap[row.syncMode] }
+    ),
+    h('span', { class: 'mailbox-secondary-text' }, formatMailboxSyncModeDescription(row))
+  ]);
+}
+
 function renderSyncCheckpoint(row: Api.Crm.MailboxRecord) {
+  if (row.syncMode !== 'full_sync') {
+    return h('div', { class: 'mailbox-stack-cell' }, [
+      h(NTag, { bordered: false, size: 'small', type: 'default' }, { default: () => '非完整同步' }),
+      h('span', { class: 'mailbox-secondary-text' }, '不计入真实收件闭环')
+    ]);
+  }
+
   if (row.lastSyncIssue) {
     return h('div', { class: 'mailbox-stack-cell' }, [
       h(NTag, { bordered: false, size: 'small', type: 'error' }, { default: () => '需处理' }),
@@ -437,6 +480,12 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
     render: row => renderWatchStatus(row)
   },
   {
+    key: 'syncMode',
+    title: '闭环模式',
+    minWidth: 190,
+    render: row => renderSyncMode(row)
+  },
+  {
     key: 'lastHistoryId',
     title: '同步检查点',
     minWidth: 150,
@@ -539,10 +588,28 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
 <template>
   <NCard :bordered="false" size="small" class="card-wrapper" title="运维概览">
     <template #header-extra>
-      <NButton size="small" :loading="loading" @click="loadOperations">刷新</NButton>
+      <NSpace :size="8">
+        <NButton
+          v-if="isSuperAdmin"
+          size="small"
+          type="warning"
+          secondary
+          :loading="sendQueueReconciling"
+          :disabled="loading || sendQueueReconciling"
+          @click="handleReconcileSendQueue"
+        >
+          发送队列修复
+        </NButton>
+        <NButton size="small" :loading="loading" @click="loadOperations">刷新</NButton>
+      </NSpace>
     </template>
 
     <NSpace vertical :size="12">
+      <NAlert v-if="sendQueueReconcileResult" type="info" :bordered="false">
+        发送队列修复结果：扫描 {{ sendQueueReconcileResult.scannedCount }} 条，修复
+        {{ sendQueueReconcileResult.repairedCount }} 条，跳过 {{ sendQueueReconcileResult.skippedCount }} 条。
+      </NAlert>
+
       <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="2 s:2 m:6">
         <NGi>
           <NStatistic label="待关注消息" :value="queueRows.length" />
@@ -620,7 +687,7 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
               :loading="loading"
               :pagination="false"
               :row-key="row => row.id"
-              scroll-x="930"
+              scroll-x="1120"
             />
           </NSpace>
         </NGi>

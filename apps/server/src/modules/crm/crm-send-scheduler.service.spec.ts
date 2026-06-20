@@ -115,6 +115,9 @@ function createQueue(): CrmSendQueuePort & { jobs: CrmSendQueueJob[] } {
       jobs.push(input);
 
       return { jobId: `${input.messageId}:${input.runVersion}` };
+    },
+    async hasJob(jobId) {
+      return jobs.some(job => `${job.messageId}:${job.runVersion}` === jobId);
     }
   };
 }
@@ -150,7 +153,11 @@ function createSendPreference(input: Partial<CrmSendPreferenceRecord> = {}): Crm
   };
 }
 
-function createCandidate(input: { messageId: string; stepIndex: number; scheduledAt?: string }): CrmDueSendCandidateRecord {
+function createCandidate(input: {
+  messageId: string;
+  stepIndex: number;
+  scheduledAt?: string;
+}): CrmDueSendCandidateRecord {
   const stepKind: CrmScheduledMessageStepKind = input.stepIndex === 1 ? 'first_touch' : 'follow_up';
 
   return {

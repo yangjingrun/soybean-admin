@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import {
   buildInboxReplyDraftMetadataItems,
+  findPendingUnsubscribeReviewMessage,
   formatInboxDate,
   formatInboxMessageTime,
   formatInboxText,
@@ -23,9 +24,11 @@ const props = defineProps<{
   show: boolean;
   statusOperating?: Api.Crm.InboxThreadStatus | null;
   statusSubmitting?: boolean;
+  unsubscribeConfirming?: boolean;
 }>();
 
 const emit = defineEmits<{
+  confirmUnsubscribe: [messageId: string];
   reload: [];
   polishReplyDraft: [];
   saveReplyDraft: [];
@@ -50,6 +53,7 @@ const canReadBody = computed(() => Boolean(thread.value?.canReadBody));
 const canEditDraft = computed(() => Boolean(props.detail?.canOperate));
 const hasReplyBody = computed(() => Boolean(props.replyBody.trim()));
 const draftMetadataItems = computed(() => buildInboxReplyDraftMetadataItems(replyDraft.value?.metadata));
+const pendingUnsubscribeMessage = computed(() => findPendingUnsubscribeReviewMessage(messages.value));
 const replyTopicModel = computed({
   get: () => props.replyTopic,
   set: value => emit('update:replyTopic', value)
@@ -62,7 +66,13 @@ const polishDisabled = computed(() =>
   Boolean(!canEditDraft.value || !props.replyTopic.trim() || props.draftPolishing || props.draftSaving)
 );
 const saveDisabled = computed(() =>
-  Boolean(!canEditDraft.value || !props.replyTopic.trim() || !props.replyBody.trim() || props.draftPolishing || props.draftSaving)
+  Boolean(
+    !canEditDraft.value ||
+    !props.replyTopic.trim() ||
+    !props.replyBody.trim() ||
+    props.draftPolishing ||
+    props.draftSaving
+  )
 );
 const statusActions = [
   { label: '标记待处理', value: 'pending' },
@@ -72,7 +82,9 @@ const statusActions = [
 
 /** Check whether a status action should be unavailable for the current detail. */
 function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
-  return Boolean(props.loading || props.statusSubmitting || !props.detail?.canOperate || thread.value?.status === status);
+  return Boolean(
+    props.loading || props.statusSubmitting || !props.detail?.canOperate || thread.value?.status === status
+  );
 }
 </script>
 
@@ -117,6 +129,26 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
             </NDescriptions>
           </div>
 
+          <NAlert
+            v-if="pendingUnsubscribeMessage && detail?.canOperate"
+            type="warning"
+            :bordered="false"
+            title="疑似退订"
+          >
+            <NSpace justify="space-between" align="center" :wrap-item="false">
+              <span>这封回复可能表达退订或拒绝，确认后会拉黑该联系人并跳过后续待发邮件。</span>
+              <NButton
+                size="small"
+                type="warning"
+                :disabled="loading || unsubscribeConfirming"
+                :loading="unsubscribeConfirming"
+                @click="emit('confirmUnsubscribe', pendingUnsubscribeMessage.id)"
+              >
+                确认退订并拉黑
+              </NButton>
+            </NSpace>
+          </NAlert>
+
           <div class="drawer-section">
             <div class="section-title">邮件正文</div>
             <NSpace v-if="messages.length" vertical :size="10">
@@ -124,11 +156,7 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
                 <NSpace vertical :size="8">
                   <div class="message-header">
                     <NSpace align="center" :size="8">
-                      <NTag
-                        :type="inboxMessageDirectionTagTypeMap[item.direction]"
-                        :bordered="false"
-                        size="small"
-                      >
+                      <NTag :type="inboxMessageDirectionTagTypeMap[item.direction]" :bordered="false" size="small">
                         {{ inboxMessageDirectionLabelMap[item.direction] }}
                       </NTag>
                       <NTag
@@ -172,13 +200,7 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
                 placeholder="AI 润色后的回复草稿会显示在这里，也可以人工修改后保存"
               />
 
-              <NDescriptions
-                v-if="draftMetadataItems.length"
-                :column="1"
-                label-placement="left"
-                bordered
-                size="small"
-              >
+              <NDescriptions v-if="draftMetadataItems.length" :column="1" label-placement="left" bordered size="small">
                 <NDescriptionsItem v-for="item in draftMetadataItems" :key="item.key" :label="item.label">
                   {{ item.value }}
                 </NDescriptionsItem>
@@ -186,7 +208,7 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
 
               <NText v-if="replyDraft" depth="3" class="draft-updated-text">
                 草稿更新时间 {{ formatInboxDate(replyDraft.updatedAt) }}
-                <template v-if="replyDraft.updatedByName"> · {{ replyDraft.updatedByName }}</template>
+                <template v-if="replyDraft.updatedByName">· {{ replyDraft.updatedByName }}</template>
               </NText>
             </NSpace>
           </div>

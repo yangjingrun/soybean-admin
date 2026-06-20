@@ -145,6 +145,7 @@ export interface DraftVersionDiffSummary {
 }
 
 export interface SequenceBatchSelectionSummary {
+  aiDraftTaskCount: number;
   approveDraftCount: number;
   generateNextDraftCount: number;
   selectedCount: number;
@@ -342,7 +343,9 @@ export function getPendingReviewMessage(messages: Api.Crm.MessageRecord[]) {
 /** Return the nearest scheduled message that still needs review or sending. */
 export function getNextScheduledReviewMessage(messages: Api.Crm.MessageRecord[]) {
   return messages
-    .filter(message => ['draft_pending_review', 'draft_ready', 'queued'].includes(message.status) && message.scheduledAt)
+    .filter(
+      message => ['draft_pending_review', 'draft_ready', 'queued'].includes(message.status) && message.scheduledAt
+    )
     .sort((left, right) => left.scheduledAt!.localeCompare(right.scheduledAt!))[0];
 }
 
@@ -403,6 +406,7 @@ export function canApproveSequenceDraftInBatch(item: Api.Crm.SequenceReviewItem)
 
   const pendingMessage = getPendingReviewMessage(item.messages);
   if (!pendingMessage) return false;
+  if (isDraftBlockedBySequencePolicy(item, pendingMessage)) return false;
 
   if (pendingMessage.stepIndex === 1) {
     return item.enrollment.status === 'draft_review_pending';
@@ -410,6 +414,21 @@ export function canApproveSequenceDraftInBatch(item: Api.Crm.SequenceReviewItem)
 
   // Running sequences require queue scheduling on approval, so batch approval intentionally skips them.
   return item.enrollment.status === 'ready_to_send';
+}
+
+/** Check whether one draft violates the sequence policy before approval. */
+export function isDraftBlockedBySequencePolicy(
+  item: Api.Crm.SequenceReviewItem,
+  message: Api.Crm.MessageRecord | null
+) {
+  return Boolean(
+    item.policy?.linkPolicy === 'block_new_links' && message && containsLink(`${message.subject}\n${message.bodyText}`)
+  );
+}
+
+/** Check whether a selected row should be sent to the AI draft task backend. */
+export function canCreateAiDraftTaskForSequence(item: Api.Crm.SequenceReviewItem) {
+  return canGenerateNextSequenceDraft(item) && Boolean(item.productLine?.aiWritingConfig?.enabled);
 }
 
 /** Check whether one selected row can be stopped by an owner-only batch action. */
@@ -424,13 +443,15 @@ export function canStopSequenceInBatch(item: Api.Crm.SequenceReviewItem) {
 export function summarizeSequenceBatchSelection(items: Api.Crm.SequenceReviewItem[]): SequenceBatchSelectionSummary {
   const approveDraftCount = items.filter(canApproveSequenceDraftInBatch).length;
   const generateNextDraftCount = items.filter(canGenerateNextSequenceDraft).length;
+  const aiDraftTaskCount = items.filter(canCreateAiDraftTaskForSequence).length;
   const stopCount = items.filter(canStopSequenceInBatch).length;
 
   return {
+    aiDraftTaskCount,
     approveDraftCount,
     generateNextDraftCount,
     selectedCount: items.length,
-    skippedCount: items.length - Math.max(approveDraftCount, generateNextDraftCount, stopCount),
+    skippedCount: items.length - Math.max(approveDraftCount, generateNextDraftCount, aiDraftTaskCount, stopCount),
     stopCount
   };
 }
@@ -467,7 +488,7 @@ export function buildSequencePolicyReviewHints(
 ): SequencePolicyReviewHint[] {
   if (!item.policy) return [];
 
-  const hasLink = Boolean(message && containsLink(`${message.subject}\n${message.bodyText}`));
+  const hasLink = isDraftBlockedBySequencePolicy(item, message);
   const linkHint: SequencePolicyReviewHint =
     item.policy.linkPolicy === 'block_new_links'
       ? {

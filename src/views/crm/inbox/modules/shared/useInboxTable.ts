@@ -1,6 +1,7 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
+  confirmCrmInboxMessageUnsubscribe,
   fetchCrmInboxThreadDetail,
   fetchCrmInboxThreads,
   fetchCrmMailboxes,
@@ -26,6 +27,7 @@ export function useInboxTable() {
   const draftSaving = shallowRef(false);
   const statusSubmitting = shallowRef(false);
   const statusOperating = shallowRef<Api.Crm.InboxThreadStatus | null>(null);
+  const unsubscribeConfirming = shallowRef(false);
   const selectedThreadId = shallowRef<string | null>(null);
   const pendingTotal = shallowRef(0);
   let latestListRequestId = 0;
@@ -283,6 +285,36 @@ export function useInboxTable() {
     }
   }
 
+  /** Confirm a weak unsubscribe signal before applying blacklist side effects. */
+  async function handleConfirmUnsubscribe(messageId: string) {
+    const threadId = selectedThreadId.value;
+
+    if (!threadId || unsubscribeConfirming.value) {
+      return;
+    }
+
+    if (!currentDetail.value?.canOperate) {
+      message.warning('当前账号不可确认该退订');
+      return;
+    }
+
+    unsubscribeConfirming.value = true;
+    try {
+      const { data, error } = await confirmCrmInboxMessageUnsubscribe(messageId);
+
+      if (error || selectedThreadId.value !== threadId) {
+        return;
+      }
+
+      message.success('已确认退订并加入黑名单');
+      currentDetail.value = data;
+      syncReplyDraftFromDetail(data);
+      await loadThreads();
+    } finally {
+      unsubscribeConfirming.value = false;
+    }
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadThreads();
@@ -316,6 +348,7 @@ export function useInboxTable() {
     handlePageSizeUpdate,
     handlePageUpdate,
     handlePolishReplyDraft,
+    handleConfirmUnsubscribe,
     handleReset,
     handleSaveReplyDraft,
     handleSearch,
@@ -332,6 +365,7 @@ export function useInboxTable() {
     replyBody,
     replyTopic,
     statusOperating,
-    statusSubmitting
+    statusSubmitting,
+    unsubscribeConfirming
   };
 }

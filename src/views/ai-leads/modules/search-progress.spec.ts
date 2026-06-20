@@ -260,7 +260,11 @@ describe('ai leads search progress state', () => {
       snippet: 'bearing distributor',
       address: undefined,
       phoneNumber: undefined,
-      sourceLabel: '公开线索'
+      sourceType: 'organic',
+      sourceLabel: '公开线索',
+      sourceUrl: 'https://bearing.example.com',
+      score: undefined,
+      reason: undefined
     });
   });
 

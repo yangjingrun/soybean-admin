@@ -11,6 +11,7 @@ import {
   buildSequenceMessageTimelineItems,
   buildSequencePolicyReviewHints,
   canGenerateNextSequenceDraft,
+  isDraftBlockedBySequencePolicy,
   getMessageStatusView,
   type DraftReviewApprovePayload,
   type DraftReviewSavePayload,
@@ -96,7 +97,10 @@ const canOperateSelectedDraft = computed(() =>
 const canEdit = computed(() => {
   return canOperateSelectedDraft.value;
 });
-const canApprove = computed(() => canOperateSelectedDraft.value);
+const isCurrentDraftBlockedByPolicy = computed(() =>
+  Boolean(props.item && isDraftBlockedBySequencePolicy(props.item, currentMessage.value))
+);
+const canApprove = computed(() => canOperateSelectedDraft.value && !isCurrentDraftBlockedByPolicy.value);
 const draftVersionItems = computed(() => buildDraftVersionListItems(props.versions ?? []));
 const selectedDraftVersionId = shallowRef<string | null>(null);
 const hoveredDraftVersionId = shallowRef<string | null>(null);
@@ -273,6 +277,7 @@ const canStopSequence = computed(() =>
 const statusTip = computed(() => {
   if (props.item?.enrollment.status === 'stopped') return '序列已停止，旧发送任务会在执行前跳过';
   if (!currentMessage.value) return '暂无草稿';
+  if (isCurrentDraftBlockedByPolicy.value) return '当前策略阻止新增链接，请删除草稿中的链接后再确认';
   if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review')
     return '确认后会按计划时间进入发送队列';
   if (currentMessage.value.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
@@ -367,6 +372,9 @@ function handleApprove() {
   const messageId = currentMessage.value?.id;
 
   if (!messageId || !canApprove.value) {
+    if (isCurrentDraftBlockedByPolicy.value) {
+      message.warning('当前草稿仍包含链接，请删除链接后再确认');
+    }
     return;
   }
 
@@ -408,12 +416,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               <NTag :type="sequenceStatusTagTypeMap[item.enrollment.status]" :bordered="false" size="small">
                 {{ sequenceStatusLabelMap[item.enrollment.status] }}
               </NTag>
-              <NTag
-                v-if="currentMessage"
-                :type="currentMessageStatusView?.tagType"
-                :bordered="false"
-                size="small"
-              >
+              <NTag v-if="currentMessage" :type="currentMessageStatusView?.tagType" :bordered="false" size="small">
                 {{ currentMessageStatusView?.label }}
               </NTag>
             </NSpace>
@@ -462,25 +465,13 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 
           <SendAuditPanel :item="item" :current-message="currentMessage" />
 
-          <NDescriptions
-            v-if="personaMatchRows.length"
-            :column="1"
-            bordered
-            size="small"
-            label-placement="left"
-          >
+          <NDescriptions v-if="personaMatchRows.length" :column="1" bordered size="small" label-placement="left">
             <NDescriptionsItem v-for="row in personaMatchRows" :key="row.key" :label="row.label">
               <span class="persona-match-text">{{ row.value }}</span>
             </NDescriptionsItem>
           </NDescriptions>
 
-          <NDescriptions
-            v-if="policyReviewHints.length"
-            :column="1"
-            bordered
-            size="small"
-            label-placement="left"
-          >
+          <NDescriptions v-if="policyReviewHints.length" :column="1" bordered size="small" label-placement="left">
             <NDescriptionsItem v-for="hint in policyReviewHints" :key="hint.key" :label="hint.label">
               <NSpace align="center" :size="8">
                 <NTag :type="hint.tagType" :bordered="false" size="small">{{ hint.status }}</NTag>
@@ -503,13 +494,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 </NDescriptions>
 
                 <NSpace v-if="aiDraftReviewTags.length" :size="6">
-                  <NTag
-                    v-for="tag in aiDraftReviewTags"
-                    :key="tag.key"
-                    size="small"
-                    :type="tag.type"
-                    :bordered="false"
-                  >
+                  <NTag v-for="tag in aiDraftReviewTags" :key="tag.key" size="small" :type="tag.type" :bordered="false">
                     {{ tag.label }}
                   </NTag>
                 </NSpace>
@@ -567,7 +552,11 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                     <div class="draft-version-diff">{{ version.diff?.summaryText }}</div>
                     <div class="draft-version-editor">编辑人：{{ version.editorName }}</div>
                   </div>
-                  <NPopconfirm positive-text="恢复" negative-text="取消" @positive-click="handleRestoreVersion(version.id)">
+                  <NPopconfirm
+                    positive-text="恢复"
+                    negative-text="取消"
+                    @positive-click="handleRestoreVersion(version.id)"
+                  >
                     <template #trigger>
                       <NButton
                         size="small"
@@ -603,7 +592,9 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                     <span v-for="line in activeDraftVersionPreview.diff.previewLines" :key="line">{{ line }}</span>
                   </div>
                   <div class="draft-version-preview-label">恢复后主题</div>
-                  <div class="draft-version-preview-subject">{{ activeDraftVersionPreview.record?.subject || '-' }}</div>
+                  <div class="draft-version-preview-subject">
+                    {{ activeDraftVersionPreview.record?.subject || '-' }}
+                  </div>
                   <div class="draft-version-preview-label">恢复后正文</div>
                   <pre class="draft-version-preview-body">{{ activeDraftVersionPreview.record?.bodyText || '-' }}</pre>
                 </div>
@@ -634,12 +625,12 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 secondary
                 :disabled="
                   loading ||
-                    saving ||
-                    approving ||
-                    sendStarting ||
-                    refreshing ||
-                    nextDraftGenerating ||
-                    !canStopSequence
+                  saving ||
+                  approving ||
+                  sendStarting ||
+                  refreshing ||
+                  nextDraftGenerating ||
+                  !canStopSequence
                 "
                 :loading="stopping"
               >
@@ -651,14 +642,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
           <NButton
             :disabled="
               loading ||
-                approving ||
-                refreshing ||
-                sendStarting ||
-                stopping ||
-                versionRestoring ||
-                nextDraftGenerating ||
-                !currentMessage ||
-                !canEdit
+              approving ||
+              refreshing ||
+              sendStarting ||
+              stopping ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage ||
+              !canEdit
             "
             :loading="saving"
             @click="handleSave"
@@ -668,14 +659,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
           <NButton
             :disabled="
               loading ||
-                saving ||
-                refreshing ||
-                sendStarting ||
-                stopping ||
-                versionRestoring ||
-                nextDraftGenerating ||
-                !currentMessage ||
-                !canApprove
+              saving ||
+              refreshing ||
+              sendStarting ||
+              stopping ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage ||
+              !canApprove
             "
             :loading="approving"
             @click="handleApprove"
@@ -695,13 +686,13 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             type="primary"
             :disabled="
               loading ||
-                saving ||
-                approving ||
-                refreshing ||
-                stopping ||
-                nextDraftGenerating ||
-                !currentMessage ||
-                !canStartSend
+              saving ||
+              approving ||
+              refreshing ||
+              stopping ||
+              nextDraftGenerating ||
+              !currentMessage ||
+              !canStartSend
             "
             :loading="sendStarting"
             @click="emit('startSend')"

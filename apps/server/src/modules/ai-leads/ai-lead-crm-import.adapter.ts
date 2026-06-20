@@ -4,6 +4,13 @@ interface AiLeadCandidateLike {
   title?: unknown;
   website?: unknown;
   url?: unknown;
+  snippet?: unknown;
+  address?: unknown;
+  phoneNumber?: unknown;
+  sourceType?: unknown;
+  score?: unknown;
+  reason?: unknown;
+  sourceUrl?: unknown;
 }
 
 /** Maps completed AI lead candidates to CRM import inputs. */
@@ -22,7 +29,8 @@ export function mapAiLeadTaskResultToCrmImportInputs(taskId: string, result: unk
         name,
         websiteUrl: normalizeString(candidate.website) || normalizeString(candidate.url),
         sourceTaskId: taskId,
-        contact: null
+        contact: null,
+        sourceSnapshot: buildCandidateSourceSnapshot(candidate)
       }
     ];
   });
@@ -42,4 +50,32 @@ function isCandidateLike(value: unknown): value is AiLeadCandidateLike {
 
 function normalizeString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
+  const snapshot: Record<string, string | number> = {};
+  const stringFields = [
+    'snippet',
+    'address',
+    'phoneNumber',
+    'sourceType',
+    'reason',
+    'sourceUrl',
+    'url',
+    'website'
+  ] as const;
+
+  for (const field of stringFields) {
+    const value = normalizeString(candidate[field]);
+    if (value) snapshot[field] = value;
+  }
+
+  const score = normalizeNumber(candidate.score);
+  if (score !== null) snapshot.score = score;
+
+  return Object.keys(snapshot).length ? snapshot : null;
 }

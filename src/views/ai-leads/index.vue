@@ -9,6 +9,7 @@ import {
   fetchLeadKeywordHistories,
   fetchCurrentLeadSearchTask,
   fetchLeadSearchTask,
+  importCrmLead,
   interruptLeadSearchTask,
   markLeadSearchTaskRead,
   optimizeLeadKeywords,
@@ -29,6 +30,7 @@ import {
 } from './modules/search-progress';
 import type { LeadSearchProgressState, LeadSearchTaskAction } from './modules/search-progress';
 import {
+  buildAiLeadCandidateImportPayload,
   buildKeywordHistoryUpdatePayload,
   cloneKeywordPlan,
   createAiResultFromKeywordHistory,
@@ -37,7 +39,8 @@ import {
   formatKeywordOptimizationVisibleText,
   isValidTargetLeadCount,
   parseKeywordOptimizationPlan,
-  resolveTargetLeadCountAfterOptimization
+  resolveTargetLeadCountAfterOptimization,
+  type AiLeadCandidateImportRow
 } from './modules/shared';
 
 const message = useMessage();
@@ -86,6 +89,7 @@ const form = reactive<LeadSearchForm>({
 const isGenerating = shallowRef(false);
 const isSearchTaskSubmitting = shallowRef(false);
 const isSearchTaskActionLoading = shallowRef(false);
+const importingCandidateKey = shallowRef('');
 const isHistoryLoading = shallowRef(false);
 const isHistorySaving = shallowRef(false);
 const isHistoryDrawerVisible = shallowRef(false);
@@ -339,6 +343,28 @@ async function handleCopyResult() {
 
   await navigator.clipboard.writeText(copyText);
   message.success('结果已复制');
+}
+
+/** Import one pre-filtered AI lead candidate into the current owner's CRM library. */
+async function handleImportCandidate(row: AiLeadCandidateImportRow) {
+  if (!row.importState.canImport || importingCandidateKey.value) {
+    return;
+  }
+
+  importingCandidateKey.value = row.importState.key;
+  try {
+    const { error } = await importCrmLead(
+      buildAiLeadCandidateImportPayload(row.candidate, { sourceTaskId: currentSearchTask.value?.id ?? null })
+    );
+
+    if (error) {
+      return;
+    }
+
+    message.success('候选客户已导入 CRM');
+  } finally {
+    importingCandidateKey.value = '';
+  }
 }
 
 /** Restores the task that should keep showing when the user enters the page. */
@@ -710,11 +736,11 @@ function createStartingSearchProgressState(): LeadSearchProgressState {
               <NButton
                 :disabled="
                   isGenerating ||
-                    isSearching ||
-                    isSearchTaskActionLoading ||
-                    isHistorySaving ||
-                    isHistoryDeleting ||
-                    isSearchTaskBlockingForm
+                  isSearching ||
+                  isSearchTaskActionLoading ||
+                  isHistorySaving ||
+                  isHistoryDeleting ||
+                  isSearchTaskBlockingForm
                 "
                 @click="handleClear"
               >
@@ -724,11 +750,11 @@ function createStartingSearchProgressState(): LeadSearchProgressState {
                 :loading="isGenerating"
                 :disabled="
                   !canGenerate ||
-                    isSearching ||
-                    isSearchTaskActionLoading ||
-                    isHistorySaving ||
-                    isHistoryDeleting ||
-                    isSearchTaskBlockingForm
+                  isSearching ||
+                  isSearchTaskActionLoading ||
+                  isHistorySaving ||
+                  isHistoryDeleting ||
+                  isSearchTaskBlockingForm
                 "
                 @click="handleGenerate"
               >
@@ -891,8 +917,10 @@ function createStartingSearchProgressState(): LeadSearchProgressState {
       <div v-if="hasSearchProgress" class="result-panel">
         <SearchProgressPanel
           :state="searchProgress"
+          :importing-candidate-key="importingCandidateKey"
           :loading="isSearchTaskPending"
           :show-serper-details="isSuperAdmin"
+          @import-candidate="handleImportCandidate"
         />
       </div>
       <div v-else-if="aiResult" class="result-panel">

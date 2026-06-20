@@ -1,5 +1,12 @@
 import { computed, onMounted, shallowRef } from 'vue';
-import { fetchCrmAiDraftTasks, fetchCrmMailboxes, fetchCrmSequenceReviewItems, fetchSystemLogs } from '@/service/api';
+import { useMessage } from 'naive-ui';
+import {
+  fetchCrmAiDraftTasks,
+  fetchCrmMailboxes,
+  fetchCrmSequenceReviewItems,
+  fetchSystemLogs,
+  reconcileCrmSendQueue
+} from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import {
   buildOperationLogSummaryRows,
@@ -14,8 +21,11 @@ const OPERATION_LOG_PAGE_SIZE = 20;
 
 /** Load the CRM records needed by the read-only operations overview. */
 export function useCrmOperationsPanel() {
+  const message = useMessage();
   const authStore = useAuthStore();
   const loading = shallowRef(false);
+  const sendQueueReconciling = shallowRef(false);
+  const sendQueueReconcileResult = shallowRef<Api.Crm.SendQueueReconcileResult | null>(null);
   const mailboxes = shallowRef<Api.Crm.MailboxRecord[]>([]);
   const operationLogs = shallowRef<Api.SystemLog.SystemLogRecord[]>([]);
   const sequenceItems = shallowRef<Api.Crm.SequenceReviewItem[]>([]);
@@ -77,9 +87,32 @@ export function useCrmOperationsPanel() {
     }
   }
 
+  /** Repair queued messages whose BullMQ job has already disappeared. */
+  async function handleReconcileSendQueue() {
+    if (!isSuperAdmin.value || sendQueueReconciling.value) {
+      return;
+    }
+
+    sendQueueReconciling.value = true;
+    try {
+      const { data, error } = await reconcileCrmSendQueue();
+
+      if (error) {
+        return;
+      }
+
+      sendQueueReconcileResult.value = data;
+      message.success(`发送队列修复完成：修复 ${data.repairedCount} 条`);
+      await loadOperations();
+    } finally {
+      sendQueueReconciling.value = false;
+    }
+  }
+
   return {
     activeAiDraftTaskCount,
     aiDraftTasks,
+    handleReconcileSendQueue,
     isSuperAdmin,
     loadOperations,
     logRows,
@@ -87,6 +120,8 @@ export function useCrmOperationsPanel() {
     mailboxHealth,
     mailboxes,
     operationSummaryRows,
-    queueRows
+    queueRows,
+    sendQueueReconcileResult,
+    sendQueueReconciling
   };
 }

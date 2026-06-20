@@ -7,8 +7,11 @@ import {
   formatMailboxHistoryId,
   formatMailboxQuota,
   formatMailboxSyncActionLabel,
+  formatMailboxSyncModeDescription,
   formatMailboxWatchDescription,
   getMailboxWatchStatus,
+  mailboxSyncModeLabelMap,
+  mailboxSyncModeTagTypeMap,
   mailboxStatusLabelMap,
   mailboxStatusTagTypeMap,
   mailboxWatchStatusLabelMap,
@@ -70,6 +73,21 @@ function renderAuthorizationStatus(row: Api.Crm.MailboxRecord) {
 }
 
 function renderWatchStatus(row: Api.Crm.MailboxRecord) {
+  if (row.syncMode !== 'full_sync') {
+    return h('div', { class: 'mailbox-stack-cell' }, [
+      h(
+        NTag,
+        {
+          bordered: false,
+          size: 'small',
+          type: mailboxSyncModeTagTypeMap[row.syncMode]
+        },
+        { default: () => mailboxSyncModeLabelMap[row.syncMode] }
+      ),
+      h('span', { class: 'mailbox-secondary-text' }, formatMailboxSyncModeDescription(row))
+    ]);
+  }
+
   const watchStatus = getMailboxWatchStatus(row.watchExpiration);
 
   return h('div', { class: 'mailbox-stack-cell' }, [
@@ -86,7 +104,29 @@ function renderWatchStatus(row: Api.Crm.MailboxRecord) {
   ]);
 }
 
+function renderSyncMode(row: Api.Crm.MailboxRecord) {
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: mailboxSyncModeTagTypeMap[row.syncMode]
+      },
+      { default: () => mailboxSyncModeLabelMap[row.syncMode] }
+    ),
+    h('span', { class: 'mailbox-secondary-text' }, formatMailboxSyncModeDescription(row))
+  ]);
+}
+
 function renderSyncCheckpoint(row: Api.Crm.MailboxRecord) {
+  if (row.syncMode !== 'full_sync') {
+    return h('div', { class: 'mailbox-stack-cell' }, [
+      h(NTag, { bordered: false, size: 'small', type: 'default' }, { default: () => '非完整同步' }),
+      h('span', { class: 'mailbox-secondary-text' }, '不展示为真实闭环')
+    ]);
+  }
+
   if (row.lastSyncIssue) {
     return h('div', { class: 'mailbox-stack-cell' }, [
       h(
@@ -164,6 +204,12 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
     title: 'Gmail watch',
     minWidth: 180,
     render: row => renderWatchStatus(row)
+  },
+  {
+    key: 'syncMode',
+    title: '闭环模式',
+    minWidth: 190,
+    render: row => renderSyncMode(row)
   },
   {
     key: 'lastHistoryId',
@@ -278,7 +324,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
       :data="records"
       :loading="loading"
       :row-key="row => row.id"
-      :scroll-x="1530"
+      :scroll-x="1720"
       size="small"
       remote
     >

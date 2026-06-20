@@ -34,6 +34,8 @@ import {
   createSequencePolicyFormFromRecord,
   getProductLineAiWritingStatus,
   formatMailboxSyncActionLabel,
+  formatMailboxSyncModeDescription,
+  isMailboxAvailableForSequence,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
   isValidDailySendLimit,
@@ -87,8 +89,14 @@ describe('crm settings shared helpers', () => {
     assert.equal(form.retryBackoffSecondsText, '10,30,90');
     assert.deepEqual(parseAiDraftRetryBackoffSeconds(' 10, x, 30,0, 90 '), [10, 30, 90]);
     assert.equal(validateAiDraftQueueConfigForm(form), null);
-    assert.equal(validateAiDraftQueueConfigForm({ ...form, itemConcurrency: 6, maxItemConcurrency: 5 }), '默认并发不能大于最大并发');
-    assert.equal(validateAiDraftQueueConfigForm({ ...form, retryBackoffSecondsText: 'x,0' }), '请填写至少一个重试间隔秒数');
+    assert.equal(
+      validateAiDraftQueueConfigForm({ ...form, itemConcurrency: 6, maxItemConcurrency: 5 }),
+      '默认并发不能大于最大并发'
+    );
+    assert.equal(
+      validateAiDraftQueueConfigForm({ ...form, retryBackoffSecondsText: 'x,0' }),
+      '请填写至少一个重试间隔秒数'
+    );
     assert.deepEqual(normalizeAiDraftQueueConfigPayload(form), {
       itemConcurrency: 4,
       maxItemConcurrency: 5,
@@ -555,6 +563,7 @@ describe('crm settings shared helpers', () => {
       { label: '邮箱', value: 'a***@gmail.com' },
       { label: '负责人', value: 'Alice' },
       { label: '授权状态', value: '启用' },
+      { label: '闭环模式', value: '完整同步' },
       { label: 'Gmail watch', value: '未开启' },
       { label: 'Watch 到期', value: '暂无 watch 到期时间' },
       { label: 'History checkpoint', value: '...34567890' },
@@ -758,7 +767,11 @@ describe('crm settings shared helpers', () => {
     assert.deepEqual(
       summarizeMailboxSyncHealth(
         [
-          createMailbox({ id: 'mailbox-normal', lastHistoryId: 'history-1', watchExpiration: '2026-06-21T12:00:00.000Z' }),
+          createMailbox({
+            id: 'mailbox-normal',
+            lastHistoryId: 'history-1',
+            watchExpiration: '2026-06-21T12:00:00.000Z'
+          }),
           createMailbox({
             id: 'mailbox-expired',
             status: 'auth_expired',
@@ -776,6 +789,66 @@ describe('crm settings shared helpers', () => {
         total: 3,
         watchNeedsAttention: 2
       }
+    );
+  });
+
+  it('does not count send-only or mock-watch mailboxes as real sync health', () => {
+    const now = dayjs('2026-06-19T12:00:00.000Z');
+
+    assert.deepEqual(
+      summarizeMailboxSyncHealth(
+        [
+          createMailbox({
+            id: 'mailbox-full',
+            lastHistoryId: 'history-1',
+            watchExpiration: '2026-06-21T12:00:00.000Z'
+          }),
+          createMailbox({
+            id: 'mailbox-send-only',
+            lastHistoryId: 'history-2',
+            syncMode: 'send_only',
+            watchExpiration: null
+          }),
+          createMailbox({
+            id: 'mailbox-mock-watch',
+            lastHistoryId: 'history-3',
+            syncMode: 'mock_watch',
+            watchExpiration: null
+          })
+        ],
+        now
+      ),
+      {
+        authExpired: 0,
+        syncIssues: 0,
+        synced: 1,
+        total: 3,
+        watchNeedsAttention: 0
+      }
+    );
+    assert.equal(
+      formatMailboxSyncModeDescription(createMailbox({ id: 'mailbox-send-only', syncMode: 'send_only' })),
+      '仅承诺真实发信，不同步客户回复'
+    );
+  });
+
+  it('allows sequence creation only with active full-sync ready mailboxes', () => {
+    const now = dayjs('2026-06-19T12:00:00.000Z');
+    const ready = createMailbox({
+      id: 'mailbox-ready',
+      lastHistoryId: 'history-1',
+      watchExpiration: '2026-06-21T12:00:00.000Z'
+    });
+
+    assert.equal(isMailboxAvailableForSequence(ready, now), true);
+    assert.equal(
+      isMailboxAvailableForSequence(createMailbox({ id: 'mailbox-send-only', syncMode: 'send_only' }), now),
+      false
+    );
+    assert.equal(isMailboxAvailableForSequence(createMailbox({ id: 'mailbox-paused', status: 'paused' }), now), false);
+    assert.equal(
+      isMailboxAvailableForSequence(createMailbox({ id: 'mailbox-no-history', lastHistoryId: null }), now),
+      false
     );
   });
 
@@ -857,7 +930,10 @@ function createSequenceReviewItem(options: {
     canOperateDraft: true,
     checklist: [],
     contact: { email: options.contactEmail, fullName: '' } as Api.Crm.LeadContact,
-    enrollment: { runVersion: 3, status: options.enrollmentStatus ?? 'ready_to_send' } as Api.Crm.SequenceEnrollmentRecord,
+    enrollment: {
+      runVersion: 3,
+      status: options.enrollmentStatus ?? 'ready_to_send'
+    } as Api.Crm.SequenceEnrollmentRecord,
     firstMessage: null,
     mailbox: { maskedEmail: 'm***@example.com' } as Api.Crm.MailboxRecord,
     messages: options.messages,
@@ -896,7 +972,9 @@ function createMessage(options: {
   } as Api.Crm.MessageRecord;
 }
 
-function createSystemLog(options: Partial<Api.SystemLog.SystemLogRecord> & { id: string }): Api.SystemLog.SystemLogRecord {
+function createSystemLog(
+  options: Partial<Api.SystemLog.SystemLogRecord> & { id: string }
+): Api.SystemLog.SystemLogRecord {
   const { id, ...overrides } = options;
 
   return {
@@ -1093,6 +1171,7 @@ function createMailbox(options: Partial<Api.Crm.MailboxRecord> & { id: string })
   return {
     lastHistoryId: null,
     status: 'active',
+    syncMode: 'full_sync',
     watchExpiration: '2026-06-20T12:00:00.000Z',
     ...options
   } as Api.Crm.MailboxRecord;

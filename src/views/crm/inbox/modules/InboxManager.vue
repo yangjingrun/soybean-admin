@@ -12,6 +12,7 @@ const {
   draftPolishing,
   draftSaving,
   filterModel,
+  handleConfirmUnsubscribe,
   handleDetailVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
@@ -31,7 +32,8 @@ const {
   replyBody,
   replyTopic,
   statusOperating,
-  statusSubmitting
+  statusSubmitting,
+  unsubscribeConfirming
 } = useInboxTable();
 </script>
 
@@ -69,7 +71,9 @@ const {
       :loading="detailLoading"
       :status-operating="statusOperating"
       :status-submitting="statusSubmitting"
+      :unsubscribe-confirming="unsubscribeConfirming"
       @update:show="handleDetailVisibleUpdate"
+      @confirm-unsubscribe="handleConfirmUnsubscribe"
       @reload="loadThreadDetail()"
       @polish-reply-draft="handlePolishReplyDraft"
       @save-reply-draft="handleSaveReplyDraft"

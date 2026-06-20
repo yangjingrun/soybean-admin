@@ -196,6 +196,14 @@ export function syncCrmMailboxNow(id: string) {
   });
 }
 
+/** Reconcile stale CRM send queue jobs that disappeared from BullMQ. */
+export function reconcileCrmSendQueue() {
+  return request<Api.Crm.SendQueueReconcileResult>({
+    url: '/crm/operations/send-queue/reconcile',
+    method: 'post'
+  });
+}
+
 /** List organization product lines by filters and pagination. */
 export function fetchCrmProductLines(params: Api.Crm.ProductLineSearchParams) {
   return request<Api.Crm.ProductLineList>({
@@ -618,6 +626,14 @@ export function saveCrmInboxReplyDraft(id: string, data: Api.Crm.InboxReplyDraft
     url: `/crm/inbox-threads/${id}/reply-draft`,
     method: 'patch',
     data
+  });
+}
+
+/** Confirm one suspected unsubscribe inbox message and apply blacklist changes. */
+export function confirmCrmInboxMessageUnsubscribe(id: string) {
+  return request<Api.Crm.InboxUnsubscribeConfirmResult>({
+    url: `/crm/inbox-messages/${id}/confirm-unsubscribe`,
+    method: 'post'
   });
 }
 

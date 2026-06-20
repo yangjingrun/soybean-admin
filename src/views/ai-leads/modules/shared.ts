@@ -20,6 +20,18 @@ export interface KeywordOptimizationViewModel {
   showQueryDetails: boolean;
 }
 
+export interface AiLeadCandidateImportState {
+  key: string;
+  canImport: boolean;
+  domain: string | null;
+  reasons: string[];
+}
+
+export interface AiLeadCandidateImportRow {
+  candidate: Api.AiLeads.LeadSearchCandidateView;
+  importState: AiLeadCandidateImportState;
+}
+
 const businessGlossary = [
   ['auto_parts_wholesaler', '汽配批发商'],
   ['industrial_supplier', '工业用品供应商'],
@@ -84,6 +96,17 @@ const aiFinishReasonLabels: Record<string, string> = {
   other: '已结束',
   unknown: '状态待确认'
 };
+
+const lowQualityCandidateTitles = new Set([
+  'home',
+  'homepage',
+  'contact',
+  'contact us',
+  'about',
+  'about us',
+  'login',
+  'untitled'
+]);
 
 /** Parses the AI keyword optimization result into the agreed structured JSON plan. */
 export function parseKeywordOptimizationPlan(text: string): Api.AiLeads.OptimizedKeywordPlan {
@@ -199,6 +222,63 @@ export function formatKeywordOptimizationVisibleText(viewModel: KeywordOptimizat
   return `${summaryText}\n\n${buyerSegmentText}\n\nSearch 查询词：\n${searchQueryText}\n\nPlaces 查询词：\n${placesQueryText}`;
 }
 
+/** Build candidate rows with import eligibility derived before any backend submit. */
+export function buildAiLeadCandidateImportRows(
+  candidates: Api.AiLeads.LeadSearchCandidateView[]
+): AiLeadCandidateImportRow[] {
+  const firstIndexByDomain = collectFirstIndexByDomain(candidates);
+
+  return candidates.map((candidate, index) => ({
+    candidate,
+    importState: buildAiLeadCandidateImportState(candidate, index, firstIndexByDomain)
+  }));
+}
+
+/** Convert one filtered AI-lead candidate into the CRM import payload. */
+export function buildAiLeadCandidateImportPayload(
+  candidate: Api.AiLeads.LeadSearchCandidateView,
+  options: { sourceTaskId?: string | null } = {}
+): Api.Crm.LeadImportPayload {
+  const title = candidate.title?.trim() ?? '';
+  const website = candidate.website?.trim() ?? '';
+
+  return {
+    name: title,
+    websiteUrl: website,
+    customerType: candidate.sourceLabel.trim(),
+    sourceTaskId: options.sourceTaskId ?? null,
+    sourceSnapshot: compactSourceSnapshot({
+      title,
+      website,
+      snippet: candidate.snippet,
+      address: candidate.address,
+      phoneNumber: candidate.phoneNumber,
+      sourceType: candidate.sourceType,
+      sourceLabel: candidate.sourceLabel,
+      sourceUrl: candidate.sourceUrl,
+      score: candidate.score,
+      reason: candidate.reason
+    })
+  };
+}
+
+/** Normalize the candidate website into a comparable domain key. */
+export function normalizeAiLeadCandidateDomain(candidate: Pick<Api.AiLeads.LeadSearchCandidateView, 'website'>) {
+  const website = candidate.website?.trim();
+
+  if (!website) {
+    return null;
+  }
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`);
+
+    return url.hostname.toLowerCase().replace(/^www\./, '') || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Adds Chinese notes for common B2B English terms without changing executable query text. */
 function annotateBusinessTerms(text: string) {
   return businessGlossary.reduce((result, [term, translation]) => {
@@ -239,6 +319,72 @@ function readQueryMetaValue(
   key: 'buyerType' | 'intent' | 'priority'
 ) {
   return query.meta?.[key] || query[key] || '';
+}
+
+function buildAiLeadCandidateImportState(
+  candidate: Api.AiLeads.LeadSearchCandidateView,
+  index: number,
+  firstIndexByDomain: Map<string, number>
+): AiLeadCandidateImportState {
+  const domain = normalizeAiLeadCandidateDomain(candidate);
+  const reasons: string[] = [];
+  const title = candidate.title?.trim() ?? '';
+
+  if (!title) {
+    reasons.push('缺少公司名');
+  }
+
+  if (!domain) {
+    reasons.push('缺少官网或域名');
+  } else if (firstIndexByDomain.get(domain) !== index) {
+    reasons.push('重复域名');
+  }
+
+  if (isObviousLowQualityCandidate(candidate)) {
+    reasons.push('候选质量偏低');
+  }
+
+  return {
+    key: `${domain || candidate.website || title || 'candidate'}-${index}`,
+    canImport: reasons.length === 0,
+    domain,
+    reasons
+  };
+}
+
+function collectFirstIndexByDomain(candidates: Api.AiLeads.LeadSearchCandidateView[]) {
+  const firstIndexByDomain = new Map<string, number>();
+
+  candidates.forEach((candidate, index) => {
+    const domain = normalizeAiLeadCandidateDomain(candidate);
+
+    if (domain && !firstIndexByDomain.has(domain)) {
+      firstIndexByDomain.set(domain, index);
+    }
+  });
+
+  return firstIndexByDomain;
+}
+
+function isObviousLowQualityCandidate(candidate: Api.AiLeads.LeadSearchCandidateView) {
+  const title = candidate.title?.trim().toLowerCase() ?? '';
+  const hasContext = Boolean(candidate.snippet?.trim() || candidate.address?.trim() || candidate.phoneNumber?.trim());
+
+  return (
+    lowQualityCandidateTitles.has(title) || (typeof candidate.score === 'number' && candidate.score < 40) || !hasContext
+  );
+}
+
+function compactSourceSnapshot(record: Record<string, unknown>) {
+  const entries = Object.entries(record).filter(([, value]) => {
+    if (typeof value === 'string') {
+      return Boolean(value.trim());
+    }
+
+    return value !== null && value !== undefined;
+  });
+
+  return Object.fromEntries(entries);
 }
 
 function getPlacesQueries(plan: Api.AiLeads.OptimizedKeywordPlan) {

@@ -39,13 +39,15 @@ export const inboxMessageDirectionTagTypeMap: Record<Api.Crm.InboxMessageDirecti
 export const inboxMessageTypeLabelMap: Record<InboxMessageType, string> = {
   customer_reply: '客户回复',
   bounce: '退信',
-  unsubscribe_hint: '退订/拒绝'
+  unsubscribe_hint: '退订/拒绝',
+  unsubscribe_review_pending: '疑似退订'
 };
 
 export const inboxMessageTypeTagTypeMap: Record<InboxMessageType, NaiveUI.ThemeColor> = {
   customer_reply: 'info',
   bounce: 'error',
-  unsubscribe_hint: 'warning'
+  unsubscribe_hint: 'warning',
+  unsubscribe_review_pending: 'warning'
 };
 
 /** Create the default inbox filter object for initial load and reset. */
@@ -86,7 +88,9 @@ export function buildInboxThreadSearchParams(options: {
 }
 
 /** Build a lightweight pending-count query tied to the current mailbox filter. */
-export function buildInboxPendingCountParams(filterModel: Api.Crm.InboxThreadFilterModel): Api.Crm.InboxThreadSearchParams {
+export function buildInboxPendingCountParams(
+  filterModel: Api.Crm.InboxThreadFilterModel
+): Api.Crm.InboxThreadSearchParams {
   const params: Api.Crm.InboxThreadSearchParams = {
     current: 1,
     size: 1,
@@ -113,6 +117,15 @@ export function formatInboxText(value: string | null | undefined) {
 /** Use received time for inbound messages and sent time for outbound messages. */
 export function formatInboxMessageTime(message: Api.Crm.InboxMessageRecord) {
   return formatInboxDate(message.receivedAt || message.sentAt || message.createdAt);
+}
+
+/** Find the latest inbound message that still needs unsubscribe confirmation. */
+export function findPendingUnsubscribeReviewMessage(messages: Api.Crm.InboxMessageRecord[]) {
+  return (
+    messages
+      .toReversed()
+      .find(message => message.direction === 'inbound' && message.messageType === 'unsubscribe_review_pending') ?? null
+  );
 }
 
 /** Build compact AI reply draft metadata rows for the drawer. */

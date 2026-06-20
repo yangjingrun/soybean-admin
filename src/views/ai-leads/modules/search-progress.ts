@@ -286,7 +286,11 @@ function toCandidateView(candidate: Record<string, unknown>): Api.AiLeads.LeadSe
     snippet: readString(candidate.snippet),
     address: readString(candidate.address),
     phoneNumber: readString(candidate.phoneNumber),
-    sourceLabel: readString(candidate.sourceLabel) || toSourceLabel(readString(candidate.sourceType))
+    sourceType: readString(candidate.sourceType),
+    sourceLabel: readString(candidate.sourceLabel) || toSourceLabel(readString(candidate.sourceType)),
+    sourceUrl: readString(candidate.sourceUrl) || readString(candidate.url) || readString(candidate.link),
+    score: readNumber(candidate.score),
+    reason: readString(candidate.reason)
   };
 }
 
@@ -300,6 +304,10 @@ function toSerperResultView(result: Api.AiLeads.LeadSearchSerperResultView): Api
 
 function readString(value: unknown) {
   return typeof value === 'string' ? value : undefined;
+}
+
+function readNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function toSourceLabel(sourceType?: string) {

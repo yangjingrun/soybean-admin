@@ -71,7 +71,12 @@ export const crmMessageStatuses = [
 ] as const;
 export const crmMessageThreadModes = ['new_subject', 'same_thread'] as const;
 export const crmInboxThreadStatuses = ['pending', 'handled', 'archived'] as const;
-export const crmInboxMessageTypes = ['customer_reply', 'bounce', 'unsubscribe_hint'] as const;
+export const crmInboxMessageTypes = [
+  'customer_reply',
+  'bounce',
+  'unsubscribe_hint',
+  'unsubscribe_review_pending'
+] as const;
 
 export type CrmMailboxProvider = 'gmail';
 export type CrmArchivedFingerprintType = 'domain' | 'email_hash';
@@ -104,6 +109,7 @@ export interface ImportCrmLeadInput {
   country?: string | null;
   customerType?: string | null;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Record<string, unknown> | null;
   contact?: {
     fullName?: string | null;
     title?: string | null;
@@ -1147,6 +1153,7 @@ export interface CrmDispatchedMessageCountInput {
 
 export interface CrmSendQueuePort {
   enqueueFirstMessage(input: CrmSendQueueJob, options?: { delayMs?: number }): Promise<{ jobId: string }>;
+  hasJob(jobId: string): Promise<boolean>;
 }
 
 export interface CrmGmailHistorySyncQueueJob {
@@ -1455,6 +1462,25 @@ export interface CrmInboxThreadReplyRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmInboxUnsubscribeConfirmInput {
+  messageId: string;
+  organizationId: string;
+  ownerUserId: string;
+  confirmedAt: Date;
+  confirmedById: string;
+  confirmedByName?: string | null;
+}
+
+export interface CrmInboxUnsubscribeConfirmRecord {
+  thread: CrmInboxThreadRecord;
+  message: CrmInboxMessageRecord;
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  mailbox: CrmMailboxRecord | null;
+  enrollment: CrmSequenceEnrollmentRecord | null;
+  event: CrmTimelineEventRecord;
+}
+
 export interface CrmStore extends CrmAiDraftTaskStore {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
@@ -1479,6 +1505,7 @@ export interface CrmStore extends CrmAiDraftTaskStore {
   countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }): Promise<number>;
   countDispatchedMessages(input: CrmDispatchedMessageCountInput): Promise<number>;
   listDueSendCandidates(input: CrmDueSendCandidateListInput): Promise<CrmDueSendCandidateRecord[]>;
+  listStaleQueuedMessages(input: { before: Date; take: number }): Promise<CrmMessageRecord[]>;
   getOrganizationConfig(organizationId: string): Promise<CrmOrganizationConfigRecord | null>;
   saveOrganizationConfig(input: CrmOrganizationConfigInput): Promise<CrmOrganizationConfigRecord>;
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;
@@ -1667,6 +1694,9 @@ export interface CrmStore extends CrmAiDraftTaskStore {
   }): Promise<CrmInboxThreadDetailRecord | null>;
   updateInboxThreadStatus(input: CrmInboxThreadStatusUpdateInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
   syncInboxThreadGmailState(input: CrmInboxThreadGmailStateSyncInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
+  confirmInboxMessageUnsubscribe(
+    input: CrmInboxUnsubscribeConfirmInput
+  ): Promise<CrmInboxUnsubscribeConfirmRecord | null>;
   saveInboxThreadReplyDraft(input: CrmInboxReplyDraftSaveInput): Promise<CrmInboxThreadDetailRecord | null>;
   replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null>;
 }

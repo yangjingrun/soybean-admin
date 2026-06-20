@@ -153,6 +153,11 @@ export class CrmController {
     return ok(await this.crmService.saveAiDraftQueueConfig(dto, this.requireSuperUserContext(authorization)));
   }
 
+  @Post('operations/send-queue/reconcile')
+  async reconcileSendQueue(@Headers('authorization') authorization = '') {
+    return ok(await this.crmService.reconcileSendQueue({}, this.requireSuperUserContext(authorization)));
+  }
+
   @Get('send-preference')
   async getSendPreference(@Headers('authorization') authorization = '') {
     return ok(await this.crmService.getSendPreference(this.requireUserContext(authorization)));
@@ -271,7 +276,9 @@ export class CrmController {
     @Param('id') id: string,
     @Param('versionId') versionId: string
   ) {
-    return ok(await this.crmService.restoreProductLineAiPromptVersion(id, versionId, this.requireUserContext(authorization)));
+    return ok(
+      await this.crmService.restoreProductLineAiPromptVersion(id, versionId, this.requireUserContext(authorization))
+    );
   }
 
   @Get('persona-profiles')
@@ -414,10 +421,7 @@ export class CrmController {
   }
 
   @Get('ai-draft-tasks')
-  async listAiDraftTasks(
-    @Headers('authorization') authorization = '',
-    @Query() query: CrmAiDraftTaskQueryDto
-  ) {
+  async listAiDraftTasks(@Headers('authorization') authorization = '', @Query() query: CrmAiDraftTaskQueryDto) {
     return ok(await this.crmService.listAiDraftTasks(this.requireUserContext(authorization), query));
   }
 
@@ -554,6 +558,11 @@ export class CrmController {
     @Body() dto: SaveCrmInboxReplyDraftDto
   ) {
     return ok(await this.crmService.saveInboxReplyDraft(id, dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('inbox-messages/:id/confirm-unsubscribe')
+  async confirmInboxMessageUnsubscribe(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.confirmInboxMessageUnsubscribe(id, this.requireUserContext(authorization)));
   }
 
   @Post('messages/:id/mock-reply')

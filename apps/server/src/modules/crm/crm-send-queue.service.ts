@@ -27,6 +27,12 @@ export class CrmSendQueueService implements CrmSendQueuePort, OnModuleDestroy {
     return { jobId: job.id || toCrmSendJobId(input.messageId, input.runVersion) };
   }
 
+  async hasJob(jobId: string) {
+    await this.ensureReady();
+
+    return Boolean(await this.queue.getJob(jobId));
+  }
+
   async onModuleDestroy() {
     await this.queue.close();
   }

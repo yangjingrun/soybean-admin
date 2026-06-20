@@ -243,4 +243,96 @@ describe('AiLeadHunterEnrichmentService', () => {
       email: 'existing@example.com'
     });
   });
+
+  it('does not enrich with low-confidence personal contacts', async () => {
+    const service = new AiLeadHunterEnrichmentService(
+      {
+        async getHunterConfig() {
+          return {
+            configKey: 'default',
+            title: 'Hunter',
+            apiBase: 'https://api.hunter.io/v2',
+            apiKey: 'hunter-key',
+            updatedAt: ''
+          };
+        }
+      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      {
+        async domainSearch() {
+          return {
+            data: {
+              emails: [
+                {
+                  value: 'alice@example.com',
+                  type: 'personal',
+                  confidence: 45,
+                  first_name: 'Alice',
+                  last_name: 'Buyer',
+                  position: 'Purchasing Manager'
+                }
+              ]
+            }
+          };
+        }
+      } as Pick<HunterClient, 'domainSearch'> as HunterClient
+    );
+
+    const result = await service.enrichCrmImportInputs([
+      {
+        name: 'Example Trading',
+        websiteUrl: 'https://example.com',
+        sourceTaskId: 'task-1',
+        contact: null
+      }
+    ]);
+
+    assert.equal(result.enrichedCount, 0);
+    assert.equal(result.inputs[0].contact, null);
+  });
+
+  it('does not enrich with generic Hunter emails even when confidence is high', async () => {
+    const service = new AiLeadHunterEnrichmentService(
+      {
+        async getHunterConfig() {
+          return {
+            configKey: 'default',
+            title: 'Hunter',
+            apiBase: 'https://api.hunter.io/v2',
+            apiKey: 'hunter-key',
+            updatedAt: ''
+          };
+        }
+      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      {
+        async domainSearch() {
+          return {
+            data: {
+              emails: [
+                {
+                  value: 'info@example.com',
+                  type: 'generic',
+                  confidence: 99,
+                  first_name: null,
+                  last_name: null,
+                  position: null
+                }
+              ]
+            }
+          };
+        }
+      } as Pick<HunterClient, 'domainSearch'> as HunterClient
+    );
+
+    const result = await service.enrichCrmImportInputs([
+      {
+        name: 'Example Trading',
+        websiteUrl: 'https://example.com',
+        sourceTaskId: 'task-1',
+        contact: null
+      }
+    ]);
+
+    assert.equal(result.enrichedCount, 0);
+    assert.equal(result.inputs[0].contact, null);
+  });
 });

@@ -24,6 +24,8 @@ declare namespace Api {
 
     type MailboxWarmupStage = 'new' | 'warming' | 'ready';
 
+    type MailboxSyncMode = 'full_sync' | 'send_only' | 'mock_watch';
+
     type MailboxSyncIssueType = 'history_expired';
 
     type ProductLineStatus = 'active' | 'archived';
@@ -138,6 +140,8 @@ declare namespace Api {
       websiteUrl?: string;
       country?: string;
       customerType?: string;
+      sourceTaskId?: string | null;
+      sourceSnapshot?: Record<string, unknown> | null;
       contact?: LeadImportContactPayload;
     }
 
@@ -299,6 +303,7 @@ declare namespace Api {
       warmupStage: MailboxWarmupStage;
       watchExpiration: string | null;
       lastHistoryId: string | null;
+      syncMode: MailboxSyncMode;
       lastSyncIssue: MailboxSyncIssue | null;
       authorizedAt: string | null;
       pausedAt: string | null;
@@ -945,7 +950,7 @@ declare namespace Api {
       subject: string;
       snippet: string | null;
       bodyText: string;
-      messageType: 'customer_reply' | 'bounce' | 'unsubscribe_hint';
+      messageType: 'customer_reply' | 'bounce' | 'unsubscribe_hint' | 'unsubscribe_review_pending';
       sentAt: string | null;
       receivedAt: string | null;
       createdAt: string;
@@ -966,6 +971,16 @@ declare namespace Api {
 
     interface InboxReplyPayload {
       bodyText: string;
+    }
+
+    interface InboxUnsubscribeConfirmResult extends InboxThreadDetail {
+      message: InboxMessageRecord;
+    }
+
+    interface SendQueueReconcileResult {
+      scannedCount: number;
+      repairedCount: number;
+      skippedCount: number;
     }
 
     interface InboxReplyPolishPayload {

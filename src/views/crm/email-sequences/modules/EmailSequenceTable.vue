@@ -47,10 +47,10 @@ const props = defineProps<{
 const batchBusy = computed(() =>
   Boolean(
     props.loading ||
-      props.batchDraftApproving ||
-      props.aiDraftTaskCreating ||
-      props.batchNextDraftGenerating ||
-      props.batchSequenceStopping
+    props.batchDraftApproving ||
+    props.aiDraftTaskCreating ||
+    props.batchNextDraftGenerating ||
+    props.batchSequenceStopping
   )
 );
 const batchNextDraftResultDisplays = inject(sequenceBatchResultDisplayKey);
@@ -151,11 +151,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
         const summary = getSequenceSendAuditSummary(row);
 
         return h('div', { class: 'sequence-cell' }, [
-          h(
-            NTag,
-            { bordered: false, size: 'small', type: summary.tagType },
-            { default: () => summary.label }
-          ),
+          h(NTag, { bordered: false, size: 'small', type: summary.tagType }, { default: () => summary.label }),
           h('span', { class: 'sequence-secondary-text' }, summary.description)
         ]);
       }
@@ -168,11 +164,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
         const nextAction = getSequenceNextAction(row);
 
         return h('div', { class: 'sequence-cell' }, [
-          h(
-            NTag,
-            { bordered: false, size: 'small', type: nextAction.tagType },
-            { default: () => nextAction.label }
-          ),
+          h(NTag, { bordered: false, size: 'small', type: nextAction.tagType }, { default: () => nextAction.label }),
           h('span', { class: 'sequence-secondary-text' }, nextAction.description)
         ]);
       }
@@ -267,7 +259,8 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
     <template #header-extra>
       <NSpace align="center" :size="8">
         <NText v-if="batchSelectionSummary.selectedCount > 0" depth="3">
-          已选 {{ batchSelectionSummary.selectedCount }} 条
+          已选 {{ batchSelectionSummary.selectedCount }} 条 · AI 可生成 {{ batchSelectionSummary.aiDraftTaskCount }} 条
+          · 不可执行 {{ batchSelectionSummary.skippedCount }} 条
         </NText>
         <NButton
           size="small"
@@ -283,7 +276,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
           size="small"
           type="primary"
           secondary
-          :disabled="batchSelectionSummary.generateNextDraftCount === 0 || batchBusy"
+          :disabled="batchSelectionSummary.aiDraftTaskCount === 0 || batchBusy"
           :loading="aiDraftTaskCreating"
           @click="emit('createAiDraftTask')"
         >

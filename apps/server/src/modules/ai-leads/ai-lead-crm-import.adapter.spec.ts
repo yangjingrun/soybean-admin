@@ -6,7 +6,18 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
   it('maps completed task candidates to CRM import inputs and skips blank titles', () => {
     const inputs = mapAiLeadTaskResultToCrmImportInputs('task-1', {
       candidates: [
-        { title: 'ABC Bearing', website: 'https://abc.example', url: 'https://fallback.example' },
+        {
+          title: 'ABC Bearing',
+          website: 'https://abc.example',
+          url: 'https://fallback.example',
+          snippet: 'Bearing distributor in Riyadh',
+          address: 'Riyadh',
+          phoneNumber: '+966 11 000 0000',
+          sourceType: 'places',
+          score: 82,
+          reason: 'Matches bearing supplier intent',
+          sourceUrl: 'https://google.serper.dev/places'
+        },
         { title: '  ', website: 'https://blank.example' },
         { title: 'XYZ Trading', url: 'https://xyz.example' }
       ]
@@ -17,13 +28,27 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
         name: 'ABC Bearing',
         websiteUrl: 'https://abc.example',
         sourceTaskId: 'task-1',
-        contact: null
+        contact: null,
+        sourceSnapshot: {
+          snippet: 'Bearing distributor in Riyadh',
+          address: 'Riyadh',
+          phoneNumber: '+966 11 000 0000',
+          sourceType: 'places',
+          score: 82,
+          reason: 'Matches bearing supplier intent',
+          sourceUrl: 'https://google.serper.dev/places',
+          url: 'https://fallback.example',
+          website: 'https://abc.example'
+        }
       },
       {
         name: 'XYZ Trading',
         websiteUrl: 'https://xyz.example',
         sourceTaskId: 'task-1',
-        contact: null
+        contact: null,
+        sourceSnapshot: {
+          url: 'https://xyz.example'
+        }
       }
     ]);
   });
