@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { loadAppConfig } from '../app-config/app-config.loader';
 import type { SystemLogRecordInput } from '../system-log/system-log.types';
 import { CrmArchiveSlimmingService } from './crm-archive-slimming.service';
 import type { CrmAccountRecord, CrmStore } from './crm.types';
@@ -44,6 +45,38 @@ describe('CrmArchiveSlimmingService', () => {
     assert.equal(store.accounts[0].sourceTaskId, 'task-1');
     assert.equal(store.accounts[0].archiveSlimmedAt?.toISOString(), '2026-06-19T00:00:00.000Z');
     assert.equal(logger.records[0]?.action, 'archive-slimming-summary');
+  });
+
+  it('does not start the slimming timer in API-only runtime role', () => {
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    let intervalStarted = false;
+    const store = createStore({ dueAccounts: [createAccount()] });
+    const service = new CrmArchiveSlimmingService(
+      store as never,
+      undefined,
+      { config: loadAppConfig({ SERVER_RUNTIME_ROLE: 'api' }) } as never
+    );
+
+    globalThis.setInterval = ((callback: () => void) => {
+      intervalStarted = true;
+
+      return {
+        unref() {}
+      };
+    }) as typeof setInterval;
+    globalThis.clearInterval = originalClearInterval;
+
+    try {
+      service.onModuleInit();
+
+      assert.equal(intervalStarted, false);
+      assert.equal(store.listCalls.length, 0);
+    } finally {
+      service.onModuleDestroy();
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
   });
 });
 

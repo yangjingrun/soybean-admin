@@ -1,4 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { AppConfigService } from '../app-config/app-config.service';
+import { canRunSchedulers } from '../app-config/app-config.loader';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
@@ -30,10 +32,17 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
     private readonly systemLogService?: SystemLogRecorder,
     @Optional()
     @Inject(SystemNotificationService)
-    private readonly systemNotificationService?: SystemNotificationService
+    private readonly systemNotificationService?: SystemNotificationService,
+    @Optional()
+    @Inject(AppConfigService)
+    private readonly appConfigService?: AppConfigService
   ) {}
 
   onModuleInit() {
+    if (!canRunSchedulers(this.appConfigService?.config)) {
+      return;
+    }
+
     if (isWatchRenewalDisabled()) {
       return;
     }

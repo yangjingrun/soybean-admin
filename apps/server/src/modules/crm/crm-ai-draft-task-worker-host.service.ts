@@ -1,5 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
+import { AppConfigService } from '../app-config/app-config.service';
+import { canRunWorkers } from '../app-config/app-config.loader';
 import { RedisService } from '../redis/redis.service';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -19,10 +21,15 @@ export class CrmAiDraftTaskWorkerHost implements OnModuleInit, OnModuleDestroy {
     @Inject(CrmAiDraftTaskWorkerService) private readonly workerService: CrmAiDraftTaskWorkerService,
     @Inject(CRM_STORE) private readonly store: Pick<CrmStore, 'getAiDraftQueueConfig'>,
     @Inject(CRM_AI_DRAFT_TASK_QUEUE) private readonly taskQueue: CrmAiDraftTaskQueuePort,
-    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder
+    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder,
+    @Optional() @Inject(AppConfigService) private readonly appConfigService?: AppConfigService
   ) {}
 
   async onModuleInit() {
+    if (!canRunWorkers(this.appConfigService?.config)) {
+      return;
+    }
+
     const config = await this.store.getAiDraftQueueConfig();
     await this.taskQueue.applyGlobalConcurrency(config.maxActiveTasksPerOrg);
     this.worker = new Worker<CrmAiDraftTaskQueueJob>(

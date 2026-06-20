@@ -19,6 +19,7 @@ async function bootstrap() {
   const appConfig = loadAppConfig();
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
 
+  app.enableShutdownHooks();
   app.enableCors({
     origin: getCorsOrigins(appConfig.serverCorsOrigins),
     credentials: true

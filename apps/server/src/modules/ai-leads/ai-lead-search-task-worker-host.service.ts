@@ -1,5 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
+import { AppConfigService } from '../app-config/app-config.service';
+import { canRunWorkers } from '../app-config/app-config.loader';
 import { RedisService } from '../redis/redis.service';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -19,10 +21,15 @@ export class AiLeadSearchTaskWorkerHost implements OnModuleInit, OnModuleDestroy
     @Inject(AiLeadSearchTaskWorkerService) private readonly workerService: AiLeadSearchTaskWorkerService,
     @Inject(AI_LEAD_QUEUE_CONFIG_STORE) private readonly queueConfigStore: AiLeadQueueConfigStore,
     @Inject(AI_LEAD_SEARCH_TASK_QUEUE) private readonly taskQueue: AiLeadSearchTaskQueuePort,
-    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder
+    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder,
+    @Optional() @Inject(AppConfigService) private readonly appConfigService?: AppConfigService
   ) {}
 
   async onModuleInit() {
+    if (!canRunWorkers(this.appConfigService?.config)) {
+      return;
+    }
+
     const config = await this.queueConfigStore.getConfig();
     const activeJobIds = (await this.taskQueue.listActiveSearchTaskJobIds?.()) ?? [];
     await this.workerService.interruptRunningTasksAfterRestart(activeJobIds);

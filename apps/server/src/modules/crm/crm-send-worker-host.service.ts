@@ -1,5 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
+import { AppConfigService } from '../app-config/app-config.service';
+import { canRunWorkers } from '../app-config/app-config.loader';
 import { RedisService } from '../redis/redis.service';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -14,10 +16,15 @@ export class CrmSendWorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(RedisService) private readonly redisService: RedisService,
     @Inject(CrmSendWorkerService) private readonly workerService: CrmSendWorkerService,
-    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder
+    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder,
+    @Optional() @Inject(AppConfigService) private readonly appConfigService?: AppConfigService
   ) {}
 
   onModuleInit() {
+    if (!canRunWorkers(this.appConfigService?.config)) {
+      return;
+    }
+
     this.worker = new Worker<CrmSendQueueJob>(crmSendQueueName, job => this.workerService.processSendJob(job.data), {
       connection: this.redisService.createBullMqConnectionOptions(),
       concurrency: 2

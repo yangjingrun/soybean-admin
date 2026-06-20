@@ -7,6 +7,7 @@ import type {
   LeadSearchExecutionOptions,
   SearchRequestTrace
 } from './ai-lead-search-orchestrator.service';
+import { loadAppConfig } from '../app-config/app-config.loader';
 import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 import type { SystemLogRecordInput } from '../system-log/system-log.types';
 import { AiLeadSearchTaskQueueService } from './ai-lead-search-task-queue.service';
@@ -609,6 +610,42 @@ describe('AiLeadSearchTaskWorkerService', () => {
 
     assert.deepEqual(recoveredJobIdGroups, [['task-live:1']]);
     assert.equal(task.status, 'running');
+  });
+
+  it('does not start the worker host in API-only runtime role', async () => {
+    let configReads = 0;
+    let activeJobReads = 0;
+    const host = new AiLeadSearchTaskWorkerHost(
+      { createBullMqConnectionOptions: () => ({}) } as never,
+      {} as AiLeadSearchTaskWorkerService,
+      {
+        async getConfig() {
+          configReads += 1;
+
+          return { configKey: 'ai-lead-search', workerConcurrency: 1, priorityStrategy: 'fifo', updatedAt: new Date() };
+        }
+      } as never,
+      {
+        async removeSearchTaskJob() {},
+        async enqueueSearchTask() {
+          return { jobId: 'job-1' };
+        },
+        async applyGlobalConcurrency() {},
+        async listActiveSearchTaskJobIds() {
+          activeJobReads += 1;
+
+          return [];
+        }
+      },
+      undefined,
+      { config: loadAppConfig({ SERVER_RUNTIME_ROLE: 'api' }) } as never
+    );
+
+    await host.onModuleInit();
+    await host.onModuleDestroy();
+
+    assert.equal(configReads, 0);
+    assert.equal(activeJobReads, 0);
   });
 
   it('records worker host runtime errors through the injected log service', async () => {

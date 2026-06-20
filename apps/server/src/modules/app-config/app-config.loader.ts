@@ -1,6 +1,7 @@
 export interface AppConfig {
   nodeEnv: string;
   isProduction: boolean;
+  serverRuntimeRole: ServerRuntimeRole;
   port: number;
   serverCorsOrigins: string[] | null;
   databaseUrl: string | undefined;
@@ -22,11 +23,15 @@ export interface AppConfig {
   };
 }
 
+export type ServerRuntimeRole = 'api' | 'worker' | 'scheduler' | 'all';
+
 const DEFAULT_NODE_ENV = 'development';
 const DEFAULT_PORT = 9528;
 const DEFAULT_REDIS_URL = 'redis://127.0.0.1:6379';
 const DEFAULT_AUTH_ACCESS_TOKEN_TTL_SECONDS = 7200;
 const DEFAULT_AUTH_REFRESH_TOKEN_TTL_SECONDS = 1209600;
+const DEFAULT_SERVER_RUNTIME_ROLE: ServerRuntimeRole = 'all';
+const serverRuntimeRoles = ['api', 'worker', 'scheduler', 'all'] as const satisfies readonly ServerRuntimeRole[];
 
 /** Loads app-level runtime config from the provided environment map. */
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -36,6 +41,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     nodeEnv,
     isProduction,
+    serverRuntimeRole: readServerRuntimeRole(env.SERVER_RUNTIME_ROLE),
     port: readNumber(env.PORT, DEFAULT_PORT),
     serverCorsOrigins: readCsv(env.SERVER_CORS_ORIGINS),
     databaseUrl: env.DATABASE_URL,
@@ -57,6 +63,32 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       CRM_GMAIL_PUBSUB_PUSH_SECRET: env.CRM_GMAIL_PUBSUB_PUSH_SECRET
     }
   };
+}
+
+/** Returns whether this process should host BullMQ workers. */
+export function canRunWorkers(config: Pick<AppConfig, 'serverRuntimeRole'> | undefined) {
+  return isRuntimeRoleEnabled(config?.serverRuntimeRole, 'worker');
+}
+
+/** Returns whether this process should host schedulers and periodic maintenance tasks. */
+export function canRunSchedulers(config: Pick<AppConfig, 'serverRuntimeRole'> | undefined) {
+  return isRuntimeRoleEnabled(config?.serverRuntimeRole, 'scheduler');
+}
+
+function isRuntimeRoleEnabled(role: ServerRuntimeRole = DEFAULT_SERVER_RUNTIME_ROLE, target: 'worker' | 'scheduler') {
+  return role === 'all' || role === target;
+}
+
+function readServerRuntimeRole(value: string | undefined): ServerRuntimeRole {
+  if (value === undefined) {
+    return DEFAULT_SERVER_RUNTIME_ROLE;
+  }
+
+  if (serverRuntimeRoles.includes(value as ServerRuntimeRole)) {
+    return value as ServerRuntimeRole;
+  }
+
+  throw new Error(`Invalid SERVER_RUNTIME_ROLE: ${value}`);
 }
 
 function readCsv(value: string | undefined) {

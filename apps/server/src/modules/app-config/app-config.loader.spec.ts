@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 import { AppConfigService } from './app-config.service';
-import { loadAppConfig } from './app-config.loader';
+import { canRunSchedulers, canRunWorkers, loadAppConfig } from './app-config.loader';
 
 const originalPort = process.env.PORT;
 const originalCrmEnableMockEndpoints = process.env.CRM_ENABLE_MOCK_ENDPOINTS;
@@ -17,6 +17,7 @@ describe('loadAppConfig', () => {
 
     assert.equal(config.nodeEnv, 'development');
     assert.equal(config.isProduction, false);
+    assert.equal(config.serverRuntimeRole, 'all');
     assert.equal(config.port, 9528);
     assert.equal(config.serverCorsOrigins, null);
     assert.equal(config.databaseUrl, undefined);
@@ -57,6 +58,39 @@ describe('loadAppConfig', () => {
 
     assert.equal(config.authAccessTokenTtlSeconds, 3600);
     assert.equal(config.authRefreshTokenTtlSeconds, 2592000);
+  });
+
+  it('reads the server runtime role from env', () => {
+    assert.equal(loadAppConfig({ SERVER_RUNTIME_ROLE: 'api' }).serverRuntimeRole, 'api');
+    assert.equal(loadAppConfig({ SERVER_RUNTIME_ROLE: 'worker' }).serverRuntimeRole, 'worker');
+    assert.equal(loadAppConfig({ SERVER_RUNTIME_ROLE: 'scheduler' }).serverRuntimeRole, 'scheduler');
+    assert.equal(loadAppConfig({ SERVER_RUNTIME_ROLE: 'all' }).serverRuntimeRole, 'all');
+  });
+
+  it('rejects invalid server runtime roles', () => {
+    assert.throws(() => loadAppConfig({ SERVER_RUNTIME_ROLE: 'api,worker' }), /Invalid SERVER_RUNTIME_ROLE/);
+  });
+});
+
+describe('runtime role helpers', () => {
+  it('keeps all role compatible with local single-process startup', () => {
+    const config = loadAppConfig({});
+
+    assert.equal(canRunWorkers(config), true);
+    assert.equal(canRunSchedulers(config), true);
+  });
+
+  it('separates API, worker, and scheduler runtime roles', () => {
+    const apiConfig = loadAppConfig({ SERVER_RUNTIME_ROLE: 'api' });
+    const workerConfig = loadAppConfig({ SERVER_RUNTIME_ROLE: 'worker' });
+    const schedulerConfig = loadAppConfig({ SERVER_RUNTIME_ROLE: 'scheduler' });
+
+    assert.equal(canRunWorkers(apiConfig), false);
+    assert.equal(canRunSchedulers(apiConfig), false);
+    assert.equal(canRunWorkers(workerConfig), true);
+    assert.equal(canRunSchedulers(workerConfig), false);
+    assert.equal(canRunWorkers(schedulerConfig), false);
+    assert.equal(canRunSchedulers(schedulerConfig), true);
   });
 });
 

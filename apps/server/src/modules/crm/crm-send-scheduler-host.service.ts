@@ -1,4 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { AppConfigService } from '../app-config/app-config.service';
+import { canRunSchedulers } from '../app-config/app-config.loader';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { CrmSendSchedulerService } from './crm-send-scheduler.service';
@@ -12,10 +14,15 @@ export class CrmSendSchedulerHost implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject(CrmSendSchedulerService) private readonly schedulerService: CrmSendSchedulerService,
-    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder
+    @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder,
+    @Optional() @Inject(AppConfigService) private readonly appConfigService?: AppConfigService
   ) {}
 
   onModuleInit() {
+    if (!canRunSchedulers(this.appConfigService?.config)) {
+      return;
+    }
+
     this.timer = setInterval(() => {
       void this.tick();
     }, schedulerIntervalMs);
