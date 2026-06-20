@@ -5,8 +5,6 @@ import {
   NotFoundException,
   Optional
 } from '@nestjs/common';
-import { createHash } from 'node:crypto';
-import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
 import { createPageResult } from '../../shared/pagination';
 import { assertOrganizationAdmin } from '../../shared/permission-policy';
@@ -72,8 +70,6 @@ import type {
   CrmAccountStatus,
   CrmAiDraftPreviewInput,
   CrmBlacklistRecord,
-  CrmMailboxProvider,
-  CrmMailboxRecord,
   CrmMailboxStatus,
   CrmEmailTemplateStatus,
   CrmEmailSendGateway,
@@ -98,15 +94,6 @@ import type {
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
-const gmailProvider: CrmMailboxProvider = 'gmail';
-const gmailHistorySyncScopes = new Set([
-  'https://mail.google.com/',
-  'https://www.googleapis.com/auth/gmail.modify',
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.metadata'
-]);
-const defaultMailboxDailyLimit = 50;
-const defaultMailboxHourlyLimit = 10;
 const initialDraftStepIndex = 1;
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
@@ -158,13 +145,11 @@ interface GmailOAuthCompleteInput {
 
 @Injectable()
 export class CrmService {
-  private readonly dnsResolver: CrmEmailDnsResolver;
-
   constructor(
     @Inject(CRM_STORE) private readonly store: CrmStore,
     @Optional()
     @Inject(CRM_EMAIL_DNS_RESOLVER)
-    dnsResolver?: CrmEmailDnsResolver,
+    _dnsResolver?: CrmEmailDnsResolver,
     @Optional()
     @Inject(SystemLogService)
     private readonly systemLogService?: SystemLogRecorder,
@@ -179,10 +164,10 @@ export class CrmService {
     private readonly sendGateway?: CrmEmailSendGateway,
     @Optional()
     @Inject(CRM_GMAIL_OAUTH_FLOW)
-    private readonly gmailOAuthFlow?: CrmGmailOAuthFlowPort | null,
+    _gmailOAuthFlow?: CrmGmailOAuthFlowPort | null,
     @Optional()
     @Inject(CrmGmailWatchService)
-    private readonly gmailWatchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null,
+    _gmailWatchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null,
     @Optional()
     @Inject(CrmAiDraftService)
     _aiDraftService?: CrmAiDraftService | null,
@@ -255,9 +240,7 @@ export class CrmService {
     @Optional()
     @Inject(CrmInboxService)
     private readonly inboxService?: CrmInboxService
-  ) {
-    this.dnsResolver = dnsResolver ?? { resolveMx };
-  }
+  ) {}
 
   /** Imports one lead candidate into the organization CRM with domain and email dedupe. */
   async importAccountFromLead(input: ImportCrmLeadInput, context: CrmUserContext) {
@@ -467,157 +450,17 @@ export class CrmService {
 
   /** Creates a Gmail mock authorization record without storing any OAuth token. */
   async mockAuthorizeMailbox(input: { emailAddress: string }, context: CrmUserContext) {
-    if (this.mailboxService) {
-      return this.mailboxService.mockAuthorizeMailbox(input, context);
-    }
-
-    const emailAddress = normalizeMailboxEmail(input.emailAddress);
-    const emailHash = hashEmail(emailAddress);
-    const existingMailbox = await this.store.findMailboxByProviderAndEmailHash(gmailProvider, emailHash);
-
-    if (existingMailbox) {
-      if (isOwnedMailbox(existingMailbox, context)) {
-        await this.recordMailboxLog(
-          'mailbox-mock-authorize',
-          'CRM 邮箱 mock 授权完成',
-          context,
-          existingMailbox,
-          existingMailbox.status,
-          existingMailbox.status
-        );
-
-        return { mailbox: toMailboxView(existingMailbox) };
-      }
-
-      throw new BadRequestException('该 Gmail 地址已绑定');
-    }
-
-    const mailbox = await this.store.createMailbox({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      ownerUserName: context.userName,
-      provider: gmailProvider,
-      emailAddress,
-      emailHash,
-      maskedEmail: maskEmail(emailAddress),
-      status: 'active',
-      dailyLimit: defaultMailboxDailyLimit,
-      hourlyLimit: defaultMailboxHourlyLimit,
-      warmupStage: 'new',
-      watchExpiration: null,
-      lastHistoryId: null,
-      authorizedAt: new Date(),
-      pausedAt: null
-    });
-
-    if (!isOwnedMailbox(mailbox, context)) {
-      throw new BadRequestException('该 Gmail 地址已绑定');
-    }
-
-    await this.recordMailboxLog(
-      'mailbox-mock-authorize',
-      'CRM 邮箱 mock 授权完成',
-      context,
-      mailbox,
-      null,
-      mailbox.status
-    );
-
-    return { mailbox: toMailboxView(mailbox) };
+    return this.requireMailboxService().mockAuthorizeMailbox(input, context);
   }
 
   /** Creates a Google consent URL for the current user mailbox authorization flow. */
   createGmailOAuthAuthorizationUrl(context: CrmUserContext) {
-    if (this.mailboxService) {
-      return this.mailboxService.createGmailOAuthAuthorizationUrl(context);
-    }
-
-    return this.requireGmailOAuthFlow().createAuthorizationUrl({
-      organizationId: context.organizationId,
-      userId: context.userId
-    });
+    return this.requireMailboxService().createGmailOAuthAuthorizationUrl(context);
   }
 
   /** Completes Gmail OAuth authorization and stores the encrypted refresh token for the mailbox owner. */
   async completeGmailOAuthAuthorization(input: GmailOAuthCompleteInput, context: CrmUserContext) {
-    if (this.mailboxService) {
-      return this.mailboxService.completeGmailOAuthAuthorization(input, context);
-    }
-
-    const flow = this.requireGmailOAuthFlow();
-    flow.verifyState(input.state, {
-      organizationId: context.organizationId,
-      userId: context.userId
-    });
-
-    const gmailMailbox = await flow.exchangeCodeForMailbox(input.code);
-    const emailAddress = normalizeMailboxEmail(gmailMailbox.emailAddress);
-    const emailHash = hashEmail(emailAddress);
-    const existingMailbox = await this.store.findMailboxByProviderAndEmailHash(gmailProvider, emailHash);
-
-    if (existingMailbox) {
-      if (!isOwnedMailbox(existingMailbox, context)) {
-        throw new BadRequestException('该 Gmail 地址已绑定');
-      }
-
-      const updatedMailbox = await this.store.updateMailbox(existingMailbox.id, {
-        status: 'active',
-        encryptedRefreshToken: gmailMailbox.encryptedRefreshToken,
-        watchExpiration: null,
-        lastHistoryId: gmailMailbox.historyId,
-        authorizedAt: new Date(),
-        pausedAt: null
-      });
-
-      if (!updatedMailbox) {
-        throw new NotFoundException('邮箱不存在');
-      }
-
-      await this.recordMailboxLog(
-        'mailbox-gmail-oauth-authorize',
-        'CRM Gmail OAuth 授权完成',
-        context,
-        updatedMailbox,
-        existingMailbox.status,
-        updatedMailbox.status
-      );
-
-      return this.renewWatchAfterOAuthAuthorization(updatedMailbox, context);
-    }
-
-    const mailbox = await this.store.createMailbox({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      ownerUserName: context.userName,
-      provider: gmailProvider,
-      emailAddress,
-      emailHash,
-      maskedEmail: maskEmail(emailAddress),
-      status: 'active',
-      dailyLimit: defaultMailboxDailyLimit,
-      hourlyLimit: defaultMailboxHourlyLimit,
-      warmupStage: 'new',
-      encryptedRefreshToken: gmailMailbox.encryptedRefreshToken,
-      watchExpiration: null,
-      lastHistoryId: gmailMailbox.historyId,
-      authorizedAt: new Date(),
-      pausedAt: null
-    });
-
-    if (!isOwnedMailbox(mailbox, context)) {
-      throw new BadRequestException('该 Gmail 地址已绑定');
-    }
-
-    await this.recordMailboxLog(
-      'mailbox-gmail-oauth-authorize',
-      'CRM Gmail OAuth 授权完成',
-      context,
-      mailbox,
-      null,
-      mailbox.status
-    );
-
-    return this.renewWatchAfterOAuthAuthorization(mailbox, context);
+    return this.requireMailboxService().completeGmailOAuthAuthorization(input, context);
   }
 
   /** Lists mailboxes within the current organization and applies member ownership isolation. */
@@ -630,46 +473,17 @@ export class CrmService {
       status?: CrmMailboxStatus;
     } = {}
   ) {
-    if (this.mailboxService) {
-      return this.mailboxService.listMailboxes(context, query);
-    }
-
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const result = await this.store.listMailboxes({
-      organizationId: context.organizationId,
-      ...toOwnerScope(context),
-      ...(keyword ? { keyword } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
-
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toMailboxView)
-    });
+    return this.requireMailboxService().listMailboxes(context, query);
   }
 
   /** Pauses a scoped mailbox after verifying the current user can read it. */
   async pauseMailbox(id: string, context: CrmUserContext) {
-    if (this.mailboxService) {
-      return this.mailboxService.pauseMailbox(id, context);
-    }
-
-    return this.changeMailboxStatus(id, 'paused', new Date(), 'mailbox-pause', 'CRM 邮箱暂停', context);
+    return this.requireMailboxService().pauseMailbox(id, context);
   }
 
   /** Resumes a scoped mailbox after verifying the current user can read it. */
   async resumeMailbox(id: string, context: CrmUserContext) {
-    if (this.mailboxService) {
-      return this.mailboxService.resumeMailbox(id, context);
-    }
-
-    return this.changeMailboxStatus(id, 'active', null, 'mailbox-resume', 'CRM 邮箱恢复', context);
+    return this.requireMailboxService().resumeMailbox(id, context);
   }
 
   /** Lists organization-level product lines for the current organization. */
@@ -1469,66 +1283,20 @@ export class CrmService {
     return this.inboxService.confirmInboxMessageUnsubscribe(id, context);
   }
 
-  private async changeMailboxStatus(
-    id: string,
-    status: CrmMailboxStatus,
-    pausedAt: Date | null,
-    action: string,
-    message: string,
-    context: CrmUserContext
-  ) {
-    const currentMailbox = await this.requireScopedMailbox(id, context);
-    const fromStatus = currentMailbox.status;
-    const mailbox = await this.store.updateMailbox(currentMailbox.id, {
-      status,
-      pausedAt
-    });
-
-    if (!mailbox) {
-      throw new NotFoundException('邮箱不存在');
-    }
-
-    await this.recordMailboxLog(action, message, context, mailbox, fromStatus, status);
-
-    return { mailbox: toMailboxView(mailbox) };
-  }
-
-  private async requireScopedMailbox(id: string, context: CrmUserContext) {
-    const mailbox = await this.store.findMailboxById({
-      id,
-      organizationId: context.organizationId,
-      ...toOwnerScope(context)
-    });
-
-    if (!mailbox) {
-      throw new NotFoundException('邮箱不存在');
-    }
-
-    return mailbox;
-  }
-
-  private requireGmailOAuthFlow() {
-    if (!this.gmailOAuthFlow) {
-      throw new BadRequestException('Gmail OAuth 未配置');
-    }
-
-    return this.gmailOAuthFlow;
-  }
-
-  private async renewWatchAfterOAuthAuthorization(mailbox: CrmMailboxRecord, context: CrmUserContext) {
-    if (!this.gmailWatchService) {
-      return { mailbox: toMailboxView(mailbox) };
-    }
-
-    return this.gmailWatchService.renewMailboxWatch(mailbox.id, context);
-  }
-
   private requireAccountService() {
     if (!this.accountService) {
       throw new BadRequestException('CRM 线索服务未启用');
     }
 
     return this.accountService;
+  }
+
+  private requireMailboxService() {
+    if (!this.mailboxService) {
+      throw new BadRequestException('CRM 邮箱服务未启用');
+    }
+
+    return this.mailboxService;
   }
 
   private requireSequenceService() {
@@ -1687,24 +1455,6 @@ export class CrmService {
     assertOrganizationAdmin(context, '仅组织管理员可修改 CRM 权限配置');
   }
 
-  private recordMailboxLog(
-    action: string,
-    message: string,
-    context: CrmUserContext,
-    mailbox: CrmMailboxRecord,
-    fromStatus: CrmMailboxStatus | null,
-    toStatus: CrmMailboxStatus
-  ) {
-    return this.recordCrmLog(action, message, context, {
-      organizationId: mailbox.organizationId,
-      mailboxId: mailbox.id,
-      provider: mailbox.provider,
-      maskedEmail: mailbox.maskedEmail,
-      fromStatus,
-      toStatus
-    });
-  }
-
 }
 
 function toBlacklistView(record: CrmBlacklistRecord) {
@@ -1714,66 +1464,6 @@ function toBlacklistView(record: CrmBlacklistRecord) {
     ...safeRecord,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toMailboxView(record: CrmMailboxRecord) {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    ownerUserId: record.ownerUserId,
-    ownerUserName: record.ownerUserName,
-    provider: record.provider,
-    emailAddress: record.emailAddress,
-    maskedEmail: record.maskedEmail,
-    status: record.status,
-    dailyLimit: record.dailyLimit,
-    hourlyLimit: record.hourlyLimit,
-    warmupStage: record.warmupStage,
-    lastHistoryId: record.lastHistoryId,
-    authorizedAt: record.authorizedAt.toISOString(),
-    watchExpiration: record.watchExpiration?.toISOString() ?? null,
-    syncMode: resolveMailboxSyncMode(),
-    lastSyncIssue: toMailboxSyncIssueView(record),
-    pausedAt: record.pausedAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function resolveMailboxSyncMode() {
-  const scopes = parseConfiguredGmailScopes(process.env.CRM_GMAIL_OAUTH_SCOPES);
-  const supportsHistorySync = scopes.length === 0 || scopes.some(scope => gmailHistorySyncScopes.has(scope));
-
-  if (!supportsHistorySync) return 'send_only';
-  if (!normalizeEnvString(process.env.CRM_GMAIL_PUBSUB_TOPIC_NAME)) return 'mock_watch';
-
-  return 'full_sync';
-}
-
-function parseConfiguredGmailScopes(value?: string) {
-  return (
-    normalizeEnvString(value)
-      ?.split(/[\s,]+/)
-      .filter(Boolean) ?? []
-  );
-}
-
-function normalizeEnvString(value?: string) {
-  const normalized = value?.trim();
-
-  return normalized || null;
-}
-
-function toMailboxSyncIssueView(record: CrmMailboxRecord) {
-  if (!record.syncIssueType || !record.syncIssueAt) {
-    return null;
-  }
-
-  return {
-    type: record.syncIssueType,
-    message: record.syncIssueMessage ?? 'Gmail 同步需要人工处理',
-    happenedAt: record.syncIssueAt.toISOString()
   };
 }
 
@@ -1806,10 +1496,6 @@ function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
 function toOwnerScope(context: CrmUserContext) {
   const scope = createCrmReadScope(context);
   return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
-}
-
-function isOwnedMailbox(mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'ownerUserId'>, context: CrmUserContext) {
-  return mailbox.organizationId === context.organizationId && mailbox.ownerUserId === context.userId;
 }
 
 function normalizeNullableString(value?: string | null) {
@@ -1845,27 +1531,6 @@ function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | 
   }
 
   return record as CrmAiDraftMetadata;
-}
-
-function normalizeMailboxEmail(value: string) {
-  const normalized = value.trim().toLowerCase();
-  const match = /^([^+@\s]+)@gmail\.com$/.exec(normalized);
-
-  if (!match) {
-    throw new BadRequestException('第一版仅支持 Gmail 地址，且不支持 alias');
-  }
-
-  return normalized;
-}
-
-function hashEmail(email: string) {
-  return createHash('sha256').update(email).digest('hex');
-}
-
-function maskEmail(email: string) {
-  const [local = '', domain = ''] = email.split('@');
-  const prefix = local[0] || '*';
-  return `${prefix}***@${domain}`;
 }
 
 function normalizePositiveInteger(

@@ -15,6 +15,7 @@ import { CrmService } from './crm.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
+import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
 import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
@@ -1323,7 +1324,7 @@ describe('CrmService', () => {
   it('mock authorizes a normalized Gmail mailbox without storing tokens and records a sanitized log', async () => {
     const store = createStore();
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithMailboxService(store, { crmLogger: new CrmLoggerService(logs.service as never) });
 
     const result = await service.mockAuthorizeMailbox({ emailAddress: '  Alice@Gmail.COM  ' }, createContext());
 
@@ -1373,7 +1374,7 @@ describe('CrmService', () => {
     });
     store.createMailbox = async () => peerMailbox;
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithMailboxService(store, { crmLogger: new CrmLoggerService(logs.service as never) });
 
     await assert.rejects(
       () => service.mockAuthorizeMailbox({ emailAddress: 'alice@gmail.com' }, createContext()),
@@ -1384,7 +1385,7 @@ describe('CrmService', () => {
   });
 
   it('rejects unsupported mailbox aliases and non-Gmail addresses in the first version', async () => {
-    const service = new CrmService(createStore());
+    const service = createServiceWithMailboxService(createStore());
 
     await assert.rejects(
       () => service.mockAuthorizeMailbox({ emailAddress: 'alice+sales@gmail.com' }, createContext()),
@@ -1398,7 +1399,7 @@ describe('CrmService', () => {
 
   it('creates a Gmail OAuth URL bound to the current user context', () => {
     const flow = createOAuthFlow();
-    const service = new CrmService(createStore(), undefined, undefined, undefined, undefined, undefined, flow);
+    const service = createServiceWithMailboxService(createStore(), { flow });
 
     const result = service.createGmailOAuthAuthorizationUrl(createContext());
 
@@ -1419,7 +1420,10 @@ describe('CrmService', () => {
         encryptedRefreshToken: 'encrypted-refresh-token-1'
       }
     });
-    const service = new CrmService(store, undefined, logs.service, undefined, undefined, undefined, flow);
+    const service = createServiceWithMailboxService(store, {
+      flow,
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
 
     const result = await service.completeGmailOAuthAuthorization({ code: 'code-1', state: 'state-1' }, createContext());
 
@@ -1457,7 +1461,7 @@ describe('CrmService', () => {
         };
       }
     });
-    const service = new CrmService(store, undefined, undefined, undefined, undefined, undefined, flow, watchService);
+    const service = createServiceWithMailboxService(store, { flow, watchService });
 
     const result = await service.completeGmailOAuthAuthorization({ code: 'code-1', state: 'state-1' }, createContext());
 
@@ -1488,7 +1492,7 @@ describe('CrmService', () => {
         encryptedRefreshToken: 'encrypted-refresh-token-2'
       }
     });
-    const service = new CrmService(store, undefined, undefined, undefined, undefined, undefined, flow);
+    const service = createServiceWithMailboxService(store, { flow });
 
     const result = await service.completeGmailOAuthAuthorization({ code: 'code-2', state: 'state-2' }, createContext());
 
@@ -1509,21 +1513,16 @@ describe('CrmService', () => {
     });
     const store = createStore([], { mailboxes: [peerMailbox] });
     const logs = createLogRecorder();
-    const service = new CrmService(
-      store,
-      undefined,
-      logs.service,
-      undefined,
-      undefined,
-      undefined,
-      createOAuthFlow({
+    const service = createServiceWithMailboxService(store, {
+      flow: createOAuthFlow({
         mailbox: {
           emailAddress: 'alice@gmail.com',
           historyId: '3003',
           encryptedRefreshToken: 'encrypted-refresh-token-3'
         }
-      })
-    );
+      }),
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
 
     await assert.rejects(
       () => service.completeGmailOAuthAuthorization({ code: 'code-3', state: 'state-3' }, createContext()),
@@ -1581,7 +1580,7 @@ describe('CrmService', () => {
       mailboxes: [createMailbox({ id: 'mailbox-1', status: 'active' })]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithMailboxService(store, { crmLogger: new CrmLoggerService(logs.service as never) });
 
     const paused = await service.pauseMailbox('mailbox-1', createContext());
     const resumed = await service.resumeMailbox('mailbox-1', createContext());
@@ -9505,7 +9504,7 @@ function createServiceWithSplitServices(options: {
     (options.settingsService ?? createSettingsService(store)) as never,
     options.suppressionService as never,
     (options.accountService ?? createAccountService(store)) as never,
-    options.mailboxService as never,
+    (options.mailboxService ?? createMailboxService(store)) as never,
     (options.personaProfileService ?? createPersonaProfileService(store)) as never,
     (options.productLineService ?? createProductLineService(store)) as never,
     options.sequenceService as never,
@@ -9550,6 +9549,31 @@ function createAccountService(
   options: { dnsResolver?: CrmEmailDnsResolver; crmLogger?: CrmLoggerService } = {}
 ) {
   return new CrmAccountService(store, store, options.dnsResolver, options.crmLogger);
+}
+
+function createServiceWithMailboxService(
+  store: CrmStore,
+  options: {
+    flow?: CrmGmailOAuthFlowPort | null;
+    watchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null;
+    crmLogger?: CrmLoggerService;
+  } = {}
+) {
+  return createServiceWithSplitServices({
+    store,
+    mailboxService: createMailboxService(store, options)
+  });
+}
+
+function createMailboxService(
+  store: CrmStore,
+  options: {
+    flow?: CrmGmailOAuthFlowPort | null;
+    watchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null;
+    crmLogger?: CrmLoggerService;
+  } = {}
+) {
+  return new CrmMailboxService(store, options.flow, options.watchService, options.crmLogger);
 }
 
 function createSettingsService(
