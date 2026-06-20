@@ -908,6 +908,7 @@ model AiLeadSearchTask {
   events  AiLeadSearchTaskEvent[]
   organization Organization @relation(fields: [organizationId], references: [id])
 
+  @@index([userId, organizationId, status, updatedAt])
   @@index([userId, status, updatedAt])
   @@index([organizationId, status, updatedAt])
   @@index([status, createdAt])

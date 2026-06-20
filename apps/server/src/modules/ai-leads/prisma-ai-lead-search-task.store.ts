@@ -47,6 +47,7 @@ export class PrismaAiLeadSearchTaskStore implements AiLeadSearchTaskStore {
           const records = await tx.aiLeadSearchTask.findMany({
             where: {
               userId: input.userId,
+              organizationId: input.organizationId,
               ...currentTaskWhere
             },
             orderBy: { updatedAt: 'desc' },
