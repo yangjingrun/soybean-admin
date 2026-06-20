@@ -71,6 +71,9 @@ const isQueueConfigSaving = shallowRef(false);
 const modelUpdatedAt = shallowRef('');
 const serperUpdatedAt = shallowRef('');
 const hunterUpdatedAt = shallowRef('');
+const modelMaskedApiKey = shallowRef('');
+const serperMaskedApiKey = shallowRef('');
+const hunterMaskedApiKey = shallowRef('');
 const queueConfigUpdatedAt = shallowRef<string | null>(null);
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
@@ -134,10 +137,11 @@ async function handleLoadModelConfig(showMessage = true) {
       title: record.title,
       providerName: record.providerName,
       apiBase: record.apiBase,
-      apiKey: record.apiKey,
+      apiKey: '',
       model: record.model
     });
     modelUpdatedAt.value = record.updatedAt;
+    modelMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     modelTestResult.value = null;
 
     if (showMessage) {
@@ -167,7 +171,9 @@ async function handleSaveModelConfig() {
     }
 
     modelUpdatedAt.value = record.updatedAt;
+    modelMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     modelTestResult.value = null;
+    modelForm.apiKey = '';
     message.success(t('page.aiSettings.messages.saved'));
   } finally {
     isModelSaving.value = false;
@@ -189,9 +195,10 @@ async function handleLoadSerperConfig(showMessage = true) {
       configKey: record.configKey,
       title: record.title,
       apiBase: record.apiBase,
-      apiKey: record.apiKey
+      apiKey: ''
     });
     serperUpdatedAt.value = record.updatedAt;
+    serperMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     serperTestResult.value = null;
 
     if (showMessage) {
@@ -219,7 +226,9 @@ async function handleSaveSerperConfig() {
     }
 
     serperUpdatedAt.value = record.updatedAt;
+    serperMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     serperTestResult.value = null;
+    serperForm.apiKey = '';
     message.success(t('page.aiSettings.serper.saved'));
   } finally {
     isSerperSaving.value = false;
@@ -241,9 +250,10 @@ async function handleLoadHunterConfig(showMessage = true) {
       configKey: record.configKey,
       title: record.title,
       apiBase: record.apiBase,
-      apiKey: record.apiKey
+      apiKey: ''
     });
     hunterUpdatedAt.value = record.updatedAt;
+    hunterMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     hunterTestResult.value = null;
 
     if (showMessage) {
@@ -271,7 +281,9 @@ async function handleSaveHunterConfig() {
     }
 
     hunterUpdatedAt.value = record.updatedAt;
+    hunterMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     hunterTestResult.value = null;
+    hunterForm.apiKey = '';
     message.success(t('page.aiSettings.hunter.saved'));
   } finally {
     isHunterSaving.value = false;
@@ -335,30 +347,6 @@ function isValidWorkerConcurrency(value: number | null): value is number {
 /** Checks whether a saved timestamp should be displayed to users. */
 function isSavedUpdatedAt(value: string | null): value is string {
   return Boolean(value && dayjs(value).valueOf() > 0);
-}
-
-/** Copies the current model service key for quick reuse. */
-async function handleCopyApiKey() {
-  const apiKey = modelForm.apiKey.trim();
-
-  if (!apiKey) {
-    return;
-  }
-
-  await navigator.clipboard.writeText(apiKey);
-  message.success(t('page.aiSettings.messages.apiKeyCopied'));
-}
-
-/** Copies the current Serper key for quick reuse. */
-async function handleCopySerperApiKey() {
-  const apiKey = serperForm.apiKey.trim();
-
-  if (!apiKey) {
-    return;
-  }
-
-  await navigator.clipboard.writeText(apiKey);
-  message.success(t('page.aiSettings.messages.apiKeyCopied'));
 }
 
 /** Sends one lightweight message with the current model config. */
@@ -476,29 +464,15 @@ async function handleTestHunterConfig() {
             <NInput v-model:value="modelForm.apiBase" :placeholder="$t('page.aiSettings.placeholders.apiBase')" />
           </NFormItem>
           <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-            <NInputGroup>
-              <NInput
-                v-model:value="modelForm.apiKey"
-                type="password"
-                show-password-on="click"
-                :placeholder="$t('page.aiSettings.placeholders.apiKey')"
-              />
-              <NTooltip>
-                <template #trigger>
-                  <NButton
-                    class="api-key-copy-button"
-                    :aria-label="$t('page.aiSettings.actions.copyApiKey')"
-                    :disabled="!modelForm.apiKey.trim()"
-                    @click="handleCopyApiKey"
-                  >
-                    <template #icon>
-                      <SvgIcon icon="material-symbols:content-copy-outline" />
-                    </template>
-                  </NButton>
-                </template>
-                {{ $t('page.aiSettings.actions.copyApiKey') }}
-              </NTooltip>
-            </NInputGroup>
+            <NInput
+              v-model:value="modelForm.apiKey"
+              type="password"
+              show-password-on="click"
+              :placeholder="$t('page.aiSettings.placeholders.apiKey')"
+            />
+            <NText v-if="modelMaskedApiKey" depth="3" class="api-key-mask">
+              {{ $t('page.aiSettings.status.savedApiKey') }}：{{ modelMaskedApiKey }}
+            </NText>
           </NFormItem>
         </NForm>
 
@@ -562,29 +536,15 @@ async function handleTestHunterConfig() {
             <NInput v-model:value="serperForm.apiBase" placeholder="https://google.serper.dev" />
           </NFormItem>
           <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-            <NInputGroup>
-              <NInput
-                v-model:value="serperForm.apiKey"
-                type="password"
-                show-password-on="click"
-                :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
-              />
-              <NTooltip>
-                <template #trigger>
-                  <NButton
-                    class="api-key-copy-button"
-                    :aria-label="$t('page.aiSettings.actions.copyApiKey')"
-                    :disabled="!serperForm.apiKey.trim()"
-                    @click="handleCopySerperApiKey"
-                  >
-                    <template #icon>
-                      <SvgIcon icon="material-symbols:content-copy-outline" />
-                    </template>
-                  </NButton>
-                </template>
-                {{ $t('page.aiSettings.actions.copyApiKey') }}
-              </NTooltip>
-            </NInputGroup>
+            <NInput
+              v-model:value="serperForm.apiKey"
+              type="password"
+              show-password-on="click"
+              :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
+            />
+            <NText v-if="serperMaskedApiKey" depth="3" class="api-key-mask">
+              {{ $t('page.aiSettings.status.savedApiKey') }}：{{ serperMaskedApiKey }}
+            </NText>
           </NFormItem>
         </NForm>
 
@@ -646,6 +606,9 @@ async function handleTestHunterConfig() {
               type="password"
               :placeholder="$t('page.aiSettings.hunter.apiKeyPlaceholder')"
             />
+            <NText v-if="hunterMaskedApiKey" depth="3" class="api-key-mask">
+              {{ $t('page.aiSettings.status.savedApiKey') }}：{{ hunterMaskedApiKey }}
+            </NText>
           </NFormItem>
         </NForm>
 
@@ -747,8 +710,10 @@ async function handleTestHunterConfig() {
   font-size: 13px;
 }
 
-.api-key-copy-button {
-  width: 34px;
+.api-key-mask {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
 }
 
 .queue-concurrency-input {

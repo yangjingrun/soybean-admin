@@ -30,10 +30,11 @@ declare namespace Api {
       title: string;
       providerName: string;
       apiBase: string;
-      apiKey: string;
       model: string;
       temperature?: number;
       maxOutputTokens?: number;
+      hasApiKey: boolean;
+      maskedApiKey: string;
       updatedAt: string;
     }
 
@@ -41,7 +42,8 @@ declare namespace Api {
       configKey: string;
       title: string;
       apiBase: string;
-      apiKey: string;
+      hasApiKey: boolean;
+      maskedApiKey: string;
       updatedAt: string;
     }
 
@@ -49,7 +51,8 @@ declare namespace Api {
       configKey: string;
       title: string;
       apiBase: string;
-      apiKey: string;
+      hasApiKey: boolean;
+      maskedApiKey: string;
       updatedAt: string;
     }
 

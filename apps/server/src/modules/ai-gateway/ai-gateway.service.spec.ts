@@ -177,6 +177,34 @@ describe('AiGatewayService', () => {
 
     assert.equal(record.temperature, 0.2);
     assert.equal(record.maxOutputTokens, undefined);
+    assert.equal(record.hasApiKey, true);
+    assert.equal(record.maskedApiKey, '****');
+    assert.equal('apiKey' in record, false);
+  });
+
+  it('returns masked model config drafts without exposing the saved API key', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await service.saveModelConfig({
+      configKey: 'default',
+      title: '默认模型',
+      providerName: 'openrouter',
+      apiBase: 'https://openrouter.ai/api/v1',
+      apiKey: 'sk-secret-model-key',
+      model: 'openai/gpt-4o-mini'
+    });
+
+    const draft = await service.getModelConfigDraft('default');
+
+    assert.equal(draft.hasApiKey, true);
+    assert.equal(draft.maskedApiKey, 'sk-s****-key');
+    assert.equal(JSON.stringify(draft).includes('sk-secret-model-key'), false);
+    assert.equal('apiKey' in draft, false);
   });
 
   it('records a success log when text generation succeeds', async () => {
@@ -408,7 +436,12 @@ describe('AiGatewayService', () => {
     });
 
     assert.equal(saved.apiBase, 'https://api.hunter.io/v2/');
-    assert.equal(draft.apiKey, 'hunter-key');
+    assert.equal(saved.hasApiKey, true);
+    assert.equal(saved.maskedApiKey, 'hunt****-key');
+    assert.equal(draft.hasApiKey, true);
+    assert.equal(draft.maskedApiKey, 'hunt****-key');
+    assert.equal('apiKey' in saved, false);
+    assert.equal('apiKey' in draft, false);
     assert.deepEqual(testResult, {
       ok: true,
       resultEmailCount: 1

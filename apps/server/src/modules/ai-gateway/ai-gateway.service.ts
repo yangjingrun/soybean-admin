@@ -30,14 +30,17 @@ import { HunterClient } from './hunter-client.service';
 import { SerperClient } from './serper-client.service';
 import type {
   AiModelConfigRecord,
+  AiModelConfigViewRecord,
   AiModelConfigStore,
   HunterConfigRecord,
+  HunterConfigViewRecord,
   HunterConfigStore,
   AiPromptRecord,
   AiPromptStore,
   AiTextGenerateParams,
   AiTextGenerator,
   SerperConfigRecord,
+  SerperConfigViewRecord,
   SerperConfigStore
 } from './ai-gateway.types';
 
@@ -72,10 +75,10 @@ export class AiGatewayService {
   }
 
   /** Saves the backend model channel used by AI business workflows. */
-  async saveModelConfig(dto: SaveAiModelConfigDto): Promise<AiModelConfigRecord> {
+  async saveModelConfig(dto: SaveAiModelConfigDto): Promise<AiModelConfigViewRecord> {
     const configKey = normalizeModelConfigKey(dto.configKey);
 
-    return this.modelConfigStore.saveModelConfig({
+    const record = await this.modelConfigStore.saveModelConfig({
       configKey,
       title: dto.title.trim() || '默认模型',
       providerName: dto.providerName.trim(),
@@ -86,6 +89,8 @@ export class AiGatewayService {
       maxOutputTokens: dto.maxOutputTokens,
       updatedAt: new Date().toISOString()
     });
+
+    return toModelConfigView(record);
   }
 
   /** Reads one saved backend model channel by key. */
@@ -101,7 +106,7 @@ export class AiGatewayService {
   }
 
   /** Saves the Serper search channel used by AI leads search orchestration. */
-  async saveSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}): Promise<SerperConfigRecord> {
+  async saveSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}): Promise<SerperConfigViewRecord> {
     const configKey = normalizeSerperConfigKey(dto.configKey);
     const store = this.requireSerperConfigStore();
     const record = await store.saveSerperConfig({
@@ -126,7 +131,7 @@ export class AiGatewayService {
       }
     });
 
-    return record;
+    return toSerperConfigView(record);
   }
 
   /** Reads one saved Serper search channel by key. */
@@ -142,15 +147,15 @@ export class AiGatewayService {
   }
 
   /** Reads a saved Serper channel or returns an editable default draft for settings. */
-  async getSerperConfigDraft(configKey = defaultSerperConfigKey): Promise<SerperConfigRecord> {
+  async getSerperConfigDraft(configKey = defaultSerperConfigKey): Promise<SerperConfigViewRecord> {
     const normalizedKey = normalizeSerperConfigKey(configKey);
     const record = await this.requireSerperConfigStore().getSerperConfig(normalizedKey);
 
     if (!record) {
-      return createSerperConfigDraft(normalizedKey);
+      return toSerperConfigView(createSerperConfigDraft(normalizedKey));
     }
 
-    return record;
+    return toSerperConfigView(record);
   }
 
   /** Sends one lightweight Search request with a candidate Serper config. */
@@ -192,7 +197,7 @@ export class AiGatewayService {
   }
 
   /** Saves the Hunter Domain Search channel used to enrich AI lead contacts. */
-  async saveHunterConfig(dto: SaveHunterConfigDto, context: GenerateAiTextContext = {}): Promise<HunterConfigRecord> {
+  async saveHunterConfig(dto: SaveHunterConfigDto, context: GenerateAiTextContext = {}): Promise<HunterConfigViewRecord> {
     const configKey = normalizeHunterConfigKey(dto.configKey);
     const store = this.requireHunterConfigStore();
     const record = await store.saveHunterConfig({
@@ -217,7 +222,7 @@ export class AiGatewayService {
       }
     });
 
-    return record;
+    return toHunterConfigView(record);
   }
 
   /** Reads one saved Hunter channel by key. */
@@ -233,15 +238,15 @@ export class AiGatewayService {
   }
 
   /** Reads a saved Hunter channel or returns an editable default draft for settings. */
-  async getHunterConfigDraft(configKey = defaultHunterConfigKey): Promise<HunterConfigRecord> {
+  async getHunterConfigDraft(configKey = defaultHunterConfigKey): Promise<HunterConfigViewRecord> {
     const normalizedKey = normalizeHunterConfigKey(configKey);
     const record = await this.requireHunterConfigStore().getHunterConfig(normalizedKey);
 
     if (!record) {
-      return createHunterConfigDraft(normalizedKey);
+      return toHunterConfigView(createHunterConfigDraft(normalizedKey));
     }
 
-    return record;
+    return toHunterConfigView(record);
   }
 
   /** Sends one lightweight Domain Search request with a candidate Hunter config. */
@@ -294,15 +299,15 @@ export class AiGatewayService {
   }
 
   /** Reads one saved backend model channel or returns an editable default draft for settings. */
-  async getModelConfigDraft(configKey = defaultAiModelConfigKey): Promise<AiModelConfigRecord> {
+  async getModelConfigDraft(configKey = defaultAiModelConfigKey): Promise<AiModelConfigViewRecord> {
     const normalizedKey = normalizeModelConfigKey(configKey);
     const record = await this.modelConfigStore.getModelConfig(normalizedKey);
 
     if (!record) {
-      return createModelConfigDraft(normalizedKey);
+      return toModelConfigView(createModelConfigDraft(normalizedKey));
     }
 
-    return record;
+    return toModelConfigView(record);
   }
 
   /** Generates text through the configured model and injects saved prompt rules when promptKey is provided. */
@@ -546,6 +551,57 @@ function createModelConfigDraft(configKey: string): AiModelConfigRecord {
     temperature: defaultAiTemperature,
     updatedAt: ''
   };
+}
+
+function toModelConfigView(record: AiModelConfigRecord): AiModelConfigViewRecord {
+  const { apiKey, ...view } = record;
+
+  return {
+    ...view,
+    ...toSecretView(apiKey)
+  };
+}
+
+function toSerperConfigView(record: SerperConfigRecord): SerperConfigViewRecord {
+  const { apiKey, ...view } = record;
+
+  return {
+    ...view,
+    ...toSecretView(apiKey)
+  };
+}
+
+function toHunterConfigView(record: HunterConfigRecord): HunterConfigViewRecord {
+  const { apiKey, ...view } = record;
+
+  return {
+    ...view,
+    ...toSecretView(apiKey)
+  };
+}
+
+function toSecretView(apiKey: string) {
+  const key = apiKey.trim();
+
+  if (!key) {
+    return {
+      hasApiKey: false,
+      maskedApiKey: ''
+    };
+  }
+
+  return {
+    hasApiKey: true,
+    maskedApiKey: maskSecret(key)
+  };
+}
+
+function maskSecret(secret: string) {
+  if (secret.length <= 8) {
+    return '****';
+  }
+
+  return `${secret.slice(0, 4)}****${secret.slice(-4)}`;
 }
 
 function createSerperConfigDraft(configKey: string): SerperConfigRecord {

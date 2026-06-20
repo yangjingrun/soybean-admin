@@ -50,6 +50,8 @@ export interface AiModelConfigRecord {
   updatedAt: string;
 }
 
+export type AiModelConfigViewRecord = Omit<AiModelConfigRecord, 'apiKey'> & SecretViewFields;
+
 export interface AiModelConfigStore {
   getModelConfig(configKey: string): Promise<AiModelConfigRecord | null>;
   saveModelConfig(record: AiModelConfigRecord): Promise<AiModelConfigRecord>;
@@ -62,6 +64,8 @@ export interface SerperConfigRecord {
   apiKey: string;
   updatedAt: string;
 }
+
+export type SerperConfigViewRecord = Omit<SerperConfigRecord, 'apiKey'> & SecretViewFields;
 
 export interface SerperConfigStore {
   getSerperConfig(configKey: string): Promise<SerperConfigRecord | null>;
@@ -76,7 +80,14 @@ export interface HunterConfigRecord {
   updatedAt: string;
 }
 
+export type HunterConfigViewRecord = Omit<HunterConfigRecord, 'apiKey'> & SecretViewFields;
+
 export interface HunterConfigStore {
   getHunterConfig(configKey: string): Promise<HunterConfigRecord | null>;
   saveHunterConfig(record: HunterConfigRecord): Promise<HunterConfigRecord>;
+}
+
+export interface SecretViewFields {
+  hasApiKey: boolean;
+  maskedApiKey: string;
 }

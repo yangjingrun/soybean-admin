@@ -266,8 +266,7 @@ const local: App.I18n.Schema = {
       actions: {
         reload: '重新加载',
         test: '测试连接',
-        save: '保存模型',
-        copyApiKey: '复制 API Key'
+        save: '保存模型'
       },
       form: {
         title: '配置名称',
@@ -291,6 +290,7 @@ const local: App.I18n.Schema = {
         pending: '待配置',
         notSaved: '暂未保存',
         testResult: '测试返回',
+        savedApiKey: '已保存密钥',
         tokens: 'Tokens',
         input: '输入',
         output: '输出'
@@ -313,8 +313,7 @@ const local: App.I18n.Schema = {
       messages: {
         loaded: '模型配置已加载',
         saved: '模型配置已保存',
-        testPassed: '模型连通性正常',
-        apiKeyCopied: 'API Key 已复制'
+        testPassed: '模型连通性正常'
       }
     },
     aiPromptSettings: {
