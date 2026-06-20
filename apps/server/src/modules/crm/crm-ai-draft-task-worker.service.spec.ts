@@ -11,6 +11,7 @@ import type {
   CrmAiDraftTaskQueueJob,
   CrmAiDraftTaskRecord
 } from './crm-ai-draft-task.types';
+import type { CrmAiDraftWorkerRepository } from './crm-ai-draft-worker.repository';
 import type {
   CrmAccountRecord,
   CrmContactRecord,
@@ -18,8 +19,7 @@ import type {
   CrmMessageRecord,
   CrmProductLineRecord,
   CrmSequenceEnrollmentRecord,
-  CrmSequenceReviewRecord,
-  CrmStore
+  CrmSequenceReviewRecord
 } from './crm.types';
 
 describe('CrmAiDraftTaskQueueService', () => {
@@ -272,15 +272,15 @@ function createWorkerStore(
   const reviewItem = input.reviewItem === undefined ? createReviewItem() : input.reviewItem;
   const followUpBundleResult = input.followUpBundleResult === undefined ? 'default' : input.followUpBundleResult;
   const taskUpdates: Array<{
-    patch: Parameters<CrmStore['updateAiDraftTask']>[1];
-    guard?: Parameters<CrmStore['updateAiDraftTask']>[2];
+    patch: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTask']>[1];
+    guard?: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTask']>[2];
   }> = [];
   const itemUpdates: Array<{
     id: string;
-    patch: Parameters<CrmStore['updateAiDraftTaskItem']>[1];
-    guard?: Parameters<CrmStore['updateAiDraftTaskItem']>[2];
+    patch: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTaskItem']>[1];
+    guard?: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTaskItem']>[2];
   }> = [];
-  const reviewLookups: Parameters<CrmStore['getSequenceReviewItem']>[0][] = [];
+  const reviewLookups: Parameters<CrmAiDraftWorkerRepository['getSequenceReviewItem']>[0][] = [];
   const followUpBundles: CrmFollowUpDraftBundleCreateInput[] = [];
 
   return {
@@ -291,20 +291,20 @@ function createWorkerStore(
     reviewLookups,
     followUpBundles,
     sendQueueCalls: 0,
-    async findAiDraftTaskById(args: Parameters<CrmStore['findAiDraftTaskById']>[0]) {
+    async findAiDraftTaskById(args: Parameters<CrmAiDraftWorkerRepository['findAiDraftTaskById']>[0]) {
       if (args.id !== task.id || args.organizationId !== task.organizationId || args.ownerUserId !== task.ownerUserId) {
         return null;
       }
 
       return task;
     },
-    async listAiDraftTaskItems(args: Parameters<CrmStore['listAiDraftTaskItems']>[0]) {
+    async listAiDraftTaskItems(args: Parameters<CrmAiDraftWorkerRepository['listAiDraftTaskItems']>[0]) {
       return items.filter(item => item.taskId === args.taskId);
     },
     async updateAiDraftTask(
       _id: string,
-      patch: Parameters<CrmStore['updateAiDraftTask']>[1],
-      guard?: Parameters<CrmStore['updateAiDraftTask']>[2]
+      patch: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTask']>[1],
+      guard?: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTask']>[2]
     ) {
       taskUpdates.push({ patch, guard });
       if (guard?.runVersion && guard.runVersion !== task.runVersion) return null;
@@ -319,8 +319,8 @@ function createWorkerStore(
     },
     async updateAiDraftTaskItem(
       id: string,
-      patch: Parameters<CrmStore['updateAiDraftTaskItem']>[1],
-      guard?: Parameters<CrmStore['updateAiDraftTaskItem']>[2]
+      patch: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTaskItem']>[1],
+      guard?: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTaskItem']>[2]
     ) {
       itemUpdates.push({ id, patch, guard });
       const item = items.find(record => record.id === id);
@@ -336,13 +336,15 @@ function createWorkerStore(
 
       return item;
     },
-    async getSequenceReviewItem(args: Parameters<CrmStore['getSequenceReviewItem']>[0]) {
+    async getSequenceReviewItem(args: Parameters<CrmAiDraftWorkerRepository['getSequenceReviewItem']>[0]) {
       reviewLookups.push(args);
 
       return reviewItem;
     },
-    async findBlacklistEntry() {
-      return null;
+    async listBlacklistEntriesByEmailHashes(
+      _args: Parameters<CrmAiDraftWorkerRepository['listBlacklistEntriesByEmailHashes']>[0]
+    ) {
+      return [];
     },
     async getGlobalConfig() {
       return {

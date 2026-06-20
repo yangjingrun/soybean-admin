@@ -13,16 +13,18 @@ import type {
   CrmAiDraftTaskRecord,
   CrmAiDraftTaskResultSummary
 } from './crm-ai-draft-task.types';
+import {
+  CRM_AI_DRAFT_WORKER_REPOSITORY,
+  type CrmAiDraftWorkerRepository
+} from './crm-ai-draft-worker.repository';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { buildPersonaMatch } from './crm-persona-match';
-import { CRM_STORE } from './crm.tokens';
 import type {
   CrmAiWritingStepIndex,
   CrmMessageStatus,
   CrmProductLineRecord,
   CrmSequenceEnrollmentStatus,
-  CrmSequenceReviewRecord,
-  CrmStore
+  CrmSequenceReviewRecord
 } from './crm.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 
@@ -39,7 +41,7 @@ class CrmAiDraftTaskInterruptedError extends Error {
 @Injectable()
 export class CrmAiDraftTaskWorkerService {
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_AI_DRAFT_WORKER_REPOSITORY) private readonly store: CrmAiDraftWorkerRepository,
     @Inject(CrmAiDraftService)
     private readonly aiDraftService: CrmAiDraftService,
     @Optional()
@@ -321,12 +323,12 @@ export class CrmAiDraftTaskWorkerService {
       return '联系人已退订，不能继续开发';
     }
 
-    const blacklistEntry = await this.store.findBlacklistEntry({
+    const blacklistEntries = await this.store.listBlacklistEntriesByEmailHashes({
       organizationId: item.enrollment.organizationId,
-      emailHash: item.contact.emailHash
+      emailHashes: [item.contact.emailHash]
     });
 
-    if (blacklistEntry) {
+    if (blacklistEntries.length > 0) {
       return '该邮箱已在组织黑名单中，不能继续开发';
     }
 

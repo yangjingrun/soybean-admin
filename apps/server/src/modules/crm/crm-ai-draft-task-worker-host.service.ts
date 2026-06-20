@@ -10,8 +10,11 @@ import { crmAiDraftTaskQueueName } from './crm-ai-draft-task-queue.service';
 import { normalizeCrmAiDraftItemConcurrency } from './crm-ai-draft-task-state';
 import { CrmAiDraftTaskWorkerService } from './crm-ai-draft-task-worker.service';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
-import { CRM_AI_DRAFT_TASK_QUEUE, CRM_STORE } from './crm.tokens';
-import type { CrmStore } from './crm.types';
+import {
+  CRM_AI_DRAFT_WORKER_REPOSITORY,
+  type CrmAiDraftWorkerRepository
+} from './crm-ai-draft-worker.repository';
+import { CRM_AI_DRAFT_TASK_QUEUE } from './crm.tokens';
 
 @Injectable()
 export class CrmAiDraftTaskWorkerHost implements OnModuleInit, OnModuleDestroy {
@@ -20,7 +23,8 @@ export class CrmAiDraftTaskWorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(RedisService) private readonly redisService: RedisService,
     @Inject(CrmAiDraftTaskWorkerService) private readonly workerService: CrmAiDraftTaskWorkerService,
-    @Inject(CRM_STORE) private readonly store: Pick<CrmStore, 'getAiDraftQueueConfig'>,
+    @Inject(CRM_AI_DRAFT_WORKER_REPOSITORY)
+    private readonly store: Pick<CrmAiDraftWorkerRepository, 'getAiDraftQueueConfig'>,
     @Inject(CRM_AI_DRAFT_TASK_QUEUE) private readonly taskQueue: CrmAiDraftTaskQueuePort,
     @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder,
     @Optional() @Inject(AppConfigService) private readonly appConfigService?: AppConfigService
