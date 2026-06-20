@@ -40,6 +40,7 @@ import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
+import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import {
@@ -370,7 +371,10 @@ export class CrmService {
     private readonly suppressionService?: CrmSuppressionService,
     @Optional()
     @Inject(CrmAccountService)
-    private readonly accountService?: CrmAccountService
+    private readonly accountService?: CrmAccountService,
+    @Optional()
+    @Inject(CrmMailboxService)
+    private readonly mailboxService?: CrmMailboxService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -860,6 +864,10 @@ export class CrmService {
 
   /** Creates a Gmail mock authorization record without storing any OAuth token. */
   async mockAuthorizeMailbox(input: { emailAddress: string }, context: CrmUserContext) {
+    if (this.mailboxService) {
+      return this.mailboxService.mockAuthorizeMailbox(input, context);
+    }
+
     const emailAddress = normalizeMailboxEmail(input.emailAddress);
     const emailHash = hashEmail(emailAddress);
     const existingMailbox = await this.store.findMailboxByProviderAndEmailHash(gmailProvider, emailHash);
@@ -917,6 +925,10 @@ export class CrmService {
 
   /** Creates a Google consent URL for the current user mailbox authorization flow. */
   createGmailOAuthAuthorizationUrl(context: CrmUserContext) {
+    if (this.mailboxService) {
+      return this.mailboxService.createGmailOAuthAuthorizationUrl(context);
+    }
+
     return this.requireGmailOAuthFlow().createAuthorizationUrl({
       organizationId: context.organizationId,
       userId: context.userId
@@ -925,6 +937,10 @@ export class CrmService {
 
   /** Completes Gmail OAuth authorization and stores the encrypted refresh token for the mailbox owner. */
   async completeGmailOAuthAuthorization(input: GmailOAuthCompleteInput, context: CrmUserContext) {
+    if (this.mailboxService) {
+      return this.mailboxService.completeGmailOAuthAuthorization(input, context);
+    }
+
     const flow = this.requireGmailOAuthFlow();
     flow.verifyState(input.state, {
       organizationId: context.organizationId,
@@ -1011,6 +1027,10 @@ export class CrmService {
       status?: CrmMailboxStatus;
     } = {}
   ) {
+    if (this.mailboxService) {
+      return this.mailboxService.listMailboxes(context, query);
+    }
+
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
@@ -1033,11 +1053,19 @@ export class CrmService {
 
   /** Pauses a scoped mailbox after verifying the current user can read it. */
   async pauseMailbox(id: string, context: CrmUserContext) {
+    if (this.mailboxService) {
+      return this.mailboxService.pauseMailbox(id, context);
+    }
+
     return this.changeMailboxStatus(id, 'paused', new Date(), 'mailbox-pause', 'CRM 邮箱暂停', context);
   }
 
   /** Resumes a scoped mailbox after verifying the current user can read it. */
   async resumeMailbox(id: string, context: CrmUserContext) {
+    if (this.mailboxService) {
+      return this.mailboxService.resumeMailbox(id, context);
+    }
+
     return this.changeMailboxStatus(id, 'active', null, 'mailbox-resume', 'CRM 邮箱恢复', context);
   }
 
@@ -4945,16 +4973,19 @@ function toTimelineEventView(record: CrmTimelineEventRecord) {
 }
 
 function toMailboxView(record: CrmMailboxRecord) {
-  const {
-    encryptedRefreshToken: _encryptedRefreshToken,
-    syncIssueType: _syncIssueType,
-    syncIssueAt: _syncIssueAt,
-    syncIssueMessage: _syncIssueMessage,
-    ...safeRecord
-  } = record;
-
   return {
-    ...safeRecord,
+    id: record.id,
+    organizationId: record.organizationId,
+    ownerUserId: record.ownerUserId,
+    ownerUserName: record.ownerUserName,
+    provider: record.provider,
+    emailAddress: record.emailAddress,
+    maskedEmail: record.maskedEmail,
+    status: record.status,
+    dailyLimit: record.dailyLimit,
+    hourlyLimit: record.hourlyLimit,
+    warmupStage: record.warmupStage,
+    lastHistoryId: record.lastHistoryId,
     authorizedAt: record.authorizedAt.toISOString(),
     watchExpiration: record.watchExpiration?.toISOString() ?? null,
     syncMode: resolveMailboxSyncMode(),

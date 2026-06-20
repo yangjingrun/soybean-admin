@@ -1875,7 +1875,6 @@ function createMailboxView(overrides: Partial<CrmMailboxView> = {}): CrmMailboxV
     ownerUserName: 'Alice',
     provider: 'gmail' as const,
     emailAddress: 'alice@gmail.com',
-    emailHash: 'hash-1',
     maskedEmail: 'a***@gmail.com',
     status: 'active' as const,
     dailyLimit: 50,

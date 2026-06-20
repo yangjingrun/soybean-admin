@@ -72,6 +72,22 @@ describe('CrmService', () => {
     assert.equal(await service.listBlacklistEntries(context, query), expected);
   });
 
+  it('delegates mailbox facade reads when the split mailbox service is injected', async () => {
+    const context = createContext();
+    const query = { status: 'active' as const };
+    const expected = { records: [] };
+    const mailboxService = {
+      async listMailboxes(actualContext: CrmUserContext, actualQuery: typeof query) {
+        assert.equal(actualContext, context);
+        assert.equal(actualQuery, query);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ mailboxService });
+
+    assert.equal(await service.listMailboxes(context, query), expected);
+  });
+
   it('imports one lead account and contact with organization scoped dedupe', async () => {
     const store = createStore();
     const service = new CrmService(store, {
@@ -8385,7 +8401,11 @@ function createAiDraftTaskQueue(
   };
 }
 
-function createServiceWithSplitServices(options: { suppressionService?: unknown; accountService?: unknown }) {
+function createServiceWithSplitServices(options: {
+  suppressionService?: unknown;
+  accountService?: unknown;
+  mailboxService?: unknown;
+}) {
   return new CrmService(
     {} as CrmStore,
     undefined,
@@ -8401,7 +8421,8 @@ function createServiceWithSplitServices(options: { suppressionService?: unknown;
     undefined,
     undefined,
     options.suppressionService as never,
-    options.accountService as never
+    options.accountService as never,
+    options.mailboxService as never
   );
 }
 

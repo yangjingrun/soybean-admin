@@ -5,6 +5,7 @@ import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CRM_GMAIL_HISTORY_SYNC_QUEUE, CRM_GMAIL_WATCH_GATEWAY, CRM_STORE } from './crm.tokens';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
+import { toMailboxView } from './shared/crm-view-mappers';
 import type { CrmGmailHistorySyncQueuePort, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
 
 @Injectable()
@@ -253,41 +254,6 @@ export class CrmGmailWatchService {
       }
     });
   }
-}
-
-function toMailboxView(record: CrmMailboxRecord) {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    ownerUserId: record.ownerUserId,
-    ownerUserName: record.ownerUserName,
-    provider: record.provider,
-    emailAddress: record.emailAddress,
-    maskedEmail: record.maskedEmail,
-    status: record.status,
-    dailyLimit: record.dailyLimit,
-    hourlyLimit: record.hourlyLimit,
-    warmupStage: record.warmupStage,
-    lastHistoryId: record.lastHistoryId,
-    lastSyncIssue: toMailboxSyncIssueView(record),
-    authorizedAt: record.authorizedAt.toISOString(),
-    watchExpiration: record.watchExpiration?.toISOString() ?? null,
-    pausedAt: record.pausedAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toMailboxSyncIssueView(record: CrmMailboxRecord) {
-  if (!record.syncIssueType || !record.syncIssueAt || !record.syncIssueMessage) {
-    return null;
-  }
-
-  return {
-    type: record.syncIssueType,
-    message: record.syncIssueMessage,
-    happenedAt: record.syncIssueAt.toISOString()
-  };
 }
 
 function toOwnerScope(context: CrmUserContext) {
