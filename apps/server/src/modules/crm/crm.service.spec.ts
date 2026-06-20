@@ -11,6 +11,7 @@ import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
+import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
@@ -228,6 +229,31 @@ describe('CrmService', () => {
 
     assert.equal(await service.approveMessageDraft('message-2', context), expected);
     assert.equal(store.sequenceReviewDetailCalls.length, 0);
+  });
+
+  it('delegates batch draft approvals when the split batch approval service is injected', async () => {
+    const context = createContext();
+    const input = { ids: ['enrollment-1', 'enrollment-2'] };
+    const expected = {
+      totalCount: 2,
+      successCount: 1,
+      skippedCount: 1,
+      failedCount: 0,
+      results: [
+        { id: 'enrollment-1', status: 'success' as const, message: '草稿已确认' },
+        { id: 'enrollment-2', status: 'skipped' as const, message: '已跳过' }
+      ]
+    };
+    const batchDraftApprovalService = {
+      async batchApproveMessageDrafts(actualInput: typeof input, actualContext: CrmUserContext) {
+        assert.equal(actualInput, input);
+        assert.equal(actualContext, context);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ batchDraftApprovalService });
+
+    assert.equal(await service.batchApproveMessageDrafts(input, context), expected);
   });
 
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -3837,8 +3863,10 @@ describe('CrmService', () => {
         ]
       }
     );
-    const queue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, queue);
+    const service = createServiceWithSplitServices({
+      store,
+      batchDraftApprovalService: createBatchDraftApprovalService(store)
+    });
 
     const result = await service.batchApproveMessageDrafts(
       { ids: ['enrollment-owned', 'enrollment-ready', 'enrollment-member'] },
@@ -3861,7 +3889,6 @@ describe('CrmService', () => {
     assert.equal(store.messages.find(item => item.id === 'message-owned')?.status, 'draft_ready');
     assert.equal(store.enrollments.find(item => item.id === 'enrollment-member')?.status, 'draft_review_pending');
     assert.equal(store.messages.find(item => item.id === 'message-member')?.status, 'draft_pending_review');
-    assert.equal(queue.jobs.length, 0);
   });
 
   it('rejects admin attempts to edit or approve another member draft', async () => {
@@ -4277,6 +4304,93 @@ describe('CrmService', () => {
     assert.equal(store.messages[0].status, 'draft_pending_review');
     assert.equal(store.messages[1].status, 'draft_pending_review');
     assert.equal(store.messages[2].status, 'draft_pending_review');
+  });
+
+  it('batch-approves owner pending drafts through split batch approval service', async () => {
+    const store = createStore(
+      [
+        createAccount({ id: 'account-owned', status: 'manual_review_pending' }),
+        createAccount({ id: 'account-ready', status: 'ready' }),
+        createAccount({ id: 'account-member', ownerUserId: 'user-2', status: 'manual_review_pending' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'contact-owned', accountId: 'account-owned' }),
+          createContact({ id: 'contact-ready', accountId: 'account-ready' }),
+          createContact({ id: 'contact-member', accountId: 'account-member', ownerUserId: 'user-2' })
+        ],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-owned',
+            accountId: 'account-owned',
+            contactId: 'contact-owned',
+            status: 'draft_review_pending'
+          }),
+          createEnrollment({
+            id: 'enrollment-ready',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            status: 'ready_to_send'
+          }),
+          createEnrollment({
+            id: 'enrollment-member',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            ownerUserId: 'user-2',
+            status: 'draft_review_pending'
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-owned',
+            accountId: 'account-owned',
+            contactId: 'contact-owned',
+            enrollmentId: 'enrollment-owned',
+            status: 'draft_pending_review'
+          }),
+          createMessage({
+            id: 'message-ready',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            enrollmentId: 'enrollment-ready',
+            status: 'draft_ready'
+          }),
+          createMessage({
+            id: 'message-member',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            enrollmentId: 'enrollment-member',
+            ownerUserId: 'user-2',
+            status: 'draft_pending_review'
+          })
+        ]
+      }
+    );
+    const logs = createLogRecorder();
+    const service = createBatchDraftApprovalService(store, {
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
+
+    const result = await service.batchApproveMessageDrafts(
+      { ids: ['enrollment-owned', 'enrollment-ready', 'enrollment-member'] },
+      createContext({ organizationRole: 'admin' })
+    );
+
+    assert.deepEqual(
+      result.results.map(item => [item.id, item.status]),
+      [
+        ['enrollment-owned', 'success'],
+        ['enrollment-ready', 'skipped'],
+        ['enrollment-member', 'skipped']
+      ]
+    );
+    assert.equal(result.successCount, 1);
+    assert.equal(result.skippedCount, 2);
+    assert.equal(store.sequenceReviewDetailCalls.length, 0);
+    assert.equal(store.enrollments.find(item => item.id === 'enrollment-owned')?.status, 'ready_to_send');
+    assert.equal(store.messages.find(item => item.id === 'message-owned')?.status, 'draft_ready');
+    assert.equal(store.enrollments.find(item => item.id === 'enrollment-member')?.status, 'draft_review_pending');
+    assert.equal(logs.records.at(-1)?.action, 'draft-approve-batch');
   });
 
   it('starts an approved first message into the local send scheduling pool', async () => {
@@ -9042,6 +9156,7 @@ function createServiceWithSplitServices(options: {
   draftService?: unknown;
   draftApprovalService?: unknown;
   followUpApprovalService?: unknown;
+  batchDraftApprovalService?: unknown;
 }) {
   return new CrmService(
     options.store ?? ({} as CrmStore),
@@ -9063,8 +9178,13 @@ function createServiceWithSplitServices(options: {
     options.sequenceService as never,
     options.draftService as never,
     options.draftApprovalService as never,
-    options.followUpApprovalService as never
+    options.followUpApprovalService as never,
+    options.batchDraftApprovalService as never
   );
+}
+
+function createBatchDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmBatchDraftApprovalService(store, options.crmLogger);
 }
 
 function createDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {

@@ -41,6 +41,7 @@ import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
@@ -390,7 +391,10 @@ export class CrmService {
     private readonly draftApprovalService?: CrmDraftApprovalService,
     @Optional()
     @Inject(CrmFollowUpApprovalService)
-    private readonly followUpApprovalService?: CrmFollowUpApprovalService
+    private readonly followUpApprovalService?: CrmFollowUpApprovalService,
+    @Optional()
+    @Inject(CrmBatchDraftApprovalService)
+    private readonly batchDraftApprovalService?: CrmBatchDraftApprovalService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -2869,74 +2873,11 @@ export class CrmService {
     input: SequenceBatchOperationInput,
     context: CrmUserContext
   ): Promise<SequenceBatchOperateResult> {
-    const reviewItems = await this.store.listSequenceReviewItemsByIds({
-      ids: input.ids,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-    const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
+    if (!this.batchDraftApprovalService) {
+      throw new BadRequestException('CRM 批量草稿确认服务未启用');
+    }
 
-    return this.runSequenceBatch(input.ids, async id => {
-      const item = reviewItemById.get(id) ?? null;
-
-      if (!item) {
-        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
-      }
-
-      const pendingMessage = this.getPendingLocalApprovalMessage(item);
-
-      if (!pendingMessage) {
-        return this.createSequenceBatchResult(id, 'skipped', '当前序列没有可本地确认的待审草稿', {
-          enrollmentId: item.enrollment.id
-        });
-      }
-
-      const toEnrollmentStatus: CrmSequenceEnrollmentStatus =
-        pendingMessage.stepIndex === initialDraftStepIndex ? 'ready_to_send' : item.enrollment.status;
-
-      try {
-        const approval = await this.store.approveMessageDraft({
-          messageId: pendingMessage.id,
-          enrollmentId: item.enrollment.id,
-          organizationId: context.organizationId,
-          ownerUserId: context.userId,
-          accountId: pendingMessage.accountId,
-          contactId: pendingMessage.contactId,
-          fromEnrollmentStatus: item.enrollment.status,
-          toEnrollmentStatus,
-          fromMessageStatus: 'draft_pending_review',
-          toMessageStatus: approvedDraftStatus,
-          accountStatus: 'ready'
-        });
-
-        if (!approval) {
-          return this.createSequenceBatchResult(id, 'skipped', '当前草稿状态已变化，请刷新后重试', {
-            enrollmentId: item.enrollment.id,
-            messageId: pendingMessage.id,
-            stepIndex: pendingMessage.stepIndex
-          });
-        }
-
-        await this.recordCrmLog('draft-approve-batch', 'CRM 开发信草稿批量确认', context, {
-          organizationId: context.organizationId,
-          accountId: approval.message.accountId,
-          contactId: approval.message.contactId,
-          enrollmentId: approval.enrollment.id,
-          messageId: approval.message.id,
-          stepIndex: approval.message.stepIndex,
-          fromStatus: item.enrollment.status,
-          toStatus: approval.enrollment.status
-        });
-
-        return this.createSequenceBatchResult(id, 'success', '草稿已确认', {
-          enrollmentId: approval.enrollment.id,
-          messageId: approval.message.id,
-          stepIndex: approval.message.stepIndex
-        });
-      } catch (error) {
-        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
-      }
-    });
+    return this.batchDraftApprovalService.batchApproveMessageDrafts(input, context);
   }
 
   /** Confirms a follow-up draft locally, or schedules it when the sequence is already sending. */
@@ -4332,22 +4273,6 @@ export class CrmService {
       failureType: 'business_skip',
       failureReason
     };
-  }
-
-  /** Returns the pending draft that can be confirmed locally without queueing a send job. */
-  private getPendingLocalApprovalMessage(item: CrmSequenceReviewRecord) {
-    const pendingMessage = [...item.messages]
-      .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime())
-      .find(message => message.status === 'draft_pending_review');
-
-    if (!pendingMessage) return null;
-
-    if (pendingMessage.stepIndex === initialDraftStepIndex) {
-      return item.enrollment.status === 'draft_review_pending' ? pendingMessage : null;
-    }
-
-    // sequence_running follow-up confirmation would enqueue a send job, so batch approval skips it.
-    return item.enrollment.status === 'ready_to_send' ? pendingMessage : null;
   }
 
   private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
