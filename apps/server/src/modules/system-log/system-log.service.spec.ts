@@ -82,6 +82,9 @@ describe('SystemLogService', () => {
       metadata: {
         prompt: '找客户',
         apiKey: 'sk-test',
+        access_token: 'access-token',
+        clientSecret: 'client-secret',
+        Cookie: 'sid=1',
         nested: {
           token: 'secret',
           model: 'gpt-4o-mini'

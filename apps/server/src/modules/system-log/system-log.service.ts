@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createPageResult } from '../../shared/pagination';
 import { SYSTEM_LOG_STORE } from './system-log.tokens';
+import { sanitizeSystemLogInput } from './system-log-sanitizer';
 import type {
   SystemLogListInput,
   SystemLogRecord,
@@ -10,18 +11,6 @@ import type {
   SystemLogWhereInput
 } from './system-log.types';
 
-const secretKeys = new Set([
-  'apikey',
-  'api_key',
-  'access_token',
-  'accesstoken',
-  'refresh_token',
-  'refreshtoken',
-  'token',
-  'password',
-  'passwordhash',
-  'passwordsalt'
-]);
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
@@ -71,10 +60,7 @@ export class SystemLogService {
 
   /** Business entry for writing backend logs. */
   async record(input: SystemLogRecordInput) {
-    return this.store.create({
-      ...input,
-      metadata: this.sanitizeMetadata(input.metadata)
-    });
+    return this.store.create(sanitizeSystemLogInput(input));
   }
 
   private toWhere(query: SystemLogListInput): SystemLogWhereInput {
@@ -124,19 +110,4 @@ export class SystemLogService {
     return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
   }
 
-  private sanitizeMetadata(value: unknown): unknown {
-    if (Array.isArray(value)) {
-      return value.map(item => this.sanitizeMetadata(item));
-    }
-
-    if (!value || typeof value !== 'object') {
-      return value;
-    }
-
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .filter(([key]) => !secretKeys.has(key.toLowerCase()))
-        .map(([key, item]) => [key, this.sanitizeMetadata(item)])
-    );
-  }
 }
