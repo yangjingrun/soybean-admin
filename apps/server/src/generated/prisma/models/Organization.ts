@@ -204,6 +204,8 @@ export type OrganizationWhereInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceListRelationFilter
   crmInboxThreads?: Prisma.CrmInboxThreadListRelationFilter
   crmInboxMessages?: Prisma.CrmInboxMessageListRelationFilter
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskListRelationFilter
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemListRelationFilter
 }
 
 export type OrganizationOrderByWithRelationInput = {
@@ -234,6 +236,8 @@ export type OrganizationOrderByWithRelationInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceOrderByRelationAggregateInput
   crmInboxThreads?: Prisma.CrmInboxThreadOrderByRelationAggregateInput
   crmInboxMessages?: Prisma.CrmInboxMessageOrderByRelationAggregateInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskOrderByRelationAggregateInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemOrderByRelationAggregateInput
 }
 
 export type OrganizationWhereUniqueInput = Prisma.AtLeast<{
@@ -267,6 +271,8 @@ export type OrganizationWhereUniqueInput = Prisma.AtLeast<{
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceListRelationFilter
   crmInboxThreads?: Prisma.CrmInboxThreadListRelationFilter
   crmInboxMessages?: Prisma.CrmInboxMessageListRelationFilter
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskListRelationFilter
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemListRelationFilter
 }, "id">
 
 export type OrganizationOrderByWithAggregationInput = {
@@ -319,6 +325,8 @@ export type OrganizationCreateInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateInput = {
@@ -349,6 +357,8 @@ export type OrganizationUncheckedCreateInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUpdateInput = {
@@ -379,6 +389,8 @@ export type OrganizationUpdateInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateInput = {
@@ -409,6 +421,8 @@ export type OrganizationUncheckedUpdateInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateManyInput = {
@@ -758,6 +772,34 @@ export type OrganizationUpdateOneRequiredWithoutCrmInboxMessagesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.OrganizationUpdateToOneWithWhereWithoutCrmInboxMessagesInput, Prisma.OrganizationUpdateWithoutCrmInboxMessagesInput>, Prisma.OrganizationUncheckedUpdateWithoutCrmInboxMessagesInput>
 }
 
+export type OrganizationCreateNestedOneWithoutCrmAiDraftTasksInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTasksInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTasksInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmAiDraftTasksInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+}
+
+export type OrganizationUpdateOneRequiredWithoutCrmAiDraftTasksNestedInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTasksInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTasksInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmAiDraftTasksInput
+  upsert?: Prisma.OrganizationUpsertWithoutCrmAiDraftTasksInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.OrganizationUpdateToOneWithWhereWithoutCrmAiDraftTasksInput, Prisma.OrganizationUpdateWithoutCrmAiDraftTasksInput>, Prisma.OrganizationUncheckedUpdateWithoutCrmAiDraftTasksInput>
+}
+
+export type OrganizationCreateNestedOneWithoutCrmAiDraftTaskItemsInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTaskItemsInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTaskItemsInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmAiDraftTaskItemsInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+}
+
+export type OrganizationUpdateOneRequiredWithoutCrmAiDraftTaskItemsNestedInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTaskItemsInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTaskItemsInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutCrmAiDraftTaskItemsInput
+  upsert?: Prisma.OrganizationUpsertWithoutCrmAiDraftTaskItemsInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.OrganizationUpdateToOneWithWhereWithoutCrmAiDraftTaskItemsInput, Prisma.OrganizationUpdateWithoutCrmAiDraftTaskItemsInput>, Prisma.OrganizationUncheckedUpdateWithoutCrmAiDraftTaskItemsInput>
+}
+
 export type OrganizationCreateNestedOneWithoutAiLeadSearchTasksInput = {
   create?: Prisma.XOR<Prisma.OrganizationCreateWithoutAiLeadSearchTasksInput, Prisma.OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput>
   connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutAiLeadSearchTasksInput
@@ -799,6 +841,8 @@ export type OrganizationCreateWithoutUsersInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutUsersInput = {
@@ -828,6 +872,8 @@ export type OrganizationUncheckedCreateWithoutUsersInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutUsersInput = {
@@ -873,6 +919,8 @@ export type OrganizationUpdateWithoutUsersInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutUsersInput = {
@@ -902,6 +950,8 @@ export type OrganizationUncheckedUpdateWithoutUsersInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmAccountsInput = {
@@ -931,6 +981,8 @@ export type OrganizationCreateWithoutCrmAccountsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmAccountsInput = {
@@ -960,6 +1012,8 @@ export type OrganizationUncheckedCreateWithoutCrmAccountsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmAccountsInput = {
@@ -1005,6 +1059,8 @@ export type OrganizationUpdateWithoutCrmAccountsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmAccountsInput = {
@@ -1034,6 +1090,8 @@ export type OrganizationUncheckedUpdateWithoutCrmAccountsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmContactsInput = {
@@ -1063,6 +1121,8 @@ export type OrganizationCreateWithoutCrmContactsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmContactsInput = {
@@ -1092,6 +1152,8 @@ export type OrganizationUncheckedCreateWithoutCrmContactsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmContactsInput = {
@@ -1137,6 +1199,8 @@ export type OrganizationUpdateWithoutCrmContactsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmContactsInput = {
@@ -1166,6 +1230,8 @@ export type OrganizationUncheckedUpdateWithoutCrmContactsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmUserSendPreferencesInput = {
@@ -1195,6 +1261,8 @@ export type OrganizationCreateWithoutCrmUserSendPreferencesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmUserSendPreferencesInput = {
@@ -1224,6 +1292,8 @@ export type OrganizationUncheckedCreateWithoutCrmUserSendPreferencesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmUserSendPreferencesInput = {
@@ -1269,6 +1339,8 @@ export type OrganizationUpdateWithoutCrmUserSendPreferencesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmUserSendPreferencesInput = {
@@ -1298,6 +1370,8 @@ export type OrganizationUncheckedUpdateWithoutCrmUserSendPreferencesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmOrganizationConfigInput = {
@@ -1327,6 +1401,8 @@ export type OrganizationCreateWithoutCrmOrganizationConfigInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmOrganizationConfigInput = {
@@ -1356,6 +1432,8 @@ export type OrganizationUncheckedCreateWithoutCrmOrganizationConfigInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmOrganizationConfigInput = {
@@ -1401,6 +1479,8 @@ export type OrganizationUpdateWithoutCrmOrganizationConfigInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmOrganizationConfigInput = {
@@ -1430,6 +1510,8 @@ export type OrganizationUncheckedUpdateWithoutCrmOrganizationConfigInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmBlacklistsInput = {
@@ -1459,6 +1541,8 @@ export type OrganizationCreateWithoutCrmBlacklistsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmBlacklistsInput = {
@@ -1488,6 +1572,8 @@ export type OrganizationUncheckedCreateWithoutCrmBlacklistsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmBlacklistsInput = {
@@ -1533,6 +1619,8 @@ export type OrganizationUpdateWithoutCrmBlacklistsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmBlacklistsInput = {
@@ -1562,6 +1650,8 @@ export type OrganizationUncheckedUpdateWithoutCrmBlacklistsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmArchivedFingerprintsInput = {
@@ -1591,6 +1681,8 @@ export type OrganizationCreateWithoutCrmArchivedFingerprintsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmArchivedFingerprintsInput = {
@@ -1620,6 +1712,8 @@ export type OrganizationUncheckedCreateWithoutCrmArchivedFingerprintsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmArchivedFingerprintsInput = {
@@ -1665,6 +1759,8 @@ export type OrganizationUpdateWithoutCrmArchivedFingerprintsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmArchivedFingerprintsInput = {
@@ -1694,6 +1790,8 @@ export type OrganizationUncheckedUpdateWithoutCrmArchivedFingerprintsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmTimelineEventsInput = {
@@ -1723,6 +1821,8 @@ export type OrganizationCreateWithoutCrmTimelineEventsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmTimelineEventsInput = {
@@ -1752,6 +1852,8 @@ export type OrganizationUncheckedCreateWithoutCrmTimelineEventsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmTimelineEventsInput = {
@@ -1797,6 +1899,8 @@ export type OrganizationUpdateWithoutCrmTimelineEventsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmTimelineEventsInput = {
@@ -1826,6 +1930,8 @@ export type OrganizationUncheckedUpdateWithoutCrmTimelineEventsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmMailboxesInput = {
@@ -1855,6 +1961,8 @@ export type OrganizationCreateWithoutCrmMailboxesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmMailboxesInput = {
@@ -1884,6 +1992,8 @@ export type OrganizationUncheckedCreateWithoutCrmMailboxesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmMailboxesInput = {
@@ -1929,6 +2039,8 @@ export type OrganizationUpdateWithoutCrmMailboxesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmMailboxesInput = {
@@ -1958,6 +2070,8 @@ export type OrganizationUncheckedUpdateWithoutCrmMailboxesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmMailboxSendUsagesInput = {
@@ -1987,6 +2101,8 @@ export type OrganizationCreateWithoutCrmMailboxSendUsagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmMailboxSendUsagesInput = {
@@ -2016,6 +2132,8 @@ export type OrganizationUncheckedCreateWithoutCrmMailboxSendUsagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmMailboxSendUsagesInput = {
@@ -2061,6 +2179,8 @@ export type OrganizationUpdateWithoutCrmMailboxSendUsagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmMailboxSendUsagesInput = {
@@ -2090,6 +2210,8 @@ export type OrganizationUncheckedUpdateWithoutCrmMailboxSendUsagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmProductLinesInput = {
@@ -2119,6 +2241,8 @@ export type OrganizationCreateWithoutCrmProductLinesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmProductLinesInput = {
@@ -2148,6 +2272,8 @@ export type OrganizationUncheckedCreateWithoutCrmProductLinesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmProductLinesInput = {
@@ -2193,6 +2319,8 @@ export type OrganizationUpdateWithoutCrmProductLinesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmProductLinesInput = {
@@ -2222,6 +2350,8 @@ export type OrganizationUncheckedUpdateWithoutCrmProductLinesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmProductLineAiPromptVersionsInput = {
@@ -2251,6 +2381,8 @@ export type OrganizationCreateWithoutCrmProductLineAiPromptVersionsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmProductLineAiPromptVersionsInput = {
@@ -2280,6 +2412,8 @@ export type OrganizationUncheckedCreateWithoutCrmProductLineAiPromptVersionsInpu
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmProductLineAiPromptVersionsInput = {
@@ -2325,6 +2459,8 @@ export type OrganizationUpdateWithoutCrmProductLineAiPromptVersionsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmProductLineAiPromptVersionsInput = {
@@ -2354,6 +2490,8 @@ export type OrganizationUncheckedUpdateWithoutCrmProductLineAiPromptVersionsInpu
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmPersonaProfilesInput = {
@@ -2383,6 +2521,8 @@ export type OrganizationCreateWithoutCrmPersonaProfilesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmPersonaProfilesInput = {
@@ -2412,6 +2552,8 @@ export type OrganizationUncheckedCreateWithoutCrmPersonaProfilesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmPersonaProfilesInput = {
@@ -2457,6 +2599,8 @@ export type OrganizationUpdateWithoutCrmPersonaProfilesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmPersonaProfilesInput = {
@@ -2486,6 +2630,8 @@ export type OrganizationUncheckedUpdateWithoutCrmPersonaProfilesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmEmailTemplateGroupsInput = {
@@ -2515,6 +2661,8 @@ export type OrganizationCreateWithoutCrmEmailTemplateGroupsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmEmailTemplateGroupsInput = {
@@ -2544,6 +2692,8 @@ export type OrganizationUncheckedCreateWithoutCrmEmailTemplateGroupsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmEmailTemplateGroupsInput = {
@@ -2589,6 +2739,8 @@ export type OrganizationUpdateWithoutCrmEmailTemplateGroupsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmEmailTemplateGroupsInput = {
@@ -2618,6 +2770,8 @@ export type OrganizationUncheckedUpdateWithoutCrmEmailTemplateGroupsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmEmailTemplateStepsInput = {
@@ -2647,6 +2801,8 @@ export type OrganizationCreateWithoutCrmEmailTemplateStepsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmEmailTemplateStepsInput = {
@@ -2676,6 +2832,8 @@ export type OrganizationUncheckedCreateWithoutCrmEmailTemplateStepsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmEmailTemplateStepsInput = {
@@ -2721,6 +2879,8 @@ export type OrganizationUpdateWithoutCrmEmailTemplateStepsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmEmailTemplateStepsInput = {
@@ -2750,6 +2910,8 @@ export type OrganizationUncheckedUpdateWithoutCrmEmailTemplateStepsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmSequencePoliciesInput = {
@@ -2779,6 +2941,8 @@ export type OrganizationCreateWithoutCrmSequencePoliciesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmSequencePoliciesInput = {
@@ -2808,6 +2972,8 @@ export type OrganizationUncheckedCreateWithoutCrmSequencePoliciesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmSequencePoliciesInput = {
@@ -2853,6 +3019,8 @@ export type OrganizationUpdateWithoutCrmSequencePoliciesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmSequencePoliciesInput = {
@@ -2882,6 +3050,8 @@ export type OrganizationUncheckedUpdateWithoutCrmSequencePoliciesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmEnrollmentsInput = {
@@ -2911,6 +3081,8 @@ export type OrganizationCreateWithoutCrmEnrollmentsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmEnrollmentsInput = {
@@ -2940,6 +3112,8 @@ export type OrganizationUncheckedCreateWithoutCrmEnrollmentsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmEnrollmentsInput = {
@@ -2985,6 +3159,8 @@ export type OrganizationUpdateWithoutCrmEnrollmentsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmEnrollmentsInput = {
@@ -3014,6 +3190,8 @@ export type OrganizationUncheckedUpdateWithoutCrmEnrollmentsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmMessagesInput = {
@@ -3043,6 +3221,8 @@ export type OrganizationCreateWithoutCrmMessagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmMessagesInput = {
@@ -3072,6 +3252,8 @@ export type OrganizationUncheckedCreateWithoutCrmMessagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmMessagesInput = {
@@ -3117,6 +3299,8 @@ export type OrganizationUpdateWithoutCrmMessagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmMessagesInput = {
@@ -3146,6 +3330,8 @@ export type OrganizationUncheckedUpdateWithoutCrmMessagesInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmMessageDraftVersionsInput = {
@@ -3175,6 +3361,8 @@ export type OrganizationCreateWithoutCrmMessageDraftVersionsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmMessageDraftVersionsInput = {
@@ -3204,6 +3392,8 @@ export type OrganizationUncheckedCreateWithoutCrmMessageDraftVersionsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmMessageDraftVersionsInput = {
@@ -3249,6 +3439,8 @@ export type OrganizationUpdateWithoutCrmMessageDraftVersionsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmMessageDraftVersionsInput = {
@@ -3278,6 +3470,8 @@ export type OrganizationUncheckedUpdateWithoutCrmMessageDraftVersionsInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmInboxThreadsInput = {
@@ -3307,6 +3501,8 @@ export type OrganizationCreateWithoutCrmInboxThreadsInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutOrganizationInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmInboxThreadsInput = {
@@ -3336,6 +3532,8 @@ export type OrganizationUncheckedCreateWithoutCrmInboxThreadsInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutOrganizationInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmInboxThreadsInput = {
@@ -3381,6 +3579,8 @@ export type OrganizationUpdateWithoutCrmInboxThreadsInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutOrganizationNestedInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmInboxThreadsInput = {
@@ -3410,6 +3610,8 @@ export type OrganizationUncheckedUpdateWithoutCrmInboxThreadsInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutOrganizationNestedInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutCrmInboxMessagesInput = {
@@ -3439,6 +3641,8 @@ export type OrganizationCreateWithoutCrmInboxMessagesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutOrganizationInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutCrmInboxMessagesInput = {
@@ -3468,6 +3672,8 @@ export type OrganizationUncheckedCreateWithoutCrmInboxMessagesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutOrganizationInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutCrmInboxMessagesInput = {
@@ -3513,6 +3719,8 @@ export type OrganizationUpdateWithoutCrmInboxMessagesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutOrganizationNestedInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutCrmInboxMessagesInput = {
@@ -3542,6 +3750,288 @@ export type OrganizationUncheckedUpdateWithoutCrmInboxMessagesInput = {
   crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutOrganizationNestedInput
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationCreateWithoutCrmAiDraftTasksInput = {
+  id?: string
+  name: string
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
+  crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigCreateNestedOneWithoutOrganizationInput
+  crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
+  crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionCreateNestedManyWithoutOrganizationInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepCreateNestedManyWithoutOrganizationInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyCreateNestedManyWithoutOrganizationInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutOrganizationInput
+  crmMessages?: Prisma.CrmMessageCreateNestedManyWithoutOrganizationInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutOrganizationInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
+  crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
+  crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationUncheckedCreateWithoutCrmAiDraftTasksInput = {
+  id?: string
+  name: string
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
+  crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigUncheckedCreateNestedOneWithoutOrganizationInput
+  crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedCreateNestedManyWithoutOrganizationInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileUncheckedCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupUncheckedCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepUncheckedCreateNestedManyWithoutOrganizationInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyUncheckedCreateNestedManyWithoutOrganizationInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMessages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutOrganizationInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationCreateOrConnectWithoutCrmAiDraftTasksInput = {
+  where: Prisma.OrganizationWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTasksInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTasksInput>
+}
+
+export type OrganizationUpsertWithoutCrmAiDraftTasksInput = {
+  update: Prisma.XOR<Prisma.OrganizationUpdateWithoutCrmAiDraftTasksInput, Prisma.OrganizationUncheckedUpdateWithoutCrmAiDraftTasksInput>
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTasksInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTasksInput>
+  where?: Prisma.OrganizationWhereInput
+}
+
+export type OrganizationUpdateToOneWithWhereWithoutCrmAiDraftTasksInput = {
+  where?: Prisma.OrganizationWhereInput
+  data: Prisma.XOR<Prisma.OrganizationUpdateWithoutCrmAiDraftTasksInput, Prisma.OrganizationUncheckedUpdateWithoutCrmAiDraftTasksInput>
+}
+
+export type OrganizationUpdateWithoutCrmAiDraftTasksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
+  crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigUpdateOneWithoutOrganizationNestedInput
+  crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
+  crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUpdateManyWithoutOrganizationNestedInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepUpdateManyWithoutOrganizationNestedInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyUpdateManyWithoutOrganizationNestedInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutOrganizationNestedInput
+  crmMessages?: Prisma.CrmMessageUpdateManyWithoutOrganizationNestedInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutOrganizationNestedInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationUncheckedUpdateWithoutCrmAiDraftTasksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigUncheckedUpdateOneWithoutOrganizationNestedInput
+  crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMessages?: Prisma.CrmMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationCreateWithoutCrmAiDraftTaskItemsInput = {
+  id?: string
+  name: string
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.SystemUserCreateNestedManyWithoutOrganizationInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskCreateNestedManyWithoutOrganizationInput
+  crmAccounts?: Prisma.CrmAccountCreateNestedManyWithoutOrganizationInput
+  crmContacts?: Prisma.CrmContactCreateNestedManyWithoutOrganizationInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventCreateNestedManyWithoutOrganizationInput
+  crmBlacklists?: Prisma.CrmBlacklistCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintCreateNestedManyWithoutOrganizationInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigCreateNestedOneWithoutOrganizationInput
+  crmMailboxes?: Prisma.CrmMailboxCreateNestedManyWithoutOrganizationInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageCreateNestedManyWithoutOrganizationInput
+  crmProductLines?: Prisma.CrmProductLineCreateNestedManyWithoutOrganizationInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionCreateNestedManyWithoutOrganizationInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepCreateNestedManyWithoutOrganizationInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyCreateNestedManyWithoutOrganizationInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutOrganizationInput
+  crmMessages?: Prisma.CrmMessageCreateNestedManyWithoutOrganizationInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutOrganizationInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
+  crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
+  crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationUncheckedCreateWithoutCrmAiDraftTaskItemsInput = {
+  id?: string
+  name: string
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.SystemUserUncheckedCreateNestedManyWithoutOrganizationInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAccounts?: Prisma.CrmAccountUncheckedCreateNestedManyWithoutOrganizationInput
+  crmContacts?: Prisma.CrmContactUncheckedCreateNestedManyWithoutOrganizationInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutOrganizationInput
+  crmBlacklists?: Prisma.CrmBlacklistUncheckedCreateNestedManyWithoutOrganizationInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedCreateNestedManyWithoutOrganizationInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigUncheckedCreateNestedOneWithoutOrganizationInput
+  crmMailboxes?: Prisma.CrmMailboxUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmProductLines?: Prisma.CrmProductLineUncheckedCreateNestedManyWithoutOrganizationInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedCreateNestedManyWithoutOrganizationInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileUncheckedCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupUncheckedCreateNestedManyWithoutOrganizationInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepUncheckedCreateNestedManyWithoutOrganizationInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyUncheckedCreateNestedManyWithoutOrganizationInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMessages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutOrganizationInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationCreateOrConnectWithoutCrmAiDraftTaskItemsInput = {
+  where: Prisma.OrganizationWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTaskItemsInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTaskItemsInput>
+}
+
+export type OrganizationUpsertWithoutCrmAiDraftTaskItemsInput = {
+  update: Prisma.XOR<Prisma.OrganizationUpdateWithoutCrmAiDraftTaskItemsInput, Prisma.OrganizationUncheckedUpdateWithoutCrmAiDraftTaskItemsInput>
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutCrmAiDraftTaskItemsInput, Prisma.OrganizationUncheckedCreateWithoutCrmAiDraftTaskItemsInput>
+  where?: Prisma.OrganizationWhereInput
+}
+
+export type OrganizationUpdateToOneWithWhereWithoutCrmAiDraftTaskItemsInput = {
+  where?: Prisma.OrganizationWhereInput
+  data: Prisma.XOR<Prisma.OrganizationUpdateWithoutCrmAiDraftTaskItemsInput, Prisma.OrganizationUncheckedUpdateWithoutCrmAiDraftTaskItemsInput>
+}
+
+export type OrganizationUpdateWithoutCrmAiDraftTaskItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.SystemUserUpdateManyWithoutOrganizationNestedInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUpdateManyWithoutOrganizationNestedInput
+  crmAccounts?: Prisma.CrmAccountUpdateManyWithoutOrganizationNestedInput
+  crmContacts?: Prisma.CrmContactUpdateManyWithoutOrganizationNestedInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUpdateManyWithoutOrganizationNestedInput
+  crmBlacklists?: Prisma.CrmBlacklistUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUpdateManyWithoutOrganizationNestedInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigUpdateOneWithoutOrganizationNestedInput
+  crmMailboxes?: Prisma.CrmMailboxUpdateManyWithoutOrganizationNestedInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUpdateManyWithoutOrganizationNestedInput
+  crmProductLines?: Prisma.CrmProductLineUpdateManyWithoutOrganizationNestedInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUpdateManyWithoutOrganizationNestedInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepUpdateManyWithoutOrganizationNestedInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyUpdateManyWithoutOrganizationNestedInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutOrganizationNestedInput
+  crmMessages?: Prisma.CrmMessageUpdateManyWithoutOrganizationNestedInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutOrganizationNestedInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationUncheckedUpdateWithoutCrmAiDraftTaskItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput
+  aiLeadSearchTasks?: Prisma.AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAccounts?: Prisma.CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmContacts?: Prisma.CrmContactUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmTimelineEvents?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmBlacklists?: Prisma.CrmBlacklistUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmArchivedFingerprints?: Prisma.CrmArchivedFingerprintUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmOrganizationConfig?: Prisma.CrmOrganizationConfigUncheckedUpdateOneWithoutOrganizationNestedInput
+  crmMailboxes?: Prisma.CrmMailboxUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMailboxSendUsages?: Prisma.CrmMailboxSendUsageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmProductLines?: Prisma.CrmProductLineUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmProductLineAiPromptVersions?: Prisma.CrmProductLineAiPromptVersionUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmPersonaProfiles?: Prisma.CrmPersonaProfileUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateGroups?: Prisma.CrmEmailTemplateGroupUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmEmailTemplateSteps?: Prisma.CrmEmailTemplateStepUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmSequencePolicies?: Prisma.CrmSequencePolicyUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmEnrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMessages?: Prisma.CrmMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmMessageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutAiLeadSearchTasksInput = {
@@ -3571,6 +4061,8 @@ export type OrganizationCreateWithoutAiLeadSearchTasksInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput = {
@@ -3600,6 +4092,8 @@ export type OrganizationUncheckedCreateWithoutAiLeadSearchTasksInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutOrganizationInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedCreateNestedManyWithoutOrganizationInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutAiLeadSearchTasksInput = {
@@ -3645,6 +4139,8 @@ export type OrganizationUpdateWithoutAiLeadSearchTasksInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutAiLeadSearchTasksInput = {
@@ -3674,6 +4170,8 @@ export type OrganizationUncheckedUpdateWithoutAiLeadSearchTasksInput = {
   crmUserSendPreferences?: Prisma.CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutOrganizationNestedInput
   crmInboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTasks?: Prisma.CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput
+  crmAiDraftTaskItems?: Prisma.CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 
@@ -3703,6 +4201,8 @@ export type OrganizationCountOutputType = {
   crmUserSendPreferences: number
   crmInboxThreads: number
   crmInboxMessages: number
+  crmAiDraftTasks: number
+  crmAiDraftTaskItems: number
 }
 
 export type OrganizationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -3727,6 +4227,8 @@ export type OrganizationCountOutputTypeSelect<ExtArgs extends runtime.Types.Exte
   crmUserSendPreferences?: boolean | OrganizationCountOutputTypeCountCrmUserSendPreferencesArgs
   crmInboxThreads?: boolean | OrganizationCountOutputTypeCountCrmInboxThreadsArgs
   crmInboxMessages?: boolean | OrganizationCountOutputTypeCountCrmInboxMessagesArgs
+  crmAiDraftTasks?: boolean | OrganizationCountOutputTypeCountCrmAiDraftTasksArgs
+  crmAiDraftTaskItems?: boolean | OrganizationCountOutputTypeCountCrmAiDraftTaskItemsArgs
 }
 
 /**
@@ -3886,6 +4388,20 @@ export type OrganizationCountOutputTypeCountCrmInboxMessagesArgs<ExtArgs extends
   where?: Prisma.CrmInboxMessageWhereInput
 }
 
+/**
+ * OrganizationCountOutputType without action
+ */
+export type OrganizationCountOutputTypeCountCrmAiDraftTasksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmAiDraftTaskWhereInput
+}
+
+/**
+ * OrganizationCountOutputType without action
+ */
+export type OrganizationCountOutputTypeCountCrmAiDraftTaskItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CrmAiDraftTaskItemWhereInput
+}
+
 
 export type OrganizationSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -3915,6 +4431,8 @@ export type OrganizationSelect<ExtArgs extends runtime.Types.Extensions.Internal
   crmUserSendPreferences?: boolean | Prisma.Organization$crmUserSendPreferencesArgs<ExtArgs>
   crmInboxThreads?: boolean | Prisma.Organization$crmInboxThreadsArgs<ExtArgs>
   crmInboxMessages?: boolean | Prisma.Organization$crmInboxMessagesArgs<ExtArgs>
+  crmAiDraftTasks?: boolean | Prisma.Organization$crmAiDraftTasksArgs<ExtArgs>
+  crmAiDraftTaskItems?: boolean | Prisma.Organization$crmAiDraftTaskItemsArgs<ExtArgs>
   _count?: boolean | Prisma.OrganizationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["organization"]>
 
@@ -3966,6 +4484,8 @@ export type OrganizationInclude<ExtArgs extends runtime.Types.Extensions.Interna
   crmUserSendPreferences?: boolean | Prisma.Organization$crmUserSendPreferencesArgs<ExtArgs>
   crmInboxThreads?: boolean | Prisma.Organization$crmInboxThreadsArgs<ExtArgs>
   crmInboxMessages?: boolean | Prisma.Organization$crmInboxMessagesArgs<ExtArgs>
+  crmAiDraftTasks?: boolean | Prisma.Organization$crmAiDraftTasksArgs<ExtArgs>
+  crmAiDraftTaskItems?: boolean | Prisma.Organization$crmAiDraftTaskItemsArgs<ExtArgs>
   _count?: boolean | Prisma.OrganizationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type OrganizationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -3996,6 +4516,8 @@ export type $OrganizationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     crmUserSendPreferences: Prisma.$CrmUserSendPreferencePayload<ExtArgs>[]
     crmInboxThreads: Prisma.$CrmInboxThreadPayload<ExtArgs>[]
     crmInboxMessages: Prisma.$CrmInboxMessagePayload<ExtArgs>[]
+    crmAiDraftTasks: Prisma.$CrmAiDraftTaskPayload<ExtArgs>[]
+    crmAiDraftTaskItems: Prisma.$CrmAiDraftTaskItemPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -4419,6 +4941,8 @@ export interface Prisma__OrganizationClient<T, Null = never, ExtArgs extends run
   crmUserSendPreferences<T extends Prisma.Organization$crmUserSendPreferencesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmUserSendPreferencesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmUserSendPreferencePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   crmInboxThreads<T extends Prisma.Organization$crmInboxThreadsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmInboxThreadsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmInboxThreadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   crmInboxMessages<T extends Prisma.Organization$crmInboxMessagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmInboxMessagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmInboxMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  crmAiDraftTasks<T extends Prisma.Organization$crmAiDraftTasksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmAiDraftTasksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmAiDraftTaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  crmAiDraftTaskItems<T extends Prisma.Organization$crmAiDraftTaskItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$crmAiDraftTaskItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CrmAiDraftTaskItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5366,6 +5890,54 @@ export type Organization$crmInboxMessagesArgs<ExtArgs extends runtime.Types.Exte
   take?: number
   skip?: number
   distinct?: Prisma.CrmInboxMessageScalarFieldEnum | Prisma.CrmInboxMessageScalarFieldEnum[]
+}
+
+/**
+ * Organization.crmAiDraftTasks
+ */
+export type Organization$crmAiDraftTasksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmAiDraftTask
+   */
+  select?: Prisma.CrmAiDraftTaskSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmAiDraftTask
+   */
+  omit?: Prisma.CrmAiDraftTaskOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmAiDraftTaskInclude<ExtArgs> | null
+  where?: Prisma.CrmAiDraftTaskWhereInput
+  orderBy?: Prisma.CrmAiDraftTaskOrderByWithRelationInput | Prisma.CrmAiDraftTaskOrderByWithRelationInput[]
+  cursor?: Prisma.CrmAiDraftTaskWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmAiDraftTaskScalarFieldEnum | Prisma.CrmAiDraftTaskScalarFieldEnum[]
+}
+
+/**
+ * Organization.crmAiDraftTaskItems
+ */
+export type Organization$crmAiDraftTaskItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CrmAiDraftTaskItem
+   */
+  select?: Prisma.CrmAiDraftTaskItemSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CrmAiDraftTaskItem
+   */
+  omit?: Prisma.CrmAiDraftTaskItemOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmAiDraftTaskItemInclude<ExtArgs> | null
+  where?: Prisma.CrmAiDraftTaskItemWhereInput
+  orderBy?: Prisma.CrmAiDraftTaskItemOrderByWithRelationInput | Prisma.CrmAiDraftTaskItemOrderByWithRelationInput[]
+  cursor?: Prisma.CrmAiDraftTaskItemWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CrmAiDraftTaskItemScalarFieldEnum | Prisma.CrmAiDraftTaskItemScalarFieldEnum[]
 }
 
 /**

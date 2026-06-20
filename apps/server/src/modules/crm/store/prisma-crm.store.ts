@@ -2,6 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
+import type { CrmAiDraftQueueConfigModel } from '../../../generated/prisma/models/CrmAiDraftQueueConfig';
+import type { CrmAiDraftTaskModel } from '../../../generated/prisma/models/CrmAiDraftTask';
+import type { CrmAiDraftTaskItemModel } from '../../../generated/prisma/models/CrmAiDraftTaskItem';
 import type { CrmArchivedFingerprintModel } from '../../../generated/prisma/models/CrmArchivedFingerprint';
 import type { CrmBlacklistModel } from '../../../generated/prisma/models/CrmBlacklist';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
@@ -27,6 +30,15 @@ import type {
   CrmAccountRecord,
   CrmAccountStatus,
   CrmAccountUpdateInput,
+  CrmAiDraftQueueConfigInput,
+  CrmAiDraftQueueConfigRecord,
+  CrmAiDraftTaskCreateInput,
+  CrmAiDraftTaskItemRecord,
+  CrmAiDraftTaskItemUpdateGuard,
+  CrmAiDraftTaskItemUpdateInput,
+  CrmAiDraftTaskRecord,
+  CrmAiDraftTaskUpdateGuard,
+  CrmAiDraftTaskUpdateInput,
   CrmArchiveSlimInput,
   CrmArchiveSlimmingListInput,
   CrmArchivedFingerprintLookupInput,
@@ -133,6 +145,16 @@ import type {
   CrmTimelineEventRecord
 } from '../crm.types';
 import {
+  crmAiDraftActiveTaskStatuses,
+  defaultCrmAiDraftItemConcurrency,
+  defaultCrmAiDraftMaxAttempts,
+  defaultCrmAiDraftRetryBackoffSeconds,
+  maxCrmAiDraftItemConcurrency,
+  normalizeCrmAiDraftItemConcurrency,
+  normalizeCrmAiDraftMaxAttempts,
+  normalizeCrmAiDraftRetryBackoffSeconds
+} from '../crm-ai-draft-task-state';
+import {
   crmGlobalConfigKey,
   defaultEmailVerificationCooldownDays,
   defaultFollowUpDelayDays,
@@ -162,6 +184,7 @@ const emailTemplateGroupInclude = {
     orderBy: { stepIndex: 'asc' as const }
   }
 };
+const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
@@ -377,6 +400,263 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return toGlobalConfigRecord(record);
+  }
+
+  async createAiDraftTask(input: CrmAiDraftTaskCreateInput) {
+    try {
+      return await this.prisma.$transaction(
+        async tx => this.createAiDraftTaskInsideTransaction(tx, input),
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        }
+      );
+    } catch (error) {
+      // Serializable conflicts mean another creator won the same capacity window.
+      if (isPrismaConcurrentTaskCreateConflict(error)) {
+        return { task: null, limitReason: 'concurrent_create_conflict' as const };
+      }
+
+      throw error;
+    }
+  }
+
+  /** Checks queue capacity and creates the task in one serializable transaction. */
+  private async createAiDraftTaskInsideTransaction(tx: Prisma.TransactionClient, input: CrmAiDraftTaskCreateInput) {
+    const configRecord = await tx.crmAiDraftQueueConfig.findUnique({
+      where: { configKey: crmAiDraftQueueConfigKey }
+    });
+    const config = configRecord ? toAiDraftQueueConfigRecord(configRecord) : createDefaultAiDraftQueueConfig();
+    const [activeUserTaskCount, activeOrgTaskCount] = await Promise.all([
+      tx.crmAiDraftTask.count({
+        where: {
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: crmAiDraftActiveTaskStatuses }
+        }
+      }),
+      tx.crmAiDraftTask.count({
+        where: {
+          organizationId: input.organizationId,
+          status: { in: crmAiDraftActiveTaskStatuses }
+        }
+      })
+    ]);
+
+    if (activeUserTaskCount >= config.maxActiveTasksPerUser) {
+      return { task: null, limitReason: 'user_active_limit' as const };
+    }
+
+    if (activeOrgTaskCount >= config.maxActiveTasksPerOrg) {
+      return { task: null, limitReason: 'organization_active_limit' as const };
+    }
+
+    const counts = countAiDraftTaskItems(input.items);
+    const status = input.status ?? (counts.pendingCount > 0 ? 'queued' : 'completed');
+    const now = new Date();
+    const effectiveConcurrency = normalizeCrmAiDraftItemConcurrency(config.itemConcurrency, config.maxItemConcurrency);
+    const maxAttempts = normalizeCrmAiDraftMaxAttempts(config.maxAttempts);
+    const task = await tx.crmAiDraftTask.create({
+      data: {
+        organizationId: input.organizationId,
+        organizationRole: input.organizationRole ?? null,
+        ownerUserId: input.ownerUserId,
+        ownerUserName: input.ownerUserName ?? null,
+        status,
+        requestedCount: input.requestedCount,
+        successCount: counts.successCount,
+        skippedCount: counts.skippedCount,
+        failedCount: counts.failedCount,
+        retryingCount: counts.retryingCount,
+        runningCount: counts.runningCount,
+        pendingCount: counts.pendingCount,
+        effectiveConcurrency,
+        maxAttempts,
+        finishedAt: counts.pendingCount > 0 ? null : now
+      } as Prisma.CrmAiDraftTaskUncheckedCreateInput
+    });
+
+    if (input.items.length > 0) {
+      await tx.crmAiDraftTaskItem.createMany({
+        data: input.items.map(item => ({
+          taskId: task.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          enrollmentId: item.enrollmentId,
+          messageId: item.messageId ?? null,
+          contactId: item.contactId ?? null,
+          accountId: item.accountId ?? null,
+          productLineId: item.productLineId ?? null,
+          stepIndex: item.stepIndex,
+          status: item.status ?? 'pending',
+          maxAttempts,
+          failureType: item.failureType ?? null,
+          failureReason: item.failureReason ?? null,
+          metadata: item.metadata === undefined ? undefined : toNullableJsonInput(item.metadata)
+        })) as Prisma.CrmAiDraftTaskItemCreateManyInput[]
+      });
+    }
+
+    return { task: toAiDraftTaskRecord(task) };
+  }
+
+  countActiveAiDraftTasksForUser(input: { organizationId: string; ownerUserId: string }) {
+    return this.prisma.crmAiDraftTask.count({
+      where: {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        status: { in: ['queued', 'running'] }
+      }
+    });
+  }
+
+  countActiveAiDraftTasksForOrg(input: { organizationId: string }) {
+    return this.prisma.crmAiDraftTask.count({
+      where: {
+        organizationId: input.organizationId,
+        status: { in: ['queued', 'running'] }
+      }
+    });
+  }
+
+  async findCurrentAiDraftTaskForUser(input: { organizationId: string; ownerUserId: string }) {
+    const record = await this.prisma.crmAiDraftTask.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        OR: [{ status: { in: ['queued', 'running'] } }, { status: { in: ['completed', 'failed'] }, readAt: null }]
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    return record ? toAiDraftTaskRecord(record) : null;
+  }
+
+  async findAiDraftTaskById(input: { id: string; organizationId: string; ownerUserId?: string }) {
+    const record = await this.prisma.crmAiDraftTask.findFirst({
+      where: {
+        id: input.id,
+        organizationId: input.organizationId,
+        ...(input.ownerUserId ? { ownerUserId: input.ownerUserId } : {})
+      }
+    });
+
+    return record ? toAiDraftTaskRecord(record) : null;
+  }
+
+  async listAiDraftTasks(input: { organizationId: string; ownerUserId?: string; skip: number; take: number }) {
+    const where = {
+      organizationId: input.organizationId,
+      ...(input.ownerUserId ? { ownerUserId: input.ownerUserId } : {})
+    };
+    const [records, total] = await Promise.all([
+      this.prisma.crmAiDraftTask.findMany({
+        where,
+        skip: input.skip,
+        take: input.take,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
+      }),
+      this.prisma.crmAiDraftTask.count({ where })
+    ]);
+
+    return {
+      records: records.map(toAiDraftTaskRecord),
+      total
+    };
+  }
+
+  async listAiDraftTaskItems(input: { taskId: string }) {
+    const records = await this.prisma.crmAiDraftTaskItem.findMany({
+      where: { taskId: input.taskId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
+    });
+
+    return records.map(toAiDraftTaskItemRecord);
+  }
+
+  async updateAiDraftTask(id: string, patch: CrmAiDraftTaskUpdateInput, guard: CrmAiDraftTaskUpdateGuard = {}) {
+    const records = await this.prisma.crmAiDraftTask.updateManyAndReturn({
+      where: {
+        id,
+        ...(guard.organizationId ? { organizationId: guard.organizationId } : {}),
+        ...(guard.ownerUserId ? { ownerUserId: guard.ownerUserId } : {}),
+        ...(guard.runVersion ? { runVersion: guard.runVersion } : {}),
+        ...(guard.status ? { status: toStatusWhere(guard.status) } : {})
+      },
+      data: toAiDraftTaskUpdateData(patch),
+      limit: 1
+    });
+
+    return records[0] ? toAiDraftTaskRecord(records[0]) : null;
+  }
+
+  async updateAiDraftTaskItem(
+    id: string,
+    patch: CrmAiDraftTaskItemUpdateInput,
+    guard: CrmAiDraftTaskItemUpdateGuard = {}
+  ) {
+    const records = await this.prisma.crmAiDraftTaskItem.updateManyAndReturn({
+      where: {
+        id,
+        ...(guard.taskId ? { taskId: guard.taskId } : {}),
+        ...(guard.organizationId ? { organizationId: guard.organizationId } : {}),
+        ...(guard.ownerUserId ? { ownerUserId: guard.ownerUserId } : {}),
+        ...(guard.status ? { status: toStatusWhere(guard.status) } : {})
+      },
+      data: toAiDraftTaskItemUpdateData(patch),
+      limit: 1
+    });
+
+    return records[0] ? toAiDraftTaskItemRecord(records[0]) : null;
+  }
+
+  async getAiDraftQueueConfig() {
+    const record = await this.prisma.crmAiDraftQueueConfig.findUnique({
+      where: { configKey: crmAiDraftQueueConfigKey }
+    });
+
+    return record ? toAiDraftQueueConfigRecord(record) : createDefaultAiDraftQueueConfig();
+  }
+
+  async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput) {
+    const maxItemConcurrency = normalizeCrmAiDraftItemConcurrency(
+      input.maxItemConcurrency ?? maxCrmAiDraftItemConcurrency,
+      maxCrmAiDraftItemConcurrency
+    );
+    const itemConcurrency = normalizeCrmAiDraftItemConcurrency(
+      input.itemConcurrency ?? defaultCrmAiDraftItemConcurrency,
+      maxItemConcurrency
+    );
+    const maxAttempts = normalizeCrmAiDraftMaxAttempts(input.maxAttempts ?? defaultCrmAiDraftMaxAttempts);
+    const record = await this.prisma.crmAiDraftQueueConfig.upsert({
+      where: { configKey: crmAiDraftQueueConfigKey },
+      create: {
+        configKey: crmAiDraftQueueConfigKey,
+        itemConcurrency,
+        maxItemConcurrency,
+        maxActiveTasksPerUser: normalizePositiveConfigInteger(input.maxActiveTasksPerUser, 1),
+        maxActiveTasksPerOrg: normalizePositiveConfigInteger(input.maxActiveTasksPerOrg, 2),
+        maxAttempts,
+        retryBackoffSeconds: toNullableJsonInput(
+          input.retryBackoffSeconds ?? [...defaultCrmAiDraftRetryBackoffSeconds]
+        ),
+        updatedById: input.updatedById ?? null,
+        updatedByName: input.updatedByName ?? null
+      },
+      update: {
+        itemConcurrency,
+        maxItemConcurrency,
+        maxActiveTasksPerUser: normalizePositiveConfigInteger(input.maxActiveTasksPerUser, 1),
+        maxActiveTasksPerOrg: normalizePositiveConfigInteger(input.maxActiveTasksPerOrg, 2),
+        maxAttempts,
+        retryBackoffSeconds: toNullableJsonInput(
+          input.retryBackoffSeconds ?? [...defaultCrmAiDraftRetryBackoffSeconds]
+        ),
+        updatedById: input.updatedById ?? null,
+        updatedByName: input.updatedByName ?? null
+      }
+    });
+
+    return toAiDraftQueueConfigRecord(record);
   }
 
   async getSendPreference(args: { organizationId: string; ownerUserId: string }) {
@@ -1532,15 +1812,50 @@ export class PrismaCrmStore implements CrmStore {
     input: CrmFollowUpDraftBundleCreateInput
   ): Promise<CrmFollowUpDraftBundleRecord | null> {
     return this.prisma.$transaction(async tx => {
+      if (input.taskGuard) {
+        const task = await tx.crmAiDraftTask.findFirst({
+          where: {
+            id: input.taskGuard.taskId,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            runVersion: input.taskGuard.runVersion,
+            status: toStatusWhere(input.taskGuard.status)
+          }
+        });
+
+        if (!task) {
+          return null;
+        }
+      }
+
       const enrollment = await tx.crmSequenceEnrollment.findFirst({
         where: {
           id: input.enrollmentId,
           organizationId: input.organizationId,
-          ownerUserId: input.ownerUserId
+          ownerUserId: input.ownerUserId,
+          ...(input.expectedEnrollmentStatus ? { status: toStatusWhere(input.expectedEnrollmentStatus) } : {})
         }
       });
 
       if (!enrollment) {
+        return null;
+      }
+
+      const existingMessage = await tx.crmMessage.findFirst({
+        where: {
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          OR: [
+            { stepIndex: input.message.stepIndex },
+            ...(input.blockingMessageStatuses?.length
+              ? [{ status: { in: input.blockingMessageStatuses } }]
+              : [])
+          ]
+        }
+      });
+
+      if (existingMessage) {
         return null;
       }
 
@@ -3660,6 +3975,136 @@ function toNullableJsonInput(value: unknown) {
   return value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
 }
 
+function countAiDraftTaskItems(items: CrmAiDraftTaskCreateInput['items']) {
+  return {
+    successCount: items.filter(item => item.status === 'succeeded').length,
+    skippedCount: items.filter(item => item.status === 'skipped').length,
+    failedCount: items.filter(item => item.status === 'failed').length,
+    retryingCount: items.filter(item => item.status === 'retrying').length,
+    runningCount: items.filter(item => item.status === 'running').length,
+    pendingCount: items.filter(item => (item.status ?? 'pending') === 'pending').length
+  };
+}
+
+function toStatusWhere<T extends string>(status: T | T[]) {
+  return Array.isArray(status) ? { in: status } : status;
+}
+
+function createDefaultAiDraftQueueConfig(): CrmAiDraftQueueConfigRecord {
+  return {
+    configKey: crmAiDraftQueueConfigKey,
+    itemConcurrency: defaultCrmAiDraftItemConcurrency,
+    maxItemConcurrency: maxCrmAiDraftItemConcurrency,
+    maxActiveTasksPerUser: 1,
+    maxActiveTasksPerOrg: 2,
+    maxAttempts: defaultCrmAiDraftMaxAttempts,
+    retryBackoffSeconds: [...defaultCrmAiDraftRetryBackoffSeconds],
+    updatedById: null,
+    updatedByName: null,
+    updatedAt: new Date(0)
+  };
+}
+
+function toAiDraftQueueConfigRecord(record: CrmAiDraftQueueConfigModel): CrmAiDraftQueueConfigRecord {
+  return {
+    configKey: record.configKey,
+    itemConcurrency: normalizeCrmAiDraftItemConcurrency(record.itemConcurrency, record.maxItemConcurrency),
+    maxItemConcurrency: normalizeCrmAiDraftItemConcurrency(record.maxItemConcurrency, maxCrmAiDraftItemConcurrency),
+    maxActiveTasksPerUser: normalizePositiveConfigInteger(record.maxActiveTasksPerUser, 1),
+    maxActiveTasksPerOrg: normalizePositiveConfigInteger(record.maxActiveTasksPerOrg, 2),
+    maxAttempts: normalizeCrmAiDraftMaxAttempts(record.maxAttempts),
+    retryBackoffSeconds: normalizeCrmAiDraftRetryBackoffSeconds(record.retryBackoffSeconds),
+    updatedById: record.updatedById,
+    updatedByName: record.updatedByName,
+    updatedAt: record.updatedAt
+  };
+}
+
+function toAiDraftTaskRecord(record: CrmAiDraftTaskModel): CrmAiDraftTaskRecord {
+  return {
+    id: record.id,
+    organizationId: record.organizationId,
+    organizationRole: record.organizationRole,
+    ownerUserId: record.ownerUserId,
+    ownerUserName: record.ownerUserName,
+    status: record.status as CrmAiDraftTaskRecord['status'],
+    runVersion: record.runVersion,
+    bullJobId: record.bullJobId,
+    requestedCount: record.requestedCount,
+    successCount: record.successCount,
+    skippedCount: record.skippedCount,
+    failedCount: record.failedCount,
+    retryingCount: record.retryingCount,
+    runningCount: record.runningCount,
+    pendingCount: record.pendingCount,
+    effectiveConcurrency: record.effectiveConcurrency,
+    maxAttempts: record.maxAttempts,
+    failureReason: record.failureReason,
+    progressState: record.progressState as CrmAiDraftTaskRecord['progressState'],
+    resultSummary: record.resultSummary as CrmAiDraftTaskRecord['resultSummary'],
+    readAt: record.readAt,
+    notifiedAt: record.notifiedAt,
+    startedAt: record.startedAt,
+    finishedAt: record.finishedAt,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  };
+}
+
+function toAiDraftTaskItemRecord(record: CrmAiDraftTaskItemModel): CrmAiDraftTaskItemRecord {
+  return {
+    id: record.id,
+    taskId: record.taskId,
+    organizationId: record.organizationId,
+    ownerUserId: record.ownerUserId,
+    enrollmentId: record.enrollmentId,
+    messageId: record.messageId,
+    contactId: record.contactId,
+    accountId: record.accountId,
+    productLineId: record.productLineId,
+    stepIndex: record.stepIndex,
+    status: record.status as CrmAiDraftTaskItemRecord['status'],
+    attemptCount: record.attemptCount,
+    maxAttempts: record.maxAttempts,
+    failureType: record.failureType as CrmAiDraftTaskItemRecord['failureType'],
+    failureReason: record.failureReason,
+    draftSubject: record.draftSubject,
+    draftBodyText: record.draftBodyText,
+    metadata: record.metadata as CrmAiDraftTaskItemRecord['metadata'],
+    startedAt: record.startedAt,
+    finishedAt: record.finishedAt,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  };
+}
+
+function toAiDraftTaskUpdateData(input: CrmAiDraftTaskUpdateInput): Prisma.CrmAiDraftTaskUncheckedUpdateInput {
+  return {
+    ...input,
+    progressState: input.progressState === undefined ? undefined : toNullableJsonInput(input.progressState),
+    resultSummary: input.resultSummary === undefined ? undefined : toNullableJsonInput(input.resultSummary)
+  };
+}
+
+function toAiDraftTaskItemUpdateData(
+  input: CrmAiDraftTaskItemUpdateInput
+): Prisma.CrmAiDraftTaskItemUncheckedUpdateInput {
+  return {
+    ...input,
+    metadata: input.metadata === undefined ? undefined : toNullableJsonInput(input.metadata)
+  };
+}
+
+function normalizePositiveConfigInteger(value: unknown, fallback: number) {
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    return fallback;
+  }
+
+  return numberValue;
+}
+
 function toProductLineAiPromptVersionRecord(
   record: CrmProductLineAiPromptVersionModel
 ): CrmProductLineAiPromptVersionRecord {
@@ -4155,4 +4600,8 @@ function resolveGmailThreadStateUpdate(
 
 function isPrismaUniqueConflict(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+function isPrismaConcurrentTaskCreateConflict(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
 }

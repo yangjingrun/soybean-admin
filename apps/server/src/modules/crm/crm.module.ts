@@ -8,6 +8,9 @@ import { SystemNotificationModule } from '../system-notification/system-notifica
 import { AiGatewayModule } from '../ai-gateway/ai-gateway.module';
 import { CrmController } from './crm.controller';
 import { CrmAiDraftService } from './crm-ai-draft.service';
+import { CrmAiDraftTaskQueueService } from './crm-ai-draft-task-queue.service';
+import { CrmAiDraftTaskWorkerHost } from './crm-ai-draft-task-worker-host.service';
+import { CrmAiDraftTaskWorkerService } from './crm-ai-draft-task-worker.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmArchiveSlimmingService } from './crm-archive-slimming.service';
 import { CrmGmailHistorySyncQueueService } from './crm-gmail-history-sync-queue.service';
@@ -27,6 +30,7 @@ import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmService } from './crm.service';
 import {
   CRM_EMAIL_DNS_RESOLVER,
+  CRM_AI_DRAFT_TASK_QUEUE,
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_HISTORY_GATEWAY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
@@ -43,6 +47,9 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
   providers: [
     CrmService,
     CrmAiDraftService,
+    CrmAiDraftTaskQueueService,
+    CrmAiDraftTaskWorkerService,
+    CrmAiDraftTaskWorkerHost,
     CrmAiReplyDraftService,
     CrmArchiveSlimmingService,
     CrmGmailPubSubOidcVerifier,
@@ -68,6 +75,10 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     {
       provide: CRM_GMAIL_HISTORY_SYNC_QUEUE,
       useExisting: CrmGmailHistorySyncQueueService
+    },
+    {
+      provide: CRM_AI_DRAFT_TASK_QUEUE,
+      useExisting: CrmAiDraftTaskQueueService
     },
     {
       provide: CRM_GMAIL_HISTORY_GATEWAY,

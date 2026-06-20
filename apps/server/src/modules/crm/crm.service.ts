@@ -5,7 +5,8 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  Optional
+  Optional,
+  ServiceUnavailableException
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
@@ -23,10 +24,14 @@ import {
   normalizeOwnerDailySendLimit,
   normalizeOwnerDailySendLimitMax
 } from './crm-global-config';
+import { crmAiDraftActiveTaskStatuses } from './crm-ai-draft-task-state';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
-import { normalizeCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
+import {
+  normalizeCrmProductLineAiWritingConfig,
+  requireEnabledCrmProductLineAiWritingConfig
+} from './crm-ai-draft-prompt';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
@@ -45,7 +50,9 @@ import {
   renderEmailTemplateText,
   type PersonaProfile
 } from './crm-email-template-renderer';
+import { buildPersonaMatch, toTemplatePersonaProfile, type ResolvedPersonaMatch } from './crm-persona-match';
 import {
+  CRM_AI_DRAFT_TASK_QUEUE,
   CRM_EMAIL_DNS_RESOLVER,
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_OAUTH_FLOW,
@@ -54,6 +61,12 @@ import {
 } from './crm.tokens';
 import type {
   CrmAiDraftMetadata,
+  CrmAiDraftTaskCreateLimitReason,
+  CrmAiDraftTaskCreateItemInput,
+  CrmAiDraftTaskItemRecord,
+  CrmAiDraftTaskQueuePort,
+  CrmAiDraftTaskRecord,
+  CrmAiDraftQueueConfigInput,
   CrmAiWritingStepIndex,
   CrmAccountDetailRecord,
   CrmAccountRecord,
@@ -112,10 +125,6 @@ import type {
   ImportCrmLeadInput
 } from './crm.types';
 
-type ResolvedPersonaMatch = CrmPersonaMatchInfo & {
-  templatePersona: PersonaProfile | null;
-};
-
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
@@ -137,7 +146,6 @@ const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
 ];
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
-const queuedMessageStatus: CrmMessageStatus = 'queued';
 const nextDraftEnrollmentStatuses: CrmSequenceEnrollmentStatus[] = ['ready_to_send', 'sequence_running'];
 const blockingNextDraftMessageStatuses: CrmMessageStatus[] = ['draft_pending_review', 'queued', 'failed'];
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
@@ -255,6 +263,15 @@ interface SequenceBatchOperateResult {
   results: SequenceBatchItemResult[];
 }
 
+interface CreateAiDraftTaskInput {
+  enrollmentIds: string[];
+}
+
+interface AiDraftTaskListQuery {
+  current?: number;
+  size?: number;
+}
+
 interface SequencePolicyWriteInput {
   name?: string;
   description?: string | null;
@@ -314,7 +331,10 @@ export class CrmService {
     private readonly aiDraftService?: CrmAiDraftService | null,
     @Optional()
     @Inject(CrmAiReplyDraftService)
-    private readonly aiReplyDraftService?: Pick<CrmAiReplyDraftService, 'polishReplyDraft'> | null
+    private readonly aiReplyDraftService?: Pick<CrmAiReplyDraftService, 'polishReplyDraft'> | null,
+    @Optional()
+    @Inject(CRM_AI_DRAFT_TASK_QUEUE)
+    private readonly aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -2094,6 +2114,8 @@ export class CrmService {
         enrollmentId: item.enrollment.id,
         organizationId: context.organizationId,
         ownerUserId: context.userId,
+        expectedEnrollmentStatus: nextDraftEnrollmentStatuses,
+        blockingMessageStatuses: blockingNextDraftMessageStatuses,
         message: nextMessage,
         timelineEvent: {
           organizationId: nextMessage.organizationId,
@@ -2172,6 +2194,427 @@ export class CrmService {
         return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
       }
     });
+  }
+
+  /** Creates a local CRM AI draft task and queues pending items for review-only draft generation. */
+  async createAiDraftTask(input: CreateAiDraftTaskInput, context: CrmUserContext) {
+    const enrollmentIds = normalizeSelectedEnrollmentIds(input.enrollmentIds, 200);
+    const items: CrmAiDraftTaskCreateItemInput[] = [];
+
+    for (const enrollmentId of enrollmentIds) {
+      const item = await this.store.getSequenceReviewItem({
+        id: enrollmentId,
+        organizationId: context.organizationId,
+        ownerUserId: context.userId
+      });
+
+      if (!item) {
+        items.push(this.createSkippedAiDraftTaskItem(enrollmentId, '邮件序列不存在或无权操作'));
+        continue;
+      }
+
+      const skipMessage = await this.getAiDraftTaskItemSkipMessage(item, context);
+
+      if (skipMessage) {
+        items.push(this.createSkippedAiDraftTaskItem(enrollmentId, skipMessage, item));
+        continue;
+      }
+
+      const sourceMessage = item.messages.at(-1)!;
+      items.push({
+        enrollmentId: item.enrollment.id,
+        messageId: null,
+        contactId: item.contact.id,
+        accountId: item.account.id,
+        productLineId: item.productLine?.id ?? null,
+        stepIndex: sourceMessage.stepIndex + 1,
+        status: 'pending'
+      });
+    }
+
+    const pendingCount = items.filter(item => (item.status ?? 'pending') === 'pending').length;
+    const skippedCount = items.filter(item => item.status === 'skipped').length;
+    const createResult = await this.store.createAiDraftTask({
+      organizationId: context.organizationId,
+      organizationRole: context.organizationRole,
+      ownerUserId: context.userId,
+      ownerUserName: context.userName,
+      status: pendingCount > 0 ? 'queued' : 'completed',
+      requestedCount: enrollmentIds.length,
+      items
+    });
+    const task = createResult.task;
+
+    if (!task) {
+      throw new BadRequestException(toAiDraftTaskCreateLimitMessage(createResult.limitReason));
+    }
+
+    const queuedTask =
+      pendingCount > 0
+        ? await this.enqueueAiDraftTaskIfPossible(task)
+        : await this.completeSkippedAiDraftTask(task, {
+            requestedCount: task.requestedCount,
+            successCount: 0,
+            skippedCount,
+            failedCount: 0
+          });
+    const savedItems = await this.store.listAiDraftTaskItems({ taskId: task.id });
+
+    await this.recordCrmLog('ai-draft-task-create', 'CRM 批量 AI 草稿任务创建', context, {
+      taskId: task.id,
+      requestedCount: task.requestedCount,
+      pendingCount,
+      skippedCount
+    });
+
+    return {
+      task: toAiDraftTaskView(queuedTask),
+      items: savedItems.map(toAiDraftTaskItemView)
+    };
+  }
+
+  private async enqueueAiDraftTaskIfPossible(task: CrmAiDraftTaskRecord) {
+    if (!this.aiDraftTaskQueue) {
+      return task;
+    }
+
+    try {
+      const { jobId } = await this.aiDraftTaskQueue.enqueueTask({
+        taskId: task.id,
+        organizationId: task.organizationId,
+        ownerUserId: task.ownerUserId,
+        runVersion: task.runVersion
+      });
+      const updatedTask = await this.store.updateAiDraftTask(
+        task.id,
+        { bullJobId: jobId },
+        {
+          organizationId: task.organizationId,
+          ownerUserId: task.ownerUserId,
+          status: ['queued', 'running'],
+          runVersion: task.runVersion
+        }
+      );
+
+      return updatedTask ?? task;
+    } catch (error) {
+      const failureReason = error instanceof Error ? error.message : String(error);
+      const failedTask = await this.store.updateAiDraftTask(
+        task.id,
+        {
+          status: 'failed',
+          failureReason,
+          readAt: null,
+          finishedAt: new Date()
+        },
+        {
+          organizationId: task.organizationId,
+          ownerUserId: task.ownerUserId,
+          status: 'queued',
+          runVersion: task.runVersion
+        }
+      );
+
+      throw new ServiceUnavailableException(failedTask?.failureReason || 'CRM 批量 AI 草稿队列不可用');
+    }
+  }
+
+  private async completeSkippedAiDraftTask(
+    task: CrmAiDraftTaskRecord,
+    summary: NonNullable<CrmAiDraftTaskRecord['resultSummary']>
+  ) {
+    const completedTask =
+      (await this.store.updateAiDraftTask(
+        task.id,
+        {
+          resultSummary: summary,
+          readAt: null,
+          notifiedAt: new Date(),
+          finishedAt: task.finishedAt ?? new Date()
+        },
+        {
+          organizationId: task.organizationId,
+          ownerUserId: task.ownerUserId,
+          status: 'completed',
+          runVersion: task.runVersion
+        }
+      )) ?? task;
+
+    await this.systemNotificationService?.create({
+      userId: task.ownerUserId,
+      userName: task.ownerUserName,
+      module: 'crm',
+      type: 'crm_ai_draft_task_completed',
+      title: '批量 AI 草稿任务已完成',
+      content: '本次 CRM AI 草稿任务已结束，请回到邮件序列页查看跳过原因。',
+      targetType: 'crmAiDraftTask',
+      targetId: task.id,
+      routePath: '/crm/email-sequences',
+      metadata: {
+        taskId: task.id,
+        resultSummary: summary
+      }
+    });
+
+    return {
+      ...completedTask,
+      resultSummary: completedTask.resultSummary ?? summary
+    };
+  }
+
+  async getCurrentAiDraftTask(context: CrmUserContext) {
+    const task = await this.store.findCurrentAiDraftTaskForUser({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!task) {
+      return null;
+    }
+
+    return this.toAiDraftTaskDetail(task);
+  }
+
+  async listAiDraftTasks(context: CrmUserContext, query: AiDraftTaskListQuery = {}) {
+    const current = normalizePositiveInteger(query.current, defaultPage);
+    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
+    const result = await this.store.listAiDraftTasks({
+      organizationId: context.organizationId,
+      ownerUserId: isOrganizationAdmin(context) ? undefined : context.userId,
+      skip: (current - 1) * size,
+      take: size
+    });
+
+    return {
+      current,
+      size,
+      total: result.total,
+      records: result.records.map(toAiDraftTaskView)
+    };
+  }
+
+  async getAiDraftTaskDetail(id: string, context: CrmUserContext) {
+    const task = await this.requireScopedAiDraftTask(id, context);
+
+    return this.toAiDraftTaskDetail(task);
+  }
+
+  async retryFailedAiDraftTask(id: string, context: CrmUserContext) {
+    const task = await this.requireOwnedAiDraftTask(id, context);
+
+    if (crmAiDraftActiveTaskStatuses.includes(task.status)) {
+      throw new BadRequestException('AI 草稿任务仍在运行中，不能重试');
+    }
+
+    const items = await this.store.listAiDraftTaskItems({ taskId: task.id });
+    const retryableItems = items.filter(item => item.status === 'failed' && item.failureType === 'retryable');
+
+    if (retryableItems.length === 0) {
+      throw new BadRequestException('没有可重试的失败草稿');
+    }
+
+    for (const item of retryableItems) {
+      await this.store.updateAiDraftTaskItem(
+        item.id,
+        {
+          status: 'pending',
+          attemptCount: 0,
+          failureType: null,
+          failureReason: null,
+          metadata: { ...item.metadata, nextRetryAt: null },
+          startedAt: null,
+          finishedAt: null
+        },
+        {
+          taskId: task.id,
+          organizationId: task.organizationId,
+          ownerUserId: task.ownerUserId,
+          status: 'failed'
+        }
+      );
+    }
+
+    const nextRunVersion = task.runVersion + 1;
+    const updatedItems = await this.store.listAiDraftTaskItems({ taskId: task.id });
+    const counts = countAiDraftTaskItemRecords(updatedItems);
+    const queuedTask = await this.store.updateAiDraftTask(
+      task.id,
+      {
+        status: 'queued',
+        runVersion: nextRunVersion,
+        bullJobId: null,
+        ...counts,
+        failureReason: null,
+        progressState: null,
+        resultSummary: {
+          requestedCount: task.requestedCount,
+          successCount: counts.successCount,
+          skippedCount: counts.skippedCount,
+          failedCount: counts.failedCount
+        },
+        readAt: null,
+        notifiedAt: null,
+        startedAt: null,
+        finishedAt: null
+      },
+      {
+        organizationId: task.organizationId,
+        ownerUserId: task.ownerUserId,
+        status: ['completed', 'failed', 'cancelled'],
+        runVersion: task.runVersion
+      }
+    );
+
+    if (!queuedTask) {
+      throw new BadRequestException('AI 草稿任务状态已变化，请刷新后重试');
+    }
+
+    const enqueuedTask = await this.enqueueAiDraftTaskIfPossible(queuedTask);
+
+    await this.recordCrmLog('ai-draft-task-retry-failed', 'CRM 批量 AI 草稿任务重试失败项', context, {
+      taskId: task.id,
+      retryCount: retryableItems.length,
+      runVersion: nextRunVersion
+    });
+
+    return this.toAiDraftTaskDetail(enqueuedTask);
+  }
+
+  async cancelAiDraftTask(id: string, context: CrmUserContext) {
+    const task = await this.requireOwnedAiDraftTask(id, context);
+
+    if (!crmAiDraftActiveTaskStatuses.includes(task.status)) {
+      throw new BadRequestException('AI 草稿任务已结束，不能取消');
+    }
+
+    const nextRunVersion = task.runVersion + 1;
+    const bullJobId = task.bullJobId;
+    const cancelledTask = await this.store.updateAiDraftTask(
+      task.id,
+      {
+        status: 'cancelled',
+        runVersion: nextRunVersion,
+        bullJobId: null,
+        failureReason: '用户取消任务',
+        readAt: null,
+        finishedAt: new Date()
+      },
+      {
+        organizationId: task.organizationId,
+        ownerUserId: task.ownerUserId,
+        status: crmAiDraftActiveTaskStatuses,
+        runVersion: task.runVersion
+      }
+    );
+
+    if (!cancelledTask) {
+      throw new BadRequestException('AI 草稿任务状态已变化，请刷新后重试');
+    }
+
+    const items = await this.store.listAiDraftTaskItems({ taskId: task.id });
+
+    for (const item of items.filter(record => ['pending', 'running', 'retrying'].includes(record.status))) {
+      await this.store.updateAiDraftTaskItem(
+        item.id,
+        {
+          status: 'skipped',
+          failureType: 'business_skip',
+          failureReason: '用户取消任务',
+          finishedAt: new Date()
+        },
+        {
+          taskId: task.id,
+          organizationId: task.organizationId,
+          ownerUserId: task.ownerUserId,
+          status: ['pending', 'running', 'retrying']
+        }
+      );
+    }
+
+    if (bullJobId && this.aiDraftTaskQueue) {
+      await this.aiDraftTaskQueue.removeTaskJob(bullJobId);
+    }
+
+    const updatedItems = await this.store.listAiDraftTaskItems({ taskId: task.id });
+    const counts = countAiDraftTaskItemRecords(updatedItems);
+    const refreshedTask =
+      (await this.store.updateAiDraftTask(
+        task.id,
+        {
+          ...counts,
+          resultSummary: {
+            requestedCount: task.requestedCount,
+            successCount: counts.successCount,
+            skippedCount: counts.skippedCount,
+            failedCount: counts.failedCount
+          }
+        },
+        {
+          organizationId: task.organizationId,
+          ownerUserId: task.ownerUserId,
+          status: 'cancelled',
+          runVersion: nextRunVersion
+        }
+      )) ?? cancelledTask;
+
+    await this.recordCrmLog('ai-draft-task-cancel', 'CRM 批量 AI 草稿任务取消', context, {
+      taskId: task.id,
+      runVersion: nextRunVersion
+    });
+
+    return this.toAiDraftTaskDetail(refreshedTask);
+  }
+
+  async markAiDraftTaskRead(id: string, context: CrmUserContext) {
+    const task = await this.requireOwnedAiDraftTask(id, context);
+
+    if (crmAiDraftActiveTaskStatuses.includes(task.status)) {
+      throw new BadRequestException('AI 草稿任务未结束，不能标记已读');
+    }
+
+    const updatedTask = await this.store.updateAiDraftTask(
+      task.id,
+      { readAt: new Date() },
+      {
+        organizationId: task.organizationId,
+        ownerUserId: task.ownerUserId,
+        status: ['completed', 'failed', 'cancelled'],
+        runVersion: task.runVersion
+      }
+    );
+
+    if (!updatedTask) {
+      throw new BadRequestException('AI 草稿任务状态已变化，请刷新后重试');
+    }
+
+    await this.systemNotificationService?.markTargetReadForUser('crmAiDraftTask', task.id, context.userId);
+
+    return {
+      task: toAiDraftTaskView(updatedTask)
+    };
+  }
+
+  async getAiDraftQueueConfig() {
+    return toAiDraftQueueConfigView(await this.store.getAiDraftQueueConfig());
+  }
+
+  async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput, context: CrmUserContext) {
+    const config = await this.store.saveAiDraftQueueConfig({
+      ...input,
+      updatedById: context.userId,
+      updatedByName: context.userName
+    });
+
+    await this.aiDraftTaskQueue?.applyGlobalConcurrency(config.maxActiveTasksPerOrg);
+    await this.recordCrmLog('ai-draft-queue-config-save', 'CRM AI 草稿队列配置保存', context, {
+      itemConcurrency: config.itemConcurrency,
+      maxItemConcurrency: config.maxItemConcurrency,
+      maxActiveTasksPerUser: config.maxActiveTasksPerUser,
+      maxActiveTasksPerOrg: config.maxActiveTasksPerOrg,
+      maxAttempts: config.maxAttempts
+    });
+
+    return toAiDraftQueueConfigView(config);
   }
 
   /** Confirms pending owner drafts locally without Gmail, BullMQ, or send queue side effects. */
@@ -3405,6 +3848,102 @@ export class CrmService {
     return null;
   }
 
+  private async getAiDraftTaskItemSkipMessage(item: CrmSequenceReviewRecord, context: CrmUserContext) {
+    const nextDraftSkipMessage = this.getNextDraftSkipMessage(item);
+
+    if (nextDraftSkipMessage) {
+      return nextDraftSkipMessage;
+    }
+
+    if (item.contact.emailStatus === 'unsubscribed') {
+      return '联系人已退订，不能继续开发';
+    }
+
+    const blacklistEntry = await this.store.findBlacklistEntry({
+      organizationId: context.organizationId,
+      emailHash: item.contact.emailHash
+    });
+
+    if (blacklistEntry) {
+      return '该邮箱已在组织黑名单中，不能继续开发';
+    }
+
+    if (!item.productLine || item.productLine.status !== 'active' || !item.productLine.aiWritingConfig?.enabled) {
+      return '产品资料未启用 AI 写信';
+    }
+
+    const sourceMessage = item.messages.at(-1)!;
+    const stepIndex = sourceMessage.stepIndex + 1;
+
+    try {
+      const writingConfig = requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
+      const stepConfig = writingConfig.steps.find(step => step.stepIndex === stepIndex);
+
+      if (!stepConfig?.prompt) {
+        return `产品资料缺少第 ${stepIndex} 封 AI 写信提示词`;
+      }
+    } catch (error) {
+      return error instanceof Error ? error.message : '产品资料 AI 写信配置不完整';
+    }
+
+    return null;
+  }
+
+  private async requireScopedAiDraftTask(id: string, context: CrmUserContext) {
+    const task = await this.store.findAiDraftTaskById({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: isOrganizationAdmin(context) ? undefined : context.userId
+    });
+
+    if (!task) {
+      throw new NotFoundException('AI 草稿任务不存在');
+    }
+
+    return task;
+  }
+
+  private async requireOwnedAiDraftTask(id: string, context: CrmUserContext) {
+    const task = await this.store.findAiDraftTaskById({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!task) {
+      throw new NotFoundException('AI 草稿任务不存在或无权操作');
+    }
+
+    return task;
+  }
+
+  private async toAiDraftTaskDetail(task: CrmAiDraftTaskRecord) {
+    const items = await this.store.listAiDraftTaskItems({ taskId: task.id });
+
+    return {
+      task: toAiDraftTaskView(task),
+      items: items.map(toAiDraftTaskItemView)
+    };
+  }
+
+  private createSkippedAiDraftTaskItem(
+    enrollmentId: string,
+    failureReason: string,
+    item?: CrmSequenceReviewRecord
+  ): CrmAiDraftTaskCreateItemInput {
+    return {
+      enrollmentId,
+      messageId: null,
+      contactId: item?.contact.id ?? null,
+      accountId: item?.account.id ?? null,
+      productLineId: item?.productLine?.id ?? null,
+      stepIndex: 0,
+      status: 'skipped',
+      failureType: 'business_skip',
+      failureReason
+    };
+  }
+
   /** Returns the pending draft that can be confirmed locally without queueing a send job. */
   private getPendingLocalApprovalMessage(item: CrmSequenceReviewRecord) {
     const pendingMessage = [...item.messages]
@@ -4200,6 +4739,35 @@ function toMessageView(record: CrmMessageRecord) {
   };
 }
 
+function toAiDraftTaskView(record: CrmAiDraftTaskRecord) {
+  return {
+    ...record,
+    readAt: record.readAt?.toISOString() ?? null,
+    notifiedAt: record.notifiedAt?.toISOString() ?? null,
+    startedAt: record.startedAt?.toISOString() ?? null,
+    finishedAt: record.finishedAt?.toISOString() ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toAiDraftTaskItemView(record: CrmAiDraftTaskItemRecord) {
+  return {
+    ...record,
+    startedAt: record.startedAt?.toISOString() ?? null,
+    finishedAt: record.finishedAt?.toISOString() ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toAiDraftQueueConfigView(record: Awaited<ReturnType<CrmStore['getAiDraftQueueConfig']>>) {
+  return {
+    ...record,
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
 function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
   return {
     ...record,
@@ -4558,6 +5126,24 @@ function normalizeLimitedContent(value: string, emptyMessage: string, maxLength 
   return normalized;
 }
 
+function normalizeSelectedEnrollmentIds(value: string[], maxSize: number) {
+  if (!Array.isArray(value)) {
+    throw new BadRequestException('请选择邮件序列');
+  }
+
+  const ids = [...new Set(value.map(item => item.trim()).filter(Boolean))];
+
+  if (ids.length === 0) {
+    throw new BadRequestException('请选择邮件序列');
+  }
+
+  if (ids.length > maxSize) {
+    throw new BadRequestException(`一次最多选择 ${maxSize} 条邮件序列`);
+  }
+
+  return ids;
+}
+
 function parseOptionalDate(value?: string | null) {
   const normalized = normalizeNullableString(value);
 
@@ -4815,125 +5401,6 @@ function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex
   return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
 }
 
-function buildPersonaMatch(
-  profiles: CrmPersonaProfileRecord[],
-  account: Pick<CrmAccountRecord, 'customerType'>,
-  contact: Pick<CrmContactRecord, 'title'>
-): ResolvedPersonaMatch {
-  const normalizedTitle = contact.title?.trim().toLowerCase() ?? '';
-  const normalizedCustomerType = account.customerType?.trim().toLowerCase() ?? '';
-  const titleMatchedProfile = findMatchedPersonaProfile(profiles, normalizedTitle, 'titleKeywordsText');
-
-  if (titleMatchedProfile.profile) {
-    return toResolvedPersonaMatch(titleMatchedProfile.profile, 'title', [titleMatchedProfile.keyword], null);
-  }
-
-  const customerTypeMatchedProfile = findMatchedPersonaProfile(
-    profiles,
-    normalizedCustomerType,
-    'customerTypeKeywordsText'
-  );
-
-  if (customerTypeMatchedProfile.profile) {
-    return toResolvedPersonaMatch(
-      customerTypeMatchedProfile.profile,
-      'customer_type',
-      [customerTypeMatchedProfile.keyword],
-      null
-    );
-  }
-
-  const defaultProfile = findDefaultPersonaProfile(profiles);
-
-  if (defaultProfile) {
-    return toResolvedPersonaMatch(defaultProfile, 'default', [], '未命中职位或客户类型关键词，使用默认画像');
-  }
-
-  const builtInProfile = findPersonaProfile(contact.title);
-
-  if (builtInProfile) {
-    const matchedKeyword = findMatchedBuiltinPersonaKeyword(builtInProfile, normalizedTitle);
-
-    return {
-      persona: {
-        id: null,
-        name: builtInProfile.label,
-        source: 'builtin'
-      },
-      matchMethod: 'builtin',
-      matchedKeywords: matchedKeyword ? [matchedKeyword] : [],
-      fallbackReason: '未配置或未命中组织画像，使用内置职位画像',
-      templatePersona: {
-        ...builtInProfile,
-        aliases: [...builtInProfile.aliases],
-        source: 'built_in'
-      }
-    };
-  }
-
-  return {
-    persona: null,
-    matchMethod: 'none',
-    matchedKeywords: [],
-    fallbackReason: '未命中组织画像或内置职位画像，按通用开发信生成',
-    templatePersona: null
-  };
-}
-
-function findDefaultPersonaProfile(profiles: CrmPersonaProfileRecord[]) {
-  return profiles.find(profile => profile.isDefault) ?? null;
-}
-
-/** Finds the first profile keyword contained by a normalized CRM field value. */
-function findMatchedPersonaProfile(
-  profiles: CrmPersonaProfileRecord[],
-  normalizedValue: string,
-  keywordField: 'titleKeywordsText' | 'customerTypeKeywordsText'
-) {
-  if (!normalizedValue) {
-    return { profile: null, keyword: '' };
-  }
-
-  for (const profile of profiles) {
-    const keyword = splitPersonaKeywords(profile[keywordField]).find(item =>
-      normalizedValue.includes(item.toLowerCase())
-    );
-
-    if (keyword) {
-      return { profile, keyword };
-    }
-  }
-
-  return { profile: null, keyword: '' };
-}
-
-function toResolvedPersonaMatch(
-  profile: CrmPersonaProfileRecord,
-  matchMethod: 'title' | 'customer_type' | 'default',
-  matchedKeywords: string[],
-  fallbackReason: string | null
-): ResolvedPersonaMatch {
-  return {
-    persona: {
-      id: profile.id,
-      name: profile.name,
-      source: 'organization'
-    },
-    matchMethod,
-    matchedKeywords,
-    fallbackReason,
-    templatePersona: toTemplatePersonaProfile(profile)
-  };
-}
-
-function findMatchedBuiltinPersonaKeyword(profile: PersonaProfile, normalizedTitle: string) {
-  if (!normalizedTitle) {
-    return '';
-  }
-
-  return profile.aliases.find(alias => normalizedTitle.includes(alias.toLowerCase())) ?? '';
-}
-
 function toPersonaMatchView(match: ResolvedPersonaMatch): CrmPersonaMatchInfo {
   return {
     persona: match.persona,
@@ -4961,23 +5428,6 @@ function buildPersonaMatchChecklistMessage(
   }
 
   return contact.title ? match.fallbackReason : '缺少联系人职位，按通用开发信生成';
-}
-
-function toTemplatePersonaProfile(record: CrmPersonaProfileRecord): PersonaProfile {
-  const titleKeywords = splitPersonaKeywords(record.titleKeywordsText);
-  const customerTypeKeywords = splitPersonaKeywords(record.customerTypeKeywordsText);
-  const focusText = record.focusText || record.painPoints || record.description || record.name;
-
-  return {
-    id: record.id,
-    label: record.name,
-    aliases: [...titleKeywords, ...customerTypeKeywords],
-    focusText,
-    draftFocusText: focusText,
-    painPoints: record.painPoints,
-    avoidText: record.avoidText,
-    source: 'organization'
-  };
 }
 
 function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {
@@ -5023,18 +5473,6 @@ function toAiWritingStepIndex(stepIndex: number): CrmAiWritingStepIndex {
   }
 
   return stepIndex as CrmAiWritingStepIndex;
-}
-
-/** Splits persisted persona keyword text for lightweight title/customer-type matching. */
-function splitPersonaKeywords(value?: string | null) {
-  return [
-    ...new Set(
-      (value ?? '')
-        .split(/[\n,，;；]+/)
-        .map(item => item.trim())
-        .filter(Boolean)
-    )
-  ];
 }
 
 /** Builds a conservative first-touch draft from verified CRM fields only. */
@@ -5235,6 +5673,29 @@ function normalizePositiveInteger(value: number | string | undefined, fallback: 
 
   const numberValue = Number(value);
   return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
+}
+
+function toAiDraftTaskCreateLimitMessage(reason: CrmAiDraftTaskCreateLimitReason | undefined) {
+  if (reason === 'organization_active_limit') {
+    return '当前组织进行中的 AI 草稿任务已达到上限，请稍后再试';
+  }
+
+  if (reason === 'concurrent_create_conflict') {
+    return 'AI 草稿任务创建冲突，请稍后重试';
+  }
+
+  return '当前用户已有进行中的 AI 草稿任务，请完成后再创建';
+}
+
+function countAiDraftTaskItemRecords(items: CrmAiDraftTaskItemRecord[]) {
+  return {
+    successCount: items.filter(item => item.status === 'succeeded').length,
+    skippedCount: items.filter(item => item.status === 'skipped').length,
+    failedCount: items.filter(item => item.status === 'failed').length,
+    retryingCount: items.filter(item => item.status === 'retrying').length,
+    runningCount: items.filter(item => item.status === 'running').length,
+    pendingCount: items.filter(item => item.status === 'pending').length
+  };
 }
 
 function hasOwn<T extends object>(object: T, key: PropertyKey) {

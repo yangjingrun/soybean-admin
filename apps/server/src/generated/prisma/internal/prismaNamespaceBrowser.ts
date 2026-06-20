@@ -76,6 +76,9 @@ export const ModelName = {
   CrmMessageDraftVersion: 'CrmMessageDraftVersion',
   CrmInboxThread: 'CrmInboxThread',
   CrmInboxMessage: 'CrmInboxMessage',
+  CrmAiDraftTask: 'CrmAiDraftTask',
+  CrmAiDraftTaskItem: 'CrmAiDraftTaskItem',
+  CrmAiDraftQueueConfig: 'CrmAiDraftQueueConfig',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -599,6 +602,82 @@ export const CrmInboxMessageScalarFieldEnum = {
 } as const
 
 export type CrmInboxMessageScalarFieldEnum = (typeof CrmInboxMessageScalarFieldEnum)[keyof typeof CrmInboxMessageScalarFieldEnum]
+
+
+export const CrmAiDraftTaskScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  organizationRole: 'organizationRole',
+  ownerUserId: 'ownerUserId',
+  ownerUserName: 'ownerUserName',
+  status: 'status',
+  runVersion: 'runVersion',
+  bullJobId: 'bullJobId',
+  requestedCount: 'requestedCount',
+  successCount: 'successCount',
+  skippedCount: 'skippedCount',
+  failedCount: 'failedCount',
+  retryingCount: 'retryingCount',
+  runningCount: 'runningCount',
+  pendingCount: 'pendingCount',
+  effectiveConcurrency: 'effectiveConcurrency',
+  maxAttempts: 'maxAttempts',
+  failureReason: 'failureReason',
+  progressState: 'progressState',
+  resultSummary: 'resultSummary',
+  readAt: 'readAt',
+  notifiedAt: 'notifiedAt',
+  startedAt: 'startedAt',
+  finishedAt: 'finishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmAiDraftTaskScalarFieldEnum = (typeof CrmAiDraftTaskScalarFieldEnum)[keyof typeof CrmAiDraftTaskScalarFieldEnum]
+
+
+export const CrmAiDraftTaskItemScalarFieldEnum = {
+  id: 'id',
+  taskId: 'taskId',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  enrollmentId: 'enrollmentId',
+  messageId: 'messageId',
+  contactId: 'contactId',
+  accountId: 'accountId',
+  productLineId: 'productLineId',
+  stepIndex: 'stepIndex',
+  status: 'status',
+  attemptCount: 'attemptCount',
+  maxAttempts: 'maxAttempts',
+  failureType: 'failureType',
+  failureReason: 'failureReason',
+  draftSubject: 'draftSubject',
+  draftBodyText: 'draftBodyText',
+  metadata: 'metadata',
+  startedAt: 'startedAt',
+  finishedAt: 'finishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmAiDraftTaskItemScalarFieldEnum = (typeof CrmAiDraftTaskItemScalarFieldEnum)[keyof typeof CrmAiDraftTaskItemScalarFieldEnum]
+
+
+export const CrmAiDraftQueueConfigScalarFieldEnum = {
+  configKey: 'configKey',
+  itemConcurrency: 'itemConcurrency',
+  maxItemConcurrency: 'maxItemConcurrency',
+  maxActiveTasksPerUser: 'maxActiveTasksPerUser',
+  maxActiveTasksPerOrg: 'maxActiveTasksPerOrg',
+  maxAttempts: 'maxAttempts',
+  retryBackoffSeconds: 'retryBackoffSeconds',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmAiDraftQueueConfigScalarFieldEnum = (typeof CrmAiDraftQueueConfigScalarFieldEnum)[keyof typeof CrmAiDraftQueueConfigScalarFieldEnum]
 
 
 export const AiPromptConfigScalarFieldEnum = {

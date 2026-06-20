@@ -24,6 +24,8 @@ type CrmOrganizationConfigView = Awaited<ReturnType<CrmService['getOrganizationC
 type CrmPersonaProfileView = Awaited<ReturnType<CrmService['listPersonaProfiles']>>['records'][number];
 type CrmProductLineView = Awaited<ReturnType<CrmService['listProductLines']>>['records'][number];
 type CrmAiDraftPreviewView = Awaited<ReturnType<CrmService['previewAiDraft']>>;
+type CrmAiDraftTaskCreateView = Awaited<ReturnType<CrmService['createAiDraftTask']>>;
+type CrmAiDraftQueueConfigView = Awaited<ReturnType<CrmService['getAiDraftQueueConfig']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -868,6 +870,80 @@ describe('CrmController', () => {
     );
   });
 
+  it('creates CRM AI draft tasks with the current user context', async () => {
+    const calls: Array<{ dto: { enrollmentIds: string[] }; context: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async createAiDraftTask(dto, context) {
+          calls.push({ dto, context });
+
+          return createAiDraftTaskCreateView({
+            requestedCount: dto.enrollmentIds.length,
+            pendingCount: 1,
+            skippedCount: 1
+          });
+        }
+      })
+    );
+
+    const dto = { enrollmentIds: ['enrollment-1', 'enrollment-2'] };
+    const result = await controller.createAiDraftTask('Bearer token', dto);
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.task.requestedCount, 2);
+    assert.equal(calls[0].dto, dto);
+    assert.equal(calls[0].context.userId, 'user-1');
+    assert.equal(calls[0].context.organizationId, 'org-1');
+  });
+
+  it('routes CRM AI draft task progress actions with the current user context', async () => {
+    const calls: Array<{ action: string; id?: string; context: CrmUserContext; query?: unknown }> = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async getCurrentAiDraftTask(context) {
+          calls.push({ action: 'current', context });
+          return createAiDraftTaskCreateView();
+        },
+        async listAiDraftTasks(context, query) {
+          calls.push({ action: 'list', context, query });
+          return { current: 1, size: 20, total: 1, records: [createAiDraftTaskCreateView().task] };
+        },
+        async getAiDraftTaskDetail(id, context) {
+          calls.push({ action: 'detail', id, context });
+          return createAiDraftTaskCreateView();
+        },
+        async retryFailedAiDraftTask(id, context) {
+          calls.push({ action: 'retry', id, context });
+          return createAiDraftTaskCreateView({ status: 'queued' });
+        },
+        async cancelAiDraftTask(id, context) {
+          calls.push({ action: 'cancel', id, context });
+          return createAiDraftTaskCreateView({ status: 'cancelled' });
+        },
+        async markAiDraftTaskRead(id, context) {
+          calls.push({ action: 'read', id, context });
+          return { task: createAiDraftTaskCreateView({ readAt: '2026-06-20T10:00:00.000Z' }).task };
+        }
+      })
+    );
+
+    await controller.getCurrentAiDraftTask('Bearer token');
+    await controller.listAiDraftTasks('Bearer token', { current: 1, size: 20 });
+    await controller.getAiDraftTaskDetail('Bearer token', 'ai-draft-task-1');
+    await controller.retryFailedAiDraftTask('Bearer token', 'ai-draft-task-1');
+    await controller.cancelAiDraftTask('Bearer token', 'ai-draft-task-1');
+    const read = await controller.markAiDraftTaskRead('Bearer token', 'ai-draft-task-1');
+
+    assert.equal(read.data.task.readAt, '2026-06-20T10:00:00.000Z');
+    assert.deepEqual(
+      calls.map(call => call.action),
+      ['current', 'list', 'detail', 'retry', 'cancel', 'read']
+    );
+    assert.equal(calls.every(call => call.context.userId === 'user-1'), true);
+  });
+
   it('lists local strategy stats with the current user context', async () => {
     const calls: CrmUserContext[] = [];
     const controller = new CrmController(
@@ -1362,6 +1438,40 @@ describe('CrmController', () => {
       ForbiddenException
     );
   });
+
+  it('lets super admins read and save CRM AI draft queue config', async () => {
+    const calls: Array<{ dto?: { itemConcurrency?: number }; context?: CrmUserContext }> = [];
+    const controller = new CrmController(
+      createAuthService(createUser({ roles: ['R_SUPER'] })),
+      createCrmService({
+        async getAiDraftQueueConfig() {
+          return createAiDraftQueueConfigView({ itemConcurrency: 3 });
+        },
+        async saveAiDraftQueueConfig(dto, context) {
+          calls.push({ dto, context });
+
+          return createAiDraftQueueConfigView({ itemConcurrency: dto.itemConcurrency });
+        }
+      })
+    );
+
+    const loaded = await controller.getAiDraftQueueConfig('Bearer token');
+    const saved = await controller.saveAiDraftQueueConfig('Bearer token', { itemConcurrency: 5 });
+
+    assert.equal(loaded.data.itemConcurrency, 3);
+    assert.equal(saved.data.itemConcurrency, 5);
+    assert.equal(calls[0].context?.roles.includes('R_SUPER'), true);
+  });
+
+  it('rejects ordinary users from CRM AI draft queue config endpoints', async () => {
+    const controller = new CrmController(createAuthService(), createCrmService());
+
+    await assert.rejects(() => controller.getAiDraftQueueConfig('Bearer token'), ForbiddenException);
+    await assert.rejects(
+      () => controller.saveAiDraftQueueConfig('Bearer token', { itemConcurrency: 5 }),
+      ForbiddenException
+    );
+  });
 });
 
 function createAuthService(user: ReturnType<typeof createUser> | null = createUser()): AuthService {
@@ -1849,6 +1959,24 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
   };
 }
 
+function createAiDraftQueueConfigView(
+  overrides: Partial<CrmAiDraftQueueConfigView> = {}
+): CrmAiDraftQueueConfigView {
+  return {
+    configKey: 'crm-ai-draft',
+    itemConcurrency: 3,
+    maxItemConcurrency: 5,
+    maxActiveTasksPerUser: 1,
+    maxActiveTasksPerOrg: 2,
+    maxAttempts: 3,
+    retryBackoffSeconds: [30, 60, 120],
+    updatedById: null,
+    updatedByName: null,
+    updatedAt: '2026-06-20T09:00:00.000Z',
+    ...overrides
+  };
+}
+
 function createOrganizationConfigView(overrides: Partial<CrmOrganizationConfigView> = {}): CrmOrganizationConfigView {
   return {
     id: 'crm-organization-config-1',
@@ -1856,6 +1984,43 @@ function createOrganizationConfigView(overrides: Partial<CrmOrganizationConfigVi
     allowAdminViewMemberEmailBody: false,
     updatedAt: '2026-06-18T10:00:00.000Z',
     ...overrides
+  };
+}
+
+function createAiDraftTaskCreateView(
+  overrides: Partial<CrmAiDraftTaskCreateView['task']> = {}
+): CrmAiDraftTaskCreateView {
+  return {
+    task: {
+      id: 'ai-draft-task-1',
+      organizationId: 'org-1',
+      organizationRole: 'member',
+      ownerUserId: 'user-1',
+      ownerUserName: 'Alice',
+      status: 'queued',
+      runVersion: 1,
+      bullJobId: null,
+      requestedCount: 1,
+      successCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      retryingCount: 0,
+      runningCount: 0,
+      pendingCount: 1,
+      effectiveConcurrency: 3,
+      maxAttempts: 3,
+      failureReason: null,
+      progressState: null,
+      resultSummary: null,
+      readAt: null,
+      notifiedAt: null,
+      startedAt: null,
+      finishedAt: null,
+      createdAt: '2026-06-20T09:00:00.000Z',
+      updatedAt: '2026-06-20T09:00:00.000Z',
+      ...overrides
+    },
+    items: []
   };
 }
 
@@ -1952,6 +2117,12 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async saveGlobalConfig() {
       return createGlobalConfigView();
+    },
+    async getAiDraftQueueConfig() {
+      return createAiDraftQueueConfigView();
+    },
+    async saveAiDraftQueueConfig() {
+      return createAiDraftQueueConfigView();
     },
     async getOrganizationConfig() {
       return createOrganizationConfigView();
@@ -2103,6 +2274,32 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async batchGenerateNextDrafts() {
       return createSequenceBatchOperateView();
+    },
+    async createAiDraftTask() {
+      return createAiDraftTaskCreateView();
+    },
+    async getCurrentAiDraftTask() {
+      return createAiDraftTaskCreateView();
+    },
+    async listAiDraftTasks() {
+      return {
+        current: 1,
+        size: 20,
+        total: 0,
+        records: []
+      };
+    },
+    async getAiDraftTaskDetail() {
+      return createAiDraftTaskCreateView();
+    },
+    async retryFailedAiDraftTask() {
+      return createAiDraftTaskCreateView({ status: 'queued' });
+    },
+    async cancelAiDraftTask() {
+      return createAiDraftTaskCreateView({ status: 'cancelled' });
+    },
+    async markAiDraftTaskRead() {
+      return { task: createAiDraftTaskCreateView({ readAt: '2026-06-20T10:00:00.000Z' }).task };
     },
     async batchApproveMessageDrafts() {
       return createSequenceBatchOperateView();

@@ -20,6 +20,7 @@ import {
 
 const emit = defineEmits<{
   batchApproveDrafts: [];
+  createAiDraftTask: [];
   batchGenerateNextDrafts: [];
   batchStopSequences: [];
   review: [record: Api.Crm.SequenceReviewItem];
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 
 const props = defineProps<{
   batchDraftApproving?: boolean;
+  aiDraftTaskCreating?: boolean;
   batchNextDraftGenerating?: boolean;
   batchSequenceStopping?: boolean;
   checkedRowKeys: DataTableRowKey[];
@@ -43,7 +45,13 @@ const props = defineProps<{
 }>();
 
 const batchBusy = computed(() =>
-  Boolean(props.loading || props.batchDraftApproving || props.batchNextDraftGenerating || props.batchSequenceStopping)
+  Boolean(
+    props.loading ||
+      props.batchDraftApproving ||
+      props.aiDraftTaskCreating ||
+      props.batchNextDraftGenerating ||
+      props.batchSequenceStopping
+  )
 );
 const batchNextDraftResultDisplays = inject(sequenceBatchResultDisplayKey);
 const recentBatchResultItems = computed(() => batchNextDraftResultDisplays?.value ?? []);
@@ -270,6 +278,16 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
           @click="emit('batchApproveDrafts')"
         >
           批量确认草稿
+        </NButton>
+        <NButton
+          size="small"
+          type="primary"
+          secondary
+          :disabled="batchSelectionSummary.generateNextDraftCount === 0 || batchBusy"
+          :loading="aiDraftTaskCreating"
+          @click="emit('createAiDraftTask')"
+        >
+          批量 AI 生成草稿
         </NButton>
         <NButton
           size="small"

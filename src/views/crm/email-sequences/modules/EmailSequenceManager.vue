@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BulkAiDraftTaskDrawer from './BulkAiDraftTaskDrawer.vue';
 import DraftReviewDrawer from './DraftReviewDrawer.vue';
 import EmailSequenceTable from './EmailSequenceTable.vue';
 import EmailSequenceToolbar from './EmailSequenceToolbar.vue';
@@ -7,6 +8,13 @@ import { useEmailSequenceTable } from './useEmailSequenceTable';
 
 const {
   accountSelectOptions,
+  aiDraftTaskCancelling,
+  aiDraftTaskCreating,
+  aiDraftTaskDetail,
+  aiDraftTaskDrawerVisible,
+  aiDraftTaskLoading,
+  aiDraftTaskReading,
+  aiDraftTaskRetrying,
   batchDraftApproving,
   batchNextDraftGenerating,
   batchSequenceStopping,
@@ -28,9 +36,12 @@ const {
   handleAccountChange,
   handleApproveDraft,
   handleBatchApproveDrafts,
+  handleAiDraftTaskDrawerVisibleUpdate,
   handleBatchGenerateNextDrafts,
   handleBatchStopSequences,
+  handleCancelAiDraftTask,
   handleCheckedRowKeysUpdate,
+  handleCreateAiDraftTask,
   handleCreateReviewItem,
   handleCreateVisibleUpdate,
   handleDrawerVisibleUpdate,
@@ -39,6 +50,8 @@ const {
   handlePageUpdate,
   handleReset,
   handleRefreshCurrentSequence,
+  handleReadAiDraftTask,
+  handleRetryAiDraftTask,
   handleRestoreDraftVersion,
   handleSaveDraft,
   handleSearch,
@@ -54,6 +67,7 @@ const {
   pagination,
   productLineSelectOptions,
   records,
+  refreshAiDraftTaskDetail,
   resourceLoading,
   sendStarting,
   sequencePolicySelectOptions,
@@ -79,6 +93,7 @@ const {
     />
 
     <EmailSequenceTable
+      :ai-draft-task-creating="aiDraftTaskCreating"
       :batch-draft-approving="batchDraftApproving"
       :batch-next-draft-generating="batchNextDraftGenerating"
       :batch-sequence-stopping="batchSequenceStopping"
@@ -87,6 +102,7 @@ const {
       :pagination="pagination"
       :records="records"
       @batch-approve-drafts="handleBatchApproveDrafts"
+      @create-ai-draft-task="handleCreateAiDraftTask"
       @batch-generate-next-drafts="handleBatchGenerateNextDrafts"
       @batch-stop-sequences="handleBatchStopSequences"
       @review="openDraftDrawer"
@@ -132,6 +148,20 @@ const {
       @start-send="handleStartSend"
       @stop="handleStopSequence"
       @update:show="handleDrawerVisibleUpdate"
+    />
+
+    <BulkAiDraftTaskDrawer
+      :show="aiDraftTaskDrawerVisible"
+      :cancelling="aiDraftTaskCancelling"
+      :detail="aiDraftTaskDetail"
+      :loading="aiDraftTaskLoading"
+      :reading="aiDraftTaskReading"
+      :retrying="aiDraftTaskRetrying"
+      @cancel="handleCancelAiDraftTask"
+      @read="handleReadAiDraftTask"
+      @refresh="refreshAiDraftTaskDetail()"
+      @retry="handleRetryAiDraftTask"
+      @update:show="handleAiDraftTaskDrawerVisibleUpdate"
     />
   </NSpace>
 </template>

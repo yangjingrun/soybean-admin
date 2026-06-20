@@ -165,6 +165,21 @@ export type CrmInboxThread = Prisma.CrmInboxThreadModel
  */
 export type CrmInboxMessage = Prisma.CrmInboxMessageModel
 /**
+ * Model CrmAiDraftTask
+ *
+ */
+export type CrmAiDraftTask = Prisma.CrmAiDraftTaskModel
+/**
+ * Model CrmAiDraftTaskItem
+ *
+ */
+export type CrmAiDraftTaskItem = Prisma.CrmAiDraftTaskItemModel
+/**
+ * Model CrmAiDraftQueueConfig
+ *
+ */
+export type CrmAiDraftQueueConfig = Prisma.CrmAiDraftQueueConfigModel
+/**
  * Model AiPromptConfig
  *
  */

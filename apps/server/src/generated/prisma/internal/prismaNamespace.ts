@@ -409,6 +409,9 @@ export const ModelName = {
   CrmMessageDraftVersion: 'CrmMessageDraftVersion',
   CrmInboxThread: 'CrmInboxThread',
   CrmInboxMessage: 'CrmInboxMessage',
+  CrmAiDraftTask: 'CrmAiDraftTask',
+  CrmAiDraftTaskItem: 'CrmAiDraftTaskItem',
+  CrmAiDraftQueueConfig: 'CrmAiDraftQueueConfig',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
   SerperConfig: 'SerperConfig',
@@ -434,7 +437,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2288,6 +2291,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CrmAiDraftTask: {
+      payload: Prisma.$CrmAiDraftTaskPayload<ExtArgs>
+      fields: Prisma.CrmAiDraftTaskFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmAiDraftTaskFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmAiDraftTaskFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmAiDraftTaskFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmAiDraftTaskFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>
+        }
+        findMany: {
+          args: Prisma.CrmAiDraftTaskFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>[]
+        }
+        create: {
+          args: Prisma.CrmAiDraftTaskCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>
+        }
+        createMany: {
+          args: Prisma.CrmAiDraftTaskCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmAiDraftTaskCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmAiDraftTaskDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>
+        }
+        update: {
+          args: Prisma.CrmAiDraftTaskUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmAiDraftTaskDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmAiDraftTaskUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmAiDraftTaskUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmAiDraftTaskUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmAiDraftTaskAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmAiDraftTask>
+        }
+        groupBy: {
+          args: Prisma.CrmAiDraftTaskGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmAiDraftTaskGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmAiDraftTaskCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmAiDraftTaskCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmAiDraftTaskItem: {
+      payload: Prisma.$CrmAiDraftTaskItemPayload<ExtArgs>
+      fields: Prisma.CrmAiDraftTaskItemFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmAiDraftTaskItemFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmAiDraftTaskItemFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmAiDraftTaskItemFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmAiDraftTaskItemFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>
+        }
+        findMany: {
+          args: Prisma.CrmAiDraftTaskItemFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>[]
+        }
+        create: {
+          args: Prisma.CrmAiDraftTaskItemCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>
+        }
+        createMany: {
+          args: Prisma.CrmAiDraftTaskItemCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmAiDraftTaskItemCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmAiDraftTaskItemDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>
+        }
+        update: {
+          args: Prisma.CrmAiDraftTaskItemUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmAiDraftTaskItemDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmAiDraftTaskItemUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmAiDraftTaskItemUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmAiDraftTaskItemUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftTaskItemPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmAiDraftTaskItemAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmAiDraftTaskItem>
+        }
+        groupBy: {
+          args: Prisma.CrmAiDraftTaskItemGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmAiDraftTaskItemGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmAiDraftTaskItemCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmAiDraftTaskItemCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmAiDraftQueueConfig: {
+      payload: Prisma.$CrmAiDraftQueueConfigPayload<ExtArgs>
+      fields: Prisma.CrmAiDraftQueueConfigFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmAiDraftQueueConfigFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmAiDraftQueueConfigFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmAiDraftQueueConfigFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmAiDraftQueueConfigFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>
+        }
+        findMany: {
+          args: Prisma.CrmAiDraftQueueConfigFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>[]
+        }
+        create: {
+          args: Prisma.CrmAiDraftQueueConfigCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>
+        }
+        createMany: {
+          args: Prisma.CrmAiDraftQueueConfigCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmAiDraftQueueConfigCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmAiDraftQueueConfigDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>
+        }
+        update: {
+          args: Prisma.CrmAiDraftQueueConfigUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmAiDraftQueueConfigDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmAiDraftQueueConfigUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmAiDraftQueueConfigUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmAiDraftQueueConfigUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmAiDraftQueueConfigPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmAiDraftQueueConfigAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmAiDraftQueueConfig>
+        }
+        groupBy: {
+          args: Prisma.CrmAiDraftQueueConfigGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmAiDraftQueueConfigGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmAiDraftQueueConfigCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmAiDraftQueueConfigCountAggregateOutputType> | number
+        }
+      }
+    }
     AiPromptConfig: {
       payload: Prisma.$AiPromptConfigPayload<ExtArgs>
       fields: Prisma.AiPromptConfigFieldRefs
@@ -3564,6 +3789,82 @@ export const CrmInboxMessageScalarFieldEnum = {
 export type CrmInboxMessageScalarFieldEnum = (typeof CrmInboxMessageScalarFieldEnum)[keyof typeof CrmInboxMessageScalarFieldEnum]
 
 
+export const CrmAiDraftTaskScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  organizationRole: 'organizationRole',
+  ownerUserId: 'ownerUserId',
+  ownerUserName: 'ownerUserName',
+  status: 'status',
+  runVersion: 'runVersion',
+  bullJobId: 'bullJobId',
+  requestedCount: 'requestedCount',
+  successCount: 'successCount',
+  skippedCount: 'skippedCount',
+  failedCount: 'failedCount',
+  retryingCount: 'retryingCount',
+  runningCount: 'runningCount',
+  pendingCount: 'pendingCount',
+  effectiveConcurrency: 'effectiveConcurrency',
+  maxAttempts: 'maxAttempts',
+  failureReason: 'failureReason',
+  progressState: 'progressState',
+  resultSummary: 'resultSummary',
+  readAt: 'readAt',
+  notifiedAt: 'notifiedAt',
+  startedAt: 'startedAt',
+  finishedAt: 'finishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmAiDraftTaskScalarFieldEnum = (typeof CrmAiDraftTaskScalarFieldEnum)[keyof typeof CrmAiDraftTaskScalarFieldEnum]
+
+
+export const CrmAiDraftTaskItemScalarFieldEnum = {
+  id: 'id',
+  taskId: 'taskId',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  enrollmentId: 'enrollmentId',
+  messageId: 'messageId',
+  contactId: 'contactId',
+  accountId: 'accountId',
+  productLineId: 'productLineId',
+  stepIndex: 'stepIndex',
+  status: 'status',
+  attemptCount: 'attemptCount',
+  maxAttempts: 'maxAttempts',
+  failureType: 'failureType',
+  failureReason: 'failureReason',
+  draftSubject: 'draftSubject',
+  draftBodyText: 'draftBodyText',
+  metadata: 'metadata',
+  startedAt: 'startedAt',
+  finishedAt: 'finishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmAiDraftTaskItemScalarFieldEnum = (typeof CrmAiDraftTaskItemScalarFieldEnum)[keyof typeof CrmAiDraftTaskItemScalarFieldEnum]
+
+
+export const CrmAiDraftQueueConfigScalarFieldEnum = {
+  configKey: 'configKey',
+  itemConcurrency: 'itemConcurrency',
+  maxItemConcurrency: 'maxItemConcurrency',
+  maxActiveTasksPerUser: 'maxActiveTasksPerUser',
+  maxActiveTasksPerOrg: 'maxActiveTasksPerOrg',
+  maxAttempts: 'maxAttempts',
+  retryBackoffSeconds: 'retryBackoffSeconds',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmAiDraftQueueConfigScalarFieldEnum = (typeof CrmAiDraftQueueConfigScalarFieldEnum)[keyof typeof CrmAiDraftQueueConfigScalarFieldEnum]
+
+
 export const AiPromptConfigScalarFieldEnum = {
   id: 'id',
   promptKey: 'promptKey',
@@ -3997,6 +4298,9 @@ export type GlobalOmitConfig = {
   crmMessageDraftVersion?: Prisma.CrmMessageDraftVersionOmit
   crmInboxThread?: Prisma.CrmInboxThreadOmit
   crmInboxMessage?: Prisma.CrmInboxMessageOmit
+  crmAiDraftTask?: Prisma.CrmAiDraftTaskOmit
+  crmAiDraftTaskItem?: Prisma.CrmAiDraftTaskItemOmit
+  crmAiDraftQueueConfig?: Prisma.CrmAiDraftQueueConfigOmit
   aiPromptConfig?: Prisma.AiPromptConfigOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
   serperConfig?: Prisma.SerperConfigOmit

@@ -1371,6 +1371,105 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('returns null without creating follow-up drafts when guards detect state changes', async () => {
+    const prisma = createPrisma({ existingNextMessage: createPrismaMessage({ stepIndex: 2 }) });
+    const store = new PrismaCrmStore(prisma as never);
+    const result = await store.createFollowUpDraftBundle({
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      expectedEnrollmentStatus: ['ready_to_send', 'sequence_running'],
+      blockingMessageStatuses: ['draft_pending_review', 'queued', 'failed'],
+      taskGuard: {
+        taskId: 'task-1',
+        runVersion: 1,
+        status: 'running'
+      },
+      message: createPrismaMessage({
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        mailboxId: 'mailbox-1',
+        stepIndex: 2,
+        status: 'draft_pending_review'
+      }) as never,
+      timelineEvent: {
+        organizationId: 'org-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        ownerUserId: 'user-1',
+        eventType: 'sequence_follow_up_draft_generated',
+        title: '生成后续开发信草稿',
+        content: 'Follow-up',
+        metadata: {
+          enrollmentId: 'enrollment-1',
+          stepIndex: 2
+        }
+      }
+    });
+
+    assert.equal(result, null);
+    assert.deepEqual(prisma.crmAiDraftTask.findFirstCalls.at(-1)?.where, {
+      id: 'task-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      status: 'running'
+    });
+    assert.deepEqual(prisma.crmSequenceEnrollment.findFirstCalls.at(-1)?.where, {
+      id: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: { in: ['ready_to_send', 'sequence_running'] }
+    });
+    assert.deepEqual(prisma.crmMessage.findFirstCalls.at(-1)?.where, {
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      OR: [{ stepIndex: 2 }, { status: { in: ['draft_pending_review', 'queued', 'failed'] } }]
+    });
+    assert.equal(prisma.crmMessage.createCalls.length, 0);
+  });
+
+  it('returns null before creating follow-up drafts when the task run guard no longer matches', async () => {
+    const prisma = createPrisma({ aiDraftTaskFindFirstResult: null });
+    const store = new PrismaCrmStore(prisma as never);
+    const result = await store.createFollowUpDraftBundle({
+      enrollmentId: 'enrollment-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      taskGuard: {
+        taskId: 'task-1',
+        runVersion: 1,
+        status: 'running'
+      },
+      message: createPrismaMessage({
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        mailboxId: 'mailbox-1',
+        stepIndex: 2,
+        status: 'draft_pending_review'
+      }) as never,
+      timelineEvent: {
+        organizationId: 'org-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        ownerUserId: 'user-1',
+        eventType: 'sequence_follow_up_draft_generated',
+        title: '生成后续开发信草稿',
+        content: 'Follow-up',
+        metadata: { enrollmentId: 'enrollment-1', stepIndex: 2 }
+      }
+    });
+
+    assert.equal(result, null);
+    assert.equal(prisma.crmSequenceEnrollment.findFirstCalls.length, 0);
+    assert.equal(prisma.crmMessage.createCalls.length, 0);
+  });
+
   it('starts first message sending with enrollment and message status guards', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1401,7 +1500,7 @@ describe('PrismaCrmStore', () => {
       stepIndex: 1,
       status: 'draft_ready'
     });
-    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'message_queued');
+    assert.equal(prisma.crmTimelineEvent.createCalls.at(-1)?.data.eventType, 'message_send_scheduled');
   });
 
   it('does not mutate sending state when active mailbox guard fails inside transaction', async () => {
@@ -2215,6 +2314,112 @@ describe('PrismaCrmStore', () => {
     const metadata = prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata as { messageType?: string } | undefined;
     assert.equal(metadata?.messageType, 'bounce');
   });
+
+  it('creates CRM AI draft task and item rows in one transaction with derived counters', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const task = await store.createAiDraftTask({
+      organizationId: 'org-1',
+      organizationRole: 'member',
+      ownerUserId: 'user-1',
+      ownerUserName: 'Alice',
+      requestedCount: 2,
+      items: [
+        {
+          enrollmentId: 'enrollment-1',
+          messageId: 'message-1',
+          contactId: 'contact-1',
+          accountId: 'account-1',
+          productLineId: 'product-line-1',
+          stepIndex: 2,
+          status: 'pending'
+        },
+        {
+          enrollmentId: 'missing-enrollment',
+          stepIndex: 0,
+          status: 'skipped',
+          failureType: 'business_skip',
+          failureReason: '邮件序列不存在或无权操作'
+        }
+      ]
+    });
+
+    assert.equal(task.task?.requestedCount, 2);
+    assert.equal(task.task?.pendingCount, 1);
+    assert.equal(task.task?.skippedCount, 1);
+    assert.equal(task.task?.effectiveConcurrency, 3);
+    assert.equal(prisma.transactionCalls, 1);
+    assert.deepEqual(prisma.transactionOptionsCalls[0], { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    assert.deepEqual(prisma.crmAiDraftQueueConfig.findUniqueCalls[0].where, { configKey: 'crm-ai-draft' });
+    assert.deepEqual(prisma.crmAiDraftTask.countCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: { in: ['queued', 'running'] }
+    });
+    assert.deepEqual(prisma.crmAiDraftTask.countCalls[1].where, {
+      organizationId: 'org-1',
+      status: { in: ['queued', 'running'] }
+    });
+    assert.equal(prisma.crmAiDraftTask.createCalls[0].data.organizationId, 'org-1');
+    assert.equal(prisma.crmAiDraftTaskItem.createManyCalls[0].data.length, 2);
+    assert.equal(prisma.crmAiDraftTaskItem.createManyCalls[0].data[1].status, 'skipped');
+  });
+
+  it('rejects CRM AI draft task creation inside the serializable transaction when active cap is reached', async () => {
+    const prisma = createPrisma({
+      aiDraftQueueConfig: createPrismaAiDraftQueueConfig({ maxActiveTasksPerUser: 1, maxActiveTasksPerOrg: 5 }),
+      aiDraftActiveCountResults: [1, 1]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.createAiDraftTask({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      requestedCount: 1,
+      items: [{ enrollmentId: 'enrollment-1', stepIndex: 2, status: 'pending' }]
+    });
+
+    assert.equal(result.task, null);
+    assert.equal(result.limitReason, 'user_active_limit');
+    assert.equal(prisma.crmAiDraftTask.createCalls.length, 0);
+    assert.equal(prisma.transactionCalls, 1);
+    assert.deepEqual(prisma.transactionOptionsCalls[0], { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  });
+
+  it('maps serializable CRM AI draft task create conflicts to a business conflict result', async () => {
+    const prisma = createPrisma({
+      transactionError: new Prisma.PrismaClientKnownRequestError('Transaction conflict', {
+        code: 'P2034',
+        clientVersion: 'test'
+      })
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.createAiDraftTask({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      requestedCount: 1,
+      items: [{ enrollmentId: 'enrollment-1', stepIndex: 2, status: 'pending' }]
+    });
+
+    assert.equal(result.task, null);
+    assert.equal(result.limitReason, 'concurrent_create_conflict');
+  });
+
+  it('returns default CRM AI draft queue config when no row exists', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const config = await store.getAiDraftQueueConfig();
+
+    assert.equal(config.itemConcurrency, 3);
+    assert.equal(config.maxItemConcurrency, 5);
+    assert.equal(config.maxActiveTasksPerUser, 1);
+    assert.equal(config.maxActiveTasksPerOrg, 2);
+    assert.equal(config.maxAttempts, 3);
+    assert.deepEqual(prisma.crmAiDraftQueueConfig.findUniqueCalls[0].where, { configKey: 'crm-ai-draft' });
+  });
 });
 
 function createPrismaMessage(input: Record<string, unknown> = {}) {
@@ -2238,6 +2443,54 @@ function createPrismaMessage(input: Record<string, unknown> = {}) {
     providerThreadId: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
+}
+
+function createPrismaAiDraftTask(input: Record<string, unknown> = {}) {
+  return {
+    id: 'ai-draft-task-1',
+    organizationId: 'org-1',
+    organizationRole: 'member',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    status: 'queued',
+    runVersion: 1,
+    bullJobId: null,
+    requestedCount: 2,
+    successCount: 0,
+    skippedCount: 1,
+    failedCount: 0,
+    retryingCount: 0,
+    runningCount: 0,
+    pendingCount: 1,
+    effectiveConcurrency: 3,
+    maxAttempts: 3,
+    failureReason: null,
+    progressState: null,
+    resultSummary: null,
+    readAt: null,
+    notifiedAt: null,
+    startedAt: null,
+    finishedAt: null,
+    createdAt: new Date('2026-06-20T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-20T09:00:00.000Z'),
+    ...input
+  };
+}
+
+function createPrismaAiDraftQueueConfig(input: Record<string, unknown> = {}) {
+  return {
+    configKey: 'crm-ai-draft',
+    itemConcurrency: 3,
+    maxItemConcurrency: 5,
+    maxActiveTasksPerUser: 1,
+    maxActiveTasksPerOrg: 2,
+    maxAttempts: 3,
+    retryBackoffSeconds: null,
+    updatedById: null,
+    updatedByName: null,
+    updatedAt: new Date('2026-06-20T09:00:00.000Z'),
     ...input
   };
 }
@@ -2359,9 +2612,13 @@ function createPrisma(
     blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
     draftVersionResults?: ReturnType<typeof createPrismaDraftVersion>[][];
     existingNextMessage?: ReturnType<typeof createPrismaMessage> | null;
+    aiDraftTaskFindFirstResult?: ReturnType<typeof createPrismaAiDraftTask> | null;
+    aiDraftActiveCountResults?: number[];
+    aiDraftQueueConfig?: ReturnType<typeof createPrismaAiDraftQueueConfig> | null;
     organizationConfig?: ReturnType<typeof createPrismaOrganizationConfig> | null;
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
+    transactionError?: Error;
   } = {}
 ) {
   const account = {
@@ -2585,10 +2842,16 @@ function createPrisma(
     messages: [inboxMessage]
   };
   const queryRawResults = [...(options.draftVersionResults ?? [])];
+  const aiDraftActiveCountResults = [...(options.aiDraftActiveCountResults ?? [0, 0])];
 
   return {
+    transactionCalls: 0,
+    transactionOptionsCalls: [] as Array<Record<string, unknown> | undefined>,
     queryRawCalls: [] as unknown[][],
-    async $transaction<T>(operation: (tx: unknown) => Promise<T>) {
+    async $transaction<T>(operation: (tx: unknown) => Promise<T>, transactionOptions?: Record<string, unknown>) {
+      this.transactionCalls += 1;
+      this.transactionOptionsCalls.push(transactionOptions);
+      if (options.transactionError) throw options.transactionError;
       return operation(this);
     },
     async $queryRaw(...args: unknown[]) {
@@ -2814,6 +3077,102 @@ function createPrisma(
           ...args.update,
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         };
+      }
+    },
+    crmAiDraftTask: {
+      createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown>; orderBy?: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Array<Record<string, unknown>>;
+      }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit?: number;
+      }>,
+      async create(args: { data: Record<string, unknown> }) {
+        this.createCalls.push(args);
+        return createPrismaAiDraftTask(args.data);
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return aiDraftActiveCountResults.shift() ?? 0;
+      },
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return createPrismaAiDraftTask();
+      },
+      async findFirst(args: { where: Record<string, unknown>; orderBy?: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return options.aiDraftTaskFindFirstResult === undefined ? createPrismaAiDraftTask() : options.aiDraftTaskFindFirstResult;
+      },
+      async findMany(args: {
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+        orderBy: Array<Record<string, unknown>>;
+      }) {
+        this.findManyCalls.push(args);
+        return [createPrismaAiDraftTask()];
+      },
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit?: number;
+      }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [createPrismaAiDraftTask(args.data)];
+      }
+    },
+    crmAiDraftTaskItem: {
+      createManyCalls: [] as Array<{ data: Array<Record<string, unknown>> }>,
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy?: Array<Record<string, unknown>> }>,
+      updateManyAndReturnCalls: [] as Array<{
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit?: number;
+      }>,
+      async createMany(args: { data: Array<Record<string, unknown>> }) {
+        this.createManyCalls.push(args);
+        return { count: args.data.length };
+      },
+      async findMany(args: { where: Record<string, unknown>; orderBy?: Array<Record<string, unknown>> }) {
+        this.findManyCalls.push(args);
+        return [];
+      },
+      async updateManyAndReturn(args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+        limit?: number;
+      }) {
+        this.updateManyAndReturnCalls.push(args);
+        return [];
+      }
+    },
+    crmAiDraftQueueConfig: {
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      findUniqueResult: options.aiDraftQueueConfig ?? null,
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return this.findUniqueResult;
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+        return createPrismaAiDraftQueueConfig({ ...args.create, ...args.update });
       }
     },
     crmEmailTemplateGroup: {
@@ -3370,6 +3729,9 @@ function createPrisma(
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);
+        if (args.where.OR) {
+          return options.existingNextMessage ?? null;
+        }
         if (args.where.stepIndex && !args.where.status) {
           return options.existingNextMessage ?? null;
         }

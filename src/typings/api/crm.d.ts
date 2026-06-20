@@ -414,6 +414,122 @@ declare namespace Api {
       snapshot: AiDraftSnapshot;
     }
 
+    type AiDraftTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+    type AiDraftTaskItemStatus = 'pending' | 'running' | 'retrying' | 'succeeded' | 'skipped' | 'failed';
+
+    type AiDraftTaskItemFailureType = 'retryable' | 'business_skip' | 'fatal';
+
+    interface AiDraftTaskProgressState {
+      currentItemId?: string | null;
+      recentRetryableFailureCount?: number;
+      effectiveConcurrencyReason?: string | null;
+    }
+
+    interface AiDraftTaskResultSummary {
+      requestedCount: number;
+      successCount: number;
+      skippedCount: number;
+      failedCount: number;
+    }
+
+    interface AiDraftTaskItemMetadata {
+      generatedMessageId?: string | null;
+      aiDraft?: unknown | null;
+      nextRetryAt?: string | null;
+    }
+
+    interface AiDraftTaskRecord {
+      id: string;
+      organizationId: string;
+      organizationRole: string | null;
+      ownerUserId: string;
+      ownerUserName: string | null;
+      status: AiDraftTaskStatus;
+      runVersion: number;
+      bullJobId: string | null;
+      requestedCount: number;
+      successCount: number;
+      skippedCount: number;
+      failedCount: number;
+      retryingCount: number;
+      runningCount: number;
+      pendingCount: number;
+      effectiveConcurrency: number;
+      maxAttempts: number;
+      failureReason: string | null;
+      progressState: AiDraftTaskProgressState | null;
+      resultSummary: AiDraftTaskResultSummary | null;
+      readAt: string | null;
+      notifiedAt: string | null;
+      startedAt: string | null;
+      finishedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface AiDraftTaskItemRecord {
+      id: string;
+      taskId: string;
+      organizationId: string;
+      ownerUserId: string;
+      enrollmentId: string;
+      messageId: string | null;
+      contactId: string | null;
+      accountId: string | null;
+      productLineId: string | null;
+      stepIndex: number;
+      status: AiDraftTaskItemStatus;
+      attemptCount: number;
+      maxAttempts: number;
+      failureType: AiDraftTaskItemFailureType | null;
+      failureReason: string | null;
+      draftSubject: string | null;
+      draftBodyText: string | null;
+      metadata: AiDraftTaskItemMetadata | null;
+      startedAt: string | null;
+      finishedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface AiDraftTaskDetail {
+      task: AiDraftTaskRecord;
+      items: AiDraftTaskItemRecord[];
+    }
+
+    interface AiDraftTaskReadResult {
+      task: AiDraftTaskRecord;
+    }
+
+    interface CreateAiDraftTaskPayload {
+      enrollmentIds: string[];
+    }
+
+    type AiDraftTaskList = Api.Common.PaginatingQueryRecord<AiDraftTaskRecord>;
+
+    interface AiDraftQueueConfigRecord {
+      configKey: string;
+      itemConcurrency: number;
+      maxItemConcurrency: number;
+      maxActiveTasksPerUser: number;
+      maxActiveTasksPerOrg: number;
+      maxAttempts: number;
+      retryBackoffSeconds: number[] | null;
+      updatedById: string | null;
+      updatedByName: string | null;
+      updatedAt: string;
+    }
+
+    interface AiDraftQueueConfigPayload {
+      itemConcurrency?: number;
+      maxItemConcurrency?: number;
+      maxActiveTasksPerUser?: number;
+      maxActiveTasksPerOrg?: number;
+      maxAttempts?: number;
+      retryBackoffSeconds?: number[];
+    }
+
     interface InboxReplyDraftMetadata {
       generated: boolean;
       reason: string;

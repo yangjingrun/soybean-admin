@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import AiDraftQueueConfigCard from './AiDraftQueueConfigCard.vue';
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
 import BlacklistManager from './BlacklistManager.vue';
@@ -112,6 +113,7 @@ const overviewItems = computed(() =>
       <NTabPane name="rules" tab="发送规则">
         <NSpace vertical :size="12">
           <SequencePolicyManager />
+          <AiDraftQueueConfigCard />
           <OrganizationPermissionCard />
           <GlobalConfigCard />
         </NSpace>

@@ -8,10 +8,16 @@ import type { CrmGmailOAuthFlowPort, CrmGmailOAuthStatePayload } from './crm-gma
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
+import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import type {
   CrmArchivedFingerprintRecord,
+  CrmAiDraftQueueConfigInput,
+  CrmAiDraftQueueConfigRecord,
+  CrmAiDraftTaskCreateInput,
+  CrmAiDraftTaskItemRecord,
+  CrmAiDraftTaskRecord,
   CrmBlacklistRecord,
   CrmEmailTemplateGroupRecord,
   CrmEmailVerificationCacheRecord,
@@ -3790,6 +3796,501 @@ describe('CrmService', () => {
     assert.equal(store.messages.find(item => item.id === 'message-member-1')?.status, 'queued');
   });
 
+  it('creates a CRM AI draft task for eligible owner sequences and stores invalid selections as skipped items', async () => {
+    const store = createStore(
+      [
+        createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' }),
+        createAccount({ id: 'account-2', name: 'Blocked Trading', status: 'ready' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'contact-1', accountId: 'account-1', fullName: 'Ali Hassan' }),
+          createContact({ id: 'contact-2', accountId: 'account-2', fullName: 'Sara Buyer' })
+        ],
+        productLines: [createProductLine({ id: 'product-line-1', aiWritingConfig: createAiWritingConfig() })],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-1',
+            accountId: 'account-1',
+            contactId: 'contact-1',
+            productLineId: 'product-line-1',
+            status: 'ready_to_send'
+          }),
+          createEnrollment({
+            id: 'blocked-enrollment',
+            accountId: 'account-2',
+            contactId: 'contact-2',
+            productLineId: 'product-line-1',
+            status: 'ready_to_send'
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-1',
+            accountId: 'account-1',
+            contactId: 'contact-1',
+            enrollmentId: 'enrollment-1',
+            status: 'sent',
+            stepIndex: 1
+          }),
+          createMessage({
+            id: 'blocked-message-1',
+            accountId: 'account-2',
+            contactId: 'contact-2',
+            enrollmentId: 'blocked-enrollment',
+            status: 'draft_pending_review',
+            stepIndex: 2
+          })
+        ]
+      }
+    );
+    const logs = createLogRecorder();
+    const aiDraftCalls: CrmAiDraftPromptInput[] = [];
+    const aiDraftService = createAiDraftService(aiDraftCalls);
+    const sendQueue = createSendQueue();
+    const service = new CrmService(
+      store,
+      undefined,
+      logs.service,
+      sendQueue,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      aiDraftService
+    );
+
+    const result = await service.createAiDraftTask(
+      { enrollmentIds: ['enrollment-1', 'blocked-enrollment', 'missing-enrollment', 'enrollment-1'] },
+      createContext()
+    );
+
+    assert.equal(result.task.requestedCount, 3);
+    assert.equal(result.task.pendingCount, 1);
+    assert.equal(result.task.skippedCount, 2);
+    assert.equal(store.aiDraftTasks.length, 1);
+    assert.deepEqual(
+      store.aiDraftTaskItems.map(item => ({
+        enrollmentId: item.enrollmentId,
+        status: item.status,
+        stepIndex: item.stepIndex,
+        accountId: item.accountId,
+        contactId: item.contactId,
+        productLineId: item.productLineId,
+        messageId: item.messageId,
+        reason: item.failureReason
+      })),
+      [
+        {
+          enrollmentId: 'enrollment-1',
+          status: 'pending',
+          stepIndex: 2,
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          productLineId: 'product-line-1',
+          messageId: null,
+          reason: null
+        },
+        {
+          enrollmentId: 'blocked-enrollment',
+          status: 'skipped',
+          stepIndex: 0,
+          accountId: 'account-2',
+          contactId: 'contact-2',
+          productLineId: 'product-line-1',
+          messageId: null,
+          reason: '已存在下一步草稿或待发送消息，请先处理后再生成'
+        },
+        {
+          enrollmentId: 'missing-enrollment',
+          status: 'skipped',
+          stepIndex: 0,
+          accountId: null,
+          contactId: null,
+          productLineId: null,
+          messageId: null,
+          reason: '邮件序列不存在或无权操作'
+        }
+      ]
+    );
+    assert.equal(aiDraftCalls.length, 0);
+    assert.equal(sendQueue.jobs.length, 0);
+    assert.equal(logs.records.at(-1)?.action, 'ai-draft-task-create');
+    assert.deepEqual(logs.records.at(-1)?.metadata, {
+      taskId: 'ai-draft-task-1',
+      requestedCount: 3,
+      pendingCount: 1,
+      skippedCount: 2
+    });
+  });
+
+  it('enqueues pending CRM AI draft tasks and persists the BullMQ job id without sending Gmail', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      productLines: [createProductLine({ id: 'product-line-1', aiWritingConfig: createAiWritingConfig() })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          productLineId: 'product-line-1',
+          status: 'ready_to_send'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          enrollmentId: 'enrollment-1',
+          status: 'sent',
+          stepIndex: 1
+        })
+      ]
+    });
+    const sendQueue = createSendQueue();
+    const aiDraftTaskQueue = createAiDraftTaskQueue();
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      sendQueue,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      aiDraftTaskQueue
+    );
+
+    const result = await service.createAiDraftTask({ enrollmentIds: ['enrollment-1'] }, createContext());
+
+    assert.equal(result.task.status, 'queued');
+    assert.deepEqual(aiDraftTaskQueue.jobs, [
+      {
+        taskId: 'ai-draft-task-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        runVersion: 1
+      }
+    ]);
+    assert.equal(store.aiDraftTasks[0].bullJobId, 'ai-draft-task-1:1');
+    assert.equal(sendQueue.jobs.length, 0);
+  });
+
+  it('skips CRM AI draft task items when contact is unsubscribed, blacklisted or AI config is incomplete', async () => {
+    const aiWritingConfig = createAiWritingConfig();
+    const store = createStore(
+      [
+        createAccount({ id: 'account-unsubscribed', name: 'Unsubscribed Buyer', status: 'ready' }),
+        createAccount({ id: 'account-blacklisted', name: 'Blacklisted Buyer', status: 'ready' }),
+        createAccount({ id: 'account-incomplete', name: 'Incomplete Config Buyer', status: 'ready' })
+      ],
+      {
+        contacts: [
+          createContact({
+            id: 'contact-unsubscribed',
+            accountId: 'account-unsubscribed',
+            emailStatus: 'unsubscribed'
+          }),
+          createContact({
+            id: 'contact-blacklisted',
+            accountId: 'account-blacklisted',
+            emailHash: 'blacklisted-hash'
+          }),
+          createContact({ id: 'contact-incomplete', accountId: 'account-incomplete' })
+        ],
+        blacklists: [createBlacklist({ emailHash: 'blacklisted-hash' })],
+        productLines: [
+          createProductLine({ id: 'product-line-complete', aiWritingConfig }),
+          createProductLine({
+            id: 'product-line-incomplete',
+            aiWritingConfig: {
+              ...aiWritingConfig,
+              steps: aiWritingConfig.steps.map(step => (step.stepIndex === 2 ? { ...step, prompt: '' } : step))
+            }
+          })
+        ],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-unsubscribed',
+            accountId: 'account-unsubscribed',
+            contactId: 'contact-unsubscribed',
+            productLineId: 'product-line-complete',
+            status: 'ready_to_send'
+          }),
+          createEnrollment({
+            id: 'enrollment-blacklisted',
+            accountId: 'account-blacklisted',
+            contactId: 'contact-blacklisted',
+            productLineId: 'product-line-complete',
+            status: 'ready_to_send'
+          }),
+          createEnrollment({
+            id: 'enrollment-incomplete',
+            accountId: 'account-incomplete',
+            contactId: 'contact-incomplete',
+            productLineId: 'product-line-incomplete',
+            status: 'ready_to_send'
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-unsubscribed',
+            accountId: 'account-unsubscribed',
+            contactId: 'contact-unsubscribed',
+            enrollmentId: 'enrollment-unsubscribed',
+            status: 'sent',
+            stepIndex: 1
+          }),
+          createMessage({
+            id: 'message-blacklisted',
+            accountId: 'account-blacklisted',
+            contactId: 'contact-blacklisted',
+            enrollmentId: 'enrollment-blacklisted',
+            status: 'sent',
+            stepIndex: 1
+          }),
+          createMessage({
+            id: 'message-incomplete',
+            accountId: 'account-incomplete',
+            contactId: 'contact-incomplete',
+            enrollmentId: 'enrollment-incomplete',
+            status: 'sent',
+            stepIndex: 1
+          })
+        ]
+      }
+    );
+    const notificationCreates: Array<{ title: string; content: string; type: string; metadata?: unknown }> = [];
+    const service = new CrmService(store, undefined, undefined, undefined, {
+      async create(input: { title: string; content: string; type: string; metadata?: unknown }) {
+        notificationCreates.push(input);
+        return input as never;
+      }
+    } as never);
+
+    const result = await service.createAiDraftTask(
+      { enrollmentIds: ['enrollment-unsubscribed', 'enrollment-blacklisted', 'enrollment-incomplete'] },
+      createContext()
+    );
+
+    assert.equal(result.task.status, 'completed');
+    assert.equal(result.task.pendingCount, 0);
+    assert.equal(result.task.skippedCount, 3);
+    assert.deepEqual(result.task.resultSummary, {
+      requestedCount: 3,
+      successCount: 0,
+      skippedCount: 3,
+      failedCount: 0
+    });
+    assert.equal(result.task.readAt, null);
+    assert.equal(notificationCreates.length, 1);
+    assert.equal(notificationCreates[0].type, 'crm_ai_draft_task_completed');
+    assert.deepEqual(notificationCreates[0].metadata, {
+      taskId: 'ai-draft-task-1',
+      resultSummary: {
+        requestedCount: 3,
+        successCount: 0,
+        skippedCount: 3,
+        failedCount: 0
+      }
+    });
+    assert.deepEqual(
+      store.aiDraftTaskItems.map(item => [item.enrollmentId, item.failureReason]),
+      [
+        ['enrollment-unsubscribed', '联系人已退订，不能继续开发'],
+        ['enrollment-blacklisted', '该邮箱已在组织黑名单中，不能继续开发'],
+        ['enrollment-incomplete', 'AI 写信第 2 封提示词不能为空']
+      ]
+    );
+  });
+
+  it('rejects CRM AI draft task creation when the current user already has an active task', async () => {
+    const store = createStore([], {
+      aiDraftTasks: [createAiDraftTask({ id: 'active-task-1', status: 'queued' })]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.createAiDraftTask({ enrollmentIds: ['enrollment-1'] }, createContext()),
+      BadRequestException
+    );
+  });
+
+  it('rejects CRM AI draft task creation when organization active task cap is reached', async () => {
+    const store = createStore([], {
+      aiDraftQueueConfig: createAiDraftQueueConfig({ maxActiveTasksPerUser: 2, maxActiveTasksPerOrg: 1 }),
+      aiDraftTasks: [createAiDraftTask({ id: 'org-task-1', ownerUserId: 'user-2', status: 'running' })]
+    });
+    const service = new CrmService(store);
+
+    await assert.rejects(
+      () => service.createAiDraftTask({ enrollmentIds: ['enrollment-1'] }, createContext()),
+      BadRequestException
+    );
+  });
+
+  it('retries only retryable failed CRM AI draft task items with a new run version', async () => {
+    const store = createStore([], {
+      aiDraftTasks: [
+        createAiDraftTask({
+          id: 'ai-draft-task-1',
+          status: 'failed',
+          runVersion: 2,
+          pendingCount: 0,
+          failedCount: 2,
+          failureReason: '部分草稿生成失败'
+        })
+      ],
+      aiDraftTaskItems: [
+        createAiDraftTaskItem({
+          id: 'retryable-item',
+          status: 'failed',
+          attemptCount: 3,
+          failureType: 'retryable',
+          failureReason: 'rate limit',
+          metadata: { nextRetryAt: '2026-06-20T10:00:00.000Z' }
+        }),
+        createAiDraftTaskItem({
+          id: 'fatal-item',
+          enrollmentId: 'enrollment-2',
+          status: 'failed',
+          failureType: 'fatal',
+          failureReason: 'bad payload'
+        })
+      ]
+    });
+    const aiDraftTaskQueue = createAiDraftTaskQueue();
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      aiDraftTaskQueue
+    );
+
+    const result = await service.retryFailedAiDraftTask('ai-draft-task-1', createContext());
+
+    assert.equal(result.task.status, 'queued');
+    assert.equal(result.task.runVersion, 3);
+    assert.equal(store.aiDraftTaskItems[0].status, 'pending');
+    assert.equal(store.aiDraftTaskItems[0].attemptCount, 0);
+    assert.equal(store.aiDraftTaskItems[1].status, 'failed');
+    assert.deepEqual(aiDraftTaskQueue.jobs, [
+      {
+        taskId: 'ai-draft-task-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        runVersion: 3
+      }
+    ]);
+  });
+
+  it('cancels active CRM AI draft tasks and invalidates the queued job', async () => {
+    const store = createStore([], {
+      aiDraftTasks: [
+        createAiDraftTask({
+          id: 'ai-draft-task-1',
+          status: 'running',
+          runVersion: 2,
+          bullJobId: 'ai-draft-task-1:2',
+          pendingCount: 1,
+          runningCount: 1
+        })
+      ],
+      aiDraftTaskItems: [
+        createAiDraftTaskItem({ id: 'pending-item', status: 'pending' }),
+        createAiDraftTaskItem({ id: 'running-item', enrollmentId: 'enrollment-2', status: 'running' })
+      ]
+    });
+    const aiDraftTaskQueue = createAiDraftTaskQueue();
+    const service = new CrmService(
+      store,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      aiDraftTaskQueue
+    );
+
+    const result = await service.cancelAiDraftTask('ai-draft-task-1', createContext());
+
+    assert.equal(result.task.status, 'cancelled');
+    assert.equal(result.task.runVersion, 3);
+    assert.equal(result.task.pendingCount, 0);
+    assert.equal(result.task.skippedCount, 2);
+    assert.equal(store.aiDraftTaskItems.every(item => item.status === 'skipped'), true);
+    assert.deepEqual(aiDraftTaskQueue.removedJobIds, ['ai-draft-task-1:2']);
+  });
+
+  it('marks finished CRM AI draft tasks as read and clears related notifications', async () => {
+    const store = createStore([], {
+      aiDraftTasks: [
+        createAiDraftTask({
+          id: 'ai-draft-task-1',
+          status: 'completed',
+          pendingCount: 0,
+          successCount: 1,
+          readAt: null
+        })
+      ]
+    });
+    const markedTargets: Array<[string, string, string]> = [];
+    const service = new CrmService(store, undefined, undefined, undefined, {
+      async markTargetReadForUser(targetType: string, targetId: string, userId: string) {
+        markedTargets.push([targetType, targetId, userId]);
+        return { count: 1 };
+      }
+    } as never);
+
+    const result = await service.markAiDraftTaskRead('ai-draft-task-1', createContext());
+
+    assert.ok(result.task.readAt);
+    assert.deepEqual(markedTargets, [['crmAiDraftTask', 'ai-draft-task-1', 'user-1']]);
+  });
+
+  it('saves CRM AI draft queue config and applies queue concurrency for super admin', async () => {
+    const store = createStore();
+    const logs = createLogRecorder();
+    const aiDraftTaskQueue = createAiDraftTaskQueue();
+    const service = new CrmService(
+      store,
+      undefined,
+      logs.service,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      aiDraftTaskQueue
+    );
+
+    const result = await service.saveAiDraftQueueConfig(
+      { itemConcurrency: 5, maxItemConcurrency: 5, maxActiveTasksPerOrg: 4, maxAttempts: 2 },
+      createContext({ roles: ['R_SUPER'] })
+    );
+
+    assert.equal(result.itemConcurrency, 5);
+    assert.equal(result.maxActiveTasksPerOrg, 4);
+    assert.deepEqual(aiDraftTaskQueue.globalConcurrencies, [4]);
+    assert.equal(logs.records.at(-1)?.action, 'ai-draft-queue-config-save');
+  });
+
   it('rejects stopping already terminal sequences', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'paused' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
@@ -4333,6 +4834,9 @@ function createStore(
     sendPreferences?: TestSendPreference[];
     inboxThreads?: TestInboxThread[];
     inboxMessages?: TestInboxMessage[];
+    aiDraftTasks?: TestAiDraftTask[];
+    aiDraftTaskItems?: TestAiDraftTaskItem[];
+    aiDraftQueueConfig?: TestAiDraftQueueConfig;
     emailVerificationCaches?: TestEmailVerificationCache[];
     globalConfig?: TestGlobalConfig;
     organizationConfig?: TestOrganizationConfig | null;
@@ -4356,6 +4860,9 @@ function createStore(
   sendPreferences: TestSendPreference[];
   inboxThreads: TestInboxThread[];
   inboxMessages: TestInboxMessage[];
+  aiDraftTasks: TestAiDraftTask[];
+  aiDraftTaskItems: TestAiDraftTaskItem[];
+  aiDraftQueueConfig: TestAiDraftQueueConfig;
   globalConfig: TestGlobalConfig;
   organizationConfig: TestOrganizationConfig | null;
   personaProfiles: TestPersonaProfile[];
@@ -4413,6 +4920,9 @@ function createStore(
   const sendPreferences: TestSendPreference[] = [...(initialData.sendPreferences ?? [])];
   const inboxThreads: TestInboxThread[] = [...(initialData.inboxThreads ?? [])];
   const inboxMessages: TestInboxMessage[] = [...(initialData.inboxMessages ?? [])];
+  const aiDraftTasks: TestAiDraftTask[] = [...(initialData.aiDraftTasks ?? [])];
+  const aiDraftTaskItems: TestAiDraftTaskItem[] = [...(initialData.aiDraftTaskItems ?? [])];
+  let aiDraftQueueConfig = initialData.aiDraftQueueConfig ?? createAiDraftQueueConfig();
   const globalConfig = initialData.globalConfig ?? createGlobalConfig();
   let organizationConfig = initialData.organizationConfig ?? null;
   const personaProfiles: TestPersonaProfile[] = [...(initialData.personaProfiles ?? [])];
@@ -4445,6 +4955,11 @@ function createStore(
     sendPreferences,
     inboxThreads,
     inboxMessages,
+    aiDraftTasks,
+    aiDraftTaskItems,
+    get aiDraftQueueConfig() {
+      return aiDraftQueueConfig;
+    },
     globalConfig,
     get organizationConfig() {
       return organizationConfig;
@@ -4568,6 +5083,146 @@ function createStore(
         updatedAt: new Date('2026-06-18T10:00:00.000Z')
       });
       return globalConfig;
+    },
+    async createAiDraftTask(input: CrmAiDraftTaskCreateInput) {
+      const activeUserTaskCount = await this.countActiveAiDraftTasksForUser({
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId
+      });
+      const activeOrgTaskCount = await this.countActiveAiDraftTasksForOrg({ organizationId: input.organizationId });
+
+      if (activeUserTaskCount >= aiDraftQueueConfig.maxActiveTasksPerUser) {
+        return { task: null, limitReason: 'user_active_limit' as const };
+      }
+
+      if (activeOrgTaskCount >= aiDraftQueueConfig.maxActiveTasksPerOrg) {
+        return { task: null, limitReason: 'organization_active_limit' as const };
+      }
+
+      const maxAttempts = aiDraftQueueConfig.maxAttempts;
+      const task = createAiDraftTask({
+        id: `ai-draft-task-${aiDraftTasks.length + 1}`,
+        organizationId: input.organizationId,
+        organizationRole: input.organizationRole ?? null,
+        ownerUserId: input.ownerUserId,
+        ownerUserName: input.ownerUserName ?? null,
+        status: input.items.some(item => (item.status ?? 'pending') === 'pending') ? 'queued' : 'completed',
+        requestedCount: input.requestedCount,
+        pendingCount: input.items.filter(item => (item.status ?? 'pending') === 'pending').length,
+        skippedCount: input.items.filter(item => item.status === 'skipped').length,
+        effectiveConcurrency: Math.min(aiDraftQueueConfig.itemConcurrency, aiDraftQueueConfig.maxItemConcurrency),
+        maxAttempts,
+        finishedAt: input.items.some(item => (item.status ?? 'pending') === 'pending')
+          ? null
+          : new Date('2026-06-20T09:00:00.000Z')
+      });
+      const items = input.items.map((item, index) =>
+        createAiDraftTaskItem({
+          ...item,
+          id: `ai-draft-task-item-${aiDraftTaskItems.length + index + 1}`,
+          taskId: task.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: item.status ?? 'pending',
+          maxAttempts
+        })
+      );
+      aiDraftTasks.push(task);
+      aiDraftTaskItems.push(...items);
+
+      return { task };
+    },
+    async countActiveAiDraftTasksForUser(input) {
+      return aiDraftTasks.filter(
+        task =>
+          task.organizationId === input.organizationId &&
+          task.ownerUserId === input.ownerUserId &&
+          ['queued', 'running'].includes(task.status)
+      ).length;
+    },
+    async countActiveAiDraftTasksForOrg(input) {
+      return aiDraftTasks.filter(
+        task => task.organizationId === input.organizationId && ['queued', 'running'].includes(task.status)
+      ).length;
+    },
+    async findCurrentAiDraftTaskForUser(input) {
+      return (
+        aiDraftTasks.find(
+          task =>
+            task.organizationId === input.organizationId &&
+            task.ownerUserId === input.ownerUserId &&
+            (['queued', 'running'].includes(task.status) ||
+              ((task.status === 'completed' || task.status === 'failed') && !task.readAt))
+        ) ?? null
+      );
+    },
+    async findAiDraftTaskById(input) {
+      return (
+        aiDraftTasks.find(task => {
+          if (task.id !== input.id) return false;
+          if (task.organizationId !== input.organizationId) return false;
+          if (input.ownerUserId && task.ownerUserId !== input.ownerUserId) return false;
+          return true;
+        }) ?? null
+      );
+    },
+    async listAiDraftTasks(input) {
+      const records = aiDraftTasks.filter(task => {
+        if (task.organizationId !== input.organizationId) return false;
+        if (input.ownerUserId && task.ownerUserId !== input.ownerUserId) return false;
+        return true;
+      });
+
+      return {
+        records: records.slice(input.skip, input.skip + input.take),
+        total: records.length
+      };
+    },
+    async listAiDraftTaskItems(input) {
+      return aiDraftTaskItems.filter(item => item.taskId === input.taskId);
+    },
+    async updateAiDraftTask(id, patch, guard) {
+      const task = aiDraftTasks.find(item => {
+        if (item.id !== id) return false;
+        if (guard?.organizationId && item.organizationId !== guard.organizationId) return false;
+        if (guard?.ownerUserId && item.ownerUserId !== guard.ownerUserId) return false;
+        if (guard?.runVersion && item.runVersion !== guard.runVersion) return false;
+        if (guard?.status) {
+          const statuses = Array.isArray(guard.status) ? guard.status : [guard.status];
+          if (!statuses.includes(item.status)) return false;
+        }
+        return true;
+      });
+      if (!task) return null;
+      Object.assign(task, patch, { updatedAt: new Date('2026-06-20T10:00:00.000Z') });
+      return task;
+    },
+    async updateAiDraftTaskItem(id, patch, guard) {
+      const item = aiDraftTaskItems.find(taskItem => {
+        if (taskItem.id !== id) return false;
+        if (guard?.taskId && taskItem.taskId !== guard.taskId) return false;
+        if (guard?.organizationId && taskItem.organizationId !== guard.organizationId) return false;
+        if (guard?.ownerUserId && taskItem.ownerUserId !== guard.ownerUserId) return false;
+        if (guard?.status) {
+          const statuses = Array.isArray(guard.status) ? guard.status : [guard.status];
+          if (!statuses.includes(taskItem.status)) return false;
+        }
+        return true;
+      });
+      if (!item) return null;
+      Object.assign(item, patch, { updatedAt: new Date('2026-06-20T10:00:00.000Z') });
+      return item;
+    },
+    async getAiDraftQueueConfig() {
+      return aiDraftQueueConfig;
+    },
+    async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput) {
+      aiDraftQueueConfig = createAiDraftQueueConfig({
+        ...aiDraftQueueConfig,
+        ...input,
+        updatedAt: new Date('2026-06-20T10:00:00.000Z')
+      });
+      return aiDraftQueueConfig;
     },
     async getSendPreference(args) {
       return (
@@ -5225,6 +5880,22 @@ function createStore(
       );
 
       if (!enrollment) return null;
+      if (input.expectedEnrollmentStatus) {
+        const statuses = Array.isArray(input.expectedEnrollmentStatus)
+          ? input.expectedEnrollmentStatus
+          : [input.expectedEnrollmentStatus];
+        if (!statuses.includes(enrollment.status)) return null;
+      }
+      if (
+        messages.some(
+          message =>
+            message.enrollmentId === enrollment.id &&
+            (message.stepIndex === input.message.stepIndex ||
+              Boolean(input.blockingMessageStatuses?.includes(message.status)))
+        )
+      ) {
+        return null;
+      }
 
       const message = createMessage({
         ...input.message,
@@ -6263,6 +6934,79 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
   };
 }
 
+function createAiDraftQueueConfig(input: Partial<TestAiDraftQueueConfig> = {}): TestAiDraftQueueConfig {
+  return {
+    configKey: input.configKey || 'crm-ai-draft',
+    itemConcurrency: input.itemConcurrency ?? 3,
+    maxItemConcurrency: input.maxItemConcurrency ?? 5,
+    maxActiveTasksPerUser: input.maxActiveTasksPerUser ?? 1,
+    maxActiveTasksPerOrg: input.maxActiveTasksPerOrg ?? 2,
+    maxAttempts: input.maxAttempts ?? 3,
+    retryBackoffSeconds: input.retryBackoffSeconds ?? null,
+    updatedById: input.updatedById ?? null,
+    updatedByName: input.updatedByName ?? null,
+    updatedAt: input.updatedAt || new Date('2026-06-20T09:00:00.000Z')
+  };
+}
+
+function createAiDraftTask(input: Partial<TestAiDraftTask> = {}): TestAiDraftTask {
+  return {
+    id: input.id || 'ai-draft-task-1',
+    organizationId: input.organizationId || 'org-1',
+    organizationRole: input.organizationRole ?? 'member',
+    ownerUserId: input.ownerUserId || 'user-1',
+    ownerUserName: input.ownerUserName ?? 'Alice',
+    status: input.status || 'queued',
+    runVersion: input.runVersion ?? 1,
+    bullJobId: input.bullJobId ?? null,
+    requestedCount: input.requestedCount ?? 1,
+    successCount: input.successCount ?? 0,
+    skippedCount: input.skippedCount ?? 0,
+    failedCount: input.failedCount ?? 0,
+    retryingCount: input.retryingCount ?? 0,
+    runningCount: input.runningCount ?? 0,
+    pendingCount: input.pendingCount ?? 1,
+    effectiveConcurrency: input.effectiveConcurrency ?? 3,
+    maxAttempts: input.maxAttempts ?? 3,
+    failureReason: input.failureReason ?? null,
+    progressState: input.progressState ?? null,
+    resultSummary: input.resultSummary ?? null,
+    readAt: input.readAt ?? null,
+    notifiedAt: input.notifiedAt ?? null,
+    startedAt: input.startedAt ?? null,
+    finishedAt: input.finishedAt ?? null,
+    createdAt: input.createdAt || new Date('2026-06-20T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-20T09:00:00.000Z')
+  };
+}
+
+function createAiDraftTaskItem(input: Partial<TestAiDraftTaskItem> = {}): TestAiDraftTaskItem {
+  return {
+    id: input.id || 'ai-draft-task-item-1',
+    taskId: input.taskId || 'ai-draft-task-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    enrollmentId: input.enrollmentId || 'enrollment-1',
+    messageId: input.messageId ?? null,
+    contactId: input.contactId ?? null,
+    accountId: input.accountId ?? null,
+    productLineId: input.productLineId ?? null,
+    stepIndex: input.stepIndex ?? 1,
+    status: input.status || 'pending',
+    attemptCount: input.attemptCount ?? 0,
+    maxAttempts: input.maxAttempts ?? 3,
+    failureType: input.failureType ?? null,
+    failureReason: input.failureReason ?? null,
+    draftSubject: input.draftSubject ?? null,
+    draftBodyText: input.draftBodyText ?? null,
+    metadata: input.metadata ?? null,
+    startedAt: input.startedAt ?? null,
+    finishedAt: input.finishedAt ?? null,
+    createdAt: input.createdAt || new Date('2026-06-20T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-20T09:00:00.000Z')
+  };
+}
+
 function createSendPreference(input: Partial<TestSendPreference> = {}): TestSendPreference {
   return {
     id: input.id || 'send-preference-1',
@@ -6798,6 +7542,9 @@ type TestBlacklist = CrmBlacklistRecord;
 type TestContact = Awaited<ReturnType<CrmStore['createContact']>>;
 type TestEmailVerificationCache = CrmEmailVerificationCacheRecord;
 type TestGlobalConfig = CrmGlobalConfigRecord;
+type TestAiDraftQueueConfig = CrmAiDraftQueueConfigRecord;
+type TestAiDraftTask = CrmAiDraftTaskRecord;
+type TestAiDraftTaskItem = CrmAiDraftTaskItemRecord;
 type TestSendPreference = CrmSendPreferenceRecord;
 type TestOrganizationConfig = CrmOrganizationConfigRecord;
 type TestTimelineEvent = Awaited<ReturnType<CrmStore['createTimelineEvent']>>;
@@ -6936,6 +7683,35 @@ function createSendQueue(
       jobs.push(input);
       options.push(enqueueOptions ?? {});
       return { jobId: `send-job-${jobs.length}` };
+    }
+  };
+}
+
+function createAiDraftTaskQueue(
+  error?: Error
+): CrmAiDraftTaskQueuePort & { jobs: CrmAiDraftTaskQueueJob[]; removedJobIds: string[]; globalConcurrencies: number[] } {
+  const jobs: CrmAiDraftTaskQueueJob[] = [];
+  const removedJobIds: string[] = [];
+  const globalConcurrencies: number[] = [];
+
+  return {
+    jobs,
+    removedJobIds,
+    globalConcurrencies,
+    async enqueueTask(input) {
+      if (error) {
+        throw error;
+      }
+
+      jobs.push(input);
+
+      return { jobId: `${input.taskId}:${input.runVersion}` };
+    },
+    async removeTaskJob(jobId) {
+      removedJobIds.push(jobId);
+    },
+    async applyGlobalConcurrency(concurrency) {
+      globalConcurrencies.push(concurrency);
     }
   };
 }

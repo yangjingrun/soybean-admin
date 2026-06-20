@@ -3,9 +3,13 @@ import { computed, h, shallowRef } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
+  aiDraftTaskStatusLabelMap,
+  aiDraftTaskStatusTagTypeMap,
+  buildAiDraftTaskOperationDetailItems,
   buildMailboxOperationDetailItems,
   buildOperationLogDetailItems,
   buildOperationQueueDetailItems,
+  formatAiDraftTaskCounts,
   formatMailboxDate,
   formatMailboxHistoryId,
   formatMailboxWatchDescription,
@@ -27,14 +31,29 @@ import {
 } from './shared';
 import { useCrmOperationsPanel } from './useCrmOperationsPanel';
 
-const { isSuperAdmin, loadOperations, loading, logRows, mailboxHealth, mailboxes, operationSummaryRows, queueRows } =
-  useCrmOperationsPanel();
+const {
+  activeAiDraftTaskCount,
+  aiDraftTasks,
+  isSuperAdmin,
+  loadOperations,
+  loading,
+  logRows,
+  mailboxHealth,
+  mailboxes,
+  operationSummaryRows,
+  queueRows
+} = useCrmOperationsPanel();
 const selectedLog = shallowRef<Api.SystemLog.SystemLogRecord | null>(null);
 const selectedQueueRow = shallowRef<OperationQueueRow | null>(null);
+const selectedAiDraftTask = shallowRef<Api.Crm.AiDraftTaskRecord | null>(null);
 const selectedMailbox = shallowRef<Api.Crm.MailboxRecord | null>(null);
 const detailVisible = shallowRef(false);
 
 const detailTitle = computed(() => {
+  if (selectedAiDraftTask.value) {
+    return 'AI 草稿任务详情';
+  }
+
   if (selectedQueueRow.value) {
     return '发送队列详情';
   }
@@ -51,6 +70,10 @@ const detailTitle = computed(() => {
 });
 
 const detailItems = computed<OperationDetailItem[]>(() => {
+  if (selectedAiDraftTask.value) {
+    return buildAiDraftTaskOperationDetailItems(selectedAiDraftTask.value);
+  }
+
   if (selectedQueueRow.value) {
     return buildOperationQueueDetailItems(selectedQueueRow.value);
   }
@@ -69,6 +92,15 @@ const detailItems = computed<OperationDetailItem[]>(() => {
 function openQueueDetail(row: OperationQueueRow) {
   selectedLog.value = null;
   selectedQueueRow.value = row;
+  selectedAiDraftTask.value = null;
+  selectedMailbox.value = null;
+  detailVisible.value = true;
+}
+
+function openAiDraftTaskDetail(row: Api.Crm.AiDraftTaskRecord) {
+  selectedLog.value = null;
+  selectedQueueRow.value = null;
+  selectedAiDraftTask.value = row;
   selectedMailbox.value = null;
   detailVisible.value = true;
 }
@@ -76,6 +108,7 @@ function openQueueDetail(row: OperationQueueRow) {
 function openMailboxDetail(row: Api.Crm.MailboxRecord) {
   selectedLog.value = null;
   selectedQueueRow.value = null;
+  selectedAiDraftTask.value = null;
   selectedMailbox.value = row;
   detailVisible.value = true;
 }
@@ -83,6 +116,7 @@ function openMailboxDetail(row: Api.Crm.MailboxRecord) {
 function openLogDetail(row: Api.SystemLog.SystemLogRecord) {
   selectedLog.value = row;
   selectedQueueRow.value = null;
+  selectedAiDraftTask.value = null;
   selectedMailbox.value = null;
   detailVisible.value = true;
 }
@@ -105,6 +139,30 @@ function renderQueueTime(row: OperationQueueRow) {
   return h('div', { class: 'mailbox-stack-cell' }, [
     h('span', { class: 'mailbox-primary-text' }, formatOperationDate(row.scheduledAt)),
     h('span', { class: 'mailbox-secondary-text' }, `发送 ${formatOperationDate(row.sentAt)}`)
+  ]);
+}
+
+function renderAiDraftTaskStatus(row: Api.Crm.AiDraftTaskRecord) {
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: aiDraftTaskStatusTagTypeMap[row.status]
+      },
+      { default: () => aiDraftTaskStatusLabelMap[row.status] }
+    ),
+    h('span', { class: 'mailbox-secondary-text' }, `并发 ${row.effectiveConcurrency}`)
+  ]);
+}
+
+function renderAiDraftTaskProgress(row: Api.Crm.AiDraftTaskRecord) {
+  const finishedCount = row.successCount + row.skippedCount + row.failedCount;
+
+  return h('div', { class: 'mailbox-stack-cell' }, [
+    h('span', { class: 'mailbox-primary-text' }, `${finishedCount} / ${row.requestedCount}`),
+    h('span', { class: 'mailbox-secondary-text' }, formatAiDraftTaskCounts(row))
   ]);
 }
 
@@ -246,6 +304,64 @@ const queueColumns = computed<DataTableColumns<OperationQueueRow>>(() => [
           text: true,
           type: 'primary',
           onClick: () => openQueueDetail(row)
+        },
+        { default: () => '详情' }
+      )
+  }
+]);
+
+const aiDraftTaskColumns = computed<DataTableColumns<Api.Crm.AiDraftTaskRecord>>(() => [
+  {
+    key: 'status',
+    title: '状态',
+    minWidth: 130,
+    render: row => renderAiDraftTaskStatus(row)
+  },
+  {
+    key: 'progress',
+    title: '进度 / 结果',
+    minWidth: 220,
+    render: row => renderAiDraftTaskProgress(row)
+  },
+  {
+    key: 'retryingCount',
+    title: '待重试',
+    width: 90,
+    render: row => row.retryingCount
+  },
+  {
+    key: 'failureReason',
+    title: '失败原因',
+    minWidth: 180,
+    ellipsis: { tooltip: true },
+    render: row => row.failureReason || '-'
+  },
+  {
+    key: 'bullJobId',
+    title: '队列 Job',
+    minWidth: 160,
+    ellipsis: { tooltip: true },
+    render: row => row.bullJobId || '-'
+  },
+  {
+    key: 'updatedAt',
+    title: '更新时间',
+    minWidth: 170,
+    render: row => formatOperationDate(row.updatedAt)
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    width: 90,
+    fixed: 'right',
+    render: row =>
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          text: true,
+          type: 'primary',
+          onClick: () => openAiDraftTaskDetail(row)
         },
         { default: () => '详情' }
       )
@@ -427,9 +543,12 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
     </template>
 
     <NSpace vertical :size="12">
-      <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="2 s:2 m:5">
+      <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="2 s:2 m:6">
         <NGi>
           <NStatistic label="待关注消息" :value="queueRows.length" />
+        </NGi>
+        <NGi>
+          <NStatistic label="AI 活跃任务" :value="activeAiDraftTaskCount" />
         </NGi>
         <NGi>
           <NStatistic label="邮箱总数" :value="mailboxHealth.total" />
@@ -474,6 +593,23 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
           </NSpace>
         </NGi>
 
+        <NGi>
+          <NSpace vertical :size="8">
+            <NText strong>AI 草稿任务</NText>
+            <NDataTable
+              size="small"
+              :columns="aiDraftTaskColumns"
+              :data="aiDraftTasks"
+              :loading="loading"
+              :pagination="false"
+              :row-key="row => row.id"
+              scroll-x="1040"
+            />
+          </NSpace>
+        </NGi>
+      </NGrid>
+
+      <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1 l:2">
         <NGi>
           <NSpace vertical :size="8">
             <NText strong>同步 / 续订</NText>

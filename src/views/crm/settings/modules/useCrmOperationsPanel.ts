@@ -1,10 +1,11 @@
 import { computed, onMounted, shallowRef } from 'vue';
-import { fetchCrmMailboxes, fetchCrmSequenceReviewItems, fetchSystemLogs } from '@/service/api';
+import { fetchCrmAiDraftTasks, fetchCrmMailboxes, fetchCrmSequenceReviewItems, fetchSystemLogs } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import {
   buildOperationLogSummaryRows,
   collectOperationQueueRows,
   collectRecentCrmOperationLogs,
+  isActiveAiDraftTask,
   summarizeMailboxSyncHealth
 } from './shared';
 
@@ -18,14 +19,17 @@ export function useCrmOperationsPanel() {
   const mailboxes = shallowRef<Api.Crm.MailboxRecord[]>([]);
   const operationLogs = shallowRef<Api.SystemLog.SystemLogRecord[]>([]);
   const sequenceItems = shallowRef<Api.Crm.SequenceReviewItem[]>([]);
+  const aiDraftTasks = shallowRef<Api.Crm.AiDraftTaskRecord[]>([]);
   let latestRequestId = 0;
 
   const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
   const logRows = computed(() => collectRecentCrmOperationLogs(operationLogs.value));
   const queueRows = computed(() => collectOperationQueueRows(sequenceItems.value));
+  const activeAiDraftTaskCount = computed(() => aiDraftTasks.value.filter(isActiveAiDraftTask).length);
   const mailboxHealth = computed(() => summarizeMailboxSyncHealth(mailboxes.value));
   const operationSummaryRows = computed(() =>
     buildOperationLogSummaryRows({
+      aiDraftTasks: aiDraftTasks.value,
       logs: operationLogs.value,
       mailboxes: mailboxes.value,
       queueRows: queueRows.value
@@ -43,18 +47,26 @@ export function useCrmOperationsPanel() {
     loading.value = true;
 
     try {
-      const [mailboxResult, sequenceResult, logResult] = await Promise.all([
+      const [mailboxResult, sequenceResult, aiDraftTaskResult, logResult] = await Promise.all([
         fetchCrmMailboxes({ current: 1, size: OPERATIONS_PAGE_SIZE }),
         fetchCrmSequenceReviewItems({ current: 1, size: OPERATIONS_PAGE_SIZE }),
+        fetchCrmAiDraftTasks({ current: 1, size: OPERATIONS_PAGE_SIZE }),
         isSuperAdmin.value
           ? fetchSystemLogs({ current: 1, size: OPERATION_LOG_PAGE_SIZE, module: 'crm' })
           : Promise.resolve(null)
       ]);
 
-      if (mailboxResult.error || sequenceResult.error || logResult?.error || requestId !== latestRequestId) {
+      if (
+        mailboxResult.error ||
+        sequenceResult.error ||
+        aiDraftTaskResult.error ||
+        logResult?.error ||
+        requestId !== latestRequestId
+      ) {
         return;
       }
 
+      aiDraftTasks.value = aiDraftTaskResult.data.records;
       mailboxes.value = mailboxResult.data.records;
       operationLogs.value = logResult?.data.records ?? [];
       sequenceItems.value = sequenceResult.data.records;
@@ -66,6 +78,8 @@ export function useCrmOperationsPanel() {
   }
 
   return {
+    activeAiDraftTaskCount,
+    aiDraftTasks,
     isSuperAdmin,
     loadOperations,
     logRows,

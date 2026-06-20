@@ -24,6 +24,7 @@ import { CompleteCrmGmailOAuthDto } from './dto/complete-crm-gmail-oauth.dto';
 import { CreateCrmAccountNoteDto } from './dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from './dto/crm-account-query.dto';
 import { CrmBlacklistQueryDto } from './dto/crm-blacklist-query.dto';
+import { CrmAiDraftTaskQueryDto } from './dto/crm-ai-draft-task-query.dto';
 import { CrmInboxThreadQueryDto } from './dto/crm-inbox-thread-query.dto';
 import { CrmMailboxQueryDto } from './dto/crm-mailbox-query.dto';
 import { CrmEmailTemplateQueryDto } from './dto/crm-email-template-query.dto';
@@ -31,6 +32,7 @@ import { CrmPersonaProfileQueryDto } from './dto/crm-persona-profile-query.dto';
 import { CrmProductLineQueryDto } from './dto/crm-product-line-query.dto';
 import { CrmSequencePolicyQueryDto } from './dto/crm-sequence-policy-query.dto';
 import { CrmSequenceReviewQueryDto } from './dto/crm-sequence-review-query.dto';
+import { CreateCrmAiDraftTaskDto } from './dto/create-crm-ai-draft-task.dto';
 import { CreateCrmEmailTemplateDto } from './dto/create-crm-email-template.dto';
 import { CreateCrmPersonaProfileDto } from './dto/create-crm-persona-profile.dto';
 import { CreateCrmSequenceReviewItemDto } from './dto/create-crm-sequence-review-item.dto';
@@ -48,6 +50,7 @@ import { SaveCrmInboxReplyDraftDto } from './dto/save-crm-inbox-reply-draft.dto'
 import { SaveCrmOrganizationConfigDto } from './dto/save-crm-organization-config.dto';
 import { SaveCrmSendPreferenceDto } from './dto/save-crm-send-preference.dto';
 import { UpdateCrmAccountStatusDto } from './dto/update-crm-account-status.dto';
+import { UpdateCrmAiDraftQueueConfigDto } from './dto/update-crm-ai-draft-queue-config.dto';
 import { UpdateCrmInboxThreadStatusDto } from './dto/update-crm-inbox-thread-status.dto';
 import { UpdateCrmMessageDraftDto } from './dto/update-crm-message-draft.dto';
 import { UpdateCrmEmailTemplateDto } from './dto/update-crm-email-template.dto';
@@ -133,6 +136,21 @@ export class CrmController {
   @Post('global-config')
   async saveGlobalConfig(@Headers('authorization') authorization = '', @Body() dto: SaveCrmGlobalConfigDto) {
     return ok(await this.crmService.saveGlobalConfig(dto, this.requireSuperUserContext(authorization)));
+  }
+
+  @Get('ai-draft-queue-config')
+  async getAiDraftQueueConfig(@Headers('authorization') authorization = '') {
+    this.requireSuperUserContext(authorization);
+
+    return ok(await this.crmService.getAiDraftQueueConfig());
+  }
+
+  @Patch('ai-draft-queue-config')
+  async saveAiDraftQueueConfig(
+    @Headers('authorization') authorization = '',
+    @Body() dto: UpdateCrmAiDraftQueueConfigDto
+  ) {
+    return ok(await this.crmService.saveAiDraftQueueConfig(dto, this.requireSuperUserContext(authorization)));
   }
 
   @Get('send-preference')
@@ -383,6 +401,44 @@ export class CrmController {
     @Body() dto: BatchCrmSequenceReviewItemsDto
   ) {
     return ok(await this.crmService.batchGenerateNextDrafts(dto, this.requireUserContext(authorization)));
+  }
+
+  @Post('ai-draft-tasks')
+  async createAiDraftTask(@Headers('authorization') authorization = '', @Body() dto: CreateCrmAiDraftTaskDto) {
+    return ok(await this.crmService.createAiDraftTask(dto, this.requireUserContext(authorization)));
+  }
+
+  @Get('ai-draft-tasks/current')
+  async getCurrentAiDraftTask(@Headers('authorization') authorization = '') {
+    return ok(await this.crmService.getCurrentAiDraftTask(this.requireUserContext(authorization)));
+  }
+
+  @Get('ai-draft-tasks')
+  async listAiDraftTasks(
+    @Headers('authorization') authorization = '',
+    @Query() query: CrmAiDraftTaskQueryDto
+  ) {
+    return ok(await this.crmService.listAiDraftTasks(this.requireUserContext(authorization), query));
+  }
+
+  @Get('ai-draft-tasks/:id')
+  async getAiDraftTaskDetail(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.getAiDraftTaskDetail(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('ai-draft-tasks/:id/retry-failed')
+  async retryFailedAiDraftTask(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.retryFailedAiDraftTask(id, this.requireUserContext(authorization)));
+  }
+
+  @Post('ai-draft-tasks/:id/cancel')
+  async cancelAiDraftTask(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.cancelAiDraftTask(id, this.requireUserContext(authorization)));
+  }
+
+  @Patch('ai-draft-tasks/:id/read')
+  async markAiDraftTaskRead(@Headers('authorization') authorization = '', @Param('id') id: string) {
+    return ok(await this.crmService.markAiDraftTaskRead(id, this.requireUserContext(authorization)));
   }
 
   @Post('sequence-review-items/batch-approve-draft')

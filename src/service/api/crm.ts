@@ -468,6 +468,81 @@ export function batchGenerateCrmNextSequenceDrafts(data: Api.Crm.SequenceReviewB
   });
 }
 
+/** Create one background CRM AI draft task for selected sequences without sending Gmail. */
+export function createCrmAiDraftTask(data: Api.Crm.CreateAiDraftTaskPayload) {
+  return request<Api.Crm.AiDraftTaskDetail>({
+    url: '/crm/ai-draft-tasks',
+    method: 'post',
+    data
+  });
+}
+
+/** Read the current active or unread CRM AI draft task for the owner. */
+export function fetchCurrentCrmAiDraftTask() {
+  return request<Api.Crm.AiDraftTaskDetail | null>({
+    url: '/crm/ai-draft-tasks/current',
+    method: 'get'
+  });
+}
+
+/** List recent CRM AI draft tasks. */
+export function fetchCrmAiDraftTasks(params: Api.Common.CommonSearchParams) {
+  return request<Api.Crm.AiDraftTaskList>({
+    url: '/crm/ai-draft-tasks',
+    method: 'get',
+    params
+  });
+}
+
+/** Get one CRM AI draft task with item details. */
+export function fetchCrmAiDraftTaskDetail(id: string) {
+  return request<Api.Crm.AiDraftTaskDetail>({
+    url: `/crm/ai-draft-tasks/${id}`,
+    method: 'get'
+  });
+}
+
+/** Retry retryable failed items for one CRM AI draft task. */
+export function retryFailedCrmAiDraftTask(id: string) {
+  return request<Api.Crm.AiDraftTaskDetail>({
+    url: `/crm/ai-draft-tasks/${id}/retry-failed`,
+    method: 'post'
+  });
+}
+
+/** Cancel one queued or running CRM AI draft task. */
+export function cancelCrmAiDraftTask(id: string) {
+  return request<Api.Crm.AiDraftTaskDetail>({
+    url: `/crm/ai-draft-tasks/${id}/cancel`,
+    method: 'post'
+  });
+}
+
+/** Mark one finished CRM AI draft task as read. */
+export function markCrmAiDraftTaskRead(id: string) {
+  return request<Api.Crm.AiDraftTaskReadResult>({
+    url: `/crm/ai-draft-tasks/${id}/read`,
+    method: 'patch'
+  });
+}
+
+/** Read super-admin CRM AI draft queue config. */
+export function fetchCrmAiDraftQueueConfig() {
+  return request<Api.Crm.AiDraftQueueConfigRecord>({
+    url: '/crm/ai-draft-queue-config',
+    method: 'get'
+  });
+}
+
+/** Save super-admin CRM AI draft queue config. */
+export function saveCrmAiDraftQueueConfig(data: Api.Crm.AiDraftQueueConfigPayload) {
+  return request<Api.Crm.AiDraftQueueConfigRecord>({
+    url: '/crm/ai-draft-queue-config',
+    method: 'patch',
+    data
+  });
+}
+
 /** Confirm selected owner drafts locally without queueing Gmail sends. */
 export function batchApproveCrmMessageDrafts(data: Api.Crm.SequenceReviewBatchPayload) {
   return request<Api.Crm.SequenceBatchOperateResult>({

@@ -87,6 +87,8 @@ model Organization {
   crmUserSendPreferences CrmUserSendPreference[]
   crmInboxThreads    CrmInboxThread[]
   crmInboxMessages   CrmInboxMessage[]
+  crmAiDraftTasks CrmAiDraftTask[]
+  crmAiDraftTaskItems CrmAiDraftTaskItem[]
 
   @@index([status])
 }
@@ -661,6 +663,84 @@ model CrmInboxMessage {
   @@index([organizationId, contactId, receivedAt])
   @@index([threadId, receivedAt])
   @@index([enrollmentId])
+}
+
+model CrmAiDraftTask {
+  id                     String   @id @default(cuid())
+  organizationId         String
+  organizationRole       String?
+  ownerUserId            String
+  ownerUserName          String?
+  status                 String   @default("queued")
+  runVersion             Int      @default(1)
+  bullJobId              String?
+  requestedCount         Int
+  successCount           Int      @default(0)
+  skippedCount           Int      @default(0)
+  failedCount            Int      @default(0)
+  retryingCount          Int      @default(0)
+  runningCount           Int      @default(0)
+  pendingCount           Int      @default(0)
+  effectiveConcurrency   Int      @default(3)
+  maxAttempts            Int      @default(3)
+  failureReason          String?
+  progressState          Json?
+  resultSummary          Json?
+  readAt                 DateTime?
+  notifiedAt             DateTime?
+  startedAt              DateTime?
+  finishedAt             DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  items                  CrmAiDraftTaskItem[]
+  organization           Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, ownerUserId, status, updatedAt])
+  @@index([organizationId, status, updatedAt])
+}
+
+model CrmAiDraftTaskItem {
+  id             String   @id @default(cuid())
+  taskId         String
+  organizationId String
+  ownerUserId    String
+  enrollmentId   String
+  messageId      String?
+  contactId      String?
+  accountId      String?
+  productLineId  String?
+  stepIndex      Int
+  status         String   @default("pending")
+  attemptCount   Int      @default(0)
+  maxAttempts    Int      @default(3)
+  failureType    String?
+  failureReason  String?
+  draftSubject   String?
+  draftBodyText  String?
+  metadata       Json?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  task           CrmAiDraftTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([taskId, enrollmentId, stepIndex])
+  @@index([taskId, status, updatedAt])
+  @@index([organizationId, ownerUserId, status])
+}
+
+model CrmAiDraftQueueConfig {
+  configKey              String   @id @default("crm-ai-draft")
+  itemConcurrency        Int      @default(3)
+  maxItemConcurrency     Int      @default(5)
+  maxActiveTasksPerUser  Int      @default(1)
+  maxActiveTasksPerOrg   Int      @default(2)
+  maxAttempts            Int      @default(3)
+  retryBackoffSeconds    Json?
+  updatedById            String?
+  updatedByName          String?
+  updatedAt              DateTime @updatedAt
 }
 
 model AiPromptConfig {

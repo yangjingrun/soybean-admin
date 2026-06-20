@@ -4,7 +4,7 @@ const MAILBOX_WATCH_EXPIRING_SOON_HOURS = 24;
 
 export type MailboxWatchStatus = 'not_started' | 'expired' | 'expiring_soon' | 'normal';
 export type OperationMessageStatus = Extract<Api.Crm.MessageStatus, 'queued' | 'failed'> | 'scheduled';
-export type OperationLogCategory = 'webhook' | 'history' | 'watch' | 'send';
+export type OperationLogCategory = 'webhook' | 'history' | 'watch' | 'send' | 'aiDraft';
 
 interface OperationLogEvent {
   category: OperationLogCategory;
@@ -34,6 +34,15 @@ export interface OperationQueueRow {
   scheduledAt: string | null;
   sentAt: string | null;
   updatedAt: string;
+}
+
+export interface AiDraftQueueConfigFormModel {
+  itemConcurrency: number | null;
+  maxItemConcurrency: number | null;
+  maxActiveTasksPerUser: number | null;
+  maxActiveTasksPerOrg: number | null;
+  maxAttempts: number | null;
+  retryBackoffSecondsText: string;
 }
 
 export interface OperationDetailItem {
@@ -161,21 +170,57 @@ export const operationLogStatusTagTypeMap: Record<Api.SystemLog.LogStatus, Naive
   failed: 'error'
 };
 
+export const aiDraftTaskStatusLabelMap: Record<Api.Crm.AiDraftTaskStatus, string> = {
+  queued: '排队中',
+  running: '生成中',
+  completed: '已完成',
+  failed: '有失败',
+  cancelled: '已取消'
+};
+
+export const aiDraftTaskStatusTagTypeMap: Record<Api.Crm.AiDraftTaskStatus, NaiveUI.ThemeColor> = {
+  queued: 'info',
+  running: 'warning',
+  completed: 'success',
+  failed: 'error',
+  cancelled: 'default'
+};
+
+export const aiDraftTaskItemStatusLabelMap: Record<Api.Crm.AiDraftTaskItemStatus, string> = {
+  pending: '待生成',
+  running: '生成中',
+  retrying: '待重试',
+  succeeded: '已生成',
+  skipped: '已跳过',
+  failed: '失败'
+};
+
+export const aiDraftTaskItemStatusTagTypeMap: Record<Api.Crm.AiDraftTaskItemStatus, NaiveUI.ThemeColor> = {
+  pending: 'default',
+  running: 'warning',
+  retrying: 'info',
+  succeeded: 'success',
+  skipped: 'default',
+  failed: 'error'
+};
+
 export const operationLogCategoryLabelMap: Record<OperationLogCategory, string> = {
   webhook: 'Webhook',
   history: 'History',
   watch: 'Watch',
-  send: 'Send'
+  send: 'Send',
+  aiDraft: 'AI 草稿'
 };
 
 export const operationLogCategoryEmptyTextMap: Record<OperationLogCategory, string> = {
   webhook: '暂无 webhook system-log，当前仅可从 History 入队结果侧面观察',
   history: '暂无 History 同步异常或日志',
   watch: '暂无 Watch 续订或授权日志',
-  send: '暂无发送队列或发送 worker 日志'
+  send: '暂无发送队列或发送 worker 日志',
+  aiDraft: '暂无批量 AI 草稿任务'
 };
 
-const operationLogCategoryOrder: OperationLogCategory[] = ['webhook', 'history', 'watch', 'send'];
+const operationLogCategoryOrder: OperationLogCategory[] = ['webhook', 'history', 'watch', 'send', 'aiDraft'];
 const strategyStatDimensionOrder: Api.Crm.StrategyStatDimension[] = ['template', 'policy', 'persona', 'productLine'];
 
 export const strategyStatDimensionTitleMap: Record<Api.Crm.StrategyStatDimension, string> = {
@@ -343,12 +388,38 @@ export function createDefaultGlobalConfigForm(): Api.Crm.GlobalConfigFormModel {
   };
 }
 
+/** Create the default super-admin AI draft queue config form. */
+export function createDefaultAiDraftQueueConfigForm(): AiDraftQueueConfigFormModel {
+  return {
+    itemConcurrency: 3,
+    maxItemConcurrency: 5,
+    maxActiveTasksPerUser: 1,
+    maxActiveTasksPerOrg: 3,
+    maxAttempts: 3,
+    retryBackoffSecondsText: '30,60,120'
+  };
+}
+
 /** Create the default current-owner send scheduling preference form. */
 export function createDefaultSendPreferenceForm(): Api.Crm.SendPreferenceFormModel {
   return {
     dailySendLimit: 50,
     followUpSharePercent: 70,
     ownerDailySendLimitMax: 200
+  };
+}
+
+/** Convert backend AI draft queue config into the editable form model. */
+export function createAiDraftQueueConfigFormFromRecord(
+  record: Api.Crm.AiDraftQueueConfigRecord
+): AiDraftQueueConfigFormModel {
+  return {
+    itemConcurrency: record.itemConcurrency,
+    maxItemConcurrency: record.maxItemConcurrency,
+    maxActiveTasksPerUser: record.maxActiveTasksPerUser,
+    maxActiveTasksPerOrg: record.maxActiveTasksPerOrg,
+    maxAttempts: record.maxAttempts,
+    retryBackoffSecondsText: (record.retryBackoffSeconds ?? []).join(',')
   };
 }
 
@@ -857,6 +928,10 @@ function createProductLinePromptPreview(prompt: string) {
   return prompt.length > 80 ? `${prompt.slice(0, 80)}...` : prompt;
 }
 
+function isPositiveInteger(value: number | null): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
+}
+
 function pushProductLinePromptDiffItem(
   diffItems: ProductLineAiPromptVersionDiffItem[],
   key: string,
@@ -960,6 +1035,45 @@ export function isValidFollowUpDelayDays(value: Api.Crm.FollowUpDelayDays) {
   return Object.values(value).every(day => Number.isInteger(day) && day >= 1 && day <= 90);
 }
 
+/** Parse comma separated retry backoff seconds from the super-admin form. */
+export function parseAiDraftRetryBackoffSeconds(text: string): number[] {
+  return text
+    .split(',')
+    .map(item => Number(item.trim()))
+    .filter(item => Number.isInteger(item) && item > 0);
+}
+
+/** Check whether the AI draft queue config form can be saved. */
+export function validateAiDraftQueueConfigForm(form: AiDraftQueueConfigFormModel): string | null {
+  if (!isPositiveInteger(form.itemConcurrency)) return '请输入大于 0 的默认并发';
+  if (!isPositiveInteger(form.maxItemConcurrency)) return '请输入大于 0 的最大并发';
+  if (!isPositiveInteger(form.maxActiveTasksPerUser)) return '请输入大于 0 的用户任务上限';
+  if (!isPositiveInteger(form.maxActiveTasksPerOrg)) return '请输入大于 0 的组织任务上限';
+  if (!isPositiveInteger(form.maxAttempts)) return '请输入大于 0 的失败重试次数';
+
+  if (form.itemConcurrency > form.maxItemConcurrency) {
+    return '默认并发不能大于最大并发';
+  }
+
+  const retryBackoffSeconds = parseAiDraftRetryBackoffSeconds(form.retryBackoffSecondsText);
+
+  return retryBackoffSeconds.length > 0 ? null : '请填写至少一个重试间隔秒数';
+}
+
+/** Build the backend payload for saving the AI draft queue config. */
+export function normalizeAiDraftQueueConfigPayload(
+  form: AiDraftQueueConfigFormModel
+): Api.Crm.AiDraftQueueConfigPayload {
+  return {
+    itemConcurrency: form.itemConcurrency ?? 3,
+    maxItemConcurrency: form.maxItemConcurrency ?? 5,
+    maxActiveTasksPerUser: form.maxActiveTasksPerUser ?? 1,
+    maxActiveTasksPerOrg: form.maxActiveTasksPerOrg ?? 3,
+    maxAttempts: form.maxAttempts ?? 3,
+    retryBackoffSeconds: parseAiDraftRetryBackoffSeconds(form.retryBackoffSecondsText)
+  };
+}
+
 /** Format nullable backend ISO datetime for mailbox table display. */
 export function formatMailboxDate(value: string | null) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
@@ -1024,6 +1138,16 @@ export function formatOperationDate(value: string | null) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 }
 
+/** Format one AI draft task count group for operation tables. */
+export function formatAiDraftTaskCounts(row: Api.Crm.AiDraftTaskRecord) {
+  return `${row.successCount} 成功 / ${row.skippedCount} 跳过 / ${row.failedCount} 失败`;
+}
+
+/** Get whether an AI draft task still occupies queue resources. */
+export function isActiveAiDraftTask(row: Api.Crm.AiDraftTaskRecord) {
+  return row.status === 'queued' || row.status === 'running';
+}
+
 /** Build the field list used by the send queue operation detail drawer. */
 export function buildOperationQueueDetailItems(row: OperationQueueRow): OperationDetailItem[] {
   return [
@@ -1039,6 +1163,26 @@ export function buildOperationQueueDetailItems(row: OperationQueueRow): Operatio
     { label: 'Gmail Thread', value: row.providerThreadId || '-' },
     { label: '计划发送', value: formatOperationDate(row.scheduledAt) },
     { label: '实际发送', value: formatOperationDate(row.sentAt) },
+    { label: '更新时间', value: formatOperationDate(row.updatedAt) }
+  ];
+}
+
+/** Build the field list used by the AI draft task operation detail drawer. */
+export function buildAiDraftTaskOperationDetailItems(row: Api.Crm.AiDraftTaskRecord): OperationDetailItem[] {
+  return [
+    { label: '状态', value: aiDraftTaskStatusLabelMap[row.status] },
+    { label: '任务编号', value: row.id },
+    { label: '请求数量', value: `${row.requestedCount}` },
+    { label: '生成结果', value: formatAiDraftTaskCounts(row) },
+    { label: '排队中', value: `${row.pendingCount}` },
+    { label: '生成中', value: `${row.runningCount}` },
+    { label: '待重试', value: `${row.retryingCount}` },
+    { label: '实际并发', value: `${row.effectiveConcurrency}` },
+    { label: '最大尝试', value: `${row.maxAttempts}` },
+    { label: 'BullMQ Job', value: row.bullJobId || '-' },
+    { label: '失败原因', value: row.failureReason || '-' },
+    { label: '创建时间', value: formatOperationDate(row.createdAt) },
+    { label: '完成时间', value: formatOperationDate(row.finishedAt) },
     { label: '更新时间', value: formatOperationDate(row.updatedAt) }
   ];
 }
@@ -1080,6 +1224,7 @@ export function buildOperationLogDetailItems(row: Api.SystemLog.SystemLogRecord)
 
 /** Build a four-category operations summary from existing CRM/system-log data only. */
 export function buildOperationLogSummaryRows(options: {
+  aiDraftTasks?: Api.Crm.AiDraftTaskRecord[];
   logs: Api.SystemLog.SystemLogRecord[];
   mailboxes: Api.Crm.MailboxRecord[];
   queueRows: OperationQueueRow[];
@@ -1087,7 +1232,8 @@ export function buildOperationLogSummaryRows(options: {
   const events = [
     ...options.logs.map(toOperationLogEvent).filter((event): event is OperationLogEvent => Boolean(event)),
     ...options.mailboxes.flatMap(toMailboxHistoryEvents),
-    ...options.queueRows.map(toQueueOperationEvent)
+    ...options.queueRows.map(toQueueOperationEvent),
+    ...(options.aiDraftTasks ?? []).map(toAiDraftTaskOperationEvent)
   ].toSorted(compareOperationLogEvents);
 
   return operationLogCategoryOrder.map(category => {
@@ -1377,6 +1523,20 @@ function toQueueOperationEvent(row: OperationQueueRow): OperationLogEvent {
   };
 }
 
+function toAiDraftTaskOperationEvent(row: Api.Crm.AiDraftTaskRecord): OperationLogEvent {
+  return {
+    category: 'aiDraft',
+    action: `task-${row.status}`,
+    summary: `请求 ${row.requestedCount} 条，${formatAiDraftTaskCounts(row)}`,
+    failureReason: row.failureReason || '-',
+    maskedEmail: '-',
+    jobId: row.bullJobId || '-',
+    statusLabel: aiDraftTaskStatusLabelMap[row.status],
+    tagType: aiDraftTaskStatusTagTypeMap[row.status],
+    rawTime: row.updatedAt
+  };
+}
+
 function resolveOperationLogCategory(record: Api.SystemLog.SystemLogRecord): OperationLogCategory | null {
   const text = `${record.action} ${record.message}`.toLowerCase();
 
@@ -1390,6 +1550,10 @@ function resolveOperationLogCategory(record: Api.SystemLog.SystemLogRecord): Ope
 
   if (text.includes('watch') || text.includes('auth')) {
     return 'watch';
+  }
+
+  if (text.includes('ai draft') || text.includes('aidraft') || text.includes('草稿任务')) {
+    return 'aiDraft';
   }
 
   if (text.includes('send') || text.includes('worker') || text.includes('job')) {

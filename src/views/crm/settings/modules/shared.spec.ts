@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import dayjs from 'dayjs';
 import {
+  buildAiDraftTaskOperationDetailItems,
   buildMailboxOperationDetailItems,
   buildOperationLogDetailItems,
   buildOperationQueueDetailItems,
@@ -16,6 +17,7 @@ import {
   collectOperationQueueRows,
   collectRecentCrmOperationLogs,
   createDefaultBlacklistFilterModel,
+  createDefaultAiDraftQueueConfigForm,
   createDefaultEmailTemplateFilterModel,
   createDefaultEmailTemplateForm,
   createDefaultFollowUpDelayDays,
@@ -26,6 +28,7 @@ import {
   createDefaultProductLineAiWritingConfig,
   createDefaultSequencePolicyFilterModel,
   createDefaultSequencePolicyForm,
+  createAiDraftQueueConfigFormFromRecord,
   createEmailTemplateFormFromRecord,
   createPersonaProfileFormFromRecord,
   createSequencePolicyFormFromRecord,
@@ -37,11 +40,14 @@ import {
   isValidFollowUpSharePercent,
   isValidOwnerConcurrentSendLimit,
   isValidOwnerDailySendLimitMax,
+  normalizeAiDraftQueueConfigPayload,
   normalizeEmailTemplatePayload,
   normalizePersonaProfilePayload,
   normalizeProductLineAiWritingConfig,
   normalizeSequencePolicyPayload,
+  parseAiDraftRetryBackoffSeconds,
   summarizeProductLineAiWritingConfig,
+  validateAiDraftQueueConfigForm,
   validateProductLineAiWritingConfig,
   summarizeMailboxSyncHealth
 } from './shared';
@@ -58,6 +64,38 @@ describe('crm settings shared helpers', () => {
         step4Days: 14,
         step5Days: 21
       }
+    });
+  });
+
+  it('creates and normalizes AI draft queue config form values', () => {
+    assert.deepEqual(createDefaultAiDraftQueueConfigForm(), {
+      itemConcurrency: 3,
+      maxItemConcurrency: 5,
+      maxActiveTasksPerUser: 1,
+      maxActiveTasksPerOrg: 3,
+      maxAttempts: 3,
+      retryBackoffSecondsText: '30,60,120'
+    });
+
+    const record = createAiDraftTaskConfigRecord({
+      itemConcurrency: 4,
+      retryBackoffSeconds: [10, 30, 90]
+    });
+    const form = createAiDraftQueueConfigFormFromRecord(record);
+
+    assert.equal(form.itemConcurrency, 4);
+    assert.equal(form.retryBackoffSecondsText, '10,30,90');
+    assert.deepEqual(parseAiDraftRetryBackoffSeconds(' 10, x, 30,0, 90 '), [10, 30, 90]);
+    assert.equal(validateAiDraftQueueConfigForm(form), null);
+    assert.equal(validateAiDraftQueueConfigForm({ ...form, itemConcurrency: 6, maxItemConcurrency: 5 }), '默认并发不能大于最大并发');
+    assert.equal(validateAiDraftQueueConfigForm({ ...form, retryBackoffSecondsText: 'x,0' }), '请填写至少一个重试间隔秒数');
+    assert.deepEqual(normalizeAiDraftQueueConfigPayload(form), {
+      itemConcurrency: 4,
+      maxItemConcurrency: 5,
+      maxActiveTasksPerUser: 1,
+      maxActiveTasksPerOrg: 3,
+      maxAttempts: 3,
+      retryBackoffSeconds: [10, 30, 90]
     });
   });
 
@@ -480,6 +518,25 @@ describe('crm settings shared helpers', () => {
     ]);
   });
 
+  it('builds AI draft task detail rows without exposing generated body', () => {
+    assert.deepEqual(buildAiDraftTaskOperationDetailItems(createAiDraftTaskRecord()), [
+      { label: '状态', value: '有失败' },
+      { label: '任务编号', value: 'ai-draft-task-1' },
+      { label: '请求数量', value: '5' },
+      { label: '生成结果', value: '2 成功 / 1 跳过 / 2 失败' },
+      { label: '排队中', value: '0' },
+      { label: '生成中', value: '0' },
+      { label: '待重试', value: '0' },
+      { label: '实际并发', value: '1' },
+      { label: '最大尝试', value: '3' },
+      { label: 'BullMQ Job', value: 'ai-draft-job-1' },
+      { label: '失败原因', value: 'model rate limit' },
+      { label: '创建时间', value: '2026-06-19 16:00:00' },
+      { label: '完成时间', value: '2026-06-19 16:20:00' },
+      { label: '更新时间', value: '2026-06-19 16:20:00' }
+    ]);
+  });
+
   it('builds mailbox operation detail rows for sync issue triage', () => {
     const mailbox = createMailbox({
       id: 'mailbox-history-expired',
@@ -555,8 +612,9 @@ describe('crm settings shared helpers', () => {
     ]);
   });
 
-  it('builds webhook history watch and send operation summaries from existing data', () => {
+  it('builds webhook history watch send and AI draft operation summaries from existing data', () => {
     const rows = buildOperationLogSummaryRows({
+      aiDraftTasks: [createAiDraftTaskRecord()],
       logs: [
         createSystemLog({
           id: 'log-webhook',
@@ -656,6 +714,14 @@ describe('crm settings shared helpers', () => {
           maskedEmail: 's***@gmail.com',
           summary: 'Acme / buyer@example.com',
           time: '2026-06-19 20:00:00'
+        },
+        {
+          category: 'aiDraft',
+          failureReason: 'model rate limit',
+          jobId: 'ai-draft-job-1',
+          maskedEmail: '-',
+          summary: '请求 5 条，2 成功 / 1 跳过 / 2 失败',
+          time: '2026-06-19 16:20:00'
         }
       ]
     );
@@ -847,6 +913,56 @@ function createSystemLog(options: Partial<Api.SystemLog.SystemLogRecord> & { id:
     createdAt: '2026-06-19T08:00:00.000Z',
     ...overrides,
     id
+  };
+}
+
+function createAiDraftTaskConfigRecord(
+  options: Partial<Api.Crm.AiDraftQueueConfigRecord> = {}
+): Api.Crm.AiDraftQueueConfigRecord {
+  return {
+    configKey: 'global',
+    itemConcurrency: 3,
+    maxItemConcurrency: 5,
+    maxActiveTasksPerUser: 1,
+    maxActiveTasksPerOrg: 3,
+    maxAttempts: 3,
+    retryBackoffSeconds: [30, 60, 120],
+    updatedById: null,
+    updatedByName: null,
+    updatedAt: '2026-06-20T08:00:00.000Z',
+    ...options
+  };
+}
+
+function createAiDraftTaskRecord(options: Partial<Api.Crm.AiDraftTaskRecord> = {}): Api.Crm.AiDraftTaskRecord {
+  return {
+    id: 'ai-draft-task-1',
+    organizationId: 'org-1',
+    organizationRole: 'member',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    status: 'failed',
+    runVersion: 2,
+    bullJobId: 'ai-draft-job-1',
+    requestedCount: 5,
+    successCount: 2,
+    skippedCount: 1,
+    failedCount: 2,
+    retryingCount: 0,
+    runningCount: 0,
+    pendingCount: 0,
+    effectiveConcurrency: 1,
+    maxAttempts: 3,
+    failureReason: 'model rate limit',
+    progressState: null,
+    resultSummary: null,
+    readAt: null,
+    notifiedAt: null,
+    startedAt: '2026-06-19T08:10:00.000Z',
+    finishedAt: '2026-06-19T08:20:00.000Z',
+    createdAt: '2026-06-19T08:00:00.000Z',
+    updatedAt: '2026-06-19T08:20:00.000Z',
+    ...options
   };
 }
 

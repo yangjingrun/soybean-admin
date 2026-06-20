@@ -6,9 +6,13 @@ import {
   batchApproveCrmMessageDrafts,
   batchGenerateCrmNextSequenceDrafts,
   batchStopCrmSequenceEnrollments,
+  cancelCrmAiDraftTask,
+  createCrmAiDraftTask,
   createCrmSequenceReviewItem,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
+  fetchCrmAiDraftTaskDetail,
+  fetchCurrentCrmAiDraftTask,
   fetchCrmMailboxes,
   fetchCrmMessageDraftVersions,
   fetchCrmProductLines,
@@ -16,6 +20,8 @@ import {
   fetchCrmSequenceReviewItem,
   fetchCrmSequenceReviewItems,
   generateCrmNextSequenceDraft,
+  markCrmAiDraftTaskRead,
+  retryFailedCrmAiDraftTask,
   restoreCrmMessageDraftVersion,
   startCrmFirstMessageSend,
   stopCrmSequenceEnrollment,
@@ -49,6 +55,7 @@ export function useEmailSequenceTable() {
   const productLineOptions = shallowRef<Api.Crm.ProductLineRecord[]>([]);
   const sequencePolicyOptions = shallowRef<Api.Crm.SequencePolicyRecord[]>([]);
   const currentItem = shallowRef<Api.Crm.SequenceReviewItem | null>(null);
+  const aiDraftTaskDetail = shallowRef<Api.Crm.AiDraftTaskDetail | null>(null);
   const draftVersions = shallowRef<Api.Crm.MessageDraftVersionRecord[]>([]);
   const checkedRowKeys = shallowRef<string[]>([]);
   const batchNextDraftResultDisplays = shallowRef<SequenceBatchResultDisplayItem[]>([]);
@@ -66,6 +73,12 @@ export function useEmailSequenceTable() {
   const detailRefreshing = shallowRef(false);
   const nextDraftGenerating = shallowRef(false);
   const batchDraftApproving = shallowRef(false);
+  const aiDraftTaskCreating = shallowRef(false);
+  const aiDraftTaskDrawerVisible = shallowRef(false);
+  const aiDraftTaskLoading = shallowRef(false);
+  const aiDraftTaskRetrying = shallowRef(false);
+  const aiDraftTaskCancelling = shallowRef(false);
+  const aiDraftTaskReading = shallowRef(false);
   const batchNextDraftGenerating = shallowRef(false);
   const batchSequenceStopping = shallowRef(false);
   const sendStarting = shallowRef(false);
@@ -79,6 +92,7 @@ export function useEmailSequenceTable() {
   let latestDraftVersionRequestId = 0;
   let latestDraftVersionRestoreRequestId = 0;
   let latestNextDraftGenerateRequestId = 0;
+  let latestAiDraftTaskRequestId = 0;
   let latestResourceRequestId = 0;
   let latestContactRequestId = 0;
 
@@ -132,6 +146,7 @@ export function useEmailSequenceTable() {
 
   onMounted(() => {
     void loadSequences();
+    void loadCurrentAiDraftTask();
 
     const accountId = getRouteQueryString(route.query.accountId);
     const contactId = getRouteQueryString(route.query.contactId);
@@ -581,6 +596,155 @@ export function useEmailSequenceTable() {
     }
   }
 
+  async function loadCurrentAiDraftTask() {
+    const requestId = latestAiDraftTaskRequestId + 1;
+    latestAiDraftTaskRequestId = requestId;
+    aiDraftTaskLoading.value = true;
+
+    try {
+      const { data, error } = await fetchCurrentCrmAiDraftTask();
+
+      if (error || requestId !== latestAiDraftTaskRequestId) {
+        return;
+      }
+
+      aiDraftTaskDetail.value = data;
+      aiDraftTaskDrawerVisible.value = Boolean(data && ['queued', 'running', 'failed', 'completed'].includes(data.task.status));
+    } finally {
+      if (requestId === latestAiDraftTaskRequestId) {
+        aiDraftTaskLoading.value = false;
+      }
+    }
+  }
+
+  async function refreshAiDraftTaskDetail(taskId = aiDraftTaskDetail.value?.task.id ?? null) {
+    if (!taskId) {
+      return;
+    }
+
+    const requestId = latestAiDraftTaskRequestId + 1;
+    latestAiDraftTaskRequestId = requestId;
+    aiDraftTaskLoading.value = true;
+
+    try {
+      const { data, error } = await fetchCrmAiDraftTaskDetail(taskId);
+
+      if (error || requestId !== latestAiDraftTaskRequestId) {
+        return;
+      }
+
+      aiDraftTaskDetail.value = data;
+      aiDraftTaskDrawerVisible.value = true;
+    } finally {
+      if (requestId === latestAiDraftTaskRequestId) {
+        aiDraftTaskLoading.value = false;
+      }
+    }
+  }
+
+  async function handleCreateAiDraftTask() {
+    const ids = checkedRows.value.map(item => item.enrollment.id);
+
+    if (ids.length === 0) {
+      message.warning('请选择要生成草稿的序列');
+      return;
+    }
+
+    aiDraftTaskCreating.value = true;
+
+    try {
+      const { data, error } = await createCrmAiDraftTask({ enrollmentIds: ids });
+
+      if (error) {
+        return;
+      }
+
+      aiDraftTaskDetail.value = data;
+      aiDraftTaskDrawerVisible.value = true;
+      checkedRowKeys.value = [];
+      message.success(data.task.pendingCount > 0 ? '批量 AI 草稿任务已创建' : '批量 AI 草稿任务已完成');
+      await loadSequences();
+    } finally {
+      aiDraftTaskCreating.value = false;
+    }
+  }
+
+  async function handleRetryAiDraftTask() {
+    const taskId = aiDraftTaskDetail.value?.task.id;
+
+    if (!taskId) {
+      return;
+    }
+
+    aiDraftTaskRetrying.value = true;
+
+    try {
+      const { data, error } = await retryFailedCrmAiDraftTask(taskId);
+
+      if (error) {
+        return;
+      }
+
+      aiDraftTaskDetail.value = data;
+      message.success('已重新排队可重试失败项');
+    } finally {
+      aiDraftTaskRetrying.value = false;
+    }
+  }
+
+  async function handleCancelAiDraftTask() {
+    const taskId = aiDraftTaskDetail.value?.task.id;
+
+    if (!taskId) {
+      return;
+    }
+
+    aiDraftTaskCancelling.value = true;
+
+    try {
+      const { data, error } = await cancelCrmAiDraftTask(taskId);
+
+      if (error) {
+        return;
+      }
+
+      aiDraftTaskDetail.value = data;
+      message.success('批量 AI 草稿任务已取消');
+      await loadSequences();
+    } finally {
+      aiDraftTaskCancelling.value = false;
+    }
+  }
+
+  async function handleReadAiDraftTask() {
+    const taskId = aiDraftTaskDetail.value?.task.id;
+
+    if (!taskId) {
+      aiDraftTaskDrawerVisible.value = false;
+      return;
+    }
+
+    aiDraftTaskReading.value = true;
+
+    try {
+      const { error } = await markCrmAiDraftTaskRead(taskId);
+
+      if (error) {
+        return;
+      }
+
+      aiDraftTaskDrawerVisible.value = false;
+      aiDraftTaskDetail.value = null;
+      await loadSequences();
+    } finally {
+      aiDraftTaskReading.value = false;
+    }
+  }
+
+  function handleAiDraftTaskDrawerVisibleUpdate(show: boolean) {
+    aiDraftTaskDrawerVisible.value = show;
+  }
+
   async function handleBatchApproveDrafts() {
     const executableRows = checkedRows.value.filter(canApproveSequenceDraftInBatch);
     const ids = executableRows.map(item => item.enrollment.id);
@@ -786,6 +950,13 @@ export function useEmailSequenceTable() {
 
   return {
     accountSelectOptions,
+    aiDraftTaskCancelling,
+    aiDraftTaskCreating,
+    aiDraftTaskDetail,
+    aiDraftTaskDrawerVisible,
+    aiDraftTaskLoading,
+    aiDraftTaskReading,
+    aiDraftTaskRetrying,
     batchDraftApproving,
     batchNextDraftGenerating,
     batchSequenceStopping,
@@ -809,7 +980,10 @@ export function useEmailSequenceTable() {
     handleBatchApproveDrafts,
     handleBatchGenerateNextDrafts,
     handleBatchStopSequences,
+    handleAiDraftTaskDrawerVisibleUpdate,
+    handleCancelAiDraftTask,
     handleCheckedRowKeysUpdate,
+    handleCreateAiDraftTask,
     handleCreateReviewItem,
     handleCreateVisibleUpdate,
     handleDrawerVisibleUpdate,
@@ -818,12 +992,15 @@ export function useEmailSequenceTable() {
     handlePageUpdate,
     handleReset,
     handleRefreshCurrentSequence,
+    handleReadAiDraftTask,
+    handleRetryAiDraftTask,
     handleRestoreDraftVersion,
     handleSaveDraft,
     handleSearch,
     handleStartSend,
     handleStopSequence,
     loadCreateResources,
+    loadCurrentAiDraftTask,
     loadDraftVersions,
     loadSequences,
     loading,
@@ -834,6 +1011,7 @@ export function useEmailSequenceTable() {
     pagination,
     productLineSelectOptions,
     records,
+    refreshAiDraftTaskDetail,
     resourceLoading,
     sendStarting,
     sequencePolicySelectOptions,

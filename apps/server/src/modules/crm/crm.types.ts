@@ -1,10 +1,13 @@
 import type { CrmFollowUpDelayDays } from './crm-global-config';
+import type { CrmAiDraftTaskStatus, CrmAiDraftTaskStore } from './crm-ai-draft-task.types';
 import type {
   CrmSequencePolicyLinkPolicy,
   CrmSequencePolicySameCompanyStrategy,
   CrmSequencePolicyStatus,
   CrmSequencePolicyStep
 } from './crm-sequence-policy';
+
+export type * from './crm-ai-draft-task.types';
 
 export type OrganizationRole = 'member' | 'admin';
 
@@ -1070,6 +1073,13 @@ export interface CrmFollowUpDraftBundleCreateInput {
   enrollmentId: string;
   organizationId: string;
   ownerUserId: string;
+  expectedEnrollmentStatus?: CrmSequenceEnrollmentStatus | CrmSequenceEnrollmentStatus[];
+  blockingMessageStatuses?: CrmMessageStatus[];
+  taskGuard?: {
+    taskId: string;
+    runVersion: number;
+    status: CrmAiDraftTaskStatus | CrmAiDraftTaskStatus[];
+  };
   message: Omit<CrmMessageCreateInput, 'enrollmentId'>;
   timelineEvent: CrmTimelineEventCreateInput;
 }
@@ -1445,7 +1455,7 @@ export interface CrmInboxThreadReplyRecord {
   event: CrmTimelineEventRecord;
 }
 
-export interface CrmStore {
+export interface CrmStore extends CrmAiDraftTaskStore {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
   updateAccount(id: string, input: CrmAccountUpdateInput): Promise<CrmAccountRecord | null>;
