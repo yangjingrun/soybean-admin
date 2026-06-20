@@ -11,8 +11,7 @@ defineEmits<{
 }>();
 
 const startAiLeadTarget: WorkbenchRouteTarget = {
-  routePath: '/ai-leads',
-  query: { mode: 'new' }
+  routePath: '/ai-leads'
 };
 </script>
 

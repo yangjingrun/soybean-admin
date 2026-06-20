@@ -1,4 +1,4 @@
-import { onMounted, reactive, shallowRef } from 'vue';
+import { onMounted, reactive, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDialog, useMessage } from 'naive-ui';
 import {
@@ -48,8 +48,21 @@ export function useLeadTable() {
     void loadLeads();
   });
 
+  watch(
+    () => route.query,
+    () => {
+      if (route.name !== 'crm_leads') return;
+
+      applyRouteFilters();
+      pagination.current = 1;
+      void loadLeads();
+    }
+  );
+
   function applyRouteFilters() {
     const status = getRouteQueryString(route.query.status);
+
+    filterModel.status = null;
 
     if (isLeadStatus(status)) {
       filterModel.status = status;

@@ -6,6 +6,7 @@ import {
   buildWorkbenchRecommendation,
   buildWorkbenchTodoItems,
   buildWorkbenchTrendOption,
+  createWorkbenchLoadingTracker,
   formatWorkbenchUpdatedAt,
   shouldPollWorkbench,
   type WorkbenchRouteTarget
@@ -17,8 +18,8 @@ const pollingIntervalMs = 5000;
 export function useHomeWorkbench() {
   const router = useRouter();
   const overview = shallowRef<Api.Crm.WorkbenchOverview | null>(null);
-  const loading = shallowRef(false);
-  const refreshing = shallowRef(false);
+  const loadingTracker = createWorkbenchLoadingTracker();
+  const { loading, refreshing } = loadingTracker;
   const errorMessage = shallowRef('');
   let latestRequestId = 0;
   let pollingTimer: number | null = null;
@@ -61,8 +62,7 @@ export function useHomeWorkbench() {
   async function requestOverview(mode: 'initial' | 'refresh' | 'poll') {
     const requestId = latestRequestId + 1;
     latestRequestId = requestId;
-    if (mode === 'initial') loading.value = true;
-    if (mode === 'refresh') refreshing.value = true;
+    const finishLoading = loadingTracker.start(mode);
 
     try {
       const { data, error } = await fetchCrmWorkbenchOverview();
@@ -76,10 +76,7 @@ export function useHomeWorkbench() {
       overview.value = data;
       syncPolling();
     } finally {
-      if (requestId === latestRequestId) {
-        if (mode === 'initial') loading.value = false;
-        if (mode === 'refresh') refreshing.value = false;
-      }
+      finishLoading();
     }
   }
 

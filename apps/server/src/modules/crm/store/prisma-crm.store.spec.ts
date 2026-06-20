@@ -239,8 +239,8 @@ describe('PrismaCrmStore', () => {
       ownerUserId: 'user-1',
       status: 'sent',
       sentAt: {
-        gte: new Date('2026-06-20T00:00:00.000Z'),
-        lt: new Date('2026-06-21T00:00:00.000Z')
+        gte: new Date('2026-06-19T16:00:00.000Z'),
+        lt: new Date('2026-06-20T16:00:00.000Z')
       }
     });
     assert.deepEqual(prisma.crmInboxThread.countCalls[0].where, {
@@ -258,6 +258,25 @@ describe('PrismaCrmStore', () => {
       userId: 'user-1',
       status: 'completed',
       readAt: null
+    });
+  });
+
+  it('uses the CRM business day instead of UTC midnight for workbench date ranges', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const now = new Date('2026-06-20T01:30:00.000Z');
+
+    const overview = await store.getWorkbenchOverview({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      now
+    });
+
+    assert.equal(overview.trend[0].date, '2026-06-14');
+    assert.equal(overview.trend.at(-1)?.date, '2026-06-20');
+    assert.deepEqual(prisma.crmMessage.countCalls[0].where.sentAt, {
+      gte: new Date('2026-06-19T16:00:00.000Z'),
+      lt: new Date('2026-06-20T16:00:00.000Z')
     });
   });
 
@@ -1188,16 +1207,13 @@ describe('PrismaCrmStore', () => {
       ownerUserId: 'user-1',
       messageStatus: 'sent',
       dateScope: 'today',
+      now: new Date('2026-06-20T01:30:00.000Z'),
       skip: 0,
       take: 20
     });
 
     assert.equal(prisma.crmSequenceEnrollment.findManyCalls[2].where.organizationId, 'org-1');
     assert.equal(prisma.crmSequenceEnrollment.findManyCalls[2].where.ownerUserId, 'user-1');
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
 
     assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls[2].where.AND, [
       {
@@ -1205,8 +1221,8 @@ describe('PrismaCrmStore', () => {
           some: {
             status: 'sent',
             sentAt: {
-              gte: todayStart,
-              lt: tomorrowStart
+              gte: new Date('2026-06-19T16:00:00.000Z'),
+              lt: new Date('2026-06-20T16:00:00.000Z')
             }
           }
         }

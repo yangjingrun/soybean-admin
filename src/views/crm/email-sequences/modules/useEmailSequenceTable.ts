@@ -1,4 +1,4 @@
-import { computed, onMounted, provide, reactive, shallowRef } from 'vue';
+import { computed, onMounted, provide, reactive, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
@@ -164,11 +164,27 @@ export function useEmailSequenceTable() {
     void loadCreateResources();
   });
 
+  watch(
+    () => route.query,
+    () => {
+      if (route.name !== 'crm_email-sequences') return;
+
+      applyRouteFilters();
+      pagination.current = 1;
+      void loadSequences();
+    }
+  );
+
   function applyRouteFilters() {
     const status = getRouteQueryString(route.query.status);
     const todoType = getRouteQueryString(route.query.todoType);
     const messageStatus = getRouteQueryString(route.query.messageStatus);
     const dateScope = getRouteQueryString(route.query.dateScope);
+
+    filterModel.status = null;
+    filterModel.todoType = null;
+    filterModel.messageStatus = null;
+    filterModel.dateScope = null;
 
     if (isSequenceEnrollmentStatus(status)) filterModel.status = status;
     if (isSequenceReviewTodoType(todoType)) filterModel.todoType = todoType;

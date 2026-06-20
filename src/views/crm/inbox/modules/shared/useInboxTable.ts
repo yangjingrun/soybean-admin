@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
@@ -55,8 +55,21 @@ export function useInboxTable() {
     void Promise.all([loadThreads(), loadMailboxes()]);
   });
 
+  watch(
+    () => route.query,
+    () => {
+      if (route.name !== 'crm_inbox') return;
+
+      applyRouteFilters();
+      pagination.current = 1;
+      void loadThreads();
+    }
+  );
+
   function applyRouteFilters() {
     const status = getRouteQueryString(route.query.status);
+
+    filterModel.status = null;
 
     if (isInboxThreadStatus(status)) {
       filterModel.status = status;

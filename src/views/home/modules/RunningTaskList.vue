@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatTaskProgress, formatTaskStatus } from './shared';
+import { formatTaskCountMeta, formatTaskProgress, formatTaskStatus } from './shared';
 
 defineProps<{
   tasks: Api.Crm.WorkbenchRunningTask[];
@@ -38,10 +38,10 @@ defineEmits<{
           :show-indicator="false"
         />
         <div class="task-row__meta">
-          <span>完成 {{ task.completedCount }}</span>
-          <span>失败 {{ task.failedCount }}</span>
-          <span>剩余 {{ task.pendingCount }}</span>
-          <span>总数 {{ task.totalCount }}</span>
+          <span>完成 {{ formatTaskCountMeta(task).completedCount }}</span>
+          <span>失败 {{ formatTaskCountMeta(task).failedCount }}</span>
+          <span>剩余 {{ formatTaskCountMeta(task).pendingCount }}</span>
+          <span>总数 {{ formatTaskCountMeta(task).totalCount }}</span>
         </div>
       </button>
     </NSpace>

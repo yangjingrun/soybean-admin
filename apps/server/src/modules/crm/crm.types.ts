@@ -1671,6 +1671,7 @@ export interface CrmStore extends CrmAiDraftTaskStore {
     todoType?: CrmSequenceReviewTodoType;
     messageStatus?: CrmMessageStatus;
     dateScope?: 'today';
+    now?: Date;
     skip: number;
     take: number;
   }): Promise<{ records: CrmSequenceReviewRecord[]; total: number }>;

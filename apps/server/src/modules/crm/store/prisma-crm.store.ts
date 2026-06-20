@@ -189,6 +189,8 @@ const emailTemplateGroupInclude = {
   }
 };
 const crmAiDraftQueueConfigKey = 'crm-ai-draft';
+// Workbench "today" follows the current CRM business day, while quota buckets remain UTC elsewhere.
+const crmBusinessDayOffsetMinutes = 8 * 60;
 
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
@@ -744,14 +746,14 @@ export class PrismaCrmStore implements CrmStore {
     ownerUserId: string;
     now: Date;
   }): Promise<CrmWorkbenchOverviewRecord> {
-    const todayStart = startOfUtcDay(args.now);
-    const tomorrowStart = addUtcDays(todayStart, 1);
-    const yesterdayStart = addUtcDays(todayStart, -1);
-    const trendStart = addUtcDays(todayStart, -6);
+    const todayStart = startOfCrmBusinessDay(args.now);
+    const tomorrowStart = addCrmBusinessDays(todayStart, 1);
+    const yesterdayStart = addCrmBusinessDays(todayStart, -1);
+    const trendStart = addCrmBusinessDays(todayStart, -6);
     const scopedWhere = toScopedOrganizationWhere(args);
     const todayRange = toDateRange(todayStart, tomorrowStart);
     const yesterdayRange = toDateRange(yesterdayStart, todayStart);
-    const trendDays = Array.from({ length: 7 }, (_, index) => addUtcDays(trendStart, index));
+    const trendDays = Array.from({ length: 7 }, (_, index) => addCrmBusinessDays(trendStart, index));
 
     const [
       sentCount,
@@ -998,7 +1000,7 @@ export class PrismaCrmStore implements CrmStore {
         totalReplyCount: yesterdayReplyCount
       },
       trend: trendDays.map(date => {
-        const key = formatUtcDateKey(date);
+        const key = formatCrmBusinessDateKey(date);
 
         return {
           date: key,
@@ -2184,6 +2186,7 @@ export class PrismaCrmStore implements CrmStore {
     todoType?: CrmSequenceReviewTodoType;
     messageStatus?: CrmMessageStatus;
     dateScope?: 'today';
+    now?: Date;
     skip: number;
     take: number;
   }) {
@@ -3969,11 +3972,16 @@ function toScopedOrganizationWhere(args: { organizationId: string; ownerUserId?:
   };
 }
 
-function startOfUtcDay(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+function startOfCrmBusinessDay(date: Date) {
+  const shifted = new Date(date.getTime() + crmBusinessDayOffsetMinutes * 60_000);
+
+  return new Date(
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) -
+      crmBusinessDayOffsetMinutes * 60_000
+  );
 }
 
-function addUtcDays(date: Date, days: number) {
+function addCrmBusinessDays(date: Date, days: number) {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
   return next;
@@ -3983,8 +3991,8 @@ function toDateRange(from: Date, to: Date) {
   return { gte: from, lt: to };
 }
 
-function formatUtcDateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
+function formatCrmBusinessDateKey(date: Date) {
+  return new Date(date.getTime() + crmBusinessDayOffsetMinutes * 60_000).toISOString().slice(0, 10);
 }
 
 function readProgressPercent(progressState: unknown, status: string) {
@@ -4001,7 +4009,7 @@ function countDates(dates: Date[]) {
   const counts = new Map<string, number>();
 
   for (const date of dates) {
-    const key = formatUtcDateKey(date);
+    const key = formatCrmBusinessDateKey(date);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 
@@ -4110,10 +4118,11 @@ function toSequenceEnrollmentListWhere(args: {
   todoType?: CrmSequenceReviewTodoType;
   messageStatus?: CrmMessageStatus;
   dateScope?: 'today';
+  now?: Date;
 }): Prisma.CrmSequenceEnrollmentWhereInput {
   const keywordFilter = args.keyword ? toSequenceEnrollmentKeywordFilter(args.keyword) : undefined;
   const todoTypeFilter = toSequenceEnrollmentTodoTypeWhere(args.todoType);
-  const messageFilter = toSequenceEnrollmentMessageWhere(args.messageStatus, args.dateScope);
+  const messageFilter = toSequenceEnrollmentMessageWhere(args.messageStatus, args.dateScope, args.now ?? new Date());
   const andFilters = [todoTypeFilter, messageFilter].filter(Boolean) as Prisma.CrmSequenceEnrollmentWhereInput[];
 
   return {
@@ -4127,7 +4136,8 @@ function toSequenceEnrollmentListWhere(args: {
 
 function toSequenceEnrollmentMessageWhere(
   messageStatus?: CrmMessageStatus,
-  dateScope?: 'today'
+  dateScope?: 'today',
+  now = new Date()
 ): Prisma.CrmSequenceEnrollmentWhereInput | undefined {
   if (!messageStatus) return undefined;
 
@@ -4136,8 +4146,8 @@ function toSequenceEnrollmentMessageWhere(
   };
 
   if (dateScope === 'today') {
-    const todayStart = startOfUtcDay(new Date());
-    const tomorrowStart = addUtcDays(todayStart, 1);
+    const todayStart = startOfCrmBusinessDay(now);
+    const tomorrowStart = addCrmBusinessDays(todayStart, 1);
     const dateField = messageStatus === 'sent' ? 'sentAt' : 'updatedAt';
 
     Object.assign(statusWhere, {

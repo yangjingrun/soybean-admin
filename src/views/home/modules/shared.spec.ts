@@ -5,6 +5,8 @@ import {
   buildWorkbenchRecommendation,
   buildWorkbenchTodoItems,
   buildWorkbenchTrendOption,
+  createWorkbenchLoadingTracker,
+  formatTaskCountMeta,
   formatTaskProgress,
   shouldPollWorkbench
 } from './shared';
@@ -113,6 +115,44 @@ describe('home workbench shared helpers', () => {
     }).runningTasks;
 
     assert.equal(formatTaskProgress(task), 46);
+  });
+
+  it('derives AI lead task count text from backend progress percent', () => {
+    const [task] = createWorkbenchOverview({
+      runningTasks: [
+        {
+          type: 'ai_leads',
+          progressPercent: 46,
+          totalCount: 20,
+          completedCount: 0,
+          failedCount: 0,
+          pendingCount: 20
+        }
+      ]
+    }).runningTasks;
+
+    assert.deepEqual(formatTaskCountMeta(task), {
+      completedCount: 9,
+      failedCount: 0,
+      pendingCount: 11,
+      totalCount: 20
+    });
+  });
+
+  it('keeps loading flags scoped to the request mode that started them', () => {
+    const tracker = createWorkbenchLoadingTracker();
+    const finishInitial = tracker.start('initial');
+    const finishRefresh = tracker.start('refresh');
+
+    finishInitial();
+
+    assert.equal(tracker.loading.value, false);
+    assert.equal(tracker.refreshing.value, true);
+
+    finishRefresh();
+
+    assert.equal(tracker.loading.value, false);
+    assert.equal(tracker.refreshing.value, false);
   });
 
   it('builds the seven day sent and reply trend option', () => {

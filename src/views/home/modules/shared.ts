@@ -1,4 +1,7 @@
 import dayjs from 'dayjs';
+import { shallowRef } from 'vue';
+
+type WorkbenchRequestMode = 'initial' | 'refresh' | 'poll';
 
 export interface WorkbenchRouteTarget {
   routePath: string;
@@ -48,6 +51,13 @@ export interface WorkbenchTrendOption {
   }>;
 }
 
+export interface WorkbenchTaskCountMeta {
+  completedCount: number;
+  failedCount: number;
+  pendingCount: number;
+  totalCount: number;
+}
+
 const pendingReplyTarget: WorkbenchRouteTarget = {
   routePath: '/crm/inbox',
   query: { status: 'pending' }
@@ -69,8 +79,7 @@ const sendFailedTarget: WorkbenchRouteTarget = {
 };
 
 const mailboxIssueTarget: WorkbenchRouteTarget = {
-  routePath: '/crm/settings',
-  query: { section: 'mailbox' }
+  routePath: '/crm/settings'
 };
 
 const missingContactTarget: WorkbenchRouteTarget = {
@@ -83,8 +92,7 @@ const aiLeadTarget: WorkbenchRouteTarget = {
 };
 
 const startAiLeadTarget: WorkbenchRouteTarget = {
-  routePath: '/ai-leads',
-  query: { mode: 'new' }
+  routePath: '/ai-leads'
 };
 
 /** Pick the single action users should handle first on today's workbench. */
@@ -358,6 +366,71 @@ export function formatTaskProgress(task: Api.Crm.WorkbenchRunningTask) {
   if (totalCount <= 0) return 0;
 
   return Math.round(((task.completedCount + task.failedCount) / totalCount) * 100);
+}
+
+/** Keep request indicators independent from stale data response guards. */
+export function createWorkbenchLoadingTracker() {
+  const loading = shallowRef(false);
+  const refreshing = shallowRef(false);
+  let initialCount = 0;
+  let refreshCount = 0;
+
+  function start(mode: WorkbenchRequestMode) {
+    let finished = false;
+
+    if (mode === 'initial') {
+      initialCount += 1;
+      loading.value = true;
+    }
+
+    if (mode === 'refresh') {
+      refreshCount += 1;
+      refreshing.value = true;
+    }
+
+    return () => {
+      if (finished) return;
+      finished = true;
+
+      if (mode === 'initial') {
+        initialCount = Math.max(0, initialCount - 1);
+        loading.value = initialCount > 0;
+      }
+
+      if (mode === 'refresh') {
+        refreshCount = Math.max(0, refreshCount - 1);
+        refreshing.value = refreshCount > 0;
+      }
+    };
+  }
+
+  return {
+    loading,
+    refreshing,
+    start
+  };
+}
+
+/** Derive display counts from backend task progress when the raw counters are coarse. */
+export function formatTaskCountMeta(task: Api.Crm.WorkbenchRunningTask): WorkbenchTaskCountMeta {
+  if (task.type === 'ai_leads' && ['queued', 'running'].includes(task.status)) {
+    const progress = formatTaskProgress(task);
+    const completedCount = Math.min(task.totalCount, Math.max(0, Math.round((task.totalCount * progress) / 100)));
+
+    return {
+      completedCount,
+      failedCount: task.failedCount,
+      pendingCount: Math.max(0, task.totalCount - completedCount - task.failedCount),
+      totalCount: task.totalCount
+    };
+  }
+
+  return {
+    completedCount: task.completedCount,
+    failedCount: task.failedCount,
+    pendingCount: task.pendingCount,
+    totalCount: task.totalCount
+  };
 }
 
 export function formatTaskStatus(status: string) {
