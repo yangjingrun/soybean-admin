@@ -20,7 +20,6 @@ import {
   CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
   CRM_SETTINGS_REPOSITORY,
-  CRM_STORE,
   CRM_SUPPRESSION_REPOSITORY
 } from './crm.tokens';
 import { crmRepositoryProviders } from './crm-module.providers';
@@ -87,15 +86,8 @@ describe('crmRepositoryProviders', () => {
 
       assert.ok(provider, `missing provider for ${String(token)}`);
       assert.equal('useClass' in provider, true, `${String(token)} should use a repository class`);
-      assert.equal('useExisting' in provider, false, `${String(token)} should not alias CRM_STORE`);
+      assert.equal('useExisting' in provider, false, `${String(token)} should not alias another repository`);
     }
-  });
-
-  it('keeps the legacy aggregate store as an internal adapter dependency', () => {
-    const provider = crmRepositoryProviders.find(item => 'provide' in item && item.provide === CRM_STORE);
-
-    assert.ok(provider);
-    assert.equal('useClass' in provider, true);
   });
 
   it('binds migrated domain repositories directly to Prisma stores', () => {

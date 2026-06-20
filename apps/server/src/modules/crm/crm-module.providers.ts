@@ -82,7 +82,6 @@ import {
   CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
   CRM_SETTINGS_REPOSITORY,
-  CRM_STORE,
   CRM_SUPPRESSION_REPOSITORY
 } from './crm.tokens';
 import { PrismaCrmAccountStore } from './store/prisma-crm-account.store';
@@ -108,7 +107,6 @@ import { PrismaCrmSequenceNextDraftStore } from './store/prisma-crm-sequence-nex
 import { PrismaCrmSequencePolicyStore } from './store/prisma-crm-sequence-policy.store';
 import { PrismaCrmSequenceStore } from './store/prisma-crm-sequence.store';
 import { PrismaCrmSettingsStore } from './store/prisma-crm-settings.store';
-import { PrismaCrmStore } from './store/prisma-crm.store';
 import { PrismaCrmSuppressionStore } from './store/prisma-crm-suppression.store';
 
 export const crmControllers = [
@@ -172,10 +170,6 @@ export const crmWorkerServices: Provider[] = [
 ];
 
 export const crmRepositoryProviders: Provider[] = [
-  {
-    provide: CRM_STORE,
-    useClass: PrismaCrmStore
-  },
   {
     provide: CRM_ACCOUNT_REPOSITORY,
     useClass: PrismaCrmAccountStore
