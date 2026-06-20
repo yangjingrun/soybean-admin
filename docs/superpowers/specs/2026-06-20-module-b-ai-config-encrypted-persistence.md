@@ -23,3 +23,17 @@
 ## Follow-up
 
 - After production rows are re-saved or backfilled, remove the legacy plaintext `apiKey` columns in a contract migration.
+
+## Backfill
+
+Use the explicit maintenance script after deploying the expand migration and setting a 32-byte `AI_CONFIG_SECRET_ENCRYPTION_KEY`.
+
+```bash
+pnpm --filter @soybean/server backfill:ai-config-secrets -- --dry-run
+pnpm --filter @soybean/server backfill:ai-config-secrets
+```
+
+- `--dry-run` reports counts without updating rows.
+- The script encrypts legacy plaintext `apiKey` values into `encryptedApiKey`.
+- If an encrypted value already exists but `apiKey` still contains a legacy copy, the script clears only the legacy plaintext column.
+- The script prints counts only; it does not print config keys or provider keys.

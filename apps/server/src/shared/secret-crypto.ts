@@ -9,6 +9,11 @@ export interface SecretCryptoOptions {
   valueLabel?: string;
 }
 
+/** Verifies that a configured secret key matches the AES-256 key length. */
+export function assertSecretEncryptionKey(secretKey: string, options: Pick<SecretCryptoOptions, 'keyLabel'> = {}): void {
+  normalizeSecretKey(secretKey, options.keyLabel);
+}
+
 /** Encrypts a short application secret with AES-256-GCM. */
 export function encryptSecret(plainText: string, secretKey: string, options: SecretCryptoOptions = {}): string {
   const key = normalizeSecretKey(secretKey, options.keyLabel);
