@@ -14,6 +14,7 @@ import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
+import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
@@ -21,6 +22,7 @@ import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
+import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import type {
   CrmArchivedFingerprintRecord,
@@ -570,7 +572,10 @@ describe('CrmService', () => {
   it('reads and saves organization CRM permission config by organization administrators', async () => {
     const store = createStore();
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      settingsService: createSettingsService(store, { crmLogger: new CrmLoggerService(logs.service as never) })
+    });
     const adminContext = createContext({ organizationRole: 'admin' });
 
     const current = await service.getOrganizationConfig(createContext());
@@ -590,7 +595,10 @@ describe('CrmService', () => {
   it('saves CRM global owner send concurrency and daily hard limits with sanitized business log metadata', async () => {
     const store = createStore();
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      settingsService: createSettingsService(store, { crmLogger: new CrmLoggerService(logs.service as never) })
+    });
 
     const saved = await service.saveGlobalConfig(
       {
@@ -625,7 +633,10 @@ describe('CrmService', () => {
       globalConfig: createGlobalConfig({ ownerDailySendLimitMax: 80 })
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      settingsService: createSettingsService(store, { crmLogger: new CrmLoggerService(logs.service as never) })
+    });
 
     const current = await service.getSendPreference(createContext());
     const saved = await service.saveSendPreference(
@@ -1067,7 +1078,7 @@ describe('CrmService', () => {
         archiveReason: 'Not a fit'
       })
     ]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     const result = await service.restoreAccount('account-1', createContext());
 
@@ -1281,7 +1292,7 @@ describe('CrmService', () => {
       emailHash: hashTestEmail('alice@gmail.com')
     });
     const store = createStore([], { mailboxes: [existingMailbox] });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     const result = await service.mockAuthorizeMailbox({ emailAddress: 'ALICE@gmail.com' }, createContext());
 
@@ -1473,7 +1484,7 @@ describe('CrmService', () => {
         } as Partial<CrmMailboxRecord>)
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     const memberResult = await service.listMailboxes(createContext(), { keyword: 'gmail', status: 'active' });
 
@@ -1545,7 +1556,7 @@ describe('CrmService', () => {
     const store = createStore([], {
       mailboxes: [createMailbox({ id: 'peer-mailbox', ownerUserId: 'user-2', status: 'active' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await assert.rejects(() => service.pauseMailbox('peer-mailbox', createContext()), NotFoundException);
 
@@ -1561,7 +1572,7 @@ describe('CrmService', () => {
         createProductLine({ id: 'other-org-line', organizationId: 'org-2', name: 'Other Org Series' })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     const result = await service.listProductLines(createContext(), {
       keyword: ' Series ',
@@ -1584,7 +1595,10 @@ describe('CrmService', () => {
   it('creates product lines with trimmed fields and sanitized system log metadata', async () => {
     const store = createStore();
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      productLineService: createProductLineService(store, { crmLogger: new CrmLoggerService(logs.service as never) })
+    });
 
     const result = await service.createProductLine(
       {
@@ -1619,7 +1633,7 @@ describe('CrmService', () => {
 
   it('creates the initial AI prompt version when a product line starts with AI writing config', async () => {
     const store = createStore();
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
     const aiWritingConfig = createAiWritingConfig();
 
     const result = await service.createProductLine(
@@ -1658,7 +1672,7 @@ describe('CrmService', () => {
     store.createProductLine = async () => {
       throw createPrismaUniqueError();
     };
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await assert.rejects(() => service.createProductLine({ name: 'Bearing Series' }, createContext()), {
       message: '产品资料名称已存在'
@@ -1670,7 +1684,10 @@ describe('CrmService', () => {
       productLines: [createProductLine({ id: 'line-1', name: 'Bearing Series', status: 'active' })]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      productLineService: createProductLineService(store, { crmLogger: new CrmLoggerService(logs.service as never) })
+    });
 
     const result = await service.updateProductLine(
       'line-1',
@@ -1719,7 +1736,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
     const adminContext = createContext({ organizationRole: 'admin' });
 
     await service.updateProductLine(
@@ -1757,7 +1774,7 @@ describe('CrmService', () => {
         createProductLinePromptVersion({ id: 'version-2', productLineId: 'line-1', version: 2 })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     const result = await service.listProductLineAiPromptVersions('line-1', createContext());
 
@@ -1792,7 +1809,10 @@ describe('CrmService', () => {
       ]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      productLineService: createProductLineService(store, { crmLogger: new CrmLoggerService(logs.service as never) })
+    });
 
     const result = await service.restoreProductLineAiPromptVersion(
       'line-1',
@@ -1838,7 +1858,7 @@ describe('CrmService', () => {
     store.updateProductLine = async () => {
       throw createPrismaUniqueError();
     };
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await assert.rejects(
       () => service.updateProductLine('line-1', { name: 'Premium Bearing Series' }, createContext()),
@@ -1852,7 +1872,7 @@ describe('CrmService', () => {
     const store = createStore([], {
       productLines: [createProductLine({ id: 'line-1', organizationId: 'org-2', status: 'active' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await assert.rejects(() => service.archiveProductLine('line-1', createContext()), NotFoundException);
 
@@ -9353,9 +9373,11 @@ function createAiDraftTaskQueue(
 
 function createServiceWithSplitServices(options: {
   store?: CrmStore;
+  settingsService?: unknown;
   suppressionService?: unknown;
   accountService?: unknown;
   mailboxService?: unknown;
+  productLineService?: unknown;
   sequenceService?: unknown;
   draftService?: unknown;
   nextDraftService?: unknown;
@@ -9366,8 +9388,10 @@ function createServiceWithSplitServices(options: {
   aiDraftTaskService?: unknown;
   inboxService?: unknown;
 }) {
+  const store = options.store ?? ({} as CrmStore);
+
   return new CrmService(
-    options.store ?? ({} as CrmStore),
+    store,
     undefined,
     undefined,
     undefined,
@@ -9379,10 +9403,11 @@ function createServiceWithSplitServices(options: {
     undefined,
     undefined,
     undefined,
-    undefined,
+    (options.settingsService ?? createSettingsService(store)) as never,
     options.suppressionService as never,
     options.accountService as never,
     options.mailboxService as never,
+    (options.productLineService ?? createProductLineService(store)) as never,
     options.sequenceService as never,
     options.draftService as never,
     options.nextDraftService as never,
@@ -9393,6 +9418,17 @@ function createServiceWithSplitServices(options: {
     options.aiDraftTaskService as never,
     options.inboxService as never
   );
+}
+
+function createSettingsService(
+  store: CrmStore,
+  options: { aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null; crmLogger?: CrmLoggerService } = {}
+) {
+  return new CrmSettingsService(store, options.aiDraftTaskQueue, options.crmLogger);
+}
+
+function createProductLineService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmProductLineService(store, options.crmLogger);
 }
 
 function createBatchDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {

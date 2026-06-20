@@ -24,13 +24,8 @@ import type { CrmEmailDnsResolver } from './shared/crm-email-utils';
 import { createCrmReadScope } from './shared/crm-scope';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
 import {
-  defaultFollowUpSharePercent,
-  defaultOwnerDailySendLimit,
   normalizeEmailVerificationCooldownDays,
-  normalizeFollowUpSharePercent,
-  normalizeOwnerConcurrentSendLimit,
-  normalizeOwnerDailySendLimit,
-  normalizeOwnerDailySendLimitMax
+  normalizeOwnerConcurrentSendLimit
 } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAccountService } from './accounts/crm-account.service';
@@ -39,6 +34,7 @@ import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
@@ -53,10 +49,7 @@ import {
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
-import {
-  normalizeCrmProductLineAiWritingConfig,
-  requireEnabledCrmProductLineAiWritingConfig
-} from './crm-ai-draft-prompt';
+import { requireEnabledCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
 import {
   defaultSequencePolicySteps,
   normalizeSequencePolicyLinkPolicy,
@@ -115,22 +108,17 @@ import type {
   CrmMessageRecord,
   CrmMessageStatus,
   CrmMessageThreadMode,
-  CrmOrganizationConfigRecord,
   CrmPersonaMatchInfo,
   CrmPersonaProfileRecord,
   CrmPersonaProfileStatus,
   CrmPersonaProfileUpdateInput,
-  CrmProductLineAiPromptVersionRecord,
-  CrmProductLineAiWritingConfig,
   CrmProductLineRecord,
   CrmProductLineStatus,
-  CrmProductLineUpdateInput,
   CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
   CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmSequenceReviewTodoType,
-  CrmSendPreferenceRecord,
   CrmStrategyStatsRecord,
   CrmSendQueuePort,
   CrmStore,
@@ -152,7 +140,6 @@ const gmailHistorySyncScopes = new Set([
 ]);
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
-const defaultProductLineStatus: CrmProductLineStatus = 'active';
 const defaultEmailTemplateStatus: CrmEmailTemplateStatus = 'active';
 const defaultPersonaProfileStatus: CrmPersonaProfileStatus = 'active';
 const defaultSequenceStepCount = 5;
@@ -341,6 +328,9 @@ export class CrmService {
     @Optional()
     @Inject(CrmMailboxService)
     private readonly mailboxService?: CrmMailboxService,
+    @Optional()
+    @Inject(CrmProductLineService)
+    private readonly productLineService?: CrmProductLineService,
     @Optional()
     @Inject(CrmSequenceService)
     private readonly sequenceService?: CrmSequenceService,
@@ -639,13 +629,11 @@ export class CrmService {
 
   /** Reads platform-wide CRM settings maintained by super administrators. */
   async getGlobalConfig() {
-    if (this.settingsService) {
-      return this.settingsService.getGlobalConfig();
+    if (!this.settingsService) {
+      throw new BadRequestException('CRM 配置服务未启用');
     }
 
-    const record = await this.store.getGlobalConfig();
-
-    return toGlobalConfigView(record);
+    return this.settingsService.getGlobalConfig();
   }
 
   /** Saves platform-wide CRM settings maintained by super administrators. */
@@ -658,45 +646,20 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (this.settingsService) {
-      return this.settingsService.saveGlobalConfig(input, context);
+    if (!this.settingsService) {
+      throw new BadRequestException('CRM 配置服务未启用');
     }
 
-    const record = await this.store.saveGlobalConfig({
-      emailVerificationCooldownDays: input.emailVerificationCooldownDays,
-      ownerConcurrentSendLimit: input.ownerConcurrentSendLimit,
-      ownerDailySendLimitMax: input.ownerDailySendLimitMax,
-      followUpDelayDays: input.followUpDelayDays,
-      updatedById: context.userId,
-      updatedByName: context.userName
-    });
-
-    await this.recordCrmLog('save-global-config', 'CRM 全局配置已保存', context, {
-      emailVerificationCooldownDays: record.emailVerificationCooldownDays,
-      ownerConcurrentSendLimit: record.ownerConcurrentSendLimit,
-      ownerDailySendLimitMax: record.ownerDailySendLimitMax,
-      followUpDelayDays: record.followUpDelayDays
-    });
-
-    return toGlobalConfigView(record);
+    return this.settingsService.saveGlobalConfig(input, context);
   }
 
   /** Reads the current owner's send scheduling preference with platform cap context. */
   async getSendPreference(context: CrmUserContext) {
-    if (this.settingsService) {
-      return this.settingsService.getSendPreference(context);
+    if (!this.settingsService) {
+      throw new BadRequestException('CRM 配置服务未启用');
     }
 
-    const [globalConfig, preference] = await Promise.all([
-      this.store.getGlobalConfig(),
-      this.store.getSendPreference({
-        organizationId: context.organizationId,
-        ownerUserId: context.userId
-      })
-    ]);
-    const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(globalConfig.ownerDailySendLimitMax);
-
-    return toSendPreferenceView(preference, ownerDailySendLimitMax);
+    return this.settingsService.getSendPreference(context);
   }
 
   /** Saves the current owner's daily send scheduling preference. */
@@ -707,58 +670,20 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (this.settingsService) {
-      return this.settingsService.saveSendPreference(input, context);
+    if (!this.settingsService) {
+      throw new BadRequestException('CRM 配置服务未启用');
     }
 
-    const globalConfig = await this.store.getGlobalConfig();
-    const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(globalConfig.ownerDailySendLimitMax);
-    const dailySendLimit = Number(input.dailySendLimit);
-
-    if (!Number.isInteger(dailySendLimit) || dailySendLimit <= 0) {
-      throw new BadRequestException('每日进入发送队列数量必须是正整数');
-    }
-
-    if (dailySendLimit > ownerDailySendLimitMax) {
-      throw new BadRequestException(`每日进入发送队列数量不能超过平台硬上限 ${ownerDailySendLimitMax} 封`);
-    }
-
-    const followUpSharePercent = Number(input.followUpSharePercent);
-
-    if (!Number.isInteger(followUpSharePercent) || followUpSharePercent < 0 || followUpSharePercent > 100) {
-      throw new BadRequestException('后续开发信占比必须是 0-100 的整数');
-    }
-
-    const record = await this.store.saveSendPreference({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      ownerUserName: context.userName,
-      dailySendLimit: normalizeOwnerDailySendLimit(dailySendLimit, ownerDailySendLimitMax),
-      followUpSharePercent: normalizeFollowUpSharePercent(followUpSharePercent),
-      updatedById: context.userId,
-      updatedByName: context.userName
-    });
-
-    await this.recordCrmLog('save-send-preference', 'CRM 个人发送偏好已保存', context, {
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      dailySendLimit: record.dailySendLimit,
-      followUpSharePercent: record.followUpSharePercent,
-      ownerDailySendLimitMax
-    });
-
-    return toSendPreferenceView(record, ownerDailySendLimitMax);
+    return this.settingsService.saveSendPreference(input, context);
   }
 
   /** Reads organization-level CRM permission settings. */
   async getOrganizationConfig(context: CrmUserContext) {
-    if (this.settingsService) {
-      return this.settingsService.getOrganizationConfig(context);
+    if (!this.settingsService) {
+      throw new BadRequestException('CRM 配置服务未启用');
     }
 
-    const record = await this.store.getOrganizationConfig(context.organizationId);
-
-    return toOrganizationConfigView(record, context.organizationId);
+    return this.settingsService.getOrganizationConfig(context);
   }
 
   /** Saves organization-level CRM permission settings for organization administrators. */
@@ -768,25 +693,11 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (this.settingsService) {
-      return this.settingsService.saveOrganizationConfig(input, context);
+    if (!this.settingsService) {
+      throw new BadRequestException('CRM 配置服务未启用');
     }
 
-    this.requireOrganizationConfigManager(context);
-
-    const record = await this.store.saveOrganizationConfig({
-      organizationId: context.organizationId,
-      allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
-      updatedById: context.userId,
-      updatedByName: context.userName
-    });
-
-    await this.recordCrmLog('save-organization-config', 'CRM 组织权限配置已保存', context, {
-      organizationId: context.organizationId,
-      allowAdminViewMemberEmailBody: record.allowAdminViewMemberEmailBody
-    });
-
-    return toOrganizationConfigView(record, context.organizationId);
+    return this.settingsService.saveOrganizationConfig(input, context);
   }
 
   /** Lists organization-level unsubscribe blacklist entries without exposing raw emails. */
@@ -1072,160 +983,56 @@ export class CrmService {
       status?: CrmProductLineStatus;
     } = {}
   ) {
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const result = await this.store.listProductLines({
-      organizationId: context.organizationId,
-      ...(keyword ? { keyword } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
+    if (!this.productLineService) {
+      throw new BadRequestException('CRM 产品资料服务未启用');
+    }
 
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toProductLineView)
-    });
+    return this.productLineService.listProductLines(context, query);
   }
 
   /** Creates an organization-level product line after checking name uniqueness. */
   async createProductLine(input: ProductLineCreateInput, context: CrmUserContext) {
-    const data = normalizeProductLineCreateInput(input);
-    this.assertCanWriteProductLineAiConfig(input, data.aiWritingConfig, context);
-    await this.assertProductLineNameAvailable(context.organizationId, data.name);
-    const productLine = await this.runProductLineWrite(() =>
-      this.store.createProductLine({
-        organizationId: context.organizationId,
-        ...data,
-        status: defaultProductLineStatus,
-        createdById: context.userId,
-        createdByName: context.userName
-      })
-    );
+    if (!this.productLineService) {
+      throw new BadRequestException('CRM 产品资料服务未启用');
+    }
 
-    await this.recordProductLineLog(
-      'product-line-create',
-      'CRM 产品资料新建',
-      context,
-      productLine,
-      null,
-      productLine.status
-    );
-    await this.createProductLineAiPromptVersionIfPresent(productLine, context, '初始 AI 写信配置');
-
-    return { productLine: toProductLineView(productLine) };
+    return this.productLineService.createProductLine(input, context);
   }
 
   /** Updates an organization-level product line through organization scoped reads and writes. */
   async updateProductLine(id: string, input: ProductLineUpdateInput, context: CrmUserContext) {
-    const currentProductLine = await this.requireScopedProductLine(id, context);
-    const fromStatus = currentProductLine.status;
-    const previousAiWritingConfigKey = toStableAiWritingConfigKey(currentProductLine.aiWritingConfig);
-    const data = normalizeProductLineUpdateInput(input);
-    this.assertCanWriteProductLineAiConfig(input, data.aiWritingConfig, context);
-
-    if (data.name && data.name !== currentProductLine.name) {
-      await this.assertProductLineNameAvailable(context.organizationId, data.name, currentProductLine.id);
+    if (!this.productLineService) {
+      throw new BadRequestException('CRM 产品资料服务未启用');
     }
 
-    const productLine = await this.runProductLineWrite(() =>
-      this.store.updateProductLine(currentProductLine.id, context.organizationId, data)
-    );
-
-    if (!productLine) {
-      throw new NotFoundException('产品资料不存在');
-    }
-
-    await this.recordProductLineLog(
-      'product-line-update',
-      'CRM 产品资料更新',
-      context,
-      productLine,
-      fromStatus,
-      productLine.status
-    );
-    await this.createProductLineAiPromptVersionIfChanged(
-      previousAiWritingConfigKey,
-      productLine,
-      context,
-      'AI 写信配置更新'
-    );
-
-    return { productLine: toProductLineView(productLine) };
+    return this.productLineService.updateProductLine(id, input, context);
   }
 
   /** Lists AI prompt versions for an organization-scoped product line. */
   async listProductLineAiPromptVersions(id: string, context: CrmUserContext) {
-    const productLine = await this.requireScopedProductLine(id, context);
-    const records = await this.store.listProductLineAiPromptVersions({
-      organizationId: context.organizationId,
-      productLineId: productLine.id
-    });
+    if (!this.productLineService) {
+      throw new BadRequestException('CRM 产品资料服务未启用');
+    }
 
-    return {
-      records: records.map(toProductLineAiPromptVersionView)
-    };
+    return this.productLineService.listProductLineAiPromptVersions(id, context);
   }
 
   /** Restores a saved AI prompt version to the current product-line config. */
   async restoreProductLineAiPromptVersion(id: string, versionId: string, context: CrmUserContext) {
-    if (!hasOrganizationAdminRole(context)) {
-      throw new ForbiddenException('只有组织管理员可以恢复 AI 写信配置版本');
+    if (!this.productLineService) {
+      throw new BadRequestException('CRM 产品资料服务未启用');
     }
 
-    const productLine = await this.requireScopedProductLine(id, context);
-    const restored = await this.store.restoreProductLineAiPromptVersion({
-      organizationId: context.organizationId,
-      productLineId: productLine.id,
-      versionId,
-      editorId: context.userId,
-      editorName: context.userName,
-      changeSummary: undefined
-    });
-
-    if (!restored) {
-      throw new NotFoundException('AI 写信配置版本不存在');
-    }
-
-    await this.recordCrmLog('product-line-ai-prompt-version-restore', 'CRM 产品线 AI 写信配置恢复历史版本', context, {
-      organizationId: context.organizationId,
-      productLineId: productLine.id,
-      restoredVersionId: restored.restoredVersion.id,
-      restoredVersion: restored.restoredVersion.version,
-      newVersion: restored.currentVersion.version
-    });
-
-    return {
-      productLine: toProductLineView(restored.productLine),
-      version: toProductLineAiPromptVersionView(restored.currentVersion)
-    };
+    return this.productLineService.restoreProductLineAiPromptVersion(id, versionId, context);
   }
 
   /** Archives an organization-level product line through organization scoped reads and writes. */
   async archiveProductLine(id: string, context: CrmUserContext) {
-    const currentProductLine = await this.requireScopedProductLine(id, context);
-    const fromStatus = currentProductLine.status;
-    const productLine = await this.store.updateProductLine(currentProductLine.id, context.organizationId, {
-      status: 'archived'
-    });
-
-    if (!productLine) {
-      throw new NotFoundException('产品资料不存在');
+    if (!this.productLineService) {
+      throw new BadRequestException('CRM 产品资料服务未启用');
     }
 
-    await this.recordProductLineLog(
-      'product-line-archive',
-      'CRM 产品资料归档',
-      context,
-      productLine,
-      fromStatus,
-      productLine.status
-    );
-
-    return { productLine: toProductLineView(productLine) };
+    return this.productLineService.archiveProductLine(id, context);
   }
 
   /** Lists organization-level persona profiles used by CRM draft generation. */
@@ -3436,71 +3243,6 @@ export class CrmService {
     );
   }
 
-  private async assertProductLineNameAvailable(organizationId: string, name: string, ignoredId?: string) {
-    const existingProductLine = await this.store.findProductLineByName(organizationId, name);
-
-    if (existingProductLine && existingProductLine.id !== ignoredId) {
-      throw new BadRequestException('产品资料名称已存在');
-    }
-  }
-
-  /** Creates a prompt version when the product line has a normalized AI writing config. */
-  private async createProductLineAiPromptVersionIfPresent(
-    productLine: CrmProductLineRecord,
-    context: CrmUserContext,
-    changeSummary: string
-  ) {
-    if (!productLine.aiWritingConfig) return;
-
-    await this.store.createProductLineAiPromptVersion({
-      organizationId: productLine.organizationId,
-      productLineId: productLine.id,
-      aiWritingConfig: productLine.aiWritingConfig,
-      editorId: context.userId,
-      editorName: context.userName,
-      changeSummary
-    });
-  }
-
-  /** Adds a prompt version only when normalized AI config JSON differs semantically. */
-  private async createProductLineAiPromptVersionIfChanged(
-    previousConfigKey: string,
-    productLine: CrmProductLineRecord,
-    context: CrmUserContext,
-    changeSummary: string
-  ) {
-    if (previousConfigKey === toStableAiWritingConfigKey(productLine.aiWritingConfig)) return;
-
-    await this.store.createProductLineAiPromptVersion({
-      organizationId: productLine.organizationId,
-      productLineId: productLine.id,
-      aiWritingConfig: productLine.aiWritingConfig,
-      editorId: context.userId,
-      editorName: context.userName,
-      changeSummary
-    });
-  }
-
-  private assertCanWriteProductLineAiConfig(
-    input: ProductLineCreateInput | ProductLineUpdateInput,
-    config: CrmProductLineAiWritingConfig | null | undefined,
-    context: CrmUserContext
-  ) {
-    if (!hasOwn(input, 'aiWritingConfig')) return;
-
-    const hasInstruction = Boolean(
-      config?.enabled ||
-        config?.commonRequirements ||
-        config?.forbiddenClaims ||
-        config?.productEmphasis ||
-        config?.steps.some(step => step.prompt)
-    );
-
-    if (hasInstruction && !hasOrganizationAdminRole(context)) {
-      throw new ForbiddenException('只有组织管理员可以编辑 AI 写信配置');
-    }
-  }
-
   private async assertEmailTemplateNameAvailable(organizationId: string, name: string, ignoredId?: string) {
     const existingTemplate = await this.store.findEmailTemplateGroupByName(organizationId, name);
 
@@ -3514,18 +3256,6 @@ export class CrmService {
 
     if (existingProfile && existingProfile.id !== ignoredId) {
       throw new BadRequestException('画像名称已存在');
-    }
-  }
-
-  private async runProductLineWrite<T>(operation: () => Promise<T>) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        throw new BadRequestException('产品资料名称已存在');
-      }
-
-      throw error;
     }
   }
 
@@ -3616,24 +3346,6 @@ export class CrmService {
     });
   }
 
-  private recordProductLineLog(
-    action: string,
-    message: string,
-    context: CrmUserContext,
-    productLine: CrmProductLineRecord,
-    fromStatus: CrmProductLineStatus | null,
-    toStatus: CrmProductLineStatus
-  ) {
-    return this.recordCrmLog(action, message, context, {
-      organizationId: productLine.organizationId,
-      productLineId: productLine.id,
-      name: productLine.name,
-      status: productLine.status,
-      fromStatus,
-      toStatus
-    });
-  }
-
   private recordEmailTemplateLog(
     action: string,
     message: string,
@@ -3710,30 +3422,6 @@ function toContactView(record: CrmContactRecord) {
     ...record,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toGlobalConfigView(record: CrmGlobalConfigRecord) {
-  return {
-    ...record,
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toSendPreferenceView(record: CrmSendPreferenceRecord | null, ownerDailySendLimitMax: number) {
-  return {
-    dailySendLimit: record?.dailySendLimit ?? Math.min(defaultOwnerDailySendLimit, ownerDailySendLimitMax),
-    followUpSharePercent: record?.followUpSharePercent ?? defaultFollowUpSharePercent,
-    ownerDailySendLimitMax
-  };
-}
-
-function toOrganizationConfigView(record: CrmOrganizationConfigRecord | null, organizationId: string) {
-  return {
-    id: record?.id ?? null,
-    organizationId,
-    allowAdminViewMemberEmailBody: record?.allowAdminViewMemberEmailBody ?? false,
-    updatedAt: record?.updatedAt.toISOString() ?? null
   };
 }
 
@@ -3819,13 +3507,6 @@ function toProductLineView(record: CrmProductLineRecord) {
     ...record,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toProductLineAiPromptVersionView(record: CrmProductLineAiPromptVersionRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString()
   };
 }
 
@@ -4134,49 +3815,6 @@ function parseOptionalDate(value?: string | null) {
   }
 
   return date;
-}
-
-function normalizeProductLineCreateInput(input: ProductLineCreateInput) {
-  const name = normalizeRequiredString(input.name, '产品资料名称不能为空');
-
-  return {
-    name,
-    targetCustomerType: normalizeNullableString(input.targetCustomerType),
-    coreSellingPoints: normalizeNullableString(input.coreSellingPoints),
-    moq: normalizeNullableString(input.moq),
-    leadTime: normalizeNullableString(input.leadTime),
-    paymentTerms: normalizeNullableString(input.paymentTerms),
-    certifications: normalizeNullableString(input.certifications),
-    catalogUrl: normalizeNullableString(input.catalogUrl),
-    websiteUrl: normalizeNullableString(input.websiteUrl),
-    commonModelsText: normalizeNullableString(input.commonModelsText),
-    aiWritingConfig: normalizeCrmProductLineAiWritingConfig(input.aiWritingConfig)
-  };
-}
-
-function normalizeProductLineUpdateInput(input: ProductLineUpdateInput): CrmProductLineUpdateInput {
-  const data: CrmProductLineUpdateInput = {};
-
-  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '产品资料名称不能为空');
-  if (hasOwn(input, 'targetCustomerType')) data.targetCustomerType = normalizeNullableString(input.targetCustomerType);
-  if (hasOwn(input, 'coreSellingPoints')) data.coreSellingPoints = normalizeNullableString(input.coreSellingPoints);
-  if (hasOwn(input, 'moq')) data.moq = normalizeNullableString(input.moq);
-  if (hasOwn(input, 'leadTime')) data.leadTime = normalizeNullableString(input.leadTime);
-  if (hasOwn(input, 'paymentTerms')) data.paymentTerms = normalizeNullableString(input.paymentTerms);
-  if (hasOwn(input, 'certifications')) data.certifications = normalizeNullableString(input.certifications);
-  if (hasOwn(input, 'catalogUrl')) data.catalogUrl = normalizeNullableString(input.catalogUrl);
-  if (hasOwn(input, 'websiteUrl')) data.websiteUrl = normalizeNullableString(input.websiteUrl);
-  if (hasOwn(input, 'commonModelsText')) data.commonModelsText = normalizeNullableString(input.commonModelsText);
-  if (hasOwn(input, 'aiWritingConfig')) {
-    data.aiWritingConfig = normalizeCrmProductLineAiWritingConfig(input.aiWritingConfig);
-  }
-  if (hasOwn(input, 'status')) data.status = input.status;
-
-  return data;
-}
-
-function toStableAiWritingConfigKey(config: CrmProductLineAiWritingConfig | null) {
-  return config ? JSON.stringify(normalizeCrmProductLineAiWritingConfig(config)) : '';
 }
 
 function normalizePersonaProfileCreateInput(input: PersonaProfileCreateInput) {
