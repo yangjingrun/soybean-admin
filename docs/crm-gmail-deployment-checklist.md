@@ -64,6 +64,7 @@ CRM_GMAIL_OAUTH_CLIENT_SECRET=
 CRM_GMAIL_OAUTH_REDIRECT_URI=https://<app-domain>/crm/gmail-oauth-callback
 CRM_GMAIL_TOKEN_ENCRYPTION_KEY=
 CRM_GMAIL_OAUTH_STATE_SECRET=
+CRM_GMAIL_OAUTH_SCOPES=https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send
 CRM_GMAIL_PUBSUB_TOPIC_NAME=projects/<project-id>/topics/<topic-name>
 CRM_GMAIL_PUBSUB_PUSH_SECRET=
 CRM_GMAIL_PUBSUB_AUTH_AUDIENCE=https://<api-domain>/crm/gmail/pubsub/push
@@ -80,6 +81,7 @@ CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE=50
 - `CRM_GMAIL_OAUTH_REDIRECT_URI`：必须与 Google Cloud Console 中配置的 Authorized redirect URI 完全一致。
 - `CRM_GMAIL_TOKEN_ENCRYPTION_KEY`：用于加密 Gmail refresh token。必须稳定保存，丢失会导致已授权邮箱无法解密 token。
 - `CRM_GMAIL_OAUTH_STATE_SECRET`：用于签名 OAuth state，防止伪造回调。
+- `CRM_GMAIL_OAUTH_SCOPES`：Gmail OAuth 授权范围。留空时默认使用完整同步范围 `gmail.modify + gmail.send`；本地发信模式可配置为 `gmail.send + userinfo.email`，只启用真实发送，不启用真实 watch/history。
 - `CRM_GMAIL_PUBSUB_TOPIC_NAME`：Gmail watch 使用的 Pub/Sub topic 全名。
 - `CRM_GMAIL_PUBSUB_PUSH_SECRET`：Pub/Sub push webhook 请求头校验密钥。Pub/Sub push subscription 需要带上同值 header：`x-crm-gmail-pubsub-secret`。
 - `CRM_GMAIL_PUBSUB_AUTH_AUDIENCE`：Pub/Sub push subscription 的 OIDC audience，建议使用完整 webhook URL。
@@ -92,9 +94,10 @@ CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE=50
 注意：
 
 - 如果缺少 OAuth/token 相关变量，后端会退回 mock/null provider，不能作为真实 Gmail 联调结果。
+- 如果 `CRM_GMAIL_OAUTH_SCOPES` 只包含 `gmail.send + userinfo.email`，后端会进入发信模式：真实发送可用，watch/history 保持 mock，不会自动同步客户回信；该模式下生产环境不强制要求 Pub/Sub 变量。
 - 如果缺少 `CRM_GMAIL_PUBSUB_TOPIC_NAME`，watch gateway 会退回 mock watch，真实 Gmail push 不会生效。
-- `NODE_ENV=production` 时缺少任一 Gmail 必需变量会启动失败，避免生产环境静默退回 mock provider。
-- `NODE_ENV=production` 时缺少 `CRM_GMAIL_PUBSUB_PUSH_SECRET`，Pub/Sub webhook 会拒绝请求。
+- `NODE_ENV=production` 且使用完整同步 scope 时，缺少任一 Gmail/PubSub 必需变量会启动失败，避免生产环境静默退回 mock provider。
+- `NODE_ENV=production` 且使用完整同步 scope 时，缺少 `CRM_GMAIL_PUBSUB_PUSH_SECRET`，Pub/Sub webhook 会拒绝请求。
 - 生产环境不得记录 client secret、refresh token、push secret 或完整邮件正文到普通日志。
 
 ## 4. Pub/Sub 与 Gmail Watch

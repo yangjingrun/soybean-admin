@@ -32,6 +32,23 @@ describe('CrmGmailOAuthFlow', () => {
     assert.equal(state.userId, 'user-1');
   });
 
+  it('builds a send-only Gmail OAuth authorization URL from configured scopes', () => {
+    const flow = createFlow({
+      scopes: [
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/userinfo.email'
+      ]
+    });
+
+    const result = flow.createAuthorizationUrl(createContext());
+    const url = new URL(result.authorizationUrl);
+
+    assert.equal(
+      url.searchParams.get('scope'),
+      'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email'
+    );
+  });
+
   it('rejects tampered or mismatched OAuth state values', () => {
     const flow = createFlow();
     const { state } = flow.createAuthorizationUrl(createContext());
@@ -84,6 +101,39 @@ describe('CrmGmailOAuthFlow', () => {
     assert.equal(httpClient.getJsonCalls[0].headers.Authorization, 'Bearer access-token-1');
   });
 
+  it('uses Google userinfo email for send-only OAuth scopes', async () => {
+    const httpClient = createHttpClient({
+      tokenResponse: {
+        status: 200,
+        body: {
+          access_token: 'access-token-1',
+          refresh_token: 'refresh-token-1'
+        }
+      },
+      userinfoResponse: {
+        status: 200,
+        body: {
+          email: 'Sender@Gmail.COM'
+        }
+      }
+    });
+    const flow = createFlow({
+      httpClient,
+      scopes: [
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/userinfo.email'
+      ]
+    });
+
+    const result = await flow.exchangeCodeForMailbox('code-1');
+
+    assert.equal(result.emailAddress, 'sender@gmail.com');
+    assert.equal(result.historyId, null);
+    assert.equal(decryptGmailSecret(result.encryptedRefreshToken, secretKey), 'refresh-token-1');
+    assert.equal(httpClient.getJsonCalls[0].url, 'https://www.googleapis.com/oauth2/v3/userinfo');
+    assert.equal(httpClient.getJsonCalls[0].headers.Authorization, 'Bearer access-token-1');
+  });
+
   it('rejects OAuth code exchange responses without a refresh token', async () => {
     const flow = createFlow({
       httpClient: createHttpClient({
@@ -123,6 +173,7 @@ function createContext(input: Partial<{ organizationId: string; userId: string }
 function createHttpClient(input: {
   tokenResponse?: { status: number; body: unknown };
   profileResponse?: { status: number; body: unknown };
+  userinfoResponse?: { status: number; body: unknown };
 }) {
   const postFormCalls: Array<{ url: string; body: URLSearchParams; headers: Record<string, string> }> = [];
   const getJsonCalls: Array<{ url: string; headers: Record<string, string> }> = [];
@@ -140,6 +191,12 @@ function createHttpClient(input: {
     },
     async getJson(url, headers) {
       getJsonCalls.push({ url, headers });
+      if (url === 'https://www.googleapis.com/oauth2/v3/userinfo') {
+        assert.ok(input.userinfoResponse, `Unexpected Google userinfo request: ${url}`);
+
+        return input.userinfoResponse;
+      }
+
       assert.ok(input.profileResponse, `Unexpected Gmail profile request: ${url}`);
 
       return input.profileResponse;

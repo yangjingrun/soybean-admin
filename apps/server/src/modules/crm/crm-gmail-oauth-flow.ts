@@ -10,6 +10,8 @@ export interface CrmGmailOAuthFlowConfig {
   authorizationEndpoint?: string;
   tokenEndpoint?: string;
   profileEndpoint?: string;
+  userinfoEndpoint?: string;
+  scopes?: string[];
   now?: () => Date;
   httpClient?: CrmGmailOAuthFlowHttpClient;
 }
@@ -53,11 +55,23 @@ interface GmailProfileResponse {
   historyId?: unknown;
 }
 
+interface GoogleUserinfoResponse {
+  email?: unknown;
+}
+
 const authorizationEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
 const tokenEndpoint = 'https://oauth2.googleapis.com/token';
 const profileEndpoint = 'https://gmail.googleapis.com/gmail/v1/users/me/profile';
+const userinfoEndpoint = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const stateMaxAgeMs = 15 * 60 * 1000;
-const gmailScopes = ['https://www.googleapis.com/auth/gmail.modify', 'https://www.googleapis.com/auth/gmail.send'];
+const defaultGmailScopes = ['https://www.googleapis.com/auth/gmail.modify', 'https://www.googleapis.com/auth/gmail.send'];
+const gmailProfileScopes = new Set([
+  'https://mail.google.com/',
+  'https://www.googleapis.com/auth/gmail.modify',
+  'https://www.googleapis.com/auth/gmail.compose',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.metadata'
+]);
 
 export class CrmGmailOAuthStateError extends Error {
   constructor(message = 'Gmail OAuth state is invalid') {
@@ -112,7 +126,7 @@ export class CrmGmailOAuthFlow implements CrmGmailOAuthFlowPort {
     url.searchParams.set('client_id', this.config.clientId);
     url.searchParams.set('redirect_uri', this.config.redirectUri);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', gmailScopes.join(' '));
+    url.searchParams.set('scope', this.getScopes().join(' '));
     url.searchParams.set('access_type', 'offline');
     url.searchParams.set('prompt', 'consent');
     url.searchParams.set('include_granted_scopes', 'true');
@@ -143,7 +157,7 @@ export class CrmGmailOAuthFlow implements CrmGmailOAuthFlowPort {
   /** Exchanges the authorization code, encrypts the refresh token, then reads the Gmail profile. */
   async exchangeCodeForMailbox(code: string) {
     const tokenResponse = await this.exchangeCode(code);
-    const profile = await this.getProfile(tokenResponse.accessToken);
+    const profile = await this.getMailboxProfile(tokenResponse.accessToken);
 
     return {
       emailAddress: profile.emailAddress.toLowerCase(),
@@ -205,6 +219,35 @@ export class CrmGmailOAuthFlow implements CrmGmailOAuthFlowPort {
     };
   }
 
+  private async getUserinfoProfile(accessToken: string) {
+    const response = await this.httpClient.getJson(this.config.userinfoEndpoint ?? userinfoEndpoint, {
+      Authorization: `Bearer ${accessToken}`
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Google userinfo request failed with status ${response.status}`);
+    }
+
+    const profile = response.body as GoogleUserinfoResponse;
+
+    if (typeof profile.email !== 'string' || !profile.email) {
+      throw new Error('Google userinfo response missing email');
+    }
+
+    return {
+      emailAddress: profile.email,
+      historyId: null
+    };
+  }
+
+  private async getMailboxProfile(accessToken: string) {
+    if (this.canReadGmailProfile()) {
+      return this.getProfile(accessToken);
+    }
+
+    return this.getUserinfoProfile(accessToken);
+  }
+
   private signState(payload: CrmGmailOAuthStatePayload) {
     const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
     const signature = this.createStateSignature(encodedPayload);
@@ -247,5 +290,13 @@ export class CrmGmailOAuthFlow implements CrmGmailOAuthFlowPort {
 
   private now() {
     return this.config.now?.() ?? new Date();
+  }
+
+  private getScopes() {
+    return this.config.scopes?.length ? this.config.scopes : defaultGmailScopes;
+  }
+
+  private canReadGmailProfile() {
+    return this.getScopes().some(scope => gmailProfileScopes.has(scope));
   }
 }

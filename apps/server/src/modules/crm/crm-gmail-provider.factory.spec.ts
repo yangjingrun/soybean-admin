@@ -45,6 +45,38 @@ describe('createCrmGmailIntegrationProviders', () => {
     );
   });
 
+  it('allows production send-only Gmail mode without Pub/Sub config', () => {
+    const providers = createCrmGmailIntegrationProviders({
+      NODE_ENV: 'production',
+      ...createEnv(),
+      CRM_GMAIL_OAUTH_SCOPES:
+        'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email',
+      CRM_GMAIL_PUBSUB_TOPIC_NAME: '',
+      CRM_GMAIL_PUBSUB_PUSH_SECRET: ''
+    });
+
+    assert.ok(providers.oauthFlow instanceof CrmGmailOAuthFlow);
+    assert.ok(providers.tokenProvider instanceof CrmGmailOAuthTokenProvider);
+    assert.ok(providers.historyGateway instanceof MockCrmGmailHistoryGateway);
+    assert.ok(providers.watchGateway instanceof MockCrmGmailWatchGateway);
+    assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
+  });
+
+  it('still requires Pub/Sub config in production full-sync Gmail mode', () => {
+    assert.throws(
+      () =>
+        createCrmGmailIntegrationProviders({
+          NODE_ENV: 'production',
+          ...createEnv(),
+          CRM_GMAIL_OAUTH_SCOPES:
+            'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send',
+          CRM_GMAIL_PUBSUB_TOPIC_NAME: '',
+          CRM_GMAIL_PUBSUB_PUSH_SECRET: ''
+        }),
+      /CRM Gmail production config missing: CRM_GMAIL_PUBSUB_TOPIC_NAME, CRM_GMAIL_PUBSUB_PUSH_SECRET/
+    );
+  });
+
   it('keeps watch mocked when Pub/Sub topic is not configured but still enables Gmail sending', () => {
     const providers = createCrmGmailIntegrationProviders({
       ...createEnv(),
@@ -55,6 +87,42 @@ describe('createCrmGmailIntegrationProviders', () => {
     assert.ok(providers.historyGateway instanceof CrmGmailApiHistoryGateway);
     assert.ok(providers.watchGateway instanceof MockCrmGmailWatchGateway);
     assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
+  });
+
+  it('uses send-only Gmail mode when configured scopes cannot read mailbox history', () => {
+    const providers = createCrmGmailIntegrationProviders({
+      ...createEnv(),
+      CRM_GMAIL_OAUTH_SCOPES:
+        'https://www.googleapis.com/auth/gmail.send, https://www.googleapis.com/auth/userinfo.email'
+    });
+
+    assert.ok(providers.oauthFlow instanceof CrmGmailOAuthFlow);
+    assert.ok(providers.tokenProvider instanceof CrmGmailOAuthTokenProvider);
+    assert.ok(providers.historyGateway instanceof MockCrmGmailHistoryGateway);
+    assert.ok(providers.watchGateway instanceof MockCrmGmailWatchGateway);
+    assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
+  });
+
+  it('keeps real watch and history gateways when configured scopes include Gmail modify', () => {
+    const providers = createCrmGmailIntegrationProviders({
+      ...createEnv(),
+      CRM_GMAIL_OAUTH_SCOPES:
+        'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send'
+    });
+
+    assert.ok(providers.historyGateway instanceof CrmGmailApiHistoryGateway);
+    assert.ok(providers.watchGateway instanceof CrmGmailApiWatchGateway);
+    assert.ok(providers.emailSendGateway instanceof CrmGmailApiEmailSendGateway);
+  });
+
+  it('ignores blank custom Gmail OAuth scope entries and keeps the default full sync mode', () => {
+    const providers = createCrmGmailIntegrationProviders({
+      ...createEnv(),
+      CRM_GMAIL_OAUTH_SCOPES: ' ,  '
+    });
+
+    assert.ok(providers.historyGateway instanceof CrmGmailApiHistoryGateway);
+    assert.ok(providers.watchGateway instanceof CrmGmailApiWatchGateway);
   });
 
   it('falls back to null OAuth flow and mocked Gmail gateways when token config is incomplete', () => {
