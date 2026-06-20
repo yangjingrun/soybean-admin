@@ -22,6 +22,7 @@ import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
@@ -9538,7 +9539,7 @@ function createSequenceService(
   store: CrmStore,
   options: { aiDraftService?: CrmAiDraftService | null; crmLogger?: CrmLoggerService } = {}
 ) {
-  return new CrmSequenceService(
+  const reviewCreationService = new CrmSequenceReviewCreationService(
     store,
     store,
     store,
@@ -9547,6 +9548,8 @@ function createSequenceService(
     options.aiDraftService,
     options.crmLogger
   );
+
+  return new CrmSequenceService(store, store, reviewCreationService);
 }
 
 function hashTestEmail(email: string) {

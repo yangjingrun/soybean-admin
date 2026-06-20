@@ -43,6 +43,7 @@ import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence-policy.repository';
 import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
@@ -88,6 +89,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmDraftService,
     CrmFollowUpApprovalService,
     CrmNextDraftService,
+    CrmSequenceReviewCreationService,
     CrmSequenceService,
     CrmSequencePolicyService,
     CrmSettingsService,
