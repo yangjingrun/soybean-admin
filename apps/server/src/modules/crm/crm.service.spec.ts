@@ -3354,6 +3354,104 @@ describe('CrmService', () => {
     assert.equal(store.messages.filter(message => message.enrollmentId === 'enrollment-member').length, 1);
   });
 
+  it('preloads batch next draft review items without per-item detail reads', async () => {
+    const store = createStore(
+      [
+        createAccount({ id: 'account-ready', name: 'Ready Co', status: 'ready' }),
+        createAccount({ id: 'account-blocked', name: 'Blocked Co', status: 'ready' }),
+        createAccount({ id: 'account-member', name: 'Member Co', ownerUserId: 'user-2', status: 'ready' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'contact-ready', accountId: 'account-ready', fullName: 'Ready Buyer' }),
+          createContact({ id: 'contact-blocked', accountId: 'account-blocked', fullName: 'Blocked Buyer' }),
+          createContact({
+            id: 'contact-member',
+            accountId: 'account-member',
+            ownerUserId: 'user-2',
+            fullName: 'Member Buyer'
+          })
+        ],
+        emailTemplateGroups: [createEmailTemplateGroup({ isDefault: true })],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-ready',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            status: 'sequence_running',
+            totalSteps: 5
+          }),
+          createEnrollment({
+            id: 'enrollment-blocked',
+            accountId: 'account-blocked',
+            contactId: 'contact-blocked',
+            status: 'sequence_running',
+            totalSteps: 5
+          }),
+          createEnrollment({
+            id: 'enrollment-member',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            ownerUserId: 'user-2',
+            status: 'sequence_running',
+            totalSteps: 5
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-ready-1',
+            accountId: 'account-ready',
+            contactId: 'contact-ready',
+            enrollmentId: 'enrollment-ready',
+            status: 'sent',
+            stepIndex: 1
+          }),
+          createMessage({
+            id: 'message-blocked-1',
+            accountId: 'account-blocked',
+            contactId: 'contact-blocked',
+            enrollmentId: 'enrollment-blocked',
+            status: 'sent',
+            stepIndex: 1
+          }),
+          createMessage({
+            id: 'message-blocked-2',
+            accountId: 'account-blocked',
+            contactId: 'contact-blocked',
+            enrollmentId: 'enrollment-blocked',
+            status: 'draft_pending_review',
+            stepIndex: 2
+          }),
+          createMessage({
+            id: 'message-member-1',
+            accountId: 'account-member',
+            contactId: 'contact-member',
+            enrollmentId: 'enrollment-member',
+            ownerUserId: 'user-2',
+            status: 'sent',
+            stepIndex: 1
+          })
+        ]
+      }
+    );
+    const service = new CrmService(store);
+
+    const result = await service.batchGenerateNextDrafts(
+      { ids: ['enrollment-ready', 'enrollment-blocked', 'enrollment-member'] },
+      createContext({ organizationRole: 'admin' })
+    );
+
+    assert.equal(store.sequenceReviewDetailCalls.length, 0);
+    assert.deepEqual(
+      result.results.map(item => [item.id, item.status]),
+      [
+        ['enrollment-ready', 'success'],
+        ['enrollment-blocked', 'skipped'],
+        ['enrollment-member', 'skipped']
+      ]
+    );
+  });
+
   it('batch-approves only owner pending drafts and skips non-pending or member sequences', async () => {
     const store = createStore(
       [

@@ -166,6 +166,13 @@ const blockingNextDraftMessageStatuses: CrmMessageStatus[] = ['draft_pending_rev
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
 const inboxNotificationTargetType = 'crmInboxThread';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
+
+type NextDraftGenerationContext = {
+  globalConfig: CrmGlobalConfigRecord;
+  defaultTemplateGroup: CrmEmailTemplateGroupRecord | null;
+  personaProfiles: CrmPersonaProfileRecord[];
+};
+
 const publicEmailPrefixes = new Set([
   'admin',
   'contact',
@@ -2098,6 +2105,58 @@ export class CrmService {
   async generateNextDraft(id: string, context: CrmUserContext) {
     const item = await this.requireOwnedSequenceReviewItem(id, context);
 
+    return this.generateNextDraftFromReviewItem(item, context);
+  }
+
+  /** Generates follow-up drafts for eligible owner sequences while returning per-item outcomes. */
+  async batchGenerateNextDrafts(
+    input: SequenceBatchOperationInput,
+    context: CrmUserContext
+  ): Promise<SequenceBatchOperateResult> {
+    const reviewItems = await this.store.listSequenceReviewItemsByIds({
+      ids: input.ids,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+    const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
+    let generationContextPromise: Promise<NextDraftGenerationContext> | null = null;
+
+    return this.runSequenceBatch(input.ids, async id => {
+      const item = reviewItemById.get(id) ?? null;
+
+      if (!item) {
+        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
+      }
+
+      const skipMessage = this.getNextDraftSkipMessage(item);
+
+      if (skipMessage) {
+        return this.createSequenceBatchResult(id, 'skipped', skipMessage, {
+          enrollmentId: item.enrollment.id
+        });
+      }
+
+      try {
+        generationContextPromise ??= this.loadNextDraftGenerationContext(context.organizationId);
+        const generationContext = await generationContextPromise;
+        const generated = await this.generateNextDraftFromReviewItem(item, context, generationContext);
+
+        return this.createSequenceBatchResult(id, 'success', `第 ${generated.message.stepIndex} 封草稿已生成`, {
+          enrollmentId: generated.enrollment.id,
+          messageId: generated.message.id,
+          stepIndex: generated.message.stepIndex
+        });
+      } catch (error) {
+        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
+      }
+    });
+  }
+
+  private async generateNextDraftFromReviewItem(
+    item: CrmSequenceReviewRecord,
+    context: CrmUserContext,
+    generationContext?: NextDraftGenerationContext
+  ) {
     if (!nextDraftEnrollmentStatuses.includes(item.enrollment.status)) {
       throw new BadRequestException('当前序列状态不能生成下一封草稿');
     }
@@ -2118,19 +2177,17 @@ export class CrmService {
       throw new BadRequestException('已存在下一步草稿或待发送消息，请先处理后再生成');
     }
 
-    const [globalConfig, defaultTemplateGroup, personaMatch] = await Promise.all([
-      this.store.getGlobalConfig(),
-      this.store.findDefaultEmailTemplateGroup(context.organizationId),
-      this.resolvePersonaProfileMatch(item.account, item.contact, context)
-    ]);
+    const resolvedGenerationContext =
+      generationContext ?? (await this.loadNextDraftGenerationContext(context.organizationId));
+    const personaMatch = buildPersonaMatch(resolvedGenerationContext.personaProfiles, item.account, item.contact);
     const baseNextMessage = buildNextFollowUpDraft({
       item,
       sourceMessage,
       providerThreadId: sourceMessage.providerThreadId,
       baseTime: new Date(),
-      followUpDelayDays: globalConfig.followUpDelayDays,
+      followUpDelayDays: resolvedGenerationContext.globalConfig.followUpDelayDays,
       personaProfile: personaMatch.templatePersona,
-      templateGroup: defaultTemplateGroup,
+      templateGroup: resolvedGenerationContext.defaultTemplateGroup,
       senderName: context.userName
     });
 
@@ -2204,44 +2261,6 @@ export class CrmService {
       enrollment: toSequenceEnrollmentView(bundle.enrollment),
       message: toMessageView(bundle.message)
     };
-  }
-
-  /** Generates follow-up drafts for eligible owner sequences while returning per-item outcomes. */
-  async batchGenerateNextDrafts(
-    input: SequenceBatchOperationInput,
-    context: CrmUserContext
-  ): Promise<SequenceBatchOperateResult> {
-    return this.runSequenceBatch(input.ids, async id => {
-      const item = await this.store.getSequenceReviewItem({
-        id,
-        organizationId: context.organizationId,
-        ownerUserId: context.userId
-      });
-
-      if (!item) {
-        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
-      }
-
-      const skipMessage = this.getNextDraftSkipMessage(item);
-
-      if (skipMessage) {
-        return this.createSequenceBatchResult(id, 'skipped', skipMessage, {
-          enrollmentId: item.enrollment.id
-        });
-      }
-
-      try {
-        const generated = await this.generateNextDraft(id, context);
-
-        return this.createSequenceBatchResult(id, 'success', `第 ${generated.message.stepIndex} 封草稿已生成`, {
-          enrollmentId: generated.enrollment.id,
-          messageId: generated.message.id,
-          stepIndex: generated.message.stepIndex
-        });
-      } catch (error) {
-        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
-      }
-    });
   }
 
   /** Creates a local CRM AI draft task and queues pending items for review-only draft generation. */
@@ -3787,6 +3806,21 @@ export class CrmService {
   ): Promise<ResolvedPersonaMatch> {
     const organizationProfiles = await this.store.listActivePersonaProfiles(context.organizationId);
     return buildPersonaMatch(organizationProfiles, account, contact);
+  }
+
+  /** Loads organization-level resources reused by local next draft generation. */
+  private async loadNextDraftGenerationContext(organizationId: string): Promise<NextDraftGenerationContext> {
+    const [globalConfig, defaultTemplateGroup, personaProfiles] = await Promise.all([
+      this.store.getGlobalConfig(),
+      this.store.findDefaultEmailTemplateGroup(organizationId),
+      this.store.listActivePersonaProfiles(organizationId)
+    ]);
+
+    return {
+      globalConfig,
+      defaultTemplateGroup,
+      personaProfiles
+    };
   }
 
   private async requireScopedEmailTemplateGroup(id: string, context: CrmUserContext) {
