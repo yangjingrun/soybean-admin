@@ -107,6 +107,7 @@ import type {
   CrmMessageUpdateInput,
   CrmOrganizationConfigInput,
   CrmOrganizationConfigRecord,
+  CrmOwnerSendStateBatchInput,
   CrmPersonaProfileCreateInput,
   CrmPersonaProfileListInput,
   CrmPersonaProfileRecord,
@@ -738,6 +739,90 @@ export class PrismaCrmStore implements CrmStore {
           }
         ]
       }
+    });
+  }
+
+  /** Batch loads owner-level send scheduler state to avoid per-owner count queries. */
+  async listOwnerSendStates(input: CrmOwnerSendStateBatchInput) {
+    const owners = toUniqueOwnerPairs(input.owners);
+
+    if (owners.length === 0) {
+      return [];
+    }
+
+    const ownerFilters = toOwnerPairFilters(owners);
+    const [preferences, queuedRows, dispatchedRows] = await Promise.all([
+      this.prisma.crmUserSendPreference.findMany({
+        where: {
+          OR: ownerFilters
+        }
+      }),
+      this.prisma.crmMessage.groupBy({
+        by: ['organizationId', 'ownerUserId'],
+        where: {
+          AND: [{ OR: ownerFilters }, { status: 'queued' }]
+        },
+        _count: {
+          _all: true
+        }
+      }),
+      this.prisma.crmMessage.groupBy({
+        by: ['organizationId', 'ownerUserId', 'stepIndex'],
+        where: {
+          AND: [{ OR: ownerFilters }, toDispatchedMessageRangeWhere(input.from, input.to)]
+        },
+        _count: {
+          _all: true
+        }
+      })
+    ]);
+    const preferencesByOwner = new Map(
+      preferences.map(preference => [toOwnerPairKey(preference.organizationId, preference.ownerUserId), preference])
+    );
+    const queuedCountByOwner = new Map(
+      queuedRows.map(row => [toOwnerPairKey(row.organizationId, row.ownerUserId), row._count._all])
+    );
+    const dispatchedCountByOwner = new Map<
+      string,
+      {
+        dailyCount: number;
+        firstTouchCount: number;
+        followUpCount: number;
+      }
+    >();
+
+    for (const row of dispatchedRows) {
+      const key = toOwnerPairKey(row.organizationId, row.ownerUserId);
+      const count = row._count._all;
+      const current = dispatchedCountByOwner.get(key) ?? {
+        dailyCount: 0,
+        firstTouchCount: 0,
+        followUpCount: 0
+      };
+
+      current.dailyCount += count;
+      if (row.stepIndex === 1) {
+        current.firstTouchCount += count;
+      } else {
+        current.followUpCount += count;
+      }
+      dispatchedCountByOwner.set(key, current);
+    }
+
+    return owners.map(owner => {
+      const key = toOwnerPairKey(owner.organizationId, owner.ownerUserId);
+      const dispatchedCount = dispatchedCountByOwner.get(key);
+      const preference = preferencesByOwner.get(key);
+
+      return {
+        organizationId: owner.organizationId,
+        ownerUserId: owner.ownerUserId,
+        preference: preference ? toSendPreferenceRecord(preference) : null,
+        queuedCount: queuedCountByOwner.get(key) ?? 0,
+        dailyCount: dispatchedCount?.dailyCount ?? 0,
+        firstTouchCount: dispatchedCount?.firstTouchCount ?? 0,
+        followUpCount: dispatchedCount?.followUpCount ?? 0
+      };
     });
   }
 
@@ -3998,6 +4083,44 @@ function toBlacklistListWhere(args: CrmBlacklistListInput): Prisma.CrmBlacklistW
     organizationId: args.organizationId,
     ...(keywordFilter ? { OR: keywordFilter } : {})
   };
+}
+
+function toUniqueOwnerPairs(owners: Array<{ organizationId: string; ownerUserId: string }>) {
+  return Array.from(
+    new Map(owners.map(owner => [toOwnerPairKey(owner.organizationId, owner.ownerUserId), owner])).values()
+  );
+}
+
+function toOwnerPairFilters(owners: Array<{ organizationId: string; ownerUserId: string }>) {
+  return owners.map(owner => ({
+    organizationId: owner.organizationId,
+    ownerUserId: owner.ownerUserId
+  }));
+}
+
+function toDispatchedMessageRangeWhere(from: Date, to: Date): Prisma.CrmMessageWhereInput {
+  return {
+    OR: [
+      {
+        status: 'queued',
+        scheduledAt: {
+          gte: from,
+          lt: to
+        }
+      },
+      {
+        status: 'sent',
+        sentAt: {
+          gte: from,
+          lt: to
+        }
+      }
+    ]
+  };
+}
+
+function toOwnerPairKey(organizationId: string, ownerUserId: string) {
+  return `${organizationId}:${ownerUserId}`;
 }
 
 /** Creates a stable key for organization-scoped blacklist lookups. */

@@ -5517,6 +5517,38 @@ function createStore(
         return false;
       }).length;
     },
+    async listOwnerSendStates(input) {
+      return input.owners.map(owner => {
+        const ownerMessages = messages.filter(
+          message => message.organizationId === owner.organizationId && message.ownerUserId === owner.ownerUserId
+        );
+        const dispatchedMessages = ownerMessages.filter(message => {
+          if (message.status === 'queued') {
+            return Boolean(message.scheduledAt && message.scheduledAt >= input.from && message.scheduledAt < input.to);
+          }
+
+          if (message.status === 'sent') {
+            return Boolean(message.sentAt && message.sentAt >= input.from && message.sentAt < input.to);
+          }
+
+          return false;
+        });
+
+        return {
+          organizationId: owner.organizationId,
+          ownerUserId: owner.ownerUserId,
+          preference:
+            sendPreferences.find(
+              preference =>
+                preference.organizationId === owner.organizationId && preference.ownerUserId === owner.ownerUserId
+            ) ?? null,
+          queuedCount: ownerMessages.filter(message => message.status === 'queued').length,
+          dailyCount: dispatchedMessages.length,
+          firstTouchCount: dispatchedMessages.filter(message => message.stepIndex === 1).length,
+          followUpCount: dispatchedMessages.filter(message => message.stepIndex > 1).length
+        };
+      });
+    },
     async listDueSendCandidates() {
       return [];
     },

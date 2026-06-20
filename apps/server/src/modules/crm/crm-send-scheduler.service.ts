@@ -11,6 +11,7 @@ import { toCrmSendJobId } from './crm-send-queue.service';
 import { CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
 import type {
   CrmDueSendCandidateRecord,
+  CrmOwnerSendStateRecord,
   CrmScheduledMessageStepKind,
   CrmSendQueuePort,
   CrmStore
@@ -53,16 +54,18 @@ export class CrmSendSchedulerService {
     const ownerStates = new Map<string, OwnerDispatchState>();
     const dayRange = toUtcRange(now, 'day');
     const hourRange = toUtcRange(now, 'hour');
+    const ownerStateSnapshots = await this.loadOwnerStateSnapshots(candidates, dayRange);
     let dispatchedCount = 0;
     let skippedCount = 0;
 
     for (const candidate of candidates) {
-      const ownerKey = `${candidate.message.organizationId}:${candidate.message.ownerUserId}`;
-      const state = await this.getOwnerState(ownerKey, candidate, {
+      const ownerKey = toOwnerKey(candidate.message.organizationId, candidate.message.ownerUserId);
+      const state = this.getOwnerState(ownerKey, {
         ownerDailySendLimitMax,
         concurrentLimit,
         dayRange,
-        ownerStates
+        ownerStates,
+        ownerStateSnapshots
       });
 
       if (this.isOwnerCapacityFull(state)) {
@@ -99,14 +102,14 @@ export class CrmSendSchedulerService {
     };
   }
 
-  private async getOwnerState(
+  private getOwnerState(
     ownerKey: string,
-    candidate: CrmDueSendCandidateRecord,
     input: {
       ownerDailySendLimitMax: number;
       concurrentLimit: number;
       dayRange: DateRange;
       ownerStates: Map<string, OwnerDispatchState>;
+      ownerStateSnapshots: Map<string, CrmOwnerSendStateRecord>;
     }
   ) {
     const existing = input.ownerStates.get(ownerKey);
@@ -115,36 +118,8 @@ export class CrmSendSchedulerService {
       return existing;
     }
 
-    const [preference, queuedCount, dailyCount, firstTouchCount, followUpCount] = await Promise.all([
-      this.store.getSendPreference({
-        organizationId: candidate.message.organizationId,
-        ownerUserId: candidate.message.ownerUserId
-      }),
-      this.store.countOwnerQueuedMessages({
-        organizationId: candidate.message.organizationId,
-        ownerUserId: candidate.message.ownerUserId
-      }),
-      this.store.countDispatchedMessages({
-        organizationId: candidate.message.organizationId,
-        ownerUserId: candidate.message.ownerUserId,
-        from: input.dayRange.from,
-        to: input.dayRange.to
-      }),
-      this.store.countDispatchedMessages({
-        organizationId: candidate.message.organizationId,
-        ownerUserId: candidate.message.ownerUserId,
-        stepKind: 'first_touch',
-        from: input.dayRange.from,
-        to: input.dayRange.to
-      }),
-      this.store.countDispatchedMessages({
-        organizationId: candidate.message.organizationId,
-        ownerUserId: candidate.message.ownerUserId,
-        stepKind: 'follow_up',
-        from: input.dayRange.from,
-        to: input.dayRange.to
-      })
-    ]);
+    const snapshot = input.ownerStateSnapshots.get(ownerKey);
+    const preference = snapshot?.preference ?? null;
     const dailyLimit = normalizeOwnerDailySendLimit(
       preference?.dailySendLimit ?? defaultOwnerDailySendLimit,
       input.ownerDailySendLimitMax
@@ -155,10 +130,10 @@ export class CrmSendSchedulerService {
       followUpSharePercent: normalizeFollowUpSharePercent(
         preference?.followUpSharePercent ?? defaultFollowUpSharePercent
       ),
-      queuedCount,
-      dailyCount,
-      firstTouchCount,
-      followUpCount,
+      queuedCount: snapshot?.queuedCount ?? 0,
+      dailyCount: snapshot?.dailyCount ?? 0,
+      firstTouchCount: snapshot?.firstTouchCount ?? 0,
+      followUpCount: snapshot?.followUpCount ?? 0,
       dispatchedCount: 0,
       dispatchedByKind: {
         first_touch: 0,
@@ -169,6 +144,33 @@ export class CrmSendSchedulerService {
     input.ownerStates.set(ownerKey, state);
 
     return state;
+  }
+
+  /** Preloads owner-level send state once per scheduler batch. */
+  private async loadOwnerStateSnapshots(candidates: CrmDueSendCandidateRecord[], dayRange: DateRange) {
+    const owners = Array.from(
+      new Map(
+        candidates.map(candidate => [
+          toOwnerKey(candidate.message.organizationId, candidate.message.ownerUserId),
+          {
+            organizationId: candidate.message.organizationId,
+            ownerUserId: candidate.message.ownerUserId
+          }
+        ])
+      ).values()
+    );
+
+    if (owners.length === 0) {
+      return new Map<string, CrmOwnerSendStateRecord>();
+    }
+
+    const records = await this.store.listOwnerSendStates({
+      owners,
+      from: dayRange.from,
+      to: dayRange.to
+    });
+
+    return new Map(records.map(record => [toOwnerKey(record.organizationId, record.ownerUserId), record]));
   }
 
   private isOwnerCapacityFull(state: OwnerDispatchState) {
@@ -295,4 +297,8 @@ function toUtcRange(now: Date, unit: 'day' | 'hour'): DateRange {
   }
 
   return { from, to };
+}
+
+function toOwnerKey(organizationId: string, ownerUserId: string) {
+  return `${organizationId}:${ownerUserId}`;
 }

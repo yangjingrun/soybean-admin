@@ -217,6 +217,76 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('batch loads owner send states with preferences and grouped message counts', async () => {
+    const from = new Date('2026-06-20T00:00:00.000Z');
+    const to = new Date('2026-06-21T00:00:00.000Z');
+    const prisma = createPrisma({
+      sendPreferences: [
+        createPrismaSendPreference({
+          organizationId: 'org-1',
+          ownerUserId: 'user-1',
+          dailySendLimit: 20,
+          followUpSharePercent: 40
+        })
+      ],
+      ownerQueuedRows: [{ organizationId: 'org-1', ownerUserId: 'user-1', _count: { _all: 4 } }],
+      ownerDispatchedRows: [
+        { organizationId: 'org-1', ownerUserId: 'user-1', stepIndex: 1, _count: { _all: 2 } },
+        { organizationId: 'org-1', ownerUserId: 'user-1', stepIndex: 2, _count: { _all: 3 } }
+      ]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.listOwnerSendStates({
+      owners: [
+        { organizationId: 'org-1', ownerUserId: 'user-1' },
+        { organizationId: 'org-1', ownerUserId: 'user-2' },
+        { organizationId: 'org-1', ownerUserId: 'user-1' }
+      ],
+      from,
+      to
+    });
+
+    assert.deepEqual(
+      result.map(item => ({
+        ownerUserId: item.ownerUserId,
+        dailyLimit: item.preference?.dailySendLimit ?? null,
+        queuedCount: item.queuedCount,
+        dailyCount: item.dailyCount,
+        firstTouchCount: item.firstTouchCount,
+        followUpCount: item.followUpCount
+      })),
+      [
+        {
+          ownerUserId: 'user-1',
+          dailyLimit: 20,
+          queuedCount: 4,
+          dailyCount: 5,
+          firstTouchCount: 2,
+          followUpCount: 3
+        },
+        {
+          ownerUserId: 'user-2',
+          dailyLimit: null,
+          queuedCount: 0,
+          dailyCount: 0,
+          firstTouchCount: 0,
+          followUpCount: 0
+        }
+      ]
+    );
+    assert.deepEqual(prisma.crmUserSendPreference.findManyCalls[0].where, {
+      OR: [
+        { organizationId: 'org-1', ownerUserId: 'user-1' },
+        { organizationId: 'org-1', ownerUserId: 'user-2' }
+      ]
+    });
+    assert.deepEqual(prisma.crmMessage.groupByCalls.map(call => call.by), [
+      ['organizationId', 'ownerUserId'],
+      ['organizationId', 'ownerUserId', 'stepIndex']
+    ]);
+  });
+
   it('builds a personal CRM workbench overview with today metrics and seven day trend', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -2732,6 +2802,22 @@ function createPrismaMessage(input: Record<string, unknown> = {}) {
   };
 }
 
+function createPrismaSendPreference(input: Record<string, unknown> = {}) {
+  return {
+    id: 'send-preference-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    dailySendLimit: 50,
+    followUpSharePercent: 70,
+    updatedById: 'user-1',
+    updatedByName: 'Alice',
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
+}
+
 function createPrismaAiDraftTask(input: Record<string, unknown> = {}) {
   return {
     id: 'ai-draft-task-1',
@@ -2903,6 +2989,18 @@ function createPrisma(
     organizationConfig?: ReturnType<typeof createPrismaOrganizationConfig> | null;
     message?: ReturnType<typeof createPrismaMessage>;
     messages?: Array<ReturnType<typeof createPrismaMessage>>;
+    sendPreferences?: Array<ReturnType<typeof createPrismaSendPreference>>;
+    ownerQueuedRows?: Array<{
+      organizationId: string;
+      ownerUserId: string;
+      _count: { _all: number };
+    }>;
+    ownerDispatchedRows?: Array<{
+      organizationId: string;
+      ownerUserId: string;
+      stepIndex: number;
+      _count: { _all: number };
+    }>;
     blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
@@ -3054,6 +3152,7 @@ function createPrisma(
   const blacklist = options.blacklistEntry ?? null;
   const message = options.message ?? createPrismaMessage();
   const messages = options.messages ?? [message];
+  const sendPreferences = options.sendPreferences ?? [createPrismaSendPreference()];
   const enrollment = {
     id: 'enrollment-1',
     organizationId: 'org-1',
@@ -3425,6 +3524,31 @@ function createPrisma(
           createdAt: new Date('2026-06-18T09:00:00.000Z'),
           updatedAt: new Date('2026-06-18T10:00:00.000Z')
         };
+      }
+    },
+    crmUserSendPreference: {
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{ where: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      async findUnique(args: { where: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return sendPreferences[0] ?? null;
+      },
+      async findMany(args: { where: Record<string, unknown> }) {
+        this.findManyCalls.push(args);
+        return sendPreferences;
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+        return createPrismaSendPreference({ ...args.create, ...args.update });
       }
     },
     crmOrganizationConfig: {
@@ -4099,6 +4223,11 @@ function createPrisma(
         take?: number;
         select?: Record<string, unknown>;
       }>,
+      groupByCalls: [] as Array<{
+        by: string[];
+        where: Record<string, unknown>;
+        _count: Record<string, unknown>;
+      }>,
       countCalls: [] as Array<{ where: Record<string, unknown> }>,
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -4126,6 +4255,14 @@ function createPrisma(
       }) {
         this.findManyCalls.push(args);
         return messages.map(item => attachMessageRelations(item));
+      },
+      async groupBy(args: { by: string[]; where: Record<string, unknown>; _count: Record<string, unknown> }) {
+        this.groupByCalls.push(args);
+        if (args.by.includes('stepIndex')) {
+          return options.ownerDispatchedRows ?? [];
+        }
+
+        return options.ownerQueuedRows ?? [];
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);

@@ -52,6 +52,34 @@ describe('CrmSendSchedulerService', () => {
     assert.equal(queue.jobs.length, 0);
     assert.equal(store.queuedMessageIds.length, 0);
   });
+
+  it('batch loads owner dispatch state for all due owners', async () => {
+    const now = new Date('2026-06-20T02:00:00.000Z');
+    const store = createSchedulerStore({
+      candidates: [
+        createCandidate({ messageId: 'owner-1-message', stepIndex: 1, ownerUserId: 'user-1' }),
+        createCandidate({ messageId: 'owner-2-message', stepIndex: 1, ownerUserId: 'user-2' })
+      ],
+      ownerStates: [
+        createOwnerSendState({ ownerUserId: 'user-1', preference: createSendPreference({ ownerUserId: 'user-1' }) }),
+        createOwnerSendState({ ownerUserId: 'user-2', preference: createSendPreference({ ownerUserId: 'user-2' }) })
+      ]
+    });
+    const queue = createQueue();
+    const scheduler = new CrmSendSchedulerService(store, queue);
+
+    const result = await scheduler.dispatchDueMessages({ now, take: 20 });
+
+    assert.equal(result.dispatchedCount, 2);
+    assert.deepEqual(store.ownerStateCalls[0].owners, [
+      { organizationId: 'org-1', ownerUserId: 'user-1' },
+      { organizationId: 'org-1', ownerUserId: 'user-2' }
+    ]);
+    assert.equal(store.ownerStateCalls.length, 1);
+    assert.equal(store.getSendPreferenceCalls.length, 0);
+    assert.equal(store.countOwnerQueuedMessagesCalls.length, 0);
+    assert.equal(store.countDispatchedMessagesCalls.filter(call => !call.mailboxId).length, 0);
+  });
 });
 
 function createSchedulerStore(input: {
@@ -59,24 +87,48 @@ function createSchedulerStore(input: {
   preference?: CrmSendPreferenceRecord;
   candidates?: CrmDueSendCandidateRecord[];
   queuedCount?: number;
+  ownerStates?: Array<{
+    organizationId: string;
+    ownerUserId: string;
+    preference: CrmSendPreferenceRecord | null;
+    queuedCount: number;
+    dailyCount: number;
+    firstTouchCount: number;
+    followUpCount: number;
+  }>;
 }) {
   const globalConfig = input.globalConfig ?? createGlobalConfig();
   const preference = input.preference ?? createSendPreference();
   const candidates = input.candidates ?? [];
   const queuedMessageIds: string[] = [];
+  const ownerStateCalls: Array<{
+    owners: Array<{ organizationId: string; ownerUserId: string }>;
+    from: Date;
+    to: Date;
+  }> = [];
+  const getSendPreferenceCalls: unknown[] = [];
+  const countOwnerQueuedMessagesCalls: unknown[] = [];
+  const countDispatchedMessagesCalls: Array<{ stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }> = [];
 
   return {
     queuedMessageIds,
+    ownerStateCalls,
+    getSendPreferenceCalls,
+    countOwnerQueuedMessagesCalls,
+    countDispatchedMessagesCalls,
     async getGlobalConfig() {
       return globalConfig;
     },
-    async getSendPreference() {
+    async getSendPreference(args: unknown) {
+      getSendPreferenceCalls.push(args);
       return preference;
     },
-    async countOwnerQueuedMessages() {
+    async countOwnerQueuedMessages(args: unknown) {
+      countOwnerQueuedMessagesCalls.push(args);
       return input.queuedCount ?? queuedMessageIds.length;
     },
     async countDispatchedMessages(args: { stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }) {
+      countDispatchedMessagesCalls.push(args);
       if (args.mailboxId) {
         return 0;
       }
@@ -86,6 +138,28 @@ function createSchedulerStore(input: {
 
         return !args.stepKind || candidate?.stepKind === args.stepKind;
       }).length;
+    },
+    async listOwnerSendStates(args: {
+      owners: Array<{ organizationId: string; ownerUserId: string }>;
+      from: Date;
+      to: Date;
+    }) {
+      ownerStateCalls.push(args);
+
+      return args.owners.map(owner => {
+        const configured = input.ownerStates?.find(
+          item => item.organizationId === owner.organizationId && item.ownerUserId === owner.ownerUserId
+        );
+
+        return (
+          configured ??
+          createOwnerSendState({
+            ...owner,
+            preference,
+            queuedCount: input.queuedCount ?? queuedMessageIds.length
+          })
+        );
+      });
     },
     async listDueSendCandidates() {
       return candidates;
@@ -103,7 +177,17 @@ function createSchedulerStore(input: {
 
       return candidate.message;
     }
-  } as unknown as CrmStore & { queuedMessageIds: string[] };
+  } as unknown as CrmStore & {
+    queuedMessageIds: string[];
+    ownerStateCalls: Array<{
+      owners: Array<{ organizationId: string; ownerUserId: string }>;
+      from: Date;
+      to: Date;
+    }>;
+    getSendPreferenceCalls: unknown[];
+    countOwnerQueuedMessagesCalls: unknown[];
+    countDispatchedMessagesCalls: Array<{ stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }>;
+  };
 }
 
 function createQueue(): CrmSendQueuePort & { jobs: CrmSendQueueJob[] } {
@@ -153,23 +237,49 @@ function createSendPreference(input: Partial<CrmSendPreferenceRecord> = {}): Crm
   };
 }
 
+function createOwnerSendState(input: {
+  organizationId?: string;
+  ownerUserId?: string;
+  preference?: CrmSendPreferenceRecord | null;
+  queuedCount?: number;
+  dailyCount?: number;
+  firstTouchCount?: number;
+  followUpCount?: number;
+}) {
+  return {
+    organizationId: input.organizationId ?? 'org-1',
+    ownerUserId: input.ownerUserId ?? 'user-1',
+    preference: input.preference ?? null,
+    queuedCount: input.queuedCount ?? 0,
+    dailyCount: input.dailyCount ?? 0,
+    firstTouchCount: input.firstTouchCount ?? 0,
+    followUpCount: input.followUpCount ?? 0
+  };
+}
+
 function createCandidate(input: {
   messageId: string;
   stepIndex: number;
   scheduledAt?: string;
+  organizationId?: string;
+  ownerUserId?: string;
+  mailboxId?: string;
 }): CrmDueSendCandidateRecord {
   const stepKind: CrmScheduledMessageStepKind = input.stepIndex === 1 ? 'first_touch' : 'follow_up';
+  const organizationId = input.organizationId ?? 'org-1';
+  const ownerUserId = input.ownerUserId ?? 'user-1';
+  const mailboxId = input.mailboxId ?? 'mailbox-1';
 
   return {
     stepKind,
     enrollment: {
       id: `enrollment-${input.messageId}`,
-      organizationId: 'org-1',
-      ownerUserId: 'user-1',
+      organizationId,
+      ownerUserId,
       accountId: `account-${input.messageId}`,
       contactId: `contact-${input.messageId}`,
       productLineId: null,
-      mailboxId: 'mailbox-1',
+      mailboxId,
       policyId: null,
       name: 'Sequence',
       status: 'sequence_running',
@@ -183,8 +293,8 @@ function createCandidate(input: {
     },
     account: {
       id: `account-${input.messageId}`,
-      organizationId: 'org-1',
-      ownerUserId: 'user-1',
+      organizationId,
+      ownerUserId,
       name: 'ABC Trading',
       normalizedName: 'abc trading',
       websiteUrl: null,
@@ -201,9 +311,9 @@ function createCandidate(input: {
     },
     contact: {
       id: `contact-${input.messageId}`,
-      organizationId: 'org-1',
+      organizationId,
       accountId: `account-${input.messageId}`,
-      ownerUserId: 'user-1',
+      ownerUserId,
       fullName: 'Ali',
       title: 'Purchasing Manager',
       email: `${input.messageId}@example.com`,
@@ -217,9 +327,9 @@ function createCandidate(input: {
     },
     productLine: null,
     mailbox: {
-      id: 'mailbox-1',
-      organizationId: 'org-1',
-      ownerUserId: 'user-1',
+      id: mailboxId,
+      organizationId,
+      ownerUserId,
       ownerUserName: 'Alice',
       provider: 'gmail',
       emailAddress: 'alice@gmail.com',
@@ -244,12 +354,12 @@ function createCandidate(input: {
     messages: [],
     message: {
       id: input.messageId,
-      organizationId: 'org-1',
-      ownerUserId: 'user-1',
+      organizationId,
+      ownerUserId,
       accountId: `account-${input.messageId}`,
       contactId: `contact-${input.messageId}`,
       enrollmentId: `enrollment-${input.messageId}`,
-      mailboxId: 'mailbox-1',
+      mailboxId,
       stepIndex: input.stepIndex,
       threadMode: input.stepIndex === 1 ? 'new_subject' : 'same_thread',
       subject: 'Subject',
