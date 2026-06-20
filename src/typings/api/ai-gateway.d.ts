@@ -63,6 +63,8 @@ declare namespace Api {
       apiBase: string;
       apiKey: string;
       model: string;
+      temperature?: number;
+      maxOutputTokens?: number;
     }
 
     interface SaveSerperConfigPayload {

@@ -39,7 +39,8 @@ const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
   providerName: 'openrouter',
   apiBase: 'https://openrouter.ai/api/v1',
   apiKey: '',
-  model: 'openai/gpt-4o-mini'
+  model: 'openai/gpt-4o-mini',
+  temperature: 0.2
 });
 const serperForm = reactive<Api.AiGateway.SaveSerperConfigPayload>({
   configKey: defaultSerperConfigKey,
@@ -138,7 +139,9 @@ async function handleLoadModelConfig(showMessage = true) {
       providerName: record.providerName,
       apiBase: record.apiBase,
       apiKey: '',
-      model: record.model
+      model: record.model,
+      temperature: record.temperature,
+      maxOutputTokens: record.maxOutputTokens
     });
     modelUpdatedAt.value = record.updatedAt;
     modelMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
@@ -163,7 +166,9 @@ async function handleSaveModelConfig() {
       providerName: modelForm.providerName.trim(),
       apiBase: modelForm.apiBase.trim(),
       apiKey: modelForm.apiKey.trim(),
-      model: modelForm.model.trim()
+      model: modelForm.model.trim(),
+      temperature: modelForm.temperature,
+      maxOutputTokens: modelForm.maxOutputTokens
     });
 
     if (error) {
@@ -463,6 +468,18 @@ async function handleTestHunterConfig() {
           <NFormItem :label="$t('page.aiSettings.form.apiBase')">
             <NInput v-model:value="modelForm.apiBase" :placeholder="$t('page.aiSettings.placeholders.apiBase')" />
           </NFormItem>
+          <NGrid :x-gap="12" responsive="screen" item-responsive>
+            <NGi span="24 m:12">
+              <NFormItem :label="$t('page.aiSettings.form.temperature')">
+                <NInputNumber v-model:value="modelForm.temperature" :min="0" :max="2" :step="0.1" />
+              </NFormItem>
+            </NGi>
+            <NGi span="24 m:12">
+              <NFormItem :label="$t('page.aiSettings.form.maxOutputTokens')">
+                <NInputNumber v-model:value="modelForm.maxOutputTokens" :min="1" :max="8000" :precision="0" clearable />
+              </NFormItem>
+            </NGi>
+          </NGrid>
           <NFormItem :label="$t('page.aiSettings.form.apiKey')">
             <NInput
               v-model:value="modelForm.apiKey"

@@ -1,5 +1,5 @@
 import { request } from '../request';
-import { buildGenerateAiTextRequestConfig } from './ai-gateway.shared';
+import { buildGenerateAiTextRequestConfig, buildSaveAiModelConfigRequestConfig } from './ai-gateway.shared';
 
 /** Save one fixed system prompt for later model calls. */
 export function saveAiPrompt(data: Api.AiGateway.SavePromptPayload) {
@@ -19,11 +19,7 @@ export function getAiPrompt(promptKey: string) {
 
 /** Save the backend model config used by AI workflows. */
 export function saveAiModelConfig(data: Api.AiGateway.SaveModelConfigPayload) {
-  return request<Api.AiGateway.AiModelConfigRecord>({
-    url: '/ai-gateway/model-configs',
-    method: 'post',
-    data
-  });
+  return request<Api.AiGateway.AiModelConfigRecord>(buildSaveAiModelConfigRequestConfig(data));
 }
 
 /** Read one backend model config by stable config key. */
