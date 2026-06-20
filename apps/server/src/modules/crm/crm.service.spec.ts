@@ -23,6 +23,7 @@ import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcile.service';
 import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
 import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
@@ -212,6 +213,22 @@ describe('CrmService', () => {
     assert.equal(await service.startFirstMessageSend('enrollment-1', context), started);
     assert.equal(await service.stopSequenceEnrollment('enrollment-1', context), stopped);
     assert.deepEqual(calls, ['start', 'stop']);
+  });
+
+  it('delegates send queue reconciliation when the split reconcile service is injected', async () => {
+    const context = createContext({ roles: ['R_SUPER'] });
+    const input = { now: new Date('2026-06-18T11:00:00.000Z'), staleMinutes: 10, take: 10 };
+    const expected = { scannedCount: 1, repairedCount: 1, skippedCount: 0 };
+    const sendQueueReconcileService = {
+      async reconcileSendQueue(actualInput: typeof input, actualContext: CrmUserContext) {
+        assert.equal(actualInput, input);
+        assert.equal(actualContext, context);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ sendQueueReconcileService });
+
+    assert.equal(await service.reconcileSendQueue(input, context), expected);
   });
 
   it('delegates first draft approval when the split draft approval service is injected', async () => {
@@ -4878,13 +4895,20 @@ describe('CrmService', () => {
       ]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service, {
+    const sendQueue = {
       async enqueueFirstMessage() {
         return { jobId: 'unused' };
       },
       async hasJob(jobId) {
         return jobId === 'send-job-existing';
       }
+    } satisfies CrmSendQueuePort;
+    const service = createServiceWithSplitServices({
+      store,
+      sendQueueReconcileService: createSendQueueReconcileService(store, {
+        sendQueue,
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
     });
 
     const result = await service.reconcileSendQueue(
@@ -9437,6 +9461,7 @@ function createServiceWithSplitServices(options: {
   productLineService?: unknown;
   sequenceService?: unknown;
   sequenceControlService?: unknown;
+  sendQueueReconcileService?: unknown;
   sequencePolicyService?: unknown;
   templateGroupService?: unknown;
   draftService?: unknown;
@@ -9472,6 +9497,7 @@ function createServiceWithSplitServices(options: {
     (options.productLineService ?? createProductLineService(store)) as never,
     options.sequenceService as never,
     options.sequenceControlService as never,
+    options.sendQueueReconcileService as never,
     (options.sequencePolicyService ?? createSequencePolicyService(store)) as never,
     (options.templateGroupService ?? createEmailTemplateGroupService(store)) as never,
     options.draftService as never,
@@ -9595,6 +9621,13 @@ function createDraftPreviewService(
 
 function createSequenceControlService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
   return new CrmSequenceControlService(store, options.crmLogger);
+}
+
+function createSendQueueReconcileService(
+  store: CrmStore,
+  options: { sendQueue?: Pick<CrmSendQueuePort, 'hasJob'>; crmLogger?: CrmLoggerService } = {}
+) {
+  return new CrmSendQueueReconcileService(store, options.sendQueue, options.crmLogger);
 }
 
 function createSequenceService(

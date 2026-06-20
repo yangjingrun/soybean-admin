@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
 import { createPageResult } from '../../shared/pagination';
-import { assertOrganizationAdmin, assertSuper } from '../../shared/permission-policy';
+import { assertOrganizationAdmin } from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
@@ -42,6 +42,7 @@ import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { nextDraftEnrollmentStatuses } from './sequence/crm-next-draft-rules';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcile.service';
 import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
 import {
   type SequenceBatchOperateResult,
@@ -255,6 +256,9 @@ export class CrmService {
     @Optional()
     @Inject(CrmSequenceControlService)
     private readonly sequenceControlService?: CrmSequenceControlService,
+    @Optional()
+    @Inject(CrmSendQueueReconcileService)
+    private readonly sendQueueReconcileService?: CrmSendQueueReconcileService,
     @Optional()
     @Inject(CrmSequencePolicyService)
     private readonly sequencePolicyService?: CrmSequencePolicyService,
@@ -1582,77 +1586,7 @@ export class CrmService {
 
   /** Repairs stale queued messages that lost their BullMQ job. */
   async reconcileSendQueue(input: { now?: Date; staleMinutes?: number; take?: number } = {}, context: CrmUserContext) {
-    assertSuper(context, '无权维护 CRM 发送队列');
-
-    if (!this.sendQueue) {
-      throw new BadRequestException('CRM 邮件发送队列未启用');
-    }
-
-    const now = input.now ?? new Date();
-    const staleMinutes = normalizePositiveInteger(input.staleMinutes, 10, 1, 1440);
-    const take = normalizePositiveInteger(input.take, 100, 1, 500);
-    const before = new Date(now.getTime() - staleMinutes * 60 * 1000);
-    const candidates = await this.store.listStaleQueuedMessages({
-      before,
-      take
-    });
-    let repairedCount = 0;
-    let skippedCount = 0;
-
-    for (const message of candidates) {
-      if (!message.bullJobId) {
-        skippedCount += 1;
-        continue;
-      }
-
-      if (await this.sendQueue.hasJob(message.bullJobId)) {
-        skippedCount += 1;
-        continue;
-      }
-
-      const repaired = await this.store.updateMessage(
-        message.id,
-        message.organizationId,
-        { status: 'draft_ready', bullJobId: null },
-        { status: 'queued' }
-      );
-
-      if (!repaired) {
-        skippedCount += 1;
-        continue;
-      }
-
-      repairedCount += 1;
-      await this.store.createTimelineEvent({
-        organizationId: repaired.organizationId,
-        accountId: repaired.accountId,
-        contactId: repaired.contactId,
-        ownerUserId: repaired.ownerUserId,
-        eventType: 'send_queue_reconciled',
-        title: '发送队列对账修复',
-        content: '数据库 queued 但 BullMQ job 不存在，已回退为待发送草稿',
-        metadata: {
-          messageId: repaired.id,
-          previousBullJobId: message.bullJobId,
-          repairedAt: now.toISOString()
-        }
-      });
-    }
-
-    const result = {
-      scannedCount: candidates.length,
-      repairedCount,
-      skippedCount
-    };
-
-    await this.recordCrmLog('send-queue-reconcile', 'CRM 发送队列对账修复', context, {
-      organizationId: context.organizationId,
-      before: before.toISOString(),
-      take,
-      ...result
-    });
-
-    return result;
+    return this.requireSendQueueReconcileService().reconcileSendQueue(input, context);
   }
 
   /** Lists customer reply inbox threads in the current organization scope. */
@@ -2135,6 +2069,14 @@ export class CrmService {
     }
 
     return this.sequenceControlService;
+  }
+
+  private requireSendQueueReconcileService() {
+    if (!this.sendQueueReconcileService) {
+      throw new BadRequestException('CRM 发送队列对账服务未启用');
+    }
+
+    return this.sendQueueReconcileService;
   }
 
   private requireDraftPreviewService() {

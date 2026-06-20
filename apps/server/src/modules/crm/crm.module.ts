@@ -44,6 +44,7 @@ import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcile.service';
 import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
 import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
@@ -93,6 +94,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmDraftService,
     CrmFollowUpApprovalService,
     CrmNextDraftService,
+    CrmSendQueueReconcileService,
     CrmSequenceControlService,
     CrmSequenceReviewCreationService,
     CrmSequenceService,
