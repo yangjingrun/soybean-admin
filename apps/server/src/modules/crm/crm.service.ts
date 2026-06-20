@@ -41,6 +41,7 @@ import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
@@ -378,7 +379,10 @@ export class CrmService {
     private readonly mailboxService?: CrmMailboxService,
     @Optional()
     @Inject(CrmSequenceService)
-    private readonly sequenceService?: CrmSequenceService
+    private readonly sequenceService?: CrmSequenceService,
+    @Optional()
+    @Inject(CrmDraftService)
+    private readonly draftService?: CrmDraftService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -1978,6 +1982,10 @@ export class CrmService {
 
   /** Saves human edits to one draft and keeps it in pending review. */
   async updateMessageDraft(id: string, input: MessageDraftUpdateInput, context: CrmUserContext) {
+    if (this.draftService) {
+      return this.draftService.updateMessageDraft(id, input, context);
+    }
+
     const message = await this.requireOwnedEditableMessage(id, context);
     const updatedMessage = await this.store.updateMessage(
       message.id,
@@ -2032,6 +2040,10 @@ export class CrmService {
 
   /** Regenerates the current owner pending-review draft with product-line AI writing config. */
   async regenerateMessageAiDraft(id: string, context: CrmUserContext) {
+    if (this.draftService) {
+      return this.draftService.regenerateMessageAiDraft(id, context);
+    }
+
     const message = await this.requireOwnedEditableMessage(id, context);
     const item = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
     const productLine = this.requireAiWritingProductLine(item.productLine);
@@ -2124,6 +2136,10 @@ export class CrmService {
 
   /** Lists saved snapshots for one owner draft message. */
   async listMessageDraftVersions(id: string, context: CrmUserContext) {
+    if (this.draftService) {
+      return this.draftService.listMessageDraftVersions(id, context);
+    }
+
     await this.requireOwnedMessage(id, context);
     const versions = await this.store.listMessageDraftVersions({
       messageId: id,
@@ -2138,6 +2154,10 @@ export class CrmService {
 
   /** Restores one saved draft snapshot into the current pending-review message. */
   async restoreMessageDraftVersion(id: string, versionId: string, context: CrmUserContext) {
+    if (this.draftService) {
+      return this.draftService.restoreMessageDraftVersion(id, versionId, context);
+    }
+
     const message = await this.requireOwnedEditableMessage(id, context);
     const restoredMessage = await this.store.restoreMessageDraftVersion({
       messageId: message.id,

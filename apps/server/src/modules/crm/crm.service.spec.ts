@@ -11,6 +11,7 @@ import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
+import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import type {
@@ -124,6 +125,51 @@ describe('CrmService', () => {
     assert.equal(await service.listSequenceReviewItems(context, query), listed);
     assert.equal(await service.getSequenceReviewItem('enrollment-1', context), detail);
     assert.deepEqual(calls, ['create', 'list', 'detail']);
+  });
+
+  it('delegates draft content facade methods when the split draft service is injected', async () => {
+    const context = createContext();
+    const updateInput = { subject: 'Subject', bodyText: 'Body' };
+    const updated = { message: { id: 'updated' } };
+    const regenerated = { message: { id: 'regenerated' } };
+    const versions = { versions: [] };
+    const restored = { message: { id: 'restored' } };
+    const calls: string[] = [];
+    const draftService = {
+      async updateMessageDraft(id: string, input: typeof updateInput, actualContext: CrmUserContext) {
+        assert.equal(id, 'message-1');
+        assert.equal(input, updateInput);
+        assert.equal(actualContext, context);
+        calls.push('update');
+        return updated;
+      },
+      async regenerateMessageAiDraft(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'message-1');
+        assert.equal(actualContext, context);
+        calls.push('regenerate');
+        return regenerated;
+      },
+      async listMessageDraftVersions(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'message-1');
+        assert.equal(actualContext, context);
+        calls.push('versions');
+        return versions;
+      },
+      async restoreMessageDraftVersion(id: string, versionId: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'message-1');
+        assert.equal(versionId, 'draft-version-1');
+        assert.equal(actualContext, context);
+        calls.push('restore');
+        return restored;
+      }
+    };
+    const service = createServiceWithSplitServices({ draftService });
+
+    assert.equal(await service.updateMessageDraft('message-1', updateInput, context), updated);
+    assert.equal(await service.regenerateMessageAiDraft('message-1', context), regenerated);
+    assert.equal(await service.listMessageDraftVersions('message-1', context), versions);
+    assert.equal(await service.restoreMessageDraftVersion('message-1', 'draft-version-1', context), restored);
+    assert.deepEqual(calls, ['update', 'regenerate', 'versions', 'restore']);
   });
 
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -3818,6 +3864,126 @@ describe('CrmService', () => {
       () => service.updateMessageDraft('message-1', { subject: 'Change', bodyText: 'Body' }, createContext()),
       BadRequestException
     );
+  });
+
+  it('updates, lists and restores draft versions through split draft service', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'manual_review_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          subject: 'Initial subject',
+          bodyText: 'Initial body'
+        })
+      ]
+    });
+    const service = createDraftService(store);
+
+    await service.updateMessageDraft('message-1', { subject: 'First update', bodyText: 'First body' }, createContext());
+    await service.updateMessageDraft(
+      'message-1',
+      { subject: 'Second update', bodyText: 'Second body' },
+      createContext({ userName: 'Alice B' })
+    );
+    const versions = await service.listMessageDraftVersions('message-1', createContext());
+    const restored = await service.restoreMessageDraftVersion('message-1', 'draft-version-1', createContext());
+
+    assert.deepEqual(
+      versions.versions.map(version => [version.versionNo, version.subject, version.editorName]),
+      [
+        [2, 'Second update', 'Alice B'],
+        [1, 'First update', 'Alice']
+      ]
+    );
+    assert.equal(restored.message.subject, 'First update');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'draft_version_restored');
+  });
+
+  it('regenerates owner pending drafts through split draft service with AI metadata and sanitized log', async () => {
+    const store = createStore(
+      [createAccount({ id: 'account-1', name: 'ABC Trading', status: 'manual_review_pending' })],
+      {
+        contacts: [createContact({ id: 'contact-1', accountId: 'account-1', title: 'Purchasing Manager' })],
+        productLines: [
+          createProductLine({
+            id: 'line-ai',
+            name: 'Bearing Series',
+            aiWritingConfig: createAiWritingConfig()
+          })
+        ],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-1',
+            accountId: 'account-1',
+            contactId: 'contact-1',
+            productLineId: 'line-ai'
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-1',
+            enrollmentId: 'enrollment-1',
+            subject: 'Old subject',
+            bodyText: 'Old body',
+            metadata: { keep: 'value' }
+          })
+        ]
+      }
+    );
+    const aiCalls: CrmAiDraftPromptInput[] = [];
+    const logs = createLogRecorder();
+    const service = createDraftService(store, {
+      aiDraftService: createAiDraftService(aiCalls),
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
+
+    const result = await service.regenerateMessageAiDraft('message-1', createContext());
+    const metadata = store.messages[0].metadata as { keep?: string; aiDraft?: { snapshot?: { stepIndex?: number } } };
+
+    assert.equal(result.message.subject, 'AI subject step 1');
+    assert.equal(result.message.bodyText, 'AI body step 1');
+    assert.equal(metadata.keep, 'value');
+    assert.equal(metadata.aiDraft?.snapshot?.stepIndex, 1);
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'ai_draft_regenerated');
+    assert.equal(logs.records.at(-1)?.action, 'ai-draft-regenerate');
+    assert.equal(aiCalls[0].stepIndex, 1);
+  });
+
+  it('keeps split draft service writes owner-only for organization admins', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ]
+    });
+    const service = createDraftService(store);
+
+    await assert.rejects(
+      () =>
+        service.updateMessageDraft(
+          'message-1',
+          { subject: 'Admin edit', bodyText: 'Body' },
+          createContext({ organizationRole: 'admin' })
+        ),
+      NotFoundException
+    );
+    assert.equal(store.messages[0].status, 'draft_pending_review');
   });
 
   it('starts an approved first message into the local send scheduling pool', async () => {
@@ -8579,6 +8745,7 @@ function createServiceWithSplitServices(options: {
   accountService?: unknown;
   mailboxService?: unknown;
   sequenceService?: unknown;
+  draftService?: unknown;
 }) {
   return new CrmService(
     {} as CrmStore,
@@ -8597,8 +8764,16 @@ function createServiceWithSplitServices(options: {
     options.suppressionService as never,
     options.accountService as never,
     options.mailboxService as never,
-    options.sequenceService as never
+    options.sequenceService as never,
+    options.draftService as never
   );
+}
+
+function createDraftService(
+  store: CrmStore,
+  options: { aiDraftService?: CrmAiDraftService | null; crmLogger?: CrmLoggerService } = {}
+) {
+  return new CrmDraftService(store, options.aiDraftService, options.crmLogger);
 }
 
 function createSequenceService(
