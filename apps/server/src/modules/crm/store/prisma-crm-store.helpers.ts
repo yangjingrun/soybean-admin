@@ -142,7 +142,6 @@ import type {
   CrmSendStartRecord,
   CrmSequenceStopInput,
   CrmSequenceStopRecord,
-  CrmStore,
   CrmStrategyStatDimension,
   CrmStrategyStatRow,
   CrmStrategyStatsRecord,

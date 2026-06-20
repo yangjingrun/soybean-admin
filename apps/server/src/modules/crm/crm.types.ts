@@ -12,7 +12,6 @@ import type {
 
 export type * from './crm-ai-draft-task.types';
 export type * from './crm-ports.types';
-export type { CrmStore } from './crm-store.types';
 
 export type OrganizationRole = RequestUserContext['organizationRole'];
 
