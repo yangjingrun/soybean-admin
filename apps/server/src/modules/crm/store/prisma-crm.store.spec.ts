@@ -687,6 +687,30 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('batch loads organization blacklist entries by email hashes', async () => {
+    const prisma = createPrisma({
+      blacklistFindManyResults: [
+        createPrismaBlacklist({ emailHash: 'hash-1' }),
+        createPrismaBlacklist({ id: 'blacklist-2', emailHash: 'hash-2' })
+      ]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const records = await store.listBlacklistEntriesByEmailHashes({
+      organizationId: 'org-1',
+      emailHashes: ['hash-1', 'hash-2', 'hash-1']
+    });
+
+    assert.deepEqual(
+      records.map(record => record.emailHash),
+      ['hash-1', 'hash-2']
+    );
+    assert.deepEqual(prisma.crmBlacklist.findManyCalls[0].where, {
+      organizationId: 'org-1',
+      emailHash: { in: ['hash-1', 'hash-2'] }
+    });
+  });
+
   it('upserts organization blacklist entries by organization and email hash', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -1450,6 +1474,34 @@ describe('PrismaCrmStore', () => {
         }
       }
     ]);
+  });
+
+  it('batch loads sequence review items by scoped ids', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+
+    const records = await store.listSequenceReviewItemsByIds({
+      ids: ['enrollment-1', 'enrollment-2', 'enrollment-1'],
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+
+    assert.equal(records.length, 1);
+    assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls[0].where, {
+      id: { in: ['enrollment-1', 'enrollment-2'] },
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls[0].include, {
+      account: true,
+      contact: true,
+      productLine: true,
+      mailbox: true,
+      policy: true,
+      messages: {
+        orderBy: [{ stepIndex: 'asc' }, { createdAt: 'asc' }]
+      }
+    });
   });
 
   it('aggregates local strategy stats from enrollments, messages and timeline metadata', async () => {

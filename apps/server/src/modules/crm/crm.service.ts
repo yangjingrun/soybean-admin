@@ -2248,20 +2248,23 @@ export class CrmService {
   async createAiDraftTask(input: CreateAiDraftTaskInput, context: CrmUserContext) {
     const enrollmentIds = normalizeSelectedEnrollmentIds(input.enrollmentIds, 200);
     const items: CrmAiDraftTaskCreateItemInput[] = [];
+    const reviewItems = await this.store.listSequenceReviewItemsByIds({
+      ids: enrollmentIds,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+    const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
+    const blacklistedEmailHashes = await this.loadBlacklistedContactEmailHashes(context.organizationId, reviewItems);
 
     for (const enrollmentId of enrollmentIds) {
-      const item = await this.store.getSequenceReviewItem({
-        id: enrollmentId,
-        organizationId: context.organizationId,
-        ownerUserId: context.userId
-      });
+      const item = reviewItemById.get(enrollmentId) ?? null;
 
       if (!item) {
         items.push(this.createSkippedAiDraftTaskItem(enrollmentId, '邮件序列不存在或无权操作'));
         continue;
       }
 
-      const skipMessage = await this.getAiDraftTaskItemSkipMessage(item, context);
+      const skipMessage = this.getAiDraftTaskItemSkipMessage(item, blacklistedEmailHashes);
 
       if (skipMessage) {
         items.push(this.createSkippedAiDraftTaskItem(enrollmentId, skipMessage, item));
@@ -4016,7 +4019,23 @@ export class CrmService {
     return null;
   }
 
-  private async getAiDraftTaskItemSkipMessage(item: CrmSequenceReviewRecord, context: CrmUserContext) {
+  /** Batch loads organization blacklist hits for AI draft task validation. */
+  private async loadBlacklistedContactEmailHashes(organizationId: string, items: CrmSequenceReviewRecord[]) {
+    const emailHashes = Array.from(new Set(items.map(item => item.contact.emailHash).filter(Boolean)));
+
+    if (emailHashes.length === 0) {
+      return new Set<string>();
+    }
+
+    const entries = await this.store.listBlacklistEntriesByEmailHashes({
+      organizationId,
+      emailHashes
+    });
+
+    return new Set(entries.map(entry => entry.emailHash));
+  }
+
+  private getAiDraftTaskItemSkipMessage(item: CrmSequenceReviewRecord, blacklistedEmailHashes: Set<string>) {
     const nextDraftSkipMessage = this.getNextDraftSkipMessage(item);
 
     if (nextDraftSkipMessage) {
@@ -4027,12 +4046,7 @@ export class CrmService {
       return '联系人已退订，不能继续开发';
     }
 
-    const blacklistEntry = await this.store.findBlacklistEntry({
-      organizationId: context.organizationId,
-      emailHash: item.contact.emailHash
-    });
-
-    if (blacklistEntry) {
+    if (blacklistedEmailHashes.has(item.contact.emailHash)) {
       return '该邮箱已在组织黑名单中，不能继续开发';
     }
 

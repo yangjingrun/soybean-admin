@@ -4204,6 +4204,71 @@ describe('CrmService', () => {
     );
   });
 
+  it('preloads CRM AI draft task review items and blacklists without per-item reads', async () => {
+    const aiWritingConfig = createAiWritingConfig();
+    const store = createStore(
+      [
+        createAccount({ id: 'account-1', name: 'First Buyer', status: 'ready' }),
+        createAccount({ id: 'account-2', name: 'Second Buyer', status: 'ready' }),
+        createAccount({ id: 'account-3', name: 'Third Buyer', status: 'ready' })
+      ],
+      {
+        contacts: [
+          createContact({ id: 'contact-1', accountId: 'account-1' }),
+          createContact({ id: 'contact-2', accountId: 'account-2', emailHash: 'blacklisted-hash' }),
+          createContact({ id: 'contact-3', accountId: 'account-3' })
+        ],
+        blacklists: [createBlacklist({ emailHash: 'blacklisted-hash' })],
+        productLines: [createProductLine({ id: 'product-line-1', aiWritingConfig })],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-1',
+            accountId: 'account-1',
+            contactId: 'contact-1',
+            productLineId: 'product-line-1',
+            status: 'ready_to_send'
+          }),
+          createEnrollment({
+            id: 'enrollment-2',
+            accountId: 'account-2',
+            contactId: 'contact-2',
+            productLineId: 'product-line-1',
+            status: 'ready_to_send'
+          }),
+          createEnrollment({
+            id: 'enrollment-3',
+            accountId: 'account-3',
+            contactId: 'contact-3',
+            productLineId: 'product-line-1',
+            status: 'ready_to_send'
+          })
+        ],
+        messages: [
+          createMessage({ id: 'message-1', accountId: 'account-1', contactId: 'contact-1', enrollmentId: 'enrollment-1', status: 'sent', stepIndex: 1 }),
+          createMessage({ id: 'message-2', accountId: 'account-2', contactId: 'contact-2', enrollmentId: 'enrollment-2', status: 'sent', stepIndex: 1 }),
+          createMessage({ id: 'message-3', accountId: 'account-3', contactId: 'contact-3', enrollmentId: 'enrollment-3', status: 'sent', stepIndex: 1 })
+        ]
+      }
+    );
+    const service = new CrmService(store);
+
+    await service.createAiDraftTask(
+      { enrollmentIds: ['enrollment-1', 'enrollment-2', 'enrollment-3'] },
+      createContext()
+    );
+
+    assert.equal(store.sequenceReviewDetailCalls.length, 0);
+    assert.equal(store.blacklistLookupCalls.length, 0);
+    assert.deepEqual(
+      store.aiDraftTaskItems.map(item => [item.enrollmentId, item.status, item.failureReason]),
+      [
+        ['enrollment-1', 'pending', null],
+        ['enrollment-2', 'skipped', '该邮箱已在组织黑名单中，不能继续开发'],
+        ['enrollment-3', 'pending', null]
+      ]
+    );
+  });
+
   it('rejects CRM AI draft task creation when the current user already has an active task', async () => {
     const store = createStore([], {
       aiDraftTasks: [createAiDraftTask({ id: 'active-task-1', status: 'queued' })]
@@ -5128,6 +5193,8 @@ function createStore(
   lastStrategyStatsArgs?: Parameters<CrmStore['listStrategyStats']>[0];
   lastWorkbenchOverviewArgs?: Parameters<CrmStore['getWorkbenchOverview']>[0];
   lastSequenceReviewDetailArgs?: Parameters<CrmStore['getSequenceReviewItem']>[0];
+  sequenceReviewDetailCalls: Parameters<CrmStore['getSequenceReviewItem']>[0][];
+  blacklistLookupCalls: Parameters<CrmStore['findBlacklistEntry']>[0][];
   lastMessageDetailArgs?: Parameters<CrmStore['findMessageById']>[0];
 } {
   const accounts = [...initialAccounts];
@@ -5162,6 +5229,8 @@ function createStore(
   }> = [];
   const enrollmentUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestEnrollment> }> = [];
   const messageUpdateCalls: Array<{ id: string; organizationId: string; input: Partial<TestMessage> }> = [];
+  const sequenceReviewDetailCalls: Parameters<CrmStore['getSequenceReviewItem']>[0][] = [];
+  const blacklistLookupCalls: Parameters<CrmStore['findBlacklistEntry']>[0][] = [];
 
   return {
     accounts,
@@ -5196,6 +5265,8 @@ function createStore(
     emailTemplateUpdateCalls,
     enrollmentUpdateCalls,
     messageUpdateCalls,
+    sequenceReviewDetailCalls,
+    blacklistLookupCalls,
     async findAccountByDomain(organizationId, ownerUserId, domain) {
       return (
         accounts.find(
@@ -5640,10 +5711,14 @@ function createStore(
       return fingerprint;
     },
     async findBlacklistEntry(args) {
+      blacklistLookupCalls.push(args);
       return (
         blacklists.find(entry => entry.organizationId === args.organizationId && entry.emailHash === args.emailHash) ||
         null
       );
+    },
+    async listBlacklistEntriesByEmailHashes(args) {
+      return blacklists.filter(entry => entry.organizationId === args.organizationId && args.emailHashes.includes(entry.emailHash));
     },
     async upsertBlacklistEntry(input) {
       const existingEntry = blacklists.find(
@@ -6329,6 +6404,7 @@ function createStore(
     },
     async getSequenceReviewItem(args) {
       this.lastSequenceReviewDetailArgs = args;
+      sequenceReviewDetailCalls.push(args);
       const enrollment = enrollments.find(item => {
         if (item.id !== args.id) return false;
         if (item.organizationId !== args.organizationId) return false;
@@ -6345,6 +6421,23 @@ function createStore(
             messages
           })[0]
         : null;
+    },
+    async listSequenceReviewItemsByIds(args) {
+      const scopedEnrollments = enrollments.filter(item => {
+        if (!args.ids.includes(item.id)) return false;
+        if (item.organizationId !== args.organizationId) return false;
+        if (args.ownerUserId && item.ownerUserId !== args.ownerUserId) return false;
+        return true;
+      });
+
+      return buildSequenceReviewRecords(scopedEnrollments, {
+        accounts,
+        contacts,
+        productLines,
+        mailboxes,
+        sequencePolicies,
+        messages
+      });
     },
     async updateSequenceEnrollment(id, organizationId, input) {
       enrollmentUpdateCalls.push({ id, organizationId, input });

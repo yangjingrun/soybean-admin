@@ -1302,6 +1302,23 @@ export class PrismaCrmStore implements CrmStore {
       .then(record => (record ? toBlacklistRecord(record) : null));
   }
 
+  async listBlacklistEntriesByEmailHashes(args: { organizationId: string; emailHashes: string[] }) {
+    const emailHashes = toUniqueStrings(args.emailHashes);
+
+    if (emailHashes.length === 0) {
+      return [];
+    }
+
+    const records = await this.prisma.crmBlacklist.findMany({
+      where: {
+        organizationId: args.organizationId,
+        emailHash: { in: emailHashes }
+      }
+    });
+
+    return records.map(toBlacklistRecord);
+  }
+
   async upsertBlacklistEntry(input: CrmBlacklistUpsertInput) {
     const record = await this.prisma.crmBlacklist.upsert({
       where: {
@@ -2450,6 +2467,25 @@ export class PrismaCrmStore implements CrmStore {
     });
 
     return record ? toSequenceReviewRecord(record) : null;
+  }
+
+  async listSequenceReviewItemsByIds(args: { ids: string[]; organizationId: string; ownerUserId?: string }) {
+    const ids = toUniqueStrings(args.ids);
+
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const records = await this.prisma.crmSequenceEnrollment.findMany({
+      where: {
+        id: { in: ids },
+        organizationId: args.organizationId,
+        ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {})
+      },
+      include: toSequenceReviewInclude()
+    });
+
+    return records.map(toSequenceReviewRecord);
   }
 
   async updateSequenceEnrollment(id: string, organizationId: string, input: CrmSequenceEnrollmentUpdateInput) {
@@ -4197,6 +4233,10 @@ function toMailboxCountMap(rows: Array<{ organizationId: string; mailboxId: stri
 
 function toMailboxPairKey(organizationId: string, mailboxId: string) {
   return `${organizationId}:${mailboxId}`;
+}
+
+function toUniqueStrings(values: string[]) {
+  return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)));
 }
 
 /** Creates a stable key for organization-scoped blacklist lookups. */

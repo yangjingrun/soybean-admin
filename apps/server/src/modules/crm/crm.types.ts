@@ -1590,6 +1590,11 @@ export interface CrmStore extends CrmAiDraftTaskStore {
   getOrganizationConfig(organizationId: string): Promise<CrmOrganizationConfigRecord | null>;
   saveOrganizationConfig(input: CrmOrganizationConfigInput): Promise<CrmOrganizationConfigRecord>;
   findBlacklistEntry(args: { organizationId: string; emailHash: string }): Promise<CrmBlacklistRecord | null>;
+  /** Batch loads organization blacklist entries by normalized email hashes. */
+  listBlacklistEntriesByEmailHashes(args: {
+    organizationId: string;
+    emailHashes: string[];
+  }): Promise<CrmBlacklistRecord[]>;
   upsertBlacklistEntry(input: CrmBlacklistUpsertInput): Promise<CrmBlacklistRecord>;
   listBlacklistEntries(input: CrmBlacklistListInput): Promise<{ records: CrmBlacklistRecord[]; total: number }>;
   deleteBlacklistEntry(input: CrmBlacklistDeleteInput): Promise<CrmBlacklistRecord | null>;
@@ -1724,6 +1729,12 @@ export interface CrmStore extends CrmAiDraftTaskStore {
     organizationId: string;
     ownerUserId?: string;
   }): Promise<CrmSequenceReviewRecord | null>;
+  /** Batch loads sequence review records by ids inside one organization and optional owner scope. */
+  listSequenceReviewItemsByIds(args: {
+    ids: string[];
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmSequenceReviewRecord[]>;
   updateSequenceEnrollment(
     id: string,
     organizationId: string,
