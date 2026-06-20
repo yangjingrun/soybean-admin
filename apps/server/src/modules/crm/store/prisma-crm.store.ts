@@ -134,6 +134,7 @@ import {
   isPrismaUniqueConflict,
   isPrismaConcurrentTaskCreateConflict
 } from './prisma-crm-store.helpers';
+import { PrismaCrmSettingsStore } from './prisma-crm-settings.store';
 import type {
   CrmAccountCreateInput,
   CrmAccountRecord,
@@ -290,22 +291,17 @@ import {
   serializeSequencePolicyThreadModes
 } from '../crm-sequence-policy';
 
-type CrmEmailTemplateGroupModelWithSteps = CrmEmailTemplateGroupModel & {
-  steps: CrmEmailTemplateStepModel[];
-};
-
-const emailTemplateGroupInclude = {
-  steps: {
-    orderBy: { stepIndex: 'asc' as const }
-  }
-};
 const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 // Workbench "today" follows the current CRM business day, while quota buckets remain UTC elsewhere.
 const crmBusinessDayOffsetMinutes = 8 * 60;
 
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  private readonly settingsStore: PrismaCrmSettingsStore;
+
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
+    this.settingsStore = new PrismaCrmSettingsStore(prisma);
+  }
 
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string) {
     return this.prisma.crmAccount
@@ -481,42 +477,15 @@ export class PrismaCrmStore implements CrmStore {
 
     return toEmailVerificationCacheRecord(record);
   }
-
-  async getGlobalConfig() {
-    const record = await this.prisma.crmGlobalConfig.findUnique({
-      where: { configKey: crmGlobalConfigKey }
-    });
-
-    return record ? toGlobalConfigRecord(record) : createDefaultGlobalConfig();
+  getGlobalConfig(
+    ...args: Parameters<PrismaCrmSettingsStore['getGlobalConfig']>
+  ): ReturnType<PrismaCrmSettingsStore['getGlobalConfig']> {
+    return this.settingsStore.getGlobalConfig(...args);
   }
-
-  async saveGlobalConfig(input: CrmGlobalConfigInput) {
-    const emailVerificationCooldownDays = normalizeEmailVerificationCooldownDays(input.emailVerificationCooldownDays);
-    const ownerConcurrentSendLimit = normalizeOwnerConcurrentSendLimit(input.ownerConcurrentSendLimit);
-    const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(input.ownerDailySendLimitMax);
-    const followUpDelayDaysText = serializeFollowUpDelayDays(input.followUpDelayDays);
-    const record = await this.prisma.crmGlobalConfig.upsert({
-      where: { configKey: crmGlobalConfigKey },
-      create: {
-        configKey: crmGlobalConfigKey,
-        emailVerificationCooldownDays,
-        ownerConcurrentSendLimit,
-        ownerDailySendLimitMax,
-        followUpDelayDaysText,
-        updatedById: input.updatedById,
-        updatedByName: input.updatedByName
-      },
-      update: {
-        emailVerificationCooldownDays,
-        ownerConcurrentSendLimit,
-        ownerDailySendLimitMax,
-        followUpDelayDaysText,
-        updatedById: input.updatedById,
-        updatedByName: input.updatedByName
-      }
-    });
-
-    return toGlobalConfigRecord(record);
+  saveGlobalConfig(
+    ...args: Parameters<PrismaCrmSettingsStore['saveGlobalConfig']>
+  ): ReturnType<PrismaCrmSettingsStore['saveGlobalConfig']> {
+    return this.settingsStore.saveGlobalConfig(...args);
   }
 
   async createAiDraftTask(input: CrmAiDraftTaskCreateInput) {
@@ -527,7 +496,10 @@ export class PrismaCrmStore implements CrmStore {
     } catch (error) {
       // Serializable conflicts mean another creator won the same capacity window.
       if (isPrismaConcurrentTaskCreateConflict(error)) {
-        return { task: null, limitReason: 'concurrent_create_conflict' as const };
+        return {
+          task: null,
+          limitReason: 'concurrent_create_conflict' as const
+        };
       }
 
       throw error;
@@ -722,97 +694,25 @@ export class PrismaCrmStore implements CrmStore {
 
     return records[0] ? toAiDraftTaskItemRecord(records[0]) : null;
   }
-
-  async getAiDraftQueueConfig() {
-    const record = await this.prisma.crmAiDraftQueueConfig.findUnique({
-      where: { configKey: crmAiDraftQueueConfigKey }
-    });
-
-    return record ? toAiDraftQueueConfigRecord(record) : createDefaultAiDraftQueueConfig();
+  getAiDraftQueueConfig(
+    ...args: Parameters<PrismaCrmSettingsStore['getAiDraftQueueConfig']>
+  ): ReturnType<PrismaCrmSettingsStore['getAiDraftQueueConfig']> {
+    return this.settingsStore.getAiDraftQueueConfig(...args);
   }
-
-  async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput) {
-    const maxItemConcurrency = normalizeCrmAiDraftItemConcurrency(
-      input.maxItemConcurrency ?? maxCrmAiDraftItemConcurrency,
-      maxCrmAiDraftItemConcurrency
-    );
-    const itemConcurrency = normalizeCrmAiDraftItemConcurrency(
-      input.itemConcurrency ?? defaultCrmAiDraftItemConcurrency,
-      maxItemConcurrency
-    );
-    const maxAttempts = normalizeCrmAiDraftMaxAttempts(input.maxAttempts ?? defaultCrmAiDraftMaxAttempts);
-    const record = await this.prisma.crmAiDraftQueueConfig.upsert({
-      where: { configKey: crmAiDraftQueueConfigKey },
-      create: {
-        configKey: crmAiDraftQueueConfigKey,
-        itemConcurrency,
-        maxItemConcurrency,
-        maxActiveTasksPerUser: normalizePositiveConfigInteger(input.maxActiveTasksPerUser, 1),
-        maxActiveTasksPerOrg: normalizePositiveConfigInteger(input.maxActiveTasksPerOrg, 2),
-        maxAttempts,
-        retryBackoffSeconds: toNullableJsonInput(
-          input.retryBackoffSeconds ?? [...defaultCrmAiDraftRetryBackoffSeconds]
-        ),
-        updatedById: input.updatedById ?? null,
-        updatedByName: input.updatedByName ?? null
-      },
-      update: {
-        itemConcurrency,
-        maxItemConcurrency,
-        maxActiveTasksPerUser: normalizePositiveConfigInteger(input.maxActiveTasksPerUser, 1),
-        maxActiveTasksPerOrg: normalizePositiveConfigInteger(input.maxActiveTasksPerOrg, 2),
-        maxAttempts,
-        retryBackoffSeconds: toNullableJsonInput(
-          input.retryBackoffSeconds ?? [...defaultCrmAiDraftRetryBackoffSeconds]
-        ),
-        updatedById: input.updatedById ?? null,
-        updatedByName: input.updatedByName ?? null
-      }
-    });
-
-    return toAiDraftQueueConfigRecord(record);
+  saveAiDraftQueueConfig(
+    ...args: Parameters<PrismaCrmSettingsStore['saveAiDraftQueueConfig']>
+  ): ReturnType<PrismaCrmSettingsStore['saveAiDraftQueueConfig']> {
+    return this.settingsStore.saveAiDraftQueueConfig(...args);
   }
-
-  async getSendPreference(args: { organizationId: string; ownerUserId: string }) {
-    const record = await this.prisma.crmUserSendPreference.findUnique({
-      where: {
-        organizationId_ownerUserId: {
-          organizationId: args.organizationId,
-          ownerUserId: args.ownerUserId
-        }
-      }
-    });
-
-    return record ? toSendPreferenceRecord(record) : null;
+  getSendPreference(
+    ...args: Parameters<PrismaCrmSettingsStore['getSendPreference']>
+  ): ReturnType<PrismaCrmSettingsStore['getSendPreference']> {
+    return this.settingsStore.getSendPreference(...args);
   }
-
-  async saveSendPreference(input: CrmSendPreferenceInput) {
-    const record = await this.prisma.crmUserSendPreference.upsert({
-      where: {
-        organizationId_ownerUserId: {
-          organizationId: input.organizationId,
-          ownerUserId: input.ownerUserId
-        }
-      },
-      create: {
-        organizationId: input.organizationId,
-        ownerUserId: input.ownerUserId,
-        ownerUserName: input.ownerUserName,
-        dailySendLimit: input.dailySendLimit,
-        followUpSharePercent: input.followUpSharePercent,
-        updatedById: input.updatedById,
-        updatedByName: input.updatedByName
-      },
-      update: {
-        ownerUserName: input.ownerUserName,
-        dailySendLimit: input.dailySendLimit,
-        followUpSharePercent: input.followUpSharePercent,
-        updatedById: input.updatedById,
-        updatedByName: input.updatedByName
-      }
-    });
-
-    return toSendPreferenceRecord(record);
+  saveSendPreference(
+    ...args: Parameters<PrismaCrmSettingsStore['saveSendPreference']>
+  ): ReturnType<PrismaCrmSettingsStore['saveSendPreference']> {
+    return this.settingsStore.saveSendPreference(...args);
   }
 
   async countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }) {
@@ -1370,32 +1270,15 @@ export class PrismaCrmStore implements CrmStore {
 
     return records.map(toMessageRecord);
   }
-
-  async getOrganizationConfig(organizationId: string) {
-    const record = await this.prisma.crmOrganizationConfig.findUnique({
-      where: { organizationId }
-    });
-
-    return record ? toOrganizationConfigRecord(record) : null;
+  getOrganizationConfig(
+    ...args: Parameters<PrismaCrmSettingsStore['getOrganizationConfig']>
+  ): ReturnType<PrismaCrmSettingsStore['getOrganizationConfig']> {
+    return this.settingsStore.getOrganizationConfig(...args);
   }
-
-  async saveOrganizationConfig(input: CrmOrganizationConfigInput) {
-    const record = await this.prisma.crmOrganizationConfig.upsert({
-      where: { organizationId: input.organizationId },
-      create: {
-        organizationId: input.organizationId,
-        allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
-        updatedById: input.updatedById ?? null,
-        updatedByName: input.updatedByName ?? null
-      },
-      update: {
-        allowAdminViewMemberEmailBody: input.allowAdminViewMemberEmailBody,
-        updatedById: input.updatedById ?? null,
-        updatedByName: input.updatedByName ?? null
-      }
-    });
-
-    return toOrganizationConfigRecord(record);
+  saveOrganizationConfig(
+    ...args: Parameters<PrismaCrmSettingsStore['saveOrganizationConfig']>
+  ): ReturnType<PrismaCrmSettingsStore['saveOrganizationConfig']> {
+    return this.settingsStore.saveOrganizationConfig(...args);
   }
 
   findBlacklistEntry(args: { organizationId: string; emailHash: string }) {
@@ -1721,594 +1604,150 @@ export class PrismaCrmStore implements CrmStore {
 
     return records[0] ? toMailboxRecord(records[0]) : null;
   }
-
-  async listProductLines(args: {
-    organizationId: string;
-    keyword?: string;
-    status?: CrmProductLineStatus;
-    skip: number;
-    take: number;
-  }) {
-    const where = toProductLineListWhere(args);
-    const [records, total] = await Promise.all([
-      this.prisma.crmProductLine.findMany({
-        where,
-        skip: args.skip,
-        take: args.take,
-        orderBy: { updatedAt: 'desc' }
-      }),
-      this.prisma.crmProductLine.count({ where })
-    ]);
-
-    return {
-      records: records.map(toProductLineRecord),
-      total
-    };
+  listProductLines(
+    ...args: Parameters<PrismaCrmSettingsStore['listProductLines']>
+  ): ReturnType<PrismaCrmSettingsStore['listProductLines']> {
+    return this.settingsStore.listProductLines(...args);
   }
-
-  findProductLineByName(organizationId: string, name: string) {
-    return this.prisma.crmProductLine
-      .findUnique({
-        where: {
-          organizationId_name: {
-            organizationId,
-            name
-          }
-        }
-      })
-      .then(record => (record ? toProductLineRecord(record) : null));
+  findProductLineByName(
+    ...args: Parameters<PrismaCrmSettingsStore['findProductLineByName']>
+  ): ReturnType<PrismaCrmSettingsStore['findProductLineByName']> {
+    return this.settingsStore.findProductLineByName(...args);
   }
-
-  findProductLineById(args: { id: string; organizationId: string }) {
-    return this.prisma.crmProductLine
-      .findFirst({
-        where: toProductLineIdentityWhere(args)
-      })
-      .then(record => (record ? toProductLineRecord(record) : null));
+  findProductLineById(
+    ...args: Parameters<PrismaCrmSettingsStore['findProductLineById']>
+  ): ReturnType<PrismaCrmSettingsStore['findProductLineById']> {
+    return this.settingsStore.findProductLineById(...args);
   }
-
-  async createProductLine(input: CrmProductLineCreateInput) {
-    const record = await this.prisma.crmProductLine.create({
-      data: input as Prisma.CrmProductLineUncheckedCreateInput
-    });
-
-    return toProductLineRecord(record);
+  createProductLine(
+    ...args: Parameters<PrismaCrmSettingsStore['createProductLine']>
+  ): ReturnType<PrismaCrmSettingsStore['createProductLine']> {
+    return this.settingsStore.createProductLine(...args);
   }
-
-  async updateProductLine(id: string, organizationId: string, input: CrmProductLineUpdateInput) {
-    const data = (
-      input.aiWritingConfig === null ? { ...input, aiWritingConfig: Prisma.JsonNull } : input
-    ) as Prisma.CrmProductLineUpdateManyMutationInput;
-    const records = await this.prisma.crmProductLine.updateManyAndReturn({
-      where: {
-        id,
-        organizationId
-      },
-      data,
-      limit: 1
-    });
-
-    return records[0] ? toProductLineRecord(records[0]) : null;
+  updateProductLine(
+    ...args: Parameters<PrismaCrmSettingsStore['updateProductLine']>
+  ): ReturnType<PrismaCrmSettingsStore['updateProductLine']> {
+    return this.settingsStore.updateProductLine(...args);
   }
-
-  async createProductLineAiPromptVersion(input: CrmProductLineAiPromptVersionCreateInput) {
-    return this.prisma.$transaction(async tx => {
-      const latestVersion = await tx.crmProductLineAiPromptVersion.findFirst({
-        where: {
-          organizationId: input.organizationId,
-          productLineId: input.productLineId
-        },
-        orderBy: { version: 'desc' }
-      });
-      const record = await tx.crmProductLineAiPromptVersion.create({
-        data: {
-          organizationId: input.organizationId,
-          productLineId: input.productLineId,
-          version: (latestVersion?.version ?? 0) + 1,
-          aiWritingConfig: toProductLineAiPromptVersionJson(input.aiWritingConfig),
-          editorId: input.editorId,
-          editorName: input.editorName ?? null,
-          changeSummary: input.changeSummary ?? null
-        }
-      });
-
-      return toProductLineAiPromptVersionRecord(record);
-    });
+  createProductLineAiPromptVersion(
+    ...args: Parameters<PrismaCrmSettingsStore['createProductLineAiPromptVersion']>
+  ): ReturnType<PrismaCrmSettingsStore['createProductLineAiPromptVersion']> {
+    return this.settingsStore.createProductLineAiPromptVersion(...args);
   }
-
-  async listProductLineAiPromptVersions(args: { organizationId: string; productLineId: string }) {
-    const records = await this.prisma.crmProductLineAiPromptVersion.findMany({
-      where: {
-        organizationId: args.organizationId,
-        productLineId: args.productLineId
-      },
-      orderBy: { version: 'desc' }
-    });
-
-    return records.map(toProductLineAiPromptVersionRecord);
+  listProductLineAiPromptVersions(
+    ...args: Parameters<PrismaCrmSettingsStore['listProductLineAiPromptVersions']>
+  ): ReturnType<PrismaCrmSettingsStore['listProductLineAiPromptVersions']> {
+    return this.settingsStore.listProductLineAiPromptVersions(...args);
   }
-
-  async restoreProductLineAiPromptVersion(input: CrmProductLineAiPromptVersionRestoreInput) {
-    return this.prisma.$transaction(async tx => {
-      const restoredVersion = await tx.crmProductLineAiPromptVersion.findFirst({
-        where: {
-          id: input.versionId,
-          organizationId: input.organizationId,
-          productLineId: input.productLineId
-        }
-      });
-
-      if (!restoredVersion) {
-        return null;
-      }
-
-      const productLines = await tx.crmProductLine.updateManyAndReturn({
-        where: {
-          id: input.productLineId,
-          organizationId: input.organizationId
-        },
-        data: {
-          aiWritingConfig: toProductLineAiPromptVersionJson(
-            toProductLineAiWritingConfig(restoredVersion.aiWritingConfig)
-          )
-        },
-        limit: 1
-      });
-      const productLine = productLines[0];
-
-      if (!productLine) {
-        return null;
-      }
-
-      const latestVersion = await tx.crmProductLineAiPromptVersion.findFirst({
-        where: {
-          organizationId: input.organizationId,
-          productLineId: input.productLineId
-        },
-        orderBy: { version: 'desc' }
-      });
-      const currentVersion = await tx.crmProductLineAiPromptVersion.create({
-        data: {
-          organizationId: input.organizationId,
-          productLineId: input.productLineId,
-          version: (latestVersion?.version ?? restoredVersion.version) + 1,
-          aiWritingConfig: toProductLineAiPromptVersionJson(
-            toProductLineAiWritingConfig(restoredVersion.aiWritingConfig)
-          ),
-          editorId: input.editorId,
-          editorName: input.editorName ?? null,
-          changeSummary: input.changeSummary ?? `恢复版本 ${restoredVersion.version}`
-        }
-      });
-
-      return {
-        productLine: toProductLineRecord(productLine),
-        restoredVersion: toProductLineAiPromptVersionRecord(restoredVersion),
-        currentVersion: toProductLineAiPromptVersionRecord(currentVersion)
-      };
-    });
+  restoreProductLineAiPromptVersion(
+    ...args: Parameters<PrismaCrmSettingsStore['restoreProductLineAiPromptVersion']>
+  ): ReturnType<PrismaCrmSettingsStore['restoreProductLineAiPromptVersion']> {
+    return this.settingsStore.restoreProductLineAiPromptVersion(...args);
   }
-
-  async listPersonaProfiles(input: CrmPersonaProfileListInput) {
-    const where = toPersonaProfileListWhere(input);
-    const [records, total] = await Promise.all([
-      this.prisma.crmPersonaProfile.findMany({
-        where,
-        skip: input.skip,
-        take: input.take,
-        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
-      }),
-      this.prisma.crmPersonaProfile.count({ where })
-    ]);
-
-    return {
-      records: records.map(toPersonaProfileRecord),
-      total
-    };
+  listPersonaProfiles(
+    ...args: Parameters<PrismaCrmSettingsStore['listPersonaProfiles']>
+  ): ReturnType<PrismaCrmSettingsStore['listPersonaProfiles']> {
+    return this.settingsStore.listPersonaProfiles(...args);
   }
-
-  listActivePersonaProfiles(organizationId: string) {
-    return this.prisma.crmPersonaProfile
-      .findMany({
-        where: {
-          organizationId,
-          status: 'active'
-        },
-        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
-      })
-      .then(records => records.map(toPersonaProfileRecord));
+  listActivePersonaProfiles(
+    ...args: Parameters<PrismaCrmSettingsStore['listActivePersonaProfiles']>
+  ): ReturnType<PrismaCrmSettingsStore['listActivePersonaProfiles']> {
+    return this.settingsStore.listActivePersonaProfiles(...args);
   }
-
-  findPersonaProfileByName(organizationId: string, name: string) {
-    return this.prisma.crmPersonaProfile
-      .findUnique({
-        where: {
-          organizationId_name: {
-            organizationId,
-            name
-          }
-        }
-      })
-      .then(record => (record ? toPersonaProfileRecord(record) : null));
+  findPersonaProfileByName(
+    ...args: Parameters<PrismaCrmSettingsStore['findPersonaProfileByName']>
+  ): ReturnType<PrismaCrmSettingsStore['findPersonaProfileByName']> {
+    return this.settingsStore.findPersonaProfileByName(...args);
   }
-
-  findPersonaProfileById(args: { id: string; organizationId: string }) {
-    return this.prisma.crmPersonaProfile
-      .findFirst({
-        where: {
-          id: args.id,
-          organizationId: args.organizationId
-        }
-      })
-      .then(record => (record ? toPersonaProfileRecord(record) : null));
+  findPersonaProfileById(
+    ...args: Parameters<PrismaCrmSettingsStore['findPersonaProfileById']>
+  ): ReturnType<PrismaCrmSettingsStore['findPersonaProfileById']> {
+    return this.settingsStore.findPersonaProfileById(...args);
   }
-
-  async createPersonaProfile(input: CrmPersonaProfileCreateInput) {
-    return this.prisma.$transaction(async tx => {
-      if (input.isDefault) {
-        await tx.crmPersonaProfile.updateMany({
-          where: {
-            organizationId: input.organizationId,
-            isDefault: true
-          },
-          data: { isDefault: false }
-        });
-      }
-
-      const record = await tx.crmPersonaProfile.create({
-        data: toPersonaProfileCreateInput(input)
-      });
-
-      return toPersonaProfileRecord(record);
-    });
+  createPersonaProfile(
+    ...args: Parameters<PrismaCrmSettingsStore['createPersonaProfile']>
+  ): ReturnType<PrismaCrmSettingsStore['createPersonaProfile']> {
+    return this.settingsStore.createPersonaProfile(...args);
   }
-
-  async updatePersonaProfile(id: string, organizationId: string, input: CrmPersonaProfileUpdateInput) {
-    return this.prisma.$transaction(async tx => {
-      if (input.isDefault) {
-        await tx.crmPersonaProfile.updateMany({
-          where: {
-            organizationId,
-            id: { not: id },
-            isDefault: true
-          },
-          data: { isDefault: false }
-        });
-      }
-
-      const records = await tx.crmPersonaProfile.updateManyAndReturn({
-        where: {
-          id,
-          organizationId
-        },
-        data: toPersonaProfileUpdateInput(input),
-        limit: 1
-      });
-
-      return records[0] ? toPersonaProfileRecord(records[0]) : null;
-    });
+  updatePersonaProfile(
+    ...args: Parameters<PrismaCrmSettingsStore['updatePersonaProfile']>
+  ): ReturnType<PrismaCrmSettingsStore['updatePersonaProfile']> {
+    return this.settingsStore.updatePersonaProfile(...args);
   }
-
-  async setDefaultPersonaProfile(id: string, organizationId: string) {
-    return this.prisma.$transaction(async tx => {
-      const records = await tx.crmPersonaProfile.updateManyAndReturn({
-        where: {
-          id,
-          organizationId,
-          status: 'active'
-        },
-        data: { isDefault: true },
-        limit: 1
-      });
-
-      if (!records[0]) {
-        return null;
-      }
-
-      await tx.crmPersonaProfile.updateMany({
-        where: {
-          organizationId,
-          id: { not: id },
-          isDefault: true
-        },
-        data: { isDefault: false }
-      });
-
-      return toPersonaProfileRecord(records[0]);
-    });
+  setDefaultPersonaProfile(
+    ...args: Parameters<PrismaCrmSettingsStore['setDefaultPersonaProfile']>
+  ): ReturnType<PrismaCrmSettingsStore['setDefaultPersonaProfile']> {
+    return this.settingsStore.setDefaultPersonaProfile(...args);
   }
-
-  async listEmailTemplateGroups(input: CrmEmailTemplateGroupListInput) {
-    const where = toEmailTemplateGroupListWhere(input);
-    const [records, total] = await Promise.all([
-      this.prisma.crmEmailTemplateGroup.findMany({
-        where,
-        skip: input.skip,
-        take: input.take,
-        orderBy: { updatedAt: 'desc' },
-        include: emailTemplateGroupInclude
-      }),
-      this.prisma.crmEmailTemplateGroup.count({ where })
-    ]);
-
-    return {
-      records: records.map(toEmailTemplateGroupRecord),
-      total
-    };
+  listEmailTemplateGroups(
+    ...args: Parameters<PrismaCrmSettingsStore['listEmailTemplateGroups']>
+  ): ReturnType<PrismaCrmSettingsStore['listEmailTemplateGroups']> {
+    return this.settingsStore.listEmailTemplateGroups(...args);
   }
-
-  findEmailTemplateGroupByName(organizationId: string, name: string) {
-    return this.prisma.crmEmailTemplateGroup
-      .findUnique({
-        where: {
-          organizationId_name: {
-            organizationId,
-            name
-          }
-        },
-        include: emailTemplateGroupInclude
-      })
-      .then(record => (record ? toEmailTemplateGroupRecord(record) : null));
+  findEmailTemplateGroupByName(
+    ...args: Parameters<PrismaCrmSettingsStore['findEmailTemplateGroupByName']>
+  ): ReturnType<PrismaCrmSettingsStore['findEmailTemplateGroupByName']> {
+    return this.settingsStore.findEmailTemplateGroupByName(...args);
   }
-
-  findEmailTemplateGroupById(args: { id: string; organizationId: string }) {
-    return this.prisma.crmEmailTemplateGroup
-      .findFirst({
-        where: {
-          id: args.id,
-          organizationId: args.organizationId
-        },
-        include: emailTemplateGroupInclude
-      })
-      .then(record => (record ? toEmailTemplateGroupRecord(record) : null));
+  findEmailTemplateGroupById(
+    ...args: Parameters<PrismaCrmSettingsStore['findEmailTemplateGroupById']>
+  ): ReturnType<PrismaCrmSettingsStore['findEmailTemplateGroupById']> {
+    return this.settingsStore.findEmailTemplateGroupById(...args);
   }
-
-  findDefaultEmailTemplateGroup(organizationId: string) {
-    return this.prisma.crmEmailTemplateGroup
-      .findFirst({
-        where: {
-          organizationId,
-          status: 'active',
-          isDefault: true
-        },
-        include: emailTemplateGroupInclude,
-        orderBy: { updatedAt: 'desc' }
-      })
-      .then(record => (record ? toEmailTemplateGroupRecord(record) : null));
+  findDefaultEmailTemplateGroup(
+    ...args: Parameters<PrismaCrmSettingsStore['findDefaultEmailTemplateGroup']>
+  ): ReturnType<PrismaCrmSettingsStore['findDefaultEmailTemplateGroup']> {
+    return this.settingsStore.findDefaultEmailTemplateGroup(...args);
   }
-
-  async createEmailTemplateGroup(input: CrmEmailTemplateGroupCreateInput) {
-    return this.prisma.$transaction(async tx => {
-      const group = await tx.crmEmailTemplateGroup.create({
-        data: {
-          organizationId: input.organizationId,
-          name: input.name,
-          language: input.language,
-          description: input.description ?? null,
-          status: input.status,
-          isDefault: input.isDefault,
-          createdById: input.createdById,
-          createdByName: input.createdByName ?? null
-        }
-      });
-
-      await tx.crmEmailTemplateStep.createMany({
-        data: toEmailTemplateStepCreateManyInput(input.organizationId, group.id, input.steps)
-      });
-
-      const record = await tx.crmEmailTemplateGroup.findUnique({
-        where: { id: group.id },
-        include: emailTemplateGroupInclude
-      });
-
-      return toEmailTemplateGroupRecord(record as CrmEmailTemplateGroupModelWithSteps);
-    });
+  createEmailTemplateGroup(
+    ...args: Parameters<PrismaCrmSettingsStore['createEmailTemplateGroup']>
+  ): ReturnType<PrismaCrmSettingsStore['createEmailTemplateGroup']> {
+    return this.settingsStore.createEmailTemplateGroup(...args);
   }
-
-  async updateEmailTemplateGroup(id: string, organizationId: string, input: CrmEmailTemplateGroupUpdateInput) {
-    return this.prisma.$transaction(async tx => {
-      const records = await tx.crmEmailTemplateGroup.updateManyAndReturn({
-        where: {
-          id,
-          organizationId
-        },
-        data: {
-          name: input.name,
-          language: input.language,
-          description: input.description,
-          status: input.status,
-          isDefault: input.isDefault
-        },
-        limit: 1
-      });
-
-      if (!records[0]) {
-        return null;
-      }
-
-      if (input.steps) {
-        await tx.crmEmailTemplateStep.deleteMany({
-          where: {
-            organizationId,
-            templateGroupId: id
-          }
-        });
-        await tx.crmEmailTemplateStep.createMany({
-          data: toEmailTemplateStepCreateManyInput(organizationId, id, input.steps)
-        });
-      }
-
-      const record = await tx.crmEmailTemplateGroup.findUnique({
-        where: { id },
-        include: emailTemplateGroupInclude
-      });
-
-      return record ? toEmailTemplateGroupRecord(record) : null;
-    });
+  updateEmailTemplateGroup(
+    ...args: Parameters<PrismaCrmSettingsStore['updateEmailTemplateGroup']>
+  ): ReturnType<PrismaCrmSettingsStore['updateEmailTemplateGroup']> {
+    return this.settingsStore.updateEmailTemplateGroup(...args);
   }
-
-  async setDefaultEmailTemplateGroup(id: string, organizationId: string) {
-    return this.prisma.$transaction(async tx => {
-      const records = await tx.crmEmailTemplateGroup.updateManyAndReturn({
-        where: {
-          id,
-          organizationId,
-          status: 'active'
-        },
-        data: { isDefault: true },
-        limit: 1
-      });
-
-      if (!records[0]) {
-        return null;
-      }
-
-      await tx.crmEmailTemplateGroup.updateMany({
-        where: {
-          organizationId,
-          id: { not: id },
-          isDefault: true
-        },
-        data: { isDefault: false }
-      });
-
-      const record = await tx.crmEmailTemplateGroup.findUnique({
-        where: { id },
-        include: emailTemplateGroupInclude
-      });
-
-      return record ? toEmailTemplateGroupRecord(record) : null;
-    });
+  setDefaultEmailTemplateGroup(
+    ...args: Parameters<PrismaCrmSettingsStore['setDefaultEmailTemplateGroup']>
+  ): ReturnType<PrismaCrmSettingsStore['setDefaultEmailTemplateGroup']> {
+    return this.settingsStore.setDefaultEmailTemplateGroup(...args);
   }
-
-  async listSequencePolicies(input: CrmSequencePolicyListInput) {
-    const where = toSequencePolicyListWhere(input);
-    const [records, total] = await Promise.all([
-      this.prisma.crmSequencePolicy.findMany({
-        where,
-        skip: input.skip,
-        take: input.take,
-        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
-      }),
-      this.prisma.crmSequencePolicy.count({ where })
-    ]);
-
-    return {
-      records: records.map(toSequencePolicyRecord),
-      total
-    };
+  listSequencePolicies(
+    ...args: Parameters<PrismaCrmSettingsStore['listSequencePolicies']>
+  ): ReturnType<PrismaCrmSettingsStore['listSequencePolicies']> {
+    return this.settingsStore.listSequencePolicies(...args);
   }
-
-  findSequencePolicyByName(organizationId: string, name: string) {
-    return this.prisma.crmSequencePolicy
-      .findUnique({
-        where: {
-          organizationId_name: {
-            organizationId,
-            name
-          }
-        }
-      })
-      .then(record => (record ? toSequencePolicyRecord(record) : null));
+  findSequencePolicyByName(
+    ...args: Parameters<PrismaCrmSettingsStore['findSequencePolicyByName']>
+  ): ReturnType<PrismaCrmSettingsStore['findSequencePolicyByName']> {
+    return this.settingsStore.findSequencePolicyByName(...args);
   }
-
-  findSequencePolicyById(args: { id: string; organizationId: string }) {
-    return this.prisma.crmSequencePolicy
-      .findFirst({
-        where: {
-          id: args.id,
-          organizationId: args.organizationId
-        }
-      })
-      .then(record => (record ? toSequencePolicyRecord(record) : null));
+  findSequencePolicyById(
+    ...args: Parameters<PrismaCrmSettingsStore['findSequencePolicyById']>
+  ): ReturnType<PrismaCrmSettingsStore['findSequencePolicyById']> {
+    return this.settingsStore.findSequencePolicyById(...args);
   }
-
-  findDefaultSequencePolicy(organizationId: string) {
-    return this.prisma.crmSequencePolicy
-      .findFirst({
-        where: {
-          organizationId,
-          status: 'active',
-          isDefault: true
-        },
-        orderBy: { updatedAt: 'desc' }
-      })
-      .then(record => (record ? toSequencePolicyRecord(record) : null));
+  findDefaultSequencePolicy(
+    ...args: Parameters<PrismaCrmSettingsStore['findDefaultSequencePolicy']>
+  ): ReturnType<PrismaCrmSettingsStore['findDefaultSequencePolicy']> {
+    return this.settingsStore.findDefaultSequencePolicy(...args);
   }
-
-  async createSequencePolicy(input: CrmSequencePolicyCreateInput) {
-    return this.prisma.$transaction(async tx => {
-      if (input.isDefault) {
-        await tx.crmSequencePolicy.updateMany({
-          where: {
-            organizationId: input.organizationId,
-            isDefault: true
-          },
-          data: { isDefault: false }
-        });
-      }
-
-      const record = await tx.crmSequencePolicy.create({
-        data: toSequencePolicyCreateInput(input)
-      });
-
-      return toSequencePolicyRecord(record);
-    });
+  createSequencePolicy(
+    ...args: Parameters<PrismaCrmSettingsStore['createSequencePolicy']>
+  ): ReturnType<PrismaCrmSettingsStore['createSequencePolicy']> {
+    return this.settingsStore.createSequencePolicy(...args);
   }
-
-  async updateSequencePolicy(id: string, organizationId: string, input: CrmSequencePolicyUpdateInput) {
-    return this.prisma.$transaction(async tx => {
-      if (input.isDefault) {
-        await tx.crmSequencePolicy.updateMany({
-          where: {
-            organizationId,
-            id: { not: id },
-            isDefault: true
-          },
-          data: { isDefault: false }
-        });
-      }
-
-      const records = await tx.crmSequencePolicy.updateManyAndReturn({
-        where: {
-          id,
-          organizationId
-        },
-        data: toSequencePolicyUpdateInput(input),
-        limit: 1
-      });
-
-      return records[0] ? toSequencePolicyRecord(records[0]) : null;
-    });
+  updateSequencePolicy(
+    ...args: Parameters<PrismaCrmSettingsStore['updateSequencePolicy']>
+  ): ReturnType<PrismaCrmSettingsStore['updateSequencePolicy']> {
+    return this.settingsStore.updateSequencePolicy(...args);
   }
-
-  async setDefaultSequencePolicy(id: string, organizationId: string) {
-    return this.prisma.$transaction(async tx => {
-      const records = await tx.crmSequencePolicy.updateManyAndReturn({
-        where: {
-          id,
-          organizationId,
-          status: 'active'
-        },
-        data: { isDefault: true },
-        limit: 1
-      });
-
-      if (!records[0]) {
-        return null;
-      }
-
-      await tx.crmSequencePolicy.updateMany({
-        where: {
-          organizationId,
-          id: { not: id },
-          isDefault: true
-        },
-        data: { isDefault: false }
-      });
-
-      return toSequencePolicyRecord(records[0]);
-    });
+  setDefaultSequencePolicy(
+    ...args: Parameters<PrismaCrmSettingsStore['setDefaultSequencePolicy']>
+  ): ReturnType<PrismaCrmSettingsStore['setDefaultSequencePolicy']> {
+    return this.settingsStore.setDefaultSequencePolicy(...args);
   }
 
   findActiveEnrollmentByContact(args: {
@@ -2519,7 +1958,9 @@ export class PrismaCrmStore implements CrmStore {
       this.prisma.crmTimelineEvent.findMany({
         where: {
           ...where,
-          eventType: { in: ['sequence_draft_generated', 'sequence_follow_up_draft_generated'] }
+          eventType: {
+            in: ['sequence_draft_generated', 'sequence_follow_up_draft_generated']
+          }
         },
         orderBy: { createdAt: 'asc' }
       })
@@ -2528,7 +1969,11 @@ export class PrismaCrmStore implements CrmStore {
     const rows = createEmptyStrategyRows();
 
     for (const enrollment of enrollments) {
-      const statInputs: Array<{ dimension: CrmStrategyStatDimension; key: string; name: string }> = [
+      const statInputs: Array<{
+        dimension: CrmStrategyStatDimension;
+        key: string;
+        name: string;
+      }> = [
         { dimension: 'template', key: 'default_template', name: '默认模板' },
         {
           dimension: 'policy',
@@ -3493,7 +2938,9 @@ export class PrismaCrmStore implements CrmStore {
             organizationId: input.organizationId,
             ownerUserId: input.ownerUserId,
             accountId: outboundMessage.accountId,
-            status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
+            status: {
+              in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused']
+            }
           },
           data: {
             status: 'replied',
@@ -3554,7 +3001,9 @@ export class PrismaCrmStore implements CrmStore {
           isUnsubscribeHint || isBounce
             ? tx.crmContact.update({
                 where: { id: outboundMessage.contactId },
-                data: { emailStatus: isUnsubscribeHint ? 'unsubscribed' : 'unreachable' }
+                data: {
+                  emailStatus: isUnsubscribeHint ? 'unsubscribed' : 'unreachable'
+                }
               })
             : Promise.resolve(outboundMessage.contact)
         ]);
@@ -3829,7 +3278,9 @@ export class PrismaCrmStore implements CrmStore {
         return null;
       }
 
-      const account = await tx.crmAccount.findUnique({ where: { id: thread.accountId } });
+      const account = await tx.crmAccount.findUnique({
+        where: { id: thread.accountId }
+      });
       if (!account) {
         return null;
       }
@@ -3944,7 +3395,9 @@ export class PrismaCrmStore implements CrmStore {
             organizationId: input.organizationId,
             ownerUserId: input.ownerUserId,
             accountId: inboxMessage.accountId,
-            status: { in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'] }
+            status: {
+              in: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused']
+            }
           },
           data: {
             status: 'replied',
@@ -3975,7 +3428,9 @@ export class PrismaCrmStore implements CrmStore {
           data: { emailStatus: 'unsubscribed' }
         }),
         inboxMessage.enrollmentId
-          ? tx.crmSequenceEnrollment.findUnique({ where: { id: inboxMessage.enrollmentId } })
+          ? tx.crmSequenceEnrollment.findUnique({
+              where: { id: inboxMessage.enrollmentId }
+            })
           : null,
         tx.crmTimelineEvent.create({
           data: {
