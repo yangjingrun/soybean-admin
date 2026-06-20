@@ -1,6 +1,18 @@
-import type { CrmStore } from '../crm.types';
+import type {
+  CrmMessageDraftUpdateGuard,
+  CrmMessageRecord,
+  CrmMessageUpdateInput,
+  CrmTimelineEventCreateInput,
+  CrmTimelineEventRecord
+} from '../crm.types';
 
-export type CrmSendQueueReconcileRepository = Pick<
-  CrmStore,
-  'listStaleQueuedMessages' | 'updateMessage' | 'createTimelineEvent'
->;
+export interface CrmSendQueueReconcileRepository {
+  listStaleQueuedMessages(input: { before: Date; take: number }): Promise<CrmMessageRecord[]>;
+  updateMessage(
+    id: string,
+    organizationId: string,
+    input: CrmMessageUpdateInput,
+    guard?: CrmMessageDraftUpdateGuard
+  ): Promise<CrmMessageRecord | null>;
+  createTimelineEvent(input: CrmTimelineEventCreateInput): Promise<CrmTimelineEventRecord>;
+}

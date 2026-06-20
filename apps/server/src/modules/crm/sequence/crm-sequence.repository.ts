@@ -1,10 +1,42 @@
-import type { CrmStore } from '../crm.types';
+import type {
+  CrmSequenceDraftBundleCreateInput,
+  CrmSequenceDraftBundleRecord,
+  CrmSequenceEnrollmentRecord,
+  CrmSequenceEnrollmentStatus,
+  CrmSequenceReviewRecord,
+  CrmSequenceReviewTodoType,
+  CrmMessageStatus
+} from '../crm.types';
 
-export type CrmSequenceRepository = Pick<
-  CrmStore,
-  | 'findActiveEnrollmentByContact'
-  | 'findActiveEnrollmentByAccount'
-  | 'createSequenceDraftBundle'
-  | 'listSequenceReviewItems'
-  | 'getSequenceReviewItem'
->;
+export interface CrmSequenceRepository {
+  findActiveEnrollmentByContact(args: {
+    organizationId: string;
+    ownerUserId: string;
+    contactId: string;
+    statuses: CrmSequenceEnrollmentStatus[];
+  }): Promise<CrmSequenceEnrollmentRecord | null>;
+  findActiveEnrollmentByAccount(args: {
+    organizationId: string;
+    ownerUserId: string;
+    accountId: string;
+    statuses: CrmSequenceEnrollmentStatus[];
+  }): Promise<CrmSequenceEnrollmentRecord | null>;
+  createSequenceDraftBundle(input: CrmSequenceDraftBundleCreateInput): Promise<CrmSequenceDraftBundleRecord>;
+  listSequenceReviewItems(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmSequenceEnrollmentStatus;
+    todoType?: CrmSequenceReviewTodoType;
+    messageStatus?: CrmMessageStatus;
+    dateScope?: 'today';
+    now?: Date;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmSequenceReviewRecord[]; total: number }>;
+  getSequenceReviewItem(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmSequenceReviewRecord | null>;
+}

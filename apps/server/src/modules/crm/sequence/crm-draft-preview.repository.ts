@@ -1,10 +1,29 @@
-import type { CrmStore } from '../crm.types';
+import type {
+  CrmAccountDetailRecord,
+  CrmEmailTemplateGroupRecord,
+  CrmPersonaProfileRecord,
+  CrmProductLineRecord,
+  CrmSequenceReviewRecord
+} from '../crm.types';
 
-export type CrmDraftPreviewAccountRepository = Pick<CrmStore, 'getAccountDetail'>;
+export interface CrmDraftPreviewAccountRepository {
+  getAccountDetail(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmAccountDetailRecord | null>;
+}
 
-export type CrmDraftPreviewSettingsRepository = Pick<
-  CrmStore,
-  'findProductLineById' | 'findDefaultEmailTemplateGroup' | 'listActivePersonaProfiles'
->;
+export interface CrmDraftPreviewSettingsRepository {
+  findProductLineById(args: { id: string; organizationId: string }): Promise<CrmProductLineRecord | null>;
+  findDefaultEmailTemplateGroup(organizationId: string): Promise<CrmEmailTemplateGroupRecord | null>;
+  listActivePersonaProfiles(organizationId: string): Promise<CrmPersonaProfileRecord[]>;
+}
 
-export type CrmDraftPreviewSequenceRepository = Pick<CrmStore, 'getSequenceReviewItem'>;
+export interface CrmDraftPreviewSequenceRepository {
+  getSequenceReviewItem(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmSequenceReviewRecord | null>;
+}

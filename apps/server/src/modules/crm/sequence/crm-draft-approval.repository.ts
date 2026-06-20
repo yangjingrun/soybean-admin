@@ -1,8 +1,20 @@
-import type { CrmStore } from '../crm.types';
+import type {
+  CrmDraftApprovalInput,
+  CrmDraftApprovalRecord,
+  CrmMessageRecord,
+  CrmSequenceReviewRecord
+} from '../crm.types';
 
-export type CrmDraftApprovalRepository = Pick<
-  CrmStore,
-  | 'findMessageById'
-  | 'getSequenceReviewItem'
-  | 'approveMessageDraft'
->;
+export interface CrmDraftApprovalRepository {
+  findMessageById(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmMessageRecord | null>;
+  getSequenceReviewItem(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmSequenceReviewRecord | null>;
+  approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null>;
+}

@@ -1,7 +1,10 @@
-import type { CrmStore } from '../crm.types';
+import type { CrmSequenceReviewRecord, CrmSequenceStopInput, CrmSequenceStopRecord } from '../crm.types';
 
-export type CrmBatchSequenceStopRepository = Pick<
-  CrmStore,
-  | 'getSequenceReviewItem'
-  | 'stopSequenceEnrollment'
->;
+export interface CrmBatchSequenceStopRepository {
+  getSequenceReviewItem(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmSequenceReviewRecord | null>;
+  stopSequenceEnrollment(input: CrmSequenceStopInput): Promise<CrmSequenceStopRecord | null>;
+}

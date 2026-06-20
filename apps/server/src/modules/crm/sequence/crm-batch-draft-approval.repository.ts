@@ -1,7 +1,10 @@
-import type { CrmStore } from '../crm.types';
+import type { CrmDraftApprovalInput, CrmDraftApprovalRecord, CrmSequenceReviewRecord } from '../crm.types';
 
-export type CrmBatchDraftApprovalRepository = Pick<
-  CrmStore,
-  | 'listSequenceReviewItemsByIds'
-  | 'approveMessageDraft'
->;
+export interface CrmBatchDraftApprovalRepository {
+  listSequenceReviewItemsByIds(args: {
+    ids: string[];
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmSequenceReviewRecord[]>;
+  approveMessageDraft(input: CrmDraftApprovalInput): Promise<CrmDraftApprovalRecord | null>;
+}
