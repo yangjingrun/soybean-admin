@@ -19,6 +19,7 @@ import { CrmProductLineService } from './product-lines/crm-product-line.service'
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
+import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
@@ -2473,17 +2474,12 @@ describe('CrmService', () => {
       ]
     });
     const aiCalls: CrmAiDraftPromptInput[] = [];
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createAiDraftService(aiCalls)
-    );
+      draftPreviewService: createDraftPreviewService(store, {
+        aiDraftService: createAiDraftService(aiCalls)
+      })
+    });
 
     const result = await service.previewAiDraft(
       {
@@ -2848,8 +2844,10 @@ describe('CrmService', () => {
     assert.equal(store.accounts[0].status, 'manual_review_pending');
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_draft_generated');
     assert.equal(logs.records.at(-1)?.action, 'sequence-review-create');
-    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).messageId, 'message-1');
-    assert.equal(JSON.stringify(logs.records.at(-1)?.metadata).includes('stable supply'), false);
+    const lastLog = logs.records.at(-1);
+    assert.ok(lastLog);
+    assert.equal((lastLog.metadata as Record<string, unknown>).messageId, 'message-1');
+    assert.equal(JSON.stringify(lastLog.metadata).includes('stable supply'), false);
   });
 
   it('lists sequence review items through split sequence service with member owner scope', async () => {
@@ -3065,17 +3063,13 @@ describe('CrmService', () => {
     );
     const aiCalls: CrmAiDraftPromptInput[] = [];
     const logs = createLogRecorder();
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      logs.service,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createAiDraftService(aiCalls)
-    );
+      draftService: createDraftService(store, {
+        aiDraftService: createAiDraftService(aiCalls),
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
+    });
 
     const result = await service.regenerateMessageAiDraft('message-1', createContext());
     const metadata = store.messages[0].metadata as { keep?: string; aiDraft?: { snapshot?: { stepIndex?: number } } };
@@ -3118,17 +3112,12 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createAiDraftService([])
-    );
+      draftService: createDraftService(store, {
+        aiDraftService: createAiDraftService([])
+      })
+    });
 
     await assert.rejects(
       () => service.regenerateMessageAiDraft('message-peer', createContext({ organizationRole: 'admin' })),
@@ -4312,7 +4301,9 @@ describe('CrmService', () => {
     assert.equal(store.accounts[0].status, 'ready');
     assert.equal(store.timelineEvents.at(-1)?.eventType, 'draft_approved');
     assert.equal(logs.records.at(-1)?.action, 'draft-approve');
-    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).messageId, 'message-1');
+    const lastLog = logs.records.at(-1);
+    assert.ok(lastLog);
+    assert.equal((lastLog.metadata as Record<string, unknown>).messageId, 'message-1');
   });
 
   it('keeps split first draft approval owner-only and rejects follow-up drafts', async () => {
@@ -4443,7 +4434,9 @@ describe('CrmService', () => {
     assert.equal(store.messages[1].scheduledAt?.toISOString(), scheduledAt.toISOString());
     assert.equal(store.messages[1].bullJobId, null);
     assert.equal(logs.records.at(-1)?.action, 'follow-up-draft-approve');
-    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).scheduledAt, scheduledAt.toISOString());
+    const lastLog = logs.records.at(-1);
+    assert.ok(lastLog);
+    assert.equal((lastLog.metadata as Record<string, unknown>).scheduledAt, scheduledAt.toISOString());
   });
 
   it('keeps split follow-up approval owner-only and validates running send guards', async () => {
@@ -5006,7 +4999,9 @@ describe('CrmService', () => {
     assert.equal(store.enrollments.find(item => item.id === 'enrollment-member')?.status, 'sequence_running');
     assert.equal(store.messages.find(item => item.id === 'message-member-1')?.status, 'queued');
     assert.equal(logs.records.at(-1)?.action, 'sequence-stopped');
-    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).runVersion, 3);
+    const lastLog = logs.records.at(-1);
+    assert.ok(lastLog);
+    assert.equal((lastLog.metadata as Record<string, unknown>).runVersion, 3);
   });
 
   it('creates a CRM AI draft task for eligible owner sequences and stores invalid selections as skipped items', async () => {
@@ -9396,6 +9391,7 @@ function createServiceWithSplitServices(options: {
   sequencePolicyService?: unknown;
   templateGroupService?: unknown;
   draftService?: unknown;
+  draftPreviewService?: unknown;
   nextDraftService?: unknown;
   draftApprovalService?: unknown;
   followUpApprovalService?: unknown;
@@ -9429,6 +9425,7 @@ function createServiceWithSplitServices(options: {
     (options.sequencePolicyService ?? createSequencePolicyService(store)) as never,
     (options.templateGroupService ?? createEmailTemplateGroupService(store)) as never,
     options.draftService as never,
+    options.draftPreviewService as never,
     options.nextDraftService as never,
     options.draftApprovalService as never,
     options.followUpApprovalService as never,
@@ -9537,6 +9534,13 @@ function createDraftService(
   options: { aiDraftService?: CrmAiDraftService | null; crmLogger?: CrmLoggerService } = {}
 ) {
   return new CrmDraftService(store, options.aiDraftService, options.crmLogger);
+}
+
+function createDraftPreviewService(
+  store: CrmStore,
+  options: { aiDraftService?: CrmAiDraftService | null } = {}
+) {
+  return new CrmDraftPreviewService(store, store, store, options.aiDraftService);
 }
 
 function createSequenceService(

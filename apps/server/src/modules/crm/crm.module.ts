@@ -40,6 +40,7 @@ import { CrmProductLineService } from './product-lines/crm-product-line.service'
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
+import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
@@ -87,6 +88,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmBatchDraftApprovalService,
     CrmBatchSequenceStopService,
     CrmDraftApprovalService,
+    CrmDraftPreviewService,
     CrmDraftService,
     CrmFollowUpApprovalService,
     CrmNextDraftService,

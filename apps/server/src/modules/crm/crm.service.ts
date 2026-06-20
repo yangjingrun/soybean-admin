@@ -37,6 +37,7 @@ import { CrmProductLineService } from './product-lines/crm-product-line.service'
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
+import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { nextDraftEnrollmentStatuses } from './sequence/crm-next-draft-rules';
@@ -57,8 +58,6 @@ import {
   type EmailTemplateGroupCreateInput,
   type EmailTemplateGroupUpdateInput
 } from './template-groups/crm-email-template-group-rules';
-import { findPersonaProfile, renderEmailTemplateText, type PersonaProfile } from './crm-email-template-renderer';
-import { buildPersonaMatch, type ResolvedPersonaMatch } from './crm-persona-match';
 import {
   CRM_AI_DRAFT_TASK_QUEUE,
   CRM_EMAIL_DNS_RESOLVER,
@@ -71,7 +70,6 @@ import type {
   CrmAiDraftMetadata,
   CrmAiDraftTaskQueuePort,
   CrmAiDraftQueueConfigInput,
-  CrmAiWritingStepIndex,
   CrmAccountDetailRecord,
   CrmAccountRecord,
   CrmAccountStatus,
@@ -84,7 +82,6 @@ import type {
   CrmMailboxRecord,
   CrmMailboxStatus,
   CrmContactRecord,
-  CrmEmailTemplateGroupRecord,
   CrmEmailTemplateStatus,
   CrmEmailVerificationReason,
   CrmEmailStatus,
@@ -95,7 +92,6 @@ import type {
   CrmMessageRecord,
   CrmMessageStatus,
   CrmPersonaProfileStatus,
-  CrmProductLineRecord,
   CrmProductLineStatus,
   CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
@@ -122,7 +118,6 @@ const gmailHistorySyncScopes = new Set([
 ]);
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
-const defaultSequenceStepCount = 5;
 const initialDraftStepIndex = 1;
 const accountArchiveRecoveryDays = 30;
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
@@ -202,12 +197,6 @@ interface GmailOAuthCompleteInput {
   state: string;
 }
 
-interface GeneratedDraft {
-  subject: string;
-  bodyText: string;
-  aiDraft?: CrmAiDraftMetadata | null;
-}
-
 @Injectable()
 export class CrmService {
   private readonly dnsResolver: CrmEmailDnsResolver;
@@ -237,7 +226,7 @@ export class CrmService {
     private readonly gmailWatchService?: Pick<CrmGmailWatchService, 'renewMailboxWatch'> | null,
     @Optional()
     @Inject(CrmAiDraftService)
-    private readonly aiDraftService?: CrmAiDraftService | null,
+    _aiDraftService?: CrmAiDraftService | null,
     @Optional()
     @Inject(CrmAiReplyDraftService)
     private readonly aiReplyDraftService?: Pick<CrmAiReplyDraftService, 'polishReplyDraft'> | null,
@@ -277,6 +266,9 @@ export class CrmService {
     @Optional()
     @Inject(CrmDraftService)
     private readonly draftService?: CrmDraftService,
+    @Optional()
+    @Inject(CrmDraftPreviewService)
+    private readonly draftPreviewService?: CrmDraftPreviewService,
     @Optional()
     @Inject(CrmNextDraftService)
     private readonly nextDraftService?: CrmNextDraftService,
@@ -1150,66 +1142,7 @@ export class CrmService {
 
   /** Previews a configured AI draft without creating messages or send jobs. */
   async previewAiDraft(input: CrmAiDraftPreviewInput, context: CrmUserContext) {
-    const stepIndex = toAiWritingStepIndex(input.stepIndex);
-    const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
-    const productLine = this.requireAiWritingProductLine(
-      await this.requireActiveProductLine(input.productLineId, context)
-    );
-    const sequenceItem = input.enrollmentId
-      ? await this.requireOwnedSequenceReviewItem(input.enrollmentId, context)
-      : null;
-
-    if (sequenceItem) {
-      this.assertPreviewMatchesSequence(input, sequenceItem, productLine.id);
-    }
-
-    const [defaultTemplateGroup, personaMatch] =
-      stepIndex === initialDraftStepIndex
-        ? await Promise.all([
-            this.store.findDefaultEmailTemplateGroup(context.organizationId),
-            this.resolvePersonaProfileMatch(account, contact, context)
-          ])
-        : [null, null];
-    const previousMessages =
-      input.previousMessages?.map(message => ({
-        stepIndex: toAiWritingStepIndex(message.stepIndex),
-        subject: message.subject,
-        bodyText: message.bodyText
-      })) ??
-      sequenceItem?.messages
-        .filter(message => message.stepIndex < stepIndex)
-        .sort(
-          (left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()
-        ) ??
-      [];
-    const fallbackDraft =
-      stepIndex === initialDraftStepIndex
-        ? generateFirstDraft({
-            account,
-            contact,
-            productLine,
-            context,
-            personaProfile: personaMatch?.templatePersona ?? null,
-            templateGroup: defaultTemplateGroup
-          })
-        : { subject: '', bodyText: '' };
-    const draft = await this.generateConfiguredReviewDraft({
-      account,
-      contact,
-      productLine,
-      context,
-      stepIndex,
-      previousMessages,
-      fallbackDraft
-    });
-
-    return {
-      preview: {
-        subject: draft.subject,
-        bodyText: draft.bodyText,
-        aiDraft: draft.aiDraft ?? null
-      }
-    };
+    return this.requireDraftPreviewService().previewAiDraft(input, context);
   }
 
   /** Lists first-email review items within the current organization scope. */
@@ -1310,98 +1243,7 @@ export class CrmService {
 
   /** Regenerates the current owner pending-review draft with product-line AI writing config. */
   async regenerateMessageAiDraft(id: string, context: CrmUserContext) {
-    if (this.draftService) {
-      return this.draftService.regenerateMessageAiDraft(id, context);
-    }
-
-    const message = await this.requireOwnedEditableMessage(id, context);
-    const item = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
-    const productLine = this.requireAiWritingProductLine(item.productLine);
-    const targetMessage = item.messages.find(itemMessage => itemMessage.id === message.id);
-
-    if (!targetMessage) {
-      throw new NotFoundException('邮件草稿不存在');
-    }
-
-    const draft = await this.generateConfiguredReviewDraft({
-      account: item.account,
-      contact: item.contact,
-      productLine,
-      context,
-      stepIndex: toAiWritingStepIndex(message.stepIndex),
-      previousMessages: item.messages
-        .filter(itemMessage => itemMessage.stepIndex < message.stepIndex)
-        .sort(
-          (left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()
-        ),
-      fallbackDraft: {
-        subject: message.subject,
-        bodyText: message.bodyText
-      }
-    });
-    const updatedMessage = await this.store.updateMessage(
-      message.id,
-      context.organizationId,
-      {
-        subject: normalizeRequiredString(draft.subject, '邮件主题不能为空'),
-        bodyText: normalizeRequiredString(draft.bodyText, '邮件正文不能为空'),
-        status: 'draft_pending_review',
-        metadata: mergeAiDraftMessageMetadata(message.metadata, draft.aiDraft)
-      },
-      {
-        status: 'draft_pending_review'
-      }
-    );
-
-    if (!updatedMessage) {
-      throw new NotFoundException('邮件草稿不存在');
-    }
-
-    await this.store.createMessageDraftVersion({
-      organizationId: updatedMessage.organizationId,
-      ownerUserId: updatedMessage.ownerUserId,
-      accountId: updatedMessage.accountId,
-      contactId: updatedMessage.contactId,
-      enrollmentId: updatedMessage.enrollmentId,
-      messageId: updatedMessage.id,
-      mailboxId: updatedMessage.mailboxId,
-      stepIndex: updatedMessage.stepIndex,
-      subject: updatedMessage.subject,
-      bodyText: updatedMessage.bodyText,
-      editorId: context.userId,
-      editorName: context.userName
-    });
-
-    await this.store.createTimelineEvent({
-      organizationId: updatedMessage.organizationId,
-      accountId: updatedMessage.accountId,
-      contactId: updatedMessage.contactId,
-      ownerUserId: context.userId,
-      eventType: 'ai_draft_regenerated',
-      title: '重新生成 AI 开发信草稿',
-      content: updatedMessage.subject,
-      metadata: {
-        enrollmentId: updatedMessage.enrollmentId,
-        messageId: updatedMessage.id,
-        productLineId: productLine.id,
-        stepIndex: updatedMessage.stepIndex,
-        aiDraft: draft.aiDraft ?? null
-      }
-    });
-
-    await this.recordCrmLog('ai-draft-regenerate', 'CRM AI 开发信草稿重新生成', context, {
-      organizationId: context.organizationId,
-      accountId: updatedMessage.accountId,
-      contactId: updatedMessage.contactId,
-      enrollmentId: updatedMessage.enrollmentId,
-      messageId: updatedMessage.id,
-      productLineId: productLine.id,
-      stepIndex: updatedMessage.stepIndex
-    });
-
-    return {
-      message: toMessageView(updatedMessage)
-    };
+    return this.requireDraftService().regenerateMessageAiDraft(id, context);
   }
 
   /** Lists saved snapshots for one owner draft message. */
@@ -2366,38 +2208,6 @@ export class CrmService {
     return this.gmailWatchService.renewMailboxWatch(mailbox.id, context);
   }
 
-  private async requireScopedProductLine(id: string, context: CrmUserContext) {
-    const productLine = await this.store.findProductLineById({
-      id,
-      organizationId: context.organizationId
-    });
-
-    if (!productLine) {
-      throw new NotFoundException('产品资料不存在');
-    }
-
-    return productLine;
-  }
-
-  private async requireActiveProductLine(id: string, context: CrmUserContext) {
-    const productLine = await this.requireScopedProductLine(id, context);
-
-    if (productLine.status !== 'active') {
-      throw new BadRequestException('产品资料已归档');
-    }
-
-    return productLine;
-  }
-
-  private async resolvePersonaProfileMatch(
-    account: Pick<CrmAccountRecord, 'customerType'>,
-    contact: Pick<CrmContactRecord, 'title'>,
-    context: CrmUserContext
-  ): Promise<ResolvedPersonaMatch> {
-    const organizationProfiles = await this.store.listActivePersonaProfiles(context.organizationId);
-    return buildPersonaMatch(organizationProfiles, account, contact);
-  }
-
   private async assertContactNotBlacklisted(contact: CrmContactRecord, context: CrmUserContext) {
     const blacklistEntry = await this.store.findBlacklistEntry({
       organizationId: context.organizationId,
@@ -2417,26 +2227,20 @@ export class CrmService {
     return this.sequenceService;
   }
 
-  private async requireScopedAccountAndContact(accountId: string, contactId: string, context: CrmUserContext) {
-    const detail = await this.requireScopedAccountDetail(accountId, context);
-    const contact = detail.contacts.find(item => item.id === contactId) ?? null;
-
-    if (!contact) {
-      throw new NotFoundException('联系人不存在');
+  private requireDraftPreviewService() {
+    if (!this.draftPreviewService) {
+      throw new BadRequestException('CRM 草稿预览服务未启用');
     }
 
-    if (detail.account.status === 'archived' || detail.account.status === 'blocked') {
-      throw new BadRequestException('当前线索不可开发');
+    return this.draftPreviewService;
+  }
+
+  private requireDraftService() {
+    if (!this.draftService) {
+      throw new BadRequestException('CRM 草稿服务未启用');
     }
 
-    if (detail.account.ownerUserId !== context.userId || contact.ownerUserId !== context.userId) {
-      throw new BadRequestException('只能为自己的线索创建开发信序列');
-    }
-
-    return {
-      account: detail.account,
-      contact
-    };
+    return this.draftService;
   }
 
   private async requireScopedSequenceReviewItem(id: string, context: CrmUserContext) {
@@ -2451,40 +2255,6 @@ export class CrmService {
     }
 
     return item;
-  }
-
-  private assertPreviewMatchesSequence(
-    input: CrmAiDraftPreviewInput,
-    item: CrmSequenceReviewRecord,
-    productLineId: string
-  ) {
-    if (
-      item.account.id !== input.accountId ||
-      item.contact.id !== input.contactId ||
-      item.productLine?.id !== productLineId
-    ) {
-      throw new BadRequestException('预览参数与邮件序列不匹配');
-    }
-
-    if (input.messageId && !item.messages.some(message => message.id === input.messageId)) {
-      throw new BadRequestException('预览参考邮件不属于当前序列');
-    }
-  }
-
-  private requireAiWritingProductLine(productLine: CrmProductLineRecord | null) {
-    if (!productLine) {
-      throw new BadRequestException('请选择已启用 AI 写信的产品资料');
-    }
-
-    if (productLine.status !== 'active') {
-      throw new BadRequestException('产品资料已归档');
-    }
-
-    if (!productLine.aiWritingConfig?.enabled) {
-      throw new BadRequestException('产品资料未启用 AI 写信');
-    }
-
-    return productLine;
   }
 
   private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
@@ -2515,73 +2285,6 @@ export class CrmService {
     if (queuedCount >= limit) {
       throw new BadRequestException(`当前用户已有 ${queuedCount} 封邮件在发送队列中，已达到并发上限 ${limit} 封`);
     }
-  }
-
-  /** Generates an AI draft only when the selected product line explicitly enables it. */
-  private async generateConfiguredReviewDraft(input: {
-    account: CrmAccountRecord;
-    contact: CrmContactRecord;
-    productLine: CrmProductLineRecord | null;
-    context: CrmUserContext;
-    stepIndex: CrmAiWritingStepIndex;
-    previousMessages: Array<Pick<CrmMessageRecord, 'stepIndex' | 'subject' | 'bodyText'>>;
-    fallbackDraft: GeneratedDraft;
-  }): Promise<GeneratedDraft> {
-    const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex } = input;
-
-    if (!productLine?.aiWritingConfig?.enabled) {
-      return fallbackDraft;
-    }
-
-    if (!this.aiDraftService) {
-      throw new BadRequestException('AI 写信服务未初始化');
-    }
-
-    const draft = await this.aiDraftService.generateDraft({
-      account: {
-        name: account.name,
-        country: account.country,
-        domain: account.domain,
-        customerType: account.customerType
-      },
-      contact: {
-        fullName: contact.fullName,
-        title: contact.title,
-        maskedEmail: contact.maskedEmail,
-        emailStatus: contact.emailStatus
-      },
-      productLine: {
-        id: productLine.id,
-        name: productLine.name,
-        targetCustomerType: productLine.targetCustomerType,
-        coreSellingPoints: productLine.coreSellingPoints,
-        moq: productLine.moq,
-        leadTime: productLine.leadTime,
-        paymentTerms: productLine.paymentTerms,
-        certifications: productLine.certifications,
-        catalogUrl: productLine.catalogUrl,
-        websiteUrl: productLine.websiteUrl,
-        commonModelsText: productLine.commonModelsText
-      },
-      writingConfig: productLine.aiWritingConfig,
-      stepIndex,
-      previousMessages: previousMessages.map(message => ({
-        stepIndex: message.stepIndex,
-        subject: message.subject,
-        bodyText: message.bodyText
-      })),
-      senderName: context.userName
-    });
-
-    if (!draft.subject && stepIndex === initialDraftStepIndex) {
-      throw new BadRequestException('AI 返回首封主题不能为空');
-    }
-
-    return {
-      subject: draft.subject || fallbackDraft.subject,
-      bodyText: draft.bodyText,
-      aiDraft: draft.metadata
-    };
   }
 
   private async requireOwnedMessage(id: string, context: CrmUserContext) {
@@ -2980,19 +2683,6 @@ function isPastArchiveRecoveryWindow(archivedAt: Date, now = new Date()) {
   return now.getTime() - archivedAt.getTime() > accountArchiveRecoveryDays * 24 * 60 * 60 * 1000;
 }
 
-function mergeAiDraftMessageMetadata(metadata: unknown, aiDraft?: CrmAiDraftMetadata | null) {
-  if (!aiDraft) return metadata ?? null;
-
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
-    return { aiDraft };
-  }
-
-  return {
-    ...metadata,
-    aiDraft
-  };
-}
-
 function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | null {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
 
@@ -3011,75 +2701,6 @@ function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | 
   }
 
   return record as CrmAiDraftMetadata;
-}
-
-function toAiWritingStepIndex(stepIndex: number): CrmAiWritingStepIndex {
-  if (stepIndex < 1 || stepIndex > defaultSequenceStepCount) {
-    throw new BadRequestException('AI 写信步骤超出范围');
-  }
-
-  return stepIndex as CrmAiWritingStepIndex;
-}
-
-/** Builds a conservative first-touch draft from verified CRM fields only. */
-function generateFirstDraft(options: {
-  account: CrmAccountRecord;
-  contact: CrmContactRecord;
-  productLine: CrmProductLineRecord | null;
-  context: CrmUserContext;
-  personaProfile?: PersonaProfile | null;
-  templateGroup?: CrmEmailTemplateGroupRecord | null;
-}): GeneratedDraft {
-  const { account, contact, context, personaProfile, productLine, templateGroup } = options;
-  const templateStep = templateGroup?.steps.find(step => step.stepIndex === initialDraftStepIndex);
-  const greetingName = contact.fullName || contact.title || 'there';
-  const productName = productLine?.name || 'our product line';
-  const sellingPoint = productLine?.coreSellingPoints || `supporting ${account.customerType || 'B2B'} customers`;
-  const persona = personaProfile ?? findPersonaProfile(contact.title);
-
-  if (templateGroup?.status === 'active' && templateStep) {
-    return {
-      subject: renderEmailTemplateText(templateStep.subjectTemplate, {
-        account,
-        contact,
-        persona,
-        productLine,
-        senderName: context.userName
-      }),
-      bodyText: renderEmailTemplateText(templateStep.bodyTemplate, {
-        account,
-        contact,
-        persona,
-        productLine,
-        senderName: context.userName
-      })
-    };
-  }
-
-  const supplyInfo = [
-    productLine?.moq ? `MOQ: ${productLine.moq}` : null,
-    productLine?.leadTime ? `lead time: ${productLine.leadTime}` : null,
-    productLine?.certifications ? `certifications: ${productLine.certifications}` : null
-  ].filter(Boolean);
-  const subject = productLine ? `${productName} for ${account.name}` : `Potential cooperation with ${account.name}`;
-  const bodyLines = [
-    `Hi ${greetingName},`,
-    '',
-    `I noticed ${account.name}${account.country ? ` in ${account.country}` : ''} and thought this might be relevant to your team.`,
-    `We work on ${productName}, mainly focused on ${sellingPoint}.`,
-    persona ? `For ${persona.label}, I kept this note focused on ${persona.draftFocusText}.` : null,
-    supplyInfo.length ? `For reference, ${supplyInfo.join(', ')}.` : null,
-    '',
-    'Would it be useful if I sent a short product list for your review?',
-    '',
-    'Best regards,',
-    context.userName || 'Sales team'
-  ].filter((line): line is string => line !== null);
-
-  return {
-    subject,
-    bodyText: bodyLines.join('\n')
-  };
 }
 
 function normalizeEmail(value?: string | null) {
