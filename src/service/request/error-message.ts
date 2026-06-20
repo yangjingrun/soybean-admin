@@ -1,4 +1,4 @@
-import { BACKEND_ERROR_CODE, type AxiosError } from '@sa/axios';
+import type { AxiosError } from '@sa/axios';
 
 type BackendErrorBody = {
   msg?: unknown;
@@ -16,11 +16,13 @@ export function getRequestErrorMessage(error: AxiosError<BackendErrorBody>) {
 
 /** Reads the backend business code when a response body exists. */
 export function getBackendErrorCode(error: AxiosError<BackendErrorBody>) {
-  if (error.code !== BACKEND_ERROR_CODE) {
-    return '';
+  const code = error.response?.data?.code;
+
+  if (code) {
+    return String(code);
   }
 
-  return String(error.response?.data?.code || '');
+  return '';
 }
 
 /** Checks whether the backend says the default AI model channel is missing. */

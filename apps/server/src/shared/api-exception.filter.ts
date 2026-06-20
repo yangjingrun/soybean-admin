@@ -26,7 +26,7 @@ export class ApiExceptionFilter implements ExceptionFilter<unknown> {
     const code = getApiCode(status);
     const msg = getExceptionMessage(exception);
 
-    response.status(HttpStatus.OK).send(fail(code, msg, null));
+    response.status(status).send(fail(code, msg, null));
   }
 }
 

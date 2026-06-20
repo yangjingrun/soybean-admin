@@ -14,7 +14,7 @@ describe('ApiExceptionFilter', () => {
 
     new ApiExceptionFilter().catch(new UnauthorizedException('请先登录'), createArgumentsHost(response));
 
-    assert.equal(response.statusCode, 200);
+    assert.equal(response.statusCode, 401);
     assert.deepEqual(response.body, {
       code: '8888',
       msg: '请先登录',
@@ -27,7 +27,7 @@ describe('ApiExceptionFilter', () => {
 
     new ApiExceptionFilter().catch(new ForbiddenException('无权访问'), createArgumentsHost(response));
 
-    assert.equal(response.statusCode, 200);
+    assert.equal(response.statusCode, 403);
     assert.deepEqual(response.body, {
       code: '403',
       msg: '无权访问',
@@ -45,7 +45,7 @@ describe('ApiExceptionFilter', () => {
 
     new ApiExceptionFilter().catch(exception, createArgumentsHost(response));
 
-    assert.equal(response.statusCode, 200);
+    assert.equal(response.statusCode, 400);
     assert.deepEqual(response.body, {
       code: '400',
       msg: 'name should not be empty，email must be an email',
@@ -58,7 +58,7 @@ describe('ApiExceptionFilter', () => {
 
     new ApiExceptionFilter().catch(new Error('database password leaked in stack'), createArgumentsHost(response));
 
-    assert.equal(response.statusCode, 200);
+    assert.equal(response.statusCode, 500);
     assert.deepEqual(response.body, {
       code: '500',
       msg: 'Internal server error',

@@ -102,8 +102,15 @@ export const request = createFlatRequest(
     onError(error) {
       // when the request is fail, you can show error message
 
+      const authStore = useAuthStore();
       const message = getRequestErrorMessage(error);
       const backendErrorCode = getBackendErrorCode(error);
+
+      const logoutCodes = import.meta.env.VITE_SERVICE_LOGOUT_CODES?.split(',') || [];
+      if (logoutCodes.includes(backendErrorCode)) {
+        authStore.resetStore();
+        return;
+      }
 
       // the error message is displayed in the modal
       const modalLogoutCodes = import.meta.env.VITE_SERVICE_MODAL_LOGOUT_CODES?.split(',') || [];
