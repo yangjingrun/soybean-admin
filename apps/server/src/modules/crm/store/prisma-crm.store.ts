@@ -134,9 +134,11 @@ import {
   isPrismaUniqueConflict,
   isPrismaConcurrentTaskCreateConflict
 } from './prisma-crm-store.helpers';
+import { PrismaCrmAccountStore } from './prisma-crm-account.store';
 import { PrismaCrmDashboardStore } from './prisma-crm-dashboard.store';
 import { PrismaCrmMailboxStore } from './prisma-crm-mailbox.store';
 import { PrismaCrmSettingsStore } from './prisma-crm-settings.store';
+import { PrismaCrmSuppressionStore } from './prisma-crm-suppression.store';
 import type {
   CrmAccountCreateInput,
   CrmAccountRecord,
@@ -296,189 +298,78 @@ import {
 const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
+  private readonly accountStore: PrismaCrmAccountStore;
   private readonly dashboardStore: PrismaCrmDashboardStore;
   private readonly mailboxStore: PrismaCrmMailboxStore;
   private readonly settingsStore: PrismaCrmSettingsStore;
+  private readonly suppressionStore: PrismaCrmSuppressionStore;
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
+    this.accountStore = new PrismaCrmAccountStore(prisma);
     this.dashboardStore = new PrismaCrmDashboardStore(prisma);
     this.mailboxStore = new PrismaCrmMailboxStore(prisma);
     this.settingsStore = new PrismaCrmSettingsStore(prisma);
+    this.suppressionStore = new PrismaCrmSuppressionStore(prisma);
   }
-
-  findAccountByDomain(organizationId: string, ownerUserId: string, domain: string) {
-    return this.prisma.crmAccount
-      .findUnique({
-        where: {
-          organizationId_ownerUserId_domain: {
-            organizationId,
-            ownerUserId,
-            domain
-          }
-        }
-      })
-      .then(record => (record ? toAccountRecord(record) : null));
+  findAccountByDomain(
+    ...args: Parameters<PrismaCrmAccountStore['findAccountByDomain']>
+  ): ReturnType<PrismaCrmAccountStore['findAccountByDomain']> {
+    return this.accountStore.findAccountByDomain(...args);
   }
-
-  async createAccount(input: CrmAccountCreateInput) {
-    try {
-      const record = await this.prisma.crmAccount.create({
-        data: input as Prisma.CrmAccountUncheckedCreateInput
-      });
-
-      return toAccountRecord(record);
-    } catch (error) {
-      if (isPrismaUniqueConflict(error) && input.domain) {
-        const existingAccount = await this.findAccountByDomain(input.organizationId, input.ownerUserId, input.domain);
-
-        if (existingAccount) return existingAccount;
-      }
-
-      throw error;
-    }
+  createAccount(
+    ...args: Parameters<PrismaCrmAccountStore['createAccount']>
+  ): ReturnType<PrismaCrmAccountStore['createAccount']> {
+    return this.accountStore.createAccount(...args);
   }
-
-  async updateAccount(id: string, input: CrmAccountUpdateInput) {
-    const records = await this.prisma.crmAccount.updateManyAndReturn({
-      where: { id },
-      data: input,
-      limit: 1
-    });
-
-    return records[0] ? toAccountRecord(records[0]) : null;
+  updateAccount(
+    ...args: Parameters<PrismaCrmAccountStore['updateAccount']>
+  ): ReturnType<PrismaCrmAccountStore['updateAccount']> {
+    return this.accountStore.updateAccount(...args);
   }
-
-  async listAccountsForArchiveSlimming(input: CrmArchiveSlimmingListInput) {
-    const records = await this.prisma.crmAccount.findMany({
-      where: {
-        status: 'archived',
-        archiveSlimmedAt: null,
-        archivedAt: {
-          lte: input.archivedBefore
-        }
-      },
-      orderBy: { archivedAt: 'asc' },
-      take: input.take
-    });
-
-    return records.map(toAccountRecord);
+  listAccountsForArchiveSlimming(
+    ...args: Parameters<PrismaCrmAccountStore['listAccountsForArchiveSlimming']>
+  ): ReturnType<PrismaCrmAccountStore['listAccountsForArchiveSlimming']> {
+    return this.accountStore.listAccountsForArchiveSlimming(...args);
   }
-
-  async slimArchivedAccount(input: CrmArchiveSlimInput) {
-    const records = await this.prisma.crmAccount.updateManyAndReturn({
-      where: {
-        id: input.id,
-        organizationId: input.organizationId,
-        status: 'archived',
-        archiveSlimmedAt: null,
-        archivedAt: {
-          lte: input.archivedBefore
-        }
-      },
-      data: {
-        archiveSlimmedAt: input.slimmedAt,
-        customerType: null,
-        websiteUrl: null
-      },
-      limit: 1
-    });
-
-    return records[0] ? toAccountRecord(records[0]) : null;
+  slimArchivedAccount(
+    ...args: Parameters<PrismaCrmAccountStore['slimArchivedAccount']>
+  ): ReturnType<PrismaCrmAccountStore['slimArchivedAccount']> {
+    return this.accountStore.slimArchivedAccount(...args);
   }
-
-  findContactByEmailHash(organizationId: string, ownerUserId: string, emailHash: string) {
-    return this.prisma.crmContact
-      .findUnique({
-        where: {
-          organizationId_ownerUserId_emailHash: {
-            organizationId,
-            ownerUserId,
-            emailHash
-          }
-        }
-      })
-      .then(record => (record ? toContactRecord(record) : null));
+  findContactByEmailHash(
+    ...args: Parameters<PrismaCrmAccountStore['findContactByEmailHash']>
+  ): ReturnType<PrismaCrmAccountStore['findContactByEmailHash']> {
+    return this.accountStore.findContactByEmailHash(...args);
   }
-
-  async createContact(input: CrmContactCreateInput) {
-    try {
-      const record = await this.prisma.crmContact.create({
-        data: input as Prisma.CrmContactUncheckedCreateInput
-      });
-
-      return toContactRecord(record);
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        const existingContact = await this.findContactByEmailHash(
-          input.organizationId,
-          input.ownerUserId,
-          input.emailHash
-        );
-
-        if (existingContact) return existingContact;
-      }
-
-      throw error;
-    }
+  createContact(
+    ...args: Parameters<PrismaCrmAccountStore['createContact']>
+  ): ReturnType<PrismaCrmAccountStore['createContact']> {
+    return this.accountStore.createContact(...args);
   }
-
-  async updateContact(id: string, input: CrmContactUpdateInput) {
-    const records = await this.prisma.crmContact.updateManyAndReturn({
-      where: { id },
-      data: input,
-      limit: 1
-    });
-
-    return records[0] ? toContactRecord(records[0]) : null;
+  updateContact(
+    ...args: Parameters<PrismaCrmAccountStore['updateContact']>
+  ): ReturnType<PrismaCrmAccountStore['updateContact']> {
+    return this.accountStore.updateContact(...args);
   }
-
-  findContactById(args: { id: string; organizationId: string; ownerUserId?: string }) {
-    return this.prisma.crmContact
-      .findFirst({
-        where: toContactIdentityWhere(args)
-      })
-      .then(record => (record ? toContactRecord(record) : null));
+  findContactById(
+    ...args: Parameters<PrismaCrmAccountStore['findContactById']>
+  ): ReturnType<PrismaCrmAccountStore['findContactById']> {
+    return this.accountStore.findContactById(...args);
   }
-
-  async updateContactEmailStatus(id: string, emailStatus: CrmEmailStatus) {
-    const records = await this.prisma.crmContact.updateManyAndReturn({
-      where: { id },
-      data: { emailStatus },
-      limit: 1
-    });
-
-    return records[0] ? toContactRecord(records[0]) : null;
+  updateContactEmailStatus(
+    ...args: Parameters<PrismaCrmAccountStore['updateContactEmailStatus']>
+  ): ReturnType<PrismaCrmAccountStore['updateContactEmailStatus']> {
+    return this.accountStore.updateContactEmailStatus(...args);
   }
-
-  findEmailVerificationCache(args: { emailHash: string }) {
-    return this.prisma.crmEmailVerificationCache
-      .findUnique({
-        where: {
-          emailHash: args.emailHash
-        }
-      })
-      .then(record => (record ? toEmailVerificationCacheRecord(record) : null));
+  findEmailVerificationCache(
+    ...args: Parameters<PrismaCrmAccountStore['findEmailVerificationCache']>
+  ): ReturnType<PrismaCrmAccountStore['findEmailVerificationCache']> {
+    return this.accountStore.findEmailVerificationCache(...args);
   }
-
-  async upsertEmailVerificationCache(input: CrmEmailVerificationCacheUpsertInput) {
-    const record = await this.prisma.crmEmailVerificationCache.upsert({
-      where: {
-        emailHash: input.emailHash
-      },
-      create: input,
-      update: {
-        maskedEmail: input.maskedEmail,
-        domain: input.domain,
-        status: input.status,
-        reason: input.reason,
-        verifiedAt: input.verifiedAt,
-        expiresAt: input.expiresAt,
-        checkedById: input.checkedById,
-        checkedByName: input.checkedByName
-      }
-    });
-
-    return toEmailVerificationCacheRecord(record);
+  upsertEmailVerificationCache(
+    ...args: Parameters<PrismaCrmAccountStore['upsertEmailVerificationCache']>
+  ): ReturnType<PrismaCrmAccountStore['upsertEmailVerificationCache']> {
+    return this.accountStore.upsertEmailVerificationCache(...args);
   }
   getGlobalConfig(
     ...args: Parameters<PrismaCrmSettingsStore['getGlobalConfig']>
@@ -1017,221 +908,55 @@ export class PrismaCrmStore implements CrmStore {
   ): ReturnType<PrismaCrmSettingsStore['saveOrganizationConfig']> {
     return this.settingsStore.saveOrganizationConfig(...args);
   }
-
-  findBlacklistEntry(args: { organizationId: string; emailHash: string }) {
-    return this.prisma.crmBlacklist
-      .findUnique({
-        where: {
-          organizationId_emailHash: {
-            organizationId: args.organizationId,
-            emailHash: args.emailHash
-          }
-        }
-      })
-      .then(record => (record ? toBlacklistRecord(record) : null));
+  findBlacklistEntry(
+    ...args: Parameters<PrismaCrmSuppressionStore['findBlacklistEntry']>
+  ): ReturnType<PrismaCrmSuppressionStore['findBlacklistEntry']> {
+    return this.suppressionStore.findBlacklistEntry(...args);
   }
-
-  async listBlacklistEntriesByEmailHashes(args: { organizationId: string; emailHashes: string[] }) {
-    const emailHashes = toUniqueStrings(args.emailHashes);
-
-    if (emailHashes.length === 0) {
-      return [];
-    }
-
-    const records = await this.prisma.crmBlacklist.findMany({
-      where: {
-        organizationId: args.organizationId,
-        emailHash: { in: emailHashes }
-      }
-    });
-
-    return records.map(toBlacklistRecord);
+  listBlacklistEntriesByEmailHashes(
+    ...args: Parameters<PrismaCrmSuppressionStore['listBlacklistEntriesByEmailHashes']>
+  ): ReturnType<PrismaCrmSuppressionStore['listBlacklistEntriesByEmailHashes']> {
+    return this.suppressionStore.listBlacklistEntriesByEmailHashes(...args);
   }
-
-  async upsertBlacklistEntry(input: CrmBlacklistUpsertInput) {
-    const record = await this.prisma.crmBlacklist.upsert({
-      where: {
-        organizationId_emailHash: {
-          organizationId: input.organizationId,
-          emailHash: input.emailHash
-        }
-      },
-      create: input,
-      update: {
-        maskedEmail: input.maskedEmail,
-        reason: input.reason,
-        sourceAccountId: input.sourceAccountId ?? null,
-        sourceContactId: input.sourceContactId ?? null,
-        sourceMessageId: input.sourceMessageId ?? null,
-        createdById: input.createdById ?? null,
-        createdByName: input.createdByName ?? null
-      }
-    });
-
-    return toBlacklistRecord(record);
+  upsertBlacklistEntry(
+    ...args: Parameters<PrismaCrmSuppressionStore['upsertBlacklistEntry']>
+  ): ReturnType<PrismaCrmSuppressionStore['upsertBlacklistEntry']> {
+    return this.suppressionStore.upsertBlacklistEntry(...args);
   }
-
-  async listBlacklistEntries(input: CrmBlacklistListInput) {
-    const where = toBlacklistListWhere(input);
-    const [records, total] = await Promise.all([
-      this.prisma.crmBlacklist.findMany({
-        where,
-        skip: input.skip,
-        take: input.take,
-        orderBy: { updatedAt: 'desc' }
-      }),
-      this.prisma.crmBlacklist.count({ where })
-    ]);
-
-    return {
-      records: records.map(toBlacklistRecord),
-      total
-    };
+  listBlacklistEntries(
+    ...args: Parameters<PrismaCrmSuppressionStore['listBlacklistEntries']>
+  ): ReturnType<PrismaCrmSuppressionStore['listBlacklistEntries']> {
+    return this.suppressionStore.listBlacklistEntries(...args);
   }
-
-  async deleteBlacklistEntry(input: CrmBlacklistDeleteInput) {
-    const record = await this.prisma.crmBlacklist.findFirst({
-      where: {
-        id: input.id,
-        organizationId: input.organizationId
-      }
-    });
-
-    if (!record) {
-      return null;
-    }
-
-    await this.prisma.crmBlacklist.delete({
-      where: {
-        id: record.id
-      }
-    });
-
-    return toBlacklistRecord(record);
+  deleteBlacklistEntry(
+    ...args: Parameters<PrismaCrmSuppressionStore['deleteBlacklistEntry']>
+  ): ReturnType<PrismaCrmSuppressionStore['deleteBlacklistEntry']> {
+    return this.suppressionStore.deleteBlacklistEntry(...args);
   }
-
-  async findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput) {
-    if (input.fingerprints.length === 0) {
-      return [];
-    }
-
-    const records = await this.prisma.crmArchivedFingerprint.findMany({
-      where: {
-        organizationId: input.organizationId,
-        OR: input.fingerprints.map(fingerprint => ({
-          fingerprintType: fingerprint.fingerprintType,
-          fingerprintValue: fingerprint.fingerprintValue
-        }))
-      },
-      orderBy: {
-        archivedAt: 'desc'
-      }
-    });
-
-    return records.map(toArchivedFingerprintRecord);
+  findArchivedFingerprints(
+    ...args: Parameters<PrismaCrmAccountStore['findArchivedFingerprints']>
+  ): ReturnType<PrismaCrmAccountStore['findArchivedFingerprints']> {
+    return this.accountStore.findArchivedFingerprints(...args);
   }
-
-  async upsertArchivedFingerprint(input: CrmArchivedFingerprintUpsertInput) {
-    const record = await this.prisma.crmArchivedFingerprint.upsert({
-      where: {
-        organizationId_fingerprintType_fingerprintValue: {
-          organizationId: input.organizationId,
-          fingerprintType: input.fingerprintType,
-          fingerprintValue: input.fingerprintValue
-        }
-      },
-      create: input,
-      update: {
-        maskedValue: input.maskedValue ?? null,
-        accountName: input.accountName ?? null,
-        normalizedName: input.normalizedName ?? null,
-        country: input.country ?? null,
-        sourceAccountId: input.sourceAccountId ?? null,
-        sourceContactId: input.sourceContactId ?? null,
-        sourceTaskId: input.sourceTaskId ?? null,
-        archiveReason: input.archiveReason ?? null,
-        archivedAt: input.archivedAt
-      }
-    });
-
-    return toArchivedFingerprintRecord(record);
+  upsertArchivedFingerprint(
+    ...args: Parameters<PrismaCrmAccountStore['upsertArchivedFingerprint']>
+  ): ReturnType<PrismaCrmAccountStore['upsertArchivedFingerprint']> {
+    return this.accountStore.upsertArchivedFingerprint(...args);
   }
-
-  async listAccounts(args: {
-    organizationId: string;
-    ownerUserId?: string;
-    keyword?: string;
-    status?: CrmAccountStatus;
-    skip: number;
-    take: number;
-  }) {
-    const where = toAccountListWhere(args);
-    const [records, total] = await Promise.all([
-      this.prisma.crmAccount.findMany({
-        where,
-        skip: args.skip,
-        take: args.take,
-        orderBy: { updatedAt: 'desc' }
-      }),
-      this.prisma.crmAccount.count({ where })
-    ]);
-
-    return {
-      records: records.map(toAccountRecord),
-      total
-    };
+  listAccounts(
+    ...args: Parameters<PrismaCrmAccountStore['listAccounts']>
+  ): ReturnType<PrismaCrmAccountStore['listAccounts']> {
+    return this.accountStore.listAccounts(...args);
   }
-
-  async getAccountDetail(args: { id: string; organizationId: string; ownerUserId?: string }) {
-    const account = await this.prisma.crmAccount.findFirst({
-      where: toAccountIdentityWhere(args)
-    });
-
-    if (!account) return null;
-
-    const [contacts, timelineEvents] = await Promise.all([
-      this.prisma.crmContact.findMany({
-        where: {
-          organizationId: args.organizationId,
-          accountId: account.id
-        },
-        orderBy: {
-          createdAt: 'asc'
-        }
-      }),
-      this.prisma.crmTimelineEvent.findMany({
-        where: {
-          organizationId: args.organizationId,
-          accountId: account.id
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      })
-    ]);
-
-    return {
-      account: toAccountRecord(account),
-      contacts: contacts.map(toContactRecord),
-      timelineEvents: timelineEvents.map(toTimelineEventRecord)
-    };
+  getAccountDetail(
+    ...args: Parameters<PrismaCrmAccountStore['getAccountDetail']>
+  ): ReturnType<PrismaCrmAccountStore['getAccountDetail']> {
+    return this.accountStore.getAccountDetail(...args);
   }
-
-  async createTimelineEvent(input: CrmTimelineEventCreateInput) {
-    const record = await this.prisma.crmTimelineEvent.create({
-      data: {
-        organizationId: input.organizationId,
-        accountId: input.accountId,
-        contactId: input.contactId,
-        ownerUserId: input.ownerUserId,
-        eventType: input.eventType,
-        title: input.title,
-        content: input.content,
-        metadata: input.metadata as Prisma.CrmTimelineEventCreateInput['metadata']
-      }
-    });
-
-    return toTimelineEventRecord(record);
+  createTimelineEvent(
+    ...args: Parameters<PrismaCrmAccountStore['createTimelineEvent']>
+  ): ReturnType<PrismaCrmAccountStore['createTimelineEvent']> {
+    return this.accountStore.createTimelineEvent(...args);
   }
   findMailboxByProviderAndEmailHash(
     ...args: Parameters<PrismaCrmMailboxStore['findMailboxByProviderAndEmailHash']>
