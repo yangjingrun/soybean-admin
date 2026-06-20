@@ -15,6 +15,12 @@ import { toAccountRecord, toContactRecord, toTimelineEventRecord } from './prism
 import { toMailboxRecord } from './prisma-crm-mailbox.mapper';
 import { toSequenceEnrollmentRecord } from './prisma-crm-sequence.mapper';
 
+/** Creates a compact plain-text snippet for inbox and timeline displays. */
+export function toSnippet(bodyText: string) {
+  const normalized = bodyText.replace(/\s+/g, ' ').trim();
+  return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
+}
+
 /** Maps an inbox thread row and normalizes reply draft metadata. */
 export function toInboxThreadRecord(record: CrmInboxThreadModel): CrmInboxThreadRecord {
   return {

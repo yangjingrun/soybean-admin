@@ -10,7 +10,12 @@ import {
   normalizeCrmAiDraftMaxAttempts,
   normalizeCrmAiDraftRetryBackoffSeconds
 } from '../crm-ai-draft-task-state';
-import type { CrmAiDraftQueueConfigRecord, CrmAiDraftTaskItemRecord, CrmAiDraftTaskRecord } from '../crm.types';
+import type {
+  CrmAiDraftQueueConfigRecord,
+  CrmAiDraftTaskCreateInput,
+  CrmAiDraftTaskItemRecord,
+  CrmAiDraftTaskRecord
+} from '../crm.types';
 
 const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 
@@ -75,6 +80,18 @@ export function toAiDraftTaskRecord(record: CrmAiDraftTaskModel): CrmAiDraftTask
     finishedAt: record.finishedAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt
+  };
+}
+
+/** Counts AI draft task items by their current status. */
+export function countAiDraftTaskItems(items: CrmAiDraftTaskCreateInput['items']) {
+  return {
+    successCount: items.filter(item => item.status === 'succeeded').length,
+    skippedCount: items.filter(item => item.status === 'skipped').length,
+    failedCount: items.filter(item => item.status === 'failed').length,
+    retryingCount: items.filter(item => item.status === 'retrying').length,
+    runningCount: items.filter(item => item.status === 'running').length,
+    pendingCount: items.filter(item => (item.status ?? 'pending') === 'pending').length
   };
 }
 
