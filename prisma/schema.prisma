@@ -200,6 +200,7 @@ model CrmAccount {
 
   @@unique([organizationId, ownerUserId, domain])
   @@index([organizationId, ownerUserId, updatedAt])
+  @@index([organizationId, ownerUserId, status, updatedAt])
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, status, archivedAt])
   @@index([sourceTaskId])
@@ -594,6 +595,8 @@ model CrmSequenceEnrollment {
   inboxMessages CrmInboxMessage[]
 
   @@index([organizationId, ownerUserId, status, updatedAt])
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, status, updatedAt])
   @@index([organizationId, accountId, status])
   @@index([organizationId, contactId, status])
   @@index([organizationId, ownerUserId, contactId])
@@ -701,6 +704,9 @@ model CrmInboxThread {
 
   @@unique([organizationId, ownerUserId, mailboxId, providerThreadId])
   @@index([organizationId, ownerUserId, status, lastInboundAt])
+  @@index([organizationId, lastInboundAt])
+  @@index([organizationId, mailboxId, lastInboundAt])
+  @@index([organizationId, ownerUserId, mailboxId, lastInboundAt])
   @@index([organizationId, accountId, lastInboundAt])
   @@index([organizationId, contactId, lastInboundAt])
   @@index([enrollmentId])
