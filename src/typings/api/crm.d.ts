@@ -885,6 +885,7 @@ declare namespace Api {
       completedCount: number;
       failedCount: number;
       pendingCount: number;
+      progressPercent?: number;
       routePath: string;
     }
 

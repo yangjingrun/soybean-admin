@@ -951,6 +951,7 @@ export class PrismaCrmStore implements CrmStore {
               completedCount: aiLeadTask.status === 'completed' ? aiLeadTask.targetLeadCount : 0,
               failedCount: aiLeadTask.status === 'failed' ? 1 : 0,
               pendingCount: ['queued', 'running'].includes(aiLeadTask.status) ? aiLeadTask.targetLeadCount : 0,
+              progressPercent: readProgressPercent(aiLeadTask.progressState, aiLeadTask.status),
               routePath: '/ai-leads'
             }
           ]
@@ -3984,6 +3985,16 @@ function toDateRange(from: Date, to: Date) {
 
 function formatUtcDateKey(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function readProgressPercent(progressState: unknown, status: string) {
+  if (status === 'completed' || status === 'failed') return 100;
+  if (!progressState || typeof progressState !== 'object' || !('progressPercent' in progressState)) return undefined;
+
+  const value = (progressState as { progressPercent?: unknown }).progressPercent;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function countDates(dates: Date[]) {

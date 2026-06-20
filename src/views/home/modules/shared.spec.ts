@@ -5,6 +5,7 @@ import {
   buildWorkbenchRecommendation,
   buildWorkbenchTodoItems,
   buildWorkbenchTrendOption,
+  formatTaskProgress,
   shouldPollWorkbench
 } from './shared';
 
@@ -98,6 +99,22 @@ describe('home workbench shared helpers', () => {
     );
   });
 
+  it('uses backend task progress percent when present', () => {
+    const [task] = createWorkbenchOverview({
+      runningTasks: [
+        {
+          progressPercent: 46,
+          totalCount: 20,
+          completedCount: 0,
+          failedCount: 0,
+          pendingCount: 20
+        }
+      ]
+    }).runningTasks;
+
+    assert.equal(formatTaskProgress(task), 46);
+  });
+
   it('builds the seven day sent and reply trend option', () => {
     const option = buildWorkbenchTrendOption(
       createWorkbenchOverview({
@@ -156,6 +173,7 @@ function createWorkbenchOverview(
       completedCount: task.completedCount ?? 4,
       failedCount: task.failedCount ?? 1,
       pendingCount: task.pendingCount ?? 5,
+      progressPercent: task.progressPercent,
       routePath: task.routePath ?? '/crm/email-sequences'
     }))
   };

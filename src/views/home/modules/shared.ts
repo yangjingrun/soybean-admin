@@ -350,6 +350,10 @@ export function formatWorkbenchUpdatedAt(value: string | null | undefined) {
 }
 
 export function formatTaskProgress(task: Api.Crm.WorkbenchRunningTask) {
+  if (typeof task.progressPercent === 'number') {
+    return Math.max(0, Math.min(100, Math.round(task.progressPercent)));
+  }
+
   const totalCount = Math.max(task.totalCount, task.completedCount + task.failedCount + task.pendingCount);
   if (totalCount <= 0) return 0;
 

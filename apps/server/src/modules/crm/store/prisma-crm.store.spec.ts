@@ -233,6 +233,7 @@ describe('PrismaCrmStore', () => {
     assert.equal(overview.trend[0].date, '2026-06-14');
     assert.equal(overview.trend.at(-1)?.date, '2026-06-20');
     assert.equal(overview.runningTasks[0]?.type, 'ai_draft');
+    assert.equal(overview.runningTasks.find(task => task.type === 'ai_leads')?.progressPercent, 46);
     assert.deepEqual(prisma.crmMessage.countCalls[0].where, {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
@@ -3054,17 +3055,17 @@ function createPrisma(
           requirement: 'Find bearing importers',
           targetLeadCount: 20,
           keywordPlan: {},
-          status: 'completed',
+          status: 'running',
           priority: 0,
           runVersion: 1,
-          progressState: null,
+          progressState: { type: 'step_progress', progressPercent: 46 },
           result: null,
           errorMessage: null,
           bullJobId: null,
           readAt: null,
           notifiedAt: null,
           startedAt: new Date('2026-06-20T08:00:00.000Z'),
-          finishedAt: new Date('2026-06-20T08:30:00.000Z'),
+          finishedAt: null,
           createdAt: new Date('2026-06-20T08:00:00.000Z'),
           updatedAt: new Date('2026-06-20T08:30:00.000Z')
         };
