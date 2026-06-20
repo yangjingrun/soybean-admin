@@ -34,22 +34,3 @@ export abstract class CrmControllerBase {
     return requirePlatformSuperContext(context, '无权维护 CRM 全局配置');
   }
 }
-
-type ControllerCtor = { prototype: object };
-
-/** Copies prototype methods so the legacy CrmController keeps old direct-call tests working. */
-export function applyControllerMixins(derivedCtor: ControllerCtor, constructors: ControllerCtor[]) {
-  for (const baseCtor of constructors) {
-    for (const name of Object.getOwnPropertyNames(baseCtor.prototype)) {
-      if (name === 'constructor') {
-        continue;
-      }
-
-      const descriptor = Object.getOwnPropertyDescriptor(baseCtor.prototype, name);
-
-      if (descriptor) {
-        Object.defineProperty(derivedCtor.prototype, name, descriptor);
-      }
-    }
-  }
-}

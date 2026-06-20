@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { UserInfo } from '../auth/auth.types';
-import { CrmController } from './crm.controller';
+import { CrmAccountController } from './controllers/crm-account.controller';
+import { CrmInboxController } from './controllers/crm-inbox.controller';
+import { CrmMailboxController } from './controllers/crm-mailbox.controller';
+import { CrmSequenceController } from './controllers/crm-sequence.controller';
+import { CrmSettingsController } from './controllers/crm-settings.controller';
 import { CrmService } from './crm.service';
 import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
 
@@ -27,23 +31,21 @@ type CrmAiDraftTaskCreateView = Awaited<ReturnType<CrmService['createAiDraftTask
 type CrmAiDraftQueueConfigView = Awaited<ReturnType<CrmService['getAiDraftQueueConfig']>>;
 type CrmWorkbenchOverviewView = Awaited<ReturnType<CrmService['getWorkbenchOverview']>>;
 
-describe('CrmController', () => {
+describe('CRM split controllers', () => {
   it('lists accounts with the current organization context', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listAccounts(context, query) {
-          calls.push({ context, query });
+    const controller = createAccountController({
+      async listAccounts(context, query) {
+        calls.push({ context, query });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 0,
-            records: []
-          };
-        }
-      })
-    );
+        return {
+          current: 1,
+          size: 20,
+          total: 0,
+          records: []
+        };
+      }
+    });
 
     const query = {
       current: 1,
@@ -66,20 +68,18 @@ describe('CrmController', () => {
 
   it('uses the shared request context without reading the authorization header', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listAccounts(context, query) {
-          calls.push({ context, query });
+    const controller = createAccountController({
+      async listAccounts(context, query) {
+        calls.push({ context, query });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 0,
-            records: []
-          };
-        }
-      })
-    );
+        return {
+          current: 1,
+          size: 20,
+          total: 0,
+          records: []
+        };
+      }
+    });
 
     const query = { current: 2, size: 10 };
     const result = await controller.listAccounts(createContext(), query);
@@ -91,15 +91,13 @@ describe('CrmController', () => {
 
   it('gets the CRM workbench overview with the current user context', async () => {
     const calls: CrmUserContext[] = [];
-    const controller = new CrmController(
-      createCrmService({
-        async getWorkbenchOverview(context) {
-          calls.push(context);
+    const controller = createSettingsController({
+      async getWorkbenchOverview(context) {
+        calls.push(context);
 
-          return createWorkbenchOverviewView();
-        }
-      })
-    );
+        return createWorkbenchOverviewView();
+      }
+    });
 
     const result = await controller.getWorkbenchOverview(createContext());
 
@@ -116,35 +114,33 @@ describe('CrmController', () => {
 
   it('imports one lead account for the current user', async () => {
     const calls: Array<{ input: ImportCrmLeadInput; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async importAccountFromLead(input, context) {
-          calls.push({ input, context });
+    const controller = createAccountController({
+      async importAccountFromLead(input, context) {
+        calls.push({ input, context });
 
-          return {
-            account: {
-              id: 'account-1',
-              organizationId: context.organizationId,
-              ownerUserId: context.userId,
-              name: input.name,
-              normalizedName: 'abc trading',
-              websiteUrl: input.websiteUrl ?? null,
-              domain: 'abc.example',
-              country: input.country ?? null,
-              customerType: input.customerType ?? null,
-              status: 'missing_contact',
-              sourceTaskId: input.sourceTaskId ?? null,
-              archivedAt: null,
-              archiveReason: null,
-              archiveSlimmedAt: null,
-              createdAt: new Date('2026-06-18T09:00:00.000Z'),
-              updatedAt: new Date('2026-06-18T09:00:00.000Z')
-            },
-            contact: null
-          };
-        }
-      })
-    );
+        return {
+          account: {
+            id: 'account-1',
+            organizationId: context.organizationId,
+            ownerUserId: context.userId,
+            name: input.name,
+            normalizedName: 'abc trading',
+            websiteUrl: input.websiteUrl ?? null,
+            domain: 'abc.example',
+            country: input.country ?? null,
+            customerType: input.customerType ?? null,
+            status: 'missing_contact',
+            sourceTaskId: input.sourceTaskId ?? null,
+            archivedAt: null,
+            archiveReason: null,
+            archiveSlimmedAt: null,
+            createdAt: new Date('2026-06-18T09:00:00.000Z'),
+            updatedAt: new Date('2026-06-18T09:00:00.000Z')
+          },
+          contact: null
+        };
+      }
+    });
 
     const result = await controller.importLead(createContext(), {
       name: 'ABC Trading',
@@ -162,19 +158,17 @@ describe('CrmController', () => {
 
   it('gets account detail with the current user context', async () => {
     const calls: Array<{ id: string; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async getAccountDetail(id, context) {
-          calls.push({ id, context });
+    const controller = createAccountController({
+      async getAccountDetail(id, context) {
+        calls.push({ id, context });
 
-          return {
-            account: createAccountView({ id }),
-            contacts: [],
-            timelineEvents: []
-          };
-        }
-      })
-    );
+        return {
+          account: createAccountView({ id }),
+          contacts: [],
+          timelineEvents: []
+        };
+      }
+    });
 
     const result = await controller.getAccountDetail(createContext(), 'account-1');
 
@@ -185,20 +179,18 @@ describe('CrmController', () => {
 
   it('lists blacklist entries with the current organization context', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listBlacklistEntries(context, query) {
-          calls.push({ context, query });
+    const controller = createSettingsController({
+      async listBlacklistEntries(context, query) {
+        calls.push({ context, query });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createBlacklistView()]
-          };
-        }
-      })
-    );
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createBlacklistView()]
+        };
+      }
+    });
 
     const result = await controller.listBlacklistEntries(createContext(), {
       keyword: 'alice'
@@ -212,17 +204,15 @@ describe('CrmController', () => {
 
   it('removes blacklist entries with the current user context', async () => {
     const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async removeBlacklistEntry(id, dto, context) {
-          calls.push({ id, dto, context });
+    const controller = createSettingsController({
+      async removeBlacklistEntry(id, dto, context) {
+        calls.push({ id, dto, context });
 
-          return {
-            blacklistEntry: createBlacklistView({ id })
-          };
-        }
-      })
-    );
+        return {
+          blacklistEntry: createBlacklistView({ id })
+        };
+      }
+    });
 
     const result = await controller.removeBlacklistEntry(createContext(), 'blacklist-1', {
       reason: '客户确认恢复联系'
@@ -237,21 +227,19 @@ describe('CrmController', () => {
 
   it('changes account status with the current user context', async () => {
     const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async updateAccountStatus(id, dto, context) {
-          calls.push({ id, dto, context });
+    const controller = createAccountController({
+      async updateAccountStatus(id, dto, context) {
+        calls.push({ id, dto, context });
 
-          return {
-            account: createAccountView({ id, status: dto.status }),
-            event: createTimelineEventView({
-              accountId: id,
-              eventType: 'status_changed'
-            })
-          };
-        }
-      })
-    );
+        return {
+          account: createAccountView({ id, status: dto.status }),
+          event: createTimelineEventView({
+            accountId: id,
+            eventType: 'status_changed'
+          })
+        };
+      }
+    });
 
     const dto = { status: 'ready' as const, remark: 'verified' };
     const result = await controller.updateAccountStatus(createContext(), 'account-1', dto);
@@ -264,21 +252,19 @@ describe('CrmController', () => {
 
   it('adds account notes with the current user context', async () => {
     const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async addAccountNote(id, dto, context) {
-          calls.push({ id, dto, context });
+    const controller = createAccountController({
+      async addAccountNote(id, dto, context) {
+        calls.push({ id, dto, context });
 
-          return {
-            event: createTimelineEventView({
-              id: 'event-1',
-              accountId: id,
-              content: dto.content
-            })
-          };
-        }
-      })
-    );
+        return {
+          event: createTimelineEventView({
+            id: 'event-1',
+            accountId: id,
+            content: dto.content
+          })
+        };
+      }
+    });
 
     const dto = { content: 'Call next week.' };
     const result = await controller.addAccountNote(createContext(), 'account-1', dto);
@@ -291,21 +277,19 @@ describe('CrmController', () => {
 
   it('archives accounts with the current user context', async () => {
     const calls: Array<{ id: string; dto: unknown; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async archiveAccount(id, dto, context) {
-          calls.push({ id, dto, context });
+    const controller = createAccountController({
+      async archiveAccount(id, dto, context) {
+        calls.push({ id, dto, context });
 
-          return {
-            account: createAccountView({ id, status: 'archived' }),
-            event: createTimelineEventView({
-              accountId: id,
-              eventType: 'account_archived'
-            })
-          };
-        }
-      })
-    );
+        return {
+          account: createAccountView({ id, status: 'archived' }),
+          event: createTimelineEventView({
+            accountId: id,
+            eventType: 'account_archived'
+          })
+        };
+      }
+    });
 
     const dto = { reason: 'Not a fit' };
     const result = await controller.archiveAccount(createContext(), 'account-1', dto);
@@ -318,21 +302,19 @@ describe('CrmController', () => {
 
   it('restores archived accounts with the current user context', async () => {
     const calls: Array<{ id: string; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async restoreAccount(id, context) {
-          calls.push({ id, context });
+    const controller = createAccountController({
+      async restoreAccount(id, context) {
+        calls.push({ id, context });
 
-          return {
-            account: createAccountView({ id, status: 'candidate' }),
-            event: createTimelineEventView({
-              accountId: id,
-              eventType: 'account_restored'
-            })
-          };
-        }
-      })
-    );
+        return {
+          account: createAccountView({ id, status: 'candidate' }),
+          event: createTimelineEventView({
+            accountId: id,
+            eventType: 'account_restored'
+          })
+        };
+      }
+    });
 
     const result = await controller.restoreAccount(createContext(), 'account-1');
 
@@ -344,15 +326,13 @@ describe('CrmController', () => {
 
   it('verifies contact email with the current user context', async () => {
     const calls: Array<{ id: string; context: CrmUserContext }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async verifyContactEmail(id, context) {
-          calls.push({ id, context });
+    const controller = createAccountController({
+      async verifyContactEmail(id, context) {
+        calls.push({ id, context });
 
-          return createEmailVerificationView({ contactId: id });
-        }
-      })
-    );
+        return createEmailVerificationView({ contactId: id });
+      }
+    });
 
     const result = await controller.verifyContactEmail(createContext(), 'contact-1');
 
@@ -368,19 +348,17 @@ describe('CrmController', () => {
       dto: { emailAddress: string };
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async mockAuthorizeMailbox(dto, context) {
-          calls.push({ dto, context });
+    const controller = createMailboxController({
+      async mockAuthorizeMailbox(dto, context) {
+        calls.push({ dto, context });
 
-          return {
-            mailbox: createMailboxView({
-              emailAddress: dto.emailAddress.toLowerCase()
-            })
-          };
-        }
-      })
-    );
+        return {
+          mailbox: createMailboxView({
+            emailAddress: dto.emailAddress.toLowerCase()
+          })
+        };
+      }
+    });
 
     const dto = { emailAddress: 'Alice@Gmail.COM' };
     const result = await withCrmMockEndpointsEnabled(() =>
@@ -394,18 +372,19 @@ describe('CrmController', () => {
   });
 
   it('rejects CRM mock endpoints unless explicitly enabled', async () => {
-    const controller = new CrmController(createCrmService());
+    const mailboxController = createMailboxController();
+    const inboxController = createInboxController();
 
     await assert.rejects(
       () =>
-        controller.mockAuthorizeMailbox(createContext(), {
+        mailboxController.mockAuthorizeMailbox(createContext(), {
           emailAddress: 'alice@gmail.com'
         }),
       ForbiddenException
     );
     await assert.rejects(
       () =>
-        controller.mockCustomerReply(createContext(), 'message-1', {
+        inboxController.mockCustomerReply(createContext(), 'message-1', {
           bodyText: 'Please send details.'
         }),
       ForbiddenException
@@ -413,7 +392,7 @@ describe('CrmController', () => {
   });
 
   it('rejects CRM mock endpoints for ordinary users even when enabled', async () => {
-    const controller = new CrmController(createCrmService());
+    const controller = createMailboxController();
 
     await assert.rejects(
       () =>
@@ -427,7 +406,7 @@ describe('CrmController', () => {
   });
 
   it('rejects CRM mock endpoints in production even when the switch is enabled', async () => {
-    const controller = new CrmController(createCrmService());
+    const controller = createMailboxController();
 
     await assert.rejects(
       () =>
@@ -442,18 +421,16 @@ describe('CrmController', () => {
 
   it('creates a Gmail OAuth URL with the current user context', async () => {
     const calls: CrmUserContext[] = [];
-    const controller = new CrmController(
-      createCrmService({
-        createGmailOAuthAuthorizationUrl(context) {
-          calls.push(context);
+    const controller = createMailboxController({
+      createGmailOAuthAuthorizationUrl(context) {
+        calls.push(context);
 
-          return {
-            authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth?state=state-1',
-            state: 'state-1'
-          };
-        }
-      })
-    );
+        return {
+          authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth?state=state-1',
+          state: 'state-1'
+        };
+      }
+    });
 
     const result = await controller.createGmailOAuthUrl(createContext());
 
@@ -468,17 +445,15 @@ describe('CrmController', () => {
       dto: { code: string; state: string };
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async completeGmailOAuthAuthorization(dto, context) {
-          calls.push({ dto, context });
+    const controller = createMailboxController({
+      async completeGmailOAuthAuthorization(dto, context) {
+        calls.push({ dto, context });
 
-          return {
-            mailbox: createMailboxView({ emailAddress: 'alice@gmail.com' })
-          };
-        }
-      })
-    );
+        return {
+          mailbox: createMailboxView({ emailAddress: 'alice@gmail.com' })
+        };
+      }
+    });
 
     const dto = { code: 'code-1', state: 'state-1' };
     const result = await controller.completeGmailOAuthCallback(createContext(), dto);
@@ -491,20 +466,18 @@ describe('CrmController', () => {
 
   it('lists mailboxes with the current organization context', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listMailboxes(context, query) {
-          calls.push({ context, query });
+    const controller = createMailboxController({
+      async listMailboxes(context, query) {
+        calls.push({ context, query });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createMailboxView()]
-          };
-        }
-      })
-    );
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createMailboxView()]
+        };
+      }
+    });
 
     const query = {
       current: 1,
@@ -526,20 +499,18 @@ describe('CrmController', () => {
       id: string;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async pauseMailbox(id, context) {
-          calls.push({ action: 'pause', id, context });
+    const controller = createMailboxController({
+      async pauseMailbox(id, context) {
+        calls.push({ action: 'pause', id, context });
 
-          return { mailbox: createMailboxView({ id, status: 'paused' }) };
-        },
-        async resumeMailbox(id, context) {
-          calls.push({ action: 'resume', id, context });
+        return { mailbox: createMailboxView({ id, status: 'paused' }) };
+      },
+      async resumeMailbox(id, context) {
+        calls.push({ action: 'resume', id, context });
 
-          return { mailbox: createMailboxView({ id, status: 'active' }) };
-        }
-      })
-    );
+        return { mailbox: createMailboxView({ id, status: 'active' }) };
+      }
+    });
 
     const paused = await controller.pauseMailbox(createContext(), 'mailbox-1');
     const resumed = await controller.resumeMailbox(createContext(), 'mailbox-1');
@@ -547,7 +518,7 @@ describe('CrmController', () => {
     assert.equal(paused.data.mailbox.status, 'paused');
     assert.equal(resumed.data.mailbox.status, 'active');
     assert.deepEqual(
-      calls.map(call => ({
+      calls.map((call) => ({
         action: call.action,
         id: call.id,
         userId: call.context.userId
@@ -561,7 +532,7 @@ describe('CrmController', () => {
 
   it('renews Gmail watch with the current user context', async () => {
     const calls: Array<{ id: string; context: CrmUserContext }> = [];
-    const controller = new CrmController(createCrmService(), {
+    const controller = createMailboxController({}, {
       async renewMailboxWatch(id: string, context: CrmUserContext) {
         calls.push({ id, context });
 
@@ -585,14 +556,14 @@ describe('CrmController', () => {
     assert.ok(result.data);
     assert.equal(result.data.watch.historyId, '150');
     assert.deepEqual(
-      calls.map(call => ({ id: call.id, userId: call.context.userId })),
+      calls.map((call) => ({ id: call.id, userId: call.context.userId })),
       [{ id: 'mailbox-1', userId: 'user-1' }]
     );
   });
 
   it('enqueues an immediate Gmail sync with the current user context', async () => {
     const calls: Array<{ id: string; context: CrmUserContext }> = [];
-    const controller = new CrmController(createCrmService(), {
+    const controller = createMailboxController({}, {
       async syncMailboxNow(id: string, context: CrmUserContext) {
         calls.push({ id, context });
 
@@ -621,27 +592,25 @@ describe('CrmController', () => {
     assert.equal(result.code, '0000');
     assert.equal(result.data.sync.queued, true);
     assert.deepEqual(
-      calls.map(call => ({ id: call.id, userId: call.context.userId })),
+      calls.map((call) => ({ id: call.id, userId: call.context.userId })),
       [{ id: 'mailbox-1', userId: 'user-1' }]
     );
   });
 
   it('lists product lines with the current organization context', async () => {
     const calls: Array<{ context: CrmUserContext; query: unknown }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listProductLines(context, query) {
-          calls.push({ context, query });
+    const controller = createSettingsController({
+      async listProductLines(context, query) {
+        calls.push({ context, query });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createProductLineView()]
-          };
-        }
-      })
-    );
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createProductLineView()]
+        };
+      }
+    });
 
     const query = {
       current: 1,
@@ -664,32 +633,30 @@ describe('CrmController', () => {
       dto?: unknown;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async createProductLine(dto, context) {
-          calls.push({ action: 'create', dto, context });
+    const controller = createSettingsController({
+      async createProductLine(dto, context) {
+        calls.push({ action: 'create', dto, context });
 
-          return { productLine: createProductLineView({ name: dto.name }) };
-        },
-        async updateProductLine(id, dto, context) {
-          calls.push({ action: 'update', id, dto, context });
+        return { productLine: createProductLineView({ name: dto.name }) };
+      },
+      async updateProductLine(id, dto, context) {
+        calls.push({ action: 'update', id, dto, context });
 
-          return {
-            productLine: createProductLineView({
-              id,
-              name: dto.name ?? 'Bearing Series'
-            })
-          };
-        },
-        async archiveProductLine(id, context) {
-          calls.push({ action: 'archive', id, context });
+        return {
+          productLine: createProductLineView({
+            id,
+            name: dto.name ?? 'Bearing Series'
+          })
+        };
+      },
+      async archiveProductLine(id, context) {
+        calls.push({ action: 'archive', id, context });
 
-          return {
-            productLine: createProductLineView({ id, status: 'archived' })
-          };
-        }
-      })
-    );
+        return {
+          productLine: createProductLineView({ id, status: 'archived' })
+        };
+      }
+    });
 
     const createDto = { name: 'Bearing Series' };
     const updateDto = {
@@ -704,7 +671,7 @@ describe('CrmController', () => {
     assert.equal(updated.data.productLine.name, 'Premium Bearing Series');
     assert.equal(archived.data.productLine.status, 'archived');
     assert.deepEqual(
-      calls.map(call => ({
+      calls.map((call) => ({
         action: call.action,
         id: call.id,
         organizationId: call.context.organizationId
@@ -724,50 +691,48 @@ describe('CrmController', () => {
       versionId?: string;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listProductLineAiPromptVersions(id, context) {
-          calls.push({ action: 'list', id, context });
+    const controller = createSettingsController({
+      async listProductLineAiPromptVersions(id, context) {
+        calls.push({ action: 'list', id, context });
 
-          return {
-            records: [
-              {
-                id: 'prompt-version-1',
-                organizationId: context.organizationId,
-                productLineId: id,
-                version: 1,
-                aiWritingConfig: createAiWritingConfigView(),
-                editorId: 'user-1',
-                editorName: 'Alice',
-                changeSummary: '初始 AI 写信配置',
-                createdAt: '2026-06-18T10:00:00.000Z'
-              }
-            ]
-          };
-        },
-        async restoreProductLineAiPromptVersion(id, versionId, context) {
-          calls.push({ action: 'restore', id, versionId, context });
-
-          return {
-            productLine: createProductLineView({
-              id,
-              aiWritingConfig: createAiWritingConfigView()
-            }),
-            version: {
-              id: 'prompt-version-2',
+        return {
+          records: [
+            {
+              id: 'prompt-version-1',
               organizationId: context.organizationId,
               productLineId: id,
-              version: 2,
+              version: 1,
               aiWritingConfig: createAiWritingConfigView(),
-              editorId: context.userId,
-              editorName: context.userName,
-              changeSummary: '恢复版本 1',
+              editorId: 'user-1',
+              editorName: 'Alice',
+              changeSummary: '初始 AI 写信配置',
               createdAt: '2026-06-18T10:00:00.000Z'
             }
-          };
-        }
-      })
-    );
+          ]
+        };
+      },
+      async restoreProductLineAiPromptVersion(id, versionId, context) {
+        calls.push({ action: 'restore', id, versionId, context });
+
+        return {
+          productLine: createProductLineView({
+            id,
+            aiWritingConfig: createAiWritingConfigView()
+          }),
+          version: {
+            id: 'prompt-version-2',
+            organizationId: context.organizationId,
+            productLineId: id,
+            version: 2,
+            aiWritingConfig: createAiWritingConfigView(),
+            editorId: context.userId,
+            editorName: context.userName,
+            changeSummary: '恢复版本 1',
+            createdAt: '2026-06-18T10:00:00.000Z'
+          }
+        };
+      }
+    });
 
     const versions = await controller.listProductLineAiPromptVersions(createContext(), 'line-1');
     const restored = await controller.restoreProductLineAiPromptVersion(createContext(), 'line-1', 'prompt-version-1');
@@ -775,7 +740,7 @@ describe('CrmController', () => {
     assert.equal(versions.data.records[0].version, 1);
     assert.equal(restored.data.version.version, 2);
     assert.deepEqual(
-      calls.map(call => [call.action, call.id, call.versionId, call.context.userId]),
+      calls.map((call) => [call.action, call.id, call.versionId, call.context.userId]),
       [
         ['list', 'line-1', undefined, 'user-1'],
         ['restore', 'line-1', 'prompt-version-1', 'user-1']
@@ -790,54 +755,52 @@ describe('CrmController', () => {
       dto?: unknown;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listPersonaProfiles(context, query) {
-          calls.push({ action: 'list', dto: query, context });
+    const controller = createSettingsController({
+      async listPersonaProfiles(context, query) {
+        calls.push({ action: 'list', dto: query, context });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createPersonaProfileView()]
-          };
-        },
-        async createPersonaProfile(dto, context) {
-          calls.push({ action: 'create', dto, context });
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createPersonaProfileView()]
+        };
+      },
+      async createPersonaProfile(dto, context) {
+        calls.push({ action: 'create', dto, context });
 
-          return {
-            personaProfile: createPersonaProfileView({ name: dto.name })
-          };
-        },
-        async updatePersonaProfile(id, dto, context) {
-          calls.push({ action: 'update', id, dto, context });
+        return {
+          personaProfile: createPersonaProfileView({ name: dto.name })
+        };
+      },
+      async updatePersonaProfile(id, dto, context) {
+        calls.push({ action: 'update', id, dto, context });
 
-          return {
-            personaProfile: createPersonaProfileView({
-              id,
-              name: dto.name ?? 'Purchasing Manager'
-            })
-          };
-        },
-        async archivePersonaProfile(id, context) {
-          calls.push({ action: 'archive', id, context });
+        return {
+          personaProfile: createPersonaProfileView({
+            id,
+            name: dto.name ?? 'Purchasing Manager'
+          })
+        };
+      },
+      async archivePersonaProfile(id, context) {
+        calls.push({ action: 'archive', id, context });
 
-          return {
-            personaProfile: createPersonaProfileView({
-              id,
-              status: 'archived'
-            })
-          };
-        },
-        async setDefaultPersonaProfile(id, context) {
-          calls.push({ action: 'default', id, context });
+        return {
+          personaProfile: createPersonaProfileView({
+            id,
+            status: 'archived'
+          })
+        };
+      },
+      async setDefaultPersonaProfile(id, context) {
+        calls.push({ action: 'default', id, context });
 
-          return {
-            personaProfile: createPersonaProfileView({ id, isDefault: true })
-          };
-        }
-      })
-    );
+        return {
+          personaProfile: createPersonaProfileView({ id, isDefault: true })
+        };
+      }
+    });
 
     const payload = {
       name: 'Procurement lead',
@@ -864,7 +827,7 @@ describe('CrmController', () => {
     assert.equal(archived.data.personaProfile.status, 'archived');
     assert.equal(defaulted.data.personaProfile.isDefault, true);
     assert.deepEqual(
-      calls.map(call => ({
+      calls.map((call) => ({
         action: call.action,
         id: call.id,
         organizationId: call.context.organizationId
@@ -881,15 +844,13 @@ describe('CrmController', () => {
 
   it('gets read-only template defaults with the current organization context', async () => {
     const calls: CrmUserContext[] = [];
-    const controller = new CrmController(
-      createCrmService({
-        async getTemplateDefaults(context) {
-          calls.push(context);
+    const controller = createSettingsController({
+      async getTemplateDefaults(context) {
+        calls.push(context);
 
-          return createTemplateDefaultsView();
-        }
-      })
-    );
+        return createTemplateDefaultsView();
+      }
+    });
 
     const result = await controller.getTemplateDefaults(createContext());
 
@@ -906,62 +867,60 @@ describe('CrmController', () => {
       dto?: unknown;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listEmailTemplateGroups(context, query) {
-          calls.push({ action: 'list', dto: query, context });
+    const controller = createSettingsController({
+      async listEmailTemplateGroups(context, query) {
+        calls.push({ action: 'list', dto: query, context });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createEmailTemplateGroupView()]
-          };
-        },
-        async createEmailTemplateGroup(dto, context) {
-          calls.push({ action: 'create', dto, context });
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createEmailTemplateGroupView()]
+        };
+      },
+      async createEmailTemplateGroup(dto, context) {
+        calls.push({ action: 'create', dto, context });
 
-          return {
-            templateGroup: createEmailTemplateGroupView({ name: dto.name })
-          };
-        },
-        async updateEmailTemplateGroup(id, dto, context) {
-          calls.push({ action: 'update', id, dto, context });
+        return {
+          templateGroup: createEmailTemplateGroupView({ name: dto.name })
+        };
+      },
+      async updateEmailTemplateGroup(id, dto, context) {
+        calls.push({ action: 'update', id, dto, context });
 
-          return {
-            templateGroup: createEmailTemplateGroupView({
-              id,
-              name: dto.name ?? 'Default follow-up'
-            })
-          };
-        },
-        async archiveEmailTemplateGroup(id, context) {
-          calls.push({ action: 'archive', id, context });
+        return {
+          templateGroup: createEmailTemplateGroupView({
+            id,
+            name: dto.name ?? 'Default follow-up'
+          })
+        };
+      },
+      async archiveEmailTemplateGroup(id, context) {
+        calls.push({ action: 'archive', id, context });
 
-          return {
-            templateGroup: createEmailTemplateGroupView({
-              id,
-              status: 'archived'
-            })
-          };
-        },
-        async setDefaultEmailTemplateGroup(id, context) {
-          calls.push({ action: 'default', id, context });
+        return {
+          templateGroup: createEmailTemplateGroupView({
+            id,
+            status: 'archived'
+          })
+        };
+      },
+      async setDefaultEmailTemplateGroup(id, context) {
+        calls.push({ action: 'default', id, context });
 
-          return {
-            templateGroup: createEmailTemplateGroupView({
-              id,
-              isDefault: true
-            })
-          };
-        }
-      })
-    );
+        return {
+          templateGroup: createEmailTemplateGroupView({
+            id,
+            isDefault: true
+          })
+        };
+      }
+    });
 
     const payload = {
       name: 'Distributor sequence',
       language: 'en',
-      steps: createEmailTemplateGroupView().steps.map(step => ({
+      steps: createEmailTemplateGroupView().steps.map((step) => ({
         stepIndex: step.stepIndex,
         name: step.name,
         threadMode: step.threadMode,
@@ -987,7 +946,7 @@ describe('CrmController', () => {
     assert.equal(archived.data.templateGroup.status, 'archived');
     assert.equal(defaulted.data.templateGroup.isDefault, true);
     assert.deepEqual(
-      calls.map(call => ({
+      calls.map((call) => ({
         action: call.action,
         id: call.id,
         organizationId: call.context.organizationId
@@ -1008,30 +967,28 @@ describe('CrmController', () => {
       payload: unknown;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async createSequenceReviewItem(dto, context) {
-          calls.push({ action: 'create', payload: dto, context });
+    const controller = createSequenceController({
+      async createSequenceReviewItem(dto, context) {
+        calls.push({ action: 'create', payload: dto, context });
 
-          return { item: createSequenceReviewItemView({ id: 'enrollment-1' }) };
-        },
-        async listSequenceReviewItems(context, query) {
-          calls.push({ action: 'list', payload: query, context });
+        return { item: createSequenceReviewItemView({ id: 'enrollment-1' }) };
+      },
+      async listSequenceReviewItems(context, query) {
+        calls.push({ action: 'list', payload: query, context });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createSequenceReviewItemView({ id: 'enrollment-1' })]
-          };
-        },
-        async getSequenceReviewItem(id, context) {
-          calls.push({ action: 'detail', payload: id, context });
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createSequenceReviewItemView({ id: 'enrollment-1' })]
+        };
+      },
+      async getSequenceReviewItem(id, context) {
+        calls.push({ action: 'detail', payload: id, context });
 
-          return createSequenceReviewItemView({ id });
-        }
-      })
-    );
+        return createSequenceReviewItemView({ id });
+      }
+    });
 
     const dto = {
       accountId: 'account-1',
@@ -1053,7 +1010,7 @@ describe('CrmController', () => {
     assert.equal(listed.data.records[0].enrollment.id, 'enrollment-1');
     assert.equal(detail.data.enrollment.id, 'enrollment-1');
     assert.deepEqual(
-      calls.map(call => [call.action, call.context.userId]),
+      calls.map((call) => [call.action, call.context.userId]),
       [
         ['create', 'user-1'],
         ['list', 'user-1'],
@@ -1074,19 +1031,17 @@ describe('CrmController', () => {
       dto: { enrollmentIds: string[] };
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async createAiDraftTask(dto, context) {
-          calls.push({ dto, context });
+    const controller = createSequenceController({
+      async createAiDraftTask(dto, context) {
+        calls.push({ dto, context });
 
-          return createAiDraftTaskCreateView({
-            requestedCount: dto.enrollmentIds.length,
-            pendingCount: 1,
-            skippedCount: 1
-          });
-        }
-      })
-    );
+        return createAiDraftTaskCreateView({
+          requestedCount: dto.enrollmentIds.length,
+          pendingCount: 1,
+          skippedCount: 1
+        });
+      }
+    });
 
     const dto = { enrollmentIds: ['enrollment-1', 'enrollment-2'] };
     const result = await controller.createAiDraftTask(createContext(), dto);
@@ -1105,43 +1060,41 @@ describe('CrmController', () => {
       context: CrmUserContext;
       query?: unknown;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async getCurrentAiDraftTask(context) {
-          calls.push({ action: 'current', context });
-          return createAiDraftTaskCreateView();
-        },
-        async listAiDraftTasks(context, query) {
-          calls.push({ action: 'list', context, query });
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createAiDraftTaskCreateView().task]
-          };
-        },
-        async getAiDraftTaskDetail(id, context) {
-          calls.push({ action: 'detail', id, context });
-          return createAiDraftTaskCreateView();
-        },
-        async retryFailedAiDraftTask(id, context) {
-          calls.push({ action: 'retry', id, context });
-          return createAiDraftTaskCreateView({ status: 'queued' });
-        },
-        async cancelAiDraftTask(id, context) {
-          calls.push({ action: 'cancel', id, context });
-          return createAiDraftTaskCreateView({ status: 'cancelled' });
-        },
-        async markAiDraftTaskRead(id, context) {
-          calls.push({ action: 'read', id, context });
-          return {
-            task: createAiDraftTaskCreateView({
-              readAt: '2026-06-20T10:00:00.000Z'
-            }).task
-          };
-        }
-      })
-    );
+    const controller = createSequenceController({
+      async getCurrentAiDraftTask(context) {
+        calls.push({ action: 'current', context });
+        return createAiDraftTaskCreateView();
+      },
+      async listAiDraftTasks(context, query) {
+        calls.push({ action: 'list', context, query });
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createAiDraftTaskCreateView().task]
+        };
+      },
+      async getAiDraftTaskDetail(id, context) {
+        calls.push({ action: 'detail', id, context });
+        return createAiDraftTaskCreateView();
+      },
+      async retryFailedAiDraftTask(id, context) {
+        calls.push({ action: 'retry', id, context });
+        return createAiDraftTaskCreateView({ status: 'queued' });
+      },
+      async cancelAiDraftTask(id, context) {
+        calls.push({ action: 'cancel', id, context });
+        return createAiDraftTaskCreateView({ status: 'cancelled' });
+      },
+      async markAiDraftTaskRead(id, context) {
+        calls.push({ action: 'read', id, context });
+        return {
+          task: createAiDraftTaskCreateView({
+            readAt: '2026-06-20T10:00:00.000Z'
+          }).task
+        };
+      }
+    });
 
     await controller.getCurrentAiDraftTask(createContext());
     await controller.listAiDraftTasks(createContext(), {
@@ -1155,34 +1108,32 @@ describe('CrmController', () => {
 
     assert.equal(read.data.task.readAt, '2026-06-20T10:00:00.000Z');
     assert.deepEqual(
-      calls.map(call => call.action),
+      calls.map((call) => call.action),
       ['current', 'list', 'detail', 'retry', 'cancel', 'read']
     );
     assert.equal(
-      calls.every(call => call.context.userId === 'user-1'),
+      calls.every((call) => call.context.userId === 'user-1'),
       true
     );
   });
 
   it('lists local strategy stats with the current user context', async () => {
     const calls: CrmUserContext[] = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listStrategyStats(context) {
-          calls.push(context);
+    const controller = createSettingsController({
+      async listStrategyStats(context) {
+        calls.push(context);
 
-          return {
-            generatedAt: new Date('2026-06-20T08:00:00.000Z'),
-            rows: {
-              template: [],
-              policy: [],
-              persona: [],
-              productLine: []
-            }
-          };
-        }
-      })
-    );
+        return {
+          generatedAt: new Date('2026-06-20T08:00:00.000Z'),
+          rows: {
+            template: [],
+            policy: [],
+            persona: [],
+            productLine: []
+          }
+        };
+      }
+    });
 
     const result = await controller.listStrategyStats(createContext());
 
@@ -1198,52 +1149,50 @@ describe('CrmController', () => {
       payload?: unknown;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async updateMessageDraft(id, dto, context) {
-          calls.push({ action: 'update', id, payload: dto, context });
+    const controller = createSequenceController({
+      async updateMessageDraft(id, dto, context) {
+        calls.push({ action: 'update', id, payload: dto, context });
 
-          return {
-            message: createMessageView({
-              id,
-              subject: dto.subject,
-              bodyText: dto.bodyText
-            })
-          };
-        },
-        async approveMessageDraft(id, context) {
-          calls.push({ action: 'approve', id, context });
+        return {
+          message: createMessageView({
+            id,
+            subject: dto.subject,
+            bodyText: dto.bodyText
+          })
+        };
+      },
+      async approveMessageDraft(id, context) {
+        calls.push({ action: 'approve', id, context });
 
-          return {
-            enrollment: createEnrollmentView({ status: 'ready_to_send' }),
-            message: createMessageView({ id, status: 'draft_ready' })
-          };
-        },
-        async startFirstMessageSend(id, context) {
-          calls.push({ action: 'start-send', id, context });
+        return {
+          enrollment: createEnrollmentView({ status: 'ready_to_send' }),
+          message: createMessageView({ id, status: 'draft_ready' })
+        };
+      },
+      async startFirstMessageSend(id, context) {
+        calls.push({ action: 'start-send', id, context });
 
-          return createSendStartView({ id });
-        },
-        async generateNextDraft(id, context) {
-          calls.push({ action: 'generate-next-draft', id, context });
+        return createSendStartView({ id });
+      },
+      async generateNextDraft(id, context) {
+        calls.push({ action: 'generate-next-draft', id, context });
 
-          return {
-            enrollment: createEnrollmentView({ id, status: 'ready_to_send' }),
-            message: createMessageView({
-              id: 'message-2',
-              enrollmentId: id,
-              stepIndex: 2,
-              status: 'draft_pending_review'
-            })
-          };
-        },
-        async stopSequenceEnrollment(id, context) {
-          calls.push({ action: 'stop', id, context });
+        return {
+          enrollment: createEnrollmentView({ id, status: 'ready_to_send' }),
+          message: createMessageView({
+            id: 'message-2',
+            enrollmentId: id,
+            stepIndex: 2,
+            status: 'draft_pending_review'
+          })
+        };
+      },
+      async stopSequenceEnrollment(id, context) {
+        calls.push({ action: 'stop', id, context });
 
-          return createSequenceStopView({ id });
-        }
-      })
-    );
+        return createSequenceStopView({ id });
+      }
+    });
 
     const updated = await controller.updateMessageDraft(createContext(), 'message-1', {
       subject: 'Hello',
@@ -1261,7 +1210,7 @@ describe('CrmController', () => {
     assert.equal(generated.data.message.stepIndex, 2);
     assert.equal(stopped.data.enrollment.status, 'stopped');
     assert.deepEqual(
-      calls.map(call => [call.action, call.id, call.context.organizationId]),
+      calls.map((call) => [call.action, call.id, call.context.organizationId]),
       [
         ['update', 'message-1', 'org-1'],
         ['approve', 'message-1', 'org-1'],
@@ -1279,46 +1228,44 @@ describe('CrmController', () => {
       versionId?: string;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listMessageDraftVersions(id, context) {
-          calls.push({ action: 'list-versions', id, context });
+    const controller = createSequenceController({
+      async listMessageDraftVersions(id, context) {
+        calls.push({ action: 'list-versions', id, context });
 
-          return {
-            versions: [
-              {
-                id: 'draft-version-1',
-                organizationId: context.organizationId,
-                ownerUserId: context.userId,
-                accountId: 'account-1',
-                contactId: 'contact-1',
-                enrollmentId: 'enrollment-1',
-                messageId: id,
-                mailboxId: null,
-                stepIndex: 1,
-                versionNo: 1,
-                subject: 'Historic subject',
-                bodyText: 'Historic body',
-                editorId: context.userId,
-                editorName: context.userName,
-                createdAt: '2026-06-18T10:00:00.000Z'
-              }
-            ]
-          };
-        },
-        async restoreMessageDraftVersion(id, versionId, context) {
-          calls.push({ action: 'restore-version', id, versionId, context });
-
-          return {
-            message: createMessageView({
-              id,
+        return {
+          versions: [
+            {
+              id: 'draft-version-1',
+              organizationId: context.organizationId,
+              ownerUserId: context.userId,
+              accountId: 'account-1',
+              contactId: 'contact-1',
+              enrollmentId: 'enrollment-1',
+              messageId: id,
+              mailboxId: null,
+              stepIndex: 1,
+              versionNo: 1,
               subject: 'Historic subject',
-              bodyText: 'Historic body'
-            })
-          };
-        }
-      })
-    );
+              bodyText: 'Historic body',
+              editorId: context.userId,
+              editorName: context.userName,
+              createdAt: '2026-06-18T10:00:00.000Z'
+            }
+          ]
+        };
+      },
+      async restoreMessageDraftVersion(id, versionId, context) {
+        calls.push({ action: 'restore-version', id, versionId, context });
+
+        return {
+          message: createMessageView({
+            id,
+            subject: 'Historic subject',
+            bodyText: 'Historic body'
+          })
+        };
+      }
+    });
 
     const versions = await controller.listMessageDraftVersions(createContext(), 'message-1');
     const restored = await controller.restoreMessageDraftVersion(createContext(), 'message-1', 'draft-version-1');
@@ -1326,7 +1273,7 @@ describe('CrmController', () => {
     assert.equal(versions.data.versions[0].versionNo, 1);
     assert.equal(restored.data.message.subject, 'Historic subject');
     assert.deepEqual(
-      calls.map(call => [call.action, call.id, call.versionId ?? null, call.context.userId]),
+      calls.map((call) => [call.action, call.id, call.versionId ?? null, call.context.userId]),
       [
         ['list-versions', 'message-1', null, 'user-1'],
         ['restore-version', 'message-1', 'draft-version-1', 'user-1']
@@ -1367,26 +1314,24 @@ describe('CrmController', () => {
         }
       }
     };
-    const controller = new CrmController(
-      createCrmService({
-        async previewAiDraft(input, context) {
-          calls.push({ action: 'preview', input, context });
+    const controller = createSequenceController({
+      async previewAiDraft(input, context) {
+        calls.push({ action: 'preview', input, context });
 
-          return previewResult;
-        },
-        async regenerateMessageAiDraft(id, context) {
-          calls.push({ action: 'regenerate', id, context });
+        return previewResult;
+      },
+      async regenerateMessageAiDraft(id, context) {
+        calls.push({ action: 'regenerate', id, context });
 
-          return {
-            message: createMessageView({
-              id,
-              subject: 'AI subject step 1',
-              bodyText: 'AI body step 1'
-            })
-          };
-        }
-      })
-    );
+        return {
+          message: createMessageView({
+            id,
+            subject: 'AI subject step 1',
+            bodyText: 'AI body step 1'
+          })
+        };
+      }
+    });
     const input = {
       accountId: 'account-1',
       contactId: 'contact-1',
@@ -1407,7 +1352,7 @@ describe('CrmController', () => {
     assert.equal(preview.data.preview.subject, 'AI subject step 2');
     assert.equal(regenerated.data.message.subject, 'AI subject step 1');
     assert.deepEqual(
-      calls.map(call => [call.action, call.id ?? null, call.context.userId]),
+      calls.map((call) => [call.action, call.id ?? null, call.context.userId]),
       [
         ['preview', null, 'user-1'],
         ['regenerate', 'message-1', 'user-1']
@@ -1432,29 +1377,27 @@ describe('CrmController', () => {
         { id: 'enrollment-2', status: 'skipped', message: '已跳过' }
       ]
     };
-    const controller = new CrmController(
-      createCrmService({
-        async batchGenerateNextDrafts(dto, context) {
-          calls.push({
-            action: 'batch-generate-next-draft',
-            ids: dto.ids,
-            context
-          });
+    const controller = createSequenceController({
+      async batchGenerateNextDrafts(dto, context) {
+        calls.push({
+          action: 'batch-generate-next-draft',
+          ids: dto.ids,
+          context
+        });
 
-          return batchResult;
-        },
-        async batchApproveMessageDrafts(dto, context) {
-          calls.push({ action: 'batch-approve-draft', ids: dto.ids, context });
+        return batchResult;
+      },
+      async batchApproveMessageDrafts(dto, context) {
+        calls.push({ action: 'batch-approve-draft', ids: dto.ids, context });
 
-          return batchResult;
-        },
-        async batchStopSequenceEnrollments(dto, context) {
-          calls.push({ action: 'batch-stop', ids: dto.ids, context });
+        return batchResult;
+      },
+      async batchStopSequenceEnrollments(dto, context) {
+        calls.push({ action: 'batch-stop', ids: dto.ids, context });
 
-          return batchResult;
-        }
-      })
-    );
+        return batchResult;
+      }
+    });
 
     const generated = await controller.batchGenerateNextDrafts(createContext(), {
       ids: ['enrollment-1', 'enrollment-2']
@@ -1470,7 +1413,7 @@ describe('CrmController', () => {
     assert.equal(approved.data.successCount, 1);
     assert.equal(stopped.data.skippedCount, 1);
     assert.deepEqual(
-      calls.map(call => [call.action, call.ids, call.context.userId]),
+      calls.map((call) => [call.action, call.ids, call.context.userId]),
       [
         ['batch-generate-next-draft', ['enrollment-1', 'enrollment-2'], 'user-1'],
         ['batch-approve-draft', ['enrollment-1', 'enrollment-2'], 'user-1'],
@@ -1486,98 +1429,96 @@ describe('CrmController', () => {
       payload?: unknown;
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async listInboxThreads(context, query) {
-          calls.push({ action: 'list-inbox', payload: query, context });
+    const controller = createInboxController({
+      async listInboxThreads(context, query) {
+        calls.push({ action: 'list-inbox', payload: query, context });
 
-          return {
-            current: 1,
-            size: 20,
-            total: 1,
-            records: [createInboxThreadView()]
-          };
-        },
-        async getInboxThread(id, context) {
-          calls.push({ action: 'detail-inbox', id, context });
+        return {
+          current: 1,
+          size: 20,
+          total: 1,
+          records: [createInboxThreadView()]
+        };
+      },
+      async getInboxThread(id, context) {
+        calls.push({ action: 'detail-inbox', id, context });
 
-          return createInboxThreadDetailView({ id });
-        },
-        async updateInboxThreadStatus(id, dto, context) {
-          calls.push({ action: 'status-inbox', id, payload: dto, context });
+        return createInboxThreadDetailView({ id });
+      },
+      async updateInboxThreadStatus(id, dto, context) {
+        calls.push({ action: 'status-inbox', id, payload: dto, context });
 
-          return {
-            thread: createInboxThreadView({ id, status: dto.status }),
-            account: createAccountView({
-              status: dto.status === 'handled' ? 'followed_up' : 'replied_pending'
-            }),
-            event: createTimelineEventView({
-              eventType: 'inbox_status_changed'
-            })
-          };
-        },
-        async replyInboxThread(id, dto, context) {
-          calls.push({ action: 'reply-inbox', id, payload: dto, context });
-          const detail = createInboxThreadDetailView({ id });
+        return {
+          thread: createInboxThreadView({ id, status: dto.status }),
+          account: createAccountView({
+            status: dto.status === 'handled' ? 'followed_up' : 'replied_pending'
+          }),
+          event: createTimelineEventView({
+            eventType: 'inbox_status_changed'
+          })
+        };
+      },
+      async replyInboxThread(id, dto, context) {
+        calls.push({ action: 'reply-inbox', id, payload: dto, context });
+        const detail = createInboxThreadDetailView({ id });
 
-          return {
-            ...detail,
-            thread: {
-              ...detail.thread,
-              status: 'handled' as const,
-              unreadCount: 0
-            },
-            account: createAccountView({ status: 'followed_up' }),
-            messages: [
-              ...detail.messages,
-              {
-                ...detail.messages[0],
-                id: 'outbound-reply-1',
-                direction: 'outbound' as const,
-                bodyText: dto.bodyText,
-                sentAt: '2026-06-18T11:30:00.000Z',
-                receivedAt: null
-              }
-            ]
-          };
-        },
-        async polishInboxReplyDraft(id, dto, context) {
-          calls.push({ action: 'reply-polish', id, payload: dto, context });
-
-          return createInboxThreadDetailView({
-            id,
-            replyDraft: {
-              topic: dto.topic,
-              bodyText: `Polished ${dto.topic}`,
-              metadata: { generated: true, reason: 'polished', riskNotes: [] },
-              updatedAt: '2026-06-18T12:00:00.000Z',
-              updatedById: context.userId,
-              updatedByName: context.userName
-            }
-          });
-        },
-        async saveInboxReplyDraft(id, dto, context) {
-          calls.push({ action: 'reply-draft-save', id, payload: dto, context });
-
-          return createInboxThreadDetailView({
-            id,
-            replyDraft: {
-              topic: dto.topic,
+        return {
+          ...detail,
+          thread: {
+            ...detail.thread,
+            status: 'handled' as const,
+            unreadCount: 0
+          },
+          account: createAccountView({ status: 'followed_up' }),
+          messages: [
+            ...detail.messages,
+            {
+              ...detail.messages[0],
+              id: 'outbound-reply-1',
+              direction: 'outbound' as const,
               bodyText: dto.bodyText,
-              metadata: null,
-              updatedAt: '2026-06-18T12:05:00.000Z',
-              updatedById: context.userId,
-              updatedByName: context.userName
+              sentAt: '2026-06-18T11:30:00.000Z',
+              receivedAt: null
             }
-          });
-        },
-        async mockCustomerReply(id, dto, context) {
-          calls.push({ action: 'mock-reply', id, payload: dto, context });
+          ]
+        };
+      },
+      async polishInboxReplyDraft(id, dto, context) {
+        calls.push({ action: 'reply-polish', id, payload: dto, context });
 
-          return createInboxThreadDetailView({ id: 'inbox-thread-1' });
-        }
-      })
-    );
+        return createInboxThreadDetailView({
+          id,
+          replyDraft: {
+            topic: dto.topic,
+            bodyText: `Polished ${dto.topic}`,
+            metadata: { generated: true, reason: 'polished', riskNotes: [] },
+            updatedAt: '2026-06-18T12:00:00.000Z',
+            updatedById: context.userId,
+            updatedByName: context.userName
+          }
+        });
+      },
+      async saveInboxReplyDraft(id, dto, context) {
+        calls.push({ action: 'reply-draft-save', id, payload: dto, context });
+
+        return createInboxThreadDetailView({
+          id,
+          replyDraft: {
+            topic: dto.topic,
+            bodyText: dto.bodyText,
+            metadata: null,
+            updatedAt: '2026-06-18T12:05:00.000Z',
+            updatedById: context.userId,
+            updatedByName: context.userName
+          }
+        });
+      },
+      async mockCustomerReply(id, dto, context) {
+        calls.push({ action: 'mock-reply', id, payload: dto, context });
+
+        return createInboxThreadDetailView({ id: 'inbox-thread-1' });
+      }
+    });
 
     const listed = await controller.listInboxThreads(createContext(), {
       current: '1',
@@ -1609,7 +1550,7 @@ describe('CrmController', () => {
     assert.equal(savedDraft.data.replyDraft?.bodyText, 'Manual reply');
     assert.equal(reply.data.messages[0].direction, 'inbound');
     assert.deepEqual(
-      calls.map(call => [call.action, call.id ?? null, call.context.organizationId]),
+      calls.map((call) => [call.action, call.id ?? null, call.context.organizationId]),
       [
         ['list-inbox', null, 'org-1'],
         ['detail-inbox', 'inbox-thread-1', 'org-1'],
@@ -1623,7 +1564,7 @@ describe('CrmController', () => {
   });
 
   it('rejects anonymous users', async () => {
-    const controller = new CrmController(createCrmService());
+    const controller = createAccountController();
 
     await assert.rejects(() => controller.listAccounts(null, {}), UnauthorizedException);
   });
@@ -1634,24 +1575,22 @@ describe('CrmController', () => {
       dto?: { allowAdminViewMemberEmailBody: boolean };
       context: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async getOrganizationConfig(context) {
-          calls.push({ action: 'get', context });
+    const controller = createSettingsController({
+      async getOrganizationConfig(context) {
+        calls.push({ action: 'get', context });
 
-          return createOrganizationConfigView({
-            allowAdminViewMemberEmailBody: false
-          });
-        },
-        async saveOrganizationConfig(dto, context) {
-          calls.push({ action: 'save', dto, context });
+        return createOrganizationConfigView({
+          allowAdminViewMemberEmailBody: false
+        });
+      },
+      async saveOrganizationConfig(dto, context) {
+        calls.push({ action: 'save', dto, context });
 
-          return createOrganizationConfigView({
-            allowAdminViewMemberEmailBody: dto.allowAdminViewMemberEmailBody
-          });
-        }
-      })
-    );
+        return createOrganizationConfigView({
+          allowAdminViewMemberEmailBody: dto.allowAdminViewMemberEmailBody
+        });
+      }
+    });
 
     const adminContext = createContext({ organizationRole: 'admin' });
     const loaded = await controller.getOrganizationConfig(adminContext);
@@ -1662,7 +1601,7 @@ describe('CrmController', () => {
     assert.equal(loaded.data.allowAdminViewMemberEmailBody, false);
     assert.equal(saved.data.allowAdminViewMemberEmailBody, true);
     assert.deepEqual(
-      calls.map(call => [call.action, call.context.organizationId, call.context.organizationRole]),
+      calls.map((call) => [call.action, call.context.organizationId, call.context.organizationRole]),
       [
         ['get', 'org-1', 'admin'],
         ['save', 'org-1', 'admin']
@@ -1679,20 +1618,18 @@ describe('CrmController', () => {
       };
       context?: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async getGlobalConfig() {
-          return createGlobalConfigView({ emailVerificationCooldownDays: 30 });
-        },
-        async saveGlobalConfig(dto, context) {
-          calls.push({ dto, context });
+    const controller = createSettingsController({
+      async getGlobalConfig() {
+        return createGlobalConfigView({ emailVerificationCooldownDays: 30 });
+      },
+      async saveGlobalConfig(dto, context) {
+        calls.push({ dto, context });
 
-          return createGlobalConfigView({
-            emailVerificationCooldownDays: dto.emailVerificationCooldownDays
-          });
-        }
-      })
-    );
+        return createGlobalConfigView({
+          emailVerificationCooldownDays: dto.emailVerificationCooldownDays
+        });
+      }
+    });
 
     const superContext = createContext({ roles: ['R_SUPER'] });
     const loaded = await controller.getGlobalConfig(superContext);
@@ -1720,7 +1657,7 @@ describe('CrmController', () => {
   });
 
   it('rejects ordinary users from CRM global config endpoints', async () => {
-    const controller = new CrmController(createCrmService());
+    const controller = createSettingsController();
 
     await assert.rejects(() => controller.getGlobalConfig(createContext()), ForbiddenException);
     await assert.rejects(
@@ -1737,20 +1674,18 @@ describe('CrmController', () => {
       dto?: { itemConcurrency?: number };
       context?: CrmUserContext;
     }> = [];
-    const controller = new CrmController(
-      createCrmService({
-        async getAiDraftQueueConfig() {
-          return createAiDraftQueueConfigView({ itemConcurrency: 3 });
-        },
-        async saveAiDraftQueueConfig(dto, context) {
-          calls.push({ dto, context });
+    const controller = createSettingsController({
+      async getAiDraftQueueConfig() {
+        return createAiDraftQueueConfigView({ itemConcurrency: 3 });
+      },
+      async saveAiDraftQueueConfig(dto, context) {
+        calls.push({ dto, context });
 
-          return createAiDraftQueueConfigView({
-            itemConcurrency: dto.itemConcurrency
-          });
-        }
-      })
-    );
+        return createAiDraftQueueConfigView({
+          itemConcurrency: dto.itemConcurrency
+        });
+      }
+    });
 
     const superContext = createContext({ roles: ['R_SUPER'] });
     const loaded = await controller.getAiDraftQueueConfig(superContext);
@@ -1764,7 +1699,7 @@ describe('CrmController', () => {
   });
 
   it('rejects ordinary users from CRM AI draft queue config endpoints', async () => {
-    const controller = new CrmController(createCrmService());
+    const controller = createSettingsController();
 
     await assert.rejects(() => controller.getAiDraftQueueConfig(createContext()), ForbiddenException);
     await assert.rejects(
@@ -1807,6 +1742,38 @@ function createUserBase() {
     organizationName: 'Org One',
     organizationRole: 'member' as const
   };
+}
+
+/** Creates the real account controller with the shared service stub. */
+function createAccountController(partial: Partial<CrmService> = {}) {
+  return new CrmAccountController(createCrmService(partial));
+}
+
+/** Creates the real mailbox controller and optional watch/config collaborators. */
+function createMailboxController(
+  partial: Partial<CrmService> = {},
+  gmailWatchService?: ConstructorParameters<typeof CrmMailboxController>[1],
+  appConfigService?: ConstructorParameters<typeof CrmMailboxController>[2]
+) {
+  return new CrmMailboxController(createCrmService(partial), gmailWatchService, appConfigService);
+}
+
+/** Creates the real settings controller with the shared service stub. */
+function createSettingsController(partial: Partial<CrmService> = {}) {
+  return new CrmSettingsController(createCrmService(partial));
+}
+
+/** Creates the real sequence controller with the shared service stub. */
+function createSequenceController(partial: Partial<CrmService> = {}) {
+  return new CrmSequenceController(createCrmService(partial));
+}
+
+/** Creates the real inbox controller and optional config collaborator. */
+function createInboxController(
+  partial: Partial<CrmService> = {},
+  appConfigService?: ConstructorParameters<typeof CrmInboxController>[1]
+) {
+  return new CrmInboxController(createCrmService(partial), appConfigService);
 }
 
 function createAccountView(overrides: Partial<CrmAccountView> = {}) {
@@ -1943,7 +1910,7 @@ function createAiWritingConfigView(): NonNullable<CrmProductLineView['aiWritingC
     commonRequirements: 'Write concise B2B emails.',
     forbiddenClaims: 'Do not invent prices.',
     productEmphasis: 'Focus on supply reliability.',
-    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+    steps: [1, 2, 3, 4, 5].map((stepIndex) => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: `Prompt ${stepIndex}`
     }))
