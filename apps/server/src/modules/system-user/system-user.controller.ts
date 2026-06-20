@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
-import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
-import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
+import { requireSuperUserContext } from '../../shared/permission-policy';
+import type { RequestUserContext } from '../../shared/request-context';
 import { CurrentContext } from '../auth/auth.decorators';
 import { CreateSystemUserDto, UpdateSystemUserDto, UpdateSystemUserStatusDto } from './dto/system-user-operate.dto';
 import { SystemUserQueryDto } from './dto/system-user-query.dto';
@@ -61,9 +61,6 @@ export class SystemUserController {
   }
 
   private requireSuperContext(context: RequestUserContext | null) {
-    const userContext = requireRequestUserContext(context);
-    assertSuperRole(userContext, '无权访问用户管理');
-
-    return userContext;
+    return requireSuperUserContext(context, '无权访问用户管理');
   }
 }

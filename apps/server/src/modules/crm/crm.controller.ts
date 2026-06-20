@@ -12,7 +12,7 @@ import {
   Query
 } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
-import { assertSuper } from '../../shared/permission-policy';
+import { assertSuper, requireSuperUserContext as requirePlatformSuperContext } from '../../shared/permission-policy';
 import { requireRequestUserContext } from '../../shared/request-context';
 import { AppConfigService } from '../app-config/app-config.service';
 import { CurrentContext } from '../auth/auth.decorators';
@@ -641,9 +641,6 @@ export class CrmController {
   }
 
   private requireSuperUserContext(context: CrmUserContext | null): CrmUserContext {
-    const requestContext = this.requireUserContext(context);
-    assertSuper(requestContext, '无权维护 CRM 全局配置');
-
-    return requestContext;
+    return requirePlatformSuperContext(context, '无权维护 CRM 全局配置');
   }
 }

@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import {
   assertOrganizationAdmin,
   assertSuper,
   canViewEmailBody,
   isOrganizationAdmin,
-  isSuper
+  isSuper,
+  requireSuperUserContext
 } from './permission-policy';
 import type { RequestUserContext } from './request-context';
 
@@ -20,6 +21,14 @@ describe('permission-policy', () => {
   it('throws project ForbiddenException for failed assertions', () => {
     assert.throws(() => assertSuper(createContext(), '无权操作'), ForbiddenException);
     assert.throws(() => assertOrganizationAdmin(createContext(), '无权操作'), ForbiddenException);
+  });
+
+  it('requires both login context and platform super role', () => {
+    const superContext = createContext({ roles: ['R_SUPER'] });
+
+    assert.equal(requireSuperUserContext(superContext, '无权操作'), superContext);
+    assert.throws(() => requireSuperUserContext(null, '无权操作'), UnauthorizedException);
+    assert.throws(() => requireSuperUserContext(createContext(), '无权操作'), ForbiddenException);
   });
 
   it('keeps CRM email body visibility rules centralized', () => {

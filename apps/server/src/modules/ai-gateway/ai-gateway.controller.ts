@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ok } from '../../shared/api-response';
-import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
+import { requireSuperUserContext } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import { CurrentContext, Roles } from '../auth/auth.decorators';
 import { AiGatewayService } from './ai-gateway.service';
@@ -21,7 +21,7 @@ export class AiGatewayController {
     @Body() dto: SaveAiPromptDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    this.requireSuperContext(currentContext);
 
     return ok(await this.aiGatewayService.savePrompt(dto));
   }
@@ -32,7 +32,7 @@ export class AiGatewayController {
     @Param() params: AiPromptKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    this.requireSuperContext(currentContext);
 
     return ok(await this.aiGatewayService.getPrompt(params.promptKey));
   }
@@ -43,7 +43,7 @@ export class AiGatewayController {
     @Body() dto: SaveAiModelConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    this.requireSuperContext(currentContext);
 
     return ok(await this.aiGatewayService.saveModelConfig(dto));
   }
@@ -54,7 +54,7 @@ export class AiGatewayController {
     @Param() params: AiModelConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    this.requireSuperContext(currentContext);
 
     return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
   }
@@ -65,9 +65,9 @@ export class AiGatewayController {
     @Body() dto: SaveSerperConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    const user = this.requireSuperContext(currentContext);
 
-    return ok(await this.aiGatewayService.saveSerperConfig(dto, { user: requireRequestUserContext(currentContext) }));
+    return ok(await this.aiGatewayService.saveSerperConfig(dto, { user }));
   }
 
   @Get('serper-configs/:configKey')
@@ -76,7 +76,7 @@ export class AiGatewayController {
     @Param() params: SerperConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    this.requireSuperContext(currentContext);
 
     return ok(await this.aiGatewayService.getSerperConfigDraft(params.configKey));
   }
@@ -88,9 +88,9 @@ export class AiGatewayController {
     @Body() dto: SaveSerperConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    const user = this.requireSuperContext(currentContext);
 
-    return ok(await this.aiGatewayService.testSerperConfig(dto, { user: requireRequestUserContext(currentContext) }));
+    return ok(await this.aiGatewayService.testSerperConfig(dto, { user }));
   }
 
   @Post('hunter-configs')
@@ -99,9 +99,9 @@ export class AiGatewayController {
     @Body() dto: SaveHunterConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    const user = this.requireSuperContext(currentContext);
 
-    return ok(await this.aiGatewayService.saveHunterConfig(dto, { user: requireRequestUserContext(currentContext) }));
+    return ok(await this.aiGatewayService.saveHunterConfig(dto, { user }));
   }
 
   @Get('hunter-configs/:configKey')
@@ -110,7 +110,7 @@ export class AiGatewayController {
     @Param() params: HunterConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    this.requireSuperContext(currentContext);
 
     return ok(await this.aiGatewayService.getHunterConfigDraft(params.configKey));
   }
@@ -122,9 +122,9 @@ export class AiGatewayController {
     @Body() dto: SaveHunterConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
+    const user = this.requireSuperContext(currentContext);
 
-    return ok(await this.aiGatewayService.testHunterConfig(dto, { user: requireRequestUserContext(currentContext) }));
+    return ok(await this.aiGatewayService.testHunterConfig(dto, { user }));
   }
 
   @Post('generate-text')
@@ -136,7 +136,7 @@ export class AiGatewayController {
     return ok(await this.aiGatewayService.generateText(dto, { user: requireRequestUserContext(currentContext) }));
   }
 
-  private assertSuper(currentContext: RequestUserContext | null) {
-    assertSuperRole(requireRequestUserContext(currentContext), '无权维护 AI 配置');
+  private requireSuperContext(currentContext: RequestUserContext | null) {
+    return requireSuperUserContext(currentContext, '无权维护 AI 配置');
   }
 }

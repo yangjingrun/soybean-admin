@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import type { RequestUserContext } from './request-context';
+import { requireRequestUserContext, type RequestUserContext } from './request-context';
 
 export interface EmailBodyVisibilityConfig {
   allowAdminViewMemberEmailBody?: boolean | null;
@@ -18,6 +18,14 @@ export function assertSuper(context: Pick<RequestUserContext, 'roles'>, message:
   if (!isSuper(context)) {
     throw new ForbiddenException(message);
   }
+}
+
+/** Require an authenticated platform super user and return the normalized request context. */
+export function requireSuperUserContext(context: RequestUserContext | null, message: string): RequestUserContext {
+  const userContext = requireRequestUserContext(context);
+  assertSuper(userContext, message);
+
+  return userContext;
 }
 
 /** Require organization admin privileges while allowing platform super users. */

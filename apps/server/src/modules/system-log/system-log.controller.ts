@@ -1,7 +1,7 @@
 import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
-import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
-import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
+import { requireSuperUserContext } from '../../shared/permission-policy';
+import type { RequestUserContext } from '../../shared/request-context';
 import { CurrentContext } from '../auth/auth.decorators';
 import { SystemLogIdParamDto, SystemLogQueryDto } from './dto/system-log-query.dto';
 import { SystemLogService } from './system-log.service';
@@ -35,9 +35,6 @@ export class SystemLogController {
   }
 
   private requireSuperContext(context: RequestUserContext | null) {
-    const userContext = requireRequestUserContext(context);
-    assertSuperRole(userContext, '无权访问后端日志');
-
-    return userContext;
+    return requireSuperUserContext(context, '无权访问后端日志');
   }
 }
