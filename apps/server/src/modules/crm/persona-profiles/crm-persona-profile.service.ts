@@ -1,10 +1,10 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
 import { createPageResult } from '../../../shared/pagination';
 import { isOrganizationAdmin as hasOrganizationAdminRole } from '../../../shared/permission-policy';
 import type { CrmPersonaProfileRecord, CrmPersonaProfileStatus, CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
+import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import { CRM_PERSONA_PROFILE_REPOSITORY, type CrmPersonaProfileRepository } from './crm-persona-profile.repository';
 import {
   normalizePersonaProfileCreateInput,
@@ -243,8 +243,4 @@ export class CrmPersonaProfileService {
       toStatus
     });
   }
-}
-
-function isPrismaUniqueConflict(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }

@@ -1,5 +1,4 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
 import { renderEmailTemplateText, findPersonaProfile, type PersonaProfile } from '../crm-email-template-renderer';
 import { buildPersonaMatch, type ResolvedPersonaMatch } from '../crm-persona-match';
@@ -15,7 +14,6 @@ import type {
   CrmAiWritingStepIndex,
   CrmContactRecord,
   CrmEmailTemplateGroupRecord,
-  CrmMailboxRecord,
   CrmMessageRecord,
   CrmProductLineRecord,
   CrmSequencePolicyRecord,
@@ -23,6 +21,7 @@ import type {
 } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { createCrmReadScope } from '../shared/crm-scope';
+import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import type { CrmAccountRepository } from '../accounts/crm-account.repository';
 import type { CrmMailboxRepository } from '../mailbox/crm-mailbox.repository';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
@@ -426,8 +425,4 @@ function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord)
 
 function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex: number) {
   return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
-}
-
-function isPrismaUniqueConflict(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }

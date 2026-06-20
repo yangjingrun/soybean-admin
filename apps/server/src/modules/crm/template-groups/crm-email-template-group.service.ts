@@ -1,9 +1,9 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
 import { createPageResult } from '../../../shared/pagination';
 import type { CrmEmailTemplateGroupRecord, CrmEmailTemplateStatus, CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
+import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import {
   CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY,
   type CrmEmailTemplateGroupRepository
@@ -251,8 +251,4 @@ export class CrmEmailTemplateGroupService {
       toStatus
     });
   }
-}
-
-function isPrismaUniqueConflict(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }

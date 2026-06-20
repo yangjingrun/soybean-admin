@@ -1,5 +1,4 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
 import { buildNextFollowUpDraft } from '../crm-follow-up-draft';
 import { buildPersonaMatch } from '../crm-persona-match';
@@ -19,6 +18,7 @@ import type {
 } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { toMessageView, toSequenceEnrollmentView } from '../shared/crm-view-mappers';
+import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import type { CrmNextDraftRepository } from './crm-next-draft.repository';
 import {
   blockingNextDraftMessageStatuses,
@@ -313,8 +313,4 @@ function toAiWritingStepIndex(stepIndex: number): CrmAiWritingStepIndex {
   }
 
   return stepIndex as CrmAiWritingStepIndex;
-}
-
-function isPrismaUniqueConflict(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }

@@ -6,7 +6,6 @@ import {
   NotFoundException,
   Optional
 } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
 import { createPageResult } from '../../../shared/pagination';
 import { isOrganizationAdmin as hasOrganizationAdminRole } from '../../../shared/permission-policy';
 import type {
@@ -17,6 +16,7 @@ import type {
 } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
+import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import { CRM_PRODUCT_LINE_REPOSITORY, type CrmProductLineRepository } from './crm-product-line.repository';
 import {
   hasOwn,
@@ -332,8 +332,4 @@ export class CrmProductLineService {
       toStatus
     });
   }
-}
-
-function isPrismaUniqueConflict(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
