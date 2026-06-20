@@ -1,6 +1,7 @@
 import type { CrmFollowUpDelayDays } from './crm-global-config';
 import type { CrmAiDraftTaskStatus, CrmAiDraftTaskStore } from './crm-ai-draft-task.types';
 import type { RequestUserContext } from '../../shared/request-context';
+import type { CrmUserContext } from './shared/crm-context';
 import type {
   CrmSequencePolicyLinkPolicy,
   CrmSequencePolicySameCompanyStrategy,
@@ -96,7 +97,7 @@ export type CrmInboxMessageType = (typeof crmInboxMessageTypes)[number];
 export type CrmGmailHistoryMessageDirection = 'inbound' | 'outbound';
 export type CrmGmailHistoryLabelChangeType = 'labels_added' | 'labels_removed' | 'message_deleted';
 
-export type CrmUserContext = RequestUserContext;
+export type { CrmUserContext };
 
 export interface ImportCrmLeadInput {
   name: string;

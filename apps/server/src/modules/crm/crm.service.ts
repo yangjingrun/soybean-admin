@@ -22,6 +22,8 @@ import {
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
+import { CrmLoggerService } from './shared/crm-logger.service';
+import { createCrmReadScope } from './shared/crm-scope';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
 import {
   defaultFollowUpSharePercent,
@@ -36,6 +38,7 @@ import { crmAiDraftActiveTaskStatuses } from './crm-ai-draft-task-state';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
+import { CrmSettingsService } from './settings/crm-settings.service';
 import {
   normalizeCrmProductLineAiWritingConfig,
   requireEnabledCrmProductLineAiWritingConfig
@@ -356,7 +359,13 @@ export class CrmService {
     private readonly aiReplyDraftService?: Pick<CrmAiReplyDraftService, 'polishReplyDraft'> | null,
     @Optional()
     @Inject(CRM_AI_DRAFT_TASK_QUEUE)
-    private readonly aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null
+    private readonly aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null,
+    @Optional()
+    @Inject(CrmLoggerService)
+    private readonly crmLogger?: CrmLoggerService,
+    @Optional()
+    @Inject(CrmSettingsService)
+    private readonly settingsService?: CrmSettingsService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -596,6 +605,10 @@ export class CrmService {
 
   /** Reads platform-wide CRM settings maintained by super administrators. */
   async getGlobalConfig() {
+    if (this.settingsService) {
+      return this.settingsService.getGlobalConfig();
+    }
+
     const record = await this.store.getGlobalConfig();
 
     return toGlobalConfigView(record);
@@ -611,6 +624,10 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
+    if (this.settingsService) {
+      return this.settingsService.saveGlobalConfig(input, context);
+    }
+
     const record = await this.store.saveGlobalConfig({
       emailVerificationCooldownDays: input.emailVerificationCooldownDays,
       ownerConcurrentSendLimit: input.ownerConcurrentSendLimit,
@@ -632,6 +649,10 @@ export class CrmService {
 
   /** Reads the current owner's send scheduling preference with platform cap context. */
   async getSendPreference(context: CrmUserContext) {
+    if (this.settingsService) {
+      return this.settingsService.getSendPreference(context);
+    }
+
     const [globalConfig, preference] = await Promise.all([
       this.store.getGlobalConfig(),
       this.store.getSendPreference({
@@ -652,6 +673,10 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
+    if (this.settingsService) {
+      return this.settingsService.saveSendPreference(input, context);
+    }
+
     const globalConfig = await this.store.getGlobalConfig();
     const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(globalConfig.ownerDailySendLimitMax);
     const dailySendLimit = Number(input.dailySendLimit);
@@ -693,6 +718,10 @@ export class CrmService {
 
   /** Reads organization-level CRM permission settings. */
   async getOrganizationConfig(context: CrmUserContext) {
+    if (this.settingsService) {
+      return this.settingsService.getOrganizationConfig(context);
+    }
+
     const record = await this.store.getOrganizationConfig(context.organizationId);
 
     return toOrganizationConfigView(record, context.organizationId);
@@ -705,6 +734,10 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
+    if (this.settingsService) {
+      return this.settingsService.saveOrganizationConfig(input, context);
+    }
+
     this.requireOrganizationConfigManager(context);
 
     const record = await this.store.saveOrganizationConfig({
@@ -2671,10 +2704,18 @@ export class CrmService {
   }
 
   async getAiDraftQueueConfig() {
+    if (this.settingsService) {
+      return this.settingsService.getAiDraftQueueConfig();
+    }
+
     return toAiDraftQueueConfigView(await this.store.getAiDraftQueueConfig());
   }
 
   async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput, context: CrmUserContext) {
+    if (this.settingsService) {
+      return this.settingsService.saveAiDraftQueueConfig(input, context);
+    }
+
     const config = await this.store.saveAiDraftQueueConfig({
       ...input,
       updatedById: context.userId,
@@ -4660,6 +4701,10 @@ export class CrmService {
   }
 
   private recordCrmLog(action: string, message: string, context: CrmUserContext, metadata: Record<string, unknown>) {
+    if (this.crmLogger) {
+      return this.crmLogger.record(action, message, context, metadata);
+    }
+
     return this.systemLogService?.record({
       level: 'info',
       status: 'success',
@@ -5255,7 +5300,8 @@ function buildReviewChecklist(record: CrmSequenceReviewRecord, personaMatch: Res
 }
 
 function toOwnerScope(context: CrmUserContext) {
-  return hasOrganizationAdminRole(context) ? {} : { ownerUserId: context.userId };
+  const scope = createCrmReadScope(context);
+  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
 }
 
 function buildLeadImportFingerprints(domain: string | null, input: ImportCrmLeadInput) {

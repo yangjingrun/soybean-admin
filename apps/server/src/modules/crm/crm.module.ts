@@ -29,15 +29,24 @@ import { CrmSendSchedulerService } from './crm-send-scheduler.service';
 import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmService } from './crm.service';
+import { CrmSettingsService } from './settings/crm-settings.service';
+import { CrmLoggerService } from './shared/crm-logger.service';
 import {
   CRM_EMAIL_DNS_RESOLVER,
   CRM_AI_DRAFT_TASK_QUEUE,
+  CRM_ACCOUNT_REPOSITORY,
+  CRM_DASHBOARD_REPOSITORY,
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_HISTORY_GATEWAY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
   CRM_GMAIL_OAUTH_FLOW,
   CRM_GMAIL_WATCH_GATEWAY,
+  CRM_INBOX_REPOSITORY,
+  CRM_MAILBOX_REPOSITORY,
+  CRM_SEQUENCE_REPOSITORY,
   CRM_SEND_QUEUE,
+  CRM_SETTINGS_REPOSITORY,
+  CRM_SUPPRESSION_REPOSITORY,
   CRM_STORE
 } from './crm.tokens';
 import { PrismaCrmStore } from './store/prisma-crm.store';
@@ -47,6 +56,8 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
   controllers: [CrmController, CrmGmailWebhookController],
   providers: [
     CrmService,
+    CrmSettingsService,
+    CrmLoggerService,
     CrmAiDraftService,
     CrmAiDraftTaskQueueService,
     CrmAiDraftTaskWorkerService,
@@ -68,6 +79,34 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     {
       provide: CRM_STORE,
       useClass: PrismaCrmStore
+    },
+    {
+      provide: CRM_ACCOUNT_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_SETTINGS_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_SUPPRESSION_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_MAILBOX_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_SEQUENCE_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_INBOX_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_DASHBOARD_REPOSITORY,
+      useExisting: CRM_STORE
     },
     {
       provide: CRM_SEND_QUEUE,
