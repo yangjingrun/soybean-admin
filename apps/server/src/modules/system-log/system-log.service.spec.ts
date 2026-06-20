@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 import { SystemLogService } from './system-log.service';
 import type { SystemLogRecord, SystemLogRecordInput, SystemLogStore, SystemLogWhereInput } from './system-log.types';
@@ -99,7 +101,25 @@ describe('SystemLogService', () => {
       }
     });
   });
+
+  it('keeps compound indexes for log list filters', () => {
+    const schema = readFileSync(resolve(process.cwd(), 'prisma/schema.prisma'), 'utf8');
+    const systemLogModel = extractPrismaModel(schema, 'SystemLog');
+
+    assert.match(systemLogModel, /@@index\(\[status,\s*createdAt\]\)/);
+    assert.match(systemLogModel, /@@index\(\[level,\s*status,\s*createdAt\]\)/);
+    assert.match(systemLogModel, /@@index\(\[module,\s*action,\s*createdAt\]\)/);
+    assert.match(systemLogModel, /@@index\(\[userId,\s*createdAt\]\)/);
+  });
 });
+
+function extractPrismaModel(schema: string, modelName: string) {
+  const match = new RegExp(`model ${modelName} \\{[\\s\\S]*?\\n\\}`).exec(schema);
+
+  assert.ok(match, `Prisma model ${modelName} should exist`);
+
+  return match[0];
+}
 
 function createLog(overrides: Partial<SystemLogRecord> = {}): SystemLogRecord {
   return {

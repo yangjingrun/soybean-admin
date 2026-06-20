@@ -75,7 +75,11 @@ model SystemLog {
 
   @@index([createdAt])
   @@index([level])
+  @@index([status, createdAt])
+  @@index([level, status, createdAt])
+  @@index([module, action, createdAt])
   @@index([userId])
+  @@index([userId, createdAt])
 }
 
 model SystemUser {
