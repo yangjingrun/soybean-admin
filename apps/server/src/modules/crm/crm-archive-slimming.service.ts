@@ -3,10 +3,8 @@ import { AppConfigService } from '../app-config/app-config.service';
 import { canRunSchedulers } from '../app-config/app-config.loader';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
-import {
-  CRM_ARCHIVE_SLIMMING_REPOSITORY,
-  type CrmArchiveSlimmingRepository
-} from './crm-archive-slimming.repository';
+import type { CrmArchiveSlimmingRepository } from './crm-archive-slimming.repository';
+import { CRM_ARCHIVE_SLIMMING_REPOSITORY } from './crm.tokens';
 
 const defaultArchiveRecoveryMs = 30 * 24 * 60 * 60 * 1000;
 const defaultSlimmingIntervalMs = 24 * 60 * 60 * 1000;
