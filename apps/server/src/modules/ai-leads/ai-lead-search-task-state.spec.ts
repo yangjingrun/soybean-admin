@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   aiLeadActiveTaskStatuses,
+  aiLeadSearchTaskTransitionRules,
   normalizeAiLeadQueueConcurrency,
   resolveCurrentAiLeadSearchTask
 } from './ai-lead-search-task-state';
+import { canTransitionTaskStatus } from '../../shared/task-state';
 import type { AiLeadSearchTaskRecord } from './ai-lead-search-task.types';
 
 describe('ai lead search task state helpers', () => {
@@ -36,6 +38,15 @@ describe('ai lead search task state helpers', () => {
 
   it('keeps queued, running, interrupted, and failed as active task statuses', () => {
     assert.deepEqual(aiLeadActiveTaskStatuses, ['queued', 'running', 'interrupted', 'failed']);
+  });
+
+  it('keeps user and worker task transitions explicit', () => {
+    assert.equal(canTransitionTaskStatus(aiLeadSearchTaskTransitionRules, 'queued', 'running'), true);
+    assert.equal(canTransitionTaskStatus(aiLeadSearchTaskTransitionRules, 'running', 'interrupted'), true);
+    assert.equal(canTransitionTaskStatus(aiLeadSearchTaskTransitionRules, 'interrupted', 'queued'), true);
+    assert.equal(canTransitionTaskStatus(aiLeadSearchTaskTransitionRules, 'failed', 'queued'), true);
+    assert.equal(canTransitionTaskStatus(aiLeadSearchTaskTransitionRules, 'completed', 'queued'), false);
+    assert.equal(canTransitionTaskStatus(aiLeadSearchTaskTransitionRules, 'discarded', 'running'), false);
   });
 });
 

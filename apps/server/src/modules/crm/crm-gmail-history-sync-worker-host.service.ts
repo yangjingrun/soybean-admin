@@ -5,6 +5,7 @@ import { canRunWorkers } from '../app-config/app-config.loader';
 import { RedisService } from '../redis/redis.service';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
+import { recordRuntimeHostError } from '../../shared/runtime-host-log';
 import { crmGmailHistorySyncQueueName } from './crm-send.constants';
 import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
 import type { CrmGmailHistorySyncQueueJob } from './crm.types';
@@ -58,22 +59,13 @@ export class CrmGmailHistorySyncWorkerHost implements OnModuleInit, OnModuleDest
   }
 
   private async recordWorkerLog(action: string, message: string, error: unknown, metadata: Record<string, unknown>) {
-    if (!this.systemLogService) {
-      return;
-    }
-
-    try {
-      await this.systemLogService.record({
-        level: 'error',
-        status: 'failed',
-        module: 'crm',
-        action,
-        message,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        metadata
-      });
-    } catch {
-      // 运行期事件回调不能因为日志服务异常产生新的未处理异常。
-    }
+    await recordRuntimeHostError({
+      recorder: this.systemLogService,
+      module: 'crm',
+      action,
+      message,
+      error,
+      metadata
+    });
   }
 }

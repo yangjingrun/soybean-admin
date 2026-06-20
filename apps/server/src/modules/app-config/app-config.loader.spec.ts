@@ -44,6 +44,8 @@ describe('loadAppConfig', () => {
   it('forces dev fixed token off in production', () => {
     const config = loadAppConfig({
       NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://example/db',
+      REDIS_URL: 'redis://example:6379',
       AUTH_DEV_FIXED_TOKEN_ENABLED: 'true'
     });
 
@@ -59,6 +61,12 @@ describe('loadAppConfig', () => {
 
     assert.equal(config.authAccessTokenTtlSeconds, 3600);
     assert.equal(config.authRefreshTokenTtlSeconds, 2592000);
+  });
+
+  it('rejects invalid numeric runtime config values during startup', () => {
+    assert.throws(() => loadAppConfig({ PORT: 'NaN' }), /Invalid PORT/);
+    assert.throws(() => loadAppConfig({ AUTH_ACCESS_TOKEN_TTL_SECONDS: '0' }), /Invalid AUTH_ACCESS_TOKEN_TTL_SECONDS/);
+    assert.throws(() => loadAppConfig({ AUTH_REFRESH_TOKEN_TTL_SECONDS: '-1' }), /Invalid AUTH_REFRESH_TOKEN_TTL_SECONDS/);
   });
 
   it('reads the AI config secret encryption key from env', () => {
@@ -78,6 +86,27 @@ describe('loadAppConfig', () => {
 
   it('rejects invalid server runtime roles', () => {
     assert.throws(() => loadAppConfig({ SERVER_RUNTIME_ROLE: 'api,worker' }), /Invalid SERVER_RUNTIME_ROLE/);
+  });
+
+  it('requires production request-path infrastructure config', () => {
+    assert.throws(() => loadAppConfig({ NODE_ENV: 'production' }), /DATABASE_URL/);
+    assert.throws(
+      () =>
+        loadAppConfig({
+          NODE_ENV: 'production',
+          DATABASE_URL: 'postgresql://example/db'
+        }),
+      /REDIS_URL/
+    );
+
+    const config = loadAppConfig({
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://example/db',
+      REDIS_URL: 'redis://example:6379'
+    });
+
+    assert.equal(config.databaseUrl, 'postgresql://example/db');
+    assert.equal(config.redisUrl, 'redis://example:6379');
   });
 });
 

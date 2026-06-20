@@ -4,6 +4,10 @@ export interface VersionedTaskState<TStatus extends string> {
   readAt?: Date | null;
 }
 
+export type TaskStatusTransitionRules<TStatus extends string> = {
+  readonly [Status in TStatus]: readonly TStatus[];
+};
+
 export interface TaskEventStateChange<TStatus extends string> {
   taskId: string;
   eventType: string;
@@ -23,6 +27,15 @@ export function isTaskInStatus<TStatus extends string>(
   statuses: readonly TStatus[]
 ) {
   return Boolean(task && statuses.includes(task.status));
+}
+
+/** Checks an explicit status transition table instead of scattering status rules across callers. */
+export function canTransitionTaskStatus<TStatus extends string>(
+  rules: TaskStatusTransitionRules<TStatus>,
+  fromStatus: TStatus,
+  toStatus: TStatus
+) {
+  return rules[fromStatus].includes(toStatus);
 }
 
 /** Pick current task candidates without coupling AI and CRM task implementations. */
@@ -63,7 +76,7 @@ export function createTaskNotificationMetadata<TExtra extends Record<string, unk
 ) {
   return {
     taskId,
-    ...(extra ?? {})
+    ...extra
   };
 }
 

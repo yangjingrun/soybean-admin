@@ -7,6 +7,7 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { config } from 'dotenv';
 import { AppModule } from './modules/app.module';
 import { loadAppConfig } from './modules/app-config/app-config.loader';
+import { SystemLogService } from './modules/system-log/system-log.service';
 import { ApiExceptionFilter } from './shared/api-exception.filter';
 
 const envPath = [resolve(process.cwd(), '.env'), resolve(process.cwd(), '../../.env')].find(existsSync);
@@ -24,7 +25,9 @@ async function bootstrap() {
     origin: getCorsOrigins(appConfig.serverCorsOrigins),
     credentials: true
   });
-  app.useGlobalFilters(new ApiExceptionFilter());
+  const systemLogService = app.get(SystemLogService, { strict: false });
+
+  app.useGlobalFilters(new ApiExceptionFilter(systemLogService));
 
   app.useGlobalPipes(
     new ValidationPipe({

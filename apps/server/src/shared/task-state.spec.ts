@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  canTransitionTaskStatus,
   createTaskNotificationMetadata,
   createTaskStateChangeEvent,
   isStaleRunVersion,
@@ -18,6 +19,20 @@ describe('task-state', () => {
   it('checks status membership', () => {
     assert.equal(isTaskInStatus({ status: 'running' }, ['queued', 'running']), true);
     assert.equal(isTaskInStatus({ status: 'completed' }, ['queued', 'running']), false);
+  });
+
+  it('checks explicit status transition rules', () => {
+    const rules = {
+      queued: ['running', 'cancelled'],
+      running: ['completed', 'failed'],
+      completed: [],
+      failed: [],
+      cancelled: []
+    } as const;
+
+    assert.equal(canTransitionTaskStatus(rules, 'queued', 'running'), true);
+    assert.equal(canTransitionTaskStatus(rules, 'queued', 'completed'), false);
+    assert.equal(canTransitionTaskStatus(rules, 'running', 'failed'), true);
   });
 
   it('resolves the current task by active/unread status and update time', () => {

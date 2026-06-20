@@ -66,6 +66,59 @@ describe('ApiExceptionFilter', () => {
     });
     assert.equal(Object.hasOwn(response.body || {}, 'stack'), false);
   });
+
+  it('records unknown exceptions with request context when a log recorder is provided', async () => {
+    const response = createFastifyResponse();
+    const records: unknown[] = [];
+    const logger = {
+      async record(input: unknown) {
+        records.push(input);
+      }
+    };
+
+    new ApiExceptionFilter(logger).catch(
+      new Error('database unavailable'),
+      createArgumentsHost(response, {
+        method: 'POST',
+        url: '/crm/accounts',
+        user: { userId: 'user-1', userName: 'Alice' }
+      })
+    );
+    await Promise.resolve();
+
+    assert.equal(records.length, 1);
+    assert.deepEqual(records[0], {
+      level: 'error',
+      status: 'failed',
+      module: 'server',
+      action: 'unhandled-exception',
+      message: '后端接口出现未处理异常',
+      userId: 'user-1',
+      userName: 'Alice',
+      errorMessage: 'database unavailable',
+      metadata: {
+        method: 'POST',
+        url: '/crm/accounts',
+        errorCategory: 'unexpected',
+        errorName: 'Error'
+      }
+    });
+  });
+
+  it('does not record handled http exceptions as unhandled errors', async () => {
+    const response = createFastifyResponse();
+    let recordCount = 0;
+    const logger = {
+      async record() {
+        recordCount += 1;
+      }
+    };
+
+    new ApiExceptionFilter(logger).catch(new ForbiddenException('无权访问'), createArgumentsHost(response));
+    await Promise.resolve();
+
+    assert.equal(recordCount, 0);
+  });
 });
 
 interface FakeFastifyResponse {
@@ -87,10 +140,20 @@ function createFastifyResponse(): FakeFastifyResponse {
   };
 }
 
-function createArgumentsHost(response: FakeFastifyResponse): ArgumentsHost {
+interface FakeFastifyRequest {
+  method?: string;
+  url?: string;
+  user?: {
+    userId?: string;
+    userName?: string;
+  };
+}
+
+function createArgumentsHost(response: FakeFastifyResponse, request: FakeFastifyRequest = {}): ArgumentsHost {
   return {
     switchToHttp() {
       return {
+        getRequest: () => request,
         getResponse: () => response
       };
     }

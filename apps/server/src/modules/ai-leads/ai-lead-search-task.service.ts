@@ -7,12 +7,12 @@ import {
   Optional
 } from '@nestjs/common';
 import { isSuper } from '../../shared/permission-policy';
-import { createTaskStateChangeEvent } from '../../shared/task-state';
+import { canTransitionTaskStatus, createTaskStateChangeEvent } from '../../shared/task-state';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { AI_LEAD_QUEUE_CONFIG_STORE, AI_LEAD_SEARCH_TASK_QUEUE, AI_LEAD_SEARCH_TASK_STORE } from './ai-leads.tokens';
-import { normalizeAiLeadQueueConcurrency } from './ai-lead-search-task-state';
+import { aiLeadSearchTaskTransitionRules, normalizeAiLeadQueueConcurrency } from './ai-lead-search-task-state';
 import { toLeadSearchPublicResult } from './ai-lead-search-progress';
 import type {
   AiLeadQueueConfigStore,
@@ -240,6 +240,7 @@ export class AiLeadSearchTaskService {
     title: string,
     patch: Parameters<AiLeadSearchTaskStore['updateTask']>[1] = {}
   ) {
+    this.assertTaskTransitionAllowed(task.status, status);
     const nextTask = await this.updateTaskOrThrow(
       task.id,
       {
@@ -262,6 +263,7 @@ export class AiLeadSearchTaskService {
   }
 
   private async enqueueNextRun(task: AiLeadSearchTaskRecord, eventType: string, title: string) {
+    this.assertTaskTransitionAllowed(task.status, 'queued');
     const runVersion = task.runVersion + 1;
     const expectedJobId = toSearchTaskJobId(task.id, runVersion);
     const queueConfig = await this.queueConfigStore.getConfig();
@@ -315,6 +317,13 @@ export class AiLeadSearchTaskService {
     }));
 
     return finalTask;
+  }
+
+  /** Guards user-triggered state changes against the documented task state machine. */
+  private assertTaskTransitionAllowed(fromStatus: AiLeadSearchTaskStatus, toStatus: AiLeadSearchTaskStatus) {
+    if (!canTransitionTaskStatus(aiLeadSearchTaskTransitionRules, fromStatus, toStatus)) {
+      throw new ConflictException('当前任务状态不支持该操作');
+    }
   }
 
   private requireUser(context: AiLeadSearchTaskContext) {

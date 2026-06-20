@@ -679,7 +679,10 @@ describe('AiLeadSearchTaskWorkerService', () => {
       action: 'worker-runtime-error',
       message: 'AI 获客 worker 运行期异常',
       errorMessage: 'redis connection lost',
-      metadata: {}
+      metadata: {
+        errorCategory: 'unexpected',
+        errorName: 'Error'
+      }
     });
   });
 
@@ -718,7 +721,9 @@ describe('AiLeadSearchTaskWorkerService', () => {
       metadata: {
         jobId: 'task-1:1',
         taskId: 'task-1',
-        runVersion: 1
+        runVersion: 1,
+        errorCategory: 'unexpected',
+        errorName: 'Error'
       }
     });
   });

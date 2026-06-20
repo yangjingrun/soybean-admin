@@ -1,9 +1,17 @@
-import { resolveCurrentTask } from '../../shared/task-state';
+import { resolveCurrentTask, type TaskStatusTransitionRules } from '../../shared/task-state';
 import type { AiLeadSearchTaskRecord, AiLeadSearchTaskStatus } from './ai-lead-search-task.types';
 
 export const defaultAiLeadQueueConcurrency = 2;
 export const maxAiLeadQueueConcurrency = 10;
 export const aiLeadActiveTaskStatuses: AiLeadSearchTaskStatus[] = ['queued', 'running', 'interrupted', 'failed'];
+export const aiLeadSearchTaskTransitionRules = {
+  queued: ['running', 'failed', 'discarded'],
+  running: ['running', 'completed', 'failed', 'interrupted'],
+  interrupted: ['queued', 'discarded'],
+  failed: ['queued', 'discarded'],
+  completed: [],
+  discarded: []
+} as const satisfies TaskStatusTransitionRules<AiLeadSearchTaskStatus>;
 
 const currentTaskStatusWeight: Record<AiLeadSearchTaskStatus, number> = {
   queued: 0,

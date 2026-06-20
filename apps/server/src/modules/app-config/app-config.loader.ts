@@ -38,18 +38,28 @@ const serverRuntimeRoles = ['api', 'worker', 'scheduler', 'all'] as const satisf
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const nodeEnv = env.NODE_ENV || DEFAULT_NODE_ENV;
   const isProduction = nodeEnv === 'production';
+  const databaseUrl = readOptionalString(env.DATABASE_URL, 'DATABASE_URL', { required: isProduction });
+  const redisUrl = readOptionalString(env.REDIS_URL, 'REDIS_URL', { required: isProduction }) || DEFAULT_REDIS_URL;
 
   return {
     nodeEnv,
     isProduction,
     serverRuntimeRole: readServerRuntimeRole(env.SERVER_RUNTIME_ROLE),
-    port: readNumber(env.PORT, DEFAULT_PORT),
+    port: readPositiveInteger(env.PORT, DEFAULT_PORT, 'PORT'),
     serverCorsOrigins: readCsv(env.SERVER_CORS_ORIGINS),
-    databaseUrl: env.DATABASE_URL,
-    redisUrl: env.REDIS_URL || DEFAULT_REDIS_URL,
+    databaseUrl,
+    redisUrl,
     aiConfigSecretEncryptionKey: env.AI_CONFIG_SECRET_ENCRYPTION_KEY,
-    authAccessTokenTtlSeconds: readNumber(env.AUTH_ACCESS_TOKEN_TTL_SECONDS, DEFAULT_AUTH_ACCESS_TOKEN_TTL_SECONDS),
-    authRefreshTokenTtlSeconds: readNumber(env.AUTH_REFRESH_TOKEN_TTL_SECONDS, DEFAULT_AUTH_REFRESH_TOKEN_TTL_SECONDS),
+    authAccessTokenTtlSeconds: readPositiveInteger(
+      env.AUTH_ACCESS_TOKEN_TTL_SECONDS,
+      DEFAULT_AUTH_ACCESS_TOKEN_TTL_SECONDS,
+      'AUTH_ACCESS_TOKEN_TTL_SECONDS'
+    ),
+    authRefreshTokenTtlSeconds: readPositiveInteger(
+      env.AUTH_REFRESH_TOKEN_TTL_SECONDS,
+      DEFAULT_AUTH_REFRESH_TOKEN_TTL_SECONDS,
+      'AUTH_REFRESH_TOKEN_TTL_SECONDS'
+    ),
     // Dev fixed tokens are never available in production, even if env is misconfigured.
     authDevFixedTokenEnabled: isProduction ? false : readBoolean(env.AUTH_DEV_FIXED_TOKEN_ENABLED, true),
     crmEnableMockEndpoints: readBoolean(env.CRM_ENABLE_MOCK_ENDPOINTS, false),
@@ -102,8 +112,32 @@ function readCsv(value: string | undefined) {
   return items?.length ? items : null;
 }
 
-function readNumber(value: string | undefined, defaultValue: number) {
-  return value === undefined ? defaultValue : Number(value);
+function readOptionalString(value: string | undefined, key: string, options: { required?: boolean } = {}) {
+  const normalized = value?.trim();
+
+  if (normalized) {
+    return normalized;
+  }
+
+  if (options.required) {
+    throw new Error(`${key} is required in production`);
+  }
+
+  return undefined;
+}
+
+function readPositiveInteger(value: string | undefined, defaultValue: number, key: string) {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    throw new Error(`Invalid ${key}: ${value}`);
+  }
+
+  return numberValue;
 }
 
 function readBoolean(value: string | undefined, defaultValue: boolean) {
