@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { decryptSecret, encryptSecret } from '../../shared/secret-crypto';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type { CrmGmailAccessTokenProvider } from './crm-gmail-history.gateway';
 import type { CrmMailboxRecord } from './crm.types';
@@ -31,9 +31,10 @@ interface GmailOAuthErrorResponse {
   error?: unknown;
 }
 
-const encryptionVersion = 'v1';
-const encryptionAlgorithm = 'aes-256-gcm';
-const encryptionIvLength = 12;
+const gmailSecretCryptoOptions = {
+  keyLabel: 'Gmail token encryption key',
+  valueLabel: 'Encrypted Gmail secret'
+};
 const oauthTokenEndpoint = 'https://oauth2.googleapis.com/token';
 
 export class FetchCrmGmailOAuthHttpClient implements CrmGmailOAuthHttpClient {
@@ -99,28 +100,12 @@ export class CrmGmailOAuthTokenProvider implements CrmGmailAccessTokenProvider {
 
 /** Encrypts a provider secret before persistence. */
 export function encryptGmailSecret(plainText: string, secretKey: string): string {
-  const key = normalizeEncryptionKey(secretKey);
-  const iv = randomBytes(encryptionIvLength);
-  const cipher = createCipheriv(encryptionAlgorithm, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-
-  return [encryptionVersion, toBase64Url(iv), toBase64Url(authTag), toBase64Url(encrypted)].join(':');
+  return encryptSecret(plainText, secretKey, gmailSecretCryptoOptions);
 }
 
 /** Decrypts a provider secret stored by encryptGmailSecret. */
 export function decryptGmailSecret(encryptedValue: string, secretKey: string): string {
-  const [version, ivValue, authTagValue, encryptedTextValue] = encryptedValue.split(':');
-
-  if (version !== encryptionVersion || !ivValue || !authTagValue || !encryptedTextValue) {
-    throw new Error('Encrypted Gmail secret format is invalid');
-  }
-
-  const key = normalizeEncryptionKey(secretKey);
-  const decipher = createDecipheriv(encryptionAlgorithm, key, fromBase64Url(ivValue));
-  decipher.setAuthTag(fromBase64Url(authTagValue));
-
-  return Buffer.concat([decipher.update(fromBase64Url(encryptedTextValue)), decipher.final()]).toString('utf8');
+  return decryptSecret(encryptedValue, secretKey, gmailSecretCryptoOptions);
 }
 
 function isAuthorizationExpiredResponse(response: CrmGmailOAuthHttpResponse) {
@@ -130,22 +115,4 @@ function isAuthorizationExpiredResponse(response: CrmGmailOAuthHttpResponse) {
 
   const body = response.body as GmailOAuthErrorResponse;
   return body.error === 'invalid_grant' || body.error === 'invalid_client' || response.status === 401;
-}
-
-function normalizeEncryptionKey(secretKey: string) {
-  const key = Buffer.from(secretKey, 'utf8');
-
-  if (key.length !== 32) {
-    throw new Error('Gmail token encryption key must be 32 bytes');
-  }
-
-  return key;
-}
-
-function toBase64Url(value: Buffer) {
-  return value.toString('base64url');
-}
-
-function fromBase64Url(value: string) {
-  return Buffer.from(value, 'base64url');
 }
