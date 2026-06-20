@@ -3531,6 +3531,7 @@ describe('CrmService', () => {
     assert.equal(result.successCount, 1);
     assert.equal(result.skippedCount, 2);
     assert.equal(result.failedCount, 0);
+    assert.equal(store.sequenceReviewDetailCalls.length, 0);
     assert.equal(store.enrollments.find(item => item.id === 'enrollment-owned')?.status, 'ready_to_send');
     assert.equal(store.messages.find(item => item.id === 'message-owned')?.status, 'draft_ready');
     assert.equal(store.enrollments.find(item => item.id === 'enrollment-member')?.status, 'draft_review_pending');

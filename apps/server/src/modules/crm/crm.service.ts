@@ -2698,12 +2698,15 @@ export class CrmService {
     input: SequenceBatchOperationInput,
     context: CrmUserContext
   ): Promise<SequenceBatchOperateResult> {
+    const reviewItems = await this.store.listSequenceReviewItemsByIds({
+      ids: input.ids,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+    const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
+
     return this.runSequenceBatch(input.ids, async id => {
-      const item = await this.store.getSequenceReviewItem({
-        id,
-        organizationId: context.organizationId,
-        ownerUserId: context.userId
-      });
+      const item = reviewItemById.get(id) ?? null;
 
       if (!item) {
         return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
