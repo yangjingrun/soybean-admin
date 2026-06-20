@@ -20,6 +20,7 @@ The frontend already had `getRequestErrorMessage()` support for `response.data.m
 - Keep unknown errors generic and do not expose stack traces.
 - Let frontend error helpers read backend `code` from any Axios response body, not only synthetic backend errors.
 - Mirror logout-code handling in the non-2xx `onError` path.
+- Keep backend-code action classification in a pure helper so logout, modal logout, and expired-token behavior can be tested without mounting the request instance.
 
 ## Impact Boundary
 

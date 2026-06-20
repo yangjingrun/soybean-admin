@@ -6,6 +6,14 @@ type BackendErrorBody = {
   code?: unknown;
 };
 
+type BackendErrorCodeAction = 'logout' | 'modalLogout' | 'expiredToken' | 'none';
+
+interface BackendErrorCodeActionConfig {
+  logoutCodes: string[];
+  modalLogoutCodes: string[];
+  expiredTokenCodes: string[];
+}
+
 /** Reads the most specific backend error message supported by our APIs. */
 export function getRequestErrorMessage(error: AxiosError<BackendErrorBody>) {
   const responseData = error.response?.data;
@@ -23,6 +31,26 @@ export function getBackendErrorCode(error: AxiosError<BackendErrorBody>) {
   }
 
   return '';
+}
+
+/** Classifies backend business codes before the request layer performs side effects. */
+export function getBackendErrorCodeAction(
+  code: string,
+  config: BackendErrorCodeActionConfig
+): BackendErrorCodeAction {
+  if (config.logoutCodes.includes(code)) {
+    return 'logout';
+  }
+
+  if (config.modalLogoutCodes.includes(code)) {
+    return 'modalLogout';
+  }
+
+  if (config.expiredTokenCodes.includes(code)) {
+    return 'expiredToken';
+  }
+
+  return 'none';
 }
 
 /** Checks whether the backend says the default AI model channel is missing. */

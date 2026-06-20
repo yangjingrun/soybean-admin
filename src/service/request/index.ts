@@ -5,7 +5,7 @@ import { localStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
 import { $t } from '@/locales';
 import { getAuthorization, handleExpiredRequest, showErrorMsg } from './shared';
-import { getBackendErrorCode, getRequestErrorMessage } from './error-message';
+import { getBackendErrorCode, getBackendErrorCodeAction, getRequestErrorMessage } from './error-message';
 import type { RequestInstanceState } from './type';
 
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
@@ -105,22 +105,27 @@ export const request = createFlatRequest(
       const authStore = useAuthStore();
       const message = getRequestErrorMessage(error);
       const backendErrorCode = getBackendErrorCode(error);
-
       const logoutCodes = import.meta.env.VITE_SERVICE_LOGOUT_CODES?.split(',') || [];
-      if (logoutCodes.includes(backendErrorCode)) {
+      const modalLogoutCodes = import.meta.env.VITE_SERVICE_MODAL_LOGOUT_CODES?.split(',') || [];
+      const expiredTokenCodes = import.meta.env.VITE_SERVICE_EXPIRED_TOKEN_CODES?.split(',') || [];
+      const codeAction = getBackendErrorCodeAction(backendErrorCode, {
+        logoutCodes,
+        modalLogoutCodes,
+        expiredTokenCodes
+      });
+
+      if (codeAction === 'logout') {
         authStore.resetStore();
         return;
       }
 
       // the error message is displayed in the modal
-      const modalLogoutCodes = import.meta.env.VITE_SERVICE_MODAL_LOGOUT_CODES?.split(',') || [];
-      if (modalLogoutCodes.includes(backendErrorCode)) {
+      if (codeAction === 'modalLogout') {
         return;
       }
 
       // when the token is expired, refresh token and retry request, so no need to show error message
-      const expiredTokenCodes = import.meta.env.VITE_SERVICE_EXPIRED_TOKEN_CODES?.split(',') || [];
-      if (expiredTokenCodes.includes(backendErrorCode)) {
+      if (codeAction === 'expiredToken') {
         return;
       }
 

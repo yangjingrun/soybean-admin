@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getBackendErrorCode, getRequestErrorMessage, isMissingModelConfigError } from './error-message';
+import {
+  getBackendErrorCode,
+  getBackendErrorCodeAction,
+  getRequestErrorMessage,
+  isMissingModelConfigError
+} from './error-message';
 
 type RequestError = Parameters<typeof getRequestErrorMessage>[0];
 
@@ -47,6 +52,19 @@ describe('request error message helpers', () => {
     } as unknown as RequestError;
 
     assert.equal(getBackendErrorCode(error), '8888');
+  });
+
+  it('classifies backend business codes with stable priority', () => {
+    const config = {
+      logoutCodes: ['8888', '8889'],
+      modalLogoutCodes: ['9999'],
+      expiredTokenCodes: ['7777']
+    };
+
+    assert.equal(getBackendErrorCodeAction('8888', config), 'logout');
+    assert.equal(getBackendErrorCodeAction('9999', config), 'modalLogout');
+    assert.equal(getBackendErrorCodeAction('7777', config), 'expiredToken');
+    assert.equal(getBackendErrorCodeAction('403', config), 'none');
   });
 
   it('identifies backend missing model config errors', () => {
