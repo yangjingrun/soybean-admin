@@ -6,6 +6,7 @@ export interface AppConfig {
   serverCorsOrigins: string[] | null;
   databaseUrl: string | undefined;
   redisUrl: string;
+  aiConfigSecretEncryptionKey: string | undefined;
   authAccessTokenTtlSeconds: number;
   authRefreshTokenTtlSeconds: number;
   authDevFixedTokenEnabled: boolean;
@@ -46,6 +47,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     serverCorsOrigins: readCsv(env.SERVER_CORS_ORIGINS),
     databaseUrl: env.DATABASE_URL,
     redisUrl: env.REDIS_URL || DEFAULT_REDIS_URL,
+    aiConfigSecretEncryptionKey: env.AI_CONFIG_SECRET_ENCRYPTION_KEY,
     authAccessTokenTtlSeconds: readNumber(env.AUTH_ACCESS_TOKEN_TTL_SECONDS, DEFAULT_AUTH_ACCESS_TOKEN_TTL_SECONDS),
     authRefreshTokenTtlSeconds: readNumber(env.AUTH_REFRESH_TOKEN_TTL_SECONDS, DEFAULT_AUTH_REFRESH_TOKEN_TTL_SECONDS),
     // Dev fixed tokens are never available in production, even if env is misconfigured.

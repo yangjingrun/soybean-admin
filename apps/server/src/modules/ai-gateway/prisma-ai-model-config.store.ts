@@ -1,11 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { AiModelConfigModel } from '../../generated/prisma/models/AiModelConfig';
+import { AppConfigService } from '../app-config/app-config.service';
 import { PrismaService } from '../database/prisma.service';
 import type { AiModelConfigRecord, AiModelConfigStore } from './ai-gateway.types';
+import { encryptAiConfigApiKey, resolveAiConfigApiKey } from './ai-config-secret-crypto';
 
 @Injectable()
 export class PrismaAiModelConfigStore implements AiModelConfigStore {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AppConfigService) private readonly appConfigService: AppConfigService
+  ) {}
 
   /** Reads one saved model config by stable config key. */
   async getModelConfig(configKey: string): Promise<AiModelConfigRecord | null> {
@@ -13,7 +18,7 @@ export class PrismaAiModelConfigStore implements AiModelConfigStore {
       where: { configKey }
     });
 
-    return record ? toModelConfigRecord(record) : null;
+    return record ? toModelConfigRecord(record, this.appConfigService) : null;
   }
 
   /** Persists one model config for backend AI calls. */
@@ -22,7 +27,7 @@ export class PrismaAiModelConfigStore implements AiModelConfigStore {
       title: record.title,
       providerName: record.providerName,
       apiBase: record.apiBase,
-      apiKey: record.apiKey,
+      ...encryptAiConfigApiKey(record.apiKey, this.appConfigService),
       model: record.model,
       temperature: record.temperature,
       maxOutputTokens: record.maxOutputTokens ?? null
@@ -36,7 +41,7 @@ export class PrismaAiModelConfigStore implements AiModelConfigStore {
       update: data
     });
 
-    return toModelConfigRecord(saved);
+    return toModelConfigRecord(saved, this.appConfigService);
   }
 }
 
@@ -48,18 +53,20 @@ function toModelConfigRecord(
     | 'providerName'
     | 'apiBase'
     | 'apiKey'
+    | 'encryptedApiKey'
     | 'model'
     | 'temperature'
     | 'maxOutputTokens'
     | 'updatedAt'
-  >
+  >,
+  appConfigService: AppConfigService
 ) {
   return {
     configKey: record.configKey,
     title: record.title,
     providerName: record.providerName,
     apiBase: record.apiBase,
-    apiKey: record.apiKey,
+    apiKey: resolveAiConfigApiKey(record, appConfigService),
     model: record.model,
     temperature: record.temperature ?? undefined,
     maxOutputTokens: record.maxOutputTokens ?? undefined,

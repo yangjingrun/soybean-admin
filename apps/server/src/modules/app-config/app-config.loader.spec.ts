@@ -22,6 +22,7 @@ describe('loadAppConfig', () => {
     assert.equal(config.serverCorsOrigins, null);
     assert.equal(config.databaseUrl, undefined);
     assert.equal(config.redisUrl, 'redis://127.0.0.1:6379');
+    assert.equal(config.aiConfigSecretEncryptionKey, undefined);
     assert.equal(config.authAccessTokenTtlSeconds, 7200);
     assert.equal(config.authRefreshTokenTtlSeconds, 1209600);
     assert.equal(config.authDevFixedTokenEnabled, true);
@@ -58,6 +59,14 @@ describe('loadAppConfig', () => {
 
     assert.equal(config.authAccessTokenTtlSeconds, 3600);
     assert.equal(config.authRefreshTokenTtlSeconds, 2592000);
+  });
+
+  it('reads the AI config secret encryption key from env', () => {
+    const config = loadAppConfig({
+      AI_CONFIG_SECRET_ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef'
+    });
+
+    assert.equal(config.aiConfigSecretEncryptionKey, '0123456789abcdef0123456789abcdef');
   });
 
   it('reads the server runtime role from env', () => {

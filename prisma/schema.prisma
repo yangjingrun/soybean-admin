@@ -781,6 +781,7 @@ model AiModelConfig {
   providerName    String
   apiBase         String
   apiKey          String
+  encryptedApiKey String?
   model           String
   temperature     Float?
   maxOutputTokens Int?
@@ -794,6 +795,7 @@ model SerperConfig {
   title     String
   apiBase   String
   apiKey    String
+  encryptedApiKey String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -804,6 +806,7 @@ model HunterConfig {
   title     String
   apiBase   String
   apiKey    String
+  encryptedApiKey String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

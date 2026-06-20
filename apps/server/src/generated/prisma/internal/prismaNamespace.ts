@@ -3977,6 +3977,7 @@ export const AiModelConfigScalarFieldEnum = {
   providerName: 'providerName',
   apiBase: 'apiBase',
   apiKey: 'apiKey',
+  encryptedApiKey: 'encryptedApiKey',
   model: 'model',
   temperature: 'temperature',
   maxOutputTokens: 'maxOutputTokens',
@@ -3993,6 +3994,7 @@ export const SerperConfigScalarFieldEnum = {
   title: 'title',
   apiBase: 'apiBase',
   apiKey: 'apiKey',
+  encryptedApiKey: 'encryptedApiKey',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -4006,6 +4008,7 @@ export const HunterConfigScalarFieldEnum = {
   title: 'title',
   apiBase: 'apiBase',
   apiKey: 'apiKey',
+  encryptedApiKey: 'encryptedApiKey',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
