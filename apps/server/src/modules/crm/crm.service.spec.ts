@@ -23,6 +23,7 @@ import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
 import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
@@ -185,6 +186,32 @@ describe('CrmService', () => {
     assert.equal(await service.listMessageDraftVersions('message-1', context), versions);
     assert.equal(await service.restoreMessageDraftVersion('message-1', 'draft-version-1', context), restored);
     assert.deepEqual(calls, ['update', 'regenerate', 'versions', 'restore']);
+  });
+
+  it('delegates sequence send control when the split control service is injected', async () => {
+    const context = createContext();
+    const started = { enrollment: { id: 'started' } };
+    const stopped = { enrollment: { id: 'stopped' } };
+    const calls: string[] = [];
+    const sequenceControlService = {
+      async startFirstMessageSend(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'enrollment-1');
+        assert.equal(actualContext, context);
+        calls.push('start');
+        return started;
+      },
+      async stopSequenceEnrollment(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'enrollment-1');
+        assert.equal(actualContext, context);
+        calls.push('stop');
+        return stopped;
+      }
+    };
+    const service = createServiceWithSplitServices({ sequenceControlService });
+
+    assert.equal(await service.startFirstMessageSend('enrollment-1', context), started);
+    assert.equal(await service.stopSequenceEnrollment('enrollment-1', context), stopped);
+    assert.deepEqual(calls, ['start', 'stop']);
   });
 
   it('delegates first draft approval when the split draft approval service is injected', async () => {
@@ -4625,7 +4652,10 @@ describe('CrmService', () => {
       ]
     });
     const queue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, queue);
+    const service = createServiceWithSplitServices({
+      store,
+      sequenceControlService: createSequenceControlService(store)
+    });
 
     const result = await service.startFirstMessageSend('enrollment-1', createContext());
 
@@ -4662,7 +4692,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store, undefined, undefined, createSendQueue());
+    const service = createServiceWithSplitServices({
+      store,
+      sequenceControlService: createSequenceControlService(store)
+    });
 
     await assert.rejects(
       () => service.startFirstMessageSend('enrollment-1', createContext({ organizationRole: 'admin' })),
@@ -4708,7 +4741,10 @@ describe('CrmService', () => {
       ]
     });
     const queue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, queue);
+    const service = createServiceWithSplitServices({
+      store,
+      sequenceControlService: createSequenceControlService(store)
+    });
 
     await assert.rejects(() => service.startFirstMessageSend('enrollment-1', createContext()), /组织黑名单/);
     assert.equal(queue.jobs.length, 0);
@@ -4752,7 +4788,10 @@ describe('CrmService', () => {
       ]
     });
     const queue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, queue);
+    const service = createServiceWithSplitServices({
+      store,
+      sequenceControlService: createSequenceControlService(store)
+    });
 
     const result = await service.startFirstMessageSend('enrollment-1', createContext());
 
@@ -4783,7 +4822,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store, undefined, undefined, createSendQueue(new Error('queue down')));
+    const service = createServiceWithSplitServices({
+      store,
+      sequenceControlService: createSequenceControlService(store)
+    });
 
     const result = await service.startFirstMessageSend('enrollment-1', createContext());
 
@@ -4898,7 +4940,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      sequenceControlService: createSequenceControlService(store)
+    });
 
     const result = await service.stopSequenceEnrollment('enrollment-1', createContext({ organizationRole: 'admin' }));
 
@@ -5555,7 +5600,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      sequenceControlService: createSequenceControlService(store)
+    });
 
     await assert.rejects(() => service.stopSequenceEnrollment('enrollment-1', createContext()), BadRequestException);
   });
@@ -9388,6 +9436,7 @@ function createServiceWithSplitServices(options: {
   personaProfileService?: unknown;
   productLineService?: unknown;
   sequenceService?: unknown;
+  sequenceControlService?: unknown;
   sequencePolicyService?: unknown;
   templateGroupService?: unknown;
   draftService?: unknown;
@@ -9422,6 +9471,7 @@ function createServiceWithSplitServices(options: {
     (options.personaProfileService ?? createPersonaProfileService(store)) as never,
     (options.productLineService ?? createProductLineService(store)) as never,
     options.sequenceService as never,
+    options.sequenceControlService as never,
     (options.sequencePolicyService ?? createSequencePolicyService(store)) as never,
     (options.templateGroupService ?? createEmailTemplateGroupService(store)) as never,
     options.draftService as never,
@@ -9541,6 +9591,10 @@ function createDraftPreviewService(
   options: { aiDraftService?: CrmAiDraftService | null } = {}
 ) {
   return new CrmDraftPreviewService(store, store, store, options.aiDraftService);
+}
+
+function createSequenceControlService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmSequenceControlService(store, options.crmLogger);
 }
 
 function createSequenceService(

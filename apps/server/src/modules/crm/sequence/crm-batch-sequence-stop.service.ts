@@ -1,8 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
-import type { CrmSequenceEnrollmentStatus, CrmUserContext } from '../crm.types';
+import type { CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import type { CrmBatchSequenceStopRepository } from './crm-batch-sequence-stop.repository';
+import { stoppableSequenceStatuses } from './crm-sequence-control-rules';
 import {
   createSequenceBatchExceptionResult,
   createSequenceBatchResult,
@@ -10,13 +11,6 @@ import {
   type SequenceBatchOperateResult,
   type SequenceBatchOperationInput
 } from './crm-sequence-batch';
-
-const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
-  'draft_review_pending',
-  'ready_to_send',
-  'sequence_running',
-  'paused'
-];
 
 @Injectable()
 export class CrmBatchSequenceStopService {

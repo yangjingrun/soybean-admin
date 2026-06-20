@@ -42,6 +42,7 @@ import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { nextDraftEnrollmentStatuses } from './sequence/crm-next-draft-rules';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
 import {
   type SequenceBatchOperateResult,
   type SequenceBatchOperationInput
@@ -120,12 +121,6 @@ const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
 const initialDraftStepIndex = 1;
 const accountArchiveRecoveryDays = 30;
-const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
-  'draft_review_pending',
-  'ready_to_send',
-  'sequence_running',
-  'paused'
-];
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
@@ -257,6 +252,9 @@ export class CrmService {
     @Optional()
     @Inject(CrmSequenceService)
     private readonly sequenceService?: CrmSequenceService,
+    @Optional()
+    @Inject(CrmSequenceControlService)
+    private readonly sequenceControlService?: CrmSequenceControlService,
     @Optional()
     @Inject(CrmSequencePolicyService)
     private readonly sequencePolicyService?: CrmSequencePolicyService,
@@ -1562,97 +1560,12 @@ export class CrmService {
 
   /** Starts the approved first message by placing it into the local send scheduling pool. */
   async startFirstMessageSend(id: string, context: CrmUserContext) {
-    const item = await this.requireOwnedSequenceReviewItem(id, context);
-
-    if (item.enrollment.status !== 'ready_to_send') {
-      throw new BadRequestException('当前序列尚未完成首封审核');
-    }
-
-    if (!item.firstMessage || item.firstMessage.status !== approvedDraftStatus) {
-      throw new BadRequestException('首封开发信尚未确认');
-    }
-
-    if (!item.mailbox) {
-      throw new BadRequestException('请先选择发送邮箱');
-    }
-
-    if (item.mailbox.status !== 'active') {
-      throw new BadRequestException('发送邮箱未启用');
-    }
-
-    await this.assertContactNotBlacklisted(item.contact, context);
-
-    const started = await this.store.startFirstMessageSend({
-      enrollmentId: item.enrollment.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      fromEnrollmentStatus: 'ready_to_send',
-      toEnrollmentStatus: 'sequence_running',
-      fromMessageStatus: approvedDraftStatus,
-      toMessageStatus: approvedDraftStatus,
-      accountStatus: 'sequence_running',
-      scheduledAt: new Date()
-    });
-
-    if (!started) {
-      throw new BadRequestException('当前序列状态已变化，请刷新后重试');
-    }
-
-    await this.recordCrmLog('sequence-send-started', 'CRM 首封开发信已等待发送调度', context, {
-      organizationId: context.organizationId,
-      accountId: started.account.id,
-      contactId: started.contact.id,
-      enrollmentId: started.enrollment.id,
-      messageId: started.message.id,
-      mailboxId: started.mailbox.id,
-      runVersion: started.enrollment.runVersion
-    });
-
-    return {
-      enrollment: toSequenceEnrollmentView(started.enrollment),
-      message: toMessageView(started.message),
-      account: toAccountView(started.account),
-      event: toTimelineEventView(started.event)
-    };
+    return this.requireSequenceControlService().startFirstMessageSend(id, context);
   }
 
   /** Stops a sequence and invalidates queued jobs by bumping runVersion. */
   async stopSequenceEnrollment(id: string, context: CrmUserContext) {
-    const item = await this.requireScopedSequenceReviewItem(id, context);
-
-    if (!stoppableSequenceStatuses.includes(item.enrollment.status)) {
-      throw new BadRequestException('当前序列状态不能停止');
-    }
-
-    const stopped = await this.store.stopSequenceEnrollment({
-      enrollmentId: item.enrollment.id,
-      organizationId: context.organizationId,
-      fromStatuses: stoppableSequenceStatuses,
-      accountStatus: 'paused',
-      actorUserId: context.userId
-    });
-
-    if (!stopped) {
-      throw new BadRequestException('当前序列状态已变化，请刷新后重试');
-    }
-
-    await this.recordCrmLog('sequence-stopped', 'CRM 开发信序列已停止', context, {
-      organizationId: context.organizationId,
-      accountId: stopped.account.id,
-      contactId: stopped.enrollment.contactId,
-      enrollmentId: stopped.enrollment.id,
-      messageId: stopped.message?.id ?? item.firstMessage?.id ?? null,
-      fromStatus: item.enrollment.status,
-      toStatus: stopped.enrollment.status,
-      runVersion: stopped.enrollment.runVersion
-    });
-
-    return {
-      enrollment: toSequenceEnrollmentView(stopped.enrollment),
-      message: stopped.message ? toMessageView(stopped.message) : null,
-      account: toAccountView(stopped.account),
-      event: toTimelineEventView(stopped.event)
-    };
+    return this.requireSequenceControlService().stopSequenceEnrollment(id, context);
   }
 
   /** Stops eligible owner sequences in isolation so one failure does not abort the whole batch. */
@@ -2208,23 +2121,20 @@ export class CrmService {
     return this.gmailWatchService.renewMailboxWatch(mailbox.id, context);
   }
 
-  private async assertContactNotBlacklisted(contact: CrmContactRecord, context: CrmUserContext) {
-    const blacklistEntry = await this.store.findBlacklistEntry({
-      organizationId: context.organizationId,
-      emailHash: contact.emailHash
-    });
-
-    if (blacklistEntry) {
-      throw new BadRequestException('该邮箱已在组织黑名单中，不能继续开发');
-    }
-  }
-
   private requireSequenceService() {
     if (!this.sequenceService) {
       throw new BadRequestException('CRM 邮件序列服务未启用');
     }
 
     return this.sequenceService;
+  }
+
+  private requireSequenceControlService() {
+    if (!this.sequenceControlService) {
+      throw new BadRequestException('CRM 邮件序列控制服务未启用');
+    }
+
+    return this.sequenceControlService;
   }
 
   private requireDraftPreviewService() {
@@ -2241,20 +2151,6 @@ export class CrmService {
     }
 
     return this.draftService;
-  }
-
-  private async requireScopedSequenceReviewItem(id: string, context: CrmUserContext) {
-    const item = await this.store.getSequenceReviewItem({
-      id,
-      organizationId: context.organizationId,
-      ...toOwnerScope(context)
-    });
-
-    if (!item) {
-      throw new NotFoundException('邮件序列不存在');
-    }
-
-    return item;
   }
 
   private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
