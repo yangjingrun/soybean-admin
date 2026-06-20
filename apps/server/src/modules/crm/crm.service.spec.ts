@@ -13,6 +13,7 @@ import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
+import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
 import { CrmProductLineService } from './product-lines/crm-product-line.service';
@@ -30,6 +31,7 @@ import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
+import type { CrmEmailDnsResolver } from './shared/crm-email-utils';
 import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
 import type {
   CrmArchivedFingerprintRecord,
@@ -463,9 +465,11 @@ describe('CrmService', () => {
 
   it('imports one lead account and contact with organization scoped dedupe', async () => {
     const store = createStore();
-    const service = new CrmService(store, {
-      async resolveMx() {
-        return [{ exchange: 'mx.abc-bearing.example' }];
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: {
+        async resolveMx() {
+          return [{ exchange: 'mx.abc-bearing.example' }];
+        }
       }
     });
     const context = createContext();
@@ -517,11 +521,13 @@ describe('CrmService', () => {
 
   it('auto verifies imported personal contact email by MX lookup', async () => {
     const store = createStore();
-    const service = new CrmService(store, {
-      async resolveMx(domain) {
-        assert.equal(domain, 'buyer.example');
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: {
+        async resolveMx(domain) {
+          assert.equal(domain, 'buyer.example');
 
-        return [{ exchange: 'mx.buyer.example' }];
+          return [{ exchange: 'mx.buyer.example' }];
+        }
       }
     });
 
@@ -549,7 +555,7 @@ describe('CrmService', () => {
   it('reuses fresh global email verification cache across owners', async () => {
     const store = createStore();
     const dnsResolver = createDnsResolver([{ exchange: 'mx.buyer.example', priority: 10 }]);
-    const service = new CrmService(store, dnsResolver);
+    const service = createServiceWithAccountService(store, { dnsResolver });
 
     await service.importAccountFromLead(
       {
@@ -598,7 +604,7 @@ describe('CrmService', () => {
       ]
     });
     const dnsResolver = createDnsResolver([]);
-    const service = new CrmService(store, dnsResolver);
+    const service = createServiceWithAccountService(store, { dnsResolver });
 
     const result = await service.importAccountFromLead(
       {
@@ -724,7 +730,7 @@ describe('CrmService', () => {
       ]
     });
     const dnsResolver = createDnsResolver([{ exchange: 'mx.buyer.example', priority: 10 }]);
-    const service = new CrmService(store, dnsResolver);
+    const service = createServiceWithAccountService(store, { dnsResolver });
 
     const result = await service.importAccountFromLead(
       {
@@ -762,7 +768,7 @@ describe('CrmService', () => {
       ]
     });
     const dnsResolver = createDnsResolver([]);
-    const service = new CrmService(store, dnsResolver);
+    const service = createServiceWithAccountService(store, { dnsResolver });
 
     const result = await service.importAccountFromLead(
       {
@@ -784,9 +790,11 @@ describe('CrmService', () => {
 
   it('keeps imported public mailbox in risky review without querying MX', async () => {
     const store = createStore();
-    const service = new CrmService(store, {
-      async resolveMx() {
-        throw new Error('public mailbox should not query DNS');
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: {
+        async resolveMx() {
+          throw new Error('public mailbox should not query DNS');
+        }
       }
     });
 
@@ -817,8 +825,7 @@ describe('CrmService', () => {
       createAccount({ id: 'own-account', ownerUserId: 'user-1', name: 'Own Account' }),
       createAccount({ id: 'peer-account', ownerUserId: 'user-2', name: 'Peer Account' })
     ]);
-    const sendQueue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, sendQueue);
+    const service = createServiceWithAccountService(store);
 
     const memberResult = await service.listAccounts(createContext({ organizationRole: 'member' }));
     const adminResult = await service.listAccounts(createContext({ organizationRole: 'admin' }));
@@ -839,8 +846,7 @@ describe('CrmService', () => {
       createAccount({ id: 'own-candidate', ownerUserId: 'user-1', name: 'ABC Distributor', status: 'candidate' }),
       createAccount({ id: 'peer-ready', ownerUserId: 'user-2', name: 'ABC Peer', status: 'ready' })
     ]);
-    const sendQueue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, sendQueue);
+    const service = createServiceWithAccountService(store);
 
     const result = await service.listAccounts(createContext(), {
       keyword: ' ABC ',
@@ -895,7 +901,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store, createDnsResolver([]));
+    const service = createServiceWithAccountService(store, { dnsResolver: createDnsResolver([]) });
 
     const result = await service.importAccountFromLead(
       {
@@ -1149,7 +1155,7 @@ describe('CrmService', () => {
         archivedAt: new Date('2026-01-01T00:00:00.000Z')
       })
     ]);
-    const service = new CrmService(store);
+    const service = createServiceWithAccountService(store);
 
     await assert.rejects(() => service.restoreAccount('account-1', createContext()), BadRequestException);
   });
@@ -1159,11 +1165,10 @@ describe('CrmService', () => {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'Ali@Example.COM' })]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(
-      store,
-      createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]),
-      logs.service
-    );
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]),
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
 
     const result = await service.verifyContactEmail('contact-1', createContext());
 
@@ -1207,7 +1212,7 @@ describe('CrmService', () => {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'invalid-email' })]
     });
     const resolver = createDnsResolver([]);
-    const service = new CrmService(store, resolver);
+    const service = createServiceWithAccountService(store, { dnsResolver: resolver });
 
     const result = await service.verifyContactEmail('contact-1', createContext());
 
@@ -1221,7 +1226,7 @@ describe('CrmService', () => {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'buyer@example..com' })]
     });
     const resolver = createDnsResolver([]);
-    const service = new CrmService(store, resolver);
+    const service = createServiceWithAccountService(store, { dnsResolver: resolver });
 
     const result = await service.verifyContactEmail('contact-1', createContext());
 
@@ -1234,7 +1239,7 @@ describe('CrmService', () => {
     const store = createStore([createAccount({ id: 'account-1' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'buyer@nomx.example' })]
     });
-    const service = new CrmService(store, createDnsResolver(createDnsError('ENODATA')));
+    const service = createServiceWithAccountService(store, { dnsResolver: createDnsResolver(createDnsError('ENODATA')) });
 
     const result = await service.verifyContactEmail('contact-1', createContext());
 
@@ -1246,7 +1251,9 @@ describe('CrmService', () => {
     const store = createStore([createAccount({ id: 'account-1' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'buyer@timeout.example' })]
     });
-    const service = new CrmService(store, createDnsResolver(createDnsError('ETIMEOUT')));
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: createDnsResolver(createDnsError('ETIMEOUT'))
+    });
 
     const result = await service.verifyContactEmail('contact-1', createContext());
 
@@ -1262,7 +1269,7 @@ describe('CrmService', () => {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', email: 'sales@example.com' })]
     });
     const resolver = createDnsResolver([]);
-    const service = new CrmService(store, resolver);
+    const service = createServiceWithAccountService(store, { dnsResolver: resolver });
 
     const result = await service.verifyContactEmail('contact-1', createContext());
 
@@ -1275,7 +1282,9 @@ describe('CrmService', () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })]
     });
-    const service = new CrmService(store, createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]));
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }])
+    });
 
     await assert.rejects(() => service.verifyContactEmail('contact-1', createContext()), NotFoundException);
 
@@ -1287,7 +1296,9 @@ describe('CrmService', () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })]
     });
-    const service = new CrmService(store, createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]));
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }])
+    });
 
     await service.verifyContactEmail('contact-1', createContext({ organizationRole: 'admin' }));
 
@@ -1299,7 +1310,9 @@ describe('CrmService', () => {
     const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
       contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })]
     });
-    const service = new CrmService(store, createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }]));
+    const service = createServiceWithAccountService(store, {
+      dnsResolver: createDnsResolver([{ exchange: 'mx.example.com', priority: 10 }])
+    });
 
     await service.verifyContactEmail('contact-1', createContext({ roles: ['R_SUPER'], organizationRole: 'member' }));
 
@@ -9491,7 +9504,7 @@ function createServiceWithSplitServices(options: {
     undefined,
     (options.settingsService ?? createSettingsService(store)) as never,
     options.suppressionService as never,
-    options.accountService as never,
+    (options.accountService ?? createAccountService(store)) as never,
     options.mailboxService as never,
     (options.personaProfileService ?? createPersonaProfileService(store)) as never,
     (options.productLineService ?? createProductLineService(store)) as never,
@@ -9520,6 +9533,23 @@ function createServiceWithSequenceService(
     store,
     sequenceService: createSequenceService(store, options)
   });
+}
+
+function createServiceWithAccountService(
+  store: CrmStore,
+  options: { dnsResolver?: CrmEmailDnsResolver; crmLogger?: CrmLoggerService } = {}
+) {
+  return createServiceWithSplitServices({
+    store,
+    accountService: createAccountService(store, options)
+  });
+}
+
+function createAccountService(
+  store: CrmStore,
+  options: { dnsResolver?: CrmEmailDnsResolver; crmLogger?: CrmLoggerService } = {}
+) {
+  return new CrmAccountService(store, store, options.dnsResolver, options.crmLogger);
 }
 
 function createSettingsService(

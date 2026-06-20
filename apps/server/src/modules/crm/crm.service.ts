@@ -17,10 +17,7 @@ import { CrmLoggerService } from './shared/crm-logger.service';
 import type { CrmEmailDnsResolver } from './shared/crm-email-utils';
 import { createCrmReadScope } from './shared/crm-scope';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
-import {
-  normalizeEmailVerificationCooldownDays,
-  normalizeOwnerConcurrentSendLimit
-} from './crm-global-config';
+import { normalizeOwnerConcurrentSendLimit } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
@@ -72,21 +69,13 @@ import type {
   CrmAiDraftMetadata,
   CrmAiDraftTaskQueuePort,
   CrmAiDraftQueueConfigInput,
-  CrmAccountDetailRecord,
-  CrmAccountRecord,
   CrmAccountStatus,
-  CrmArchivedFingerprintRecord,
-  CrmArchivedFingerprintType,
-  CrmArchivedFingerprintUpsertInput,
   CrmAiDraftPreviewInput,
   CrmBlacklistRecord,
   CrmMailboxProvider,
   CrmMailboxRecord,
   CrmMailboxStatus,
-  CrmContactRecord,
   CrmEmailTemplateStatus,
-  CrmEmailVerificationReason,
-  CrmEmailStatus,
   CrmEmailSendGateway,
   CrmGlobalConfigRecord,
   CrmInboxThreadStatus,
@@ -102,7 +91,6 @@ import type {
   CrmStrategyStatsRecord,
   CrmSendQueuePort,
   CrmStore,
-  CrmTimelineEventRecord,
   CrmUserContext,
   ImportCrmLeadInput
 } from './crm.types';
@@ -110,7 +98,6 @@ import type {
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
-const maxNoteLength = 2000;
 const gmailProvider: CrmMailboxProvider = 'gmail';
 const gmailHistorySyncScopes = new Set([
   'https://mail.google.com/',
@@ -121,32 +108,8 @@ const gmailHistorySyncScopes = new Set([
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
 const initialDraftStepIndex = 1;
-const accountArchiveRecoveryDays = 30;
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
-const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
-
-const publicEmailPrefixes = new Set([
-  'admin',
-  'contact',
-  'hello',
-  'info',
-  'office',
-  'purchasing',
-  'sales',
-  'service',
-  'support'
-]);
-
-interface EmailVerificationProbeResult {
-  status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'risky' | 'unreachable'>;
-  domain: string | null;
-  reason: CrmEmailVerificationReason;
-}
-
-interface EmailVerificationResult extends EmailVerificationProbeResult {
-  cacheHit: boolean;
-}
 
 interface ProductLineCreateInput {
   name: string;
@@ -298,60 +261,7 @@ export class CrmService {
 
   /** Imports one lead candidate into the organization CRM with domain and email dedupe. */
   async importAccountFromLead(input: ImportCrmLeadInput, context: CrmUserContext) {
-    if (this.accountService) {
-      return this.accountService.importAccountFromLead(input, context);
-    }
-
-    const name = input.name.trim();
-
-    if (!name) {
-      throw new BadRequestException('客户名称不能为空');
-    }
-
-    const domain = normalizeDomain(input.websiteUrl);
-    const archivedMatches = await this.findArchivedImportMatches(domain, input, context);
-    const existingAccount = domain
-      ? await this.store.findAccountByDomain(context.organizationId, context.userId, domain)
-      : null;
-    const account =
-      existingAccount ??
-      (await this.store.createAccount({
-        organizationId: context.organizationId,
-        ownerUserId: context.userId,
-        name,
-        normalizedName: normalizeName(name),
-        websiteUrl: normalizeNullableString(input.websiteUrl),
-        domain,
-        country: normalizeNullableString(input.country),
-        customerType: normalizeNullableString(input.customerType),
-        status: input.contact?.email ? 'email_verification_pending' : 'missing_contact',
-        sourceTaskId: normalizeNullableString(input.sourceTaskId)
-      }));
-
-    if (!existingAccount) {
-      await this.store.createTimelineEvent({
-        organizationId: context.organizationId,
-        accountId: account.id,
-        ownerUserId: context.userId,
-        eventType: 'account_imported',
-        title: 'AI 获客导入客户公司',
-        metadata: {
-          sourceTaskId: input.sourceTaskId ?? null,
-          domain,
-          sourceSnapshot: normalizeLeadSourceSnapshot(input.sourceSnapshot)
-        }
-      });
-    }
-
-    await this.createArchivedMatchTimelineIfNeeded(account, archivedMatches, context);
-
-    const contact = await this.importContactIfPresent(account, input, context);
-    const updatedAccount = contact ? await this.applyImportedContactAccountStatus(account, contact) : account;
-
-    return {
-      account: updatedAccount,
-      contact
-    };
+    return this.requireAccountService().importAccountFromLead(input, context);
   }
 
   /** Lists accounts within the current organization and applies member ownership isolation. */
@@ -364,39 +274,12 @@ export class CrmService {
       status?: CrmAccountStatus;
     } = {}
   ) {
-    if (this.accountService) {
-      return this.accountService.listAccounts(context, query);
-    }
-
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const result = await this.store.listAccounts({
-      organizationId: context.organizationId,
-      ...toOwnerScope(context),
-      ...(keyword ? { keyword } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
-
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toAccountView)
-    });
+    return this.requireAccountService().listAccounts(context, query);
   }
 
   /** Returns one account detail within the current user's organization scope. */
   async getAccountDetail(id: string, context: CrmUserContext) {
-    if (this.accountService) {
-      return this.accountService.getAccountDetail(id, context);
-    }
-
-    const detail = await this.requireScopedAccountDetail(id, context);
-
-    return toAccountDetailView(detail);
+    return this.requireAccountService().getAccountDetail(id, context);
   }
 
   /** Changes the scoped account status and records a timeline event. */
@@ -408,11 +291,7 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (this.accountService) {
-      return this.accountService.updateAccountStatus(id, input, context);
-    }
-
-    return this.changeAccountStatus(id, input.status, 'status_changed', '线索状态变更', input.remark, context);
+    return this.requireAccountService().updateAccountStatus(id, input, context);
   }
 
   /** Adds a user note to the scoped account timeline. */
@@ -423,24 +302,7 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (this.accountService) {
-      return this.accountService.addAccountNote(id, input, context);
-    }
-
-    const detail = await this.requireScopedAccountDetail(id, context);
-    const content = normalizeLimitedContent(input.content, '备注内容不能为空');
-    const event = await this.store.createTimelineEvent({
-      organizationId: detail.account.organizationId,
-      accountId: detail.account.id,
-      ownerUserId: context.userId,
-      eventType: 'note_added',
-      title: '新增备注',
-      content
-    });
-
-    return {
-      event: toTimelineEventView(event)
-    };
+    return this.requireAccountService().addAccountNote(id, input, context);
   }
 
   /** Archives the scoped account and records the archive reason in timeline. */
@@ -451,114 +313,17 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    if (this.accountService) {
-      return this.accountService.archiveAccount(id, input, context);
-    }
-
-    const detail = await this.requireScopedAccountDetail(id, context);
-    const fromStatus = detail.account.status;
-    const archiveReason = normalizeNullableString(input.reason);
-    const archivedAt = new Date();
-    const account = await this.store.updateAccount(detail.account.id, {
-      status: 'archived',
-      archivedAt,
-      archiveReason,
-      archiveSlimmedAt: null
-    });
-
-    if (!account) {
-      throw new NotFoundException('线索不存在');
-    }
-
-    const event = await this.store.createTimelineEvent({
-      organizationId: account.organizationId,
-      accountId: account.id,
-      ownerUserId: context.userId,
-      eventType: 'account_archived',
-      title: '归档线索',
-      content: archiveReason,
-      metadata: {
-        fromStatus,
-        toStatus: 'archived'
-      }
-    });
-
-    await this.upsertArchivedFingerprints(account, detail.contacts, archiveReason, archivedAt);
-
-    return {
-      account: toAccountView(account),
-      event: toTimelineEventView(event)
-    };
+    return this.requireAccountService().archiveAccount(id, input, context);
   }
 
   /** Restores an archived account while the full recovery window is still open. */
   async restoreAccount(id: string, context: CrmUserContext) {
-    if (this.accountService) {
-      return this.accountService.restoreAccount(id, context);
-    }
-
-    const detail = await this.requireScopedAccountDetail(id, context);
-
-    if (detail.account.status !== 'archived') {
-      throw new BadRequestException('只有已归档线索可以恢复');
-    }
-
-    if (!detail.account.archivedAt || isPastArchiveRecoveryWindow(detail.account.archivedAt)) {
-      throw new BadRequestException('归档已超过 30 天，不能直接恢复');
-    }
-
-    const account = await this.store.updateAccount(detail.account.id, {
-      status: 'candidate',
-      archivedAt: null,
-      archiveReason: null,
-      archiveSlimmedAt: null
-    });
-
-    if (!account) {
-      throw new NotFoundException('线索不存在');
-    }
-
-    const event = await this.store.createTimelineEvent({
-      organizationId: account.organizationId,
-      accountId: account.id,
-      ownerUserId: context.userId,
-      eventType: 'account_restored',
-      title: '恢复归档线索',
-      metadata: {
-        fromStatus: 'archived',
-        toStatus: account.status
-      }
-    });
-
-    return {
-      account: toAccountView(account),
-      event: toTimelineEventView(event)
-    };
+    return this.requireAccountService().restoreAccount(id, context);
   }
 
   /** Verifies one scoped contact email with basic syntax and MX lookup. */
   async verifyContactEmail(id: string, context: CrmUserContext) {
-    if (this.accountService) {
-      return this.accountService.verifyContactEmail(id, context);
-    }
-
-    const contact = await this.store.findContactById({
-      id,
-      organizationId: context.organizationId,
-      ...toOwnerScope(context)
-    });
-
-    if (!contact) {
-      throw new NotFoundException('联系人不存在');
-    }
-
-    const verification = await this.verifyEmailWithCache(contact.email, context);
-    const result = await this.applyContactEmailVerification(contact, verification, context);
-
-    return {
-      contact: toContactView(result.contact),
-      event: toTimelineEventView(result.event)
-    };
+    return this.requireAccountService().verifyContactEmail(id, context);
   }
 
   /** Reads platform-wide CRM settings maintained by super administrators. */
@@ -1704,303 +1469,6 @@ export class CrmService {
     return this.inboxService.confirmInboxMessageUnsubscribe(id, context);
   }
 
-  private async importContactIfPresent(
-    account: CrmAccountRecord,
-    input: ImportCrmLeadInput,
-    context: CrmUserContext
-  ): Promise<CrmContactRecord | null> {
-    const email = normalizeEmail(input.contact?.email);
-
-    if (!email) {
-      return null;
-    }
-
-    const emailHash = hashEmail(email);
-    const existingContact = await this.store.findContactByEmailHash(context.organizationId, context.userId, emailHash);
-
-    if (existingContact) {
-      if (existingContact.accountId !== account.id) {
-        const updatedContact = await this.store.updateContact(existingContact.id, { accountId: account.id });
-
-        return updatedContact ?? existingContact;
-      }
-      return existingContact;
-    }
-
-    const contact = await this.store.createContact({
-      organizationId: context.organizationId,
-      accountId: account.id,
-      ownerUserId: context.userId,
-      fullName: normalizeNullableString(input.contact?.fullName),
-      title: normalizeNullableString(input.contact?.title),
-      email,
-      emailHash,
-      maskedEmail: maskEmail(email),
-      isPublicEmail: isPublicEmail(email),
-      emailStatus: 'unchecked',
-      sourceTaskId: normalizeNullableString(input.sourceTaskId)
-    });
-
-    await this.store.createTimelineEvent({
-      organizationId: context.organizationId,
-      accountId: account.id,
-      contactId: contact.id,
-      ownerUserId: context.userId,
-      eventType: 'contact_imported',
-      title: '导入联系人邮箱',
-      metadata: {
-        sourceTaskId: input.sourceTaskId ?? null,
-        maskedEmail: contact.maskedEmail,
-        isPublicEmail: contact.isPublicEmail
-      }
-    });
-
-    const verification = await this.verifyEmailWithCache(contact.email, context);
-    const { contact: verifiedContact } = await this.applyContactEmailVerification(contact, verification, context);
-
-    return verifiedContact;
-  }
-
-  private async applyContactEmailVerification(
-    contact: CrmContactRecord,
-    verification: EmailVerificationResult,
-    context: CrmUserContext
-  ) {
-    const fromStatus = contact.emailStatus;
-    const updatedContact = await this.store.updateContactEmailStatus(contact.id, verification.status);
-
-    if (!updatedContact) {
-      throw new NotFoundException('联系人不存在');
-    }
-
-    const event = await this.store.createTimelineEvent({
-      organizationId: updatedContact.organizationId,
-      accountId: updatedContact.accountId,
-      contactId: updatedContact.id,
-      ownerUserId: context.userId,
-      eventType: 'email_verified',
-      title: '邮箱验证',
-      content: `邮箱 ${updatedContact.maskedEmail} 验证结果：${toEmailStatusText(verification.status)}`,
-      metadata: {
-        maskedEmail: updatedContact.maskedEmail,
-        domain: verification.domain,
-        fromStatus,
-        toStatus: verification.status,
-        reason: verification.reason,
-        cacheHit: verification.cacheHit
-      }
-    });
-    await this.recordCrmLog('contact-email-verify', 'CRM 联系人邮箱验证完成', context, {
-      organizationId: updatedContact.organizationId,
-      accountId: updatedContact.accountId,
-      contactId: updatedContact.id,
-      maskedEmail: updatedContact.maskedEmail,
-      domain: verification.domain,
-      fromStatus,
-      toStatus: verification.status,
-      reason: verification.reason,
-      cacheHit: verification.cacheHit
-    });
-
-    return {
-      contact: updatedContact,
-      event
-    };
-  }
-
-  private async applyImportedContactAccountStatus(account: CrmAccountRecord, contact: CrmContactRecord) {
-    if (!canApplyEmailVerificationAccountStatus(account.status)) {
-      return account;
-    }
-
-    const nextStatus = toAccountStatusAfterEmailVerification(contact.emailStatus);
-
-    if (account.status === nextStatus) {
-      return account;
-    }
-
-    return (await this.store.updateAccount(account.id, { status: nextStatus })) ?? account;
-  }
-
-  private async changeAccountStatus(
-    id: string,
-    status: CrmAccountStatus,
-    eventType: string,
-    title: string,
-    content: string | null | undefined,
-    context: CrmUserContext
-  ) {
-    const detail = await this.requireScopedAccountDetail(id, context);
-    const fromStatus = detail.account.status;
-    const account = await this.store.updateAccount(detail.account.id, {
-      status
-    });
-
-    if (!account) {
-      throw new NotFoundException('线索不存在');
-    }
-
-    const event = await this.store.createTimelineEvent({
-      organizationId: account.organizationId,
-      accountId: account.id,
-      ownerUserId: context.userId,
-      eventType,
-      title,
-      content: normalizeNullableString(content),
-      metadata: {
-        fromStatus,
-        toStatus: status
-      }
-    });
-
-    return {
-      account: toAccountView(account),
-      event: toTimelineEventView(event)
-    };
-  }
-
-  /** Reuses global email verification results within the cooldown window. */
-  private async verifyEmailWithCache(email: string, context: CrmUserContext): Promise<EmailVerificationResult> {
-    const emailHash = hashEmail(email);
-    const now = new Date();
-    const [cached, globalConfig] = await Promise.all([
-      this.store.findEmailVerificationCache({ emailHash }),
-      this.store.getGlobalConfig()
-    ]);
-
-    if (cached && isEmailVerificationCacheFresh(cached.verifiedAt, globalConfig.emailVerificationCooldownDays, now)) {
-      return {
-        status: cached.status as EmailVerificationResult['status'],
-        domain: cached.domain,
-        reason: cached.reason,
-        cacheHit: true
-      };
-    }
-
-    const verification = await this.verifyEmailAddress(email);
-
-    await this.store.upsertEmailVerificationCache({
-      emailHash,
-      maskedEmail: maskEmail(email),
-      domain: verification.domain,
-      status: verification.status,
-      reason: verification.reason,
-      verifiedAt: now,
-      expiresAt: addDays(now, globalConfig.emailVerificationCooldownDays),
-      checkedById: context.userId,
-      checkedByName: context.userName
-    });
-
-    return {
-      ...verification,
-      cacheHit: false
-    };
-  }
-
-  private async findArchivedImportMatches(domain: string | null, input: ImportCrmLeadInput, context: CrmUserContext) {
-    const fingerprints = buildLeadImportFingerprints(domain, input);
-
-    if (fingerprints.length === 0) {
-      return [];
-    }
-
-    return this.store.findArchivedFingerprints({
-      organizationId: context.organizationId,
-      fingerprints
-    });
-  }
-
-  private async createArchivedMatchTimelineIfNeeded(
-    account: CrmAccountRecord,
-    matches: CrmArchivedFingerprintRecord[],
-    context: CrmUserContext
-  ) {
-    if (matches.length === 0) {
-      return;
-    }
-
-    await this.store.createTimelineEvent({
-      organizationId: account.organizationId,
-      accountId: account.id,
-      ownerUserId: context.userId,
-      eventType: 'archived_fingerprint_matched',
-      title: '命中归档历史',
-      content: '该线索命中过往归档记录，请确认是否需要重新开发。',
-      metadata: {
-        matchedFingerprints: matches.map(toArchivedFingerprintMatchMetadata)
-      }
-    });
-  }
-
-  private async upsertArchivedFingerprints(
-    account: CrmAccountRecord,
-    contacts: CrmContactRecord[],
-    archiveReason: string | null,
-    archivedAt: Date
-  ) {
-    const fingerprints = buildArchivedFingerprintInputs(account, contacts, archiveReason, archivedAt);
-
-    await Promise.all(fingerprints.map(fingerprint => this.store.upsertArchivedFingerprint(fingerprint)));
-  }
-
-  private async verifyEmailAddress(email: string): Promise<EmailVerificationProbeResult> {
-    const parsedEmail = parseEmailAddress(email);
-
-    if (!parsedEmail) {
-      return {
-        status: 'invalid',
-        domain: null,
-        reason: 'invalid_format'
-      };
-    }
-
-    if (isPublicEmail(email)) {
-      return {
-        status: 'risky',
-        domain: parsedEmail.domain,
-        reason: 'public_email'
-      };
-    }
-
-    try {
-      const mxRecords = await this.dnsResolver.resolveMx(parsedEmail.domain);
-
-      if (mxRecords.length > 0) {
-        return {
-          status: 'valid',
-          domain: parsedEmail.domain,
-          reason: 'mx_found'
-        };
-      }
-
-      return {
-        status: 'invalid',
-        domain: parsedEmail.domain,
-        reason: 'no_mx'
-      };
-    } catch (error) {
-      return {
-        status: noMxErrorCodes.has(getErrorCode(error)) ? 'invalid' : 'unreachable',
-        domain: parsedEmail.domain,
-        reason: noMxErrorCodes.has(getErrorCode(error)) ? 'no_mx' : 'dns_temporary_failure'
-      };
-    }
-  }
-
-  private async requireScopedAccountDetail(id: string, context: CrmUserContext) {
-    const detail = await this.store.getAccountDetail({
-      id,
-      organizationId: context.organizationId,
-      ...toOwnerScope(context)
-    });
-
-    if (!detail) {
-      throw new NotFoundException('线索不存在');
-    }
-
-    return detail;
-  }
-
   private async changeMailboxStatus(
     id: string,
     status: CrmMailboxStatus,
@@ -2053,6 +1521,14 @@ export class CrmService {
     }
 
     return this.gmailWatchService.renewMailboxWatch(mailbox.id, context);
+  }
+
+  private requireAccountService() {
+    if (!this.accountService) {
+      throw new BadRequestException('CRM 线索服务未启用');
+    }
+
+    return this.accountService;
   }
 
   private requireSequenceService() {
@@ -2231,24 +1707,6 @@ export class CrmService {
 
 }
 
-function toAccountView(record: CrmAccountRecord) {
-  return {
-    ...record,
-    archivedAt: record.archivedAt?.toISOString() ?? null,
-    archiveSlimmedAt: record.archiveSlimmedAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toContactView(record: CrmContactRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
 function toBlacklistView(record: CrmBlacklistRecord) {
   const { emailHash: _emailHash, ...safeRecord } = record;
 
@@ -2256,13 +1714,6 @@ function toBlacklistView(record: CrmBlacklistRecord) {
     ...safeRecord,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toTimelineEventView(record: CrmTimelineEventRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString()
   };
 }
 
@@ -2352,159 +1803,18 @@ function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
   };
 }
 
-function toAccountDetailView(detail: CrmAccountDetailRecord) {
-  return {
-    account: toAccountView(detail.account),
-    contacts: detail.contacts.map(toContactView),
-    timelineEvents: detail.timelineEvents.map(toTimelineEventView)
-  };
-}
-
 function toOwnerScope(context: CrmUserContext) {
   const scope = createCrmReadScope(context);
   return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
-}
-
-function buildLeadImportFingerprints(domain: string | null, input: ImportCrmLeadInput) {
-  const fingerprints: Array<{
-    fingerprintType: CrmArchivedFingerprintType;
-    fingerprintValue: string;
-  }> = [];
-
-  if (domain) {
-    fingerprints.push({
-      fingerprintType: 'domain',
-      fingerprintValue: domain
-    });
-  }
-
-  const email = normalizeEmail(input.contact?.email);
-
-  if (email) {
-    fingerprints.push({
-      fingerprintType: 'email_hash',
-      fingerprintValue: hashEmail(email)
-    });
-  }
-
-  return fingerprints;
-}
-
-function buildArchivedFingerprintInputs(
-  account: CrmAccountRecord,
-  contacts: CrmContactRecord[],
-  archiveReason: string | null,
-  archivedAt: Date
-) {
-  const commonInput = {
-    organizationId: account.organizationId,
-    accountName: account.name,
-    normalizedName: account.normalizedName,
-    country: account.country,
-    sourceAccountId: account.id,
-    sourceTaskId: account.sourceTaskId,
-    archiveReason,
-    archivedAt
-  };
-  const fingerprints: CrmArchivedFingerprintUpsertInput[] = account.domain
-    ? [
-        {
-          ...commonInput,
-          fingerprintType: 'domain',
-          fingerprintValue: account.domain,
-          maskedValue: account.domain,
-          sourceContactId: null
-        }
-      ]
-    : [];
-
-  for (const contact of contacts) {
-    fingerprints.push({
-      ...commonInput,
-      fingerprintType: 'email_hash',
-      fingerprintValue: contact.emailHash,
-      maskedValue: contact.maskedEmail,
-      sourceContactId: contact.id
-    });
-  }
-
-  return fingerprints;
-}
-
-function toArchivedFingerprintMatchMetadata(record: CrmArchivedFingerprintRecord) {
-  return {
-    fingerprintType: record.fingerprintType,
-    maskedValue: record.maskedValue,
-    archivedAt: record.archivedAt.toISOString(),
-    accountName: record.accountName
-  };
 }
 
 function isOwnedMailbox(mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'ownerUserId'>, context: CrmUserContext) {
   return mailbox.organizationId === context.organizationId && mailbox.ownerUserId === context.userId;
 }
 
-function normalizeDomain(value?: string | null) {
-  const rawValue = value?.trim();
-
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`);
-    return url.hostname.toLowerCase().replace(/^www\./, '') || null;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeName(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
 function normalizeNullableString(value?: string | null) {
   const normalized = value?.trim();
   return normalized || null;
-}
-
-function normalizeLeadSourceSnapshot(value: ImportCrmLeadInput['sourceSnapshot']) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-
-  const snapshot: Record<string, string | number | boolean | null> = {};
-  for (const [key, item] of Object.entries(value)) {
-    if (!key) continue;
-    if (typeof item === 'string') {
-      const normalized = item.trim();
-      if (normalized) snapshot[key] = normalized;
-      continue;
-    }
-
-    if (typeof item === 'number' && Number.isFinite(item)) {
-      snapshot[key] = item;
-      continue;
-    }
-
-    if (typeof item === 'boolean' || item === null) {
-      snapshot[key] = item;
-    }
-  }
-
-  return Object.keys(snapshot).length ? snapshot : null;
-}
-
-function normalizeLimitedContent(value: string, emptyMessage: string, maxLength = maxNoteLength) {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    throw new BadRequestException(emptyMessage);
-  }
-
-  if (normalized.length > maxLength) {
-    throw new BadRequestException(`内容不能超过 ${maxLength} 个字符`);
-  }
-
-  return normalized;
 }
 
 function normalizeRequiredString(value: string, emptyMessage: string) {
@@ -2515,10 +1825,6 @@ function normalizeRequiredString(value: string, emptyMessage: string) {
   }
 
   return normalized;
-}
-
-function isPastArchiveRecoveryWindow(archivedAt: Date, now = new Date()) {
-  return now.getTime() - archivedAt.getTime() > accountArchiveRecoveryDays * 24 * 60 * 60 * 1000;
 }
 
 function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | null {
@@ -2541,11 +1847,6 @@ function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | 
   return record as CrmAiDraftMetadata;
 }
 
-function normalizeEmail(value?: string | null) {
-  const normalized = value?.trim().toLowerCase();
-  return normalized && normalized.includes('@') ? normalized : null;
-}
-
 function normalizeMailboxEmail(value: string) {
   const normalized = value.trim().toLowerCase();
   const match = /^([^+@\s]+)@gmail\.com$/.exec(normalized);
@@ -2557,33 +1858,6 @@ function normalizeMailboxEmail(value: string) {
   return normalized;
 }
 
-function parseEmailAddress(email: string) {
-  const normalized = email.trim().toLowerCase();
-  const match = /^([^@\s]+)@([^@\s]+)$/.exec(normalized);
-
-  if (!match || !isDnsDomain(match[2])) {
-    return null;
-  }
-
-  return {
-    domain: match[2]
-  };
-}
-
-function isDnsDomain(domain: string) {
-  if (domain.length > 253 || domain.startsWith('.') || domain.endsWith('.')) {
-    return false;
-  }
-
-  const labels = domain.split('.');
-
-  return labels.every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
-}
-
-function getErrorCode(error: unknown) {
-  return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
-}
-
 function hashEmail(email: string) {
   return createHash('sha256').update(email).digest('hex');
 }
@@ -2592,52 +1866,6 @@ function maskEmail(email: string) {
   const [local = '', domain = ''] = email.split('@');
   const prefix = local[0] || '*';
   return `${prefix}***@${domain}`;
-}
-
-function isPublicEmail(email: string) {
-  const [local = ''] = email.split('@');
-  return publicEmailPrefixes.has(local.toLowerCase());
-}
-
-function canApplyEmailVerificationAccountStatus(status: CrmAccountStatus) {
-  return ['candidate', 'missing_contact', 'email_verification_pending', 'manual_review_pending', 'invalid'].includes(
-    status
-  );
-}
-
-function toAccountStatusAfterEmailVerification(status: CrmEmailStatus): CrmAccountStatus {
-  if (status === 'valid') {
-    return 'ready';
-  }
-
-  if (status === 'invalid') {
-    return 'invalid';
-  }
-
-  return 'manual_review_pending';
-}
-
-function isEmailVerificationCacheFresh(verifiedAt: Date, cooldownDays: number, now: Date) {
-  const normalizedDays = normalizeEmailVerificationCooldownDays(cooldownDays);
-
-  return addDays(verifiedAt, normalizedDays).getTime() > now.getTime();
-}
-
-function addDays(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
-function toEmailStatusText(status: CrmEmailStatus) {
-  const textMap: Record<CrmEmailStatus, string> = {
-    unchecked: '未验证',
-    valid: '有效',
-    invalid: '无效',
-    risky: '风险',
-    unreachable: '暂不可达',
-    unsubscribed: '已退订'
-  };
-
-  return textMap[status];
 }
 
 function normalizePositiveInteger(
