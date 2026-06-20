@@ -27,29 +27,78 @@ import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-polic
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
-import { CrmService } from './crm.service';
 import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
 
-type CrmAccountView = Awaited<ReturnType<CrmService['listAccounts']>>['records'][number];
-type CrmMailboxView = Awaited<ReturnType<CrmService['listMailboxes']>>['records'][number];
-type CrmTimelineEventView = Awaited<ReturnType<CrmService['addAccountNote']>>['event'];
-type CrmEmailVerificationView = Awaited<ReturnType<CrmService['verifyContactEmail']>>;
-type CrmSequenceReviewItemView = Awaited<ReturnType<CrmService['getSequenceReviewItem']>>;
-type CrmEnrollmentView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['enrollment'];
-type CrmMessageView = Awaited<ReturnType<CrmService['approveMessageDraft']>>['message'];
-type CrmSendStartView = Awaited<ReturnType<CrmService['startFirstMessageSend']>>;
-type CrmSequenceStopView = Awaited<ReturnType<CrmService['stopSequenceEnrollment']>>;
-type CrmSequenceBatchOperateView = Awaited<ReturnType<CrmService['batchStopSequenceEnrollments']>>;
-type CrmInboxThreadView = Awaited<ReturnType<CrmService['listInboxThreads']>>['records'][number];
-type CrmInboxThreadDetailView = Awaited<ReturnType<CrmService['getInboxThread']>>;
-type CrmGlobalConfigView = Awaited<ReturnType<CrmService['getGlobalConfig']>>;
-type CrmOrganizationConfigView = Awaited<ReturnType<CrmService['getOrganizationConfig']>>;
-type CrmPersonaProfileView = Awaited<ReturnType<CrmService['listPersonaProfiles']>>['records'][number];
-type CrmProductLineView = Awaited<ReturnType<CrmService['listProductLines']>>['records'][number];
-type CrmAiDraftPreviewView = Awaited<ReturnType<CrmService['previewAiDraft']>>;
-type CrmAiDraftTaskCreateView = Awaited<ReturnType<CrmService['createAiDraftTask']>>;
-type CrmAiDraftQueueConfigView = Awaited<ReturnType<CrmService['getAiDraftQueueConfig']>>;
-type CrmWorkbenchOverviewView = Awaited<ReturnType<CrmService['getWorkbenchOverview']>>;
+type CrmAccountView = Record<string, unknown>;
+type CrmMailboxView = Record<string, unknown>;
+type CrmTimelineEventView = Record<string, unknown>;
+type CrmEmailVerificationView = Record<string, unknown>;
+type CrmSequenceReviewItemView = Record<string, unknown>;
+type CrmEnrollmentView = Record<string, unknown>;
+type CrmMessageView = Record<string, unknown>;
+type CrmSendStartView = Record<string, unknown>;
+type CrmSequenceStopView = Record<string, unknown>;
+type CrmSequenceBatchOperateView = Record<string, unknown>;
+type CrmInboxThreadView = Record<string, unknown> & {
+  id: string;
+  subject: string;
+  account?: unknown;
+  contact?: unknown;
+  mailbox?: unknown;
+  enrollment?: unknown;
+};
+type CrmInboxThreadDetailView = Record<string, unknown> & {
+  thread: CrmInboxThreadView;
+  account?: unknown;
+  contact?: unknown;
+  mailbox?: unknown;
+  enrollment?: unknown;
+  messages: Array<Record<string, unknown>>;
+  replyDraft: unknown;
+};
+type CrmGlobalConfigView = Record<string, unknown>;
+type CrmOrganizationConfigView = Record<string, unknown>;
+type CrmPersonaProfileView = Record<string, unknown>;
+type CrmProductLineView = Record<string, unknown>;
+type CrmAiDraftPreviewView = Record<string, unknown>;
+type CrmAiDraftTaskCreateView = Record<string, unknown>;
+type CrmAiDraftQueueConfigView = Record<string, unknown>;
+type CrmWorkbenchOverviewView = Record<string, unknown>;
+
+type LooseServiceMethods<T> = {
+  [K in keyof T as T[K] extends (...args: infer Args) => unknown ? K : never]?: T[K] extends (
+    ...args: infer Args
+  ) => unknown
+    ? (...args: Args) => unknown
+    : never;
+};
+type CrmAccountControllerServiceStub = LooseServiceMethods<CrmAccountService>;
+type CrmMailboxControllerServiceStub = LooseServiceMethods<CrmMailboxService>;
+type CrmSettingsControllerServiceStub = LooseServiceMethods<CrmSettingsService> &
+  LooseServiceMethods<CrmAiDraftTaskService> &
+  LooseServiceMethods<CrmSendQueueReconcileService> &
+  LooseServiceMethods<CrmSuppressionService> &
+  LooseServiceMethods<CrmProductLineService> &
+  LooseServiceMethods<CrmPersonaProfileService> &
+  LooseServiceMethods<CrmEmailTemplateGroupService> &
+  LooseServiceMethods<CrmSequencePolicyService> &
+  LooseServiceMethods<CrmDashboardService>;
+type CrmSequenceControllerServiceStub = LooseServiceMethods<CrmSequenceService> &
+  LooseServiceMethods<CrmNextDraftService> &
+  LooseServiceMethods<CrmAiDraftTaskService> &
+  LooseServiceMethods<CrmBatchDraftApprovalService> &
+  LooseServiceMethods<CrmBatchSequenceStopService> &
+  LooseServiceMethods<CrmDraftPreviewService> &
+  LooseServiceMethods<CrmDraftService> &
+  LooseServiceMethods<CrmMessageDraftApprovalRouterService> &
+  LooseServiceMethods<CrmSequenceControlService>;
+type CrmInboxControllerServiceStub = LooseServiceMethods<CrmInboxService>;
+type CrmControllerServiceStub =
+  | CrmAccountControllerServiceStub
+  | CrmMailboxControllerServiceStub
+  | CrmSettingsControllerServiceStub
+  | CrmSequenceControllerServiceStub
+  | CrmInboxControllerServiceStub;
 
 describe('CRM split controllers', () => {
   it('lists accounts with the current organization context', async () => {
@@ -1765,13 +1814,13 @@ function createUserBase() {
 }
 
 /** Creates the real account controller with the shared service stub. */
-function createAccountController(partial: Partial<CrmService> = {}) {
+function createAccountController(partial: CrmAccountControllerServiceStub = {}) {
   return new CrmAccountController(createControllerService<CrmAccountService>(partial));
 }
 
 /** Creates the real mailbox controller and optional watch/config collaborators. */
 function createMailboxController(
-  partial: Partial<CrmService> = {},
+  partial: CrmMailboxControllerServiceStub = {},
   gmailWatchService?: ConstructorParameters<typeof CrmMailboxController>[1],
   appConfigService?: ConstructorParameters<typeof CrmMailboxController>[2]
 ) {
@@ -1783,43 +1832,43 @@ function createMailboxController(
 }
 
 /** Creates the real settings controller with the shared service stub. */
-function createSettingsController(partial: Partial<CrmService> = {}) {
-  const service = createCrmService(partial);
+function createSettingsController(partial: CrmSettingsControllerServiceStub = {}) {
+  const service = createControllerStub(partial);
 
   return new CrmSettingsController(
-    asControllerService<CrmSettingsService>(service),
-    asControllerService<CrmAiDraftTaskService>(service),
-    asControllerService<CrmSendQueueReconcileService>(service),
-    asControllerService<CrmSuppressionService>(service),
-    asControllerService<CrmProductLineService>(service),
-    asControllerService<CrmPersonaProfileService>(service),
-    asControllerService<CrmEmailTemplateGroupService>(service),
-    asControllerService<CrmSequencePolicyService>(service),
-    asControllerService<CrmDashboardService>(service)
+    service as unknown as CrmSettingsService,
+    service as unknown as CrmAiDraftTaskService,
+    service as unknown as CrmSendQueueReconcileService,
+    service as unknown as CrmSuppressionService,
+    service as unknown as CrmProductLineService,
+    service as unknown as CrmPersonaProfileService,
+    service as unknown as CrmEmailTemplateGroupService,
+    service as unknown as CrmSequencePolicyService,
+    service as unknown as CrmDashboardService
   );
 }
 
 /** Creates the real sequence controller with the shared service stub. */
-function createSequenceController(partial: Partial<CrmService> = {}) {
-  const service = createCrmService(partial);
+function createSequenceController(partial: CrmSequenceControllerServiceStub = {}) {
+  const service = createControllerStub(partial);
 
   return new CrmSequenceController(
-    asControllerService<CrmSequenceService>(service),
-    asControllerService<CrmNextDraftService>(service),
-    asControllerService<CrmAiDraftTaskService>(service),
-    asControllerService<CrmBatchDraftApprovalService>(service),
-    asControllerService<CrmBatchSequenceStopService>(service),
-    asControllerService<CrmDraftPreviewService>(service),
-    asControllerService<CrmDraftService>(service),
-    asControllerService<CrmMessageDraftApprovalRouterService>(service),
-    asControllerService<CrmSequenceControlService>(service),
+    service as unknown as CrmSequenceService,
+    service as unknown as CrmNextDraftService,
+    service as unknown as CrmAiDraftTaskService,
+    service as unknown as CrmBatchDraftApprovalService,
+    service as unknown as CrmBatchSequenceStopService,
+    service as unknown as CrmDraftPreviewService,
+    service as unknown as CrmDraftService,
+    service as unknown as CrmMessageDraftApprovalRouterService,
+    service as unknown as CrmSequenceControlService,
     undefined as unknown as ConstructorParameters<typeof CrmSequenceController>[9]
   );
 }
 
 /** Creates the real inbox controller and optional config collaborator. */
 function createInboxController(
-  partial: Partial<CrmService> = {},
+  partial: CrmInboxControllerServiceStub = {},
   appConfigService?: ConstructorParameters<typeof CrmInboxController>[1]
 ) {
   return new CrmInboxController(
@@ -1829,12 +1878,8 @@ function createInboxController(
 }
 
 /** Casts the existing method stub to the domain service currently injected by a split controller. */
-function createControllerService<T>(partial: Partial<CrmService> = {}) {
-  return asControllerService<T>(createCrmService(partial));
-}
-
-function asControllerService<T>(service: CrmService): T {
-  return service as unknown as T;
+function createControllerService<T>(partial: CrmControllerServiceStub = {}) {
+  return createControllerStub(partial) as unknown as T;
 }
 
 function createAccountView(overrides: Partial<CrmAccountView> = {}) {
@@ -2204,7 +2249,7 @@ function createInboxThreadView(overrides: Partial<CrmInboxThreadView> = {}): Crm
 }
 
 function createInboxThreadDetailView(
-  overrides: Partial<CrmInboxThreadView> & Pick<Partial<CrmInboxThreadDetailView>, 'replyDraft'> = {}
+  overrides: Partial<CrmInboxThreadView> & { replyDraft?: unknown } = {}
 ): CrmInboxThreadDetailView {
   const thread = createInboxThreadView(overrides);
 
@@ -2458,7 +2503,7 @@ async function withNodeEnv<T>(nodeEnv: string, callback: () => Promise<T>) {
   }
 }
 
-function createCrmService(partial: Partial<CrmService> = {}): CrmService {
+function createControllerStub(partial: CrmControllerServiceStub = {}): CrmControllerServiceStub {
   return {
     async listAccounts() {
       return {
@@ -2761,5 +2806,5 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
       return createInboxThreadDetailView();
     },
     ...partial
-  } as unknown as CrmService;
+  } as unknown as CrmControllerServiceStub;
 }
