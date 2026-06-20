@@ -17,7 +17,7 @@ import type { FastifyReply } from 'fastify';
 import { ok } from '../../shared/api-response';
 import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
-import { CurrentContext, Roles } from '../auth/auth.decorators';
+import { CurrentContext, SuperOnly } from '../auth/auth.decorators';
 import { AiLeadsService } from './ai-leads.service';
 import { KeywordHistoryQueryDto, UpdateKeywordHistoryDto } from './dto/keyword-history.dto';
 import { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
@@ -169,7 +169,7 @@ export class AiLeadsController {
   }
 
   @Get('queue-config')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 获客任务配置')
   async getQueueConfig(@CurrentContext() currentContext: RequestUserContext | null = null) {
     this.assertSuper(currentContext);
 
@@ -177,7 +177,7 @@ export class AiLeadsController {
   }
 
   @Post('queue-config')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 获客任务配置')
   async saveQueueConfig(
     @Body() dto: SaveAiLeadQueueConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null

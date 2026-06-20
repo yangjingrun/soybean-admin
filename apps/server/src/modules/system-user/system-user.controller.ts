@@ -2,11 +2,12 @@ import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestj
 import { ok } from '../../shared/api-response';
 import { requireSuperUserContext } from '../../shared/permission-policy';
 import type { RequestUserContext } from '../../shared/request-context';
-import { CurrentContext } from '../auth/auth.decorators';
+import { CurrentContext, SuperOnly } from '../auth/auth.decorators';
 import { CreateSystemUserDto, UpdateSystemUserDto, UpdateSystemUserStatusDto } from './dto/system-user-operate.dto';
 import { SystemUserQueryDto } from './dto/system-user-query.dto';
 import { SystemUserService } from './system-user.service';
 
+@SuperOnly('无权访问用户管理')
 @Controller('system-users')
 export class SystemUserController {
   constructor(@Inject(SystemUserService) private readonly systemUserService: SystemUserService) {}

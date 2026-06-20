@@ -3,7 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ok } from '../../shared/api-response';
 import { requireSuperUserContext } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
-import { CurrentContext, Roles } from '../auth/auth.decorators';
+import { CurrentContext, SuperOnly } from '../auth/auth.decorators';
 import { AiGatewayService } from './ai-gateway.service';
 import { AiModelConfigKeyParamDto, SaveAiModelConfigDto } from './dto/ai-model-config.dto';
 import { AiPromptKeyParamDto, SaveAiPromptDto } from './dto/ai-prompt.dto';
@@ -16,7 +16,7 @@ export class AiGatewayController {
   constructor(@Inject(AiGatewayService) private readonly aiGatewayService: AiGatewayService) {}
 
   @Post('prompts')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async savePrompt(
     @Body() dto: SaveAiPromptDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -27,7 +27,7 @@ export class AiGatewayController {
   }
 
   @Get('prompts/:promptKey')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async getPrompt(
     @Param() params: AiPromptKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -38,7 +38,7 @@ export class AiGatewayController {
   }
 
   @Post('model-configs')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async saveModelConfig(
     @Body() dto: SaveAiModelConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -49,7 +49,7 @@ export class AiGatewayController {
   }
 
   @Get('model-configs/:configKey')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async getModelConfig(
     @Param() params: AiModelConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -60,7 +60,7 @@ export class AiGatewayController {
   }
 
   @Post('serper-configs')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async saveSerperConfig(
     @Body() dto: SaveSerperConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -71,7 +71,7 @@ export class AiGatewayController {
   }
 
   @Get('serper-configs/:configKey')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async getSerperConfig(
     @Param() params: SerperConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -82,7 +82,7 @@ export class AiGatewayController {
   }
 
   @Post('serper-configs/test')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async testSerperConfig(
     @Body() dto: SaveSerperConfigDto,
@@ -94,7 +94,7 @@ export class AiGatewayController {
   }
 
   @Post('hunter-configs')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async saveHunterConfig(
     @Body() dto: SaveHunterConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -105,7 +105,7 @@ export class AiGatewayController {
   }
 
   @Get('hunter-configs/:configKey')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   async getHunterConfig(
     @Param() params: HunterConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
@@ -116,7 +116,7 @@ export class AiGatewayController {
   }
 
   @Post('hunter-configs/test')
-  @Roles('R_SUPER')
+  @SuperOnly('无权维护 AI 配置')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async testHunterConfig(
     @Body() dto: SaveHunterConfigDto,

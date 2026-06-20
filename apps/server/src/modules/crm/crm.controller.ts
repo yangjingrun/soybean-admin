@@ -15,7 +15,7 @@ import { ok } from '../../shared/api-response';
 import { assertSuper, requireSuperUserContext as requirePlatformSuperContext } from '../../shared/permission-policy';
 import { requireRequestUserContext } from '../../shared/request-context';
 import { AppConfigService } from '../app-config/app-config.service';
-import { CurrentContext } from '../auth/auth.decorators';
+import { CurrentContext, SuperOnly } from '../auth/auth.decorators';
 import { CrmService } from './crm.service';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
@@ -126,6 +126,7 @@ export class CrmController {
   }
 
   @Get('global-config')
+  @SuperOnly('无权维护 CRM 全局配置')
   async getGlobalConfig(@CurrentContext() context: CrmUserContext | null = null) {
     this.requireSuperUserContext(context);
 
@@ -133,11 +134,13 @@ export class CrmController {
   }
 
   @Post('global-config')
+  @SuperOnly('无权维护 CRM 全局配置')
   async saveGlobalConfig(@CurrentContext() context: CrmUserContext | null = null, @Body() dto: SaveCrmGlobalConfigDto) {
     return ok(await this.crmService.saveGlobalConfig(dto, this.requireSuperUserContext(context)));
   }
 
   @Get('ai-draft-queue-config')
+  @SuperOnly('无权维护 CRM 全局配置')
   async getAiDraftQueueConfig(@CurrentContext() context: CrmUserContext | null = null) {
     this.requireSuperUserContext(context);
 
@@ -145,6 +148,7 @@ export class CrmController {
   }
 
   @Patch('ai-draft-queue-config')
+  @SuperOnly('无权维护 CRM 全局配置')
   async saveAiDraftQueueConfig(
     @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: UpdateCrmAiDraftQueueConfigDto
@@ -153,6 +157,7 @@ export class CrmController {
   }
 
   @Post('operations/send-queue/reconcile')
+  @SuperOnly('无权维护 CRM 全局配置')
   async reconcileSendQueue(@CurrentContext() context: CrmUserContext | null = null) {
     return ok(await this.crmService.reconcileSendQueue({}, this.requireSuperUserContext(context)));
   }
@@ -201,6 +206,7 @@ export class CrmController {
   }
 
   @Post('mailboxes/mock-authorize')
+  @SuperOnly('无权使用 CRM mock 接口')
   async mockAuthorizeMailbox(
     @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: MockAuthorizeCrmMailboxDto
@@ -613,6 +619,7 @@ export class CrmController {
   }
 
   @Post('messages/:id/mock-reply')
+  @SuperOnly('无权使用 CRM mock 接口')
   async mockCustomerReply(
     @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
