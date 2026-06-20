@@ -2,15 +2,15 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
-import { CRM_EMAIL_SEND_GATEWAY, CRM_STORE } from './crm.tokens';
+import type { CrmSendWorkerRepository } from './crm-send-worker.repository';
+import { CRM_EMAIL_SEND_GATEWAY, CRM_SEND_WORKER_REPOSITORY } from './crm.tokens';
 import type {
   CrmEmailSendGateway,
   CrmEmailTemplateGroupRecord,
   CrmGlobalConfigRecord,
   CrmMailboxRecord,
   CrmSendDeliveryClaimRecord,
-  CrmSendQueueJob,
-  CrmStore
+  CrmSendQueueJob
 } from './crm.types';
 
 interface NextFollowUpDraftContext {
@@ -21,7 +21,7 @@ interface NextFollowUpDraftContext {
 @Injectable()
 export class CrmSendWorkerService {
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_SEND_WORKER_REPOSITORY) private readonly store: CrmSendWorkerRepository,
     @Inject(CRM_EMAIL_SEND_GATEWAY) private readonly sendGateway: CrmEmailSendGateway,
     @Optional()
     @Inject(SystemNotificationService)

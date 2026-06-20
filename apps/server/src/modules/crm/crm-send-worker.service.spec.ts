@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
+import type { CrmSendWorkerRepository } from './crm-send-worker.repository';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import type {
   CrmAccountRecord,
@@ -14,8 +15,7 @@ import type {
   CrmSendQueueJob,
   CrmSequenceEnrollmentRecord,
   CrmSequencePolicyRecord,
-  CrmSequenceReviewRecord,
-  CrmStore
+  CrmSequenceReviewRecord
 } from './crm.types';
 
 describe('CrmSendWorkerService', () => {
@@ -25,7 +25,7 @@ describe('CrmSendWorkerService', () => {
       message: createMessage({ status: 'queued' })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await worker.processSendJob(createJob({ runVersion: 1 }));
 
@@ -41,7 +41,7 @@ describe('CrmSendWorkerService', () => {
       mailbox: createMailbox({ status: 'active' })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await worker.processSendJob(createJob({ runVersion: 2 }));
 
@@ -86,7 +86,7 @@ describe('CrmSendWorkerService', () => {
       mailbox: createMailbox({ status: 'active' })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -133,7 +133,7 @@ describe('CrmSendWorkerService', () => {
       }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -166,7 +166,7 @@ describe('CrmSendWorkerService', () => {
       })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -195,7 +195,7 @@ describe('CrmSendWorkerService', () => {
       }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -226,7 +226,7 @@ describe('CrmSendWorkerService', () => {
       { claimResult: null }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await worker.processSendJob(createJob({ runVersion: 2 }));
 
@@ -247,7 +247,7 @@ describe('CrmSendWorkerService', () => {
       }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store as never, gateway);
+    const worker = new CrmSendWorkerService(store, gateway);
 
     await assert.rejects(() => worker.processSendJob(createJob()), /global config unavailable/);
 
@@ -261,7 +261,7 @@ describe('CrmSendWorkerService', () => {
       message: createMessage({ status: 'queued' }),
       mailbox: createMailbox({ status: 'active' })
     });
-    const worker = new CrmSendWorkerService(store as never, createGateway(new Error('gmail unavailable')));
+    const worker = new CrmSendWorkerService(store, createGateway(new Error('gmail unavailable')));
 
     await assert.rejects(() => worker.processSendJob(createJob()), /gmail unavailable/);
     assert.equal(store.failed[0].reason, 'gmail unavailable');
@@ -275,7 +275,7 @@ describe('CrmSendWorkerService', () => {
     });
     const notifications = createNotificationRecorder();
     const worker = new CrmSendWorkerService(
-      store as never,
+      store,
       createGateway(new CrmGmailAuthorizationExpiredError('invalid_grant')),
       notifications.service as never
     );
@@ -333,9 +333,9 @@ function createWorkerStore(
     firstMessage: input.firstMessage ?? input.message ?? createMessage(),
     messages: input.messages ?? [input.firstMessage ?? input.message ?? createMessage()]
   } as CrmSequenceReviewRecord & { message?: CrmMessageRecord };
-  const completed: Parameters<CrmStore['completeFirstMessageSend']>[0][] = [];
-  const failed: Parameters<CrmStore['failFirstMessageSend']>[0][] = [];
-  const claims: Parameters<CrmStore['claimFirstMessageSendDelivery']>[0][] = [];
+  const completed: Parameters<CrmSendWorkerRepository['completeFirstMessageSend']>[0][] = [];
+  const failed: Parameters<CrmSendWorkerRepository['failFirstMessageSend']>[0][] = [];
+  const claims: Parameters<CrmSendWorkerRepository['claimFirstMessageSendDelivery']>[0][] = [];
   const authExpired: Array<{
     mailboxId: string;
     organizationId: string;
@@ -349,9 +349,6 @@ function createWorkerStore(
     failed,
     claims,
     authExpired,
-    async getSequenceReviewItem() {
-      return item;
-    },
     async getGlobalConfig() {
       if (options.globalConfigError) {
         throw options.globalConfigError;
@@ -414,10 +411,10 @@ function createWorkerStore(
         resetMessageCount: 1
       };
     }
-  } satisfies Partial<CrmStore> & {
-    completed: Parameters<CrmStore['completeFirstMessageSend']>[0][];
-    failed: Parameters<CrmStore['failFirstMessageSend']>[0][];
-    claims: Parameters<CrmStore['claimFirstMessageSendDelivery']>[0][];
+  } satisfies CrmSendWorkerRepository & {
+    completed: Parameters<CrmSendWorkerRepository['completeFirstMessageSend']>[0][];
+    failed: Parameters<CrmSendWorkerRepository['failFirstMessageSend']>[0][];
+    claims: Parameters<CrmSendWorkerRepository['claimFirstMessageSendDelivery']>[0][];
     authExpired: typeof authExpired;
   };
 }
