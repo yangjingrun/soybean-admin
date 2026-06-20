@@ -74,6 +74,8 @@ import {
   CRM_MAILBOX_REPOSITORY,
   CRM_SEND_QUEUE,
   CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
+  CRM_SEND_SCHEDULER_REPOSITORY,
+  CRM_SEND_WORKER_REPOSITORY,
   CRM_SEQUENCE_APPROVAL_REPOSITORY,
   CRM_SEQUENCE_CONTROL_REPOSITORY,
   CRM_SEQUENCE_DRAFT_REPOSITORY,
@@ -97,6 +99,8 @@ import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
 import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
 import { PrismaCrmSendQueueReconcileStore } from './store/prisma-crm-send-queue-reconcile.store';
+import { PrismaCrmSendSchedulerStore } from './store/prisma-crm-send-scheduler.store';
+import { PrismaCrmSendWorkerStore } from './store/prisma-crm-send-worker.store';
 import { PrismaCrmSequenceApprovalStore } from './store/prisma-crm-sequence-approval.store';
 import { PrismaCrmSequenceControlStore } from './store/prisma-crm-sequence-control.store';
 import { PrismaCrmSequenceDraftStore } from './store/prisma-crm-sequence-draft.store';
@@ -219,6 +223,14 @@ export const crmRepositoryProviders: Provider[] = [
   {
     provide: CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
     useClass: PrismaCrmSendQueueReconcileStore
+  },
+  {
+    provide: CRM_SEND_SCHEDULER_REPOSITORY,
+    useClass: PrismaCrmSendSchedulerStore
+  },
+  {
+    provide: CRM_SEND_WORKER_REPOSITORY,
+    useClass: PrismaCrmSendWorkerStore
   },
   {
     provide: CRM_AI_DRAFT_TASK_REPOSITORY,

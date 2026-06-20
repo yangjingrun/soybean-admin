@@ -12,6 +12,8 @@ import {
   CRM_INBOX_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
   CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
+  CRM_SEND_SCHEDULER_REPOSITORY,
+  CRM_SEND_WORKER_REPOSITORY,
   CRM_SEQUENCE_APPROVAL_REPOSITORY,
   CRM_SEQUENCE_CONTROL_REPOSITORY,
   CRM_SEQUENCE_DRAFT_REPOSITORY,
@@ -39,6 +41,8 @@ import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
 import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
 import { PrismaCrmSendQueueReconcileStore } from './store/prisma-crm-send-queue-reconcile.store';
+import { PrismaCrmSendSchedulerStore } from './store/prisma-crm-send-scheduler.store';
+import { PrismaCrmSendWorkerStore } from './store/prisma-crm-send-worker.store';
 import { PrismaCrmSequenceApprovalStore } from './store/prisma-crm-sequence-approval.store';
 import { PrismaCrmSequenceControlStore } from './store/prisma-crm-sequence-control.store';
 import { PrismaCrmSequenceDraftStore } from './store/prisma-crm-sequence-draft.store';
@@ -62,6 +66,8 @@ const domainRepositoryTokens = [
   CRM_SEQUENCE_DRAFT_REPOSITORY,
   CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
   CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
+  CRM_SEND_SCHEDULER_REPOSITORY,
+  CRM_SEND_WORKER_REPOSITORY,
   CRM_AI_DRAFT_TASK_REPOSITORY,
   CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY,
   CRM_AI_DRAFT_WORKER_REPOSITORY,
@@ -106,6 +112,8 @@ describe('crmRepositoryProviders', () => {
       [CRM_SEQUENCE_DRAFT_REPOSITORY, PrismaCrmSequenceDraftStore],
       [CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY, PrismaCrmSequenceNextDraftStore],
       [CRM_SEND_QUEUE_RECONCILE_REPOSITORY, PrismaCrmSendQueueReconcileStore],
+      [CRM_SEND_SCHEDULER_REPOSITORY, PrismaCrmSendSchedulerStore],
+      [CRM_SEND_WORKER_REPOSITORY, PrismaCrmSendWorkerStore],
       [CRM_AI_DRAFT_TASK_REPOSITORY, PrismaCrmAiDraftTaskStore],
       [CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY, PrismaCrmAiDraftTaskSourceStore],
       [CRM_AI_DRAFT_WORKER_REPOSITORY, PrismaCrmAiDraftWorkerStore],
