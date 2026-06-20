@@ -7,10 +7,11 @@ export interface VersionedTaskState<TStatus extends string> {
 export interface TaskEventStateChange<TStatus extends string> {
   taskId: string;
   eventType: string;
-  message: string;
+  title: string;
+  message?: string | null;
   fromStatus?: TStatus | null;
   toStatus?: TStatus | null;
-  metadata?: Record<string, unknown> | null;
+  metadata?: unknown | null;
 }
 
 export function isStaleRunVersion(task: Pick<VersionedTaskState<string>, 'runVersion'> | null, runVersion: number) {
@@ -73,7 +74,8 @@ export function createTaskStateChangeEvent<TStatus extends string>(
   return {
     taskId: input.taskId,
     eventType: input.eventType,
-    message: input.message,
+    title: input.title,
+    message: input.message ?? null,
     fromStatus: input.fromStatus ?? null,
     toStatus: input.toStatus ?? null,
     metadata: input.metadata ?? null

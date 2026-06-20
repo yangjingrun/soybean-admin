@@ -8,6 +8,7 @@ import type {
   AiLeadQueueConfigRecord,
   AiLeadQueueConfigStore,
   AiLeadSearchTaskCreateInput,
+  AiLeadSearchTaskEventInput,
   AiLeadSearchTaskRecord,
   AiLeadSearchTaskStore
 } from './ai-lead-search-task.types';
@@ -58,6 +59,41 @@ describe('AiLeadSearchTaskService', () => {
     assert.equal(task.bullJobId, 'job-task-1');
     assert.deepEqual(enqueued, [{ taskId: 'task-1', runVersion: 1, priority: 0 }]);
     assert.deepEqual(appliedConcurrency, [3]);
+  });
+
+  it('creates queued task events through the shared state-change shape', async () => {
+    const events: AiLeadSearchTaskEventInput[] = [];
+    const taskStore = createTaskStore({
+      onTaskEvent(input) {
+        events.push(input);
+      }
+    });
+    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        return { jobId: `job-${input.taskId}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await service.createTask(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20,
+        keywordPlan: { serperSearchQueries: [] }
+      },
+      { user }
+    );
+
+    assert.deepEqual(events[0], {
+      taskId: 'task-1',
+      eventType: 'task_queued',
+      title: '采集任务已排队',
+      message: null,
+      fromStatus: null,
+      toStatus: 'queued',
+      metadata: null
+    });
   });
 
   it('persists the current organization context on created tasks', async () => {
@@ -639,6 +675,7 @@ function createTaskStore(
     records?: AiLeadSearchTaskRecord[];
     onCreate?: (input: AiLeadSearchTaskCreateInput) => void;
     onEvent?: (eventType: string) => void;
+    onTaskEvent?: (input: AiLeadSearchTaskEventInput) => void;
     failEventTypes?: string[];
   } = {}
 ): AiLeadSearchTaskStore {
@@ -732,6 +769,7 @@ function createTaskStore(
       }
 
       options.onEvent?.(input.eventType);
+      options.onTaskEvent?.(input);
 
       return undefined;
     },

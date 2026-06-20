@@ -48,13 +48,14 @@ describe('task-state', () => {
       createTaskStateChangeEvent({
         taskId: 'task-1',
         eventType: 'started',
-        message: '任务开始',
+        title: '任务开始',
         toStatus: 'running'
       }),
       {
         taskId: 'task-1',
         eventType: 'started',
-        message: '任务开始',
+        title: '任务开始',
+        message: null,
         fromStatus: null,
         toStatus: 'running',
         metadata: null

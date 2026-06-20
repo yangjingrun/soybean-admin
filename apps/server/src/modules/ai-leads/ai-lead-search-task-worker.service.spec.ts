@@ -91,6 +91,47 @@ describe('AiLeadSearchTaskWorkerService', () => {
     ]);
   });
 
+  it('creates worker state events through the shared state-change shape', async () => {
+    const events: AiLeadSearchTaskEventInput[] = [];
+    const task = createTask({ status: 'queued' });
+    const store = createTaskStore({
+      task,
+      queries: [],
+      onEvent(input) {
+        events.push(input);
+      }
+    });
+    const orchestrator = {
+      async searchWithKeywordPlan() {
+        return createSearchResult();
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const worker = new AiLeadSearchTaskWorkerService(store, orchestrator);
+
+    await worker.processTaskJob({ taskId: task.id, runVersion: task.runVersion, priority: 0 });
+
+    assert.deepEqual(events.slice(0, 2), [
+      {
+        taskId: task.id,
+        eventType: 'task_started',
+        title: '采集任务开始执行',
+        message: null,
+        fromStatus: 'queued',
+        toStatus: 'running',
+        metadata: null
+      },
+      {
+        taskId: task.id,
+        eventType: 'task_completed',
+        title: '采集任务已完成',
+        message: null,
+        fromStatus: 'running',
+        toStatus: 'completed',
+        metadata: null
+      }
+    ]);
+  });
+
   it('does not restart an interrupted task from a stale job', async () => {
     let orchestratorCalls = 0;
     const task = createTask({ status: 'interrupted' });

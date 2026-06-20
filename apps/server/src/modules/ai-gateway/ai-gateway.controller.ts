@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ok } from '../../shared/api-response';
 import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
@@ -137,10 +137,6 @@ export class AiGatewayController {
   }
 
   private assertSuper(currentContext: RequestUserContext | null) {
-    if (!currentContext) {
-      throw new ForbiddenException('无权维护 AI 配置');
-    }
-
-    assertSuperRole(currentContext, '无权维护 AI 配置');
+    assertSuperRole(requireRequestUserContext(currentContext), '无权维护 AI 配置');
   }
 }

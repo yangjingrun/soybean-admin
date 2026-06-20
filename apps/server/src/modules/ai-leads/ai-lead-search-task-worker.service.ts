@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { createTaskNotificationMetadata, isStaleRunVersion } from '../../shared/task-state';
+import { createTaskNotificationMetadata, createTaskStateChangeEvent, isStaleRunVersion } from '../../shared/task-state';
 import { CrmService } from '../crm/crm.service';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { SearchRequestTrace } from './ai-lead-search-orchestrator.service';
@@ -161,6 +161,7 @@ export class AiLeadSearchTaskWorkerService {
   }
 
   private async markRunning(task: AiLeadSearchTaskRecord, runVersion: number) {
+    const fromStatus = task.status;
     const runningTask = await this.taskStore.updateTask(
       task.id,
       {
@@ -178,13 +179,13 @@ export class AiLeadSearchTaskWorkerService {
       return null;
     }
 
-    await this.createTaskEventSafely({
+    await this.createTaskEventSafely(createTaskStateChangeEvent({
       taskId: task.id,
       eventType: 'task_started',
-      fromStatus: task.status,
+      fromStatus,
       toStatus: 'running',
       title: '采集任务开始执行'
-    });
+    }));
 
     return runningTask;
   }
@@ -209,13 +210,13 @@ export class AiLeadSearchTaskWorkerService {
     }
 
     await this.importCrmLeadsSafely(completedTask, result);
-    await this.createTaskEventSafely({
+    await this.createTaskEventSafely(createTaskStateChangeEvent({
       taskId: task.id,
       eventType: 'task_completed',
       fromStatus: 'running',
       toStatus: 'completed',
       title: '采集任务已完成'
-    });
+    }));
     await this.createTaskNotificationSafely(task, 'task_completed', '采集任务已完成', 'AI 获客采集任务已完成');
   }
 
@@ -249,7 +250,7 @@ export class AiLeadSearchTaskWorkerService {
     }
 
     if (failureCount > 0) {
-      await this.createTaskEventSafely({
+      await this.createTaskEventSafely(createTaskStateChangeEvent({
         taskId: task.id,
         eventType: 'crm_import_failed',
         title: 'CRM 线索导入失败',
@@ -258,7 +259,7 @@ export class AiLeadSearchTaskWorkerService {
           successCount,
           failureCount
         }
-      });
+      }));
     }
   }
 
@@ -274,20 +275,20 @@ export class AiLeadSearchTaskWorkerService {
       const result = await this.hunterEnrichmentService.enrichCrmImportInputs(inputs);
 
       if (result.attemptedCount > 0 || result.enrichedCount > 0 || result.failedCount > 0) {
-        await this.createTaskEventSafely({
+        await this.createTaskEventSafely(createTaskStateChangeEvent({
           taskId,
           eventType: 'crm_hunter_enrichment_completed',
           title: 'Hunter 联系人补全完成',
           message: result.firstErrorMessage,
           metadata: toHunterEnrichmentEventMetadata(result)
-        });
+        }));
       }
 
       return result.inputs;
     } catch (error) {
       const firstErrorMessage = error instanceof Error ? error.message : String(error);
 
-      await this.createTaskEventSafely({
+      await this.createTaskEventSafely(createTaskStateChangeEvent({
         taskId,
         eventType: 'crm_hunter_enrichment_failed',
         title: 'Hunter 联系人补全失败',
@@ -298,7 +299,7 @@ export class AiLeadSearchTaskWorkerService {
           failedCount: 1,
           firstErrorMessage
         }
-      });
+      }));
 
       return inputs;
     }
@@ -322,14 +323,14 @@ export class AiLeadSearchTaskWorkerService {
       return false;
     }
 
-    await this.createTaskEventSafely({
+    await this.createTaskEventSafely(createTaskStateChangeEvent({
       taskId: task.id,
       eventType: 'task_failed',
       fromStatus: 'running',
       toStatus: 'failed',
       title: '采集任务失败',
       message
-    });
+    }));
     await this.createTaskNotificationSafely(task, 'task_failed', '采集任务失败', message || 'AI 获客采集任务失败');
 
     return true;
@@ -345,12 +346,12 @@ export class AiLeadSearchTaskWorkerService {
     try {
       await this.createTaskNotification(task, type, title, content);
     } catch (error) {
-      await this.createTaskEventSafely({
+      await this.createTaskEventSafely(createTaskStateChangeEvent({
         taskId: task.id,
         eventType: 'task_notification_failed',
         title: '任务通知创建失败',
         message: error instanceof Error ? error.message : String(error)
-      });
+      }));
     }
   }
 
@@ -374,12 +375,12 @@ export class AiLeadSearchTaskWorkerService {
     try {
       await this.taskStore.updateTask(task.id, { progressState: event }, this.runningTaskGuard(task));
     } catch (error) {
-      await this.createTaskEventSafely({
+      await this.createTaskEventSafely(createTaskStateChangeEvent({
         taskId: task.id,
         eventType: 'task_progress_persist_failed',
         title: '任务进度保存失败',
         message: error instanceof Error ? error.message : String(error)
-      });
+      }));
     }
   }
 

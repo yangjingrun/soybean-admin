@@ -64,6 +64,9 @@
 - 模块内部类型放模块内，跨模块复用再提升到 `shared` 或 `packages/shared`。
 - 后端不要直接依赖 `src` 前端目录下的类型。
 - 业务数据、系统配置和用户配置默认持久化到 PostgreSQL；Redis 最多用于缓存、会话、验证码、短期队列等临时数据，不作为唯一数据源。
+- 抽出 `apps/server/src/shared` 共享 helper 后，要同步把同类业务调用迁过去，并补测试覆盖真实调用；不要只新增 helper 定义却让业务继续手写旧结构。
+- 普通业务 Controller 做角色判断时，先用 `requireRequestUserContext()` 统一未登录语义，再调用 `assertSuper`、`assertOrganizationAdmin` 等权限 policy，避免同类接口 401/403 语义不一致。
+- 后台任务状态事件统一优先用 `createTaskStateChangeEvent()` 构造，再写入模块自己的 event store；事件字段变化时要同时核对 helper、业务调用和 spec。
 
 ## Serper API 规则
 
