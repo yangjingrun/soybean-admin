@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
+import { CRM_SEQUENCE_APPROVAL_REPOSITORY } from '../crm.tokens';
 import type {
   CrmMessageRecord,
   CrmMessageStatus,
@@ -23,7 +23,7 @@ const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
 @Injectable()
 export class CrmBatchDraftApprovalService {
   constructor(
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEQUENCE_APPROVAL_REPOSITORY)
     private readonly approvalRepository: CrmBatchDraftApprovalRepository,
     @Optional()
     @Inject(CrmLoggerService)

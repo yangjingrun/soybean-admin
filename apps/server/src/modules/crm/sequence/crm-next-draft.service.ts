@@ -3,7 +3,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
 import { buildNextFollowUpDraft } from '../crm-follow-up-draft';
 import { buildPersonaMatch } from '../crm-persona-match';
-import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
+import { CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY } from '../crm.tokens';
 import type {
   CrmAccountRecord,
   CrmAiDraftMetadata,
@@ -51,7 +51,7 @@ type NextDraftGenerationContext = {
 @Injectable()
 export class CrmNextDraftService {
   constructor(
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY)
     private readonly nextDraftRepository: CrmNextDraftRepository,
     @Optional()
     @Inject(CrmAiDraftService)

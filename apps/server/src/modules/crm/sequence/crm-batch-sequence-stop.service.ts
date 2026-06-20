@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
+import { CRM_SEQUENCE_CONTROL_REPOSITORY } from '../crm.tokens';
 import type { CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import type { CrmBatchSequenceStopRepository } from './crm-batch-sequence-stop.repository';
@@ -15,7 +15,7 @@ import {
 @Injectable()
 export class CrmBatchSequenceStopService {
   constructor(
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEQUENCE_CONTROL_REPOSITORY)
     private readonly sequenceStopRepository: CrmBatchSequenceStopRepository,
     @Optional()
     @Inject(CrmLoggerService)

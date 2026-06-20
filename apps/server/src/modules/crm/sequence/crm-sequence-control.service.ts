@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
+import { CRM_SEQUENCE_CONTROL_REPOSITORY } from '../crm.tokens';
 import type { CrmContactRecord, CrmMessageStatus, CrmUserContext } from '../crm.types';
 import { createCrmReadScope } from '../shared/crm-scope';
 import { CrmLoggerService } from '../shared/crm-logger.service';
@@ -17,7 +17,7 @@ const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
 @Injectable()
 export class CrmSequenceControlService {
   constructor(
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEQUENCE_CONTROL_REPOSITORY)
     private readonly sequenceRepository: CrmSequenceControlRepository,
     @Optional()
     @Inject(CrmLoggerService)

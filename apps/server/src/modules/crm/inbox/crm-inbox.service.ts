@@ -11,7 +11,7 @@ import { classifyCustomerReplyMessage } from '../crm-inbox-message-classifier';
 import {
   CRM_EMAIL_SEND_GATEWAY,
   CRM_INBOX_REPOSITORY,
-  CRM_SEQUENCE_REPOSITORY,
+  CRM_SEQUENCE_DRAFT_REPOSITORY,
   CRM_SETTINGS_REPOSITORY
 } from '../crm.tokens';
 import type {
@@ -28,7 +28,7 @@ import type {
 } from '../crm.types';
 import type { CrmProductLineRepository } from '../product-lines/crm-product-line.repository';
 import { CRM_PRODUCT_LINE_REPOSITORY } from '../product-lines/crm-product-line.repository';
-import type { CrmSequenceRepository } from '../sequence/crm-sequence.repository';
+import type { CrmDraftRepository } from '../sequence/crm-draft.repository';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeLimitedContent, normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
@@ -62,7 +62,7 @@ type CrmInboxSettingsReader = Pick<CrmSettingsRepository, 'getOrganizationConfig
 type CrmInboxProductLineReader = Pick<CrmProductLineRepository, 'findProductLineById'>;
 
 /** Minimal message lookup needed for reply ingest simulation. */
-type CrmInboxMessageReader = Pick<CrmSequenceRepository, 'findMessageById'>;
+type CrmInboxMessageReader = Pick<CrmDraftRepository, 'findMessageById'>;
 
 @Injectable()
 export class CrmInboxService {
@@ -73,7 +73,7 @@ export class CrmInboxService {
     private readonly settingsRepository: CrmInboxSettingsReader,
     @Inject(CRM_PRODUCT_LINE_REPOSITORY)
     private readonly productLineRepository: CrmInboxProductLineReader,
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEQUENCE_DRAFT_REPOSITORY)
     private readonly sequenceRepository: CrmInboxMessageReader,
     @Optional()
     @Inject(SystemLogService)

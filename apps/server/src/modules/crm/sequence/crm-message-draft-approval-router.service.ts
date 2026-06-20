@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
+import { CRM_SEQUENCE_APPROVAL_REPOSITORY } from '../crm.tokens';
 import type { CrmMessageStatus, CrmStore, CrmUserContext } from '../crm.types';
 import { CrmDraftApprovalService } from './crm-draft-approval.service';
 import { CrmFollowUpApprovalService } from './crm-follow-up-approval.service';
@@ -10,7 +10,7 @@ const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 @Injectable()
 export class CrmMessageDraftApprovalRouterService {
   constructor(
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEQUENCE_APPROVAL_REPOSITORY)
     private readonly sequenceRepository: Pick<CrmStore, 'findMessageById'>,
     @Inject(CrmDraftApprovalService)
     private readonly draftApprovalService: CrmDraftApprovalService,

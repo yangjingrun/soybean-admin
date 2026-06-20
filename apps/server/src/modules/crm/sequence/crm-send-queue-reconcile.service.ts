@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, Optional } from '@nestjs/common';
 import { assertSuper } from '../../../shared/permission-policy';
-import { CRM_SEND_QUEUE, CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
+import { CRM_SEND_QUEUE, CRM_SEND_QUEUE_RECONCILE_REPOSITORY } from '../crm.tokens';
 import type { CrmSendQueuePort, CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizePositiveInteger } from '../shared/crm-normalizers';
@@ -9,7 +9,7 @@ import type { CrmSendQueueReconcileRepository } from './crm-send-queue-reconcile
 @Injectable()
 export class CrmSendQueueReconcileService {
   constructor(
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEND_QUEUE_RECONCILE_REPOSITORY)
     private readonly reconcileRepository: CrmSendQueueReconcileRepository,
     @Optional()
     @Inject(CRM_SEND_QUEUE)

@@ -7,6 +7,11 @@ import {
   CRM_DASHBOARD_REPOSITORY,
   CRM_INBOX_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
+  CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
+  CRM_SEQUENCE_APPROVAL_REPOSITORY,
+  CRM_SEQUENCE_CONTROL_REPOSITORY,
+  CRM_SEQUENCE_DRAFT_REPOSITORY,
+  CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
   CRM_SETTINGS_REPOSITORY,
   CRM_STORE,
@@ -25,7 +30,13 @@ import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
 import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
+import { PrismaCrmSendQueueReconcileStore } from './store/prisma-crm-send-queue-reconcile.store';
+import { PrismaCrmSequenceApprovalStore } from './store/prisma-crm-sequence-approval.store';
+import { PrismaCrmSequenceControlStore } from './store/prisma-crm-sequence-control.store';
+import { PrismaCrmSequenceDraftStore } from './store/prisma-crm-sequence-draft.store';
+import { PrismaCrmSequenceNextDraftStore } from './store/prisma-crm-sequence-next-draft.store';
 import { PrismaCrmSequencePolicyStore } from './store/prisma-crm-sequence-policy.store';
+import { PrismaCrmSequenceStore } from './store/prisma-crm-sequence.store';
 import { PrismaCrmSettingsStore } from './store/prisma-crm-settings.store';
 import { PrismaCrmSuppressionStore } from './store/prisma-crm-suppression.store';
 import { CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY } from './template-groups/crm-email-template-group.repository';
@@ -38,6 +49,11 @@ const domainRepositoryTokens = [
   CRM_SUPPRESSION_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
+  CRM_SEQUENCE_APPROVAL_REPOSITORY,
+  CRM_SEQUENCE_CONTROL_REPOSITORY,
+  CRM_SEQUENCE_DRAFT_REPOSITORY,
+  CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
+  CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
   CRM_AI_DRAFT_TASK_REPOSITORY,
   CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY,
   CRM_SEQUENCE_POLICY_REPOSITORY,
@@ -72,6 +88,12 @@ describe('crmRepositoryProviders', () => {
       [CRM_PERSONA_PROFILE_REPOSITORY, PrismaCrmPersonaStore],
       [CRM_SUPPRESSION_REPOSITORY, PrismaCrmSuppressionStore],
       [CRM_MAILBOX_REPOSITORY, PrismaCrmMailboxStore],
+      [CRM_SEQUENCE_REPOSITORY, PrismaCrmSequenceStore],
+      [CRM_SEQUENCE_APPROVAL_REPOSITORY, PrismaCrmSequenceApprovalStore],
+      [CRM_SEQUENCE_CONTROL_REPOSITORY, PrismaCrmSequenceControlStore],
+      [CRM_SEQUENCE_DRAFT_REPOSITORY, PrismaCrmSequenceDraftStore],
+      [CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY, PrismaCrmSequenceNextDraftStore],
+      [CRM_SEND_QUEUE_RECONCILE_REPOSITORY, PrismaCrmSendQueueReconcileStore],
       [CRM_AI_DRAFT_TASK_REPOSITORY, PrismaCrmAiDraftTaskStore],
       [CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY, PrismaCrmAiDraftTaskSourceStore],
       [CRM_SEQUENCE_POLICY_REPOSITORY, PrismaCrmSequencePolicyStore],

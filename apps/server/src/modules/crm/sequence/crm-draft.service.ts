@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
-import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
+import { CRM_SEQUENCE_DRAFT_REPOSITORY } from '../crm.tokens';
 import type {
   CrmAccountRecord,
   CrmAiDraftMetadata,
@@ -34,7 +34,7 @@ interface GeneratedDraft {
 @Injectable()
 export class CrmDraftService {
   constructor(
-    @Inject(CRM_SEQUENCE_REPOSITORY)
+    @Inject(CRM_SEQUENCE_DRAFT_REPOSITORY)
     private readonly draftRepository: CrmDraftRepository,
     @Optional()
     @Inject(CrmAiDraftService)

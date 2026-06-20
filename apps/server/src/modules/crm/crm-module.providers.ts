@@ -47,7 +47,6 @@ import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcil
 import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
 import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
-import { LegacyCrmSequenceRepository } from './sequence/legacy-crm-sequence.repository';
 import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence-policy.repository';
 import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
@@ -70,6 +69,11 @@ import {
   CRM_INBOX_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
   CRM_SEND_QUEUE,
+  CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
+  CRM_SEQUENCE_APPROVAL_REPOSITORY,
+  CRM_SEQUENCE_CONTROL_REPOSITORY,
+  CRM_SEQUENCE_DRAFT_REPOSITORY,
+  CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
   CRM_SETTINGS_REPOSITORY,
   CRM_STORE,
@@ -84,7 +88,13 @@ import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
 import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
+import { PrismaCrmSendQueueReconcileStore } from './store/prisma-crm-send-queue-reconcile.store';
+import { PrismaCrmSequenceApprovalStore } from './store/prisma-crm-sequence-approval.store';
+import { PrismaCrmSequenceControlStore } from './store/prisma-crm-sequence-control.store';
+import { PrismaCrmSequenceDraftStore } from './store/prisma-crm-sequence-draft.store';
+import { PrismaCrmSequenceNextDraftStore } from './store/prisma-crm-sequence-next-draft.store';
 import { PrismaCrmSequencePolicyStore } from './store/prisma-crm-sequence-policy.store';
+import { PrismaCrmSequenceStore } from './store/prisma-crm-sequence.store';
 import { PrismaCrmSettingsStore } from './store/prisma-crm-settings.store';
 import { PrismaCrmStore } from './store/prisma-crm.store';
 import { PrismaCrmSuppressionStore } from './store/prisma-crm-suppression.store';
@@ -180,7 +190,27 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_SEQUENCE_REPOSITORY,
-    useClass: LegacyCrmSequenceRepository
+    useClass: PrismaCrmSequenceStore
+  },
+  {
+    provide: CRM_SEQUENCE_APPROVAL_REPOSITORY,
+    useClass: PrismaCrmSequenceApprovalStore
+  },
+  {
+    provide: CRM_SEQUENCE_CONTROL_REPOSITORY,
+    useClass: PrismaCrmSequenceControlStore
+  },
+  {
+    provide: CRM_SEQUENCE_DRAFT_REPOSITORY,
+    useClass: PrismaCrmSequenceDraftStore
+  },
+  {
+    provide: CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
+    useClass: PrismaCrmSequenceNextDraftStore
+  },
+  {
+    provide: CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
+    useClass: PrismaCrmSendQueueReconcileStore
   },
   {
     provide: CRM_AI_DRAFT_TASK_REPOSITORY,
