@@ -31,6 +31,7 @@ import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmService } from './crm.service';
 import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
@@ -61,6 +62,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmService,
     CrmAccountService,
     CrmMailboxService,
+    CrmSequenceService,
     CrmSettingsService,
     CrmSuppressionService,
     CrmLoggerService,

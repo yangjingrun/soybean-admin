@@ -11,6 +11,8 @@ import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
+import { CrmSequenceService } from './sequence/crm-sequence.service';
+import { CrmLoggerService } from './shared/crm-logger.service';
 import type {
   CrmArchivedFingerprintRecord,
   CrmAiDraftQueueConfigInput,
@@ -86,6 +88,42 @@ describe('CrmService', () => {
     const service = createServiceWithSplitServices({ mailboxService });
 
     assert.equal(await service.listMailboxes(context, query), expected);
+  });
+
+  it('delegates sequence review facade methods when the split sequence service is injected', async () => {
+    const context = createContext();
+    const createInput = { accountId: 'account-1', contactId: 'contact-1' };
+    const query = { keyword: 'abc' };
+    const created = { item: { id: 'created' } };
+    const listed = { records: [] };
+    const detail = { id: 'detail' };
+    const calls: string[] = [];
+    const sequenceService = {
+      async createSequenceReviewItem(actualInput: typeof createInput, actualContext: CrmUserContext) {
+        assert.equal(actualInput, createInput);
+        assert.equal(actualContext, context);
+        calls.push('create');
+        return created;
+      },
+      async listSequenceReviewItems(actualContext: CrmUserContext, actualQuery: typeof query) {
+        assert.equal(actualContext, context);
+        assert.equal(actualQuery, query);
+        calls.push('list');
+        return listed;
+      },
+      async getSequenceReviewItem(actualId: string, actualContext: CrmUserContext) {
+        assert.equal(actualId, 'enrollment-1');
+        assert.equal(actualContext, context);
+        calls.push('detail');
+        return detail;
+      }
+    };
+    const service = createServiceWithSplitServices({ sequenceService });
+
+    assert.equal(await service.createSequenceReviewItem(createInput, context), created);
+    assert.equal(await service.listSequenceReviewItems(context, query), listed);
+    assert.equal(await service.getSequenceReviewItem('enrollment-1', context), detail);
+    assert.deepEqual(calls, ['create', 'list', 'detail']);
   });
 
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -2407,6 +2445,141 @@ describe('CrmService', () => {
       result.records[0].checklist.every(item => item.passed),
       true
     );
+  });
+
+  it('creates first draft review items through split sequence service with scoped resources and log', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading', status: 'ready' })], {
+      contacts: [
+        createContact({
+          id: 'contact-1',
+          accountId: 'account-1',
+          fullName: 'Ali Hassan',
+          title: 'Purchasing Manager',
+          emailStatus: 'valid'
+        })
+      ],
+      mailboxes: [createMailbox({ id: 'mailbox-1', maskedEmail: 'a***@gmail.com' })],
+      productLines: [
+        createProductLine({
+          id: 'line-1',
+          name: 'Bearing Series',
+          coreSellingPoints: 'stable supply',
+          moq: '100 pcs',
+          leadTime: '15 days'
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = createSequenceService(store, {
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
+
+    const result = await service.createSequenceReviewItem(
+      {
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        productLineId: 'line-1',
+        mailboxId: 'mailbox-1'
+      },
+      createContext()
+    );
+
+    assert.equal(result.item.enrollment.status, 'draft_review_pending');
+    assert.equal(result.item.firstMessage?.status, 'draft_pending_review');
+    assert.equal(result.item.firstMessage?.subject, 'Bearing Series for ABC Trading');
+    assert.equal(store.accounts[0].status, 'manual_review_pending');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'sequence_draft_generated');
+    assert.equal(logs.records.at(-1)?.action, 'sequence-review-create');
+    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).messageId, 'message-1');
+    assert.equal(JSON.stringify(logs.records.at(-1)?.metadata).includes('stable supply'), false);
+  });
+
+  it('lists sequence review items through split sequence service with member owner scope', async () => {
+    const store = createStore([createAccount({ id: 'account-1', name: 'ABC Trading' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', emailStatus: 'valid' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1' })],
+      productLines: [createProductLine({ id: 'line-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          productLineId: 'line-1',
+          mailboxId: 'mailbox-1'
+        })
+      ],
+      messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1' })]
+    });
+    const service = createSequenceService(store);
+
+    const result = await service.listSequenceReviewItems(createContext(), {
+      keyword: ' ABC ',
+      status: 'draft_review_pending',
+      todoType: 'draft_review_pending',
+      dateScope: 'today'
+    });
+
+    assert.deepEqual(store.lastSequenceReviewListArgs, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      keyword: 'ABC',
+      status: 'draft_review_pending',
+      todoType: 'draft_review_pending',
+      dateScope: 'today',
+      skip: 0,
+      take: 20
+    });
+    assert.equal(result.records[0].firstMessage?.id, 'message-1');
+    assert.equal(
+      result.records[0].checklist.every(item => item.passed),
+      true
+    );
+  });
+
+  it('reads sequence review detail through split sequence service with admin scope but draft operation remains owner-only', async () => {
+    const store = createStore(
+      [createAccount({ id: 'account-1', ownerUserId: 'user-2', name: 'Peer Trading' })],
+      {
+        contacts: [
+          createContact({
+            id: 'contact-1',
+            accountId: 'account-1',
+            ownerUserId: 'user-2',
+            emailStatus: 'valid'
+          })
+        ],
+        enrollments: [
+          createEnrollment({
+            id: 'enrollment-1',
+            ownerUserId: 'user-2',
+            accountId: 'account-1',
+            contactId: 'contact-1'
+          })
+        ],
+        messages: [
+          createMessage({
+            id: 'message-1',
+            ownerUserId: 'user-2',
+            accountId: 'account-1',
+            contactId: 'contact-1',
+            enrollmentId: 'enrollment-1'
+          })
+        ]
+      }
+    );
+    const service = createSequenceService(store);
+
+    const result = await service.getSequenceReviewItem(
+      'enrollment-1',
+      createContext({ organizationRole: 'admin', userId: 'user-1' })
+    );
+
+    assert.deepEqual(store.lastSequenceReviewDetailArgs, {
+      id: 'enrollment-1',
+      organizationId: 'org-1'
+    });
+    assert.equal(result.canOperateDraft, false);
+    assert.equal(result.canControlSequence, true);
   });
 
   it('lists local strategy stats with owner scope for members', async () => {
@@ -8405,6 +8578,7 @@ function createServiceWithSplitServices(options: {
   suppressionService?: unknown;
   accountService?: unknown;
   mailboxService?: unknown;
+  sequenceService?: unknown;
 }) {
   return new CrmService(
     {} as CrmStore,
@@ -8422,7 +8596,23 @@ function createServiceWithSplitServices(options: {
     undefined,
     options.suppressionService as never,
     options.accountService as never,
-    options.mailboxService as never
+    options.mailboxService as never,
+    options.sequenceService as never
+  );
+}
+
+function createSequenceService(
+  store: CrmStore,
+  options: { aiDraftService?: CrmAiDraftService | null; crmLogger?: CrmLoggerService } = {}
+) {
+  return new CrmSequenceService(
+    store,
+    store,
+    store,
+    store,
+    store,
+    options.aiDraftService,
+    options.crmLogger
   );
 }
 

@@ -41,6 +41,7 @@ import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import {
@@ -374,7 +375,10 @@ export class CrmService {
     private readonly accountService?: CrmAccountService,
     @Optional()
     @Inject(CrmMailboxService)
-    private readonly mailboxService?: CrmMailboxService
+    private readonly mailboxService?: CrmMailboxService,
+    @Optional()
+    @Inject(CrmSequenceService)
+    private readonly sequenceService?: CrmSequenceService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -1706,6 +1710,10 @@ export class CrmService {
 
   /** Creates one first-email review item and deterministic draft without queueing any send job. */
   async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
+    if (this.sequenceService) {
+      return this.sequenceService.createSequenceReviewItem(input, context);
+    }
+
     const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
     await this.assertContactNotBlacklisted(contact, context);
     const existingEnrollment = await this.store.findActiveEnrollmentByContact({
@@ -1908,6 +1916,10 @@ export class CrmService {
       dateScope?: 'today';
     } = {}
   ) {
+    if (this.sequenceService) {
+      return this.sequenceService.listSequenceReviewItems(context, query);
+    }
+
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
@@ -1954,6 +1966,10 @@ export class CrmService {
 
   /** Returns one review item detail with the first draft message. */
   async getSequenceReviewItem(id: string, context: CrmUserContext) {
+    if (this.sequenceService) {
+      return this.sequenceService.getSequenceReviewItem(id, context);
+    }
+
     const item = await this.requireScopedSequenceReviewItem(id, context);
     const personaMatch = await this.resolvePersonaProfileMatch(item.account, item.contact, context);
 
