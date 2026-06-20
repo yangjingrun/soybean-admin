@@ -3019,7 +3019,7 @@ describe('CrmService', () => {
 
   it('lists local strategy stats with organization scope for admins', async () => {
     const store = createStore();
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await service.listStrategyStats(createContext({ organizationRole: 'admin' }));
 
@@ -3035,7 +3035,13 @@ describe('CrmService', () => {
       messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1' })]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      draftService: createDraftService(store),
+      draftApprovalService: createDraftApprovalService(store, {
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
+    });
 
     const updated = await service.updateMessageDraft(
       'message-1',
@@ -3068,7 +3074,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await service.updateMessageDraft('message-1', { subject: 'First update', bodyText: 'First body' }, createContext());
     await service.updateMessageDraft(
@@ -3200,7 +3206,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await service.updateMessageDraft(
       'message-1',
@@ -3248,7 +3254,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     store.draftVersions.push(
       createDraftVersion(store.messages[0], {
@@ -3515,7 +3521,10 @@ describe('CrmService', () => {
       ]
     });
     const sendQueue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, sendQueue);
+    const service = createServiceWithSplitServices({
+      store,
+      followUpApprovalService: createFollowUpApprovalService(store)
+    });
 
     const approved = await service.approveMessageDraft('message-2', createContext());
 
@@ -3567,7 +3576,10 @@ describe('CrmService', () => {
       ]
     });
     const sendQueue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, sendQueue);
+    const service = createServiceWithSplitServices({
+      store,
+      followUpApprovalService: createFollowUpApprovalService(store)
+    });
 
     const approved = await service.approveMessageDraft('message-2', createContext());
 
@@ -3605,7 +3617,12 @@ describe('CrmService', () => {
     });
     const logs = createLogRecorder();
     const sendQueue = createSendQueue();
-    const service = new CrmService(store, undefined, logs.service, sendQueue);
+    const service = createServiceWithSplitServices({
+      store,
+      followUpApprovalService: createFollowUpApprovalService(store, {
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
+    });
 
     const approved = await service.approveMessageDraft('message-2', createContext());
 
@@ -4177,7 +4194,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
     const adminContext = createContext({ organizationRole: 'admin' });
 
     await assert.rejects(
@@ -9517,11 +9534,11 @@ function createServiceWithSplitServices(options: {
     options.sendQueueReconcileService as never,
     (options.sequencePolicyService ?? createSequencePolicyService(store)) as never,
     (options.templateGroupService ?? createEmailTemplateGroupService(store)) as never,
-    options.draftService as never,
+    (options.draftService ?? createDraftService(store)) as never,
     options.draftPreviewService as never,
     options.nextDraftService as never,
-    options.draftApprovalService as never,
-    options.followUpApprovalService as never,
+    (options.draftApprovalService ?? createDraftApprovalService(store)) as never,
+    (options.followUpApprovalService ?? createFollowUpApprovalService(store)) as never,
     options.batchDraftApprovalService as never,
     options.batchSequenceStopService as never,
     options.aiDraftTaskService as never,

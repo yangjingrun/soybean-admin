@@ -34,7 +34,6 @@ import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
-import { nextDraftEnrollmentStatuses } from './sequence/crm-next-draft-rules';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcile.service';
 import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
@@ -63,7 +62,6 @@ import {
   CRM_STORE
 } from './crm.tokens';
 import type {
-  CrmAiDraftMetadata,
   CrmAiDraftTaskQueuePort,
   CrmAiDraftQueueConfigInput,
   CrmAccountStatus,
@@ -73,14 +71,12 @@ import type {
   CrmEmailSendGateway,
   CrmGlobalConfigRecord,
   CrmInboxThreadStatus,
-  CrmMessageDraftVersionRecord,
   CrmMessageRecord,
   CrmMessageStatus,
   CrmPersonaProfileStatus,
   CrmProductLineStatus,
   CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
-  CrmSequenceReviewRecord,
   CrmSequenceReviewTodoType,
   CrmStrategyStatsRecord,
   CrmSendQueuePort,
@@ -91,7 +87,6 @@ import type {
 
 const initialDraftStepIndex = 1;
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
-const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
 
 interface ProductLineCreateInput {
   name: string;
@@ -600,60 +595,7 @@ export class CrmService {
 
   /** Saves human edits to one draft and keeps it in pending review. */
   async updateMessageDraft(id: string, input: MessageDraftUpdateInput, context: CrmUserContext) {
-    if (this.draftService) {
-      return this.draftService.updateMessageDraft(id, input, context);
-    }
-
-    const message = await this.requireOwnedEditableMessage(id, context);
-    const updatedMessage = await this.store.updateMessage(
-      message.id,
-      context.organizationId,
-      {
-        subject: normalizeRequiredString(input.subject, '邮件主题不能为空'),
-        bodyText: normalizeRequiredString(input.bodyText, '邮件正文不能为空'),
-        status: 'draft_pending_review'
-      },
-      {
-        status: 'draft_pending_review'
-      }
-    );
-
-    if (!updatedMessage) {
-      throw new NotFoundException('邮件草稿不存在');
-    }
-
-    await this.store.createMessageDraftVersion({
-      organizationId: updatedMessage.organizationId,
-      ownerUserId: updatedMessage.ownerUserId,
-      accountId: updatedMessage.accountId,
-      contactId: updatedMessage.contactId,
-      enrollmentId: updatedMessage.enrollmentId,
-      messageId: updatedMessage.id,
-      mailboxId: updatedMessage.mailboxId,
-      stepIndex: updatedMessage.stepIndex,
-      subject: updatedMessage.subject,
-      bodyText: updatedMessage.bodyText,
-      editorId: context.userId,
-      editorName: context.userName
-    });
-
-    await this.store.createTimelineEvent({
-      organizationId: updatedMessage.organizationId,
-      accountId: updatedMessage.accountId,
-      contactId: updatedMessage.contactId,
-      ownerUserId: context.userId,
-      eventType: 'draft_updated',
-      title: '用户修改首封开发信草稿',
-      content: updatedMessage.subject,
-      metadata: {
-        enrollmentId: updatedMessage.enrollmentId,
-        messageId: updatedMessage.id
-      }
-    });
-
-    return {
-      message: toMessageView(updatedMessage)
-    };
+    return this.requireDraftService().updateMessageDraft(id, input, context);
   }
 
   /** Regenerates the current owner pending-review draft with product-line AI writing config. */
@@ -663,124 +605,27 @@ export class CrmService {
 
   /** Lists saved snapshots for one owner draft message. */
   async listMessageDraftVersions(id: string, context: CrmUserContext) {
-    if (this.draftService) {
-      return this.draftService.listMessageDraftVersions(id, context);
-    }
-
-    await this.requireOwnedMessage(id, context);
-    const versions = await this.store.listMessageDraftVersions({
-      messageId: id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    return {
-      versions: versions.map(toMessageDraftVersionView)
-    };
+    return this.requireDraftService().listMessageDraftVersions(id, context);
   }
 
   /** Restores one saved draft snapshot into the current pending-review message. */
   async restoreMessageDraftVersion(id: string, versionId: string, context: CrmUserContext) {
-    if (this.draftService) {
-      return this.draftService.restoreMessageDraftVersion(id, versionId, context);
-    }
-
-    const message = await this.requireOwnedEditableMessage(id, context);
-    const restoredMessage = await this.store.restoreMessageDraftVersion({
-      messageId: message.id,
-      versionId,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!restoredMessage) {
-      throw new NotFoundException('草稿版本不存在');
-    }
-
-    await this.store.createTimelineEvent({
-      organizationId: restoredMessage.organizationId,
-      accountId: restoredMessage.accountId,
-      contactId: restoredMessage.contactId,
-      ownerUserId: context.userId,
-      eventType: 'draft_version_restored',
-      title: '恢复开发信草稿历史版本',
-      content: restoredMessage.subject,
-      metadata: {
-        enrollmentId: restoredMessage.enrollmentId,
-        messageId: restoredMessage.id,
-        versionId
-      }
-    });
-
-    await this.recordCrmLog('draft-version-restore', 'CRM 开发信草稿恢复历史版本', context, {
-      enrollmentId: restoredMessage.enrollmentId,
-      messageId: restoredMessage.id,
-      versionId
-    });
-
-    return {
-      message: toMessageView(restoredMessage)
-    };
+    return this.requireDraftService().restoreMessageDraftVersion(id, versionId, context);
   }
 
   /** Marks one reviewed draft as ready for the future send queue without sending it. */
   async approveMessageDraft(id: string, context: CrmUserContext) {
     const message = await this.requireOwnedEditableMessage(id, context);
 
-    if (message.stepIndex === initialDraftStepIndex && this.draftApprovalService) {
-      return this.draftApprovalService.approveInitialMessageDraft(id, context);
+    if (message.stepIndex === initialDraftStepIndex) {
+      return this.requireDraftApprovalService().approveInitialMessageDraft(id, context);
     }
-
-    if (message.stepIndex > initialDraftStepIndex && this.followUpApprovalService) {
-      return this.followUpApprovalService.approveFollowUpMessageDraft(id, context);
-    }
-
-    const reviewItem = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
 
     if (message.stepIndex > initialDraftStepIndex) {
-      return this.approveFollowUpMessageDraft(message, reviewItem, context);
+      return this.requireFollowUpApprovalService().approveFollowUpMessageDraft(id, context);
     }
 
-    if (message.stepIndex !== initialDraftStepIndex) {
-      throw new BadRequestException('当前草稿不是首封开发信');
-    }
-
-    if (reviewItem.enrollment.status !== 'draft_review_pending') {
-      throw new BadRequestException('当前序列状态不能确认草稿');
-    }
-
-    const approval = await this.store.approveMessageDraft({
-      messageId: message.id,
-      enrollmentId: reviewItem.enrollment.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      accountId: message.accountId,
-      contactId: message.contactId,
-      fromEnrollmentStatus: 'draft_review_pending',
-      toEnrollmentStatus: 'ready_to_send',
-      fromMessageStatus: 'draft_pending_review',
-      toMessageStatus: 'draft_ready',
-      accountStatus: 'ready'
-    });
-
-    if (!approval) {
-      throw new BadRequestException('当前草稿状态已变化，请刷新后重试');
-    }
-
-    await this.recordCrmLog('draft-approve', 'CRM 首封开发信人工确认', context, {
-      organizationId: context.organizationId,
-      accountId: approval.message.accountId,
-      contactId: approval.message.contactId,
-      enrollmentId: approval.enrollment.id,
-      messageId: approval.message.id,
-      fromStatus: reviewItem.enrollment.status,
-      toStatus: approval.enrollment.status
-    });
-
-    return {
-      enrollment: toSequenceEnrollmentView(approval.enrollment),
-      message: toMessageView(approval.message)
-    };
+    throw new BadRequestException('当前草稿不是首封开发信');
   }
 
   /** Locally creates the next follow-up draft without Gmail, BullMQ, or mutating existing message statuses. */
@@ -887,92 +732,6 @@ export class CrmService {
     }
 
     return this.batchDraftApprovalService.batchApproveMessageDrafts(input, context);
-  }
-
-  /** Confirms a follow-up draft locally, or schedules it when the sequence is already sending. */
-  private async approveFollowUpMessageDraft(
-    message: CrmMessageRecord,
-    reviewItem: CrmSequenceReviewRecord,
-    context: CrmUserContext
-  ) {
-    if (!nextDraftEnrollmentStatuses.includes(reviewItem.enrollment.status)) {
-      throw new BadRequestException('当前序列状态不能确认后续草稿');
-    }
-
-    if (reviewItem.enrollment.status === 'ready_to_send') {
-      const approval = await this.store.approveMessageDraft({
-        messageId: message.id,
-        enrollmentId: reviewItem.enrollment.id,
-        organizationId: context.organizationId,
-        ownerUserId: context.userId,
-        accountId: message.accountId,
-        contactId: message.contactId,
-        fromEnrollmentStatus: 'ready_to_send',
-        toEnrollmentStatus: 'ready_to_send',
-        fromMessageStatus: 'draft_pending_review',
-        toMessageStatus: approvedDraftStatus,
-        accountStatus: 'ready'
-      });
-
-      if (!approval) {
-        throw new BadRequestException('当前草稿状态已变化，请刷新后重试');
-      }
-
-      await this.recordCrmLog('follow-up-draft-approve-local', 'CRM 后续开发信人工确认', context, {
-        organizationId: context.organizationId,
-        accountId: approval.message.accountId,
-        contactId: approval.message.contactId,
-        enrollmentId: approval.enrollment.id,
-        messageId: approval.message.id,
-        stepIndex: approval.message.stepIndex
-      });
-
-      return {
-        enrollment: toSequenceEnrollmentView(approval.enrollment),
-        message: toMessageView(approval.message)
-      };
-    }
-
-    if (!reviewItem.mailbox || reviewItem.mailbox.status !== 'active') {
-      throw new BadRequestException('发送邮箱未启用');
-    }
-
-    if (!message.scheduledAt) {
-      throw new BadRequestException('后续开发信缺少计划发送时间');
-    }
-
-    const approval = await this.store.approveMessageDraft({
-      messageId: message.id,
-      enrollmentId: reviewItem.enrollment.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      accountId: message.accountId,
-      contactId: message.contactId,
-      fromEnrollmentStatus: 'sequence_running',
-      toEnrollmentStatus: 'sequence_running',
-      fromMessageStatus: 'draft_pending_review',
-      toMessageStatus: approvedDraftStatus,
-      accountStatus: 'sequence_running'
-    });
-
-    if (!approval) {
-      throw new BadRequestException('当前草稿状态已变化，请刷新后重试');
-    }
-
-    await this.recordCrmLog('follow-up-draft-approve', 'CRM 后续开发信人工确认并等待发送调度', context, {
-      organizationId: context.organizationId,
-      accountId: approval.message.accountId,
-      contactId: approval.message.contactId,
-      enrollmentId: approval.enrollment.id,
-      messageId: approval.message.id,
-      stepIndex: approval.message.stepIndex,
-      scheduledAt: approval.message.scheduledAt?.toISOString() ?? null
-    });
-
-    return {
-      enrollment: toSequenceEnrollmentView(approval.enrollment),
-      message: toMessageView(approval.message)
-    };
   }
 
   /** Starts the approved first message by placing it into the local send scheduling pool. */
@@ -1221,18 +980,20 @@ export class CrmService {
     return this.draftService;
   }
 
-  private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
-    const item = await this.store.getSequenceReviewItem({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!item) {
-      throw new NotFoundException('邮件序列不存在');
+  private requireDraftApprovalService() {
+    if (!this.draftApprovalService) {
+      throw new BadRequestException('CRM 首封草稿确认服务未启用');
     }
 
-    return item;
+    return this.draftApprovalService;
+  }
+
+  private requireFollowUpApprovalService() {
+    if (!this.followUpApprovalService) {
+      throw new BadRequestException('CRM 后续草稿确认服务未启用');
+    }
+
+    return this.followUpApprovalService;
   }
 
   /** Ensures one owner does not keep more queued outbound emails than the platform allows. */
@@ -1339,65 +1100,9 @@ export class CrmService {
 
 }
 
-function toSequenceEnrollmentView(record: CrmSequenceEnrollmentRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toMessageView(record: CrmMessageRecord) {
-  return {
-    ...record,
-    aiDraft: readCrmMessageAiDraftMetadata(record.metadata),
-    scheduledAt: record.scheduledAt?.toISOString() ?? null,
-    sentAt: record.sentAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString()
-  };
-}
-
 function toOwnerScope(context: CrmUserContext) {
   const scope = createCrmReadScope(context);
   return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
-}
-
-function normalizeRequiredString(value: string, emptyMessage: string) {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    throw new BadRequestException(emptyMessage);
-  }
-
-  return normalized;
-}
-
-function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | null {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
-
-  const value = (metadata as { aiDraft?: unknown }).aiDraft;
-
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-
-  const record = value as Partial<CrmAiDraftMetadata>;
-
-  if (record.generated !== true || typeof record.reason !== 'string' || !Array.isArray(record.riskNotes)) {
-    return null;
-  }
-
-  if (!record.snapshot || typeof record.snapshot !== 'object' || Array.isArray(record.snapshot)) {
-    return null;
-  }
-
-  return record as CrmAiDraftMetadata;
 }
 
 function isPrismaUniqueConflict(error: unknown) {
