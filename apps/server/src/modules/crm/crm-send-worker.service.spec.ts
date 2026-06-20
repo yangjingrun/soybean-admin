@@ -235,6 +235,26 @@ describe('CrmSendWorkerService', () => {
     assert.equal(store.failed.length, 0);
   });
 
+  it('loads next draft context before sending so local config failures do not send email', async () => {
+    const store = createWorkerStore(
+      {
+        enrollment: createEnrollment({ status: 'sequence_running' }),
+        message: createMessage({ status: 'queued' }),
+        mailbox: createMailbox({ status: 'active' })
+      },
+      {
+        globalConfigError: new Error('global config unavailable')
+      }
+    );
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store as never, gateway);
+
+    await assert.rejects(() => worker.processSendJob(createJob()), /global config unavailable/);
+
+    assert.equal(gateway.calls.length, 0);
+    assert.equal(store.failed[0].reason, 'global config unavailable');
+  });
+
   it('marks queued messages failed when the send gateway throws', async () => {
     const store = createWorkerStore({
       enrollment: createEnrollment({ status: 'sequence_running' }),
@@ -300,6 +320,7 @@ function createWorkerStore(
     claimResult?: CrmSendDeliveryClaimRecord | null;
     defaultTemplateGroup?: CrmEmailTemplateGroupRecord | null;
     globalConfig?: CrmGlobalConfigRecord;
+    globalConfigError?: Error;
   } = {}
 ) {
   const item: CrmSequenceReviewRecord = {
@@ -332,6 +353,10 @@ function createWorkerStore(
       return item;
     },
     async getGlobalConfig() {
+      if (options.globalConfigError) {
+        throw options.globalConfigError;
+      }
+
       return options.globalConfig ?? createGlobalConfig();
     },
     async findDefaultEmailTemplateGroup() {

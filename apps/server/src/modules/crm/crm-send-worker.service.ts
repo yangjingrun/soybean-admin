@@ -3,7 +3,20 @@ import { SystemNotificationService } from '../system-notification/system-notific
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_STORE } from './crm.tokens';
-import type { CrmEmailSendGateway, CrmMailboxRecord, CrmSendQueueJob, CrmStore } from './crm.types';
+import type {
+  CrmEmailSendGateway,
+  CrmEmailTemplateGroupRecord,
+  CrmGlobalConfigRecord,
+  CrmMailboxRecord,
+  CrmSendDeliveryClaimRecord,
+  CrmSendQueueJob,
+  CrmStore
+} from './crm.types';
+
+interface NextFollowUpDraftContext {
+  followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays'];
+  templateGroup: CrmEmailTemplateGroupRecord | null;
+}
 
 @Injectable()
 export class CrmSendWorkerService {
@@ -27,6 +40,7 @@ export class CrmSendWorkerService {
     }
 
     try {
+      const nextDraftContext = await this.prepareNextFollowUpDraftContext(item);
       const sent = await this.sendGateway.sendPlainText({
         enrollment: item.enrollment,
         message: item.firstMessage,
@@ -35,10 +49,6 @@ export class CrmSendWorkerService {
         mailbox: item.mailbox
       });
       const sentAt = new Date();
-      const [globalConfig, defaultTemplateGroup] = await Promise.all([
-        this.store.getGlobalConfig(),
-        this.store.findDefaultEmailTemplateGroup(job.organizationId)
-      ]);
       await this.store.completeFirstMessageSend({
         enrollmentId: job.enrollmentId,
         messageId: job.messageId,
@@ -48,14 +58,7 @@ export class CrmSendWorkerService {
         sentAt,
         providerMessageId: sent.providerMessageId ?? null,
         providerThreadId: sent.providerThreadId ?? null,
-        nextMessage: buildNextFollowUpDraft({
-          item,
-          sourceMessage: item.firstMessage,
-          providerThreadId: sent.providerThreadId ?? null,
-          baseTime: sentAt,
-          followUpDelayDays: globalConfig.followUpDelayDays,
-          templateGroup: defaultTemplateGroup
-        })
+        nextMessage: this.buildNextFollowUpDraft(item, nextDraftContext, sent.providerThreadId ?? null, sentAt)
       });
     } catch (error) {
       if (error instanceof CrmGmailAuthorizationExpiredError) {
@@ -73,6 +76,45 @@ export class CrmSendWorkerService {
       });
       throw error;
     }
+  }
+
+  /** Loads local follow-up context before the external send to keep retryable jobs idempotent. */
+  private async prepareNextFollowUpDraftContext(
+    item: CrmSendDeliveryClaimRecord
+  ): Promise<NextFollowUpDraftContext | null> {
+    if (item.firstMessage.stepIndex + 1 > item.enrollment.totalSteps) {
+      return null;
+    }
+
+    const [globalConfig, defaultTemplateGroup] = await Promise.all([
+      this.store.getGlobalConfig(),
+      this.store.findDefaultEmailTemplateGroup(item.enrollment.organizationId)
+    ]);
+
+    return {
+      followUpDelayDays: globalConfig.followUpDelayDays,
+      templateGroup: defaultTemplateGroup
+    };
+  }
+
+  private buildNextFollowUpDraft(
+    item: CrmSendDeliveryClaimRecord,
+    context: NextFollowUpDraftContext | null,
+    providerThreadId: string | null,
+    sentAt: Date
+  ) {
+    if (!context) {
+      return null;
+    }
+
+    return buildNextFollowUpDraft({
+      item,
+      sourceMessage: item.firstMessage,
+      providerThreadId,
+      baseTime: sentAt,
+      followUpDelayDays: context.followUpDelayDays,
+      templateGroup: context.templateGroup
+    });
   }
 
   private async markMailboxAuthorizationExpired(
