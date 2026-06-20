@@ -34,6 +34,11 @@ import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
+import type {
+  PersonaProfileCreateInput,
+  PersonaProfileUpdateInput
+} from './persona-profiles/crm-persona-profile-rules';
 import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
@@ -109,9 +114,7 @@ import type {
   CrmMessageStatus,
   CrmMessageThreadMode,
   CrmPersonaMatchInfo,
-  CrmPersonaProfileRecord,
   CrmPersonaProfileStatus,
-  CrmPersonaProfileUpdateInput,
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmSequenceEnrollmentRecord,
@@ -141,7 +144,6 @@ const gmailHistorySyncScopes = new Set([
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
 const defaultEmailTemplateStatus: CrmEmailTemplateStatus = 'active';
-const defaultPersonaProfileStatus: CrmPersonaProfileStatus = 'active';
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex = 1;
 const accountArchiveRecoveryDays = 30;
@@ -194,21 +196,6 @@ interface ProductLineCreateInput {
 
 interface ProductLineUpdateInput extends Partial<ProductLineCreateInput> {
   status?: CrmProductLineStatus;
-}
-
-interface PersonaProfileCreateInput {
-  name: string;
-  description?: string | null;
-  titleKeywordsText?: string | null;
-  customerTypeKeywordsText?: string | null;
-  painPoints?: string | null;
-  focusText?: string | null;
-  avoidText?: string | null;
-  isDefault?: boolean;
-}
-
-interface PersonaProfileUpdateInput extends Partial<PersonaProfileCreateInput> {
-  status?: CrmPersonaProfileStatus;
 }
 
 interface EmailTemplateStepInput {
@@ -328,6 +315,9 @@ export class CrmService {
     @Optional()
     @Inject(CrmMailboxService)
     private readonly mailboxService?: CrmMailboxService,
+    @Optional()
+    @Inject(CrmPersonaProfileService)
+    private readonly personaProfileService?: CrmPersonaProfileService,
     @Optional()
     @Inject(CrmProductLineService)
     private readonly productLineService?: CrmProductLineService,
@@ -1045,143 +1035,47 @@ export class CrmService {
       status?: CrmPersonaProfileStatus;
     } = {}
   ) {
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const result = await this.store.listPersonaProfiles({
-      organizationId: context.organizationId,
-      ...(keyword ? { keyword } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
+    if (!this.personaProfileService) {
+      throw new BadRequestException('CRM 画像服务未启用');
+    }
 
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toPersonaProfileView)
-    });
+    return this.personaProfileService.listPersonaProfiles(context, query);
   }
 
   /** Creates an organization-level persona profile after checking manager permission. */
   async createPersonaProfile(input: PersonaProfileCreateInput, context: CrmUserContext) {
-    this.requireOrganizationConfigManager(context);
-    const data = normalizePersonaProfileCreateInput(input);
-    await this.assertPersonaProfileNameAvailable(context.organizationId, data.name);
-    const personaProfile = await this.runPersonaProfileWrite(() =>
-      this.store.createPersonaProfile({
-        organizationId: context.organizationId,
-        ...data,
-        status: defaultPersonaProfileStatus,
-        isDefault: Boolean(input.isDefault),
-        createdById: context.userId,
-        createdByName: context.userName
-      })
-    );
+    if (!this.personaProfileService) {
+      throw new BadRequestException('CRM 画像服务未启用');
+    }
 
-    await this.recordPersonaProfileLog(
-      'persona-profile-create',
-      'CRM 职位/客户画像新建',
-      context,
-      personaProfile,
-      null,
-      personaProfile.status
-    );
-
-    return { personaProfile: toPersonaProfileView(personaProfile) };
+    return this.personaProfileService.createPersonaProfile(input, context);
   }
 
   /** Updates one organization persona profile through scoped reads and writes. */
   async updatePersonaProfile(id: string, input: PersonaProfileUpdateInput, context: CrmUserContext) {
-    this.requireOrganizationConfigManager(context);
-    const currentPersonaProfile = await this.requireScopedPersonaProfile(id, context);
-    const fromStatus = currentPersonaProfile.status;
-    const data = normalizePersonaProfileUpdateInput(input);
-    const nextStatus = data.status ?? currentPersonaProfile.status;
-
-    if (data.name && data.name !== currentPersonaProfile.name) {
-      await this.assertPersonaProfileNameAvailable(context.organizationId, data.name, currentPersonaProfile.id);
+    if (!this.personaProfileService) {
+      throw new BadRequestException('CRM 画像服务未启用');
     }
 
-    if (data.isDefault && nextStatus !== 'active') {
-      throw new BadRequestException('只能将启用画像设为默认');
-    }
-
-    if (data.status === 'archived') {
-      data.isDefault = false;
-    }
-
-    const personaProfile = await this.runPersonaProfileWrite(() =>
-      this.store.updatePersonaProfile(currentPersonaProfile.id, context.organizationId, data)
-    );
-
-    if (!personaProfile) {
-      throw new NotFoundException('画像不存在');
-    }
-
-    await this.recordPersonaProfileLog(
-      'persona-profile-update',
-      'CRM 职位/客户画像更新',
-      context,
-      personaProfile,
-      fromStatus,
-      personaProfile.status
-    );
-
-    return { personaProfile: toPersonaProfileView(personaProfile) };
+    return this.personaProfileService.updatePersonaProfile(id, input, context);
   }
 
   /** Archives one persona profile instead of deleting it. */
   async archivePersonaProfile(id: string, context: CrmUserContext) {
-    this.requireOrganizationConfigManager(context);
-    const currentPersonaProfile = await this.requireScopedPersonaProfile(id, context);
-    const personaProfile = await this.store.updatePersonaProfile(currentPersonaProfile.id, context.organizationId, {
-      status: 'archived',
-      isDefault: false
-    });
-
-    if (!personaProfile) {
-      throw new NotFoundException('画像不存在');
+    if (!this.personaProfileService) {
+      throw new BadRequestException('CRM 画像服务未启用');
     }
 
-    await this.recordPersonaProfileLog(
-      'persona-profile-archive',
-      'CRM 职位/客户画像归档',
-      context,
-      personaProfile,
-      currentPersonaProfile.status,
-      personaProfile.status
-    );
-
-    return { personaProfile: toPersonaProfileView(personaProfile) };
+    return this.personaProfileService.archivePersonaProfile(id, context);
   }
 
   /** Marks one active persona profile as the organization default. */
   async setDefaultPersonaProfile(id: string, context: CrmUserContext) {
-    this.requireOrganizationConfigManager(context);
-    const currentPersonaProfile = await this.requireScopedPersonaProfile(id, context);
-
-    if (currentPersonaProfile.status !== 'active') {
-      throw new BadRequestException('只能将启用画像设为默认');
+    if (!this.personaProfileService) {
+      throw new BadRequestException('CRM 画像服务未启用');
     }
 
-    const personaProfile = await this.store.setDefaultPersonaProfile(currentPersonaProfile.id, context.organizationId);
-
-    if (!personaProfile) {
-      throw new NotFoundException('画像不存在');
-    }
-
-    await this.recordPersonaProfileLog(
-      'persona-profile-default',
-      'CRM 默认职位/客户画像更新',
-      context,
-      personaProfile,
-      currentPersonaProfile.status,
-      personaProfile.status
-    );
-
-    return { personaProfile: toPersonaProfileView(personaProfile) };
+    return this.personaProfileService.setDefaultPersonaProfile(id, context);
   }
 
   /** Lists organization-level email template groups for CRM sequence drafting. */
@@ -2911,19 +2805,6 @@ export class CrmService {
     return productLine;
   }
 
-  private async requireScopedPersonaProfile(id: string, context: CrmUserContext) {
-    const personaProfile = await this.store.findPersonaProfileById({
-      id,
-      organizationId: context.organizationId
-    });
-
-    if (!personaProfile) {
-      throw new NotFoundException('画像不存在');
-    }
-
-    return personaProfile;
-  }
-
   private async resolvePersonaProfileMatch(
     account: Pick<CrmAccountRecord, 'customerType'>,
     contact: Pick<CrmContactRecord, 'title'>,
@@ -3251,32 +3132,12 @@ export class CrmService {
     }
   }
 
-  private async assertPersonaProfileNameAvailable(organizationId: string, name: string, ignoredId?: string) {
-    const existingProfile = await this.store.findPersonaProfileByName(organizationId, name);
-
-    if (existingProfile && existingProfile.id !== ignoredId) {
-      throw new BadRequestException('画像名称已存在');
-    }
-  }
-
   private async runEmailTemplateWrite<T>(operation: () => Promise<T>) {
     try {
       return await operation();
     } catch (error) {
       if (isPrismaUniqueConflict(error)) {
         throw new BadRequestException('邮件模板名称已存在');
-      }
-
-      throw error;
-    }
-  }
-
-  private async runPersonaProfileWrite<T>(operation: () => Promise<T>) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        throw new BadRequestException('画像名称已存在');
       }
 
       throw error;
@@ -3360,25 +3221,6 @@ export class CrmService {
       name: templateGroup.name,
       status: templateGroup.status,
       isDefault: templateGroup.isDefault,
-      fromStatus,
-      toStatus
-    });
-  }
-
-  private recordPersonaProfileLog(
-    action: string,
-    message: string,
-    context: CrmUserContext,
-    personaProfile: CrmPersonaProfileRecord,
-    fromStatus: CrmPersonaProfileStatus | null,
-    toStatus: CrmPersonaProfileStatus
-  ) {
-    return this.recordCrmLog(action, message, context, {
-      organizationId: personaProfile.organizationId,
-      personaProfileId: personaProfile.id,
-      name: personaProfile.name,
-      status: personaProfile.status,
-      isDefault: personaProfile.isDefault,
       fromStatus,
       toStatus
     });
@@ -3503,14 +3345,6 @@ function toMailboxSyncIssueView(record: CrmMailboxRecord) {
 }
 
 function toProductLineView(record: CrmProductLineRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toPersonaProfileView(record: CrmPersonaProfileRecord) {
   return {
     ...record,
     createdAt: record.createdAt.toISOString(),
@@ -3815,38 +3649,6 @@ function parseOptionalDate(value?: string | null) {
   }
 
   return date;
-}
-
-function normalizePersonaProfileCreateInput(input: PersonaProfileCreateInput) {
-  const name = normalizeRequiredString(input.name, '画像名称不能为空');
-
-  return {
-    name,
-    description: normalizeNullableString(input.description),
-    titleKeywordsText: normalizeNullableString(input.titleKeywordsText),
-    customerTypeKeywordsText: normalizeNullableString(input.customerTypeKeywordsText),
-    painPoints: normalizeNullableString(input.painPoints),
-    focusText: normalizeNullableString(input.focusText),
-    avoidText: normalizeNullableString(input.avoidText)
-  };
-}
-
-function normalizePersonaProfileUpdateInput(input: PersonaProfileUpdateInput): CrmPersonaProfileUpdateInput {
-  const data: CrmPersonaProfileUpdateInput = {};
-
-  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '画像名称不能为空');
-  if (hasOwn(input, 'description')) data.description = normalizeNullableString(input.description);
-  if (hasOwn(input, 'titleKeywordsText')) data.titleKeywordsText = normalizeNullableString(input.titleKeywordsText);
-  if (hasOwn(input, 'customerTypeKeywordsText')) {
-    data.customerTypeKeywordsText = normalizeNullableString(input.customerTypeKeywordsText);
-  }
-  if (hasOwn(input, 'painPoints')) data.painPoints = normalizeNullableString(input.painPoints);
-  if (hasOwn(input, 'focusText')) data.focusText = normalizeNullableString(input.focusText);
-  if (hasOwn(input, 'avoidText')) data.avoidText = normalizeNullableString(input.avoidText);
-  if (hasOwn(input, 'isDefault')) data.isDefault = Boolean(input.isDefault);
-  if (hasOwn(input, 'status')) data.status = input.status;
-
-  return data;
 }
 
 function normalizeEmailTemplateCreateInput(input: EmailTemplateCreateInput) {

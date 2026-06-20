@@ -33,6 +33,8 @@ import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CRM_PERSONA_PROFILE_REPOSITORY } from './persona-profiles/crm-persona-profile.repository';
+import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
 import { CRM_PRODUCT_LINE_REPOSITORY } from './product-lines/crm-product-line.repository';
 import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
@@ -74,6 +76,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmAiDraftTaskService,
     CrmInboxService,
     CrmMailboxService,
+    CrmPersonaProfileService,
     CrmProductLineService,
     CrmBatchDraftApprovalService,
     CrmBatchSequenceStopService,
@@ -117,6 +120,10 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     },
     {
       provide: CRM_PRODUCT_LINE_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_PERSONA_PROFILE_REPOSITORY,
       useExisting: CRM_STORE
     },
     {

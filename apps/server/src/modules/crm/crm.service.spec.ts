@@ -14,6 +14,7 @@ import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
+import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
 import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
@@ -1924,7 +1925,12 @@ describe('CrmService', () => {
       ]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      personaProfileService: createPersonaProfileService(store, {
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
+    });
     const adminContext = createContext({ organizationRole: 'admin' });
 
     const list = await service.listPersonaProfiles(createContext(), {
@@ -9377,6 +9383,7 @@ function createServiceWithSplitServices(options: {
   suppressionService?: unknown;
   accountService?: unknown;
   mailboxService?: unknown;
+  personaProfileService?: unknown;
   productLineService?: unknown;
   sequenceService?: unknown;
   draftService?: unknown;
@@ -9407,6 +9414,7 @@ function createServiceWithSplitServices(options: {
     options.suppressionService as never,
     options.accountService as never,
     options.mailboxService as never,
+    (options.personaProfileService ?? createPersonaProfileService(store)) as never,
     (options.productLineService ?? createProductLineService(store)) as never,
     options.sequenceService as never,
     options.draftService as never,
@@ -9429,6 +9437,10 @@ function createSettingsService(
 
 function createProductLineService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
   return new CrmProductLineService(store, options.crmLogger);
+}
+
+function createPersonaProfileService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmPersonaProfileService(store, options.crmLogger);
 }
 
 function createBatchDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
