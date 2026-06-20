@@ -1,13 +1,31 @@
-import type { CrmStore } from '../crm.types';
+import type {
+  CrmMailboxAuthorizationExpiredInput,
+  CrmMailboxAuthorizationExpiredRecord,
+  CrmMailboxCreateInput,
+  CrmMailboxHistoryAdvanceInput,
+  CrmMailboxProvider,
+  CrmMailboxRecord,
+  CrmMailboxStatus,
+  CrmMailboxUpdateInput,
+  CrmMailboxWatchRenewalListInput
+} from '../crm.types';
 
-export type CrmMailboxRepository = Pick<
-  CrmStore,
-  | 'findMailboxByProviderAndEmailHash'
-  | 'createMailbox'
-  | 'listMailboxes'
-  | 'findMailboxById'
-  | 'updateMailbox'
-  | 'listMailboxesForWatchRenewal'
-  | 'markMailboxAuthorizationExpired'
-  | 'advanceMailboxHistoryId'
->;
+export interface CrmMailboxRepository {
+  findMailboxByProviderAndEmailHash(provider: CrmMailboxProvider, emailHash: string): Promise<CrmMailboxRecord | null>;
+  createMailbox(input: CrmMailboxCreateInput): Promise<CrmMailboxRecord>;
+  listMailboxes(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmMailboxStatus;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmMailboxRecord[]; total: number }>;
+  findMailboxById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmMailboxRecord | null>;
+  updateMailbox(id: string, input: CrmMailboxUpdateInput): Promise<CrmMailboxRecord | null>;
+  listMailboxesForWatchRenewal(input: CrmMailboxWatchRenewalListInput): Promise<CrmMailboxRecord[]>;
+  markMailboxAuthorizationExpired(
+    input: CrmMailboxAuthorizationExpiredInput
+  ): Promise<CrmMailboxAuthorizationExpiredRecord | null>;
+  advanceMailboxHistoryId(input: CrmMailboxHistoryAdvanceInput): Promise<CrmMailboxRecord | null>;
+}
