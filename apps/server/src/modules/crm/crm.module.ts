@@ -29,8 +29,10 @@ import { CrmSendSchedulerService } from './crm-send-scheduler.service';
 import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmService } from './crm.service';
+import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
+import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import {
   CRM_EMAIL_DNS_RESOLVER,
   CRM_AI_DRAFT_TASK_QUEUE,
@@ -56,7 +58,9 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
   controllers: [CrmController, CrmGmailWebhookController],
   providers: [
     CrmService,
+    CrmAccountService,
     CrmSettingsService,
+    CrmSuppressionService,
     CrmLoggerService,
     CrmAiDraftService,
     CrmAiDraftTaskQueueService,

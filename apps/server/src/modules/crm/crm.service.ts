@@ -23,6 +23,7 @@ import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
+import type { CrmEmailDnsResolver } from './shared/crm-email-utils';
 import { createCrmReadScope } from './shared/crm-scope';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
 import {
@@ -36,9 +37,11 @@ import {
 } from './crm-global-config';
 import { crmAiDraftActiveTaskStatuses } from './crm-ai-draft-task-state';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
+import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
+import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import {
   normalizeCrmProductLineAiWritingConfig,
   requireEnabledCrmProductLineAiWritingConfig
@@ -187,10 +190,6 @@ const publicEmailPrefixes = new Set([
   'service',
   'support'
 ]);
-
-export interface CrmEmailDnsResolver {
-  resolveMx(domain: string): Promise<unknown[]>;
-}
 
 interface EmailVerificationProbeResult {
   status: Extract<CrmEmailStatus, 'valid' | 'invalid' | 'risky' | 'unreachable'>;
@@ -365,13 +364,23 @@ export class CrmService {
     private readonly crmLogger?: CrmLoggerService,
     @Optional()
     @Inject(CrmSettingsService)
-    private readonly settingsService?: CrmSettingsService
+    private readonly settingsService?: CrmSettingsService,
+    @Optional()
+    @Inject(CrmSuppressionService)
+    private readonly suppressionService?: CrmSuppressionService,
+    @Optional()
+    @Inject(CrmAccountService)
+    private readonly accountService?: CrmAccountService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
 
   /** Imports one lead candidate into the organization CRM with domain and email dedupe. */
   async importAccountFromLead(input: ImportCrmLeadInput, context: CrmUserContext) {
+    if (this.accountService) {
+      return this.accountService.importAccountFromLead(input, context);
+    }
+
     const name = input.name.trim();
 
     if (!name) {
@@ -434,6 +443,10 @@ export class CrmService {
       status?: CrmAccountStatus;
     } = {}
   ) {
+    if (this.accountService) {
+      return this.accountService.listAccounts(context, query);
+    }
+
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
@@ -456,6 +469,10 @@ export class CrmService {
 
   /** Returns one account detail within the current user's organization scope. */
   async getAccountDetail(id: string, context: CrmUserContext) {
+    if (this.accountService) {
+      return this.accountService.getAccountDetail(id, context);
+    }
+
     const detail = await this.requireScopedAccountDetail(id, context);
 
     return toAccountDetailView(detail);
@@ -470,6 +487,10 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
+    if (this.accountService) {
+      return this.accountService.updateAccountStatus(id, input, context);
+    }
+
     return this.changeAccountStatus(id, input.status, 'status_changed', '线索状态变更', input.remark, context);
   }
 
@@ -481,6 +502,10 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
+    if (this.accountService) {
+      return this.accountService.addAccountNote(id, input, context);
+    }
+
     const detail = await this.requireScopedAccountDetail(id, context);
     const content = normalizeLimitedContent(input.content, '备注内容不能为空');
     const event = await this.store.createTimelineEvent({
@@ -505,6 +530,10 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
+    if (this.accountService) {
+      return this.accountService.archiveAccount(id, input, context);
+    }
+
     const detail = await this.requireScopedAccountDetail(id, context);
     const fromStatus = detail.account.status;
     const archiveReason = normalizeNullableString(input.reason);
@@ -543,6 +572,10 @@ export class CrmService {
 
   /** Restores an archived account while the full recovery window is still open. */
   async restoreAccount(id: string, context: CrmUserContext) {
+    if (this.accountService) {
+      return this.accountService.restoreAccount(id, context);
+    }
+
     const detail = await this.requireScopedAccountDetail(id, context);
 
     if (detail.account.status !== 'archived') {
@@ -584,6 +617,10 @@ export class CrmService {
 
   /** Verifies one scoped contact email with basic syntax and MX lookup. */
   async verifyContactEmail(id: string, context: CrmUserContext) {
+    if (this.accountService) {
+      return this.accountService.verifyContactEmail(id, context);
+    }
+
     const contact = await this.store.findContactById({
       id,
       organizationId: context.organizationId,
@@ -764,6 +801,10 @@ export class CrmService {
       keyword?: string;
     } = {}
   ) {
+    if (this.suppressionService) {
+      return this.suppressionService.listBlacklistEntries(context, query);
+    }
+
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
@@ -784,6 +825,10 @@ export class CrmService {
 
   /** Removes one organization blacklist entry after recording an audit reason. */
   async removeBlacklistEntry(id: string, input: { reason?: string | null }, context: CrmUserContext) {
+    if (this.suppressionService) {
+      return this.suppressionService.removeBlacklistEntry(id, input, context);
+    }
+
     const reason = normalizeNullableString(input.reason);
     if (!reason) {
       throw new BadRequestException('解除黑名单必须填写解除原因');

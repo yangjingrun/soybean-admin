@@ -23,6 +23,12 @@ export function createCrmReadScope(context: CrmUserContext): CrmReadScope {
     : { organizationId: context.organizationId, ownerUserId: context.userId };
 }
 
+/** Create an optional owner filter for repository methods that already receive organizationId. */
+export function createCrmOwnerFilter(context: CrmUserContext): { ownerUserId?: string } {
+  const scope = createCrmReadScope(context);
+  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
+}
+
 /** Create owner-only scope for private CRM writes. */
 export function createCrmOwnerWriteScope(context: CrmUserContext): CrmOwnerWriteScope {
   return { organizationId: context.organizationId, ownerUserId: context.userId };

@@ -40,6 +40,38 @@ import type {
 } from './crm.types';
 
 describe('CrmService', () => {
+  it('delegates account facade reads when the split account service is injected', async () => {
+    const context = createContext();
+    const query = { keyword: 'abc bearing' };
+    const expected = { records: [] };
+    const accountService = {
+      async listAccounts(actualContext: CrmUserContext, actualQuery: typeof query) {
+        assert.equal(actualContext, context);
+        assert.equal(actualQuery, query);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ accountService });
+
+    assert.equal(await service.listAccounts(context, query), expected);
+  });
+
+  it('delegates suppression facade reads when the split suppression service is injected', async () => {
+    const context = createContext();
+    const query = { keyword: 'blocked@example.com' };
+    const expected = { records: [] };
+    const suppressionService = {
+      async listBlacklistEntries(actualContext: CrmUserContext, actualQuery: typeof query) {
+        assert.equal(actualContext, context);
+        assert.equal(actualQuery, query);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ suppressionService });
+
+    assert.equal(await service.listBlacklistEntries(context, query), expected);
+  });
+
   it('imports one lead account and contact with organization scoped dedupe', async () => {
     const store = createStore();
     const service = new CrmService(store, {
@@ -8351,6 +8383,26 @@ function createAiDraftTaskQueue(
       globalConcurrencies.push(concurrency);
     }
   };
+}
+
+function createServiceWithSplitServices(options: { suppressionService?: unknown; accountService?: unknown }) {
+  return new CrmService(
+    {} as CrmStore,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    options.suppressionService as never,
+    options.accountService as never
+  );
 }
 
 function hashTestEmail(email: string) {

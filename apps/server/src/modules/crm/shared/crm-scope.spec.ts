@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  createCrmOwnerFilter,
   createCrmOwnerWriteScope,
   createCrmReadScope,
   requireCrmOrganizationAdminScope
@@ -29,6 +30,11 @@ test('createCrmReadScope allows organization admins to read organization scope',
   assert.deepEqual(createCrmReadScope(createContext({ organizationRole: 'admin' })), {
     organizationId: 'org-1'
   });
+});
+
+test('createCrmOwnerFilter omits organizationId for repository calls that already include it', () => {
+  assert.deepEqual(createCrmOwnerFilter(createContext()), { ownerUserId: 'user-1' });
+  assert.deepEqual(createCrmOwnerFilter(createContext({ organizationRole: 'admin' })), {});
 });
 
 test('createCrmOwnerWriteScope is always owner-only', () => {
