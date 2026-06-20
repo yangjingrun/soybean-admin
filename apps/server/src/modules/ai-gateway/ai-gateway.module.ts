@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { SystemLogModule } from '../system-log/system-log.module';
 import { AiGatewayController } from './ai-gateway.controller';
+import { AiProviderConfigService } from './ai-provider-config.service';
 import { AiGatewayService } from './ai-gateway.service';
 import { AiSdkTextGenerator } from './ai-sdk-text-generator.service';
 import {
@@ -24,6 +25,7 @@ import { SerperClient } from './serper-client.service';
   controllers: [AiGatewayController],
   providers: [
     AiGatewayService,
+    AiProviderConfigService,
     {
       provide: AI_TEXT_GENERATOR,
       useClass: AiSdkTextGenerator

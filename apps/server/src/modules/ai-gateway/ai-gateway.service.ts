@@ -9,40 +9,26 @@ import {
   aiPromptKeys,
   defaultAiPromptSystemPrompts,
   defaultAiModelConfigKey,
-  defaultHunterApiBase,
-  defaultHunterConfigKey,
-  defaultSerperApiBase,
-  defaultSerperConfigKey,
   defaultAiTemperature
 } from './ai-gateway.constants';
-import {
-  AI_MODEL_CONFIG_STORE,
-  AI_PROMPT_STORE,
-  AI_TEXT_GENERATOR,
-  HUNTER_CONFIG_STORE,
-  SERPER_CONFIG_STORE
-} from './ai-gateway.tokens';
+import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
 import type { SaveAiModelConfigDto } from './dto/ai-model-config.dto';
 import type { SaveSerperConfigDto } from './dto/serper-config.dto';
 import type { SaveHunterConfigDto } from './dto/hunter-config.dto';
-import { HunterClient } from './hunter-client.service';
-import { SerperClient } from './serper-client.service';
+import { AiProviderConfigService, toSecretView } from './ai-provider-config.service';
 import type {
   AiModelConfigRecord,
   AiModelConfigViewRecord,
   AiModelConfigStore,
-  HunterConfigRecord,
   HunterConfigViewRecord,
-  HunterConfigStore,
   AiPromptRecord,
   AiPromptStore,
   AiTextGenerateParams,
   AiTextGenerator,
   SerperConfigRecord,
-  SerperConfigViewRecord,
-  SerperConfigStore
+  SerperConfigViewRecord
 } from './ai-gateway.types';
 
 @Injectable()
@@ -52,10 +38,7 @@ export class AiGatewayService {
     @Inject(AI_PROMPT_STORE) private readonly promptStore: AiPromptStore,
     @Inject(AI_MODEL_CONFIG_STORE) private readonly modelConfigStore: AiModelConfigStore,
     @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder,
-    @Optional() @Inject(SERPER_CONFIG_STORE) private readonly serperConfigStore?: SerperConfigStore,
-    @Optional() @Inject(SerperClient) private readonly serperClient?: SerperClient,
-    @Optional() @Inject(HUNTER_CONFIG_STORE) private readonly hunterConfigStore?: HunterConfigStore,
-    @Optional() @Inject(HunterClient) private readonly hunterClient?: Pick<HunterClient, 'domainSearch'>
+    @Optional() @Inject(AiProviderConfigService) private readonly providerConfigService?: AiProviderConfigService
   ) {}
 
   /** Saves a fixed system prompt that can be referenced by promptKey during generation. */
@@ -108,183 +91,42 @@ export class AiGatewayService {
 
   /** Saves the Serper search channel used by AI leads search orchestration. */
   async saveSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}): Promise<SerperConfigViewRecord> {
-    const configKey = normalizeSerperConfigKey(dto.configKey);
-    const store = this.requireSerperConfigStore();
-    const record = await store.saveSerperConfig({
-      configKey,
-      title: dto.title.trim() || 'Serper 搜索',
-      apiBase: dto.apiBase.trim(),
-      apiKey: dto.apiKey.trim(),
-      updatedAt: new Date().toISOString()
-    });
-
-    await this.systemLogService.record({
-      level: 'info',
-      status: 'success',
-      module: 'ai-gateway',
-      action: 'save-serper-config',
-      message: 'Serper 搜索配置已保存',
-      userId: context.user?.userId,
-      userName: context.user?.userName,
-      metadata: {
-        configKey: record.configKey,
-        apiBase: record.apiBase
-      }
-    });
-
-    return toSerperConfigView(record);
+    return this.requireProviderConfigService().saveSerperConfig(dto, context);
   }
 
   /** Reads one saved Serper search channel by key. */
-  async getSerperConfig(configKey = defaultSerperConfigKey): Promise<SerperConfigRecord> {
-    const normalizedKey = normalizeSerperConfigKey(configKey);
-    const record = await this.requireSerperConfigStore().getSerperConfig(normalizedKey);
-
-    if (!record) {
-      throw new NotFoundException(`未找到 Serper 配置：${normalizedKey}`);
-    }
-
-    return record;
+  async getSerperConfig(configKey?: string): Promise<SerperConfigRecord> {
+    return this.requireProviderConfigService().getSerperConfig(configKey);
   }
 
   /** Reads a saved Serper channel or returns an editable default draft for settings. */
-  async getSerperConfigDraft(configKey = defaultSerperConfigKey): Promise<SerperConfigViewRecord> {
-    const normalizedKey = normalizeSerperConfigKey(configKey);
-    const record = await this.requireSerperConfigStore().getSerperConfig(normalizedKey);
-
-    if (!record) {
-      return toSerperConfigView(createSerperConfigDraft(normalizedKey));
-    }
-
-    return toSerperConfigView(record);
+  async getSerperConfigDraft(configKey?: string): Promise<SerperConfigViewRecord> {
+    return this.requireProviderConfigService().getSerperConfigDraft(configKey);
   }
 
   /** Sends one lightweight Search request with a candidate Serper config. */
   async testSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}) {
-    const client = this.requireSerperClient();
-    const record = {
-      configKey: normalizeSerperConfigKey(dto.configKey),
-      title: dto.title.trim() || 'Serper 搜索',
-      apiBase: dto.apiBase.trim(),
-      apiKey: dto.apiKey.trim(),
-      updatedAt: new Date().toISOString()
-    };
-    const result = await client.search(record, {
-      q: 'test',
-      gl: 'us',
-      hl: 'en',
-      num: 1,
-      page: 1
-    });
-
-    await this.systemLogService.record({
-      level: 'info',
-      status: 'success',
-      module: 'ai-gateway',
-      action: 'test-serper-config',
-      message: 'Serper 搜索配置测试成功',
-      userId: context.user?.userId,
-      userName: context.user?.userName,
-      metadata: {
-        configKey: record.configKey,
-        apiBase: record.apiBase
-      }
-    });
-
-    return {
-      ok: true,
-      result
-    };
+    return this.requireProviderConfigService().testSerperConfig(dto, context);
   }
 
   /** Saves the Hunter Domain Search channel used to enrich AI lead contacts. */
   async saveHunterConfig(dto: SaveHunterConfigDto, context: GenerateAiTextContext = {}): Promise<HunterConfigViewRecord> {
-    const configKey = normalizeHunterConfigKey(dto.configKey);
-    const store = this.requireHunterConfigStore();
-    const record = await store.saveHunterConfig({
-      configKey,
-      title: dto.title.trim() || 'Hunter 邮箱补全',
-      apiBase: dto.apiBase.trim(),
-      apiKey: dto.apiKey.trim(),
-      updatedAt: new Date().toISOString()
-    });
-
-    await this.systemLogService.record({
-      level: 'info',
-      status: 'success',
-      module: 'ai-gateway',
-      action: 'save-hunter-config',
-      message: 'Hunter 邮箱补全配置已保存',
-      userId: context.user?.userId,
-      userName: context.user?.userName,
-      metadata: {
-        configKey: record.configKey,
-        apiBase: record.apiBase
-      }
-    });
-
-    return toHunterConfigView(record);
+    return this.requireProviderConfigService().saveHunterConfig(dto, context);
   }
 
   /** Reads one saved Hunter channel by key. */
-  async getHunterConfig(configKey = defaultHunterConfigKey): Promise<HunterConfigRecord> {
-    const normalizedKey = normalizeHunterConfigKey(configKey);
-    const record = await this.requireHunterConfigStore().getHunterConfig(normalizedKey);
-
-    if (!record) {
-      throw new NotFoundException(`未找到 Hunter 配置：${normalizedKey}`);
-    }
-
-    return record;
+  async getHunterConfig(configKey?: string) {
+    return this.requireProviderConfigService().getHunterConfig(configKey);
   }
 
   /** Reads a saved Hunter channel or returns an editable default draft for settings. */
-  async getHunterConfigDraft(configKey = defaultHunterConfigKey): Promise<HunterConfigViewRecord> {
-    const normalizedKey = normalizeHunterConfigKey(configKey);
-    const record = await this.requireHunterConfigStore().getHunterConfig(normalizedKey);
-
-    if (!record) {
-      return toHunterConfigView(createHunterConfigDraft(normalizedKey));
-    }
-
-    return toHunterConfigView(record);
+  async getHunterConfigDraft(configKey?: string): Promise<HunterConfigViewRecord> {
+    return this.requireProviderConfigService().getHunterConfigDraft(configKey);
   }
 
   /** Sends one lightweight Domain Search request with a candidate Hunter config. */
   async testHunterConfig(dto: SaveHunterConfigDto, context: GenerateAiTextContext = {}) {
-    const client = this.requireHunterClient();
-    const record = {
-      configKey: normalizeHunterConfigKey(dto.configKey),
-      title: dto.title.trim() || 'Hunter 邮箱补全',
-      apiBase: dto.apiBase.trim(),
-      apiKey: dto.apiKey.trim(),
-      updatedAt: new Date().toISOString()
-    };
-    const result = await client.domainSearch(record, {
-      domain: 'example.com',
-      limit: 1,
-      offset: 0
-    });
-
-    await this.systemLogService.record({
-      level: 'info',
-      status: 'success',
-      module: 'ai-gateway',
-      action: 'test-hunter-config',
-      message: 'Hunter 邮箱补全配置测试成功',
-      userId: context.user?.userId,
-      userName: context.user?.userName,
-      metadata: {
-        configKey: record.configKey,
-        apiBase: record.apiBase,
-        resultEmailCount: countHunterResultEmails(result)
-      }
-    });
-
-    return {
-      ok: true,
-      resultEmailCount: countHunterResultEmails(result)
-    };
+    return this.requireProviderConfigService().testHunterConfig(dto, context);
   }
 
   /** Reads one fixed system prompt by key. */
@@ -456,36 +298,12 @@ export class AiGatewayService {
     };
   }
 
-  private requireSerperConfigStore() {
-    if (!this.serperConfigStore) {
-      throw new NotFoundException('Serper 配置存储未初始化');
+  private requireProviderConfigService() {
+    if (!this.providerConfigService) {
+      throw new NotFoundException('AI 渠道配置服务未初始化');
     }
 
-    return this.serperConfigStore;
-  }
-
-  private requireSerperClient() {
-    if (!this.serperClient) {
-      throw new NotFoundException('Serper 客户端未初始化');
-    }
-
-    return this.serperClient;
-  }
-
-  private requireHunterConfigStore() {
-    if (!this.hunterConfigStore) {
-      throw new NotFoundException('Hunter 配置存储未初始化');
-    }
-
-    return this.hunterConfigStore;
-  }
-
-  private requireHunterClient() {
-    if (!this.hunterClient) {
-      throw new NotFoundException('Hunter 客户端未初始化');
-    }
-
-    return this.hunterClient;
+    return this.providerConfigService;
   }
 }
 
@@ -508,26 +326,6 @@ function normalizeModelConfigKey(configKey?: string) {
 
   if (!normalized) {
     throw new BadRequestException('模型配置 key 不能为空');
-  }
-
-  return normalized;
-}
-
-function normalizeSerperConfigKey(configKey?: string) {
-  const normalized = configKey?.trim() || defaultSerperConfigKey;
-
-  if (!normalized) {
-    throw new BadRequestException('Serper 配置 key 不能为空');
-  }
-
-  return normalized;
-}
-
-function normalizeHunterConfigKey(configKey?: string) {
-  const normalized = configKey?.trim() || defaultHunterConfigKey;
-
-  if (!normalized) {
-    throw new BadRequestException('Hunter 配置 key 不能为空');
   }
 
   return normalized;
@@ -565,72 +363,4 @@ function toModelConfigView(record: AiModelConfigRecord): AiModelConfigViewRecord
     ...view,
     ...toSecretView(apiKey)
   };
-}
-
-function toSerperConfigView(record: SerperConfigRecord): SerperConfigViewRecord {
-  const { apiKey, ...view } = record;
-
-  return {
-    ...view,
-    ...toSecretView(apiKey)
-  };
-}
-
-function toHunterConfigView(record: HunterConfigRecord): HunterConfigViewRecord {
-  const { apiKey, ...view } = record;
-
-  return {
-    ...view,
-    ...toSecretView(apiKey)
-  };
-}
-
-function toSecretView(apiKey: string) {
-  const key = apiKey.trim();
-
-  if (!key) {
-    return {
-      hasApiKey: false,
-      maskedApiKey: ''
-    };
-  }
-
-  return {
-    hasApiKey: true,
-    maskedApiKey: maskSecret(key)
-  };
-}
-
-function maskSecret(secret: string) {
-  if (secret.length <= 8) {
-    return '****';
-  }
-
-  return `${secret.slice(0, 4)}****${secret.slice(-4)}`;
-}
-
-function createSerperConfigDraft(configKey: string): SerperConfigRecord {
-  return {
-    configKey,
-    title: 'Serper 搜索',
-    apiBase: defaultSerperApiBase,
-    apiKey: '',
-    updatedAt: ''
-  };
-}
-
-function createHunterConfigDraft(configKey: string): HunterConfigRecord {
-  return {
-    configKey,
-    title: 'Hunter 邮箱补全',
-    apiBase: defaultHunterApiBase,
-    apiKey: '',
-    updatedAt: ''
-  };
-}
-
-function countHunterResultEmails(result: unknown) {
-  const emails = (result as { data?: { emails?: unknown } } | null)?.data?.emails;
-
-  return Array.isArray(emails) ? emails.length : 0;
 }

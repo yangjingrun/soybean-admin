@@ -41,7 +41,6 @@ import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile
 import { LegacyCrmPersonaProfileRepository } from './persona-profiles/legacy-crm-persona-profile.repository';
 import { CRM_PRODUCT_LINE_REPOSITORY } from './product-lines/crm-product-line.repository';
 import { CrmProductLineService } from './product-lines/crm-product-line.service';
-import { LegacyCrmProductLineRepository } from './product-lines/legacy-crm-product-line.repository';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
@@ -85,6 +84,7 @@ import {
   CRM_STORE,
   CRM_SUPPRESSION_REPOSITORY
 } from './crm.tokens';
+import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
 import { PrismaCrmStore } from './store/prisma-crm.store';
 
 export const crmControllers = [
@@ -162,7 +162,7 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_PRODUCT_LINE_REPOSITORY,
-    useClass: LegacyCrmProductLineRepository
+    useClass: PrismaCrmProductLineStore
   },
   {
     provide: CRM_PERSONA_PROFILE_REPOSITORY,

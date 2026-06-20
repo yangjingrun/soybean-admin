@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -16,6 +17,7 @@ import type {
   CrmProductLineUpdateInput
 } from '../crm.types';
 
+@Injectable()
 export class PrismaCrmProductLineStore {
   constructor(private readonly prisma: PrismaService) {}
 

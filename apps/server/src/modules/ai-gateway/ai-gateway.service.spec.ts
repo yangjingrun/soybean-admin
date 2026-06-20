@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { AiProviderConfigService } from './ai-provider-config.service';
 import { AiGatewayService } from './ai-gateway.service';
 import type { SystemLogRecordInput } from '../system-log/system-log.types';
 import type {
@@ -10,7 +11,9 @@ import type {
   AiPromptRecord,
   AiPromptStore,
   AiTextGenerateParams,
-  AiTextGenerator
+  AiTextGenerator,
+  SerperConfigRecord,
+  SerperConfigStore
 } from './ai-gateway.types';
 
 describe('AiGatewayService', () => {
@@ -390,13 +393,13 @@ describe('AiGatewayService', () => {
 
   it('saves and tests Hunter config without logging the API key', async () => {
     const logRecorder = createMemoryLogRecorder();
-    const service = new AiGatewayService(
-      createMemoryTextGenerator(),
-      createMemoryPromptStore(),
-      createMemoryModelConfigStore(),
-      logRecorder,
-      undefined,
-      undefined,
+    const providerConfigService = new AiProviderConfigService(
+      createMemorySerperConfigStore(),
+      {
+        async search() {
+          return {};
+        }
+      },
       createMemoryHunterConfigStore(),
       {
         async domainSearch(config, request) {
@@ -409,7 +412,15 @@ describe('AiGatewayService', () => {
             }
           };
         }
-      }
+      },
+      logRecorder
+    );
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      logRecorder,
+      providerConfigService
     );
 
     const saved = await service.saveHunterConfig(
@@ -506,6 +517,20 @@ function createMemoryHunterConfigStore(): HunterConfigStore {
       return configs.get(configKey) ?? null;
     },
     async saveHunterConfig(record) {
+      configs.set(record.configKey, record);
+      return record;
+    }
+  };
+}
+
+function createMemorySerperConfigStore(): SerperConfigStore {
+  const configs = new Map<string, SerperConfigRecord>();
+
+  return {
+    async getSerperConfig(configKey) {
+      return configs.get(configKey) ?? null;
+    },
+    async saveSerperConfig(record) {
       configs.set(record.configKey, record);
       return record;
     }
