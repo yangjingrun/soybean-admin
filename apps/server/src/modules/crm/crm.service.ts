@@ -4,8 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  Optional,
-  ServiceUnavailableException
+  Optional
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
@@ -14,7 +13,6 @@ import { createPageResult } from '../../shared/pagination';
 import {
   assertOrganizationAdmin,
   assertSuper,
-  canViewEmailBody,
   isOrganizationAdmin as hasOrganizationAdminRole,
   isSuper
 } from '../../shared/permission-policy';
@@ -34,11 +32,12 @@ import {
   normalizeOwnerDailySendLimit,
   normalizeOwnerDailySendLimitMax
 } from './crm-global-config';
-import { crmAiDraftActiveTaskStatuses } from './crm-ai-draft-task-state';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAccountService } from './accounts/crm-account.service';
+import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
+import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
@@ -58,8 +57,6 @@ import {
   normalizeCrmProductLineAiWritingConfig,
   requireEnabledCrmProductLineAiWritingConfig
 } from './crm-ai-draft-prompt';
-import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
-import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
   defaultSequencePolicySteps,
   normalizeSequencePolicyLinkPolicy,
@@ -113,16 +110,7 @@ import type {
   CrmEmailStatus,
   CrmEmailSendGateway,
   CrmGlobalConfigRecord,
-  CrmCustomerReplyIngestRecord,
-  CrmInboxMessageType,
-  CrmInboxReplyDraftMetadata,
-  CrmInboxThreadDetailRecord,
-  CrmInboxThreadListRecord,
-  CrmInboxMessageRecord,
-  CrmInboxThreadReplyRecord,
-  CrmInboxThreadRecord,
   CrmInboxThreadStatus,
-  CrmInboxUnsubscribeConfirmRecord,
   CrmMessageDraftVersionRecord,
   CrmMessageRecord,
   CrmMessageStatus,
@@ -179,7 +167,6 @@ const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
-const inboxNotificationTargetType = 'crmInboxThread';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 
 const publicEmailPrefixes = new Set([
@@ -338,7 +325,7 @@ export class CrmService {
     private readonly aiReplyDraftService?: Pick<CrmAiReplyDraftService, 'polishReplyDraft'> | null,
     @Optional()
     @Inject(CRM_AI_DRAFT_TASK_QUEUE)
-    private readonly aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null,
+    _aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null,
     @Optional()
     @Inject(CrmLoggerService)
     private readonly crmLogger?: CrmLoggerService,
@@ -374,7 +361,13 @@ export class CrmService {
     private readonly batchDraftApprovalService?: CrmBatchDraftApprovalService,
     @Optional()
     @Inject(CrmBatchSequenceStopService)
-    private readonly batchSequenceStopService?: CrmBatchSequenceStopService
+    private readonly batchSequenceStopService?: CrmBatchSequenceStopService,
+    @Optional()
+    @Inject(CrmAiDraftTaskService)
+    private readonly aiDraftTaskService?: CrmAiDraftTaskService,
+    @Optional()
+    @Inject(CrmInboxService)
+    private readonly inboxService?: CrmInboxService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -2271,440 +2264,75 @@ export class CrmService {
 
   /** Creates a local CRM AI draft task and queues pending items for review-only draft generation. */
   async createAiDraftTask(input: CreateAiDraftTaskInput, context: CrmUserContext) {
-    const enrollmentIds = normalizeSelectedEnrollmentIds(input.enrollmentIds, 200);
-    const items: CrmAiDraftTaskCreateItemInput[] = [];
-    const reviewItems = await this.store.listSequenceReviewItemsByIds({
-      ids: enrollmentIds,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-    const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
-    const blacklistedEmailHashes = await this.loadBlacklistedContactEmailHashes(context.organizationId, reviewItems);
-
-    for (const enrollmentId of enrollmentIds) {
-      const item = reviewItemById.get(enrollmentId) ?? null;
-
-      if (!item) {
-        items.push(this.createSkippedAiDraftTaskItem(enrollmentId, '邮件序列不存在或无权操作'));
-        continue;
-      }
-
-      const skipMessage = this.getAiDraftTaskItemSkipMessage(item, blacklistedEmailHashes);
-
-      if (skipMessage) {
-        items.push(this.createSkippedAiDraftTaskItem(enrollmentId, skipMessage, item));
-        continue;
-      }
-
-      const sourceMessage = item.messages.at(-1)!;
-      items.push({
-        enrollmentId: item.enrollment.id,
-        messageId: null,
-        contactId: item.contact.id,
-        accountId: item.account.id,
-        productLineId: item.productLine?.id ?? null,
-        stepIndex: sourceMessage.stepIndex + 1,
-        status: 'pending'
-      });
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
     }
 
-    const pendingCount = items.filter(item => (item.status ?? 'pending') === 'pending').length;
-    const skippedCount = items.filter(item => item.status === 'skipped').length;
-    const createResult = await this.store.createAiDraftTask({
-      organizationId: context.organizationId,
-      organizationRole: context.organizationRole,
-      ownerUserId: context.userId,
-      ownerUserName: context.userName,
-      status: pendingCount > 0 ? 'queued' : 'completed',
-      requestedCount: enrollmentIds.length,
-      items
-    });
-    const task = createResult.task;
-
-    if (!task) {
-      throw new BadRequestException(toAiDraftTaskCreateLimitMessage(createResult.limitReason));
-    }
-
-    const queuedTask =
-      pendingCount > 0
-        ? await this.enqueueAiDraftTaskIfPossible(task)
-        : await this.completeSkippedAiDraftTask(task, {
-            requestedCount: task.requestedCount,
-            successCount: 0,
-            skippedCount,
-            failedCount: 0
-          });
-    const savedItems = await this.store.listAiDraftTaskItems({
-      taskId: task.id
-    });
-
-    await this.recordCrmLog('ai-draft-task-create', 'CRM 批量 AI 草稿任务创建', context, {
-      taskId: task.id,
-      requestedCount: task.requestedCount,
-      pendingCount,
-      skippedCount
-    });
-
-    return {
-      task: toAiDraftTaskView(queuedTask),
-      items: savedItems.map(toAiDraftTaskItemView)
-    };
-  }
-
-  private async enqueueAiDraftTaskIfPossible(task: CrmAiDraftTaskRecord) {
-    if (!this.aiDraftTaskQueue) {
-      return task;
-    }
-
-    try {
-      const { jobId } = await this.aiDraftTaskQueue.enqueueTask({
-        taskId: task.id,
-        organizationId: task.organizationId,
-        ownerUserId: task.ownerUserId,
-        runVersion: task.runVersion
-      });
-      const updatedTask = await this.store.updateAiDraftTask(
-        task.id,
-        { bullJobId: jobId },
-        {
-          organizationId: task.organizationId,
-          ownerUserId: task.ownerUserId,
-          status: ['queued', 'running'],
-          runVersion: task.runVersion
-        }
-      );
-
-      return updatedTask ?? task;
-    } catch (error) {
-      const failureReason = error instanceof Error ? error.message : String(error);
-      const failedTask = await this.store.updateAiDraftTask(
-        task.id,
-        {
-          status: 'failed',
-          failureReason,
-          readAt: null,
-          finishedAt: new Date()
-        },
-        {
-          organizationId: task.organizationId,
-          ownerUserId: task.ownerUserId,
-          status: 'queued',
-          runVersion: task.runVersion
-        }
-      );
-
-      throw new ServiceUnavailableException(failedTask?.failureReason || 'CRM 批量 AI 草稿队列不可用');
-    }
-  }
-
-  private async completeSkippedAiDraftTask(
-    task: CrmAiDraftTaskRecord,
-    summary: NonNullable<CrmAiDraftTaskRecord['resultSummary']>
-  ) {
-    const completedTask =
-      (await this.store.updateAiDraftTask(
-        task.id,
-        {
-          resultSummary: summary,
-          readAt: null,
-          notifiedAt: new Date(),
-          finishedAt: task.finishedAt ?? new Date()
-        },
-        {
-          organizationId: task.organizationId,
-          ownerUserId: task.ownerUserId,
-          status: 'completed',
-          runVersion: task.runVersion
-        }
-      )) ?? task;
-
-    await this.systemNotificationService?.create({
-      userId: task.ownerUserId,
-      userName: task.ownerUserName,
-      module: 'crm',
-      type: 'crm_ai_draft_task_completed',
-      title: '批量 AI 草稿任务已完成',
-      content: '本次 CRM AI 草稿任务已结束，请回到邮件序列页查看跳过原因。',
-      targetType: 'crmAiDraftTask',
-      targetId: task.id,
-      routePath: '/crm/email-sequences',
-      metadata: {
-        taskId: task.id,
-        resultSummary: summary
-      }
-    });
-
-    return {
-      ...completedTask,
-      resultSummary: completedTask.resultSummary ?? summary
-    };
+    return this.aiDraftTaskService.createAiDraftTask(input, context);
   }
 
   async getCurrentAiDraftTask(context: CrmUserContext) {
-    const task = await this.store.findCurrentAiDraftTaskForUser({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!task) {
-      return null;
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
     }
 
-    return this.toAiDraftTaskDetail(task);
+    return this.aiDraftTaskService.getCurrentAiDraftTask(context);
   }
 
   async listAiDraftTasks(context: CrmUserContext, query: AiDraftTaskListQuery = {}) {
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const result = await this.store.listAiDraftTasks({
-      organizationId: context.organizationId,
-      ownerUserId: hasOrganizationAdminRole(context) ? undefined : context.userId,
-      skip: (current - 1) * size,
-      take: size
-    });
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
+    }
 
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toAiDraftTaskView)
-    });
+    return this.aiDraftTaskService.listAiDraftTasks(context, query);
   }
 
   async getAiDraftTaskDetail(id: string, context: CrmUserContext) {
-    const task = await this.requireScopedAiDraftTask(id, context);
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
+    }
 
-    return this.toAiDraftTaskDetail(task);
+    return this.aiDraftTaskService.getAiDraftTaskDetail(id, context);
   }
 
   async retryFailedAiDraftTask(id: string, context: CrmUserContext) {
-    const task = await this.requireOwnedAiDraftTask(id, context);
-
-    if (crmAiDraftActiveTaskStatuses.includes(task.status)) {
-      throw new BadRequestException('AI 草稿任务仍在运行中，不能重试');
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
     }
 
-    const items = await this.store.listAiDraftTaskItems({ taskId: task.id });
-    const retryableItems = items.filter(item => item.status === 'failed' && item.failureType === 'retryable');
-
-    if (retryableItems.length === 0) {
-      throw new BadRequestException('没有可重试的失败草稿');
-    }
-
-    for (const item of retryableItems) {
-      await this.store.updateAiDraftTaskItem(
-        item.id,
-        {
-          status: 'pending',
-          attemptCount: 0,
-          failureType: null,
-          failureReason: null,
-          metadata: { ...item.metadata, nextRetryAt: null },
-          startedAt: null,
-          finishedAt: null
-        },
-        {
-          taskId: task.id,
-          organizationId: task.organizationId,
-          ownerUserId: task.ownerUserId,
-          status: 'failed'
-        }
-      );
-    }
-
-    const nextRunVersion = task.runVersion + 1;
-    const updatedItems = await this.store.listAiDraftTaskItems({
-      taskId: task.id
-    });
-    const counts = countAiDraftTaskItemRecords(updatedItems);
-    const queuedTask = await this.store.updateAiDraftTask(
-      task.id,
-      {
-        status: 'queued',
-        runVersion: nextRunVersion,
-        bullJobId: null,
-        ...counts,
-        failureReason: null,
-        progressState: null,
-        resultSummary: {
-          requestedCount: task.requestedCount,
-          successCount: counts.successCount,
-          skippedCount: counts.skippedCount,
-          failedCount: counts.failedCount
-        },
-        readAt: null,
-        notifiedAt: null,
-        startedAt: null,
-        finishedAt: null
-      },
-      {
-        organizationId: task.organizationId,
-        ownerUserId: task.ownerUserId,
-        status: ['completed', 'failed', 'cancelled'],
-        runVersion: task.runVersion
-      }
-    );
-
-    if (!queuedTask) {
-      throw new BadRequestException('AI 草稿任务状态已变化，请刷新后重试');
-    }
-
-    const enqueuedTask = await this.enqueueAiDraftTaskIfPossible(queuedTask);
-
-    await this.recordCrmLog('ai-draft-task-retry-failed', 'CRM 批量 AI 草稿任务重试失败项', context, {
-      taskId: task.id,
-      retryCount: retryableItems.length,
-      runVersion: nextRunVersion
-    });
-
-    return this.toAiDraftTaskDetail(enqueuedTask);
+    return this.aiDraftTaskService.retryFailedAiDraftTask(id, context);
   }
 
   async cancelAiDraftTask(id: string, context: CrmUserContext) {
-    const task = await this.requireOwnedAiDraftTask(id, context);
-
-    if (!crmAiDraftActiveTaskStatuses.includes(task.status)) {
-      throw new BadRequestException('AI 草稿任务已结束，不能取消');
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
     }
 
-    const nextRunVersion = task.runVersion + 1;
-    const bullJobId = task.bullJobId;
-    const cancelledTask = await this.store.updateAiDraftTask(
-      task.id,
-      {
-        status: 'cancelled',
-        runVersion: nextRunVersion,
-        bullJobId: null,
-        failureReason: '用户取消任务',
-        readAt: null,
-        finishedAt: new Date()
-      },
-      {
-        organizationId: task.organizationId,
-        ownerUserId: task.ownerUserId,
-        status: crmAiDraftActiveTaskStatuses,
-        runVersion: task.runVersion
-      }
-    );
-
-    if (!cancelledTask) {
-      throw new BadRequestException('AI 草稿任务状态已变化，请刷新后重试');
-    }
-
-    const items = await this.store.listAiDraftTaskItems({ taskId: task.id });
-
-    for (const item of items.filter(record => ['pending', 'running', 'retrying'].includes(record.status))) {
-      await this.store.updateAiDraftTaskItem(
-        item.id,
-        {
-          status: 'skipped',
-          failureType: 'business_skip',
-          failureReason: '用户取消任务',
-          finishedAt: new Date()
-        },
-        {
-          taskId: task.id,
-          organizationId: task.organizationId,
-          ownerUserId: task.ownerUserId,
-          status: ['pending', 'running', 'retrying']
-        }
-      );
-    }
-
-    if (bullJobId && this.aiDraftTaskQueue) {
-      await this.aiDraftTaskQueue.removeTaskJob(bullJobId);
-    }
-
-    const updatedItems = await this.store.listAiDraftTaskItems({
-      taskId: task.id
-    });
-    const counts = countAiDraftTaskItemRecords(updatedItems);
-    const refreshedTask =
-      (await this.store.updateAiDraftTask(
-        task.id,
-        {
-          ...counts,
-          resultSummary: {
-            requestedCount: task.requestedCount,
-            successCount: counts.successCount,
-            skippedCount: counts.skippedCount,
-            failedCount: counts.failedCount
-          }
-        },
-        {
-          organizationId: task.organizationId,
-          ownerUserId: task.ownerUserId,
-          status: 'cancelled',
-          runVersion: nextRunVersion
-        }
-      )) ?? cancelledTask;
-
-    await this.recordCrmLog('ai-draft-task-cancel', 'CRM 批量 AI 草稿任务取消', context, {
-      taskId: task.id,
-      runVersion: nextRunVersion
-    });
-
-    return this.toAiDraftTaskDetail(refreshedTask);
+    return this.aiDraftTaskService.cancelAiDraftTask(id, context);
   }
 
   async markAiDraftTaskRead(id: string, context: CrmUserContext) {
-    const task = await this.requireOwnedAiDraftTask(id, context);
-
-    if (crmAiDraftActiveTaskStatuses.includes(task.status)) {
-      throw new BadRequestException('AI 草稿任务未结束，不能标记已读');
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
     }
 
-    const updatedTask = await this.store.updateAiDraftTask(
-      task.id,
-      { readAt: new Date() },
-      {
-        organizationId: task.organizationId,
-        ownerUserId: task.ownerUserId,
-        status: ['completed', 'failed', 'cancelled'],
-        runVersion: task.runVersion
-      }
-    );
-
-    if (!updatedTask) {
-      throw new BadRequestException('AI 草稿任务状态已变化，请刷新后重试');
-    }
-
-    await this.systemNotificationService?.markTargetReadForUser('crmAiDraftTask', task.id, context.userId);
-
-    return {
-      task: toAiDraftTaskView(updatedTask)
-    };
+    return this.aiDraftTaskService.markAiDraftTaskRead(id, context);
   }
 
   async getAiDraftQueueConfig() {
-    if (this.settingsService) {
-      return this.settingsService.getAiDraftQueueConfig();
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
     }
 
-    return toAiDraftQueueConfigView(await this.store.getAiDraftQueueConfig());
+    return this.aiDraftTaskService.getAiDraftQueueConfig();
   }
 
   async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput, context: CrmUserContext) {
-    if (this.settingsService) {
-      return this.settingsService.saveAiDraftQueueConfig(input, context);
+    if (!this.aiDraftTaskService) {
+      throw new BadRequestException('CRM AI 草稿任务服务未启用');
     }
 
-    const config = await this.store.saveAiDraftQueueConfig({
-      ...input,
-      updatedById: context.userId,
-      updatedByName: context.userName
-    });
-
-    await this.aiDraftTaskQueue?.applyGlobalConcurrency(config.maxActiveTasksPerOrg);
-    await this.recordCrmLog('ai-draft-queue-config-save', 'CRM AI 草稿队列配置保存', context, {
-      itemConcurrency: config.itemConcurrency,
-      maxItemConcurrency: config.maxItemConcurrency,
-      maxActiveTasksPerUser: config.maxActiveTasksPerUser,
-      maxActiveTasksPerOrg: config.maxActiveTasksPerOrg,
-      maxAttempts: config.maxAttempts
-    });
-
-    return toAiDraftQueueConfigView(config);
+    return this.aiDraftTaskService.saveAiDraftQueueConfig(input, context);
   }
 
   /** Confirms pending owner drafts locally without Gmail, BullMQ, or send queue side effects. */
@@ -2998,46 +2626,20 @@ export class CrmService {
       mailboxId?: string;
     } = {}
   ) {
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const mailboxId = normalizeNullableString(query.mailboxId);
-    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
-    const result = await this.store.listInboxThreads({
-      organizationId: context.organizationId,
-      ...toOwnerScope(context),
-      ...(keyword ? { keyword } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(mailboxId ? { mailboxId } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
+    }
 
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(record => toInboxThreadListView(record, context, organizationConfig))
-    });
+    return this.inboxService.listInboxThreads(context, query);
   }
 
   /** Returns one customer reply inbox thread with messages and timeline. */
   async getInboxThread(id: string, context: CrmUserContext) {
-    const thread = await this.store.getInboxThread({
-      id,
-      organizationId: context.organizationId,
-      ...toOwnerScope(context)
-    });
-
-    if (!thread) {
-      throw new NotFoundException('收件箱会话不存在');
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
     }
 
-    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
-    const detail = toInboxThreadDetailView(thread, context, organizationConfig);
-    await this.recordSuperAdminInboxBodyAudit(thread, detail.messages.length, context);
-
-    return detail;
+    return this.inboxService.getInboxThread(id, context);
   }
 
   /** Polishes a user-provided reply topic and saves it as an owner-only local draft. */
@@ -3049,31 +2651,11 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    const topic = normalizeLimitedContent(input.topic, '回复主题或要点不能为空', 2000);
-    const detail = await this.requireOwnedInboxThreadDetail(id, context);
-
-    if (!this.aiReplyDraftService) {
-      throw new BadRequestException('AI 回复润色服务未配置');
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
     }
 
-    const productLine = await this.resolveInboxReplyDraftProductLine(detail, input.productLineId, context);
-    const draft = await this.aiReplyDraftService.polishReplyDraft(
-      this.buildInboxReplyDraftPromptInput(detail, topic, productLine, context)
-    );
-    const saved = await this.saveOwnedInboxReplyDraft(detail.thread.id, topic, draft.bodyText, draft.metadata, context);
-
-    await this.recordCrmLog('inbox-reply-draft-ai-polished', 'CRM 收件箱回复草稿已由 AI 润色', context, {
-      organizationId: context.organizationId,
-      accountId: saved.thread.accountId,
-      contactId: saved.thread.contactId,
-      threadId: saved.thread.id,
-      productLineId: productLine?.id ?? null,
-      riskNoteCount: draft.riskNotes.length
-    });
-
-    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
-
-    return toInboxThreadDetailView(saved, context, organizationConfig);
+    return this.inboxService.polishInboxReplyDraft(id, input, context);
   }
 
   /** Saves a manually edited local reply draft without AI or Gmail side effects. */
@@ -3085,21 +2667,11 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    const topic = normalizeLimitedContent(input.topic, '回复主题或要点不能为空', 2000);
-    const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
-    const detail = await this.requireOwnedInboxThreadDetail(id, context);
-    const saved = await this.saveOwnedInboxReplyDraft(detail.thread.id, topic, bodyText, null, context);
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
+    }
 
-    await this.recordCrmLog('inbox-reply-draft-saved', 'CRM 收件箱回复草稿已保存', context, {
-      organizationId: context.organizationId,
-      accountId: saved.thread.accountId,
-      contactId: saved.thread.contactId,
-      threadId: saved.thread.id
-    });
-
-    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
-
-    return toInboxThreadDetailView(saved, context, organizationConfig);
+    return this.inboxService.saveInboxReplyDraft(id, input, context);
   }
 
   /** Updates one owner-scoped inbox thread processing status. */
@@ -3110,43 +2682,11 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    const currentThread = await this.requireOwnedInboxThread(id, context);
-    const updated = await this.store.updateInboxThreadStatus({
-      id: currentThread.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      fromStatus: currentThread.status,
-      toStatus: input.status,
-      accountStatus:
-        input.status === 'handled' ? 'followed_up' : input.status === 'pending' ? 'replied_pending' : undefined
-    });
-
-    if (!updated) {
-      throw new BadRequestException('当前收件箱状态已变化，请刷新后重试');
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
     }
 
-    if (input.status === 'handled') {
-      await this.systemNotificationService?.markTargetReadForUser(
-        inboxNotificationTargetType,
-        updated.thread.id,
-        context.userId
-      );
-    }
-
-    await this.recordCrmLog('inbox-thread-status-update', 'CRM 收件箱处理状态更新', context, {
-      organizationId: context.organizationId,
-      accountId: updated.thread.accountId,
-      contactId: updated.thread.contactId,
-      threadId: updated.thread.id,
-      fromStatus: currentThread.status,
-      toStatus: updated.thread.status
-    });
-
-    return {
-      thread: toInboxThreadView(updated.thread),
-      account: toAccountView(updated.account),
-      event: toTimelineEventView(updated.event)
-    };
+    return this.inboxService.updateInboxThreadStatus(id, input, context);
   }
 
   /** Sends a plain-text reply from the owner mailbox and marks the inbox thread handled. */
@@ -3157,67 +2697,11 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
-    const detail = await this.store.getInboxThread({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!detail) {
-      throw new NotFoundException('收件箱会话不存在');
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
     }
 
-    if (!detail.mailbox || detail.mailbox.status !== 'active') {
-      throw new BadRequestException('发送邮箱不可用，请重新授权或更换邮箱');
-    }
-
-    if (!this.sendGateway) {
-      throw new BadRequestException('邮件发送网关未配置');
-    }
-
-    const sentAt = new Date();
-    const sent = await this.sendGateway.replyPlainText({
-      thread: detail.thread,
-      account: detail.account,
-      contact: detail.contact,
-      mailbox: detail.mailbox,
-      subject: detail.thread.subject,
-      bodyText
-    });
-    const replied = await this.store.replyInboxThread({
-      id: detail.thread.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      subject: detail.thread.subject,
-      bodyText,
-      sentAt,
-      providerMessageId: sent.providerMessageId ?? null
-    });
-
-    if (!replied) {
-      throw new BadRequestException('回复保存失败，请刷新后重试');
-    }
-
-    await this.recordCrmLog('inbox-thread-reply', 'CRM 收件箱系统内回复', context, {
-      organizationId: context.organizationId,
-      accountId: replied.account.id,
-      contactId: replied.contact.id,
-      threadId: replied.thread.id,
-      inboxMessageId: replied.message.id,
-      providerMessageId: sent.providerMessageId ?? null
-    });
-
-    const nextDetail = await this.store.getInboxThread({
-      id: replied.thread.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
-
-    return nextDetail
-      ? toInboxThreadDetailView(nextDetail, context, organizationConfig)
-      : toInboxThreadReplyView(replied, context);
+    return this.inboxService.replyInboxThread(id, input, context);
   }
 
   /** Mock-ingests a customer reply for a sent outbound message before Gmail sync is wired. */
@@ -3230,92 +2714,20 @@ export class CrmService {
     },
     context: CrmUserContext
   ) {
-    const outboundMessage = await this.store.findMessageById({
-      id: outboundMessageId,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!outboundMessage) {
-      throw new NotFoundException('邮件不存在');
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
     }
 
-    if (outboundMessage.status !== 'sent') {
-      throw new BadRequestException('只能为已发送邮件模拟客户回信');
-    }
-
-    const receivedAt = parseOptionalDate(input.receivedAt) ?? new Date();
-    const subject = normalizeNullableString(input.subject) ?? `Re: ${outboundMessage.subject}`;
-    const bodyText = normalizeLimitedContent(input.bodyText, '回复正文不能为空', 10000);
-    const messageType = classifyCustomerReplyMessage(subject, bodyText);
-    const ingested = await this.store.ingestCustomerReply({
-      outboundMessageId: outboundMessage.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      subject,
-      bodyText,
-      receivedAt,
-      messageType
-    });
-
-    if (!ingested) {
-      throw new BadRequestException('客户回信入库失败，请刷新后重试');
-    }
-
-    if (!ingested.isDuplicate) {
-      await this.notifyCustomerReply(ingested.thread, ingested.message, ingested.account, ingested.contact, context);
-      await this.recordCrmLog('inbox-reply-ingest', 'CRM 客户回信已入库', context, {
-        organizationId: context.organizationId,
-        accountId: ingested.account.id,
-        contactId: ingested.contact.id,
-        enrollmentId: ingested.enrollment?.id ?? null,
-        threadId: ingested.thread.id,
-        inboxMessageId: ingested.message.id
-      });
-    }
-
-    const detail = await this.store.getInboxThread({
-      id: ingested.thread.id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-    const organizationConfig = await this.store.getOrganizationConfig(context.organizationId);
-
-    return detail
-      ? toInboxThreadDetailView(detail, context, organizationConfig)
-      : toInboxReplyIngestView(ingested, context);
+    return this.inboxService.mockCustomerReply(outboundMessageId, input, context);
   }
 
   /** Confirms a weak unsubscribe signal and applies the blacklist transaction for the owner. */
   async confirmInboxMessageUnsubscribe(id: string, context: CrmUserContext) {
-    const confirmed = await this.store.confirmInboxMessageUnsubscribe({
-      messageId: id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      confirmedAt: new Date(),
-      confirmedById: context.userId,
-      confirmedByName: context.userName
-    });
-
-    if (!confirmed) {
-      throw new NotFoundException('收件箱消息不存在或不可确认退订');
+    if (!this.inboxService) {
+      throw new BadRequestException('CRM 收件箱服务未启用');
     }
 
-    await this.systemNotificationService?.markTargetReadForUser(
-      inboxNotificationTargetType,
-      confirmed.thread.id,
-      context.userId
-    );
-    await this.recordCrmLog('inbox-unsubscribe-confirm', 'CRM 收件箱退订已人工确认', context, {
-      organizationId: context.organizationId,
-      accountId: confirmed.account.id,
-      contactId: confirmed.contact.id,
-      threadId: confirmed.thread.id,
-      inboxMessageId: confirmed.message.id,
-      messageType: confirmed.message.messageType
-    });
-
-    return toInboxUnsubscribeConfirmView(confirmed, context);
+    return this.inboxService.confirmInboxMessageUnsubscribe(id, context);
   }
 
   private async importContactIfPresent(
@@ -3874,113 +3286,6 @@ export class CrmService {
     return productLine;
   }
 
-  /** Batch loads organization blacklist hits for AI draft task validation. */
-  private async loadBlacklistedContactEmailHashes(organizationId: string, items: CrmSequenceReviewRecord[]) {
-    const emailHashes = Array.from(new Set(items.map(item => item.contact.emailHash).filter(Boolean)));
-
-    if (emailHashes.length === 0) {
-      return new Set<string>();
-    }
-
-    const entries = await this.store.listBlacklistEntriesByEmailHashes({
-      organizationId,
-      emailHashes
-    });
-
-    return new Set(entries.map(entry => entry.emailHash));
-  }
-
-  private getAiDraftTaskItemSkipMessage(item: CrmSequenceReviewRecord, blacklistedEmailHashes: Set<string>) {
-    const nextDraftSkipMessage = getNextDraftSkipMessage(item);
-
-    if (nextDraftSkipMessage) {
-      return nextDraftSkipMessage;
-    }
-
-    if (item.contact.emailStatus === 'unsubscribed') {
-      return '联系人已退订，不能继续开发';
-    }
-
-    if (blacklistedEmailHashes.has(item.contact.emailHash)) {
-      return '该邮箱已在组织黑名单中，不能继续开发';
-    }
-
-    if (!item.productLine || item.productLine.status !== 'active' || !item.productLine.aiWritingConfig?.enabled) {
-      return '产品资料未启用 AI 写信';
-    }
-
-    const sourceMessage = item.messages.at(-1)!;
-    const stepIndex = sourceMessage.stepIndex + 1;
-
-    try {
-      const writingConfig = requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
-      const stepConfig = writingConfig.steps.find(step => step.stepIndex === stepIndex);
-
-      if (!stepConfig?.prompt) {
-        return `产品资料缺少第 ${stepIndex} 封 AI 写信提示词`;
-      }
-    } catch (error) {
-      return error instanceof Error ? error.message : '产品资料 AI 写信配置不完整';
-    }
-
-    return null;
-  }
-
-  private async requireScopedAiDraftTask(id: string, context: CrmUserContext) {
-    const task = await this.store.findAiDraftTaskById({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: hasOrganizationAdminRole(context) ? undefined : context.userId
-    });
-
-    if (!task) {
-      throw new NotFoundException('AI 草稿任务不存在');
-    }
-
-    return task;
-  }
-
-  private async requireOwnedAiDraftTask(id: string, context: CrmUserContext) {
-    const task = await this.store.findAiDraftTaskById({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!task) {
-      throw new NotFoundException('AI 草稿任务不存在或无权操作');
-    }
-
-    return task;
-  }
-
-  private async toAiDraftTaskDetail(task: CrmAiDraftTaskRecord) {
-    const items = await this.store.listAiDraftTaskItems({ taskId: task.id });
-
-    return {
-      task: toAiDraftTaskView(task),
-      items: items.map(toAiDraftTaskItemView)
-    };
-  }
-
-  private createSkippedAiDraftTaskItem(
-    enrollmentId: string,
-    failureReason: string,
-    item?: CrmSequenceReviewRecord
-  ): CrmAiDraftTaskCreateItemInput {
-    return {
-      enrollmentId,
-      messageId: null,
-      contactId: item?.contact.id ?? null,
-      accountId: item?.account.id ?? null,
-      productLineId: item?.productLine?.id ?? null,
-      stepIndex: 0,
-      status: 'skipped',
-      failureType: 'business_skip',
-      failureReason
-    };
-  }
-
   private async requireOwnedSequenceReviewItem(id: string, context: CrmUserContext) {
     const item = await this.store.getSequenceReviewItem({
       id,
@@ -4108,183 +3413,6 @@ export class CrmService {
     }
 
     return message;
-  }
-
-  private async requireOwnedInboxThread(id: string, context: CrmUserContext) {
-    const thread = await this.store.getInboxThread({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!thread) {
-      throw new NotFoundException('收件箱会话不存在');
-    }
-
-    return thread.thread;
-  }
-
-  private async requireOwnedInboxThreadDetail(id: string, context: CrmUserContext) {
-    const thread = await this.store.getInboxThread({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!thread) {
-      throw new NotFoundException('收件箱会话不存在');
-    }
-
-    return thread;
-  }
-
-  private async saveOwnedInboxReplyDraft(
-    id: string,
-    topic: string,
-    bodyText: string,
-    metadata: CrmInboxReplyDraftMetadata | null,
-    context: CrmUserContext
-  ) {
-    const saved = await this.store.saveInboxThreadReplyDraft({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      topic,
-      bodyText,
-      metadata,
-      updatedAt: new Date(),
-      updatedById: context.userId,
-      updatedByName: context.userName
-    });
-
-    if (!saved) {
-      throw new NotFoundException('收件箱会话不存在');
-    }
-
-    return saved;
-  }
-
-  private async resolveInboxReplyDraftProductLine(
-    detail: CrmInboxThreadDetailRecord,
-    productLineId: string | null | undefined,
-    context: CrmUserContext
-  ) {
-    const normalizedProductLineId = normalizeNullableString(productLineId) ?? detail.enrollment?.productLineId ?? null;
-
-    if (!normalizedProductLineId) {
-      return null;
-    }
-
-    const productLine = await this.store.findProductLineById({
-      id: normalizedProductLineId,
-      organizationId: context.organizationId
-    });
-
-    if (!productLine) {
-      throw new BadRequestException('产品线不存在');
-    }
-
-    return productLine;
-  }
-
-  private buildInboxReplyDraftPromptInput(
-    detail: CrmInboxThreadDetailRecord,
-    topic: string,
-    productLine: CrmProductLineRecord | null,
-    context: CrmUserContext
-  ): CrmAiReplyDraftPromptInput {
-    const latestInboundMessage = getLatestInboundInboxMessage(detail);
-
-    if (!latestInboundMessage) {
-      throw new BadRequestException('客户回信不存在');
-    }
-
-    const history = detail.messages.slice(-6).map(message => ({
-      subject: message.subject,
-      bodyText: message.bodyText,
-      receivedAt: message.receivedAt.toISOString()
-    }));
-    const writingConfig = normalizeCrmProductLineAiWritingConfig(productLine?.aiWritingConfig);
-
-    return {
-      account: {
-        name: detail.account.name,
-        country: detail.account.country,
-        domain: detail.account.domain,
-        customerType: detail.account.customerType
-      },
-      contact: {
-        fullName: detail.contact.fullName,
-        title: detail.contact.title,
-        maskedEmail: detail.contact.maskedEmail
-      },
-      thread: {
-        subject: detail.thread.subject,
-        status: detail.thread.status
-      },
-      latestInboundMessage: {
-        subject: latestInboundMessage.subject,
-        bodyText: latestInboundMessage.bodyText,
-        receivedAt: latestInboundMessage.receivedAt.toISOString()
-      },
-      history,
-      productLine: productLine
-        ? {
-            id: productLine.id,
-            name: productLine.name,
-            targetCustomerType: productLine.targetCustomerType,
-            coreSellingPoints: productLine.coreSellingPoints,
-            moq: productLine.moq,
-            leadTime: productLine.leadTime,
-            paymentTerms: productLine.paymentTerms,
-            certifications: productLine.certifications,
-            catalogUrl: productLine.catalogUrl,
-            websiteUrl: productLine.websiteUrl,
-            commonModelsText: productLine.commonModelsText,
-            forbiddenClaims: writingConfig?.forbiddenClaims ?? ''
-          }
-        : null,
-      userTopicOrOutline: topic,
-      senderName: context.userName
-    };
-  }
-
-  private async notifyCustomerReply(
-    thread: CrmInboxThreadRecord,
-    message: CrmInboxMessageRecord,
-    account: CrmAccountRecord,
-    contact: CrmContactRecord,
-    context: CrmUserContext
-  ) {
-    const notificationCopy = toInboxNotificationCopy(message.messageType, account, contact);
-    try {
-      await this.systemNotificationService?.create({
-        userId: thread.ownerUserId,
-        userName: context.userName,
-        module: 'crm',
-        type: 'crm_customer_reply',
-        title: notificationCopy.title,
-        content: notificationCopy.content,
-        targetType: inboxNotificationTargetType,
-        targetId: thread.id,
-        routePath: '/crm/inbox',
-        metadata: {
-          organizationId: thread.organizationId,
-          accountId: thread.accountId,
-          contactId: thread.contactId,
-          threadId: thread.id,
-          messageType: message.messageType
-        }
-      });
-    } catch (error) {
-      await this.recordCrmLog('inbox-reply-notification-failed', 'CRM 客户回信通知创建失败', context, {
-        organizationId: thread.organizationId,
-        accountId: thread.accountId,
-        contactId: thread.contactId,
-        threadId: thread.id,
-        reason: error instanceof Error ? error.message : String(error)
-      });
-    }
   }
 
   private async enqueueFirstMessage(
@@ -4468,28 +3596,6 @@ export class CrmService {
 
   private requireOrganizationConfigManager(context: CrmUserContext) {
     assertOrganizationAdmin(context, '仅组织管理员可修改 CRM 权限配置');
-  }
-
-  private recordSuperAdminInboxBodyAudit(
-    record: CrmInboxThreadDetailRecord,
-    visibleMessageCount: number,
-    context: CrmUserContext
-  ) {
-    if (!isSuper(context) || record.thread.ownerUserId === context.userId || visibleMessageCount <= 0) {
-      return undefined;
-    }
-
-    return this.recordCrmLog('inbox-body-viewed-by-super-admin', '平台超管查看 CRM 邮件正文', context, {
-      organizationId: record.thread.organizationId,
-      threadId: record.thread.id,
-      accountId: record.thread.accountId,
-      contactId: record.thread.contactId,
-      mailboxId: record.thread.mailboxId,
-      ownerUserId: record.thread.ownerUserId,
-      provider: record.thread.provider,
-      providerThreadId: record.thread.providerThreadId,
-      visibleMessageCount
-    });
   }
 
   private recordMailboxLog(
@@ -4772,213 +3878,11 @@ function toMessageView(record: CrmMessageRecord) {
   };
 }
 
-function toAiDraftTaskView(record: CrmAiDraftTaskRecord) {
-  return {
-    ...record,
-    readAt: record.readAt?.toISOString() ?? null,
-    notifiedAt: record.notifiedAt?.toISOString() ?? null,
-    startedAt: record.startedAt?.toISOString() ?? null,
-    finishedAt: record.finishedAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toAiDraftTaskItemView(record: CrmAiDraftTaskItemRecord) {
-  return {
-    ...record,
-    startedAt: record.startedAt?.toISOString() ?? null,
-    finishedAt: record.finishedAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toAiDraftQueueConfigView(record: Awaited<ReturnType<CrmStore['getAiDraftQueueConfig']>>) {
-  return {
-    ...record,
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
 function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
   return {
     ...record,
     createdAt: record.createdAt.toISOString()
   };
-}
-
-function toInboxThreadView(record: CrmInboxThreadRecord) {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    ownerUserId: record.ownerUserId,
-    accountId: record.accountId,
-    contactId: record.contactId,
-    enrollmentId: record.enrollmentId,
-    mailboxId: record.mailboxId,
-    provider: record.provider,
-    providerThreadId: record.providerThreadId,
-    subject: record.subject,
-    status: record.status,
-    unreadCount: record.unreadCount,
-    messageCount: record.messageCount,
-    lastInboundAt: record.lastInboundAt.toISOString(),
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toInboxMessageView(record: CrmInboxMessageRecord, mailbox?: CrmMailboxRecord | null) {
-  const isOutbound = Boolean(mailbox && record.fromEmailHash === mailbox.emailHash);
-  const timestamp = record.receivedAt.toISOString();
-
-  return {
-    ...record,
-    direction: isOutbound ? 'outbound' : 'inbound',
-    sentAt: isOutbound ? timestamp : null,
-    receivedAt: isOutbound ? null : timestamp,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.createdAt.toISOString()
-  };
-}
-
-function toInboxThreadListView(
-  record: CrmInboxThreadListRecord,
-  context: CrmUserContext,
-  organizationConfig: CrmOrganizationConfigRecord | null
-) {
-  const canReadBody = canViewEmailBody(context, record.thread.ownerUserId, organizationConfig);
-
-  return {
-    ...toInboxThreadView(record.thread),
-    account: toAccountView(record.account),
-    contact: toContactView(record.contact),
-    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
-    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
-    lastMessageSnippet: canReadBody ? (record.lastMessage?.snippet ?? '') : '',
-    canReadBody,
-    canOperate: record.thread.ownerUserId === context.userId
-  };
-}
-
-function toInboxThreadDetailView(
-  record: CrmInboxThreadDetailRecord,
-  context: CrmUserContext,
-  organizationConfig: CrmOrganizationConfigRecord | null
-) {
-  const thread = toInboxThreadListView(record, context, organizationConfig);
-  const canReadBody = canViewEmailBody(context, record.thread.ownerUserId, organizationConfig);
-
-  return {
-    thread,
-    account: thread.account,
-    contact: thread.contact,
-    mailbox: thread.mailbox,
-    enrollment: thread.enrollment,
-    messages: canReadBody ? record.messages.map(message => toInboxMessageView(message, record.mailbox)) : [],
-    timelineEvents: record.timelineEvents.map(toTimelineEventView),
-    canOperate: thread.canOperate,
-    replyDraft: thread.canOperate ? toInboxReplyDraftView(record.thread) : null
-  };
-}
-
-function toInboxReplyDraftView(record: CrmInboxThreadRecord) {
-  if (
-    !record.replyDraftBodyText ||
-    !record.replyDraftTopic ||
-    !record.replyDraftUpdatedAt ||
-    !record.replyDraftUpdatedById
-  ) {
-    return null;
-  }
-
-  return {
-    topic: record.replyDraftTopic,
-    bodyText: record.replyDraftBodyText,
-    metadata: record.replyDraftMetadata,
-    updatedAt: record.replyDraftUpdatedAt.toISOString(),
-    updatedById: record.replyDraftUpdatedById,
-    updatedByName: record.replyDraftUpdatedByName
-  };
-}
-
-function toInboxReplyIngestView(record: CrmCustomerReplyIngestRecord, context: CrmUserContext) {
-  const thread = {
-    ...toInboxThreadView(record.thread),
-    account: toAccountView(record.account),
-    contact: toContactView(record.contact),
-    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
-    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
-    lastMessageSnippet: record.message.snippet ?? '',
-    canOperate: record.thread.ownerUserId === context.userId
-  };
-
-  return {
-    thread,
-    account: thread.account,
-    contact: thread.contact,
-    mailbox: thread.mailbox,
-    enrollment: thread.enrollment,
-    messages: [toInboxMessageView(record.message, record.mailbox)],
-    timelineEvents: record.event ? [toTimelineEventView(record.event)] : [],
-    canOperate: thread.canOperate
-  };
-}
-
-function toInboxThreadReplyView(record: CrmInboxThreadReplyRecord, context: CrmUserContext) {
-  const thread = {
-    ...toInboxThreadView(record.thread),
-    account: toAccountView(record.account),
-    contact: toContactView(record.contact),
-    mailbox: toMailboxView(record.mailbox),
-    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
-    lastMessageSnippet: record.message.snippet ?? '',
-    canOperate: record.thread.ownerUserId === context.userId
-  };
-
-  return {
-    thread,
-    account: thread.account,
-    contact: thread.contact,
-    mailbox: thread.mailbox,
-    enrollment: thread.enrollment,
-    messages: [toInboxMessageView(record.message, record.mailbox)],
-    timelineEvents: [toTimelineEventView(record.event)],
-    canOperate: thread.canOperate
-  };
-}
-
-function toInboxUnsubscribeConfirmView(record: CrmInboxUnsubscribeConfirmRecord, context: CrmUserContext) {
-  const thread = {
-    ...toInboxThreadView(record.thread),
-    account: toAccountView(record.account),
-    contact: toContactView(record.contact),
-    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
-    enrollment: record.enrollment ? toSequenceEnrollmentView(record.enrollment) : null,
-    lastMessageSnippet: record.message.snippet ?? '',
-    canOperate: record.thread.ownerUserId === context.userId
-  };
-
-  return {
-    thread,
-    account: thread.account,
-    contact: thread.contact,
-    mailbox: thread.mailbox,
-    enrollment: thread.enrollment,
-    message: toInboxMessageView(record.message, record.mailbox),
-    messages: [toInboxMessageView(record.message, record.mailbox)],
-    timelineEvents: [toTimelineEventView(record.event)],
-    canOperate: thread.canOperate
-  };
-}
-
-function getLatestInboundInboxMessage(detail: CrmInboxThreadDetailRecord): CrmInboxMessageRecord | null {
-  const messages = detail.mailbox
-    ? detail.messages.filter(message => message.fromEmailHash !== detail.mailbox?.emailHash)
-    : detail.messages;
-
-  return messages.at(-1) ?? null;
 }
 
 function toAccountDetailView(detail: CrmAccountDetailRecord) {
@@ -5710,31 +4614,6 @@ function toEmailStatusText(status: CrmEmailStatus) {
   return textMap[status];
 }
 
-function toInboxNotificationCopy(
-  messageType: CrmInboxMessageType,
-  account: CrmAccountRecord,
-  contact: CrmContactRecord
-) {
-  if (messageType === 'bounce') {
-    return {
-      title: '邮件退信',
-      content: `${account.name} / ${contact.maskedEmail} 邮件退信，请检查邮箱可达性`
-    };
-  }
-
-  if (messageType === 'unsubscribe_hint') {
-    return {
-      title: '客户要求停止联系',
-      content: `${account.name} / ${contact.maskedEmail} 可能要求退订或停止联系`
-    };
-  }
-
-  return {
-    title: '收到客户回信',
-    content: `${account.name} / ${contact.maskedEmail} 回复了开发信`
-  };
-}
-
 function normalizePositiveInteger(
   value: number | string | undefined,
   fallback: number,
@@ -5749,29 +4628,6 @@ function normalizePositiveInteger(
   if (!Number.isInteger(numberValue) || numberValue < min) return fallback;
 
   return Math.min(numberValue, max);
-}
-
-function toAiDraftTaskCreateLimitMessage(reason: CrmAiDraftTaskCreateLimitReason | undefined) {
-  if (reason === 'organization_active_limit') {
-    return '当前组织进行中的 AI 草稿任务已达到上限，请稍后再试';
-  }
-
-  if (reason === 'concurrent_create_conflict') {
-    return 'AI 草稿任务创建冲突，请稍后重试';
-  }
-
-  return '当前用户已有进行中的 AI 草稿任务，请完成后再创建';
-}
-
-function countAiDraftTaskItemRecords(items: CrmAiDraftTaskItemRecord[]) {
-  return {
-    successCount: items.filter(item => item.status === 'succeeded').length,
-    skippedCount: items.filter(item => item.status === 'skipped').length,
-    failedCount: items.filter(item => item.status === 'failed').length,
-    retryingCount: items.filter(item => item.status === 'retrying').length,
-    runningCount: items.filter(item => item.status === 'running').length,
-    pendingCount: items.filter(item => item.status === 'pending').length
-  };
 }
 
 function hasOwn<T extends object>(object: T, key: PropertyKey) {

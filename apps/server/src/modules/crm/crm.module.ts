@@ -30,6 +30,8 @@ import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmService } from './crm.service';
 import { CrmAccountService } from './accounts/crm-account.service';
+import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
+import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
@@ -67,6 +69,8 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
   providers: [
     CrmService,
     CrmAccountService,
+    CrmAiDraftTaskService,
+    CrmInboxService,
     CrmMailboxService,
     CrmBatchDraftApprovalService,
     CrmBatchSequenceStopService,

@@ -9,8 +9,11 @@ import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
+import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
+import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
+import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
 import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
@@ -236,6 +239,90 @@ describe('CrmService', () => {
     const service = createServiceWithSplitServices({ nextDraftService });
 
     assert.equal(await service.batchGenerateNextDrafts(input, context), expected);
+  });
+
+  it('delegates CRM AI draft task facade methods when the split AI draft task service is injected', async () => {
+    const context = createContext();
+    const createInput = { enrollmentIds: ['enrollment-1'] };
+    const listQuery = { current: 1, size: 10 };
+    const queueConfigInput = { itemConcurrency: 2, maxItemConcurrency: 3, maxActiveTasksPerOrg: 4, maxAttempts: 2 };
+    const expected = { task: { id: 'ai-draft-task-1' } };
+    const calls: string[] = [];
+    const aiDraftTaskService = {
+      async createAiDraftTask(input: typeof createInput, actualContext: CrmUserContext) {
+        assert.equal(input, createInput);
+        assert.equal(actualContext, context);
+        calls.push('create');
+        return expected;
+      },
+      async getCurrentAiDraftTask(actualContext: CrmUserContext) {
+        assert.equal(actualContext, context);
+        calls.push('current');
+        return expected;
+      },
+      async listAiDraftTasks(actualContext: CrmUserContext, query: typeof listQuery) {
+        assert.equal(actualContext, context);
+        assert.equal(query, listQuery);
+        calls.push('list');
+        return expected;
+      },
+      async getAiDraftTaskDetail(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'ai-draft-task-1');
+        assert.equal(actualContext, context);
+        calls.push('detail');
+        return expected;
+      },
+      async retryFailedAiDraftTask(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'ai-draft-task-1');
+        assert.equal(actualContext, context);
+        calls.push('retry');
+        return expected;
+      },
+      async cancelAiDraftTask(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'ai-draft-task-1');
+        assert.equal(actualContext, context);
+        calls.push('cancel');
+        return expected;
+      },
+      async markAiDraftTaskRead(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'ai-draft-task-1');
+        assert.equal(actualContext, context);
+        calls.push('read');
+        return expected;
+      },
+      async getAiDraftQueueConfig() {
+        calls.push('queueConfig');
+        return expected;
+      },
+      async saveAiDraftQueueConfig(input: typeof queueConfigInput, actualContext: CrmUserContext) {
+        assert.equal(input, queueConfigInput);
+        assert.equal(actualContext, context);
+        calls.push('saveQueueConfig');
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ aiDraftTaskService });
+
+    assert.equal(await service.createAiDraftTask(createInput, context), expected);
+    assert.equal(await service.getCurrentAiDraftTask(context), expected);
+    assert.equal(await service.listAiDraftTasks(context, listQuery), expected);
+    assert.equal(await service.getAiDraftTaskDetail('ai-draft-task-1', context), expected);
+    assert.equal(await service.retryFailedAiDraftTask('ai-draft-task-1', context), expected);
+    assert.equal(await service.cancelAiDraftTask('ai-draft-task-1', context), expected);
+    assert.equal(await service.markAiDraftTaskRead('ai-draft-task-1', context), expected);
+    assert.equal(await service.getAiDraftQueueConfig(), expected);
+    assert.equal(await service.saveAiDraftQueueConfig(queueConfigInput, context), expected);
+    assert.deepEqual(calls, [
+      'create',
+      'current',
+      'list',
+      'detail',
+      'retry',
+      'cancel',
+      'read',
+      'queueConfig',
+      'saveQueueConfig'
+    ]);
   });
 
   it('delegates follow-up draft approval when the split follow-up approval service is injected', async () => {
@@ -3109,18 +3196,10 @@ describe('CrmService', () => {
       ]
     });
     const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createAiReplyDraftService(aiReplyDraftCalls)
-    );
+      inboxService: createInboxService(store, { aiReplyDraftService: createAiReplyDraftService(aiReplyDraftCalls) })
+    });
 
     await assert.rejects(
       () => service.polishInboxReplyDraft('inbox-thread-1', { topic: '   ' }, createContext()),
@@ -3162,18 +3241,14 @@ describe('CrmService', () => {
     });
     const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
     const sendGateway = createThrowingSendGateway();
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      createLogRecorder().service,
-      undefined,
-      undefined,
-      sendGateway,
-      undefined,
-      undefined,
-      undefined,
-      createAiReplyDraftService(aiReplyDraftCalls)
-    );
+      inboxService: createInboxService(store, {
+        systemLogService: createLogRecorder().service,
+        sendGateway,
+        aiReplyDraftService: createAiReplyDraftService(aiReplyDraftCalls)
+      })
+    });
 
     const result = await service.polishInboxReplyDraft(
       'inbox-thread-1',
@@ -3212,18 +3287,10 @@ describe('CrmService', () => {
       ]
     });
     const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createAiReplyDraftService(aiReplyDraftCalls)
-    );
+      inboxService: createInboxService(store, { aiReplyDraftService: createAiReplyDraftService(aiReplyDraftCalls) })
+    });
 
     await assert.rejects(
       () =>
@@ -3273,7 +3340,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     const ownerDetail = await service.getInboxThread('inbox-thread-1', createContext({ userId: 'user-2' }));
     const adminDetail = await service.getInboxThread(
@@ -3304,18 +3374,14 @@ describe('CrmService', () => {
       ]
     });
     const aiReplyDraftCalls: CrmAiReplyDraftPromptInput[] = [];
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      createLogRecorder().service,
-      undefined,
-      undefined,
-      createThrowingSendGateway(),
-      undefined,
-      undefined,
-      undefined,
-      createAiReplyDraftService(aiReplyDraftCalls)
-    );
+      inboxService: createInboxService(store, {
+        systemLogService: createLogRecorder().service,
+        sendGateway: createThrowingSendGateway(),
+        aiReplyDraftService: createAiReplyDraftService(aiReplyDraftCalls)
+      })
+    });
 
     const result = await service.saveInboxReplyDraft(
       'inbox-thread-1',
@@ -4960,19 +5026,11 @@ describe('CrmService', () => {
     );
     const logs = createLogRecorder();
     const aiDraftCalls: CrmAiDraftPromptInput[] = [];
-    const aiDraftService = createAiDraftService(aiDraftCalls);
     const sendQueue = createSendQueue();
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      logs.service,
-      sendQueue,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      aiDraftService
-    );
+      aiDraftTaskService: createAiDraftTaskService(store, { systemLogService: logs.service })
+    });
 
     const result = await service.createAiDraftTask(
       { enrollmentIds: ['enrollment-1', 'blocked-enrollment', 'missing-enrollment', 'enrollment-1'] },
@@ -5064,19 +5122,10 @@ describe('CrmService', () => {
     });
     const sendQueue = createSendQueue();
     const aiDraftTaskQueue = createAiDraftTaskQueue();
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      sendQueue,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      aiDraftTaskQueue
-    );
+      aiDraftTaskService: createAiDraftTaskService(store, { aiDraftTaskQueue })
+    });
 
     const result = await service.createAiDraftTask({ enrollmentIds: ['enrollment-1'] }, createContext());
 
@@ -5178,12 +5227,16 @@ describe('CrmService', () => {
       }
     );
     const notificationCreates: Array<{ title: string; content: string; type: string; metadata?: unknown }> = [];
-    const service = new CrmService(store, undefined, undefined, undefined, {
+    const systemNotificationService = {
       async create(input: { title: string; content: string; type: string; metadata?: unknown }) {
         notificationCreates.push(input);
         return input as never;
       }
-    } as never);
+    };
+    const service = createServiceWithSplitServices({
+      store,
+      aiDraftTaskService: createAiDraftTaskService(store, { systemNotificationService })
+    });
 
     const result = await service.createAiDraftTask(
       { enrollmentIds: ['enrollment-unsubscribed', 'enrollment-blacklisted', 'enrollment-incomplete'] },
@@ -5267,7 +5320,10 @@ describe('CrmService', () => {
         ]
       }
     );
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      aiDraftTaskService: createAiDraftTaskService(store)
+    });
 
     await service.createAiDraftTask(
       { enrollmentIds: ['enrollment-1', 'enrollment-2', 'enrollment-3'] },
@@ -5290,7 +5346,10 @@ describe('CrmService', () => {
     const store = createStore([], {
       aiDraftTasks: [createAiDraftTask({ id: 'active-task-1', status: 'queued' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      aiDraftTaskService: createAiDraftTaskService(store)
+    });
 
     await assert.rejects(
       () => service.createAiDraftTask({ enrollmentIds: ['enrollment-1'] }, createContext()),
@@ -5303,7 +5362,10 @@ describe('CrmService', () => {
       aiDraftQueueConfig: createAiDraftQueueConfig({ maxActiveTasksPerUser: 2, maxActiveTasksPerOrg: 1 }),
       aiDraftTasks: [createAiDraftTask({ id: 'org-task-1', ownerUserId: 'user-2', status: 'running' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      aiDraftTaskService: createAiDraftTaskService(store)
+    });
 
     await assert.rejects(
       () => service.createAiDraftTask({ enrollmentIds: ['enrollment-1'] }, createContext()),
@@ -5342,19 +5404,10 @@ describe('CrmService', () => {
       ]
     });
     const aiDraftTaskQueue = createAiDraftTaskQueue();
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      aiDraftTaskQueue
-    );
+      aiDraftTaskService: createAiDraftTaskService(store, { aiDraftTaskQueue })
+    });
 
     const result = await service.retryFailedAiDraftTask('ai-draft-task-1', createContext());
 
@@ -5391,19 +5444,10 @@ describe('CrmService', () => {
       ]
     });
     const aiDraftTaskQueue = createAiDraftTaskQueue();
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      aiDraftTaskQueue
-    );
+      aiDraftTaskService: createAiDraftTaskService(store, { aiDraftTaskQueue })
+    });
 
     const result = await service.cancelAiDraftTask('ai-draft-task-1', createContext());
 
@@ -5431,12 +5475,16 @@ describe('CrmService', () => {
       ]
     });
     const markedTargets: Array<[string, string, string]> = [];
-    const service = new CrmService(store, undefined, undefined, undefined, {
+    const systemNotificationService = {
       async markTargetReadForUser(targetType: string, targetId: string, userId: string) {
         markedTargets.push([targetType, targetId, userId]);
         return { count: 1 };
       }
-    } as never);
+    };
+    const service = createServiceWithSplitServices({
+      store,
+      aiDraftTaskService: createAiDraftTaskService(store, { systemNotificationService })
+    });
 
     const result = await service.markAiDraftTaskRead('ai-draft-task-1', createContext());
 
@@ -5448,19 +5496,13 @@ describe('CrmService', () => {
     const store = createStore();
     const logs = createLogRecorder();
     const aiDraftTaskQueue = createAiDraftTaskQueue();
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      logs.service,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      aiDraftTaskQueue
-    );
+      aiDraftTaskService: createAiDraftTaskService(store, {
+        aiDraftTaskQueue,
+        systemLogService: logs.service
+      })
+    });
 
     const result = await service.saveAiDraftQueueConfig(
       { itemConcurrency: 5, maxItemConcurrency: 5, maxActiveTasksPerOrg: 4, maxAttempts: 2 },
@@ -5516,7 +5558,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     const result = await service.mockCustomerReply(
       'message-1',
@@ -5582,7 +5627,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     await service.mockCustomerReply(
       'message-1',
@@ -5652,12 +5700,19 @@ describe('CrmService', () => {
       event: null,
       isDuplicate: true
     });
-    const service = new CrmService(store, undefined, logs.service, undefined, {
+    const systemNotificationService = {
       async create(input: { title: string; content: string; type: string; metadata?: unknown }) {
         notificationCreates.push(input);
         return input as never;
       }
-    } as never);
+    };
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store, {
+        systemLogService: logs.service,
+        systemNotificationService
+      })
+    });
 
     const result = await service.mockCustomerReply(
       'message-1',
@@ -5703,7 +5758,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     const result = await service.mockCustomerReply(
       'message-1',
@@ -5755,7 +5813,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     const result = await service.mockCustomerReply(
       'message-1',
@@ -5825,7 +5886,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     const result = await service.confirmInboxMessageUnsubscribe('inbox-message-1', createContext());
 
@@ -5869,12 +5933,16 @@ describe('CrmService', () => {
       ]
     });
     const notificationCreates: Array<{ title: string; content: string; type: string; metadata?: unknown }> = [];
-    const service = new CrmService(store, undefined, undefined, undefined, {
+    const systemNotificationService = {
       async create(input: { title: string; content: string; type: string; metadata?: unknown }) {
         notificationCreates.push(input);
         return input as never;
       }
-    } as never);
+    };
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store, { systemNotificationService })
+    });
 
     const result = await service.mockCustomerReply(
       'message-1',
@@ -5941,7 +6009,10 @@ describe('CrmService', () => {
       }
     );
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store, { systemLogService: logs.service })
+    });
     const adminContext = createContext({ organizationRole: 'admin' });
     const superContext = createContext({ roles: ['R_SUPER'], organizationRole: 'member' });
 
@@ -5993,7 +6064,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     await assert.rejects(
       () => service.updateInboxThreadStatus('peer-thread', { status: 'handled' }, createContext()),
@@ -6050,7 +6124,10 @@ describe('CrmService', () => {
         return { providerMessageId: 'mock:reply-1' };
       }
     };
-    const service = new CrmService(store, undefined, undefined, undefined, undefined, sendGateway);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store, { sendGateway })
+    });
 
     const result = await service.replyInboxThread(
       'thread-1',
@@ -6087,7 +6164,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      inboxService: createInboxService(store)
+    });
 
     await assert.rejects(
       () => service.replyInboxThread('peer-thread', { bodyText: 'Hello' }, createContext()),
@@ -9283,6 +9363,8 @@ function createServiceWithSplitServices(options: {
   followUpApprovalService?: unknown;
   batchDraftApprovalService?: unknown;
   batchSequenceStopService?: unknown;
+  aiDraftTaskService?: unknown;
+  inboxService?: unknown;
 }) {
   return new CrmService(
     options.store ?? ({} as CrmStore),
@@ -9307,7 +9389,9 @@ function createServiceWithSplitServices(options: {
     options.draftApprovalService as never,
     options.followUpApprovalService as never,
     options.batchDraftApprovalService as never,
-    options.batchSequenceStopService as never
+    options.batchSequenceStopService as never,
+    options.aiDraftTaskService as never,
+    options.inboxService as never
   );
 }
 
@@ -9324,6 +9408,43 @@ function createNextDraftService(
   options: { aiDraftService?: CrmAiDraftService | null; crmLogger?: CrmLoggerService } = {}
 ) {
   return new CrmNextDraftService(store, options.aiDraftService, options.crmLogger);
+}
+
+function createAiDraftTaskService(
+  store: CrmStore,
+  options: {
+    aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null;
+    systemNotificationService?: unknown;
+    systemLogService?: SystemLogRecorder;
+    settingsService?: unknown;
+  } = {}
+) {
+  return new CrmAiDraftTaskService(
+    store,
+    options.aiDraftTaskQueue,
+    options.systemNotificationService as never,
+    undefined,
+    options.systemLogService,
+    options.settingsService as never
+  );
+}
+
+function createInboxService(
+  store: CrmStore,
+  options: {
+    systemLogService?: SystemLogRecorder;
+    systemNotificationService?: unknown;
+    sendGateway?: CrmEmailSendGateway;
+    aiReplyDraftService?: Pick<CrmAiReplyDraftService, 'polishReplyDraft'> | null;
+  } = {}
+) {
+  return new CrmInboxService(
+    store,
+    options.systemLogService,
+    options.systemNotificationService as never,
+    options.sendGateway,
+    options.aiReplyDraftService
+  );
 }
 
 function createDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
