@@ -8,13 +8,13 @@ import {
   normalizeOwnerDailySendLimitMax
 } from './crm-global-config';
 import { toCrmSendJobId } from './crm-send-queue.service';
-import { CRM_SEND_QUEUE, CRM_STORE } from './crm.tokens';
+import type { CrmSendSchedulerRepository } from './crm-send-scheduler.repository';
+import { CRM_SEND_QUEUE, CRM_SEND_SCHEDULER_REPOSITORY } from './crm.tokens';
 import type {
   CrmDueSendCandidateRecord,
   CrmOwnerSendStateRecord,
   CrmScheduledMessageStepKind,
-  CrmSendQueuePort,
-  CrmStore
+  CrmSendQueuePort
 } from './crm.types';
 
 interface DispatchDueMessagesInput {
@@ -42,7 +42,7 @@ interface MailboxDispatchState {
 @Injectable()
 export class CrmSendSchedulerService {
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_SEND_SCHEDULER_REPOSITORY) private readonly store: CrmSendSchedulerRepository,
     @Inject(CRM_SEND_QUEUE) private readonly sendQueue: CrmSendQueuePort
   ) {}
 

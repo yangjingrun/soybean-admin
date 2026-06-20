@@ -1,15 +1,32 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CrmSendSchedulerService } from './crm-send-scheduler.service';
+import type { CrmSendSchedulerRepository } from './crm-send-scheduler.repository';
 import type {
   CrmDueSendCandidateRecord,
   CrmGlobalConfigRecord,
   CrmScheduledMessageStepKind,
   CrmSendQueueJob,
   CrmSendQueuePort,
-  CrmSendPreferenceRecord,
-  CrmStore
+  CrmSendPreferenceRecord
 } from './crm.types';
+
+type SchedulerFakeStore = CrmSendSchedulerRepository & {
+  queuedMessageIds: string[];
+  ownerStateCalls: Array<{
+    owners: Array<{ organizationId: string; ownerUserId: string }>;
+    from: Date;
+    to: Date;
+  }>;
+  mailboxStateCalls: Array<{
+    mailboxes: Array<{ organizationId: string; mailboxId: string }>;
+    day: { from: Date; to: Date };
+    hour: { from: Date; to: Date };
+  }>;
+  getSendPreferenceCalls: unknown[];
+  countOwnerQueuedMessagesCalls: unknown[];
+  countDispatchedMessagesCalls: Array<{ stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }>;
+};
 
 describe('CrmSendSchedulerService', () => {
   it('dispatches due first-touch and follow-up messages by owner share preference', async () => {
@@ -253,22 +270,7 @@ function createSchedulerStore(input: {
 
       return candidate.message;
     }
-  } as unknown as CrmStore & {
-    queuedMessageIds: string[];
-    ownerStateCalls: Array<{
-      owners: Array<{ organizationId: string; ownerUserId: string }>;
-      from: Date;
-      to: Date;
-    }>;
-    mailboxStateCalls: Array<{
-      mailboxes: Array<{ organizationId: string; mailboxId: string }>;
-      day: { from: Date; to: Date };
-      hour: { from: Date; to: Date };
-    }>;
-    getSendPreferenceCalls: unknown[];
-    countOwnerQueuedMessagesCalls: unknown[];
-    countDispatchedMessagesCalls: Array<{ stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }>;
-  };
+  } as unknown as SchedulerFakeStore;
 }
 
 function createQueue(): CrmSendQueuePort & { jobs: CrmSendQueueJob[] } {
