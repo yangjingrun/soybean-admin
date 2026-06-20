@@ -348,6 +348,59 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('batch loads blacklists for due send candidates without per-candidate lookups', async () => {
+    const now = new Date('2026-06-18T10:30:00.000Z');
+    const prisma = createPrisma({
+      blacklistFindManyResults: [
+        createPrismaBlacklist({
+          organizationId: 'org-1',
+          emailHash: 'hash-1'
+        })
+      ],
+      messages: [
+        createPrismaMessage({
+          id: 'message-blacklisted',
+          organizationId: 'org-1',
+          contactId: 'contact-1',
+          contactEmailHash: 'hash-1',
+          status: 'draft_ready',
+          mailboxId: 'mailbox-1',
+          scheduledAt: new Date('2026-06-18T10:00:00.000Z')
+        }),
+        createPrismaMessage({
+          id: 'message-sendable',
+          organizationId: 'org-2',
+          contactId: 'contact-2',
+          contactEmailHash: 'hash-2',
+          status: 'draft_ready',
+          mailboxId: 'mailbox-2',
+          scheduledAt: new Date('2026-06-18T10:05:00.000Z')
+        })
+      ]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.listDueSendCandidates({ now, take: 50 });
+
+    assert.deepEqual(
+      result.map(item => item.message.id),
+      ['message-sendable']
+    );
+    assert.equal(prisma.crmBlacklist.findUniqueCalls.length, 0);
+    assert.deepEqual(prisma.crmBlacklist.findManyCalls.at(-1), {
+      where: {
+        OR: [
+          { organizationId: 'org-1', emailHash: 'hash-1' },
+          { organizationId: 'org-2', emailHash: 'hash-2' }
+        ]
+      },
+      select: {
+        organizationId: true,
+        emailHash: true
+      }
+    });
+  });
+
   it('reads and saves organization CRM permission config', async () => {
     const prisma = createPrisma({ organizationConfig: createPrismaOrganizationConfig() });
     const store = new PrismaCrmStore(prisma as never);
@@ -2849,6 +2902,8 @@ function createPrisma(
     aiDraftQueueConfig?: ReturnType<typeof createPrismaAiDraftQueueConfig> | null;
     organizationConfig?: ReturnType<typeof createPrismaOrganizationConfig> | null;
     message?: ReturnType<typeof createPrismaMessage>;
+    messages?: Array<ReturnType<typeof createPrismaMessage>>;
+    blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
     transactionError?: Error;
@@ -2998,6 +3053,7 @@ function createPrisma(
   };
   const blacklist = options.blacklistEntry ?? null;
   const message = options.message ?? createPrismaMessage();
+  const messages = options.messages ?? [message];
   const enrollment = {
     id: 'enrollment-1',
     organizationId: 'org-1',
@@ -3076,6 +3132,53 @@ function createPrisma(
   };
   const queryRawResults = [...(options.draftVersionResults ?? [])];
   const aiDraftActiveCountResults = [...(options.aiDraftActiveCountResults ?? [0, 0])];
+
+  function attachMessageRelations(item: ReturnType<typeof createPrismaMessage>) {
+    const messageWithRelations = item as ReturnType<typeof createPrismaMessage> & {
+      account?: typeof account;
+      contact?: typeof contact;
+      mailbox?: typeof mailbox;
+      enrollment?: typeof enrollment;
+      contactEmailHash?: string;
+    };
+
+    return {
+      ...messageWithRelations,
+      account: messageWithRelations.account ?? {
+        ...account,
+        id: messageWithRelations.accountId,
+        organizationId: messageWithRelations.organizationId,
+        ownerUserId: messageWithRelations.ownerUserId
+      },
+      contact: messageWithRelations.contact ?? {
+        ...contact,
+        id: messageWithRelations.contactId,
+        organizationId: messageWithRelations.organizationId,
+        ownerUserId: messageWithRelations.ownerUserId,
+        emailHash:
+          typeof messageWithRelations.contactEmailHash === 'string'
+            ? messageWithRelations.contactEmailHash
+            : contact.emailHash
+      },
+      mailbox: messageWithRelations.mailbox ?? {
+        ...mailbox,
+        id: messageWithRelations.mailboxId,
+        organizationId: messageWithRelations.organizationId,
+        ownerUserId: messageWithRelations.ownerUserId
+      },
+      enrollment: messageWithRelations.enrollment ?? {
+        ...enrollment,
+        id: messageWithRelations.enrollmentId,
+        organizationId: messageWithRelations.organizationId,
+        ownerUserId: messageWithRelations.ownerUserId,
+        accountId: messageWithRelations.accountId,
+        contactId: messageWithRelations.contactId,
+        mailboxId: messageWithRelations.mailboxId,
+        status: 'sequence_running',
+        productLine
+      }
+    };
+  }
 
   return {
     transactionCalls: 0,
@@ -3558,9 +3661,10 @@ function createPrisma(
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
         where: Record<string, unknown>;
-        skip: number;
-        take: number;
-        orderBy: Record<string, unknown>;
+        skip?: number;
+        take?: number;
+        orderBy?: Record<string, unknown>;
+        select?: Record<string, unknown>;
       }>,
       countCalls: [] as Array<{ where: Record<string, unknown> }>,
       deleteCalls: [] as Array<{ where: Record<string, unknown> }>,
@@ -3580,11 +3684,16 @@ function createPrisma(
       },
       async findMany(args: {
         where: Record<string, unknown>;
-        skip: number;
-        take: number;
-        orderBy: Record<string, unknown>;
+        skip?: number;
+        take?: number;
+        orderBy?: Record<string, unknown>;
+        select?: Record<string, unknown>;
       }) {
         this.findManyCalls.push(args);
+        if (args.skip === undefined && args.take === undefined && args.orderBy === undefined) {
+          return options.blacklistFindManyResults ?? (blacklist ? [blacklist] : []);
+        }
+
         return [createPrismaBlacklist()];
       },
       async count(args: { where: Record<string, unknown> }) {
@@ -4016,7 +4125,7 @@ function createPrisma(
         select?: Record<string, unknown>;
       }) {
         this.findManyCalls.push(args);
-        return [message];
+        return messages.map(item => attachMessageRelations(item));
       },
       async findFirst(args: { where: Record<string, unknown>; include?: Record<string, unknown> }) {
         this.findFirstCalls.push(args);

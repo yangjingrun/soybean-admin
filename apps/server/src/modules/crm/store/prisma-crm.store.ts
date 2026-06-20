@@ -1049,6 +1049,7 @@ export class PrismaCrmStore implements CrmStore {
       orderBy: [{ scheduledAt: 'asc' }, { updatedAt: 'asc' }],
       take: input.take
     });
+    const blacklistedContactKeys = await this.findBlacklistedDueCandidateKeys(records);
     const candidates: CrmDueSendCandidateRecord[] = [];
 
     for (const record of records) {
@@ -1060,16 +1061,7 @@ export class PrismaCrmStore implements CrmStore {
         continue;
       }
 
-      const blacklist = await this.prisma.crmBlacklist.findUnique({
-        where: {
-          organizationId_emailHash: {
-            organizationId: record.organizationId,
-            emailHash: record.contact.emailHash
-          }
-        }
-      });
-
-      if (blacklist) {
+      if (blacklistedContactKeys.has(toCrmBlacklistPairKey(record.organizationId, record.contact.emailHash))) {
         continue;
       }
 
@@ -1087,6 +1079,39 @@ export class PrismaCrmStore implements CrmStore {
     }
 
     return candidates;
+  }
+
+  /** Batch loads blacklist keys for due send candidates to avoid per-message blacklist lookups. */
+  private async findBlacklistedDueCandidateKeys(
+    records: Array<{ organizationId: string; contact: { emailHash: string } }>
+  ) {
+    const blacklistPairs = Array.from(
+      new Map(
+        records.map(record => [
+          toCrmBlacklistPairKey(record.organizationId, record.contact.emailHash),
+          {
+            organizationId: record.organizationId,
+            emailHash: record.contact.emailHash
+          }
+        ])
+      ).values()
+    );
+
+    if (blacklistPairs.length === 0) {
+      return new Set<string>();
+    }
+
+    const blacklists = await this.prisma.crmBlacklist.findMany({
+      where: {
+        OR: blacklistPairs
+      },
+      select: {
+        organizationId: true,
+        emailHash: true
+      }
+    });
+
+    return new Set(blacklists.map(record => toCrmBlacklistPairKey(record.organizationId, record.emailHash)));
   }
 
   async listStaleQueuedMessages(input: { before: Date; take: number }): Promise<CrmMessageRecord[]> {
@@ -3973,6 +3998,11 @@ function toBlacklistListWhere(args: CrmBlacklistListInput): Prisma.CrmBlacklistW
     organizationId: args.organizationId,
     ...(keywordFilter ? { OR: keywordFilter } : {})
   };
+}
+
+/** Creates a stable key for organization-scoped blacklist lookups. */
+function toCrmBlacklistPairKey(organizationId: string, emailHash: string) {
+  return `${organizationId}:${emailHash}`;
 }
 
 function toScopedOrganizationWhere(args: { organizationId: string; ownerUserId?: string }): {
