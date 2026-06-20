@@ -58,7 +58,7 @@ export type CrmAiDraftTaskMinAggregateOutputType = {
   organizationRole: string | null
   ownerUserId: string | null
   ownerUserName: string | null
-  status: string | null
+  status: $Enums.CrmAiDraftTaskStatus | null
   runVersion: number | null
   bullJobId: string | null
   requestedCount: number | null
@@ -85,7 +85,7 @@ export type CrmAiDraftTaskMaxAggregateOutputType = {
   organizationRole: string | null
   ownerUserId: string | null
   ownerUserName: string | null
-  status: string | null
+  status: $Enums.CrmAiDraftTaskStatus | null
   runVersion: number | null
   bullJobId: string | null
   requestedCount: number | null
@@ -339,7 +339,7 @@ export type CrmAiDraftTaskGroupByOutputType = {
   organizationRole: string | null
   ownerUserId: string
   ownerUserName: string | null
-  status: string
+  status: $Enums.CrmAiDraftTaskStatus
   runVersion: number
   bullJobId: string | null
   requestedCount: number
@@ -391,7 +391,7 @@ export type CrmAiDraftTaskWhereInput = {
   organizationRole?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
   ownerUserId?: Prisma.StringFilter<"CrmAiDraftTask"> | string
   ownerUserName?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
-  status?: Prisma.StringFilter<"CrmAiDraftTask"> | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFilter<"CrmAiDraftTask"> | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFilter<"CrmAiDraftTask"> | number
   bullJobId?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
   requestedCount?: Prisma.IntFilter<"CrmAiDraftTask"> | number
@@ -456,7 +456,7 @@ export type CrmAiDraftTaskWhereUniqueInput = Prisma.AtLeast<{
   organizationRole?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
   ownerUserId?: Prisma.StringFilter<"CrmAiDraftTask"> | string
   ownerUserName?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
-  status?: Prisma.StringFilter<"CrmAiDraftTask"> | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFilter<"CrmAiDraftTask"> | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFilter<"CrmAiDraftTask"> | number
   bullJobId?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
   requestedCount?: Prisma.IntFilter<"CrmAiDraftTask"> | number
@@ -524,7 +524,7 @@ export type CrmAiDraftTaskScalarWhereWithAggregatesInput = {
   organizationRole?: Prisma.StringNullableWithAggregatesFilter<"CrmAiDraftTask"> | string | null
   ownerUserId?: Prisma.StringWithAggregatesFilter<"CrmAiDraftTask"> | string
   ownerUserName?: Prisma.StringNullableWithAggregatesFilter<"CrmAiDraftTask"> | string | null
-  status?: Prisma.StringWithAggregatesFilter<"CrmAiDraftTask"> | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusWithAggregatesFilter<"CrmAiDraftTask"> | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntWithAggregatesFilter<"CrmAiDraftTask"> | number
   bullJobId?: Prisma.StringNullableWithAggregatesFilter<"CrmAiDraftTask"> | string | null
   requestedCount?: Prisma.IntWithAggregatesFilter<"CrmAiDraftTask"> | number
@@ -552,7 +552,7 @@ export type CrmAiDraftTaskCreateInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -583,7 +583,7 @@ export type CrmAiDraftTaskUncheckedCreateInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -612,7 +612,7 @@ export type CrmAiDraftTaskUpdateInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -643,7 +643,7 @@ export type CrmAiDraftTaskUncheckedUpdateInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -673,7 +673,7 @@ export type CrmAiDraftTaskCreateManyInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -701,7 +701,7 @@ export type CrmAiDraftTaskUpdateManyMutationInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -730,7 +730,7 @@ export type CrmAiDraftTaskUncheckedUpdateManyInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -919,6 +919,10 @@ export type CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationNestedInput = {
   deleteMany?: Prisma.CrmAiDraftTaskScalarWhereInput | Prisma.CrmAiDraftTaskScalarWhereInput[]
 }
 
+export type EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput = {
+  set?: $Enums.CrmAiDraftTaskStatus
+}
+
 export type CrmAiDraftTaskCreateNestedOneWithoutItemsInput = {
   create?: Prisma.XOR<Prisma.CrmAiDraftTaskCreateWithoutItemsInput, Prisma.CrmAiDraftTaskUncheckedCreateWithoutItemsInput>
   connectOrCreate?: Prisma.CrmAiDraftTaskCreateOrConnectWithoutItemsInput
@@ -938,7 +942,7 @@ export type CrmAiDraftTaskCreateWithoutOrganizationInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -967,7 +971,7 @@ export type CrmAiDraftTaskUncheckedCreateWithoutOrganizationInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -1026,7 +1030,7 @@ export type CrmAiDraftTaskScalarWhereInput = {
   organizationRole?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
   ownerUserId?: Prisma.StringFilter<"CrmAiDraftTask"> | string
   ownerUserName?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
-  status?: Prisma.StringFilter<"CrmAiDraftTask"> | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFilter<"CrmAiDraftTask"> | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFilter<"CrmAiDraftTask"> | number
   bullJobId?: Prisma.StringNullableFilter<"CrmAiDraftTask"> | string | null
   requestedCount?: Prisma.IntFilter<"CrmAiDraftTask"> | number
@@ -1054,7 +1058,7 @@ export type CrmAiDraftTaskCreateWithoutItemsInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -1084,7 +1088,7 @@ export type CrmAiDraftTaskUncheckedCreateWithoutItemsInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -1128,7 +1132,7 @@ export type CrmAiDraftTaskUpdateWithoutItemsInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1158,7 +1162,7 @@ export type CrmAiDraftTaskUncheckedUpdateWithoutItemsInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1186,7 +1190,7 @@ export type CrmAiDraftTaskCreateManyOrganizationInput = {
   organizationRole?: string | null
   ownerUserId: string
   ownerUserName?: string | null
-  status?: string
+  status?: $Enums.CrmAiDraftTaskStatus
   runVersion?: number
   bullJobId?: string | null
   requestedCount: number
@@ -1214,7 +1218,7 @@ export type CrmAiDraftTaskUpdateWithoutOrganizationInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1243,7 +1247,7 @@ export type CrmAiDraftTaskUncheckedUpdateWithoutOrganizationInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1272,7 +1276,7 @@ export type CrmAiDraftTaskUncheckedUpdateManyWithoutOrganizationInput = {
   organizationRole?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskStatus
   runVersion?: Prisma.IntFieldUpdateOperationsInput | number
   bullJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestedCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1472,7 +1476,7 @@ export type $CrmAiDraftTaskPayload<ExtArgs extends runtime.Types.Extensions.Inte
     organizationRole: string | null
     ownerUserId: string
     ownerUserName: string | null
-    status: string
+    status: $Enums.CrmAiDraftTaskStatus
     runVersion: number
     bullJobId: string | null
     requestedCount: number
@@ -1923,7 +1927,7 @@ export interface CrmAiDraftTaskFieldRefs {
   readonly organizationRole: Prisma.FieldRef<"CrmAiDraftTask", 'String'>
   readonly ownerUserId: Prisma.FieldRef<"CrmAiDraftTask", 'String'>
   readonly ownerUserName: Prisma.FieldRef<"CrmAiDraftTask", 'String'>
-  readonly status: Prisma.FieldRef<"CrmAiDraftTask", 'String'>
+  readonly status: Prisma.FieldRef<"CrmAiDraftTask", 'CrmAiDraftTaskStatus'>
   readonly runVersion: Prisma.FieldRef<"CrmAiDraftTask", 'Int'>
   readonly bullJobId: Prisma.FieldRef<"CrmAiDraftTask", 'String'>
   readonly requestedCount: Prisma.FieldRef<"CrmAiDraftTask", 'Int'>

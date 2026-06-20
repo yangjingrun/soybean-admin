@@ -49,7 +49,7 @@ export type CrmAiDraftTaskItemMinAggregateOutputType = {
   accountId: string | null
   productLineId: string | null
   stepIndex: number | null
-  status: string | null
+  status: $Enums.CrmAiDraftTaskItemStatus | null
   attemptCount: number | null
   maxAttempts: number | null
   failureType: string | null
@@ -73,7 +73,7 @@ export type CrmAiDraftTaskItemMaxAggregateOutputType = {
   accountId: string | null
   productLineId: string | null
   stepIndex: number | null
-  status: string | null
+  status: $Enums.CrmAiDraftTaskItemStatus | null
   attemptCount: number | null
   maxAttempts: number | null
   failureType: string | null
@@ -296,7 +296,7 @@ export type CrmAiDraftTaskItemGroupByOutputType = {
   accountId: string | null
   productLineId: string | null
   stepIndex: number
-  status: string
+  status: $Enums.CrmAiDraftTaskItemStatus
   attemptCount: number
   maxAttempts: number
   failureType: string | null
@@ -344,7 +344,7 @@ export type CrmAiDraftTaskItemWhereInput = {
   accountId?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
   productLineId?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
   stepIndex?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
-  status?: Prisma.StringFilter<"CrmAiDraftTaskItem"> | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFilter<"CrmAiDraftTaskItem"> | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
   maxAttempts?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
   failureType?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
@@ -402,7 +402,7 @@ export type CrmAiDraftTaskItemWhereUniqueInput = Prisma.AtLeast<{
   accountId?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
   productLineId?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
   stepIndex?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
-  status?: Prisma.StringFilter<"CrmAiDraftTaskItem"> | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFilter<"CrmAiDraftTaskItem"> | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
   maxAttempts?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
   failureType?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
@@ -462,7 +462,7 @@ export type CrmAiDraftTaskItemScalarWhereWithAggregatesInput = {
   accountId?: Prisma.StringNullableWithAggregatesFilter<"CrmAiDraftTaskItem"> | string | null
   productLineId?: Prisma.StringNullableWithAggregatesFilter<"CrmAiDraftTaskItem"> | string | null
   stepIndex?: Prisma.IntWithAggregatesFilter<"CrmAiDraftTaskItem"> | number
-  status?: Prisma.StringWithAggregatesFilter<"CrmAiDraftTaskItem"> | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusWithAggregatesFilter<"CrmAiDraftTaskItem"> | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntWithAggregatesFilter<"CrmAiDraftTaskItem"> | number
   maxAttempts?: Prisma.IntWithAggregatesFilter<"CrmAiDraftTaskItem"> | number
   failureType?: Prisma.StringNullableWithAggregatesFilter<"CrmAiDraftTaskItem"> | string | null
@@ -485,7 +485,7 @@ export type CrmAiDraftTaskItemCreateInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -512,7 +512,7 @@ export type CrmAiDraftTaskItemUncheckedCreateInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -535,7 +535,7 @@ export type CrmAiDraftTaskItemUpdateInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -562,7 +562,7 @@ export type CrmAiDraftTaskItemUncheckedUpdateInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -587,7 +587,7 @@ export type CrmAiDraftTaskItemCreateManyInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -610,7 +610,7 @@ export type CrmAiDraftTaskItemUpdateManyMutationInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -635,7 +635,7 @@ export type CrmAiDraftTaskItemUncheckedUpdateManyInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -834,6 +834,10 @@ export type CrmAiDraftTaskItemUncheckedUpdateManyWithoutTaskNestedInput = {
   deleteMany?: Prisma.CrmAiDraftTaskItemScalarWhereInput | Prisma.CrmAiDraftTaskItemScalarWhereInput[]
 }
 
+export type EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput = {
+  set?: $Enums.CrmAiDraftTaskItemStatus
+}
+
 export type CrmAiDraftTaskItemCreateWithoutOrganizationInput = {
   id?: string
   ownerUserId: string
@@ -843,7 +847,7 @@ export type CrmAiDraftTaskItemCreateWithoutOrganizationInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -868,7 +872,7 @@ export type CrmAiDraftTaskItemUncheckedCreateWithoutOrganizationInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -922,7 +926,7 @@ export type CrmAiDraftTaskItemScalarWhereInput = {
   accountId?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
   productLineId?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
   stepIndex?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
-  status?: Prisma.StringFilter<"CrmAiDraftTaskItem"> | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFilter<"CrmAiDraftTaskItem"> | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
   maxAttempts?: Prisma.IntFilter<"CrmAiDraftTaskItem"> | number
   failureType?: Prisma.StringNullableFilter<"CrmAiDraftTaskItem"> | string | null
@@ -945,7 +949,7 @@ export type CrmAiDraftTaskItemCreateWithoutTaskInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -970,7 +974,7 @@ export type CrmAiDraftTaskItemUncheckedCreateWithoutTaskInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -1020,7 +1024,7 @@ export type CrmAiDraftTaskItemCreateManyOrganizationInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -1043,7 +1047,7 @@ export type CrmAiDraftTaskItemUpdateWithoutOrganizationInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1068,7 +1072,7 @@ export type CrmAiDraftTaskItemUncheckedUpdateWithoutOrganizationInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1092,7 +1096,7 @@ export type CrmAiDraftTaskItemUncheckedUpdateManyWithoutOrganizationInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1116,7 +1120,7 @@ export type CrmAiDraftTaskItemCreateManyTaskInput = {
   accountId?: string | null
   productLineId?: string | null
   stepIndex: number
-  status?: string
+  status?: $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: number
   maxAttempts?: number
   failureType?: string | null
@@ -1139,7 +1143,7 @@ export type CrmAiDraftTaskItemUpdateWithoutTaskInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1164,7 +1168,7 @@ export type CrmAiDraftTaskItemUncheckedUpdateWithoutTaskInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1188,7 +1192,7 @@ export type CrmAiDraftTaskItemUncheckedUpdateManyWithoutTaskInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   stepIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  status?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumCrmAiDraftTaskItemStatusFieldUpdateOperationsInput | $Enums.CrmAiDraftTaskItemStatus
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   maxAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   failureType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1341,7 +1345,7 @@ export type $CrmAiDraftTaskItemPayload<ExtArgs extends runtime.Types.Extensions.
     accountId: string | null
     productLineId: string | null
     stepIndex: number
-    status: string
+    status: $Enums.CrmAiDraftTaskItemStatus
     attemptCount: number
     maxAttempts: number
     failureType: string | null
@@ -1788,7 +1792,7 @@ export interface CrmAiDraftTaskItemFieldRefs {
   readonly accountId: Prisma.FieldRef<"CrmAiDraftTaskItem", 'String'>
   readonly productLineId: Prisma.FieldRef<"CrmAiDraftTaskItem", 'String'>
   readonly stepIndex: Prisma.FieldRef<"CrmAiDraftTaskItem", 'Int'>
-  readonly status: Prisma.FieldRef<"CrmAiDraftTaskItem", 'String'>
+  readonly status: Prisma.FieldRef<"CrmAiDraftTaskItem", 'CrmAiDraftTaskItemStatus'>
   readonly attemptCount: Prisma.FieldRef<"CrmAiDraftTaskItem", 'Int'>
   readonly maxAttempts: Prisma.FieldRef<"CrmAiDraftTaskItem", 'Int'>
   readonly failureType: Prisma.FieldRef<"CrmAiDraftTaskItem", 'String'>

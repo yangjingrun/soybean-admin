@@ -1,6 +1,10 @@
-export type CrmAiDraftTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+export const crmAiDraftTaskStatuses = ['queued', 'running', 'completed', 'failed', 'cancelled'] as const;
 
-export type CrmAiDraftTaskItemStatus = 'pending' | 'running' | 'retrying' | 'succeeded' | 'skipped' | 'failed';
+export type CrmAiDraftTaskStatus = (typeof crmAiDraftTaskStatuses)[number];
+
+export const crmAiDraftTaskItemStatuses = ['pending', 'running', 'retrying', 'succeeded', 'skipped', 'failed'] as const;
+
+export type CrmAiDraftTaskItemStatus = (typeof crmAiDraftTaskItemStatuses)[number];
 
 export type CrmAiDraftTaskItemFailureType = 'retryable' | 'business_skip' | 'fatal';
 

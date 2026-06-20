@@ -4247,6 +4247,62 @@ export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'CrmSequenceEnrollmentStatus'
+ */
+export type EnumCrmSequenceEnrollmentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmSequenceEnrollmentStatus'>
+
+
+
+/**
+ * Reference to a field of type 'CrmSequenceEnrollmentStatus[]'
+ */
+export type ListEnumCrmSequenceEnrollmentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmSequenceEnrollmentStatus[]'>
+
+
+
+/**
+ * Reference to a field of type 'CrmMessageStatus'
+ */
+export type EnumCrmMessageStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmMessageStatus'>
+
+
+
+/**
+ * Reference to a field of type 'CrmMessageStatus[]'
+ */
+export type ListEnumCrmMessageStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmMessageStatus[]'>
+
+
+
+/**
+ * Reference to a field of type 'CrmAiDraftTaskStatus'
+ */
+export type EnumCrmAiDraftTaskStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmAiDraftTaskStatus'>
+
+
+
+/**
+ * Reference to a field of type 'CrmAiDraftTaskStatus[]'
+ */
+export type ListEnumCrmAiDraftTaskStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmAiDraftTaskStatus[]'>
+
+
+
+/**
+ * Reference to a field of type 'CrmAiDraftTaskItemStatus'
+ */
+export type EnumCrmAiDraftTaskItemStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmAiDraftTaskItemStatus'>
+
+
+
+/**
+ * Reference to a field of type 'CrmAiDraftTaskItemStatus[]'
+ */
+export type ListEnumCrmAiDraftTaskItemStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CrmAiDraftTaskItemStatus[]'>
+
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -4257,6 +4313,34 @@ export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, '
  * Reference to a field of type 'Float[]'
  */
 export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+
+
+
+/**
+ * Reference to a field of type 'AiLeadSearchTaskStatus'
+ */
+export type EnumAiLeadSearchTaskStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AiLeadSearchTaskStatus'>
+
+
+
+/**
+ * Reference to a field of type 'AiLeadSearchTaskStatus[]'
+ */
+export type ListEnumAiLeadSearchTaskStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AiLeadSearchTaskStatus[]'>
+
+
+
+/**
+ * Reference to a field of type 'AiLeadSearchTaskQueryStatus'
+ */
+export type EnumAiLeadSearchTaskQueryStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AiLeadSearchTaskQueryStatus'>
+
+
+
+/**
+ * Reference to a field of type 'AiLeadSearchTaskQueryStatus[]'
+ */
+export type ListEnumAiLeadSearchTaskQueryStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AiLeadSearchTaskQueryStatus[]'>
 
 
 /**

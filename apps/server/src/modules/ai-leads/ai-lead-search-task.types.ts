@@ -1,8 +1,12 @@
 import type { RequestUserContext } from '../../shared/request-context';
 
-export type AiLeadSearchTaskStatus = 'queued' | 'running' | 'interrupted' | 'failed' | 'completed' | 'discarded';
+export const aiLeadSearchTaskStatuses = ['queued', 'running', 'interrupted', 'failed', 'completed', 'discarded'] as const;
 
-export type AiLeadSearchTaskQueryStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type AiLeadSearchTaskStatus = (typeof aiLeadSearchTaskStatuses)[number];
+
+export const aiLeadSearchTaskQueryStatuses = ['pending', 'running', 'completed', 'failed'] as const;
+
+export type AiLeadSearchTaskQueryStatus = (typeof aiLeadSearchTaskQueryStatuses)[number];
 
 export interface AiLeadSearchTaskRecord {
   id: string;

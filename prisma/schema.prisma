@@ -7,6 +7,58 @@ datasource db {
   provider = "postgresql"
 }
 
+enum AiLeadSearchTaskStatus {
+  queued
+  running
+  interrupted
+  failed
+  completed
+  discarded
+}
+
+enum AiLeadSearchTaskQueryStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+enum CrmSequenceEnrollmentStatus {
+  draft_review_pending
+  ready_to_send
+  sequence_running
+  paused
+  stopped
+  replied
+  archived
+}
+
+enum CrmMessageStatus {
+  draft_pending_review
+  draft_ready
+  queued
+  sent
+  failed
+  skipped
+}
+
+enum CrmAiDraftTaskStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum CrmAiDraftTaskItemStatus {
+  pending
+  running
+  retrying
+  succeeded
+  skipped
+  failed
+}
+
 model SystemLog {
   id           String   @id @default(uuid())
   level        String
@@ -517,7 +569,7 @@ model CrmSequenceEnrollment {
   mailboxId       String?
   policyId        String?
   name            String
-  status          String   @default("draft_review_pending")
+  status          CrmSequenceEnrollmentStatus @default(draft_review_pending)
   currentStep     Int      @default(1)
   totalSteps      Int      @default(5)
   runVersion      Int      @default(1)
@@ -556,7 +608,7 @@ model CrmMessage {
   threadMode     String    @default("new_subject")
   subject        String
   bodyText       String
-  status         String    @default("draft_pending_review")
+  status         CrmMessageStatus @default(draft_pending_review)
   scheduledAt    DateTime?
   sentAt         DateTime?
   bullJobId      String?
@@ -693,7 +745,7 @@ model CrmAiDraftTask {
   organizationRole       String?
   ownerUserId            String
   ownerUserName          String?
-  status                 String   @default("queued")
+  status                 CrmAiDraftTaskStatus @default(queued)
   runVersion             Int      @default(1)
   bullJobId              String?
   requestedCount         Int
@@ -732,7 +784,7 @@ model CrmAiDraftTaskItem {
   accountId      String?
   productLineId  String?
   stepIndex      Int
-  status         String   @default("pending")
+  status         CrmAiDraftTaskItemStatus @default(pending)
   attemptCount   Int      @default(0)
   maxAttempts    Int      @default(3)
   failureType    String?
@@ -838,7 +890,7 @@ model AiLeadSearchTask {
   requirement     String
   targetLeadCount Int
   keywordPlan     Json
-  status          String   @default("queued")
+  status          AiLeadSearchTaskStatus @default(queued)
   priority        Int      @default(0)
   runVersion      Int      @default(1)
   progressState   Json?
@@ -868,7 +920,7 @@ model AiLeadSearchTaskQuery {
   requestKey   String
   endpoint     String
   requestBody  Json
-  status       String   @default("pending")
+  status       AiLeadSearchTaskQueryStatus @default(pending)
   result       Json?
   errorMessage String?
   orderIndex   Int
