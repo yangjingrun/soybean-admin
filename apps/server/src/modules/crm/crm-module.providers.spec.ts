@@ -18,6 +18,7 @@ import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence
 import { PrismaCrmAccountStore } from './store/prisma-crm-account.store';
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
+import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
 import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
@@ -69,6 +70,7 @@ describe('crmRepositoryProviders', () => {
       [CRM_MAILBOX_REPOSITORY, PrismaCrmMailboxStore],
       [CRM_SEQUENCE_POLICY_REPOSITORY, PrismaCrmSequencePolicyStore],
       [CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY, PrismaCrmEmailTemplateGroupStore],
+      [CRM_INBOX_REPOSITORY, PrismaCrmInboxStore],
       [CRM_DASHBOARD_REPOSITORY, PrismaCrmDashboardStore]
     ]);
 

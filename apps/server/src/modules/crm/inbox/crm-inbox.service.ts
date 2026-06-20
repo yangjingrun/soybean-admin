@@ -8,7 +8,12 @@ import { normalizeCrmProductLineAiWritingConfig } from '../crm-ai-draft-prompt';
 import { CrmAiReplyDraftService } from '../crm-ai-reply-draft.service';
 import type { CrmAiReplyDraftPromptInput } from '../crm-ai-reply-draft.types';
 import { classifyCustomerReplyMessage } from '../crm-inbox-message-classifier';
-import { CRM_EMAIL_SEND_GATEWAY, CRM_INBOX_REPOSITORY } from '../crm.tokens';
+import {
+  CRM_EMAIL_SEND_GATEWAY,
+  CRM_INBOX_REPOSITORY,
+  CRM_SEQUENCE_REPOSITORY,
+  CRM_SETTINGS_REPOSITORY
+} from '../crm.tokens';
 import type {
   CrmAccountRecord,
   CrmContactRecord,
@@ -21,6 +26,10 @@ import type {
   CrmProductLineRecord,
   CrmUserContext
 } from '../crm.types';
+import type { CrmProductLineRepository } from '../product-lines/crm-product-line.repository';
+import { CRM_PRODUCT_LINE_REPOSITORY } from '../product-lines/crm-product-line.repository';
+import type { CrmSequenceRepository } from '../sequence/crm-sequence.repository';
+import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeLimitedContent, normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
 import { createCrmOwnerFilter } from '../shared/crm-scope';
@@ -46,10 +55,26 @@ const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
 
+/** Minimal settings reads needed to render inbox views. */
+type CrmInboxSettingsReader = Pick<CrmSettingsRepository, 'getOrganizationConfig'>;
+
+/** Minimal product-line lookup needed for inbox reply drafting. */
+type CrmInboxProductLineReader = Pick<CrmProductLineRepository, 'findProductLineById'>;
+
+/** Minimal message lookup needed for reply ingest simulation. */
+type CrmInboxMessageReader = Pick<CrmSequenceRepository, 'findMessageById'>;
+
 @Injectable()
 export class CrmInboxService {
   constructor(
-    @Inject(CRM_INBOX_REPOSITORY) private readonly inboxRepository: CrmInboxRepository,
+    @Inject(CRM_INBOX_REPOSITORY)
+    private readonly inboxRepository: CrmInboxRepository,
+    @Inject(CRM_SETTINGS_REPOSITORY)
+    private readonly settingsRepository: CrmInboxSettingsReader,
+    @Inject(CRM_PRODUCT_LINE_REPOSITORY)
+    private readonly productLineRepository: CrmInboxProductLineReader,
+    @Inject(CRM_SEQUENCE_REPOSITORY)
+    private readonly sequenceRepository: CrmInboxMessageReader,
     @Optional()
     @Inject(SystemLogService)
     private readonly systemLogService?: SystemLogRecorder,
@@ -82,7 +107,7 @@ export class CrmInboxService {
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
     const mailboxId = normalizeNullableString(query.mailboxId);
-    const organizationConfig = await this.inboxRepository.getOrganizationConfig(context.organizationId);
+    const organizationConfig = await this.settingsRepository.getOrganizationConfig(context.organizationId);
     const result = await this.inboxRepository.listInboxThreads({
       organizationId: context.organizationId,
       ...createCrmOwnerFilter(context),
@@ -113,7 +138,7 @@ export class CrmInboxService {
       throw new NotFoundException('收件箱会话不存在');
     }
 
-    const organizationConfig = await this.inboxRepository.getOrganizationConfig(context.organizationId);
+    const organizationConfig = await this.settingsRepository.getOrganizationConfig(context.organizationId);
     const detail = toInboxThreadDetailView(thread, context, organizationConfig);
     await this.recordSuperAdminInboxBodyAudit(thread, detail.messages.length, context);
 
@@ -151,7 +176,7 @@ export class CrmInboxService {
       riskNoteCount: draft.riskNotes.length
     });
 
-    const organizationConfig = await this.inboxRepository.getOrganizationConfig(context.organizationId);
+    const organizationConfig = await this.settingsRepository.getOrganizationConfig(context.organizationId);
 
     return toInboxThreadDetailView(saved, context, organizationConfig);
   }
@@ -177,7 +202,7 @@ export class CrmInboxService {
       threadId: saved.thread.id
     });
 
-    const organizationConfig = await this.inboxRepository.getOrganizationConfig(context.organizationId);
+    const organizationConfig = await this.settingsRepository.getOrganizationConfig(context.organizationId);
 
     return toInboxThreadDetailView(saved, context, organizationConfig);
   }
@@ -292,7 +317,7 @@ export class CrmInboxService {
       organizationId: context.organizationId,
       ownerUserId: context.userId
     });
-    const organizationConfig = await this.inboxRepository.getOrganizationConfig(context.organizationId);
+    const organizationConfig = await this.settingsRepository.getOrganizationConfig(context.organizationId);
 
     return nextDetail
       ? toInboxThreadDetailView(nextDetail, context, organizationConfig)
@@ -309,7 +334,7 @@ export class CrmInboxService {
     },
     context: CrmUserContext
   ) {
-    const outboundMessage = await this.inboxRepository.findMessageById({
+    const outboundMessage = await this.sequenceRepository.findMessageById({
       id: outboundMessageId,
       organizationId: context.organizationId,
       ownerUserId: context.userId
@@ -358,9 +383,11 @@ export class CrmInboxService {
       organizationId: context.organizationId,
       ownerUserId: context.userId
     });
-    const organizationConfig = await this.inboxRepository.getOrganizationConfig(context.organizationId);
+    const organizationConfig = await this.settingsRepository.getOrganizationConfig(context.organizationId);
 
-    return detail ? toInboxThreadDetailView(detail, context, organizationConfig) : toInboxReplyIngestView(ingested, context);
+    return detail
+      ? toInboxThreadDetailView(detail, context, organizationConfig)
+      : toInboxReplyIngestView(ingested, context);
   }
 
   /** Confirms a weak unsubscribe signal and applies the blacklist transaction for the owner. */
@@ -460,7 +487,7 @@ export class CrmInboxService {
       return null;
     }
 
-    const productLine = await this.inboxRepository.findProductLineById({
+    const productLine = await this.productLineRepository.findProductLineById({
       id: normalizedProductLineId,
       organizationId: context.organizationId
     });

@@ -1,16 +1,41 @@
-import type { CrmStore } from '../crm.types';
+import type {
+  CrmCustomerReplyIngestInput,
+  CrmCustomerReplyIngestRecord,
+  CrmInboxReplyDraftSaveInput,
+  CrmInboxThreadDetailRecord,
+  CrmInboxThreadGmailStateSyncInput,
+  CrmInboxThreadListRecord,
+  CrmInboxThreadReplyInput,
+  CrmInboxThreadReplyRecord,
+  CrmInboxThreadStatus,
+  CrmInboxThreadStatusUpdateInput,
+  CrmInboxThreadStatusUpdateRecord,
+  CrmInboxUnsubscribeConfirmInput,
+  CrmInboxUnsubscribeConfirmRecord
+} from '../crm.types';
 
-export type CrmInboxRepository = Pick<
-  CrmStore,
-  | 'getOrganizationConfig'
-  | 'findProductLineById'
-  | 'findMessageById'
-  | 'ingestCustomerReply'
-  | 'listInboxThreads'
-  | 'getInboxThread'
-  | 'updateInboxThreadStatus'
-  | 'syncInboxThreadGmailState'
-  | 'confirmInboxMessageUnsubscribe'
-  | 'saveInboxThreadReplyDraft'
-  | 'replyInboxThread'
->;
+/** Narrow persistence contract for CRM inbox workflows only. */
+export interface CrmInboxRepository {
+  ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null>;
+  listInboxThreads(args: {
+    organizationId: string;
+    ownerUserId?: string;
+    keyword?: string;
+    status?: CrmInboxThreadStatus;
+    mailboxId?: string;
+    skip: number;
+    take: number;
+  }): Promise<{ records: CrmInboxThreadListRecord[]; total: number }>;
+  getInboxThread(args: {
+    id: string;
+    organizationId: string;
+    ownerUserId?: string;
+  }): Promise<CrmInboxThreadDetailRecord | null>;
+  updateInboxThreadStatus(input: CrmInboxThreadStatusUpdateInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
+  syncInboxThreadGmailState(input: CrmInboxThreadGmailStateSyncInput): Promise<CrmInboxThreadStatusUpdateRecord | null>;
+  confirmInboxMessageUnsubscribe(
+    input: CrmInboxUnsubscribeConfirmInput
+  ): Promise<CrmInboxUnsubscribeConfirmRecord | null>;
+  saveInboxThreadReplyDraft(input: CrmInboxReplyDraftSaveInput): Promise<CrmInboxThreadDetailRecord | null>;
+  replyInboxThread(input: CrmInboxThreadReplyInput): Promise<CrmInboxThreadReplyRecord | null>;
+}

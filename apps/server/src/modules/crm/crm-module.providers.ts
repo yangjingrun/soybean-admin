@@ -31,7 +31,6 @@ import { CrmSequenceController } from './controllers/crm-sequence.controller';
 import { CrmSettingsController } from './controllers/crm-settings.controller';
 import { CrmDashboardService } from './dashboard/crm-dashboard.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
-import { LegacyCrmInboxRepository } from './inbox/legacy-crm-inbox.repository';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CRM_PERSONA_PROFILE_REPOSITORY } from './persona-profiles/crm-persona-profile.repository';
 import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
@@ -79,6 +78,7 @@ import {
 import { PrismaCrmAccountStore } from './store/prisma-crm-account.store';
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
+import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
 import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
@@ -194,7 +194,7 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_INBOX_REPOSITORY,
-    useClass: LegacyCrmInboxRepository
+    useClass: PrismaCrmInboxStore
   },
   {
     provide: CRM_DASHBOARD_REPOSITORY,

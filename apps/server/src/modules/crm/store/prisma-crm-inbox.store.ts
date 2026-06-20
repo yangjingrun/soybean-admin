@@ -1,5 +1,7 @@
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import type { CrmInboxRepository } from '../inbox/crm-inbox.repository';
 import type {
   CrmCustomerReplyIngestInput,
   CrmCustomerReplyIngestRecord,
@@ -35,7 +37,8 @@ import {
   toTimelineEventRecord
 } from './prisma-crm-store.helpers';
 
-export class PrismaCrmInboxStore {
+@Injectable()
+export class PrismaCrmInboxStore implements CrmInboxRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null> {
