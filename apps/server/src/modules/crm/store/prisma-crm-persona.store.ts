@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
   toPersonaProfileCreateInput,
@@ -10,8 +11,10 @@ import type {
   CrmPersonaProfileListInput,
   CrmPersonaProfileUpdateInput
 } from '../crm.types';
+import type { CrmPersonaProfileRepository } from '../persona-profiles/crm-persona-profile.repository';
 
-export class PrismaCrmPersonaStore {
+@Injectable()
+export class PrismaCrmPersonaStore implements CrmPersonaProfileRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listPersonaProfiles(input: CrmPersonaProfileListInput) {

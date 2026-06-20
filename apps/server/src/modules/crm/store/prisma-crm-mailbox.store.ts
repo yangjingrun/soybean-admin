@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -16,8 +17,10 @@ import type {
   CrmMailboxUpdateInput,
   CrmMailboxWatchRenewalListInput
 } from '../crm.types';
+import type { CrmMailboxRepository } from '../mailbox/crm-mailbox.repository';
 
-export class PrismaCrmMailboxStore {
+@Injectable()
+export class PrismaCrmMailboxStore implements CrmMailboxRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findMailboxByProviderAndEmailHash(provider: CrmMailboxProvider, emailHash: string) {

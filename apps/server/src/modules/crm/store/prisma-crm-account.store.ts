@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -25,8 +26,10 @@ import type {
   CrmEmailVerificationCacheUpsertInput,
   CrmTimelineEventCreateInput
 } from '../crm.types';
+import type { CrmAccountRepository } from '../accounts/crm-account.repository';
 
-export class PrismaCrmAccountStore {
+@Injectable()
+export class PrismaCrmAccountStore implements CrmAccountRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string) {

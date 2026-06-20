@@ -24,21 +24,17 @@ import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { LegacyCrmAiDraftTaskRepository } from './ai-draft-task/legacy-crm-ai-draft-task.repository';
-import { LegacyCrmAccountRepository } from './accounts/legacy-crm-account.repository';
 import { CrmAccountController } from './controllers/crm-account.controller';
 import { CrmInboxController } from './controllers/crm-inbox.controller';
 import { CrmMailboxController } from './controllers/crm-mailbox.controller';
 import { CrmSequenceController } from './controllers/crm-sequence.controller';
 import { CrmSettingsController } from './controllers/crm-settings.controller';
 import { CrmDashboardService } from './dashboard/crm-dashboard.service';
-import { LegacyCrmDashboardRepository } from './dashboard/legacy-crm-dashboard.repository';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { LegacyCrmInboxRepository } from './inbox/legacy-crm-inbox.repository';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
-import { LegacyCrmMailboxRepository } from './mailbox/legacy-crm-mailbox.repository';
 import { CRM_PERSONA_PROFILE_REPOSITORY } from './persona-profiles/crm-persona-profile.repository';
 import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
-import { LegacyCrmPersonaProfileRepository } from './persona-profiles/legacy-crm-persona-profile.repository';
 import { CRM_PRODUCT_LINE_REPOSITORY } from './product-lines/crm-product-line.repository';
 import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
@@ -56,15 +52,11 @@ import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { LegacyCrmSequenceRepository } from './sequence/legacy-crm-sequence.repository';
 import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence-policy.repository';
 import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
-import { LegacyCrmSequencePolicyRepository } from './sequence-policies/legacy-crm-sequence-policy.repository';
 import { CrmSettingsService } from './settings/crm-settings.service';
-import { LegacyCrmSettingsRepository } from './settings/legacy-crm-settings.repository';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
-import { LegacyCrmSuppressionRepository } from './suppression/legacy-crm-suppression.repository';
 import { CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY } from './template-groups/crm-email-template-group.repository';
 import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
-import { LegacyCrmEmailTemplateGroupRepository } from './template-groups/legacy-crm-email-template-group.repository';
 import {
   CRM_ACCOUNT_REPOSITORY,
   CRM_AI_DRAFT_TASK_QUEUE,
@@ -84,8 +76,16 @@ import {
   CRM_STORE,
   CRM_SUPPRESSION_REPOSITORY
 } from './crm.tokens';
+import { PrismaCrmAccountStore } from './store/prisma-crm-account.store';
+import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
+import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
+import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
+import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
 import { PrismaCrmProductLineStore } from './store/prisma-crm-product-line.store';
+import { PrismaCrmSequencePolicyStore } from './store/prisma-crm-sequence-policy.store';
+import { PrismaCrmSettingsStore } from './store/prisma-crm-settings.store';
 import { PrismaCrmStore } from './store/prisma-crm.store';
+import { PrismaCrmSuppressionStore } from './store/prisma-crm-suppression.store';
 
 export const crmControllers = [
   CrmAccountController,
@@ -154,11 +154,11 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_ACCOUNT_REPOSITORY,
-    useClass: LegacyCrmAccountRepository
+    useClass: PrismaCrmAccountStore
   },
   {
     provide: CRM_SETTINGS_REPOSITORY,
-    useClass: LegacyCrmSettingsRepository
+    useClass: PrismaCrmSettingsStore
   },
   {
     provide: CRM_PRODUCT_LINE_REPOSITORY,
@@ -166,15 +166,15 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_PERSONA_PROFILE_REPOSITORY,
-    useClass: LegacyCrmPersonaProfileRepository
+    useClass: PrismaCrmPersonaStore
   },
   {
     provide: CRM_SUPPRESSION_REPOSITORY,
-    useClass: LegacyCrmSuppressionRepository
+    useClass: PrismaCrmSuppressionStore
   },
   {
     provide: CRM_MAILBOX_REPOSITORY,
-    useClass: LegacyCrmMailboxRepository
+    useClass: PrismaCrmMailboxStore
   },
   {
     provide: CRM_SEQUENCE_REPOSITORY,
@@ -186,11 +186,11 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_SEQUENCE_POLICY_REPOSITORY,
-    useClass: LegacyCrmSequencePolicyRepository
+    useClass: PrismaCrmSequencePolicyStore
   },
   {
     provide: CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY,
-    useClass: LegacyCrmEmailTemplateGroupRepository
+    useClass: PrismaCrmEmailTemplateGroupStore
   },
   {
     provide: CRM_INBOX_REPOSITORY,
@@ -198,7 +198,7 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_DASHBOARD_REPOSITORY,
-    useClass: LegacyCrmDashboardRepository
+    useClass: PrismaCrmDashboardStore
   }
 ];
 

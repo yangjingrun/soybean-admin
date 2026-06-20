@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
   toSequencePolicyCreateInput,
@@ -10,8 +11,10 @@ import type {
   CrmSequencePolicyListInput,
   CrmSequencePolicyUpdateInput
 } from '../crm.types';
+import type { CrmSequencePolicyRepository } from '../sequence-policies/crm-sequence-policy.repository';
 
-export class PrismaCrmSequencePolicyStore {
+@Injectable()
+export class PrismaCrmSequencePolicyStore implements CrmSequencePolicyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listSequencePolicies(input: CrmSequencePolicyListInput) {

@@ -1,8 +1,11 @@
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { toBlacklistListWhere, toBlacklistRecord, toUniqueStrings } from './prisma-crm-store.helpers';
 import type { CrmBlacklistDeleteInput, CrmBlacklistListInput, CrmBlacklistUpsertInput } from '../crm.types';
+import type { CrmSuppressionRepository } from '../suppression/crm-suppression.repository';
 
-export class PrismaCrmSuppressionStore {
+@Injectable()
+export class PrismaCrmSuppressionStore implements CrmSuppressionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findBlacklistEntry(args: { organizationId: string; emailHash: string }) {

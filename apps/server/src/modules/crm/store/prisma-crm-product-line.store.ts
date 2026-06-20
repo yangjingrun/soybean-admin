@@ -16,9 +16,10 @@ import type {
   CrmProductLineStatus,
   CrmProductLineUpdateInput
 } from '../crm.types';
+import type { CrmProductLineRepository } from '../product-lines/crm-product-line.repository';
 
 @Injectable()
-export class PrismaCrmProductLineStore {
+export class PrismaCrmProductLineStore implements CrmProductLineRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listProductLines(args: {

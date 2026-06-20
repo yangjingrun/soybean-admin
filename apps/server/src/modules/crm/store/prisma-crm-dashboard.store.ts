@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -23,8 +24,10 @@ import type {
   CrmStrategyStatsRecord,
   CrmWorkbenchOverviewRecord
 } from '../crm.types';
+import type { CrmDashboardRepository } from '../dashboard/crm-dashboard.repository';
 
-export class PrismaCrmDashboardStore {
+@Injectable()
+export class PrismaCrmDashboardStore implements CrmDashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async getWorkbenchOverview(args: {
