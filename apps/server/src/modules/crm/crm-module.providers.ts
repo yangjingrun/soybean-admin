@@ -63,6 +63,7 @@ import {
   CRM_EMAIL_DNS_RESOLVER,
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_HISTORY_GATEWAY,
+  CRM_GMAIL_HISTORY_SYNC_REPOSITORY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
   CRM_GMAIL_OAUTH_FLOW,
   CRM_GMAIL_WATCH_GATEWAY,
@@ -84,6 +85,7 @@ import { PrismaCrmAiDraftTaskSourceStore } from './store/prisma-crm-ai-draft-tas
 import { PrismaCrmAiDraftTaskStore } from './store/prisma-crm-ai-draft-task.store';
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
+import { PrismaCrmGmailHistorySyncStore } from './store/prisma-crm-gmail-history-sync.store';
 import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
@@ -231,6 +233,10 @@ export const crmRepositoryProviders: Provider[] = [
   {
     provide: CRM_INBOX_REPOSITORY,
     useClass: PrismaCrmInboxStore
+  },
+  {
+    provide: CRM_GMAIL_HISTORY_SYNC_REPOSITORY,
+    useClass: PrismaCrmGmailHistorySyncStore
   },
   {
     provide: CRM_DASHBOARD_REPOSITORY,

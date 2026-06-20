@@ -5,6 +5,7 @@ import {
   CRM_AI_DRAFT_TASK_REPOSITORY,
   CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY,
   CRM_DASHBOARD_REPOSITORY,
+  CRM_GMAIL_HISTORY_SYNC_REPOSITORY,
   CRM_INBOX_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
   CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
@@ -26,6 +27,7 @@ import { PrismaCrmAiDraftTaskSourceStore } from './store/prisma-crm-ai-draft-tas
 import { PrismaCrmAiDraftTaskStore } from './store/prisma-crm-ai-draft-task.store';
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
+import { PrismaCrmGmailHistorySyncStore } from './store/prisma-crm-gmail-history-sync.store';
 import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
@@ -59,6 +61,7 @@ const domainRepositoryTokens = [
   CRM_SEQUENCE_POLICY_REPOSITORY,
   CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY,
   CRM_INBOX_REPOSITORY,
+  CRM_GMAIL_HISTORY_SYNC_REPOSITORY,
   CRM_DASHBOARD_REPOSITORY
 ];
 
@@ -99,6 +102,7 @@ describe('crmRepositoryProviders', () => {
       [CRM_SEQUENCE_POLICY_REPOSITORY, PrismaCrmSequencePolicyStore],
       [CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY, PrismaCrmEmailTemplateGroupStore],
       [CRM_INBOX_REPOSITORY, PrismaCrmInboxStore],
+      [CRM_GMAIL_HISTORY_SYNC_REPOSITORY, PrismaCrmGmailHistorySyncStore],
       [CRM_DASHBOARD_REPOSITORY, PrismaCrmDashboardStore]
     ]);
 

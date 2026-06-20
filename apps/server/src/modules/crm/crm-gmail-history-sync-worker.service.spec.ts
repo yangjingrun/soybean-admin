@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CrmGmailHistoryExpiredError } from './crm-gmail-history.gateway';
+import type { CrmGmailHistorySyncRepository } from './crm-gmail-history-sync.repository';
 import { CrmGmailHistorySyncWorkerService } from './crm-gmail-history-sync-worker.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type {
@@ -9,9 +10,16 @@ import type {
   CrmMailboxAuthorizationExpiredInput,
   CrmMailboxHistoryAdvanceInput,
   CrmMailboxRecord,
-  CrmMessageRecord,
-  CrmStore
+  CrmMessageRecord
 } from './crm.types';
+
+type GmailHistorySyncReplyIngestResult = Awaited<
+  ReturnType<CrmGmailHistorySyncRepository['ingestCustomerReply']>
+>;
+type GmailHistorySyncTimelineEvent = Awaited<ReturnType<CrmGmailHistorySyncRepository['createTimelineEvent']>>;
+type GmailHistorySyncThreadStatusUpdate = NonNullable<
+  Awaited<ReturnType<CrmGmailHistorySyncRepository['syncInboxThreadGmailState']>>
+>;
 
 describe('CrmGmailHistorySyncWorkerService', () => {
   it('lists Gmail history and advances the mailbox checkpoint', async () => {
@@ -153,7 +161,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
   it('keeps the checkpoint and notifies the owner when Gmail history checkpoint expired', async () => {
     const mailbox = createMailbox({ lastHistoryId: '100' });
     const advanceCalls: CrmMailboxHistoryAdvanceInput[] = [];
-    const updateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
+    const updateCalls: Array<{ id: string; input: Parameters<CrmGmailHistorySyncRepository['updateMailbox']>[1] }> = [];
     const logs = createLogRecorder();
     const notifications = createNotificationRecorder();
     const service = new CrmGmailHistorySyncWorkerService(
@@ -269,7 +277,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
 
   it('ingests Gmail messages that reply to known sent provider messages', async () => {
     const mailbox = createMailbox({ lastHistoryId: '100' });
-    const ingested: Parameters<CrmStore['ingestCustomerReply']>[0][] = [];
+    const ingested: Parameters<CrmGmailHistorySyncRepository['ingestCustomerReply']>[0][] = [];
     const service = new CrmGmailHistorySyncWorkerService(
       createStore({
         mailbox,
@@ -280,7 +288,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
         async ingestCustomerReply(input) {
           ingested.push(input);
 
-          return { isDuplicate: false } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+          return { isDuplicate: false } as GmailHistorySyncReplyIngestResult;
         }
       }),
       {
@@ -345,7 +353,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
       mailboxId: string | null;
       providerThreadId: string;
     }> = [];
-    const ingested: Parameters<CrmStore['ingestCustomerReply']>[0][] = [];
+    const ingested: Parameters<CrmGmailHistorySyncRepository['ingestCustomerReply']>[0][] = [];
     const service = new CrmGmailHistorySyncWorkerService(
       createStore({
         mailbox,
@@ -376,7 +384,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
         async ingestCustomerReply(input) {
           ingested.push(input);
 
-          return { isDuplicate: false } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+          return { isDuplicate: false } as GmailHistorySyncReplyIngestResult;
         }
       }),
       {
@@ -453,7 +461,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
           return { ...mailbox, lastHistoryId: input.toHistoryId };
         },
         async ingestCustomerReply() {
-          return { isDuplicate: true } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+          return { isDuplicate: true } as GmailHistorySyncReplyIngestResult;
         }
       }),
       {
@@ -499,8 +507,8 @@ describe('CrmGmailHistorySyncWorkerService', () => {
 
   it('records external Gmail sent replies on the CRM timeline without ingesting them as customer replies', async () => {
     const mailbox = createMailbox({ lastHistoryId: '100' });
-    const timelineEvents: Parameters<CrmStore['createTimelineEvent']>[0][] = [];
-    const ingested: Parameters<CrmStore['ingestCustomerReply']>[0][] = [];
+    const timelineEvents: Parameters<CrmGmailHistorySyncRepository['createTimelineEvent']>[0][] = [];
+    const ingested: Parameters<CrmGmailHistorySyncRepository['ingestCustomerReply']>[0][] = [];
     const service = new CrmGmailHistorySyncWorkerService(
       createStore({
         mailbox,
@@ -520,7 +528,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
         async ingestCustomerReply(input) {
           ingested.push(input);
 
-          return { isDuplicate: false } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+          return { isDuplicate: false } as GmailHistorySyncReplyIngestResult;
         }
       }),
       {
@@ -575,7 +583,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
       changeType: string;
       labelIds: string[];
     }> = [];
-    const ingested: Parameters<CrmStore['ingestCustomerReply']>[0][] = [];
+    const ingested: Parameters<CrmGmailHistorySyncRepository['ingestCustomerReply']>[0][] = [];
     const service = new CrmGmailHistorySyncWorkerService(
       createStore({
         mailbox,
@@ -590,7 +598,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
         async ingestCustomerReply(input) {
           ingested.push(input);
 
-          return { isDuplicate: false } as Awaited<ReturnType<CrmStore['ingestCustomerReply']>>;
+          return { isDuplicate: false } as GmailHistorySyncReplyIngestResult;
         }
       }),
       {
@@ -693,10 +701,15 @@ function createStore(options: {
   }) => Promise<CrmMessageRecord | null>;
   markMailboxAuthorizationExpired?: (
     input: CrmMailboxAuthorizationExpiredInput
-  ) => ReturnType<CrmStore['markMailboxAuthorizationExpired']>;
-  updateMailbox?: (id: string, input: Parameters<CrmStore['updateMailbox']>[1]) => ReturnType<CrmStore['updateMailbox']>;
+  ) => ReturnType<CrmGmailHistorySyncRepository['markMailboxAuthorizationExpired']>;
+  updateMailbox?: (
+    id: string,
+    input: Parameters<CrmGmailHistorySyncRepository['updateMailbox']>[1]
+  ) => ReturnType<CrmGmailHistorySyncRepository['updateMailbox']>;
   advanceMailboxHistoryId?: (input: CrmMailboxHistoryAdvanceInput) => Promise<CrmMailboxRecord | null>;
-  createTimelineEvent?: (input: Parameters<CrmStore['createTimelineEvent']>[0]) => ReturnType<CrmStore['createTimelineEvent']>;
+  createTimelineEvent?: (
+    input: Parameters<CrmGmailHistorySyncRepository['createTimelineEvent']>[0]
+  ) => ReturnType<CrmGmailHistorySyncRepository['createTimelineEvent']>;
   syncInboxThreadGmailState?: (input: {
     organizationId: string;
     ownerUserId: string;
@@ -705,8 +718,10 @@ function createStore(options: {
     providerMessageId: string;
     changeType: string;
     labelIds: string[];
-  }) => Promise<Awaited<ReturnType<CrmStore['updateInboxThreadStatus']>> | null>;
-  ingestCustomerReply?: (input: Parameters<CrmStore['ingestCustomerReply']>[0]) => ReturnType<CrmStore['ingestCustomerReply']>;
+  }) => ReturnType<CrmGmailHistorySyncRepository['syncInboxThreadGmailState']>;
+  ingestCustomerReply?: (
+    input: Parameters<CrmGmailHistorySyncRepository['ingestCustomerReply']>[0]
+  ) => ReturnType<CrmGmailHistorySyncRepository['ingestCustomerReply']>;
 }) {
   const sentMessages = options.sentMessages ?? (options.sentMessage ? [options.sentMessage] : []);
 
@@ -764,7 +779,7 @@ function createStore(options: {
       return options.ingestCustomerReply ? options.ingestCustomerReply(input) : null;
     }
   } as Pick<
-    CrmStore,
+    CrmGmailHistorySyncRepository,
     | 'findMailboxById'
     | 'findSentMessageByProviderId'
     | 'findSentMessageByProviderThreadId'
@@ -774,7 +789,7 @@ function createStore(options: {
     | 'createTimelineEvent'
     | 'syncInboxThreadGmailState'
     | 'ingestCustomerReply'
-  > as CrmStore;
+  > as CrmGmailHistorySyncRepository;
 }
 
 function createJob(input: Partial<CrmGmailHistorySyncQueueJob> = {}): CrmGmailHistorySyncQueueJob {
@@ -841,9 +856,7 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
   };
 }
 
-function createTimelineEvent(
-  input: Partial<Awaited<ReturnType<CrmStore['createTimelineEvent']>>> = {}
-): Awaited<ReturnType<CrmStore['createTimelineEvent']>> {
+function createTimelineEvent(input: Partial<GmailHistorySyncTimelineEvent> = {}): GmailHistorySyncTimelineEvent {
   return {
     id: 'timeline-event-1',
     organizationId: input.organizationId ?? 'org-1',
@@ -858,7 +871,7 @@ function createTimelineEvent(
   };
 }
 
-function createInboxThreadStatusUpdate(): Awaited<ReturnType<CrmStore['updateInboxThreadStatus']>> {
+function createInboxThreadStatusUpdate(): GmailHistorySyncThreadStatusUpdate {
   return {
     thread: {
       id: 'inbox-thread-1',

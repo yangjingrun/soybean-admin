@@ -3,7 +3,8 @@ import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmGmailHistoryExpiredError } from './crm-gmail-history.gateway';
-import { CRM_GMAIL_HISTORY_GATEWAY, CRM_STORE } from './crm.tokens';
+import type { CrmGmailHistorySyncRepository } from './crm-gmail-history-sync.repository';
+import { CRM_GMAIL_HISTORY_GATEWAY, CRM_GMAIL_HISTORY_SYNC_REPOSITORY } from './crm.tokens';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type {
   CrmGmailHistoryGateway,
@@ -13,8 +14,7 @@ import type {
   CrmGmailHistorySyncQueueJob,
   CrmGmailHistorySyncResult,
   CrmMailboxRecord,
-  CrmMessageRecord,
-  CrmStore
+  CrmMessageRecord
 } from './crm.types';
 
 type RecoveredCrmGmailHistoryResult = CrmGmailHistoryListResult & { historyExpired?: boolean };
@@ -22,7 +22,7 @@ type RecoveredCrmGmailHistoryResult = CrmGmailHistoryListResult & { historyExpir
 @Injectable()
 export class CrmGmailHistorySyncWorkerService {
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_GMAIL_HISTORY_SYNC_REPOSITORY) private readonly store: CrmGmailHistorySyncRepository,
     @Inject(CRM_GMAIL_HISTORY_GATEWAY) private readonly gmailHistoryGateway: CrmGmailHistoryGateway,
     @Optional()
     @Inject(SystemLogService)
