@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { loadAppConfig } from '../app-config/app-config.loader';
 import type { SystemLogRecordInput } from '../system-log/system-log.types';
+import type { CrmArchiveSlimmingRepository } from './crm-archive-slimming.repository';
 import { CrmArchiveSlimmingService } from './crm-archive-slimming.service';
-import type { CrmAccountRecord, CrmStore } from './crm.types';
+import type { CrmAccountRecord } from './crm.types';
 
 describe('CrmArchiveSlimmingService', () => {
   it('slims archived accounts after the recovery window', async () => {
@@ -20,7 +21,7 @@ describe('CrmArchiveSlimmingService', () => {
       ]
     });
     const logger = createLogRecorder();
-    const service = new CrmArchiveSlimmingService(store as never, logger);
+    const service = new CrmArchiveSlimmingService(store, logger);
 
     const result = await service.slimDueArchivedAccounts(new Date('2026-06-19T00:00:00.000Z'));
 
@@ -82,19 +83,21 @@ describe('CrmArchiveSlimmingService', () => {
 
 function createStore(options: { dueAccounts?: CrmAccountRecord[] } = {}) {
   const accounts = [...(options.dueAccounts ?? [])];
-  const listCalls: Array<Parameters<CrmStore['listAccountsForArchiveSlimming']>[0]> = [];
-  const slimCalls: Array<Parameters<CrmStore['slimArchivedAccount']>[0]> = [];
+  const listCalls: Array<Parameters<CrmArchiveSlimmingRepository['listAccountsForArchiveSlimming']>[0]> = [];
+  const slimCalls: Array<Parameters<CrmArchiveSlimmingRepository['slimArchivedAccount']>[0]> = [];
 
   return {
     accounts,
     listCalls,
     slimCalls,
-    async listAccountsForArchiveSlimming(input: Parameters<CrmStore['listAccountsForArchiveSlimming']>[0]) {
+    async listAccountsForArchiveSlimming(
+      input: Parameters<CrmArchiveSlimmingRepository['listAccountsForArchiveSlimming']>[0]
+    ) {
       listCalls.push(input);
 
       return accounts;
     },
-    async slimArchivedAccount(input: Parameters<CrmStore['slimArchivedAccount']>[0]) {
+    async slimArchivedAccount(input: Parameters<CrmArchiveSlimmingRepository['slimArchivedAccount']>[0]) {
       slimCalls.push(input);
       const account = accounts.find(item => item.id === input.id && item.organizationId === input.organizationId);
 

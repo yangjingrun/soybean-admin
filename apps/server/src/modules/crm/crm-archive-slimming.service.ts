@@ -3,8 +3,10 @@ import { AppConfigService } from '../app-config/app-config.service';
 import { canRunSchedulers } from '../app-config/app-config.loader';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
-import { CRM_STORE } from './crm.tokens';
-import type { CrmStore } from './crm.types';
+import {
+  CRM_ARCHIVE_SLIMMING_REPOSITORY,
+  type CrmArchiveSlimmingRepository
+} from './crm-archive-slimming.repository';
 
 const defaultArchiveRecoveryMs = 30 * 24 * 60 * 60 * 1000;
 const defaultSlimmingIntervalMs = 24 * 60 * 60 * 1000;
@@ -21,7 +23,7 @@ export class CrmArchiveSlimmingService implements OnModuleInit, OnModuleDestroy 
   private slimmingTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_ARCHIVE_SLIMMING_REPOSITORY) private readonly store: CrmArchiveSlimmingRepository,
     @Optional()
     @Inject(SystemLogService)
     private readonly systemLogService?: SystemLogRecorder,
