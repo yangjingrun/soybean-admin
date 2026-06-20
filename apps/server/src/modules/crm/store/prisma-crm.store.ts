@@ -134,6 +134,8 @@ import {
   isPrismaUniqueConflict,
   isPrismaConcurrentTaskCreateConflict
 } from './prisma-crm-store.helpers';
+import { PrismaCrmDashboardStore } from './prisma-crm-dashboard.store';
+import { PrismaCrmMailboxStore } from './prisma-crm-mailbox.store';
 import { PrismaCrmSettingsStore } from './prisma-crm-settings.store';
 import type {
   CrmAccountCreateInput,
@@ -292,14 +294,15 @@ import {
 } from '../crm-sequence-policy';
 
 const crmAiDraftQueueConfigKey = 'crm-ai-draft';
-// Workbench "today" follows the current CRM business day, while quota buckets remain UTC elsewhere.
-const crmBusinessDayOffsetMinutes = 8 * 60;
-
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
+  private readonly dashboardStore: PrismaCrmDashboardStore;
+  private readonly mailboxStore: PrismaCrmMailboxStore;
   private readonly settingsStore: PrismaCrmSettingsStore;
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
+    this.dashboardStore = new PrismaCrmDashboardStore(prisma);
+    this.mailboxStore = new PrismaCrmMailboxStore(prisma);
     this.settingsStore = new PrismaCrmSettingsStore(prisma);
   }
 
@@ -879,276 +882,10 @@ export class PrismaCrmStore implements CrmStore {
       };
     });
   }
-
-  async getWorkbenchOverview(args: {
-    organizationId: string;
-    ownerUserId: string;
-    now: Date;
-  }): Promise<CrmWorkbenchOverviewRecord> {
-    const todayStart = startOfCrmBusinessDay(args.now);
-    const tomorrowStart = addCrmBusinessDays(todayStart, 1);
-    const yesterdayStart = addCrmBusinessDays(todayStart, -1);
-    const trendStart = addCrmBusinessDays(todayStart, -6);
-    const scopedWhere = toScopedOrganizationWhere(args);
-    const todayRange = toDateRange(todayStart, tomorrowStart);
-    const yesterdayRange = toDateRange(yesterdayStart, todayStart);
-    const trendDays = Array.from({ length: 7 }, (_, index) => addCrmBusinessDays(trendStart, index));
-
-    const [
-      sentCount,
-      queuedCount,
-      failedCount,
-      pendingReplyCount,
-      totalReplyCount,
-      draftReviewCount,
-      firstDraftReviewCount,
-      followUpDraftReviewCount,
-      riskyDraftReviewCount,
-      sendFailedCount,
-      mailboxIssueCount,
-      missingContactCount,
-      emailVerificationPendingCount,
-      riskyEmailCount,
-      aiLeadTaskPendingCount,
-      yesterdaySentCount,
-      yesterdayReplyCount,
-      trendSentRecords,
-      trendReplyRecords,
-      aiDraftTasks,
-      aiLeadTask
-    ] = await Promise.all([
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'sent',
-          sentAt: todayRange
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'queued'
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'failed'
-        }
-      }),
-      this.prisma.crmInboxThread.count({
-        where: {
-          ...scopedWhere,
-          status: 'pending'
-        }
-      }),
-      this.prisma.crmInboxMessage.count({
-        where: {
-          ...scopedWhere,
-          receivedAt: todayRange
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'draft_pending_review'
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'draft_pending_review',
-          stepIndex: 1
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'draft_pending_review',
-          stepIndex: { gt: 1 }
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'draft_pending_review',
-          metadata: { path: ['aiDraft', 'riskNotes'], not: Prisma.JsonNull }
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'failed'
-        }
-      }),
-      this.prisma.crmMailbox.count({
-        where: {
-          ...scopedWhere,
-          status: { in: ['paused', 'auth_expired'] }
-        }
-      }),
-      this.prisma.crmAccount.count({
-        where: {
-          ...scopedWhere,
-          status: 'missing_contact'
-        }
-      }),
-      this.prisma.crmContact.count({
-        where: {
-          ...scopedWhere,
-          emailStatus: 'unchecked'
-        }
-      }),
-      this.prisma.crmContact.count({
-        where: {
-          ...scopedWhere,
-          emailStatus: { in: ['risky', 'invalid', 'unreachable'] }
-        }
-      }),
-      this.prisma.aiLeadSearchTask.count({
-        where: {
-          organizationId: args.organizationId,
-          userId: args.ownerUserId,
-          status: 'completed',
-          readAt: null
-        }
-      }),
-      this.prisma.crmMessage.count({
-        where: {
-          ...scopedWhere,
-          status: 'sent',
-          sentAt: yesterdayRange
-        }
-      }),
-      this.prisma.crmInboxMessage.count({
-        where: {
-          ...scopedWhere,
-          receivedAt: yesterdayRange
-        }
-      }),
-      this.prisma.crmMessage.findMany({
-        where: {
-          ...scopedWhere,
-          status: 'sent',
-          sentAt: {
-            gte: trendStart,
-            lt: tomorrowStart
-          }
-        },
-        select: { sentAt: true }
-      }),
-      this.prisma.crmInboxMessage.findMany({
-        where: {
-          ...scopedWhere,
-          receivedAt: {
-            gte: trendStart,
-            lt: tomorrowStart
-          }
-        },
-        select: { receivedAt: true }
-      }),
-      this.prisma.crmAiDraftTask.findMany({
-        where: {
-          ...scopedWhere,
-          status: { in: ['queued', 'running', 'failed', 'completed'] },
-          OR: [{ status: { in: ['queued', 'running'] } }, { readAt: null }]
-        },
-        orderBy: [{ updatedAt: 'desc' }],
-        take: 2
-      }),
-      this.prisma.aiLeadSearchTask.findFirst({
-        where: {
-          organizationId: args.organizationId,
-          userId: args.ownerUserId,
-          status: { in: ['queued', 'running', 'failed', 'completed'] },
-          OR: [{ status: { in: ['queued', 'running'] } }, { readAt: null }]
-        },
-        orderBy: { updatedAt: 'desc' }
-      })
-    ]);
-
-    const sentByDate = countDates(trendSentRecords.map(record => record.sentAt).filter(isDate));
-    const repliesByDate = countDates(trendReplyRecords.map(record => record.receivedAt));
-    const runningTasks = [
-      ...aiDraftTasks.map(task => ({
-        id: task.id,
-        type: 'ai_draft' as const,
-        title: 'AI 草稿生成',
-        status: task.status,
-        totalCount: task.requestedCount,
-        completedCount: task.successCount,
-        failedCount: task.failedCount,
-        pendingCount: task.pendingCount + task.runningCount + task.retryingCount,
-        routePath: '/crm/email-sequences'
-      })),
-      ...(aiLeadTask
-        ? [
-            {
-              id: aiLeadTask.id,
-              type: 'ai_leads' as const,
-              title: 'AI 获客任务',
-              status: aiLeadTask.status,
-              totalCount: aiLeadTask.targetLeadCount,
-              completedCount: aiLeadTask.status === 'completed' ? aiLeadTask.targetLeadCount : 0,
-              failedCount: aiLeadTask.status === 'failed' ? 1 : 0,
-              pendingCount: ['queued', 'running'].includes(aiLeadTask.status) ? aiLeadTask.targetLeadCount : 0,
-              progressPercent: readProgressPercent(aiLeadTask.progressState, aiLeadTask.status),
-              routePath: '/ai-leads'
-            }
-          ]
-        : []),
-      ...(queuedCount + failedCount > 0
-        ? [
-            {
-              id: 'send-queue',
-              type: 'send' as const,
-              title: '开发信发送',
-              status: failedCount > 0 ? 'failed' : 'queued',
-              totalCount: queuedCount + failedCount,
-              completedCount: 0,
-              failedCount,
-              pendingCount: queuedCount,
-              routePath: '/crm/email-sequences'
-            }
-          ]
-        : [])
-    ].slice(0, 3);
-
-    return {
-      generatedAt: args.now,
-      today: {
-        sentCount,
-        queuedCount,
-        failedCount,
-        pendingReplyCount,
-        totalReplyCount,
-        draftReviewCount,
-        firstDraftReviewCount,
-        followUpDraftReviewCount,
-        riskyDraftReviewCount,
-        issueCount: sendFailedCount + mailboxIssueCount,
-        sendFailedCount,
-        mailboxIssueCount,
-        missingContactCount,
-        emailVerificationPendingCount,
-        riskyEmailCount,
-        aiLeadTaskPendingCount
-      },
-      yesterday: {
-        sentCount: yesterdaySentCount,
-        totalReplyCount: yesterdayReplyCount
-      },
-      trend: trendDays.map(date => {
-        const key = formatCrmBusinessDateKey(date);
-
-        return {
-          date: key,
-          sentCount: sentByDate.get(key) ?? 0,
-          replyCount: repliesByDate.get(key) ?? 0
-        };
-      }),
-      runningTasks
-    };
+  getWorkbenchOverview(
+    ...args: Parameters<PrismaCrmDashboardStore['getWorkbenchOverview']>
+  ): ReturnType<PrismaCrmDashboardStore['getWorkbenchOverview']> {
+    return this.dashboardStore.getWorkbenchOverview(...args);
   }
 
   async listDueSendCandidates(input: CrmDueSendCandidateListInput): Promise<CrmDueSendCandidateRecord[]> {
@@ -1496,113 +1233,40 @@ export class PrismaCrmStore implements CrmStore {
 
     return toTimelineEventRecord(record);
   }
-
-  findMailboxByProviderAndEmailHash(provider: CrmMailboxProvider, emailHash: string) {
-    return this.prisma.crmMailbox
-      .findUnique({
-        where: {
-          provider_emailHash: {
-            provider,
-            emailHash
-          }
-        }
-      })
-      .then(record => (record ? toMailboxRecord(record) : null));
+  findMailboxByProviderAndEmailHash(
+    ...args: Parameters<PrismaCrmMailboxStore['findMailboxByProviderAndEmailHash']>
+  ): ReturnType<PrismaCrmMailboxStore['findMailboxByProviderAndEmailHash']> {
+    return this.mailboxStore.findMailboxByProviderAndEmailHash(...args);
   }
-
-  async createMailbox(input: CrmMailboxCreateInput) {
-    try {
-      const record = await this.prisma.crmMailbox.create({
-        data: input as Prisma.CrmMailboxUncheckedCreateInput
-      });
-
-      return toMailboxRecord(record);
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        const existingMailbox = await this.findMailboxByProviderAndEmailHash(input.provider, input.emailHash);
-
-        if (existingMailbox) return existingMailbox;
-      }
-
-      throw error;
-    }
+  createMailbox(
+    ...args: Parameters<PrismaCrmMailboxStore['createMailbox']>
+  ): ReturnType<PrismaCrmMailboxStore['createMailbox']> {
+    return this.mailboxStore.createMailbox(...args);
   }
-
-  async listMailboxes(args: {
-    organizationId: string;
-    ownerUserId?: string;
-    keyword?: string;
-    status?: CrmMailboxStatus;
-    skip: number;
-    take: number;
-  }) {
-    const where = toMailboxListWhere(args);
-    const [records, total] = await Promise.all([
-      this.prisma.crmMailbox.findMany({
-        where,
-        skip: args.skip,
-        take: args.take,
-        orderBy: { updatedAt: 'desc' }
-      }),
-      this.prisma.crmMailbox.count({ where })
-    ]);
-
-    return {
-      records: records.map(toMailboxRecord),
-      total
-    };
+  listMailboxes(
+    ...args: Parameters<PrismaCrmMailboxStore['listMailboxes']>
+  ): ReturnType<PrismaCrmMailboxStore['listMailboxes']> {
+    return this.mailboxStore.listMailboxes(...args);
   }
-
-  findMailboxById(args: { id: string; organizationId: string; ownerUserId?: string }) {
-    return this.prisma.crmMailbox
-      .findFirst({
-        where: toMailboxIdentityWhere(args)
-      })
-      .then(record => (record ? toMailboxRecord(record) : null));
+  findMailboxById(
+    ...args: Parameters<PrismaCrmMailboxStore['findMailboxById']>
+  ): ReturnType<PrismaCrmMailboxStore['findMailboxById']> {
+    return this.mailboxStore.findMailboxById(...args);
   }
-
-  async updateMailbox(id: string, input: CrmMailboxUpdateInput) {
-    const records = await this.prisma.crmMailbox.updateManyAndReturn({
-      where: { id },
-      data: input,
-      limit: 1
-    });
-
-    return records[0] ? toMailboxRecord(records[0]) : null;
+  updateMailbox(
+    ...args: Parameters<PrismaCrmMailboxStore['updateMailbox']>
+  ): ReturnType<PrismaCrmMailboxStore['updateMailbox']> {
+    return this.mailboxStore.updateMailbox(...args);
   }
-
-  async listMailboxesForWatchRenewal(input: CrmMailboxWatchRenewalListInput) {
-    const records = await this.prisma.crmMailbox.findMany({
-      where: {
-        provider: input.provider,
-        status: 'active',
-        OR: [{ watchExpiration: null }, { watchExpiration: { lte: input.renewBefore } }]
-      },
-      orderBy: [{ watchExpiration: 'asc' }, { updatedAt: 'asc' }],
-      take: input.take
-    });
-
-    return records.map(toMailboxRecord);
+  listMailboxesForWatchRenewal(
+    ...args: Parameters<PrismaCrmMailboxStore['listMailboxesForWatchRenewal']>
+  ): ReturnType<PrismaCrmMailboxStore['listMailboxesForWatchRenewal']> {
+    return this.mailboxStore.listMailboxesForWatchRenewal(...args);
   }
-
-  async advanceMailboxHistoryId(input: CrmMailboxHistoryAdvanceInput) {
-    const records = await this.prisma.crmMailbox.updateManyAndReturn({
-      where: {
-        id: input.mailboxId,
-        organizationId: input.organizationId,
-        ownerUserId: input.ownerUserId,
-        lastHistoryId: input.fromHistoryId
-      },
-      data: {
-        lastHistoryId: input.toHistoryId,
-        syncIssueType: null,
-        syncIssueAt: null,
-        syncIssueMessage: null
-      },
-      limit: 1
-    });
-
-    return records[0] ? toMailboxRecord(records[0]) : null;
+  advanceMailboxHistoryId(
+    ...args: Parameters<PrismaCrmMailboxStore['advanceMailboxHistoryId']>
+  ): ReturnType<PrismaCrmMailboxStore['advanceMailboxHistoryId']> {
+    return this.mailboxStore.advanceMailboxHistoryId(...args);
   }
   listProductLines(
     ...args: Parameters<PrismaCrmSettingsStore['listProductLines']>
@@ -1940,78 +1604,10 @@ export class PrismaCrmStore implements CrmStore {
       total
     };
   }
-
-  async listStrategyStats(args: { organizationId: string; ownerUserId?: string }): Promise<CrmStrategyStatsRecord> {
-    const where = toScopedOrganizationWhere(args);
-    const [enrollments, personaEvents] = await Promise.all([
-      this.prisma.crmSequenceEnrollment.findMany({
-        where,
-        orderBy: { updatedAt: 'desc' },
-        include: {
-          productLine: true,
-          policy: true,
-          messages: {
-            orderBy: [{ stepIndex: 'asc' as const }, { createdAt: 'asc' as const }]
-          }
-        }
-      }),
-      this.prisma.crmTimelineEvent.findMany({
-        where: {
-          ...where,
-          eventType: {
-            in: ['sequence_draft_generated', 'sequence_follow_up_draft_generated']
-          }
-        },
-        orderBy: { createdAt: 'asc' }
-      })
-    ]);
-    const personaByEnrollmentId = buildPersonaStatMap(personaEvents);
-    const rows = createEmptyStrategyRows();
-
-    for (const enrollment of enrollments) {
-      const statInputs: Array<{
-        dimension: CrmStrategyStatDimension;
-        key: string;
-        name: string;
-      }> = [
-        { dimension: 'template', key: 'default_template', name: '默认模板' },
-        {
-          dimension: 'policy',
-          key: enrollment.policy?.id ?? 'none',
-          name: enrollment.policy?.name ?? '未设置策略'
-        },
-        {
-          dimension: 'productLine',
-          key: enrollment.productLine?.id ?? 'none',
-          name: enrollment.productLine?.name ?? '未设置产品线'
-        },
-        {
-          dimension: 'persona',
-          key: personaByEnrollmentId.get(enrollment.id)?.key ?? 'unknown',
-          name: personaByEnrollmentId.get(enrollment.id)?.name ?? '未匹配画像'
-        }
-      ];
-
-      for (const input of statInputs) {
-        const row = getOrCreateStrategyStatRow(rows[input.dimension], input);
-        applyEnrollmentStat(row, enrollment.status as CrmSequenceEnrollmentStatus);
-
-        // ready/queued/sent/failed 统计本地 message 状态，不依赖 Gmail 真实投递结果。
-        for (const message of enrollment.messages) {
-          applyMessageStat(row, message.status as CrmMessageRecord['status']);
-        }
-      }
-    }
-
-    return {
-      generatedAt: new Date(),
-      rows: {
-        template: sortStrategyRows(rows.template),
-        policy: sortStrategyRows(rows.policy),
-        persona: sortStrategyRows(rows.persona),
-        productLine: sortStrategyRows(rows.productLine)
-      }
-    };
+  listStrategyStats(
+    ...args: Parameters<PrismaCrmDashboardStore['listStrategyStats']>
+  ): ReturnType<PrismaCrmDashboardStore['listStrategyStats']> {
+    return this.dashboardStore.listStrategyStats(...args);
   }
 
   async getSequenceReviewItem(args: { id: string; organizationId: string; ownerUserId?: string }) {
@@ -2759,63 +2355,10 @@ export class PrismaCrmStore implements CrmStore {
       };
     });
   }
-
-  async markMailboxAuthorizationExpired(
-    input: CrmMailboxAuthorizationExpiredInput
-  ): Promise<CrmMailboxAuthorizationExpiredRecord | null> {
-    return this.prisma.$transaction(async tx => {
-      const mailboxes = await tx.crmMailbox.updateManyAndReturn({
-        where: {
-          id: input.mailboxId,
-          organizationId: input.organizationId,
-          ownerUserId: input.ownerUserId
-        },
-        data: {
-          status: 'auth_expired',
-          watchExpiration: null,
-          pausedAt: input.expiredAt
-        },
-        limit: 1
-      });
-      const mailbox = mailboxes[0];
-
-      if (!mailbox) {
-        return null;
-      }
-
-      const [pausedEnrollments, resetMessages] = await Promise.all([
-        tx.crmSequenceEnrollment.updateMany({
-          where: {
-            organizationId: input.organizationId,
-            ownerUserId: input.ownerUserId,
-            mailboxId: input.mailboxId,
-            status: { in: ['ready_to_send', 'sequence_running'] }
-          },
-          data: {
-            status: 'paused',
-            runVersion: { increment: 1 }
-          }
-        }),
-        tx.crmMessage.updateMany({
-          where: {
-            organizationId: input.organizationId,
-            ownerUserId: input.ownerUserId,
-            mailboxId: input.mailboxId,
-            status: 'queued'
-          },
-          data: {
-            status: 'draft_ready',
-            bullJobId: null
-          }
-        })
-      ]);
-
-      return {
-        mailbox: toMailboxRecord(mailbox),
-        pausedEnrollmentCount: pausedEnrollments.count,
-        resetMessageCount: resetMessages.count
-      };
-    });
+  markMailboxAuthorizationExpired(
+    ...args: Parameters<PrismaCrmMailboxStore['markMailboxAuthorizationExpired']>
+  ): ReturnType<PrismaCrmMailboxStore['markMailboxAuthorizationExpired']> {
+    return this.mailboxStore.markMailboxAuthorizationExpired(...args);
   }
 
   async ingestCustomerReply(input: CrmCustomerReplyIngestInput): Promise<CrmCustomerReplyIngestRecord | null> {
