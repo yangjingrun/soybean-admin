@@ -135,6 +135,7 @@ import {
   isPrismaConcurrentTaskCreateConflict
 } from './prisma-crm-store.helpers';
 import { PrismaCrmAccountStore } from './prisma-crm-account.store';
+import { PrismaCrmAiDraftTaskStore } from './prisma-crm-ai-draft-task.store';
 import { PrismaCrmDashboardStore } from './prisma-crm-dashboard.store';
 import { PrismaCrmMailboxStore } from './prisma-crm-mailbox.store';
 import { PrismaCrmSettingsStore } from './prisma-crm-settings.store';
@@ -295,10 +296,10 @@ import {
   serializeSequencePolicyThreadModes
 } from '../crm-sequence-policy';
 
-const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 @Injectable()
 export class PrismaCrmStore implements CrmStore {
   private readonly accountStore: PrismaCrmAccountStore;
+  private readonly aiDraftTaskStore: PrismaCrmAiDraftTaskStore;
   private readonly dashboardStore: PrismaCrmDashboardStore;
   private readonly mailboxStore: PrismaCrmMailboxStore;
   private readonly settingsStore: PrismaCrmSettingsStore;
@@ -306,6 +307,7 @@ export class PrismaCrmStore implements CrmStore {
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
     this.accountStore = new PrismaCrmAccountStore(prisma);
+    this.aiDraftTaskStore = new PrismaCrmAiDraftTaskStore(prisma);
     this.dashboardStore = new PrismaCrmDashboardStore(prisma);
     this.mailboxStore = new PrismaCrmMailboxStore(prisma);
     this.settingsStore = new PrismaCrmSettingsStore(prisma);
@@ -381,212 +383,50 @@ export class PrismaCrmStore implements CrmStore {
   ): ReturnType<PrismaCrmSettingsStore['saveGlobalConfig']> {
     return this.settingsStore.saveGlobalConfig(...args);
   }
-
-  async createAiDraftTask(input: CrmAiDraftTaskCreateInput) {
-    try {
-      return await this.prisma.$transaction(async tx => this.createAiDraftTaskInsideTransaction(tx, input), {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
-      });
-    } catch (error) {
-      // Serializable conflicts mean another creator won the same capacity window.
-      if (isPrismaConcurrentTaskCreateConflict(error)) {
-        return {
-          task: null,
-          limitReason: 'concurrent_create_conflict' as const
-        };
-      }
-
-      throw error;
-    }
+  createAiDraftTask(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['createAiDraftTask']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['createAiDraftTask']> {
+    return this.aiDraftTaskStore.createAiDraftTask(...args);
   }
-
-  /** Checks queue capacity and creates the task in one serializable transaction. */
-  private async createAiDraftTaskInsideTransaction(tx: Prisma.TransactionClient, input: CrmAiDraftTaskCreateInput) {
-    const configRecord = await tx.crmAiDraftQueueConfig.findUnique({
-      where: { configKey: crmAiDraftQueueConfigKey }
-    });
-    const config = configRecord ? toAiDraftQueueConfigRecord(configRecord) : createDefaultAiDraftQueueConfig();
-    const [activeUserTaskCount, activeOrgTaskCount] = await Promise.all([
-      tx.crmAiDraftTask.count({
-        where: {
-          organizationId: input.organizationId,
-          ownerUserId: input.ownerUserId,
-          status: { in: crmAiDraftActiveTaskStatuses }
-        }
-      }),
-      tx.crmAiDraftTask.count({
-        where: {
-          organizationId: input.organizationId,
-          status: { in: crmAiDraftActiveTaskStatuses }
-        }
-      })
-    ]);
-
-    if (activeUserTaskCount >= config.maxActiveTasksPerUser) {
-      return { task: null, limitReason: 'user_active_limit' as const };
-    }
-
-    if (activeOrgTaskCount >= config.maxActiveTasksPerOrg) {
-      return { task: null, limitReason: 'organization_active_limit' as const };
-    }
-
-    const counts = countAiDraftTaskItems(input.items);
-    const status = input.status ?? (counts.pendingCount > 0 ? 'queued' : 'completed');
-    const now = new Date();
-    const effectiveConcurrency = normalizeCrmAiDraftItemConcurrency(config.itemConcurrency, config.maxItemConcurrency);
-    const maxAttempts = normalizeCrmAiDraftMaxAttempts(config.maxAttempts);
-    const task = await tx.crmAiDraftTask.create({
-      data: {
-        organizationId: input.organizationId,
-        organizationRole: input.organizationRole ?? null,
-        ownerUserId: input.ownerUserId,
-        ownerUserName: input.ownerUserName ?? null,
-        status,
-        requestedCount: input.requestedCount,
-        successCount: counts.successCount,
-        skippedCount: counts.skippedCount,
-        failedCount: counts.failedCount,
-        retryingCount: counts.retryingCount,
-        runningCount: counts.runningCount,
-        pendingCount: counts.pendingCount,
-        effectiveConcurrency,
-        maxAttempts,
-        finishedAt: counts.pendingCount > 0 ? null : now
-      } as Prisma.CrmAiDraftTaskUncheckedCreateInput
-    });
-
-    if (input.items.length > 0) {
-      await tx.crmAiDraftTaskItem.createMany({
-        data: input.items.map(item => ({
-          taskId: task.id,
-          organizationId: input.organizationId,
-          ownerUserId: input.ownerUserId,
-          enrollmentId: item.enrollmentId,
-          messageId: item.messageId ?? null,
-          contactId: item.contactId ?? null,
-          accountId: item.accountId ?? null,
-          productLineId: item.productLineId ?? null,
-          stepIndex: item.stepIndex,
-          status: item.status ?? 'pending',
-          maxAttempts,
-          failureType: item.failureType ?? null,
-          failureReason: item.failureReason ?? null,
-          metadata: item.metadata === undefined ? undefined : toNullableJsonInput(item.metadata)
-        })) as Prisma.CrmAiDraftTaskItemCreateManyInput[]
-      });
-    }
-
-    return { task: toAiDraftTaskRecord(task) };
+  countActiveAiDraftTasksForUser(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['countActiveAiDraftTasksForUser']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['countActiveAiDraftTasksForUser']> {
+    return this.aiDraftTaskStore.countActiveAiDraftTasksForUser(...args);
   }
-
-  countActiveAiDraftTasksForUser(input: { organizationId: string; ownerUserId: string }) {
-    return this.prisma.crmAiDraftTask.count({
-      where: {
-        organizationId: input.organizationId,
-        ownerUserId: input.ownerUserId,
-        status: { in: ['queued', 'running'] }
-      }
-    });
+  countActiveAiDraftTasksForOrg(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['countActiveAiDraftTasksForOrg']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['countActiveAiDraftTasksForOrg']> {
+    return this.aiDraftTaskStore.countActiveAiDraftTasksForOrg(...args);
   }
-
-  countActiveAiDraftTasksForOrg(input: { organizationId: string }) {
-    return this.prisma.crmAiDraftTask.count({
-      where: {
-        organizationId: input.organizationId,
-        status: { in: ['queued', 'running'] }
-      }
-    });
+  findCurrentAiDraftTaskForUser(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['findCurrentAiDraftTaskForUser']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['findCurrentAiDraftTaskForUser']> {
+    return this.aiDraftTaskStore.findCurrentAiDraftTaskForUser(...args);
   }
-
-  async findCurrentAiDraftTaskForUser(input: { organizationId: string; ownerUserId: string }) {
-    const record = await this.prisma.crmAiDraftTask.findFirst({
-      where: {
-        organizationId: input.organizationId,
-        ownerUserId: input.ownerUserId,
-        OR: [{ status: { in: ['queued', 'running'] } }, { status: { in: ['completed', 'failed'] }, readAt: null }]
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
-
-    return record ? toAiDraftTaskRecord(record) : null;
+  findAiDraftTaskById(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['findAiDraftTaskById']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['findAiDraftTaskById']> {
+    return this.aiDraftTaskStore.findAiDraftTaskById(...args);
   }
-
-  async findAiDraftTaskById(input: { id: string; organizationId: string; ownerUserId?: string }) {
-    const record = await this.prisma.crmAiDraftTask.findFirst({
-      where: {
-        id: input.id,
-        organizationId: input.organizationId,
-        ...(input.ownerUserId ? { ownerUserId: input.ownerUserId } : {})
-      }
-    });
-
-    return record ? toAiDraftTaskRecord(record) : null;
+  listAiDraftTasks(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['listAiDraftTasks']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['listAiDraftTasks']> {
+    return this.aiDraftTaskStore.listAiDraftTasks(...args);
   }
-
-  async listAiDraftTasks(input: { organizationId: string; ownerUserId?: string; skip: number; take: number }) {
-    const where = {
-      organizationId: input.organizationId,
-      ...(input.ownerUserId ? { ownerUserId: input.ownerUserId } : {})
-    };
-    const [records, total] = await Promise.all([
-      this.prisma.crmAiDraftTask.findMany({
-        where,
-        skip: input.skip,
-        take: input.take,
-        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
-      }),
-      this.prisma.crmAiDraftTask.count({ where })
-    ]);
-
-    return {
-      records: records.map(toAiDraftTaskRecord),
-      total
-    };
+  listAiDraftTaskItems(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['listAiDraftTaskItems']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['listAiDraftTaskItems']> {
+    return this.aiDraftTaskStore.listAiDraftTaskItems(...args);
   }
-
-  async listAiDraftTaskItems(input: { taskId: string }) {
-    const records = await this.prisma.crmAiDraftTaskItem.findMany({
-      where: { taskId: input.taskId },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
-    });
-
-    return records.map(toAiDraftTaskItemRecord);
+  updateAiDraftTask(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['updateAiDraftTask']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['updateAiDraftTask']> {
+    return this.aiDraftTaskStore.updateAiDraftTask(...args);
   }
-
-  async updateAiDraftTask(id: string, patch: CrmAiDraftTaskUpdateInput, guard: CrmAiDraftTaskUpdateGuard = {}) {
-    const records = await this.prisma.crmAiDraftTask.updateManyAndReturn({
-      where: {
-        id,
-        ...(guard.organizationId ? { organizationId: guard.organizationId } : {}),
-        ...(guard.ownerUserId ? { ownerUserId: guard.ownerUserId } : {}),
-        ...(guard.runVersion ? { runVersion: guard.runVersion } : {}),
-        ...(guard.status ? { status: toStatusWhere(guard.status) } : {})
-      },
-      data: toAiDraftTaskUpdateData(patch),
-      limit: 1
-    });
-
-    return records[0] ? toAiDraftTaskRecord(records[0]) : null;
-  }
-
-  async updateAiDraftTaskItem(
-    id: string,
-    patch: CrmAiDraftTaskItemUpdateInput,
-    guard: CrmAiDraftTaskItemUpdateGuard = {}
-  ) {
-    const records = await this.prisma.crmAiDraftTaskItem.updateManyAndReturn({
-      where: {
-        id,
-        ...(guard.taskId ? { taskId: guard.taskId } : {}),
-        ...(guard.organizationId ? { organizationId: guard.organizationId } : {}),
-        ...(guard.ownerUserId ? { ownerUserId: guard.ownerUserId } : {}),
-        ...(guard.status ? { status: toStatusWhere(guard.status) } : {})
-      },
-      data: toAiDraftTaskItemUpdateData(patch),
-      limit: 1
-    });
-
-    return records[0] ? toAiDraftTaskItemRecord(records[0]) : null;
+  updateAiDraftTaskItem(
+    ...args: Parameters<PrismaCrmAiDraftTaskStore['updateAiDraftTaskItem']>
+  ): ReturnType<PrismaCrmAiDraftTaskStore['updateAiDraftTaskItem']> {
+    return this.aiDraftTaskStore.updateAiDraftTaskItem(...args);
   }
   getAiDraftQueueConfig(
     ...args: Parameters<PrismaCrmSettingsStore['getAiDraftQueueConfig']>
