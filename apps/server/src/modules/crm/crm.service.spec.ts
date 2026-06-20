@@ -13,6 +13,7 @@ import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
+import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import type {
@@ -191,6 +192,41 @@ describe('CrmService', () => {
     const service = createServiceWithSplitServices({ store, draftApprovalService });
 
     assert.equal(await service.approveMessageDraft('message-1', context), expected);
+    assert.equal(store.sequenceReviewDetailCalls.length, 0);
+  });
+
+  it('delegates follow-up draft approval when the split follow-up approval service is injected', async () => {
+    const context = createContext();
+    const expected = { message: { id: 'approved-follow-up' }, enrollment: { id: 'enrollment-1' } };
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          status: 'ready_to_send'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-2',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_pending_review',
+          stepIndex: 2
+        })
+      ]
+    });
+    const followUpApprovalService = {
+      async approveFollowUpMessageDraft(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'message-2');
+        assert.equal(actualContext, context);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ store, followUpApprovalService });
+
+    assert.equal(await service.approveMessageDraft('message-2', context), expected);
     assert.equal(store.sequenceReviewDetailCalls.length, 0);
   });
 
@@ -4077,6 +4113,170 @@ describe('CrmService', () => {
     );
     assert.equal(store.messages[0].status, 'draft_pending_review');
     assert.equal(store.messages[1].status, 'draft_pending_review');
+  });
+
+  it('approves ready-to-send follow-up drafts through split follow-up approval service', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'ready' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          status: 'ready_to_send'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_ready',
+          stepIndex: 1
+        }),
+        createMessage({
+          id: 'message-2',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_pending_review',
+          stepIndex: 2,
+          scheduledAt: new Date('2030-06-21T10:00:00.000Z')
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = createFollowUpApprovalService(store, {
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
+
+    const approved = await service.approveFollowUpMessageDraft('message-2', createContext());
+
+    assert.equal(approved.enrollment.status, 'ready_to_send');
+    assert.equal(approved.message.status, 'draft_ready');
+    assert.equal(store.accounts[0].status, 'ready');
+    assert.equal(store.messages[1].status, 'draft_ready');
+    assert.equal(logs.records.at(-1)?.action, 'follow-up-draft-approve-local');
+  });
+
+  it('approves running follow-up drafts through split follow-up approval service', async () => {
+    const scheduledAt = new Date('2030-06-21T10:00:00.000Z');
+    const store = createStore([createAccount({ id: 'account-1', status: 'sequence_running' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1', status: 'active' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running',
+          runVersion: 3,
+          currentStep: 1
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          status: 'sent',
+          stepIndex: 1
+        }),
+        createMessage({
+          id: 'message-2',
+          enrollmentId: 'enrollment-1',
+          status: 'draft_pending_review',
+          stepIndex: 2,
+          scheduledAt
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = createFollowUpApprovalService(store, {
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
+
+    const approved = await service.approveFollowUpMessageDraft('message-2', createContext());
+
+    assert.equal(approved.enrollment.status, 'sequence_running');
+    assert.equal(approved.message.status, 'draft_ready');
+    assert.equal(store.accounts[0].status, 'sequence_running');
+    assert.equal(store.messages[1].scheduledAt?.toISOString(), scheduledAt.toISOString());
+    assert.equal(store.messages[1].bullJobId, null);
+    assert.equal(logs.records.at(-1)?.action, 'follow-up-draft-approve');
+    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).scheduledAt, scheduledAt.toISOString());
+  });
+
+  it('keeps split follow-up approval owner-only and validates running send guards', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2', status: 'sequence_running' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      mailboxes: [createMailbox({ id: 'mailbox-1', ownerUserId: 'user-2', status: 'paused' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          ownerUserId: 'user-2',
+          status: 'sequence_running'
+        }),
+        createEnrollment({
+          id: 'enrollment-2',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          mailboxId: 'mailbox-1',
+          status: 'sequence_running'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-owned-by-other',
+          enrollmentId: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2',
+          stepIndex: 2,
+          scheduledAt: new Date('2030-06-21T10:00:00.000Z')
+        }),
+        createMessage({
+          id: 'message-first',
+          enrollmentId: 'enrollment-2',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          stepIndex: 1
+        }),
+        createMessage({
+          id: 'message-missing-schedule',
+          enrollmentId: 'enrollment-2',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          stepIndex: 2
+        })
+      ]
+    });
+    const service = createFollowUpApprovalService(store);
+
+    await assert.rejects(
+      () =>
+        service.approveFollowUpMessageDraft(
+          'message-owned-by-other',
+          createContext({ organizationRole: 'admin' })
+        ),
+      NotFoundException
+    );
+    await assert.rejects(
+      () => service.approveFollowUpMessageDraft('message-first', createContext()),
+      /当前草稿不是后续开发信/
+    );
+    await assert.rejects(
+      () => service.approveFollowUpMessageDraft('message-missing-schedule', createContext()),
+      /发送邮箱未启用/
+    );
+    store.mailboxes[0].status = 'active';
+    await assert.rejects(
+      () => service.approveFollowUpMessageDraft('message-missing-schedule', createContext()),
+      /后续开发信缺少计划发送时间/
+    );
+    assert.equal(store.messages[0].status, 'draft_pending_review');
+    assert.equal(store.messages[1].status, 'draft_pending_review');
+    assert.equal(store.messages[2].status, 'draft_pending_review');
   });
 
   it('starts an approved first message into the local send scheduling pool', async () => {
@@ -8841,6 +9041,7 @@ function createServiceWithSplitServices(options: {
   sequenceService?: unknown;
   draftService?: unknown;
   draftApprovalService?: unknown;
+  followUpApprovalService?: unknown;
 }) {
   return new CrmService(
     options.store ?? ({} as CrmStore),
@@ -8861,12 +9062,17 @@ function createServiceWithSplitServices(options: {
     options.mailboxService as never,
     options.sequenceService as never,
     options.draftService as never,
-    options.draftApprovalService as never
+    options.draftApprovalService as never,
+    options.followUpApprovalService as never
   );
 }
 
 function createDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
   return new CrmDraftApprovalService(store, options.crmLogger);
+}
+
+function createFollowUpApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmFollowUpApprovalService(store, options.crmLogger);
 }
 
 function createDraftService(

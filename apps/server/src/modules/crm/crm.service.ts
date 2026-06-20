@@ -43,6 +43,7 @@ import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
+import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
@@ -386,7 +387,10 @@ export class CrmService {
     private readonly draftService?: CrmDraftService,
     @Optional()
     @Inject(CrmDraftApprovalService)
-    private readonly draftApprovalService?: CrmDraftApprovalService
+    private readonly draftApprovalService?: CrmDraftApprovalService,
+    @Optional()
+    @Inject(CrmFollowUpApprovalService)
+    private readonly followUpApprovalService?: CrmFollowUpApprovalService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -2206,6 +2210,10 @@ export class CrmService {
 
     if (message.stepIndex === initialDraftStepIndex && this.draftApprovalService) {
       return this.draftApprovalService.approveInitialMessageDraft(id, context);
+    }
+
+    if (message.stepIndex > initialDraftStepIndex && this.followUpApprovalService) {
+      return this.followUpApprovalService.approveFollowUpMessageDraft(id, context);
     }
 
     const reviewItem = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
