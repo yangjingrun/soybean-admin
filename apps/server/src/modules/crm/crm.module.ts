@@ -36,6 +36,7 @@ import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
+import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
@@ -72,6 +73,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmDraftApprovalService,
     CrmDraftService,
     CrmFollowUpApprovalService,
+    CrmNextDraftService,
     CrmSequenceService,
     CrmSettingsService,
     CrmSuppressionService,

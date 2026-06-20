@@ -45,10 +45,9 @@ import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
+import { getNextDraftSkipMessage, nextDraftEnrollmentStatuses } from './sequence/crm-next-draft-rules';
+import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import {
-  createSequenceBatchExceptionResult,
-  createSequenceBatchResult,
-  runSequenceBatch,
   type SequenceBatchOperateResult,
   type SequenceBatchOperationInput
 } from './sequence/crm-sequence-batch';
@@ -60,7 +59,6 @@ import {
   requireEnabledCrmProductLineAiWritingConfig
 } from './crm-ai-draft-prompt';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
-import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { classifyCustomerReplyMessage } from './crm-inbox-message-classifier';
 import {
   defaultSequencePolicySteps,
@@ -180,17 +178,9 @@ const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
 ];
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
-const nextDraftEnrollmentStatuses: CrmSequenceEnrollmentStatus[] = ['ready_to_send', 'sequence_running'];
-const blockingNextDraftMessageStatuses: CrmMessageStatus[] = ['draft_pending_review', 'queued', 'failed'];
 const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
 const inboxNotificationTargetType = 'crmInboxThread';
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
-
-type NextDraftGenerationContext = {
-  globalConfig: CrmGlobalConfigRecord;
-  defaultTemplateGroup: CrmEmailTemplateGroupRecord | null;
-  personaProfiles: CrmPersonaProfileRecord[];
-};
 
 const publicEmailPrefixes = new Set([
   'admin',
@@ -370,6 +360,9 @@ export class CrmService {
     @Optional()
     @Inject(CrmDraftService)
     private readonly draftService?: CrmDraftService,
+    @Optional()
+    @Inject(CrmNextDraftService)
+    private readonly nextDraftService?: CrmNextDraftService,
     @Optional()
     @Inject(CrmDraftApprovalService)
     private readonly draftApprovalService?: CrmDraftApprovalService,
@@ -2257,9 +2250,11 @@ export class CrmService {
 
   /** Locally creates the next follow-up draft without Gmail, BullMQ, or mutating existing message statuses. */
   async generateNextDraft(id: string, context: CrmUserContext) {
-    const item = await this.requireOwnedSequenceReviewItem(id, context);
+    if (!this.nextDraftService) {
+      throw new BadRequestException('CRM 后续草稿生成服务未启用');
+    }
 
-    return this.generateNextDraftFromReviewItem(item, context);
+    return this.nextDraftService.generateNextDraft(id, context);
   }
 
   /** Generates follow-up drafts for eligible owner sequences while returning per-item outcomes. */
@@ -2267,154 +2262,11 @@ export class CrmService {
     input: SequenceBatchOperationInput,
     context: CrmUserContext
   ): Promise<SequenceBatchOperateResult> {
-    const reviewItems = await this.store.listSequenceReviewItemsByIds({
-      ids: input.ids,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-    const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
-    let generationContextPromise: Promise<NextDraftGenerationContext> | null = null;
-
-    return runSequenceBatch(input.ids, async id => {
-      const item = reviewItemById.get(id) ?? null;
-
-      if (!item) {
-        return createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
-      }
-
-      const skipMessage = this.getNextDraftSkipMessage(item);
-
-      if (skipMessage) {
-        return createSequenceBatchResult(id, 'skipped', skipMessage, {
-          enrollmentId: item.enrollment.id
-        });
-      }
-
-      try {
-        generationContextPromise ??= this.loadNextDraftGenerationContext(context.organizationId);
-        const generationContext = await generationContextPromise;
-        const generated = await this.generateNextDraftFromReviewItem(item, context, generationContext);
-
-        return createSequenceBatchResult(id, 'success', `第 ${generated.message.stepIndex} 封草稿已生成`, {
-          enrollmentId: generated.enrollment.id,
-          messageId: generated.message.id,
-          stepIndex: generated.message.stepIndex
-        });
-      } catch (error) {
-        return createSequenceBatchExceptionResult(id, error, item.enrollment.id);
-      }
-    });
-  }
-
-  private async generateNextDraftFromReviewItem(
-    item: CrmSequenceReviewRecord,
-    context: CrmUserContext,
-    generationContext?: NextDraftGenerationContext
-  ) {
-    if (!nextDraftEnrollmentStatuses.includes(item.enrollment.status)) {
-      throw new BadRequestException('当前序列状态不能生成下一封草稿');
+    if (!this.nextDraftService) {
+      throw new BadRequestException('CRM 后续草稿生成服务未启用');
     }
 
-    const sourceMessage = item.messages.at(-1);
-
-    if (!sourceMessage) {
-      throw new BadRequestException('当前序列还没有可参考的开发信');
-    }
-
-    if (sourceMessage.stepIndex >= item.enrollment.totalSteps) {
-      throw new BadRequestException('当前序列已达到最大步骤数');
-    }
-
-    const blockingMessage = item.messages.find(message => blockingNextDraftMessageStatuses.includes(message.status));
-
-    if (blockingMessage) {
-      throw new BadRequestException('已存在下一步草稿或待发送消息，请先处理后再生成');
-    }
-
-    const resolvedGenerationContext =
-      generationContext ?? (await this.loadNextDraftGenerationContext(context.organizationId));
-    const personaMatch = buildPersonaMatch(resolvedGenerationContext.personaProfiles, item.account, item.contact);
-    const baseNextMessage = buildNextFollowUpDraft({
-      item,
-      sourceMessage,
-      providerThreadId: sourceMessage.providerThreadId,
-      baseTime: new Date(),
-      followUpDelayDays: resolvedGenerationContext.globalConfig.followUpDelayDays,
-      personaProfile: personaMatch.templatePersona,
-      templateGroup: resolvedGenerationContext.defaultTemplateGroup,
-      senderName: context.userName
-    });
-
-    if (!baseNextMessage) {
-      throw new BadRequestException('当前序列没有可生成的下一步草稿');
-    }
-
-    const configuredDraft = await this.generateConfiguredReviewDraft({
-      account: item.account,
-      contact: item.contact,
-      productLine: item.productLine,
-      context,
-      stepIndex: toAiWritingStepIndex(baseNextMessage.stepIndex),
-      previousMessages: item.messages,
-      fallbackDraft: {
-        subject: baseNextMessage.subject,
-        bodyText: baseNextMessage.bodyText
-      }
-    });
-    const nextMessage: typeof baseNextMessage = {
-      ...baseNextMessage,
-      subject: configuredDraft.subject,
-      bodyText: configuredDraft.bodyText,
-      metadata: createAiDraftMessageMetadata(configuredDraft.aiDraft)
-    };
-
-    const bundle = await this.runFollowUpDraftWrite(() =>
-      this.store.createFollowUpDraftBundle({
-        enrollmentId: item.enrollment.id,
-        organizationId: context.organizationId,
-        ownerUserId: context.userId,
-        expectedEnrollmentStatus: nextDraftEnrollmentStatuses,
-        blockingMessageStatuses: blockingNextDraftMessageStatuses,
-        message: nextMessage,
-        timelineEvent: {
-          organizationId: nextMessage.organizationId,
-          accountId: nextMessage.accountId,
-          contactId: nextMessage.contactId,
-          ownerUserId: context.userId,
-          eventType: 'sequence_follow_up_draft_generated',
-          title: '生成后续开发信草稿',
-          content: nextMessage.subject,
-          metadata: {
-            enrollmentId: item.enrollment.id,
-            personaProfileId: personaMatch.persona?.id ?? null,
-            personaProfileName: personaMatch.persona?.name ?? null,
-            personaMatchMethod: personaMatch.matchMethod,
-            personaMatchedKeywords: personaMatch.matchedKeywords,
-            personaFallbackReason: personaMatch.fallbackReason,
-            stepIndex: nextMessage.stepIndex,
-            aiDraft: configuredDraft.aiDraft ?? null
-          }
-        }
-      })
-    );
-
-    if (!bundle) {
-      throw new NotFoundException('开发信序列不存在');
-    }
-
-    await this.recordCrmLog('follow-up-draft-generate', 'CRM 后续开发信草稿本地生成', context, {
-      organizationId: context.organizationId,
-      accountId: bundle.message.accountId,
-      contactId: bundle.message.contactId,
-      enrollmentId: item.enrollment.id,
-      messageId: bundle.message.id,
-      stepIndex: bundle.message.stepIndex
-    });
-
-    return {
-      enrollment: toSequenceEnrollmentView(bundle.enrollment),
-      message: toMessageView(bundle.message)
-    };
+    return this.nextDraftService.batchGenerateNextDrafts(input, context);
   }
 
   /** Creates a local CRM AI draft task and queues pending items for review-only draft generation. */
@@ -3862,21 +3714,6 @@ export class CrmService {
     return buildPersonaMatch(organizationProfiles, account, contact);
   }
 
-  /** Loads organization-level resources reused by local next draft generation. */
-  private async loadNextDraftGenerationContext(organizationId: string): Promise<NextDraftGenerationContext> {
-    const [globalConfig, defaultTemplateGroup, personaProfiles] = await Promise.all([
-      this.store.getGlobalConfig(),
-      this.store.findDefaultEmailTemplateGroup(organizationId),
-      this.store.listActivePersonaProfiles(organizationId)
-    ]);
-
-    return {
-      globalConfig,
-      defaultTemplateGroup,
-      personaProfiles
-    };
-  }
-
   private async requireScopedEmailTemplateGroup(id: string, context: CrmUserContext) {
     const templateGroup = await this.store.findEmailTemplateGroupById({
       id,
@@ -4037,28 +3874,6 @@ export class CrmService {
     return productLine;
   }
 
-  private getNextDraftSkipMessage(item: CrmSequenceReviewRecord) {
-    if (!nextDraftEnrollmentStatuses.includes(item.enrollment.status)) {
-      return '当前序列状态不能生成下一封草稿';
-    }
-
-    const sourceMessage = item.messages.at(-1);
-
-    if (!sourceMessage) {
-      return '当前序列还没有可参考的开发信';
-    }
-
-    if (sourceMessage.stepIndex >= item.enrollment.totalSteps) {
-      return '当前序列已达到最大步骤数';
-    }
-
-    if (item.messages.some(message => blockingNextDraftMessageStatuses.includes(message.status))) {
-      return '已存在下一步草稿或待发送消息，请先处理后再生成';
-    }
-
-    return null;
-  }
-
   /** Batch loads organization blacklist hits for AI draft task validation. */
   private async loadBlacklistedContactEmailHashes(organizationId: string, items: CrmSequenceReviewRecord[]) {
     const emailHashes = Array.from(new Set(items.map(item => item.contact.emailHash).filter(Boolean)));
@@ -4076,7 +3891,7 @@ export class CrmService {
   }
 
   private getAiDraftTaskItemSkipMessage(item: CrmSequenceReviewRecord, blacklistedEmailHashes: Set<string>) {
-    const nextDraftSkipMessage = this.getNextDraftSkipMessage(item);
+    const nextDraftSkipMessage = getNextDraftSkipMessage(item);
 
     if (nextDraftSkipMessage) {
       return nextDraftSkipMessage;
@@ -4628,18 +4443,6 @@ export class CrmService {
     } catch (error) {
       if (isPrismaUniqueConflict(error)) {
         throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
-      }
-
-      throw error;
-    }
-  }
-
-  private async runFollowUpDraftWrite<T>(operation: () => Promise<T>) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        throw new BadRequestException('已存在下一步草稿或待发送消息，请先处理后再生成');
       }
 
       throw error;

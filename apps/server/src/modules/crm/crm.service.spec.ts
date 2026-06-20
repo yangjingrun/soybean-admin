@@ -16,6 +16,7 @@ import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
+import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import type {
@@ -195,6 +196,46 @@ describe('CrmService', () => {
 
     assert.equal(await service.approveMessageDraft('message-1', context), expected);
     assert.equal(store.sequenceReviewDetailCalls.length, 0);
+  });
+
+  it('delegates next draft generation when the split next draft service is injected', async () => {
+    const context = createContext();
+    const expected = { message: { id: 'next-message' }, enrollment: { id: 'enrollment-1' } };
+    const nextDraftService = {
+      async generateNextDraft(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'enrollment-1');
+        assert.equal(actualContext, context);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ nextDraftService });
+
+    assert.equal(await service.generateNextDraft('enrollment-1', context), expected);
+  });
+
+  it('delegates batch next draft generation when the split next draft service is injected', async () => {
+    const context = createContext();
+    const input = { ids: ['enrollment-1', 'enrollment-2'] };
+    const expected = {
+      totalCount: 2,
+      successCount: 1,
+      skippedCount: 1,
+      failedCount: 0,
+      results: [
+        { id: 'enrollment-1', status: 'success' as const, message: '第 2 封草稿已生成' },
+        { id: 'enrollment-2', status: 'skipped' as const, message: '已跳过' }
+      ]
+    };
+    const nextDraftService = {
+      async batchGenerateNextDrafts(actualInput: typeof input, actualContext: CrmUserContext) {
+        assert.equal(actualInput, input);
+        assert.equal(actualContext, context);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ nextDraftService });
+
+    assert.equal(await service.batchGenerateNextDrafts(input, context), expected);
   });
 
   it('delegates follow-up draft approval when the split follow-up approval service is injected', async () => {
@@ -629,7 +670,8 @@ describe('CrmService', () => {
       createAccount({ id: 'own-account', ownerUserId: 'user-1', name: 'Own Account' }),
       createAccount({ id: 'peer-account', ownerUserId: 'user-2', name: 'Peer Account' })
     ]);
-    const service = new CrmService(store);
+    const sendQueue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, sendQueue);
 
     const memberResult = await service.listAccounts(createContext({ organizationRole: 'member' }));
     const adminResult = await service.listAccounts(createContext({ organizationRole: 'admin' }));
@@ -650,7 +692,8 @@ describe('CrmService', () => {
       createAccount({ id: 'own-candidate', ownerUserId: 'user-1', name: 'ABC Distributor', status: 'candidate' }),
       createAccount({ id: 'peer-ready', ownerUserId: 'user-2', name: 'ABC Peer', status: 'ready' })
     ]);
-    const service = new CrmService(store);
+    const sendQueue = createSendQueue();
+    const service = new CrmService(store, undefined, undefined, sendQueue);
 
     const result = await service.listAccounts(createContext(), {
       keyword: ' ABC ',
@@ -675,7 +718,10 @@ describe('CrmService', () => {
     const store = createStore([
       createAccount({ id: 'peer-account', ownerUserId: 'user-2', name: 'Peer Account', domain: 'shared.example' })
     ]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.importAccountFromLead(
       {
@@ -736,7 +782,10 @@ describe('CrmService', () => {
 
   it('normalizes domains with uppercase URL schemes', async () => {
     const store = createStore();
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.importAccountFromLead(
       {
@@ -765,7 +814,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.getAccountDetail('account-1', createContext());
 
@@ -780,7 +832,10 @@ describe('CrmService', () => {
 
   it('allows organization admins to read organization account detail without owner scope', async () => {
     const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2' })]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await service.getAccountDetail('peer-account', createContext({ organizationRole: 'admin' }));
 
@@ -789,14 +844,20 @@ describe('CrmService', () => {
 
   it('throws not found for account detail outside the current member scope', async () => {
     const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2' })]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await assert.rejects(() => service.getAccountDetail('peer-account', createContext()), NotFoundException);
   });
 
   it('changes account status after scoped read and writes status timeline metadata', async () => {
     const store = createStore([createAccount({ id: 'account-1', status: 'candidate' })]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.updateAccountStatus(
       'account-1',
@@ -816,7 +877,10 @@ describe('CrmService', () => {
 
   it('rejects status changes outside current member scope without updating by raw id', async () => {
     const store = createStore([createAccount({ id: 'peer-account', ownerUserId: 'user-2', status: 'candidate' })]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await assert.rejects(
       () => service.updateAccountStatus('peer-account', { status: 'ready' }, createContext()),
@@ -829,7 +893,10 @@ describe('CrmService', () => {
 
   it('adds a trimmed note timeline event for scoped accounts', async () => {
     const store = createStore([createAccount({ id: 'account-1' })]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.addAccountNote('account-1', { content: '  Call next week.  ' }, createContext());
 
@@ -840,7 +907,10 @@ describe('CrmService', () => {
 
   it('rejects empty account notes', async () => {
     const store = createStore([createAccount({ id: 'account-1' })]);
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await assert.rejects(
       () => service.addAccountNote('account-1', { content: '   ' }, createContext()),
@@ -860,7 +930,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.archiveAccount('account-1', { reason: '  Not a fit  ' }, createContext());
 
@@ -1482,7 +1555,10 @@ describe('CrmService', () => {
     const store = createStore([], {
       productLines: [createProductLine({ id: 'line-1', name: 'Bearing Series' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await assert.rejects(
       () => service.createProductLine({ name: ' Bearing Series ' }, createContext()),
@@ -1655,7 +1731,10 @@ describe('CrmService', () => {
       productLines: [createProductLine({ id: 'line-1', aiWritingConfig: createAiWritingConfig() })],
       productLinePromptVersions: [createProductLinePromptVersion({ id: 'version-1', productLineId: 'line-1' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await assert.rejects(
       () => service.restoreProductLineAiPromptVersion('line-1', 'version-1', createContext()),
@@ -1881,7 +1960,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await assert.rejects(
       () => service.updateSequencePolicy('policy-1', { status: 'archived', isDefault: true }, createContext()),
@@ -3447,8 +3529,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const sendQueue = createSendQueue();
-    const service = new CrmService(store, undefined, undefined, sendQueue);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const beforeGenerate = Date.now();
     const generated = await service.generateNextDraft('enrollment-1', createContext());
@@ -3464,7 +3548,6 @@ describe('CrmService', () => {
     assert.equal(generated.message.providerThreadId, null);
     assert.ok(scheduledAtMs >= beforeGenerate + 5 * 24 * 60 * 60 * 1000);
     assert.ok(scheduledAtMs <= afterGenerate + 5 * 24 * 60 * 60 * 1000);
-    assert.equal(sendQueue.jobs.length, 0);
     assert.equal(store.messages[0].status, 'draft_ready');
   });
 
@@ -3504,17 +3587,12 @@ describe('CrmService', () => {
       ]
     });
     const aiCalls: CrmAiDraftPromptInput[] = [];
-    const service = new CrmService(
+    const service = createServiceWithSplitServices({
       store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createAiDraftService(aiCalls)
-    );
+      nextDraftService: createNextDraftService(store, {
+        aiDraftService: createAiDraftService(aiCalls)
+      })
+    });
 
     const result = await service.generateNextDraft('enrollment-1', createContext());
 
@@ -3570,7 +3648,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const generated = await service.generateNextDraft('enrollment-1', createContext());
 
@@ -3614,7 +3695,10 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     await assert.rejects(
       () => service.generateNextDraft('enrollment-1', createContext({ organizationRole: 'admin' })),
@@ -3707,7 +3791,10 @@ describe('CrmService', () => {
         ]
       }
     );
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.batchGenerateNextDrafts(
       { ids: ['enrollment-ready', 'enrollment-blocked', 'enrollment-member'] },
@@ -3811,7 +3898,10 @@ describe('CrmService', () => {
         ]
       }
     );
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({
+      store,
+      nextDraftService: createNextDraftService(store)
+    });
 
     const result = await service.batchGenerateNextDrafts(
       { ids: ['enrollment-ready', 'enrollment-blocked', 'enrollment-member'] },
@@ -9188,6 +9278,7 @@ function createServiceWithSplitServices(options: {
   mailboxService?: unknown;
   sequenceService?: unknown;
   draftService?: unknown;
+  nextDraftService?: unknown;
   draftApprovalService?: unknown;
   followUpApprovalService?: unknown;
   batchDraftApprovalService?: unknown;
@@ -9212,6 +9303,7 @@ function createServiceWithSplitServices(options: {
     options.mailboxService as never,
     options.sequenceService as never,
     options.draftService as never,
+    options.nextDraftService as never,
     options.draftApprovalService as never,
     options.followUpApprovalService as never,
     options.batchDraftApprovalService as never,
@@ -9225,6 +9317,13 @@ function createBatchDraftApprovalService(store: CrmStore, options: { crmLogger?:
 
 function createBatchSequenceStopService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
   return new CrmBatchSequenceStopService(store, options.crmLogger);
+}
+
+function createNextDraftService(
+  store: CrmStore,
+  options: { aiDraftService?: CrmAiDraftService | null; crmLogger?: CrmLoggerService } = {}
+) {
+  return new CrmNextDraftService(store, options.aiDraftService, options.crmLogger);
 }
 
 function createDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
