@@ -400,6 +400,14 @@ export function fetchCrmStrategyStats() {
   });
 }
 
+/** Read the current user's CRM workbench overview. */
+export function fetchCrmWorkbenchOverview() {
+  return request<Api.Crm.WorkbenchOverview>({
+    url: '/crm/workbench/overview',
+    method: 'get'
+  });
+}
+
 /** List sequence review items by filters and pagination. */
 export function fetchCrmSequenceReviewItems(params: Api.Crm.SequenceReviewSearchParams) {
   return request<Api.Crm.SequenceReviewList>({

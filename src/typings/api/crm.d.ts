@@ -844,6 +844,58 @@ declare namespace Api {
       rows: Record<StrategyStatDimension, StrategyStatRow[]>;
     }
 
+    type WorkbenchTaskType = 'ai_leads' | 'ai_draft' | 'send';
+
+    interface WorkbenchTodayStats {
+      sentCount: number;
+      queuedCount: number;
+      failedCount: number;
+      pendingReplyCount: number;
+      totalReplyCount: number;
+      draftReviewCount: number;
+      firstDraftReviewCount: number;
+      followUpDraftReviewCount: number;
+      riskyDraftReviewCount: number;
+      issueCount: number;
+      sendFailedCount: number;
+      mailboxIssueCount: number;
+      missingContactCount: number;
+      emailVerificationPendingCount: number;
+      riskyEmailCount: number;
+      aiLeadTaskPendingCount: number;
+    }
+
+    interface WorkbenchYesterdayStats {
+      sentCount: number;
+      totalReplyCount: number;
+    }
+
+    interface WorkbenchTrendPoint {
+      date: string;
+      sentCount: number;
+      replyCount: number;
+    }
+
+    interface WorkbenchRunningTask {
+      id: string;
+      type: WorkbenchTaskType;
+      title: string;
+      status: string;
+      totalCount: number;
+      completedCount: number;
+      failedCount: number;
+      pendingCount: number;
+      routePath: string;
+    }
+
+    interface WorkbenchOverview {
+      generatedAt: string;
+      today: WorkbenchTodayStats;
+      yesterday: WorkbenchYesterdayStats;
+      trend: WorkbenchTrendPoint[];
+      runningTasks: WorkbenchRunningTask[];
+    }
+
     interface SequenceEnrollmentRecord {
       id: string;
       organizationId: string;
@@ -1019,6 +1071,8 @@ declare namespace Api {
       keyword?: string;
       status?: SequenceEnrollmentStatus;
       todoType?: SequenceReviewTodoType;
+      messageStatus?: MessageStatus;
+      dateScope?: 'today';
     }
 
     interface InboxThreadSearchParams extends Api.Common.CommonSearchParams {
@@ -1031,6 +1085,8 @@ declare namespace Api {
       keyword: string;
       status: SequenceEnrollmentStatus | null;
       todoType: SequenceReviewTodoType | null;
+      messageStatus: MessageStatus | null;
+      dateScope: 'today' | null;
     }
 
     interface InboxThreadFilterModel {

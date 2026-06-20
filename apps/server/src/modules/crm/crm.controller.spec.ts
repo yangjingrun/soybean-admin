@@ -26,6 +26,7 @@ type CrmProductLineView = Awaited<ReturnType<CrmService['listProductLines']>>['r
 type CrmAiDraftPreviewView = Awaited<ReturnType<CrmService['previewAiDraft']>>;
 type CrmAiDraftTaskCreateView = Awaited<ReturnType<CrmService['createAiDraftTask']>>;
 type CrmAiDraftQueueConfigView = Awaited<ReturnType<CrmService['getAiDraftQueueConfig']>>;
+type CrmWorkbenchOverviewView = Awaited<ReturnType<CrmService['getWorkbenchOverview']>>;
 
 describe('CrmController', () => {
   it('lists accounts with the current organization context', async () => {
@@ -58,6 +59,32 @@ describe('CrmController', () => {
       organizationRole: 'member'
     });
     assert.equal(calls[0].query, query);
+  });
+
+  it('gets the CRM workbench overview with the current user context', async () => {
+    const calls: CrmUserContext[] = [];
+    const controller = new CrmController(
+      createAuthService(),
+      createCrmService({
+        async getWorkbenchOverview(context) {
+          calls.push(context);
+
+          return createWorkbenchOverviewView();
+        }
+      })
+    );
+
+    const result = await controller.getWorkbenchOverview('Bearer token');
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.today.pendingReplyCount, 3);
+    assert.deepEqual(calls[0], {
+      userId: 'user-1',
+      userName: 'Alice',
+      roles: ['R_USER'],
+      organizationId: 'org-1',
+      organizationRole: 'member'
+    });
   });
 
   it('imports one lead account for the current user', async () => {
@@ -853,7 +880,9 @@ describe('CrmController', () => {
     const listed = await controller.listSequenceReviewItems('Bearer token', {
       current: 1,
       size: 20,
-      status: 'draft_review_pending'
+      status: 'draft_review_pending',
+      messageStatus: 'sent',
+      dateScope: 'today'
     });
     const detail = await controller.getSequenceReviewItem('Bearer token', 'enrollment-1');
 
@@ -868,6 +897,13 @@ describe('CrmController', () => {
         ['detail', 'user-1']
       ]
     );
+    assert.deepEqual(calls[1].payload, {
+      current: 1,
+      size: 20,
+      status: 'draft_review_pending',
+      messageStatus: 'sent',
+      dateScope: 'today'
+    });
   });
 
   it('creates CRM AI draft tasks with the current user context', async () => {
@@ -1559,7 +1595,7 @@ function createContactView(overrides: Partial<CrmEmailVerificationView['contact'
   };
 }
 
-function createMailboxView(overrides: Partial<CrmMailboxView> = {}) {
+function createMailboxView(overrides: Partial<CrmMailboxView> = {}): CrmMailboxView {
   return {
     id: 'mailbox-1',
     organizationId: 'org-1',
@@ -1573,6 +1609,7 @@ function createMailboxView(overrides: Partial<CrmMailboxView> = {}) {
     dailyLimit: 50,
     hourlyLimit: 10,
     warmupStage: 'new' as const,
+    syncMode: 'full_sync' as const,
     watchExpiration: null,
     lastHistoryId: null,
     lastSyncIssue: null,
@@ -1977,6 +2014,51 @@ function createAiDraftQueueConfigView(
   };
 }
 
+function createWorkbenchOverviewView(
+  overrides: Partial<CrmWorkbenchOverviewView> = {}
+): CrmWorkbenchOverviewView {
+  return {
+    generatedAt: new Date('2026-06-20T09:00:00.000Z'),
+    today: {
+      sentCount: 12,
+      queuedCount: 4,
+      failedCount: 1,
+      pendingReplyCount: 3,
+      totalReplyCount: 5,
+      draftReviewCount: 8,
+      firstDraftReviewCount: 5,
+      followUpDraftReviewCount: 3,
+      riskyDraftReviewCount: 2,
+      issueCount: 2,
+      sendFailedCount: 1,
+      mailboxIssueCount: 1,
+      missingContactCount: 6,
+      emailVerificationPendingCount: 4,
+      riskyEmailCount: 2,
+      aiLeadTaskPendingCount: 1
+    },
+    yesterday: {
+      sentCount: 10,
+      totalReplyCount: 2
+    },
+    trend: [{ date: '2026-06-20', sentCount: 12, replyCount: 5 }],
+    runningTasks: [
+      {
+        id: 'ai-draft-task-1',
+        type: 'ai_draft',
+        title: 'AI 草稿生成',
+        status: 'running',
+        totalCount: 30,
+        completedCount: 12,
+        failedCount: 1,
+        pendingCount: 17,
+        routePath: '/crm/email-sequences'
+      }
+    ],
+    ...overrides
+  };
+}
+
 function createOrganizationConfigView(overrides: Partial<CrmOrganizationConfigView> = {}): CrmOrganizationConfigView {
   return {
     id: 'crm-organization-config-1',
@@ -2123,6 +2205,9 @@ function createCrmService(partial: Partial<CrmService> = {}): CrmService {
     },
     async saveAiDraftQueueConfig() {
       return createAiDraftQueueConfigView();
+    },
+    async getWorkbenchOverview() {
+      return createWorkbenchOverviewView();
     },
     async getOrganizationConfig() {
       return createOrganizationConfigView();

@@ -1,5 +1,5 @@
 import { onMounted, reactive, shallowRef } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useDialog, useMessage } from 'naive-ui';
 import {
   archiveCrmAccount,
@@ -17,6 +17,7 @@ import { buildLeadSearchParams, createDefaultLeadFilterModel, createDefaultLeadI
 export function useLeadTable() {
   const dialog = useDialog();
   const message = useMessage();
+  const route = useRoute();
   const router = useRouter();
   const records = shallowRef<Api.Crm.LeadRecord[]>([]);
   const loading = shallowRef(false);
@@ -43,8 +44,17 @@ export function useLeadTable() {
   const importForm = reactive<Api.Crm.LeadImportFormModel>(createDefaultLeadImportForm());
 
   onMounted(() => {
+    applyRouteFilters();
     void loadLeads();
   });
+
+  function applyRouteFilters() {
+    const status = getRouteQueryString(route.query.status);
+
+    if (isLeadStatus(status)) {
+      filterModel.status = status;
+    }
+  }
 
   /** Load CRM account leads with backend pagination. */
   async function loadLeads() {
@@ -381,4 +391,29 @@ export function useLeadTable() {
     statusSubmitting,
     verifyingContactIds
   };
+}
+
+function getRouteQueryString(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return '';
+}
+
+function isLeadStatus(value: string): value is Api.Crm.CrmAccountStatus {
+  return [
+    'candidate',
+    'missing_contact',
+    'email_verification_pending',
+    'manual_review_pending',
+    'ready',
+    'sequence_running',
+    'replied_pending',
+    'followed_up',
+    'opportunity',
+    'customer',
+    'invalid',
+    'paused',
+    'blocked',
+    'archived'
+  ].includes(value);
 }

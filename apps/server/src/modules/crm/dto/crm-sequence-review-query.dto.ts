@@ -1,11 +1,16 @@
 import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import {
+  crmMessageStatuses,
   crmSequenceEnrollmentStatuses,
   crmSequenceReviewTodoTypes,
+  type CrmMessageStatus,
   type CrmSequenceEnrollmentStatus,
   type CrmSequenceReviewTodoType
 } from '../crm.types';
+
+const crmSequenceReviewDateScopes = ['today'] as const;
+type CrmSequenceReviewDateScope = (typeof crmSequenceReviewDateScopes)[number];
 
 function trimOptionalString({ value }: { value: unknown }) {
   if (typeof value !== 'string') return value;
@@ -43,4 +48,14 @@ export class CrmSequenceReviewQueryDto {
   @IsIn(crmSequenceReviewTodoTypes)
   @Transform(trimOptionalString)
   todoType?: CrmSequenceReviewTodoType;
+
+  @IsOptional()
+  @IsIn(crmMessageStatuses)
+  @Transform(trimOptionalString)
+  messageStatus?: CrmMessageStatus;
+
+  @IsOptional()
+  @IsIn(crmSequenceReviewDateScopes)
+  @Transform(trimOptionalString)
+  dateScope?: CrmSequenceReviewDateScope;
 }

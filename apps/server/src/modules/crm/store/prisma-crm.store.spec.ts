@@ -217,6 +217,49 @@ describe('PrismaCrmStore', () => {
     });
   });
 
+  it('builds a personal CRM workbench overview with today metrics and seven day trend', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmStore(prisma as never);
+    const now = new Date('2026-06-20T09:30:00.000Z');
+
+    const overview = await store.getWorkbenchOverview({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      now
+    });
+
+    assert.equal(overview.generatedAt, now);
+    assert.equal(overview.trend.length, 7);
+    assert.equal(overview.trend[0].date, '2026-06-14');
+    assert.equal(overview.trend.at(-1)?.date, '2026-06-20');
+    assert.equal(overview.runningTasks[0]?.type, 'ai_draft');
+    assert.deepEqual(prisma.crmMessage.countCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'sent',
+      sentAt: {
+        gte: new Date('2026-06-20T00:00:00.000Z'),
+        lt: new Date('2026-06-21T00:00:00.000Z')
+      }
+    });
+    assert.deepEqual(prisma.crmInboxThread.countCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: 'pending'
+    });
+    assert.deepEqual(prisma.crmMailbox.countCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      status: { in: ['paused', 'auth_expired'] }
+    });
+    assert.deepEqual(prisma.aiLeadSearchTask.countCalls[0].where, {
+      organizationId: 'org-1',
+      userId: 'user-1',
+      status: 'completed',
+      readAt: null
+    });
+  });
+
   it('lists stale queued messages that still carry BullMQ job ids', async () => {
     const prisma = createPrisma({
       message: createPrismaMessage({
@@ -1138,6 +1181,36 @@ describe('PrismaCrmStore', () => {
         }
       ]
     });
+
+    await store.listSequenceReviewItems({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      messageStatus: 'sent',
+      dateScope: 'today',
+      skip: 0,
+      take: 20
+    });
+
+    assert.equal(prisma.crmSequenceEnrollment.findManyCalls[2].where.organizationId, 'org-1');
+    assert.equal(prisma.crmSequenceEnrollment.findManyCalls[2].where.ownerUserId, 'user-1');
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+
+    assert.deepEqual(prisma.crmSequenceEnrollment.findManyCalls[2].where.AND, [
+      {
+        messages: {
+          some: {
+            status: 'sent',
+            sentAt: {
+              gte: todayStart,
+              lt: tomorrowStart
+            }
+          }
+        }
+      }
+    ]);
   });
 
   it('aggregates local strategy stats from enrollments, messages and timeline metadata', async () => {
@@ -2963,6 +3036,40 @@ function createPrisma(
       this.queryRawCalls.push(args);
       return queryRawResults.shift() ?? [];
     },
+    aiLeadSearchTask: {
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown>; orderBy?: Record<string, unknown> }>,
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
+      },
+      async findFirst(args: { where: Record<string, unknown>; orderBy?: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return {
+          id: 'ai-lead-task-1',
+          userId: 'user-1',
+          userName: 'Alice',
+          organizationId: 'org-1',
+          organizationRole: 'member',
+          requirement: 'Find bearing importers',
+          targetLeadCount: 20,
+          keywordPlan: {},
+          status: 'completed',
+          priority: 0,
+          runVersion: 1,
+          progressState: null,
+          result: null,
+          errorMessage: null,
+          bullJobId: null,
+          readAt: null,
+          notifiedAt: null,
+          startedAt: new Date('2026-06-20T08:00:00.000Z'),
+          finishedAt: new Date('2026-06-20T08:30:00.000Z'),
+          createdAt: new Date('2026-06-20T08:00:00.000Z'),
+          updatedAt: new Date('2026-06-20T08:30:00.000Z')
+        };
+      }
+    },
     crmAccount: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
@@ -3010,6 +3117,7 @@ function createPrisma(
     },
     crmContact: {
       findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       updateCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
@@ -3038,6 +3146,10 @@ function createPrisma(
             updatedAt: new Date('2026-06-18T09:00:00.000Z')
           }
         ];
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
       },
       async findUnique(args: { where: Record<string, unknown> }) {
         this.findUniqueCalls.push(args);
@@ -3525,6 +3637,7 @@ function createPrisma(
     },
     crmMailbox: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
@@ -3562,7 +3675,8 @@ function createPrisma(
         this.findManyCalls.push(args);
         return [mailbox];
       },
-      async count() {
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
         return 1;
       },
       async updateManyAndReturn(args: {
@@ -3819,6 +3933,7 @@ function createPrisma(
         where: Record<string, unknown>;
         orderBy?: Array<Record<string, unknown>>;
         take?: number;
+        select?: Record<string, unknown>;
       }>,
       countCalls: [] as Array<{ where: Record<string, unknown> }>,
       updateManyAndReturnCalls: [] as Array<{
@@ -3843,6 +3958,7 @@ function createPrisma(
         where: Record<string, unknown>;
         orderBy?: Array<Record<string, unknown>>;
         take?: number;
+        select?: Record<string, unknown>;
       }) {
         this.findManyCalls.push(args);
         return [message];
@@ -3891,6 +4007,7 @@ function createPrisma(
     },
     crmInboxThread: {
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
       findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -3932,7 +4049,8 @@ function createPrisma(
         this.findManyCalls.push(args);
         return [inboxThread];
       },
-      async count() {
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
         return 1;
       },
       async update(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
@@ -3952,6 +4070,8 @@ function createPrisma(
     },
     crmInboxMessage: {
       findFirstCalls: [] as Array<{ where: Record<string, unknown>; include?: Record<string, unknown> }>,
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; select?: Record<string, unknown> }>,
+      countCalls: [] as Array<{ where: Record<string, unknown> }>,
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
       updateCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -3968,6 +4088,14 @@ function createPrisma(
         return args.include
           ? { ...inboxMessage, thread: inboxThread, account, contact, mailbox, enrollment }
           : { ...inboxMessage, thread: undefined };
+      },
+      async findMany(args: { where: Record<string, unknown>; select?: Record<string, unknown> }) {
+        this.findManyCalls.push(args);
+        return [inboxMessage];
+      },
+      async count(args: { where: Record<string, unknown> }) {
+        this.countCalls.push(args);
+        return 1;
       },
       async create(args: { data: Record<string, unknown> }) {
         this.createCalls.push(args);

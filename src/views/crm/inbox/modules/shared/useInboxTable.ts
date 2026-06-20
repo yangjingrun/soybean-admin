@@ -1,4 +1,5 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
+import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
   confirmCrmInboxMessageUnsubscribe,
@@ -13,6 +14,7 @@ import { buildInboxPendingCountParams, buildInboxThreadSearchParams, createDefau
 
 /** Manage CRM inbox thread list, stats, mailbox filters and drawer operations. */
 export function useInboxTable() {
+  const route = useRoute();
   const message = useMessage();
   const records = shallowRef<Api.Crm.InboxThreadRecord[]>([]);
   const mailboxRecords = shallowRef<Api.Crm.MailboxRecord[]>([]);
@@ -49,8 +51,17 @@ export function useInboxTable() {
   );
 
   onMounted(() => {
+    applyRouteFilters();
     void Promise.all([loadThreads(), loadMailboxes()]);
   });
+
+  function applyRouteFilters() {
+    const status = getRouteQueryString(route.query.status);
+
+    if (isInboxThreadStatus(status)) {
+      filterModel.status = status;
+    }
+  }
 
   /** Load inbox threads and the pending count while ignoring stale responses. */
   async function loadThreads() {
@@ -368,4 +379,14 @@ export function useInboxTable() {
     statusSubmitting,
     unsubscribeConfirming
   };
+}
+
+function getRouteQueryString(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return '';
+}
+
+function isInboxThreadStatus(value: string): value is Api.Crm.InboxThreadStatus {
+  return ['pending', 'handled', 'archived'].includes(value);
 }

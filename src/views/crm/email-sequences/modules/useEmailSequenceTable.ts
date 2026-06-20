@@ -149,6 +149,7 @@ export function useEmailSequenceTable() {
   provide(sequenceBatchResultDisplayKey, batchNextDraftResultDisplays);
 
   onMounted(() => {
+    applyRouteFilters();
     void loadSequences();
     void loadCurrentAiDraftTask();
 
@@ -162,6 +163,18 @@ export function useEmailSequenceTable() {
 
     void loadCreateResources();
   });
+
+  function applyRouteFilters() {
+    const status = getRouteQueryString(route.query.status);
+    const todoType = getRouteQueryString(route.query.todoType);
+    const messageStatus = getRouteQueryString(route.query.messageStatus);
+    const dateScope = getRouteQueryString(route.query.dateScope);
+
+    if (isSequenceEnrollmentStatus(status)) filterModel.status = status;
+    if (isSequenceReviewTodoType(todoType)) filterModel.todoType = todoType;
+    if (isMessageStatus(messageStatus)) filterModel.messageStatus = messageStatus;
+    if (dateScope === 'today') filterModel.dateScope = dateScope;
+  }
 
   /** Load review items with backend pagination and ignore stale responses. */
   async function loadSequences() {
@@ -1053,4 +1066,25 @@ function getRouteQueryString(value: unknown) {
   if (typeof value === 'string') return value;
   if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
   return '';
+}
+
+function isSequenceEnrollmentStatus(value: string): value is Api.Crm.SequenceEnrollmentStatus {
+  return ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused', 'stopped', 'replied', 'archived'].includes(
+    value
+  );
+}
+
+function isSequenceReviewTodoType(value: string): value is Api.Crm.SequenceReviewTodoType {
+  return [
+    'draft_review_pending',
+    'follow_up_draft_review',
+    'ready_to_start',
+    'can_generate_next',
+    'send_failed',
+    'max_steps_reached'
+  ].includes(value);
+}
+
+function isMessageStatus(value: string): value is Api.Crm.MessageStatus {
+  return ['draft_pending_review', 'draft_ready', 'queued', 'sent', 'failed', 'skipped'].includes(value);
 }

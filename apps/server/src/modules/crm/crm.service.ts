@@ -1770,6 +1770,8 @@ export class CrmService {
       keyword?: string;
       status?: CrmSequenceEnrollmentStatus;
       todoType?: CrmSequenceReviewTodoType;
+      messageStatus?: CrmMessageStatus;
+      dateScope?: 'today';
     } = {}
   ) {
     const current = normalizePositiveInteger(query.current, defaultPage);
@@ -1781,6 +1783,8 @@ export class CrmService {
       ...(keyword ? { keyword } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.todoType ? { todoType: query.todoType } : {}),
+      ...(query.messageStatus ? { messageStatus: query.messageStatus } : {}),
+      ...(query.dateScope ? { dateScope: query.dateScope } : {}),
       skip: (current - 1) * size,
       take: size
     });
@@ -1802,6 +1806,15 @@ export class CrmService {
     return this.store.listStrategyStats({
       organizationId: context.organizationId,
       ...toOwnerScope(context)
+    });
+  }
+
+  /** Reads the current user's action-first CRM workbench overview. */
+  async getWorkbenchOverview(context: CrmUserContext, now = new Date()) {
+    return this.store.getWorkbenchOverview({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      now
     });
   }
 

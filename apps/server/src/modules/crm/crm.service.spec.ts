@@ -2334,7 +2334,9 @@ describe('CrmService', () => {
     const result = await service.listSequenceReviewItems(createContext(), {
       keyword: ' ABC ',
       status: 'draft_review_pending',
-      todoType: 'follow_up_draft_review'
+      todoType: 'follow_up_draft_review',
+      messageStatus: 'sent',
+      dateScope: 'today'
     });
 
     assert.deepEqual(store.lastSequenceReviewListArgs, {
@@ -2343,6 +2345,8 @@ describe('CrmService', () => {
       keyword: 'ABC',
       status: 'draft_review_pending',
       todoType: 'follow_up_draft_review',
+      messageStatus: 'sent',
+      dateScope: 'today',
       skip: 0,
       take: 20
     });
@@ -5012,6 +5016,21 @@ describe('CrmService', () => {
       BadRequestException
     );
   });
+
+  it('loads the workbench overview with current user owner scope even for organization admins', async () => {
+    const store = createStore();
+    const service = new CrmService(store);
+    const now = new Date('2026-06-20T09:00:00.000Z');
+
+    const overview = await service.getWorkbenchOverview(createContext({ organizationRole: 'admin' }), now);
+
+    assert.equal(overview.today.pendingReplyCount, 3);
+    assert.deepEqual(store.lastWorkbenchOverviewArgs, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      now
+    });
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -5107,6 +5126,7 @@ function createStore(
   lastBlacklistListArgs?: Parameters<CrmStore['listBlacklistEntries']>[0];
   lastSequenceReviewListArgs?: Parameters<CrmStore['listSequenceReviewItems']>[0];
   lastStrategyStatsArgs?: Parameters<CrmStore['listStrategyStats']>[0];
+  lastWorkbenchOverviewArgs?: Parameters<CrmStore['getWorkbenchOverview']>[0];
   lastSequenceReviewDetailArgs?: Parameters<CrmStore['getSequenceReviewItem']>[0];
   lastMessageDetailArgs?: Parameters<CrmStore['findMessageById']>[0];
 } {
@@ -6216,6 +6236,37 @@ function createStore(
       return {
         generatedAt: new Date('2026-06-20T08:00:00.000Z'),
         rows
+      };
+    },
+    async getWorkbenchOverview(args) {
+      this.lastWorkbenchOverviewArgs = args;
+
+      return {
+        generatedAt: args.now,
+        today: {
+          sentCount: 12,
+          queuedCount: 4,
+          failedCount: 1,
+          pendingReplyCount: 3,
+          totalReplyCount: 5,
+          draftReviewCount: 8,
+          firstDraftReviewCount: 5,
+          followUpDraftReviewCount: 3,
+          riskyDraftReviewCount: 2,
+          issueCount: 2,
+          sendFailedCount: 1,
+          mailboxIssueCount: 1,
+          missingContactCount: 6,
+          emailVerificationPendingCount: 4,
+          riskyEmailCount: 2,
+          aiLeadTaskPendingCount: 1
+        },
+        yesterday: {
+          sentCount: 10,
+          totalReplyCount: 2
+        },
+        trend: [{ date: '2026-06-20', sentCount: 12, replyCount: 5 }],
+        runningTasks: []
       };
     },
     async getSequenceReviewItem(args) {

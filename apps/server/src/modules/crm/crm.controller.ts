@@ -352,6 +352,11 @@ export class CrmController {
     return ok(await this.crmService.listStrategyStats(this.requireUserContext(authorization)));
   }
 
+  @Get('workbench/overview')
+  async getWorkbenchOverview(@Headers('authorization') authorization = '') {
+    return ok(await this.crmService.getWorkbenchOverview(this.requireUserContext(authorization)));
+  }
+
   @Get('sequence-policies')
   async listSequencePolicies(@Headers('authorization') authorization = '', @Query() query: CrmSequencePolicyQueryDto) {
     return ok(await this.crmService.listSequencePolicies(this.requireUserContext(authorization), query));

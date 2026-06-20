@@ -103,6 +103,7 @@ import type {
   CrmMessageDraftVersionRecord,
   CrmMessageDraftVersionRestoreInput,
   CrmMessageRecord,
+  CrmMessageStatus,
   CrmMessageUpdateInput,
   CrmOrganizationConfigInput,
   CrmOrganizationConfigRecord,
@@ -144,7 +145,8 @@ import type {
   CrmStrategyStatRow,
   CrmStrategyStatsRecord,
   CrmTimelineEventCreateInput,
-  CrmTimelineEventRecord
+  CrmTimelineEventRecord,
+  CrmWorkbenchOverviewRecord
 } from '../crm.types';
 import {
   crmAiDraftActiveTaskStatuses,
@@ -735,6 +737,276 @@ export class PrismaCrmStore implements CrmStore {
         ]
       }
     });
+  }
+
+  async getWorkbenchOverview(args: {
+    organizationId: string;
+    ownerUserId: string;
+    now: Date;
+  }): Promise<CrmWorkbenchOverviewRecord> {
+    const todayStart = startOfUtcDay(args.now);
+    const tomorrowStart = addUtcDays(todayStart, 1);
+    const yesterdayStart = addUtcDays(todayStart, -1);
+    const trendStart = addUtcDays(todayStart, -6);
+    const scopedWhere = toScopedOrganizationWhere(args);
+    const todayRange = toDateRange(todayStart, tomorrowStart);
+    const yesterdayRange = toDateRange(yesterdayStart, todayStart);
+    const trendDays = Array.from({ length: 7 }, (_, index) => addUtcDays(trendStart, index));
+
+    const [
+      sentCount,
+      queuedCount,
+      failedCount,
+      pendingReplyCount,
+      totalReplyCount,
+      draftReviewCount,
+      firstDraftReviewCount,
+      followUpDraftReviewCount,
+      riskyDraftReviewCount,
+      sendFailedCount,
+      mailboxIssueCount,
+      missingContactCount,
+      emailVerificationPendingCount,
+      riskyEmailCount,
+      aiLeadTaskPendingCount,
+      yesterdaySentCount,
+      yesterdayReplyCount,
+      trendSentRecords,
+      trendReplyRecords,
+      aiDraftTasks,
+      aiLeadTask
+    ] = await Promise.all([
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'sent',
+          sentAt: todayRange
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'queued'
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'failed'
+        }
+      }),
+      this.prisma.crmInboxThread.count({
+        where: {
+          ...scopedWhere,
+          status: 'pending'
+        }
+      }),
+      this.prisma.crmInboxMessage.count({
+        where: {
+          ...scopedWhere,
+          receivedAt: todayRange
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'draft_pending_review'
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'draft_pending_review',
+          stepIndex: 1
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'draft_pending_review',
+          stepIndex: { gt: 1 }
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'draft_pending_review',
+          metadata: { path: ['aiDraft', 'riskNotes'], not: Prisma.JsonNull }
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'failed'
+        }
+      }),
+      this.prisma.crmMailbox.count({
+        where: {
+          ...scopedWhere,
+          status: { in: ['paused', 'auth_expired'] }
+        }
+      }),
+      this.prisma.crmAccount.count({
+        where: {
+          ...scopedWhere,
+          status: 'missing_contact'
+        }
+      }),
+      this.prisma.crmContact.count({
+        where: {
+          ...scopedWhere,
+          emailStatus: 'unchecked'
+        }
+      }),
+      this.prisma.crmContact.count({
+        where: {
+          ...scopedWhere,
+          emailStatus: { in: ['risky', 'invalid', 'unreachable'] }
+        }
+      }),
+      this.prisma.aiLeadSearchTask.count({
+        where: {
+          organizationId: args.organizationId,
+          userId: args.ownerUserId,
+          status: 'completed',
+          readAt: null
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'sent',
+          sentAt: yesterdayRange
+        }
+      }),
+      this.prisma.crmInboxMessage.count({
+        where: {
+          ...scopedWhere,
+          receivedAt: yesterdayRange
+        }
+      }),
+      this.prisma.crmMessage.findMany({
+        where: {
+          ...scopedWhere,
+          status: 'sent',
+          sentAt: {
+            gte: trendStart,
+            lt: tomorrowStart
+          }
+        },
+        select: { sentAt: true }
+      }),
+      this.prisma.crmInboxMessage.findMany({
+        where: {
+          ...scopedWhere,
+          receivedAt: {
+            gte: trendStart,
+            lt: tomorrowStart
+          }
+        },
+        select: { receivedAt: true }
+      }),
+      this.prisma.crmAiDraftTask.findMany({
+        where: {
+          ...scopedWhere,
+          status: { in: ['queued', 'running', 'failed', 'completed'] },
+          OR: [{ status: { in: ['queued', 'running'] } }, { readAt: null }]
+        },
+        orderBy: [{ updatedAt: 'desc' }],
+        take: 2
+      }),
+      this.prisma.aiLeadSearchTask.findFirst({
+        where: {
+          organizationId: args.organizationId,
+          userId: args.ownerUserId,
+          status: { in: ['queued', 'running', 'failed', 'completed'] },
+          OR: [{ status: { in: ['queued', 'running'] } }, { readAt: null }]
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+    ]);
+
+    const sentByDate = countDates(trendSentRecords.map(record => record.sentAt).filter(isDate));
+    const repliesByDate = countDates(trendReplyRecords.map(record => record.receivedAt));
+    const runningTasks = [
+      ...aiDraftTasks.map(task => ({
+        id: task.id,
+        type: 'ai_draft' as const,
+        title: 'AI 草稿生成',
+        status: task.status,
+        totalCount: task.requestedCount,
+        completedCount: task.successCount,
+        failedCount: task.failedCount,
+        pendingCount: task.pendingCount + task.runningCount + task.retryingCount,
+        routePath: '/crm/email-sequences'
+      })),
+      ...(aiLeadTask
+        ? [
+            {
+              id: aiLeadTask.id,
+              type: 'ai_leads' as const,
+              title: 'AI 获客任务',
+              status: aiLeadTask.status,
+              totalCount: aiLeadTask.targetLeadCount,
+              completedCount: aiLeadTask.status === 'completed' ? aiLeadTask.targetLeadCount : 0,
+              failedCount: aiLeadTask.status === 'failed' ? 1 : 0,
+              pendingCount: ['queued', 'running'].includes(aiLeadTask.status) ? aiLeadTask.targetLeadCount : 0,
+              routePath: '/ai-leads'
+            }
+          ]
+        : []),
+      ...(queuedCount + failedCount > 0
+        ? [
+            {
+              id: 'send-queue',
+              type: 'send' as const,
+              title: '开发信发送',
+              status: failedCount > 0 ? 'failed' : 'queued',
+              totalCount: queuedCount + failedCount,
+              completedCount: 0,
+              failedCount,
+              pendingCount: queuedCount,
+              routePath: '/crm/email-sequences'
+            }
+          ]
+        : [])
+    ].slice(0, 3);
+
+    return {
+      generatedAt: args.now,
+      today: {
+        sentCount,
+        queuedCount,
+        failedCount,
+        pendingReplyCount,
+        totalReplyCount,
+        draftReviewCount,
+        firstDraftReviewCount,
+        followUpDraftReviewCount,
+        riskyDraftReviewCount,
+        issueCount: sendFailedCount + mailboxIssueCount,
+        sendFailedCount,
+        mailboxIssueCount,
+        missingContactCount,
+        emailVerificationPendingCount,
+        riskyEmailCount,
+        aiLeadTaskPendingCount
+      },
+      yesterday: {
+        sentCount: yesterdaySentCount,
+        totalReplyCount: yesterdayReplyCount
+      },
+      trend: trendDays.map(date => {
+        const key = formatUtcDateKey(date);
+
+        return {
+          date: key,
+          sentCount: sentByDate.get(key) ?? 0,
+          replyCount: repliesByDate.get(key) ?? 0
+        };
+      }),
+      runningTasks
+    };
   }
 
   async listDueSendCandidates(input: CrmDueSendCandidateListInput): Promise<CrmDueSendCandidateRecord[]> {
@@ -1909,6 +2181,8 @@ export class PrismaCrmStore implements CrmStore {
     keyword?: string;
     status?: CrmSequenceEnrollmentStatus;
     todoType?: CrmSequenceReviewTodoType;
+    messageStatus?: CrmMessageStatus;
+    dateScope?: 'today';
     skip: number;
     take: number;
   }) {
@@ -3694,6 +3968,39 @@ function toScopedOrganizationWhere(args: { organizationId: string; ownerUserId?:
   };
 }
 
+function startOfUtcDay(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function addUtcDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function toDateRange(from: Date, to: Date) {
+  return { gte: from, lt: to };
+}
+
+function formatUtcDateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function countDates(dates: Date[]) {
+  const counts = new Map<string, number>();
+
+  for (const date of dates) {
+    const key = formatUtcDateKey(date);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+function isDate(value: Date | null): value is Date {
+  return value instanceof Date;
+}
+
 function createEmptyStrategyRows(): Record<CrmStrategyStatDimension, CrmStrategyStatRow[]> {
   return {
     template: [],
@@ -3790,17 +4097,44 @@ function toSequenceEnrollmentListWhere(args: {
   keyword?: string;
   status?: CrmSequenceEnrollmentStatus;
   todoType?: CrmSequenceReviewTodoType;
+  messageStatus?: CrmMessageStatus;
+  dateScope?: 'today';
 }): Prisma.CrmSequenceEnrollmentWhereInput {
   const keywordFilter = args.keyword ? toSequenceEnrollmentKeywordFilter(args.keyword) : undefined;
   const todoTypeFilter = toSequenceEnrollmentTodoTypeWhere(args.todoType);
+  const messageFilter = toSequenceEnrollmentMessageWhere(args.messageStatus, args.dateScope);
+  const andFilters = [todoTypeFilter, messageFilter].filter(Boolean) as Prisma.CrmSequenceEnrollmentWhereInput[];
 
   return {
     organizationId: args.organizationId,
     ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
     ...(args.status ? { status: args.status } : {}),
     ...(keywordFilter ? { OR: keywordFilter } : {}),
-    ...(todoTypeFilter ? { AND: [todoTypeFilter] } : {})
+    ...(andFilters.length > 0 ? { AND: andFilters } : {})
   };
+}
+
+function toSequenceEnrollmentMessageWhere(
+  messageStatus?: CrmMessageStatus,
+  dateScope?: 'today'
+): Prisma.CrmSequenceEnrollmentWhereInput | undefined {
+  if (!messageStatus) return undefined;
+
+  const statusWhere: Prisma.CrmMessageWhereInput = {
+    status: messageStatus
+  };
+
+  if (dateScope === 'today') {
+    const todayStart = startOfUtcDay(new Date());
+    const tomorrowStart = addUtcDays(todayStart, 1);
+    const dateField = messageStatus === 'sent' ? 'sentAt' : 'updatedAt';
+
+    Object.assign(statusWhere, {
+      [dateField]: toDateRange(todayStart, tomorrowStart)
+    });
+  }
+
+  return { messages: { some: statusWhere } };
 }
 
 /** Maps sequence review workbench filters to relation-aware Prisma conditions. */

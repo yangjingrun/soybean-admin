@@ -1075,6 +1075,48 @@ export interface CrmStrategyStatsRecord {
   rows: Record<CrmStrategyStatDimension, CrmStrategyStatRow[]>;
 }
 
+export interface CrmWorkbenchOverviewRecord {
+  generatedAt: Date;
+  today: {
+    sentCount: number;
+    queuedCount: number;
+    failedCount: number;
+    pendingReplyCount: number;
+    totalReplyCount: number;
+    draftReviewCount: number;
+    firstDraftReviewCount: number;
+    followUpDraftReviewCount: number;
+    riskyDraftReviewCount: number;
+    issueCount: number;
+    sendFailedCount: number;
+    mailboxIssueCount: number;
+    missingContactCount: number;
+    emailVerificationPendingCount: number;
+    riskyEmailCount: number;
+    aiLeadTaskPendingCount: number;
+  };
+  yesterday: {
+    sentCount: number;
+    totalReplyCount: number;
+  };
+  trend: Array<{
+    date: string;
+    sentCount: number;
+    replyCount: number;
+  }>;
+  runningTasks: Array<{
+    id: string;
+    type: 'ai_leads' | 'ai_draft' | 'send';
+    title: string;
+    status: string;
+    totalCount: number;
+    completedCount: number;
+    failedCount: number;
+    pendingCount: number;
+    routePath: string;
+  }>;
+}
+
 export interface CrmFollowUpDraftBundleCreateInput {
   enrollmentId: string;
   organizationId: string;
@@ -1626,10 +1668,13 @@ export interface CrmStore extends CrmAiDraftTaskStore {
     keyword?: string;
     status?: CrmSequenceEnrollmentStatus;
     todoType?: CrmSequenceReviewTodoType;
+    messageStatus?: CrmMessageStatus;
+    dateScope?: 'today';
     skip: number;
     take: number;
   }): Promise<{ records: CrmSequenceReviewRecord[]; total: number }>;
   listStrategyStats(args: { organizationId: string; ownerUserId?: string }): Promise<CrmStrategyStatsRecord>;
+  getWorkbenchOverview(args: { organizationId: string; ownerUserId: string; now: Date }): Promise<CrmWorkbenchOverviewRecord>;
   getSequenceReviewItem(args: {
     id: string;
     organizationId: string;

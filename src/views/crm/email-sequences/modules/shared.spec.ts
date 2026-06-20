@@ -196,6 +196,8 @@ describe('email sequence review shared helpers', () => {
     filterModel.keyword = ' ABC ';
     filterModel.status = 'sequence_running';
     filterModel.todoType = 'can_generate_next';
+    filterModel.messageStatus = 'sent';
+    filterModel.dateScope = 'today';
 
     assert.deepEqual(
       buildSequenceReviewSearchParams({
@@ -208,10 +210,13 @@ describe('email sequence review shared helpers', () => {
         size: 50,
         keyword: 'ABC',
         status: 'sequence_running',
-        todoType: 'can_generate_next'
+        todoType: 'can_generate_next',
+        messageStatus: 'sent',
+        dateScope: 'today'
       }
     );
     assert.equal(createDefaultSequenceFilterModel().todoType, null);
+    assert.equal(createDefaultSequenceFilterModel().messageStatus, null);
   });
 
   it('builds draft operation payload with the selected message id', () => {

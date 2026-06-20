@@ -184,7 +184,9 @@ export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilter
   return {
     keyword: '',
     status: null,
-    todoType: null
+    todoType: null,
+    messageStatus: null,
+    dateScope: null
   };
 }
 
@@ -222,6 +224,14 @@ export function buildSequenceReviewSearchParams(options: {
 
   if (filterModel.todoType) {
     params.todoType = filterModel.todoType;
+  }
+
+  if (filterModel.messageStatus) {
+    params.messageStatus = filterModel.messageStatus;
+  }
+
+  if (filterModel.dateScope) {
+    params.dateScope = filterModel.dateScope;
   }
 
   return params;
