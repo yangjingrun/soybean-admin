@@ -34,6 +34,11 @@ interface OwnerDispatchState {
   dispatchedByKind: Record<CrmScheduledMessageStepKind, number>;
 }
 
+interface MailboxDispatchState {
+  dailyCount: number;
+  hourlyCount: number;
+}
+
 @Injectable()
 export class CrmSendSchedulerService {
   constructor(
@@ -55,6 +60,7 @@ export class CrmSendSchedulerService {
     const dayRange = toUtcRange(now, 'day');
     const hourRange = toUtcRange(now, 'hour');
     const ownerStateSnapshots = await this.loadOwnerStateSnapshots(candidates, dayRange);
+    const mailboxStates = await this.loadMailboxStates(candidates, dayRange, hourRange);
     let dispatchedCount = 0;
     let skippedCount = 0;
 
@@ -78,7 +84,9 @@ export class CrmSendSchedulerService {
         continue;
       }
 
-      if (!(await this.hasMailboxCapacity(candidate, dayRange, hourRange))) {
+      const mailboxKey = toMailboxKey(candidate.message.organizationId, candidate.mailbox.id);
+
+      if (!this.hasMailboxCapacity(candidate, mailboxStates.get(mailboxKey))) {
         skippedCount += 1;
         continue;
       }
@@ -93,6 +101,7 @@ export class CrmSendSchedulerService {
       dispatchedCount += 1;
       state.dispatchedCount += 1;
       state.dispatchedByKind[candidate.stepKind] += 1;
+      this.reserveMailboxCapacity(mailboxKey, mailboxStates);
     }
 
     return {
@@ -218,23 +227,57 @@ export class CrmSendSchedulerService {
     return state.firstTouchCount + state.dispatchedByKind.first_touch;
   }
 
-  private async hasMailboxCapacity(candidate: CrmDueSendCandidateRecord, dayRange: DateRange, hourRange: DateRange) {
-    const [dailyCount, hourlyCount] = await Promise.all([
-      this.store.countDispatchedMessages({
-        organizationId: candidate.message.organizationId,
-        mailboxId: candidate.mailbox.id,
-        from: dayRange.from,
-        to: dayRange.to
-      }),
-      this.store.countDispatchedMessages({
-        organizationId: candidate.message.organizationId,
-        mailboxId: candidate.mailbox.id,
-        from: hourRange.from,
-        to: hourRange.to
-      })
-    ]);
+  private hasMailboxCapacity(candidate: CrmDueSendCandidateRecord, state: MailboxDispatchState | undefined) {
+    const dailyCount = state?.dailyCount ?? 0;
+    const hourlyCount = state?.hourlyCount ?? 0;
 
     return dailyCount < candidate.mailbox.dailyLimit && hourlyCount < candidate.mailbox.hourlyLimit;
+  }
+
+  /** Preloads mailbox capacity counters once and reserves locally as this scheduler queues messages. */
+  private async loadMailboxStates(candidates: CrmDueSendCandidateRecord[], dayRange: DateRange, hourRange: DateRange) {
+    const mailboxes = Array.from(
+      new Map(
+        candidates.map(candidate => [
+          toMailboxKey(candidate.message.organizationId, candidate.mailbox.id),
+          {
+            organizationId: candidate.message.organizationId,
+            mailboxId: candidate.mailbox.id
+          }
+        ])
+      ).values()
+    );
+
+    if (mailboxes.length === 0) {
+      return new Map<string, MailboxDispatchState>();
+    }
+
+    const records = await this.store.listMailboxSendStates({
+      mailboxes,
+      day: dayRange,
+      hour: hourRange
+    });
+
+    return new Map(
+      records.map(record => [
+        toMailboxKey(record.organizationId, record.mailboxId),
+        {
+          dailyCount: record.dailyCount,
+          hourlyCount: record.hourlyCount
+        }
+      ])
+    );
+  }
+
+  private reserveMailboxCapacity(mailboxKey: string, mailboxStates: Map<string, MailboxDispatchState>) {
+    const state = mailboxStates.get(mailboxKey) ?? {
+      dailyCount: 0,
+      hourlyCount: 0
+    };
+
+    state.dailyCount += 1;
+    state.hourlyCount += 1;
+    mailboxStates.set(mailboxKey, state);
   }
 
   private async queueCandidate(candidate: CrmDueSendCandidateRecord, now: Date) {
@@ -301,4 +344,8 @@ function toUtcRange(now: Date, unit: 'day' | 'hour'): DateRange {
 
 function toOwnerKey(organizationId: string, ownerUserId: string) {
   return `${organizationId}:${ownerUserId}`;
+}
+
+function toMailboxKey(organizationId: string, mailboxId: string) {
+  return `${organizationId}:${mailboxId}`;
 }

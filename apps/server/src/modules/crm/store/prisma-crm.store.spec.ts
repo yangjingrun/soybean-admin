@@ -287,6 +287,67 @@ describe('PrismaCrmStore', () => {
     ]);
   });
 
+  it('batch loads mailbox send states with daily and hourly grouped counts', async () => {
+    const day = {
+      from: new Date('2026-06-20T00:00:00.000Z'),
+      to: new Date('2026-06-21T00:00:00.000Z')
+    };
+    const hour = {
+      from: new Date('2026-06-20T10:00:00.000Z'),
+      to: new Date('2026-06-20T11:00:00.000Z')
+    };
+    const prisma = createPrisma({
+      mailboxDailyRows: [{ organizationId: 'org-1', mailboxId: 'mailbox-1', _count: { _all: 8 } }],
+      mailboxHourlyRows: [{ organizationId: 'org-1', mailboxId: 'mailbox-1', _count: { _all: 2 } }]
+    });
+    const store = new PrismaCrmStore(prisma as never);
+
+    const result = await store.listMailboxSendStates({
+      mailboxes: [
+        { organizationId: 'org-1', mailboxId: 'mailbox-1' },
+        { organizationId: 'org-1', mailboxId: 'mailbox-2' },
+        { organizationId: 'org-1', mailboxId: 'mailbox-1' }
+      ],
+      day,
+      hour
+    });
+
+    assert.deepEqual(result, [
+      {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-1',
+        dailyCount: 8,
+        hourlyCount: 2
+      },
+      {
+        organizationId: 'org-1',
+        mailboxId: 'mailbox-2',
+        dailyCount: 0,
+        hourlyCount: 0
+      }
+    ]);
+    assert.deepEqual(prisma.crmMessage.groupByCalls.slice(-2).map(call => call.by), [
+      ['organizationId', 'mailboxId'],
+      ['organizationId', 'mailboxId']
+    ]);
+    assert.deepEqual(prisma.crmMessage.groupByCalls.at(-2)?.where, {
+      AND: [
+        {
+          OR: [
+            { organizationId: 'org-1', mailboxId: 'mailbox-1' },
+            { organizationId: 'org-1', mailboxId: 'mailbox-2' }
+          ]
+        },
+        {
+          OR: [
+            { status: 'queued', scheduledAt: { gte: day.from, lt: day.to } },
+            { status: 'sent', sentAt: { gte: day.from, lt: day.to } }
+          ]
+        }
+      ]
+    });
+  });
+
   it('builds a personal CRM workbench overview with today metrics and seven day trend', async () => {
     const prisma = createPrisma();
     const store = new PrismaCrmStore(prisma as never);
@@ -3001,6 +3062,16 @@ function createPrisma(
       stepIndex: number;
       _count: { _all: number };
     }>;
+    mailboxDailyRows?: Array<{
+      organizationId: string;
+      mailboxId: string;
+      _count: { _all: number };
+    }>;
+    mailboxHourlyRows?: Array<{
+      organizationId: string;
+      mailboxId: string;
+      _count: { _all: number };
+    }>;
     blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
     sequenceReviewMessages?: ReturnType<typeof createPrismaMessage>[];
     sentMessageResult?: ReturnType<typeof createPrismaMessage>;
@@ -4258,6 +4329,12 @@ function createPrisma(
       },
       async groupBy(args: { by: string[]; where: Record<string, unknown>; _count: Record<string, unknown> }) {
         this.groupByCalls.push(args);
+        if (args.by.includes('mailboxId')) {
+          const mailboxGroupByCalls = this.groupByCalls.filter(call => call.by.includes('mailboxId')).length;
+
+          return mailboxGroupByCalls === 1 ? (options.mailboxDailyRows ?? []) : (options.mailboxHourlyRows ?? []);
+        }
+
         if (args.by.includes('stepIndex')) {
           return options.ownerDispatchedRows ?? [];
         }

@@ -51,6 +51,7 @@ import type {
   CrmMailboxCreateInput,
   CrmMailboxAuthorizationExpiredInput,
   CrmMailboxAuthorizationExpiredRecord,
+  CrmMailboxSendStateBatchInput,
   CrmMailboxProvider,
   CrmMailboxRecord,
   CrmMailboxStatus,
@@ -822,6 +823,50 @@ export class PrismaCrmStore implements CrmStore {
         dailyCount: dispatchedCount?.dailyCount ?? 0,
         firstTouchCount: dispatchedCount?.firstTouchCount ?? 0,
         followUpCount: dispatchedCount?.followUpCount ?? 0
+      };
+    });
+  }
+
+  /** Batch loads mailbox daily and hourly send counters for scheduler capacity checks. */
+  async listMailboxSendStates(input: CrmMailboxSendStateBatchInput) {
+    const mailboxes = toUniqueMailboxPairs(input.mailboxes);
+
+    if (mailboxes.length === 0) {
+      return [];
+    }
+
+    const mailboxFilters = toMailboxPairFilters(mailboxes);
+    const [dailyRows, hourlyRows] = await Promise.all([
+      this.prisma.crmMessage.groupBy({
+        by: ['organizationId', 'mailboxId'],
+        where: {
+          AND: [{ OR: mailboxFilters }, toDispatchedMessageRangeWhere(input.day.from, input.day.to)]
+        },
+        _count: {
+          _all: true
+        }
+      }),
+      this.prisma.crmMessage.groupBy({
+        by: ['organizationId', 'mailboxId'],
+        where: {
+          AND: [{ OR: mailboxFilters }, toDispatchedMessageRangeWhere(input.hour.from, input.hour.to)]
+        },
+        _count: {
+          _all: true
+        }
+      })
+    ]);
+    const dailyCountByMailbox = toMailboxCountMap(dailyRows);
+    const hourlyCountByMailbox = toMailboxCountMap(hourlyRows);
+
+    return mailboxes.map(mailbox => {
+      const key = toMailboxPairKey(mailbox.organizationId, mailbox.mailboxId);
+
+      return {
+        organizationId: mailbox.organizationId,
+        mailboxId: mailbox.mailboxId,
+        dailyCount: dailyCountByMailbox.get(key) ?? 0,
+        hourlyCount: hourlyCountByMailbox.get(key) ?? 0
       };
     });
   }
@@ -4121,6 +4166,37 @@ function toDispatchedMessageRangeWhere(from: Date, to: Date): Prisma.CrmMessageW
 
 function toOwnerPairKey(organizationId: string, ownerUserId: string) {
   return `${organizationId}:${ownerUserId}`;
+}
+
+function toUniqueMailboxPairs(mailboxes: Array<{ organizationId: string; mailboxId: string }>) {
+  return Array.from(
+    new Map(mailboxes.map(mailbox => [toMailboxPairKey(mailbox.organizationId, mailbox.mailboxId), mailbox])).values()
+  );
+}
+
+function toMailboxPairFilters(mailboxes: Array<{ organizationId: string; mailboxId: string }>) {
+  return mailboxes.map(mailbox => ({
+    organizationId: mailbox.organizationId,
+    mailboxId: mailbox.mailboxId
+  }));
+}
+
+function toMailboxCountMap(rows: Array<{ organizationId: string; mailboxId: string | null; _count: { _all: number } }>) {
+  const result = new Map<string, number>();
+
+  for (const row of rows) {
+    if (!row.mailboxId) {
+      continue;
+    }
+
+    result.set(toMailboxPairKey(row.organizationId, row.mailboxId), row._count._all);
+  }
+
+  return result;
+}
+
+function toMailboxPairKey(organizationId: string, mailboxId: string) {
+  return `${organizationId}:${mailboxId}`;
 }
 
 /** Creates a stable key for organization-scoped blacklist lookups. */

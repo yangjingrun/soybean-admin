@@ -80,6 +80,55 @@ describe('CrmSendSchedulerService', () => {
     assert.equal(store.countOwnerQueuedMessagesCalls.length, 0);
     assert.equal(store.countDispatchedMessagesCalls.filter(call => !call.mailboxId).length, 0);
   });
+
+  it('batch loads mailbox dispatch state for all due mailboxes', async () => {
+    const now = new Date('2026-06-20T02:00:00.000Z');
+    const store = createSchedulerStore({
+      candidates: [
+        createCandidate({ messageId: 'mailbox-1-message', stepIndex: 1, mailboxId: 'mailbox-1' }),
+        createCandidate({ messageId: 'mailbox-2-message', stepIndex: 1, mailboxId: 'mailbox-2' })
+      ],
+      mailboxStates: [
+        createMailboxSendState({ mailboxId: 'mailbox-1' }),
+        createMailboxSendState({ mailboxId: 'mailbox-2' })
+      ]
+    });
+    const queue = createQueue();
+    const scheduler = new CrmSendSchedulerService(store, queue);
+
+    const result = await scheduler.dispatchDueMessages({ now, take: 20 });
+
+    assert.equal(result.dispatchedCount, 2);
+    assert.deepEqual(store.mailboxStateCalls[0].mailboxes, [
+      { organizationId: 'org-1', mailboxId: 'mailbox-1' },
+      { organizationId: 'org-1', mailboxId: 'mailbox-2' }
+    ]);
+    assert.equal(store.mailboxStateCalls.length, 1);
+    assert.equal(store.countDispatchedMessagesCalls.filter(call => call.mailboxId).length, 0);
+  });
+
+  it('reserves mailbox capacity in memory after each queued candidate', async () => {
+    const now = new Date('2026-06-20T02:00:00.000Z');
+    const store = createSchedulerStore({
+      candidates: [
+        createCandidate({ messageId: 'first-1', stepIndex: 1, dailyLimit: 1, hourlyLimit: 1 }),
+        createCandidate({ messageId: 'first-2', stepIndex: 1, dailyLimit: 1, hourlyLimit: 1 })
+      ],
+      mailboxStates: [createMailboxSendState({ mailboxId: 'mailbox-1', dailyCount: 0, hourlyCount: 0 })]
+    });
+    const queue = createQueue();
+    const scheduler = new CrmSendSchedulerService(store, queue);
+
+    const result = await scheduler.dispatchDueMessages({ now, take: 20 });
+
+    assert.equal(result.dispatchedCount, 1);
+    assert.equal(result.skippedCount, 1);
+    assert.deepEqual(
+      queue.jobs.map(job => job.messageId),
+      ['first-1']
+    );
+    assert.equal(store.countDispatchedMessagesCalls.filter(call => call.mailboxId).length, 0);
+  });
 });
 
 function createSchedulerStore(input: {
@@ -96,6 +145,12 @@ function createSchedulerStore(input: {
     firstTouchCount: number;
     followUpCount: number;
   }>;
+  mailboxStates?: Array<{
+    organizationId: string;
+    mailboxId: string;
+    dailyCount: number;
+    hourlyCount: number;
+  }>;
 }) {
   const globalConfig = input.globalConfig ?? createGlobalConfig();
   const preference = input.preference ?? createSendPreference();
@@ -109,10 +164,16 @@ function createSchedulerStore(input: {
   const getSendPreferenceCalls: unknown[] = [];
   const countOwnerQueuedMessagesCalls: unknown[] = [];
   const countDispatchedMessagesCalls: Array<{ stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }> = [];
+  const mailboxStateCalls: Array<{
+    mailboxes: Array<{ organizationId: string; mailboxId: string }>;
+    day: { from: Date; to: Date };
+    hour: { from: Date; to: Date };
+  }> = [];
 
   return {
     queuedMessageIds,
     ownerStateCalls,
+    mailboxStateCalls,
     getSendPreferenceCalls,
     countOwnerQueuedMessagesCalls,
     countDispatchedMessagesCalls,
@@ -161,6 +222,21 @@ function createSchedulerStore(input: {
         );
       });
     },
+    async listMailboxSendStates(args: {
+      mailboxes: Array<{ organizationId: string; mailboxId: string }>;
+      day: { from: Date; to: Date };
+      hour: { from: Date; to: Date };
+    }) {
+      mailboxStateCalls.push(args);
+
+      return args.mailboxes.map(mailbox => {
+        const configured = input.mailboxStates?.find(
+          item => item.organizationId === mailbox.organizationId && item.mailboxId === mailbox.mailboxId
+        );
+
+        return configured ?? createMailboxSendState(mailbox);
+      });
+    },
     async listDueSendCandidates() {
       return candidates;
     },
@@ -183,6 +259,11 @@ function createSchedulerStore(input: {
       owners: Array<{ organizationId: string; ownerUserId: string }>;
       from: Date;
       to: Date;
+    }>;
+    mailboxStateCalls: Array<{
+      mailboxes: Array<{ organizationId: string; mailboxId: string }>;
+      day: { from: Date; to: Date };
+      hour: { from: Date; to: Date };
     }>;
     getSendPreferenceCalls: unknown[];
     countOwnerQueuedMessagesCalls: unknown[];
@@ -257,6 +338,20 @@ function createOwnerSendState(input: {
   };
 }
 
+function createMailboxSendState(input: {
+  organizationId?: string;
+  mailboxId?: string;
+  dailyCount?: number;
+  hourlyCount?: number;
+}) {
+  return {
+    organizationId: input.organizationId ?? 'org-1',
+    mailboxId: input.mailboxId ?? 'mailbox-1',
+    dailyCount: input.dailyCount ?? 0,
+    hourlyCount: input.hourlyCount ?? 0
+  };
+}
+
 function createCandidate(input: {
   messageId: string;
   stepIndex: number;
@@ -264,6 +359,8 @@ function createCandidate(input: {
   organizationId?: string;
   ownerUserId?: string;
   mailboxId?: string;
+  dailyLimit?: number;
+  hourlyLimit?: number;
 }): CrmDueSendCandidateRecord {
   const stepKind: CrmScheduledMessageStepKind = input.stepIndex === 1 ? 'first_touch' : 'follow_up';
   const organizationId = input.organizationId ?? 'org-1';
@@ -336,8 +433,8 @@ function createCandidate(input: {
       emailHash: 'mailbox-hash',
       maskedEmail: 'a***@gmail.com',
       status: 'active',
-      dailyLimit: 50,
-      hourlyLimit: 10,
+      dailyLimit: input.dailyLimit ?? 50,
+      hourlyLimit: input.hourlyLimit ?? 10,
       warmupStage: 'ready',
       encryptedRefreshToken: null,
       watchExpiration: null,

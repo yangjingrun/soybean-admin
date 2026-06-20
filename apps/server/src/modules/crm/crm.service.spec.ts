@@ -5549,6 +5549,32 @@ function createStore(
         };
       });
     },
+    async listMailboxSendStates(input) {
+      return input.mailboxes.map(mailbox => {
+        const mailboxMessages = messages.filter(
+          message => message.organizationId === mailbox.organizationId && message.mailboxId === mailbox.mailboxId
+        );
+        const countInRange = (from: Date, to: Date) =>
+          mailboxMessages.filter(message => {
+            if (message.status === 'queued') {
+              return Boolean(message.scheduledAt && message.scheduledAt >= from && message.scheduledAt < to);
+            }
+
+            if (message.status === 'sent') {
+              return Boolean(message.sentAt && message.sentAt >= from && message.sentAt < to);
+            }
+
+            return false;
+          }).length;
+
+        return {
+          organizationId: mailbox.organizationId,
+          mailboxId: mailbox.mailboxId,
+          dailyCount: countInRange(input.day.from, input.day.to),
+          hourlyCount: countInRange(input.hour.from, input.hour.to)
+        };
+      });
+    },
     async listDueSendCandidates() {
       return [];
     },

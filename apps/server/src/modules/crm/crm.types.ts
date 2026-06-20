@@ -1208,6 +1208,28 @@ export interface CrmOwnerSendStateRecord {
   followUpCount: number;
 }
 
+export interface CrmMailboxSendStateBatchInput {
+  mailboxes: Array<{
+    organizationId: string;
+    mailboxId: string;
+  }>;
+  day: {
+    from: Date;
+    to: Date;
+  };
+  hour: {
+    from: Date;
+    to: Date;
+  };
+}
+
+export interface CrmMailboxSendStateRecord {
+  organizationId: string;
+  mailboxId: string;
+  dailyCount: number;
+  hourlyCount: number;
+}
+
 export interface CrmSendQueuePort {
   enqueueFirstMessage(input: CrmSendQueueJob, options?: { delayMs?: number }): Promise<{ jobId: string }>;
   hasJob(jobId: string): Promise<boolean>;
@@ -1562,6 +1584,7 @@ export interface CrmStore extends CrmAiDraftTaskStore {
   countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }): Promise<number>;
   countDispatchedMessages(input: CrmDispatchedMessageCountInput): Promise<number>;
   listOwnerSendStates(input: CrmOwnerSendStateBatchInput): Promise<CrmOwnerSendStateRecord[]>;
+  listMailboxSendStates(input: CrmMailboxSendStateBatchInput): Promise<CrmMailboxSendStateRecord[]>;
   listDueSendCandidates(input: CrmDueSendCandidateListInput): Promise<CrmDueSendCandidateRecord[]>;
   listStaleQueuedMessages(input: { before: Date; take: number }): Promise<CrmMessageRecord[]>;
   getOrganizationConfig(organizationId: string): Promise<CrmOrganizationConfigRecord | null>;
