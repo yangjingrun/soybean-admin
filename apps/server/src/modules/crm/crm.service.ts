@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
   Inject,
   Injectable,
   NotFoundException,
@@ -42,9 +41,17 @@ import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
+import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
+import {
+  createSequenceBatchExceptionResult,
+  createSequenceBatchResult,
+  runSequenceBatch,
+  type SequenceBatchOperateResult,
+  type SequenceBatchOperationInput
+} from './sequence/crm-sequence-batch';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
@@ -270,29 +277,6 @@ interface SequenceReviewCreateInput {
   policyId?: string | null;
 }
 
-interface SequenceBatchOperationInput {
-  ids: string[];
-}
-
-type SequenceBatchItemStatus = 'success' | 'skipped' | 'failed';
-
-interface SequenceBatchItemResult {
-  id: string;
-  status: SequenceBatchItemStatus;
-  message: string;
-  enrollmentId?: string;
-  messageId?: string;
-  stepIndex?: number;
-}
-
-interface SequenceBatchOperateResult {
-  totalCount: number;
-  successCount: number;
-  skippedCount: number;
-  failedCount: number;
-  results: SequenceBatchItemResult[];
-}
-
 interface CreateAiDraftTaskInput {
   enrollmentIds: string[];
 }
@@ -394,7 +378,10 @@ export class CrmService {
     private readonly followUpApprovalService?: CrmFollowUpApprovalService,
     @Optional()
     @Inject(CrmBatchDraftApprovalService)
-    private readonly batchDraftApprovalService?: CrmBatchDraftApprovalService
+    private readonly batchDraftApprovalService?: CrmBatchDraftApprovalService,
+    @Optional()
+    @Inject(CrmBatchSequenceStopService)
+    private readonly batchSequenceStopService?: CrmBatchSequenceStopService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -2288,17 +2275,17 @@ export class CrmService {
     const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
     let generationContextPromise: Promise<NextDraftGenerationContext> | null = null;
 
-    return this.runSequenceBatch(input.ids, async id => {
+    return runSequenceBatch(input.ids, async id => {
       const item = reviewItemById.get(id) ?? null;
 
       if (!item) {
-        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
+        return createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
       }
 
       const skipMessage = this.getNextDraftSkipMessage(item);
 
       if (skipMessage) {
-        return this.createSequenceBatchResult(id, 'skipped', skipMessage, {
+        return createSequenceBatchResult(id, 'skipped', skipMessage, {
           enrollmentId: item.enrollment.id
         });
       }
@@ -2308,13 +2295,13 @@ export class CrmService {
         const generationContext = await generationContextPromise;
         const generated = await this.generateNextDraftFromReviewItem(item, context, generationContext);
 
-        return this.createSequenceBatchResult(id, 'success', `第 ${generated.message.stepIndex} 封草稿已生成`, {
+        return createSequenceBatchResult(id, 'success', `第 ${generated.message.stepIndex} 封草稿已生成`, {
           enrollmentId: generated.enrollment.id,
           messageId: generated.message.id,
           stepIndex: generated.message.stepIndex
         });
       } catch (error) {
-        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
+        return createSequenceBatchExceptionResult(id, error, item.enrollment.id);
       }
     });
   }
@@ -3066,59 +3053,11 @@ export class CrmService {
     input: SequenceBatchOperationInput,
     context: CrmUserContext
   ): Promise<SequenceBatchOperateResult> {
-    return this.runSequenceBatch(input.ids, async id => {
-      const item = await this.store.getSequenceReviewItem({
-        id,
-        organizationId: context.organizationId,
-        ownerUserId: context.userId
-      });
+    if (!this.batchSequenceStopService) {
+      throw new BadRequestException('CRM 批量序列停止服务未启用');
+    }
 
-      if (!item) {
-        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
-      }
-
-      if (!stoppableSequenceStatuses.includes(item.enrollment.status)) {
-        return this.createSequenceBatchResult(id, 'skipped', '当前序列状态不能停止', {
-          enrollmentId: item.enrollment.id
-        });
-      }
-
-      try {
-        const stopped = await this.store.stopSequenceEnrollment({
-          enrollmentId: item.enrollment.id,
-          organizationId: context.organizationId,
-          ownerUserId: context.userId,
-          fromStatuses: stoppableSequenceStatuses,
-          accountStatus: 'paused',
-          actorUserId: context.userId
-        });
-
-        if (!stopped) {
-          return this.createSequenceBatchResult(id, 'skipped', '当前序列状态已变化，请刷新后重试', {
-            enrollmentId: item.enrollment.id
-          });
-        }
-
-        await this.recordCrmLog('sequence-stopped', 'CRM 开发信序列已停止', context, {
-          organizationId: context.organizationId,
-          accountId: stopped.account.id,
-          contactId: stopped.enrollment.contactId,
-          enrollmentId: stopped.enrollment.id,
-          messageId: stopped.message?.id ?? item.firstMessage?.id ?? null,
-          fromStatus: item.enrollment.status,
-          toStatus: stopped.enrollment.status,
-          runVersion: stopped.enrollment.runVersion
-        });
-
-        return this.createSequenceBatchResult(id, 'success', '开发信序列已停止', {
-          enrollmentId: stopped.enrollment.id,
-          messageId: stopped.message?.id,
-          stepIndex: stopped.message?.stepIndex
-        });
-      } catch (error) {
-        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
-      }
-    });
+    return this.batchSequenceStopService.batchStopSequenceEnrollments(input, context);
   }
 
   /** Repairs stale queued messages that lost their BullMQ job. */
@@ -4096,54 +4035,6 @@ export class CrmService {
     }
 
     return productLine;
-  }
-
-  /** Runs a sequence batch with per-item isolation and computes the summary counters. */
-  private async runSequenceBatch(
-    ids: string[],
-    operate: (id: string) => Promise<SequenceBatchItemResult>
-  ): Promise<SequenceBatchOperateResult> {
-    const results: SequenceBatchItemResult[] = [];
-
-    for (const id of ids) {
-      results.push(await operate(id));
-    }
-
-    return {
-      totalCount: ids.length,
-      successCount: results.filter(item => item.status === 'success').length,
-      skippedCount: results.filter(item => item.status === 'skipped').length,
-      failedCount: results.filter(item => item.status === 'failed').length,
-      results
-    };
-  }
-
-  private createSequenceBatchResult(
-    id: string,
-    status: SequenceBatchItemStatus,
-    message: string,
-    extra: Omit<SequenceBatchItemResult, 'id' | 'status' | 'message'> = {}
-  ): SequenceBatchItemResult {
-    return {
-      id,
-      status,
-      message,
-      ...extra
-    };
-  }
-
-  private createSequenceBatchExceptionResult(
-    id: string,
-    error: unknown,
-    enrollmentId?: string
-  ): SequenceBatchItemResult {
-    const message = error instanceof Error ? error.message : String(error);
-    const status: SequenceBatchItemStatus =
-      error instanceof HttpException && error.getStatus() < 500 ? 'skipped' : 'failed';
-
-    return this.createSequenceBatchResult(id, status, message, {
-      enrollmentId
-    });
   }
 
   private getNextDraftSkipMessage(item: CrmSequenceReviewRecord) {

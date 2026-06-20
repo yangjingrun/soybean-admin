@@ -12,6 +12,7 @@ import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-d
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
+import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
@@ -254,6 +255,31 @@ describe('CrmService', () => {
     const service = createServiceWithSplitServices({ batchDraftApprovalService });
 
     assert.equal(await service.batchApproveMessageDrafts(input, context), expected);
+  });
+
+  it('delegates batch sequence stops when the split batch stop service is injected', async () => {
+    const context = createContext();
+    const input = { ids: ['enrollment-1', 'enrollment-2'] };
+    const expected = {
+      totalCount: 2,
+      successCount: 1,
+      skippedCount: 1,
+      failedCount: 0,
+      results: [
+        { id: 'enrollment-1', status: 'success' as const, message: '开发信序列已停止' },
+        { id: 'enrollment-2', status: 'skipped' as const, message: '已跳过' }
+      ]
+    };
+    const batchSequenceStopService = {
+      async batchStopSequenceEnrollments(actualInput: typeof input, actualContext: CrmUserContext) {
+        assert.equal(actualInput, input);
+        assert.equal(actualContext, context);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ batchSequenceStopService });
+
+    assert.equal(await service.batchStopSequenceEnrollments(input, context), expected);
   });
 
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -4762,7 +4788,13 @@ describe('CrmService', () => {
         ]
       }
     );
-    const service = new CrmService(store);
+    const logs = createLogRecorder();
+    const service = createServiceWithSplitServices({
+      store,
+      batchSequenceStopService: createBatchSequenceStopService(store, {
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
+    });
 
     const result = await service.batchStopSequenceEnrollments(
       { ids: ['enrollment-owned', 'enrollment-terminal', 'enrollment-member'] },
@@ -4784,6 +4816,8 @@ describe('CrmService', () => {
     assert.equal(store.messages.find(item => item.id === 'message-owned-1')?.status, 'skipped');
     assert.equal(store.enrollments.find(item => item.id === 'enrollment-member')?.status, 'sequence_running');
     assert.equal(store.messages.find(item => item.id === 'message-member-1')?.status, 'queued');
+    assert.equal(logs.records.at(-1)?.action, 'sequence-stopped');
+    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).runVersion, 3);
   });
 
   it('creates a CRM AI draft task for eligible owner sequences and stores invalid selections as skipped items', async () => {
@@ -9157,6 +9191,7 @@ function createServiceWithSplitServices(options: {
   draftApprovalService?: unknown;
   followUpApprovalService?: unknown;
   batchDraftApprovalService?: unknown;
+  batchSequenceStopService?: unknown;
 }) {
   return new CrmService(
     options.store ?? ({} as CrmStore),
@@ -9179,12 +9214,17 @@ function createServiceWithSplitServices(options: {
     options.draftService as never,
     options.draftApprovalService as never,
     options.followUpApprovalService as never,
-    options.batchDraftApprovalService as never
+    options.batchDraftApprovalService as never,
+    options.batchSequenceStopService as never
   );
 }
 
 function createBatchDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
   return new CrmBatchDraftApprovalService(store, options.crmLogger);
+}
+
+function createBatchSequenceStopService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmBatchSequenceStopService(store, options.crmLogger);
 }
 
 function createDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {

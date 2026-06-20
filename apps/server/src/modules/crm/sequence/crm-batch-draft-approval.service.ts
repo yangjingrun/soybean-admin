@@ -1,4 +1,4 @@
-import { HttpException, Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { CRM_SEQUENCE_REPOSITORY } from '../crm.tokens';
 import type {
   CrmMessageRecord,
@@ -9,29 +9,13 @@ import type {
 } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import type { CrmBatchDraftApprovalRepository } from './crm-batch-draft-approval.repository';
-
-export interface SequenceBatchOperationInput {
-  ids: string[];
-}
-
-type SequenceBatchItemStatus = 'success' | 'skipped' | 'failed';
-
-interface SequenceBatchItemResult {
-  id: string;
-  status: SequenceBatchItemStatus;
-  message: string;
-  enrollmentId?: string;
-  messageId?: string;
-  stepIndex?: number;
-}
-
-export interface SequenceBatchOperateResult {
-  totalCount: number;
-  successCount: number;
-  skippedCount: number;
-  failedCount: number;
-  results: SequenceBatchItemResult[];
-}
+import {
+  createSequenceBatchExceptionResult,
+  createSequenceBatchResult,
+  runSequenceBatch,
+  type SequenceBatchOperateResult,
+  type SequenceBatchOperationInput
+} from './crm-sequence-batch';
 
 const initialDraftStepIndex = 1;
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
@@ -58,17 +42,17 @@ export class CrmBatchDraftApprovalService {
     });
     const reviewItemById = new Map(reviewItems.map(item => [item.enrollment.id, item]));
 
-    return this.runSequenceBatch(input.ids, async id => {
+    return runSequenceBatch(input.ids, async id => {
       const item = reviewItemById.get(id) ?? null;
 
       if (!item) {
-        return this.createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
+        return createSequenceBatchResult(id, 'skipped', '邮件序列不存在或无权操作');
       }
 
       const pendingMessage = this.getPendingLocalApprovalMessage(item);
 
       if (!pendingMessage) {
-        return this.createSequenceBatchResult(id, 'skipped', '当前序列没有可本地确认的待审草稿', {
+        return createSequenceBatchResult(id, 'skipped', '当前序列没有可本地确认的待审草稿', {
           enrollmentId: item.enrollment.id
         });
       }
@@ -92,7 +76,7 @@ export class CrmBatchDraftApprovalService {
         });
 
         if (!approval) {
-          return this.createSequenceBatchResult(id, 'skipped', '当前草稿状态已变化，请刷新后重试', {
+          return createSequenceBatchResult(id, 'skipped', '当前草稿状态已变化，请刷新后重试', {
             enrollmentId: item.enrollment.id,
             messageId: pendingMessage.id,
             stepIndex: pendingMessage.stepIndex
@@ -110,61 +94,14 @@ export class CrmBatchDraftApprovalService {
           toStatus: approval.enrollment.status
         });
 
-        return this.createSequenceBatchResult(id, 'success', '草稿已确认', {
+        return createSequenceBatchResult(id, 'success', '草稿已确认', {
           enrollmentId: approval.enrollment.id,
           messageId: approval.message.id,
           stepIndex: approval.message.stepIndex
         });
       } catch (error) {
-        return this.createSequenceBatchExceptionResult(id, error, item.enrollment.id);
+        return createSequenceBatchExceptionResult(id, error, item.enrollment.id);
       }
-    });
-  }
-
-  private async runSequenceBatch(
-    ids: string[],
-    operate: (id: string) => Promise<SequenceBatchItemResult>
-  ): Promise<SequenceBatchOperateResult> {
-    const results: SequenceBatchItemResult[] = [];
-
-    for (const id of ids) {
-      results.push(await operate(id));
-    }
-
-    return {
-      totalCount: ids.length,
-      successCount: results.filter(item => item.status === 'success').length,
-      skippedCount: results.filter(item => item.status === 'skipped').length,
-      failedCount: results.filter(item => item.status === 'failed').length,
-      results
-    };
-  }
-
-  private createSequenceBatchResult(
-    id: string,
-    status: SequenceBatchItemStatus,
-    message: string,
-    extra: Omit<SequenceBatchItemResult, 'id' | 'status' | 'message'> = {}
-  ): SequenceBatchItemResult {
-    return {
-      id,
-      status,
-      message,
-      ...extra
-    };
-  }
-
-  private createSequenceBatchExceptionResult(
-    id: string,
-    error: unknown,
-    enrollmentId?: string
-  ): SequenceBatchItemResult {
-    const message = error instanceof Error ? error.message : String(error);
-    const status: SequenceBatchItemStatus =
-      error instanceof HttpException && error.getStatus() < 500 ? 'skipped' : 'failed';
-
-    return this.createSequenceBatchResult(id, status, message, {
-      enrollmentId
     });
   }
 

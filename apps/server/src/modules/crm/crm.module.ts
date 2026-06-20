@@ -32,6 +32,7 @@ import { CrmService } from './crm.service';
 import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
+import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
@@ -67,6 +68,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmAccountService,
     CrmMailboxService,
     CrmBatchDraftApprovalService,
+    CrmBatchSequenceStopService,
     CrmDraftApprovalService,
     CrmDraftService,
     CrmFollowUpApprovalService,
