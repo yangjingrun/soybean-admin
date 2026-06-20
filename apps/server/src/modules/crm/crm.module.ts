@@ -53,10 +53,11 @@ import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import { CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY } from './template-groups/crm-email-template-group.repository';
 import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
 import {
-  CRM_EMAIL_DNS_RESOLVER,
   CRM_AI_DRAFT_TASK_QUEUE,
+  CRM_AI_DRAFT_TASK_REPOSITORY,
   CRM_ACCOUNT_REPOSITORY,
   CRM_DASHBOARD_REPOSITORY,
+  CRM_EMAIL_DNS_RESOLVER,
   CRM_EMAIL_SEND_GATEWAY,
   CRM_GMAIL_HISTORY_GATEWAY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
@@ -144,6 +145,10 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     },
     {
       provide: CRM_SEQUENCE_REPOSITORY,
+      useExisting: CRM_STORE
+    },
+    {
+      provide: CRM_AI_DRAFT_TASK_REPOSITORY,
       useExisting: CRM_STORE
     },
     {

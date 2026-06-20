@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -10,12 +9,7 @@ import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
 import { createPageResult } from '../../shared/pagination';
-import {
-  assertOrganizationAdmin,
-  assertSuper,
-  isOrganizationAdmin as hasOrganizationAdminRole,
-  isSuper
-} from '../../shared/permission-policy';
+import { assertOrganizationAdmin, assertSuper } from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
@@ -45,7 +39,7 @@ import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.
 import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
-import { getNextDraftSkipMessage, nextDraftEnrollmentStatuses } from './sequence/crm-next-draft-rules';
+import { nextDraftEnrollmentStatuses } from './sequence/crm-next-draft-rules';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import {
   type SequenceBatchOperateResult,
@@ -54,24 +48,16 @@ import {
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
 import {
-  toSequencePolicyView,
   type SequencePolicyWriteInput
 } from './sequence-policies/crm-sequence-policy-rules';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
 import {
-  toEmailTemplateGroupView,
   type EmailTemplateGroupCreateInput,
   type EmailTemplateGroupUpdateInput
 } from './template-groups/crm-email-template-group-rules';
-import { requireEnabledCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
-import {
-  defaultTemplateSteps,
-  findPersonaProfile,
-  renderEmailTemplateText,
-  type PersonaProfile
-} from './crm-email-template-renderer';
+import { findPersonaProfile, renderEmailTemplateText, type PersonaProfile } from './crm-email-template-renderer';
 import { buildPersonaMatch, type ResolvedPersonaMatch } from './crm-persona-match';
 import {
   CRM_AI_DRAFT_TASK_QUEUE,
@@ -83,11 +69,7 @@ import {
 } from './crm.tokens';
 import type {
   CrmAiDraftMetadata,
-  CrmAiDraftTaskCreateLimitReason,
-  CrmAiDraftTaskCreateItemInput,
-  CrmAiDraftTaskItemRecord,
   CrmAiDraftTaskQueuePort,
-  CrmAiDraftTaskRecord,
   CrmAiDraftQueueConfigInput,
   CrmAiWritingStepIndex,
   CrmAccountDetailRecord,
@@ -112,14 +94,11 @@ import type {
   CrmMessageDraftVersionRecord,
   CrmMessageRecord,
   CrmMessageStatus,
-  CrmMessageThreadMode,
-  CrmPersonaMatchInfo,
   CrmPersonaProfileStatus,
   CrmProductLineRecord,
   CrmProductLineStatus,
   CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
-  CrmSequencePolicyRecord,
   CrmSequenceReviewRecord,
   CrmSequenceReviewTodoType,
   CrmStrategyStatsRecord,
@@ -146,7 +125,7 @@ const defaultMailboxHourlyLimit = 10;
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex = 1;
 const accountArchiveRecoveryDays = 30;
-const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
+const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
   'draft_review_pending',
   'ready_to_send',
   'sequence_running',
@@ -154,7 +133,6 @@ const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
 ];
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 const approvedDraftStatus: CrmMessageStatus = 'draft_ready';
-const stoppableSequenceStatuses: CrmSequenceEnrollmentStatus[] = [...activeSequenceStatuses];
 const noMxErrorCodes = new Set(['ENODATA', 'ENOTFOUND']);
 
 const publicEmailPrefixes = new Set([
@@ -1167,133 +1145,7 @@ export class CrmService {
 
   /** Creates one first-email review item and deterministic draft without queueing any send job. */
   async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
-    if (this.sequenceService) {
-      return this.sequenceService.createSequenceReviewItem(input, context);
-    }
-
-    const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
-    await this.assertContactNotBlacklisted(contact, context);
-    const existingEnrollment = await this.store.findActiveEnrollmentByContact({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      contactId: contact.id,
-      statuses: activeSequenceStatuses
-    });
-
-    if (existingEnrollment) {
-      throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
-    }
-
-    const [productLine, mailbox, selectedPolicy, defaultPolicy] = await Promise.all([
-      input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
-      input.mailboxId ? this.requireOwnedActiveMailbox(input.mailboxId, context) : Promise.resolve(null),
-      input.policyId ? this.requireActiveSequencePolicy(input.policyId, context) : Promise.resolve(null),
-      input.policyId ? Promise.resolve(null) : this.store.findDefaultSequencePolicy(context.organizationId)
-    ]);
-    const policy = selectedPolicy ?? defaultPolicy;
-    await this.assertSameCompanySequencePolicy(account, contact, policy, context);
-    const [defaultTemplateGroup, personaMatch] = await Promise.all([
-      this.store.findDefaultEmailTemplateGroup(context.organizationId),
-      this.resolvePersonaProfileMatch(account, contact, context)
-    ]);
-    const draft = await this.generateConfiguredReviewDraft({
-      account,
-      contact,
-      productLine,
-      context,
-      stepIndex: initialDraftStepIndex,
-      previousMessages: [],
-      fallbackDraft: generateFirstDraft({
-        account,
-        contact,
-        productLine,
-        context,
-        personaProfile: personaMatch.templatePersona,
-        templateGroup: defaultTemplateGroup
-      })
-    });
-    const bundle = await this.runSequenceWrite(() =>
-      this.store.createSequenceDraftBundle({
-        enrollment: {
-          organizationId: context.organizationId,
-          ownerUserId: context.userId,
-          accountId: account.id,
-          contactId: contact.id,
-          productLineId: productLine?.id ?? null,
-          mailboxId: mailbox?.id ?? null,
-          policyId: policy?.id ?? null,
-          name: buildSequenceName(account, contact),
-          status: 'draft_review_pending',
-          currentStep: initialDraftStepIndex,
-          totalSteps: defaultSequenceStepCount,
-          runVersion: 1,
-          createdById: context.userId,
-          createdByName: context.userName
-        },
-        message: {
-          organizationId: context.organizationId,
-          ownerUserId: context.userId,
-          accountId: account.id,
-          contactId: contact.id,
-          mailboxId: mailbox?.id ?? null,
-          stepIndex: initialDraftStepIndex,
-          threadMode: getSequencePolicyStep(policy, initialDraftStepIndex)?.threadMode ?? 'new_subject',
-          subject: draft.subject,
-          bodyText: draft.bodyText,
-          status: 'draft_pending_review',
-          metadata: createAiDraftMessageMetadata(draft.aiDraft)
-        },
-        timelineEvent: {
-          organizationId: context.organizationId,
-          accountId: account.id,
-          contactId: contact.id,
-          ownerUserId: context.userId,
-          eventType: 'sequence_draft_generated',
-          title: '生成首封开发信草稿',
-          content: draft.subject,
-          metadata: {
-            productLineId: productLine?.id ?? null,
-            mailboxId: mailbox?.id ?? null,
-            policyId: policy?.id ?? null,
-            personaProfileId: personaMatch.persona?.id ?? null,
-            personaProfileName: personaMatch.persona?.name ?? null,
-            personaMatchMethod: personaMatch.matchMethod,
-            personaMatchedKeywords: personaMatch.matchedKeywords,
-            personaFallbackReason: personaMatch.fallbackReason,
-            aiDraft: draft.aiDraft ?? null
-          }
-        },
-        accountStatus: 'manual_review_pending'
-      })
-    );
-
-    await this.recordCrmLog('sequence-review-create', 'CRM 首封开发信草稿生成', context, {
-      organizationId: context.organizationId,
-      accountId: account.id,
-      contactId: contact.id,
-      enrollmentId: bundle.enrollment.id,
-      messageId: bundle.message.id,
-      productLineId: productLine?.id ?? null,
-      mailboxId: mailbox?.id ?? null,
-      policyId: policy?.id ?? null
-    });
-
-    return {
-      item: toSequenceReviewView(
-        {
-          enrollment: bundle.enrollment,
-          account: bundle.account,
-          contact,
-          productLine,
-          mailbox,
-          policy,
-          firstMessage: bundle.message,
-          messages: [bundle.message]
-        },
-        context,
-        personaMatch
-      )
-    };
+    return this.requireSequenceService().createSequenceReviewItem(input, context);
   }
 
   /** Previews a configured AI draft without creating messages or send jobs. */
@@ -1373,35 +1225,7 @@ export class CrmService {
       dateScope?: 'today';
     } = {}
   ) {
-    if (this.sequenceService) {
-      return this.sequenceService.listSequenceReviewItems(context, query);
-    }
-
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const result = await this.store.listSequenceReviewItems({
-      organizationId: context.organizationId,
-      ...toOwnerScope(context),
-      ...(keyword ? { keyword } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.todoType ? { todoType: query.todoType } : {}),
-      ...(query.messageStatus ? { messageStatus: query.messageStatus } : {}),
-      ...(query.dateScope ? { dateScope: query.dateScope } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
-
-    const organizationProfiles = await this.store.listActivePersonaProfiles(context.organizationId);
-
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(record =>
-        toSequenceReviewView(record, context, buildPersonaMatch(organizationProfiles, record.account, record.contact))
-      )
-    });
+    return this.requireSequenceService().listSequenceReviewItems(context, query);
   }
 
   /** Reads local CRM funnel stats grouped by template, policy, persona and product line. */
@@ -1423,14 +1247,7 @@ export class CrmService {
 
   /** Returns one review item detail with the first draft message. */
   async getSequenceReviewItem(id: string, context: CrmUserContext) {
-    if (this.sequenceService) {
-      return this.sequenceService.getSequenceReviewItem(id, context);
-    }
-
-    const item = await this.requireScopedSequenceReviewItem(id, context);
-    const personaMatch = await this.resolvePersonaProfileMatch(item.account, item.contact, context);
-
-    return toSequenceReviewView(item, context, personaMatch);
+    return this.requireSequenceService().getSequenceReviewItem(id, context);
   }
 
   /** Saves human edits to one draft and keeps it in pending review. */
@@ -2581,72 +2398,6 @@ export class CrmService {
     return buildPersonaMatch(organizationProfiles, account, contact);
   }
 
-  private async requireScopedSequencePolicy(id: string, context: CrmUserContext) {
-    const policy = await this.store.findSequencePolicyById({
-      id,
-      organizationId: context.organizationId
-    });
-
-    if (!policy) {
-      throw new NotFoundException('序列策略不存在');
-    }
-
-    return policy;
-  }
-
-  private async requireActiveSequencePolicy(id: string, context: CrmUserContext) {
-    const policy = await this.requireScopedSequencePolicy(id, context);
-
-    if (policy.status !== 'active') {
-      throw new BadRequestException('序列策略已归档');
-    }
-
-    return policy;
-  }
-
-  /**
-   * Applies the sequence policy before creating another active sequence for the same account.
-   */
-  private async assertSameCompanySequencePolicy(
-    account: CrmAccountRecord,
-    contact: CrmContactRecord,
-    policy: CrmSequencePolicyRecord | null,
-    context: CrmUserContext
-  ) {
-    if (policy?.sameCompanyContactStrategy === 'allow_multiple_contacts') {
-      return;
-    }
-
-    const existingEnrollment = await this.store.findActiveEnrollmentByAccount({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      accountId: account.id,
-      statuses: activeSequenceStatuses
-    });
-
-    if (existingEnrollment && existingEnrollment.contactId !== contact.id) {
-      throw new BadRequestException('同公司已有进行中的开发信序列，请使用允许多联系人策略后再创建');
-    }
-  }
-
-  private async requireOwnedActiveMailbox(id: string, context: CrmUserContext) {
-    const mailbox = await this.store.findMailboxById({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!mailbox) {
-      throw new NotFoundException('邮箱不存在');
-    }
-
-    if (mailbox.status !== 'active') {
-      throw new BadRequestException('邮箱未启用');
-    }
-
-    return mailbox;
-  }
-
   private async assertContactNotBlacklisted(contact: CrmContactRecord, context: CrmUserContext) {
     const blacklistEntry = await this.store.findBlacklistEntry({
       organizationId: context.organizationId,
@@ -2656,6 +2407,14 @@ export class CrmService {
     if (blacklistEntry) {
       throw new BadRequestException('该邮箱已在组织黑名单中，不能继续开发');
     }
+  }
+
+  private requireSequenceService() {
+    if (!this.sequenceService) {
+      throw new BadRequestException('CRM 邮件序列服务未启用');
+    }
+
+    return this.sequenceService;
   }
 
   private async requireScopedAccountAndContact(accountId: string, contactId: string, context: CrmUserContext) {
@@ -3026,14 +2785,6 @@ function toMailboxSyncIssueView(record: CrmMailboxRecord) {
   };
 }
 
-function toProductLineView(record: CrmProductLineRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
 function toSequenceEnrollmentView(record: CrmSequenceEnrollmentRecord) {
   return {
     ...record,
@@ -3066,68 +2817,6 @@ function toAccountDetailView(detail: CrmAccountDetailRecord) {
     contacts: detail.contacts.map(toContactView),
     timelineEvents: detail.timelineEvents.map(toTimelineEventView)
   };
-}
-
-function toSequenceReviewView(
-  record: CrmSequenceReviewRecord,
-  context: CrmUserContext,
-  personaMatch = buildPersonaMatch([], record.account, record.contact)
-) {
-  return {
-    enrollment: toSequenceEnrollmentView(record.enrollment),
-    account: toAccountView(record.account),
-    contact: toContactView(record.contact),
-    productLine: record.productLine ? toProductLineView(record.productLine) : null,
-    mailbox: record.mailbox ? toMailboxView(record.mailbox) : null,
-    policy: record.policy ? toSequencePolicyView(record.policy) : null,
-    firstMessage: record.firstMessage ? toMessageView(record.firstMessage) : null,
-    messages: record.messages.map(toMessageView),
-    canOperateDraft: record.enrollment.ownerUserId === context.userId,
-    canControlSequence: record.enrollment.ownerUserId === context.userId || hasOrganizationAdminRole(context),
-    personaMatch: toPersonaMatchView(personaMatch),
-    checklist: buildReviewChecklist(record, personaMatch)
-  };
-}
-
-function buildReviewChecklist(record: CrmSequenceReviewRecord, personaMatch: ResolvedPersonaMatch) {
-  return [
-    {
-      key: 'mailbox_active',
-      label: '发送邮箱',
-      passed: record.mailbox?.status === 'active',
-      message: record.mailbox?.status === 'active' ? `已选择 ${record.mailbox.maskedEmail}` : '未选择启用的发送邮箱'
-    },
-    {
-      key: 'personal_email',
-      label: '联系人邮箱',
-      passed: !record.contact.isPublicEmail,
-      message: record.contact.isPublicEmail ? '公共邮箱，建议人工确认' : `个人邮箱 ${record.contact.maskedEmail}`
-    },
-    {
-      key: 'email_verified',
-      label: '邮箱验证',
-      passed: record.contact.emailStatus === 'valid',
-      message: `当前状态：${toEmailStatusText(record.contact.emailStatus)}`
-    },
-    {
-      key: 'product_line',
-      label: '产品资料',
-      passed: record.productLine?.status === 'active',
-      message: record.productLine?.status === 'active' ? record.productLine.name : '未选择启用的产品资料'
-    },
-    {
-      key: 'persona_focus',
-      label: '职位画像',
-      passed: Boolean(personaMatch.persona),
-      message: buildPersonaMatchChecklistMessage(personaMatch, record.contact)
-    },
-    {
-      key: 'draft_content',
-      label: '首封草稿',
-      passed: Boolean(record.firstMessage?.subject && record.firstMessage.bodyText),
-      message: record.firstMessage ? '已生成首封纯文本草稿' : '尚未生成首封草稿'
-    }
-  ];
 }
 
 function toOwnerScope(context: CrmUserContext) {
@@ -3277,40 +2966,6 @@ function normalizeLimitedContent(value: string, emptyMessage: string, maxLength 
   return normalized;
 }
 
-function normalizeSelectedEnrollmentIds(value: string[], maxSize: number) {
-  if (!Array.isArray(value)) {
-    throw new BadRequestException('请选择邮件序列');
-  }
-
-  const ids = [...new Set(value.map(item => item.trim()).filter(Boolean))];
-
-  if (ids.length === 0) {
-    throw new BadRequestException('请选择邮件序列');
-  }
-
-  if (ids.length > maxSize) {
-    throw new BadRequestException(`一次最多选择 ${maxSize} 条邮件序列`);
-  }
-
-  return ids;
-}
-
-function parseOptionalDate(value?: string | null) {
-  const normalized = normalizeNullableString(value);
-
-  if (!normalized) {
-    return null;
-  }
-
-  const date = new Date(normalized);
-
-  if (Number.isNaN(date.getTime())) {
-    throw new BadRequestException('时间格式不正确');
-  }
-
-  return date;
-}
-
 function normalizeRequiredString(value: string, emptyMessage: string) {
   const normalized = value.trim();
 
@@ -3323,40 +2978,6 @@ function normalizeRequiredString(value: string, emptyMessage: string) {
 
 function isPastArchiveRecoveryWindow(archivedAt: Date, now = new Date()) {
   return now.getTime() - archivedAt.getTime() > accountArchiveRecoveryDays * 24 * 60 * 60 * 1000;
-}
-
-function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex: number) {
-  return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
-}
-
-function toPersonaMatchView(match: ResolvedPersonaMatch): CrmPersonaMatchInfo {
-  return {
-    persona: match.persona,
-    matchMethod: match.matchMethod,
-    matchedKeywords: match.matchedKeywords,
-    fallbackReason: match.fallbackReason
-  };
-}
-
-function buildPersonaMatchChecklistMessage(match: ResolvedPersonaMatch, contact: Pick<CrmContactRecord, 'title'>) {
-  if (match.persona) {
-    const reason =
-      match.matchMethod === 'title'
-        ? `因职位关键词 ${match.matchedKeywords.join('、')} 命中`
-        : match.matchMethod === 'customer_type'
-          ? `因客户类型关键词 ${match.matchedKeywords.join('、')} 命中`
-          : match.matchMethod === 'default'
-            ? match.fallbackReason
-            : match.fallbackReason;
-
-    return reason ? `已匹配 ${match.persona.name}：${reason}` : `已匹配 ${match.persona.name}`;
-  }
-
-  return contact.title ? match.fallbackReason : '缺少联系人职位，按通用开发信生成';
-}
-
-function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {
-  return aiDraft ? { aiDraft } : null;
 }
 
 function mergeAiDraftMessageMetadata(metadata: unknown, aiDraft?: CrmAiDraftMetadata | null) {
@@ -3459,12 +3080,6 @@ function generateFirstDraft(options: {
     subject,
     bodyText: bodyLines.join('\n')
   };
-}
-
-function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord) {
-  const contactLabel = contact.fullName || contact.title || contact.maskedEmail;
-
-  return `${account.name} - ${contactLabel}`;
 }
 
 function normalizeEmail(value?: string | null) {
@@ -3580,10 +3195,6 @@ function normalizePositiveInteger(
   if (!Number.isInteger(numberValue) || numberValue < min) return fallback;
 
   return Math.min(numberValue, max);
-}
-
-function hasOwn<T extends object>(object: T, key: PropertyKey) {
-  return Object.prototype.hasOwnProperty.call(object, key);
 }
 
 function isPrismaUniqueConflict(error: unknown) {

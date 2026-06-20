@@ -5,7 +5,7 @@ import { SystemLogService } from '../../system-log/system-log.service';
 import type { SystemLogRecorder } from '../../system-log/system-log.types';
 import { SystemNotificationService } from '../../system-notification/system-notification.service';
 import { crmAiDraftActiveTaskStatuses } from '../crm-ai-draft-task-state';
-import { CRM_AI_DRAFT_TASK_QUEUE, CRM_STORE } from '../crm.tokens';
+import { CRM_AI_DRAFT_TASK_QUEUE, CRM_AI_DRAFT_TASK_REPOSITORY } from '../crm.tokens';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { CrmSettingsService } from '../settings/crm-settings.service';
 import type {
@@ -44,7 +44,7 @@ export interface AiDraftTaskListQuery {
 @Injectable()
 export class CrmAiDraftTaskService {
   constructor(
-    @Inject(CRM_STORE) private readonly repository: CrmAiDraftTaskRepository,
+    @Inject(CRM_AI_DRAFT_TASK_REPOSITORY) private readonly repository: CrmAiDraftTaskRepository,
     @Optional()
     @Inject(CRM_AI_DRAFT_TASK_QUEUE)
     private readonly aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null,

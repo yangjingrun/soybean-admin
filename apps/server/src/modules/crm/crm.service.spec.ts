@@ -2129,7 +2129,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     const result = await service.createSequenceReviewItem(
       {
@@ -2177,7 +2177,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     const result = await service.createSequenceReviewItem(
       {
@@ -2213,7 +2213,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     const result = await service.createSequenceReviewItem(
       { accountId: 'account-1', contactId: 'contact-1' },
@@ -2260,7 +2260,7 @@ describe('CrmService', () => {
         ]
       }
     );
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     const result = await service.createSequenceReviewItem(
       { accountId: 'account-1', contactId: 'contact-1' },
@@ -2299,7 +2299,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     const result = await service.createSequenceReviewItem(
       { accountId: 'account-1', contactId: 'contact-1' },
@@ -2340,11 +2340,11 @@ describe('CrmService', () => {
       ]
     });
 
-    const builtInResult = await new CrmService(builtInStore).createSequenceReviewItem(
+    const builtInResult = await createServiceWithSequenceService(builtInStore).createSequenceReviewItem(
       { accountId: 'account-1', contactId: 'contact-1' },
       createContext()
     );
-    const noPersonaResult = await new CrmService(noPersonaStore).createSequenceReviewItem(
+    const noPersonaResult = await createServiceWithSequenceService(noPersonaStore).createSequenceReviewItem(
       { accountId: 'account-2', contactId: 'contact-2' },
       createContext()
     );
@@ -2390,7 +2390,9 @@ describe('CrmService', () => {
       ]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSequenceService(store, {
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
 
     const result = await service.createSequenceReviewItem(
       {
@@ -2436,17 +2438,9 @@ describe('CrmService', () => {
       ]
     });
     const aiCalls: CrmAiDraftPromptInput[] = [];
-    const service = new CrmService(
-      store,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createAiDraftService(aiCalls)
-    );
+    const service = createServiceWithSequenceService(store, {
+      aiDraftService: createAiDraftService(aiCalls)
+    });
 
     const result = await service.createSequenceReviewItem(
       {
@@ -2547,7 +2541,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     const defaultResult = await service.createSequenceReviewItem(
       {
@@ -2583,7 +2577,7 @@ describe('CrmService', () => {
       ],
       enrollments: [createEnrollment({ id: 'enrollment-1', contactId: 'contact-2' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     await assert.rejects(
       () => service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext()),
@@ -2621,7 +2615,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     await assert.rejects(
       () => service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-2' }, createContext()),
@@ -2655,7 +2649,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     await assert.rejects(
       () => service.createSequenceReviewItem({ accountId: 'account-1', contactId: 'contact-1' }, createContext()),
@@ -2779,7 +2773,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSequenceService(store);
 
     const result = await service.listSequenceReviewItems(createContext(), {
       keyword: ' ABC ',
@@ -9443,6 +9437,16 @@ function createServiceWithSplitServices(options: {
     options.aiDraftTaskService as never,
     options.inboxService as never
   );
+}
+
+function createServiceWithSequenceService(
+  store: CrmStore,
+  options: { aiDraftService?: CrmAiDraftService | null; crmLogger?: CrmLoggerService } = {}
+) {
+  return createServiceWithSplitServices({
+    store,
+    sequenceService: createSequenceService(store, options)
+  });
 }
 
 function createSettingsService(
