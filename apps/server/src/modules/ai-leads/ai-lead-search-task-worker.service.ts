@@ -1,7 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { createTaskNotificationMetadata, createTaskStateChangeEvent, isStaleRunVersion } from '../../shared/task-state';
-import { CrmService } from '../crm/crm.service';
+import { CrmAccountService } from '../crm/accounts/crm-account.service';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { SearchRequestTrace } from './ai-lead-search-orchestrator.service';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
@@ -32,7 +32,7 @@ export class AiLeadSearchTaskWorkerService {
     @Inject(AI_LEAD_SEARCH_TASK_STORE) private readonly taskStore: AiLeadSearchTaskStore,
     @Inject(AiLeadSearchOrchestrator) private readonly orchestrator: AiLeadSearchOrchestrator,
     @Optional() @Inject(SystemNotificationService) private readonly notificationService?: SystemNotificationService,
-    @Optional() @Inject(CrmService) private readonly crmService?: CrmService,
+    @Optional() @Inject(CrmAccountService) private readonly crmAccountService?: CrmAccountService,
     @Optional() @Inject(AiLeadHunterEnrichmentService)
     private readonly hunterEnrichmentService?: AiLeadHunterEnrichmentService
   ) {}
@@ -224,7 +224,7 @@ export class AiLeadSearchTaskWorkerService {
   private async importCrmLeadsSafely(task: AiLeadSearchTaskRecord, result: unknown) {
     const inputs = mapAiLeadTaskResultToCrmImportInputs(task.id, result);
 
-    if (!this.crmService || inputs.length === 0) {
+    if (!this.crmAccountService || inputs.length === 0) {
       return;
     }
 
@@ -235,7 +235,7 @@ export class AiLeadSearchTaskWorkerService {
 
     for (const input of inputsToImport) {
       try {
-        await this.crmService.importAccountFromLead(input, {
+        await this.crmAccountService.importAccountFromLead(input, {
           userId: task.userId,
           userName: task.userName || '',
           roles: [],

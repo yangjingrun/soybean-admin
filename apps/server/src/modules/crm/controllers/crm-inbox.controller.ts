@@ -1,9 +1,8 @@
-import { Body, Controller, Get, Inject, Optional, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ok } from '../../../shared/api-response';
 import { AppConfigService } from '../../app-config/app-config.service';
 import { CurrentContext, SuperOnly } from '../../auth/auth.decorators';
 import { CrmControllerBase } from '../crm-controller.helpers';
-import { CrmService } from '../crm.service';
 import type { CrmUserContext } from '../crm.types';
 import { CrmInboxThreadQueryDto } from '../dto/crm-inbox-thread-query.dto';
 import { MockCrmReplyDto } from '../dto/mock-crm-reply.dto';
@@ -11,17 +10,17 @@ import { PolishCrmInboxReplyDraftDto } from '../dto/polish-crm-inbox-reply-draft
 import { ReplyCrmInboxThreadDto } from '../dto/reply-crm-inbox-thread.dto';
 import { SaveCrmInboxReplyDraftDto } from '../dto/save-crm-inbox-reply-draft.dto';
 import { UpdateCrmInboxThreadStatusDto } from '../dto/update-crm-inbox-thread-status.dto';
+import { CrmInboxService } from '../inbox/crm-inbox.service';
 
 /** Handles CRM inbox threads, inbound messages, reply drafting, unsubscribe confirmation, and mock replies. */
 @Controller('crm')
 export class CrmInboxController extends CrmControllerBase {
   constructor(
-    @Inject(CrmService) crmService: CrmService,
-    @Optional()
+    @Inject(CrmInboxService) private readonly inboxService: CrmInboxService,
     @Inject(AppConfigService)
-    appConfigService?: AppConfigService
+    appConfigService: AppConfigService
   ) {
-    super(crmService, undefined, appConfigService);
+    super(appConfigService);
   }
 
   @Get('inbox-threads')
@@ -29,12 +28,12 @@ export class CrmInboxController extends CrmControllerBase {
     @CurrentContext() context: CrmUserContext | null = null,
     @Query() query: CrmInboxThreadQueryDto
   ) {
-    return ok(await this.crmService.listInboxThreads(this.requireUserContext(context), query));
+    return ok(await this.inboxService.listInboxThreads(this.requireUserContext(context), query));
   }
 
   @Get('inbox-threads/:id')
   async getInboxThread(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.getInboxThread(id, this.requireUserContext(context)));
+    return ok(await this.inboxService.getInboxThread(id, this.requireUserContext(context)));
   }
 
   @Patch('inbox-threads/:id/status')
@@ -43,7 +42,7 @@ export class CrmInboxController extends CrmControllerBase {
     @Param('id') id: string,
     @Body() dto: UpdateCrmInboxThreadStatusDto
   ) {
-    return ok(await this.crmService.updateInboxThreadStatus(id, dto, this.requireUserContext(context)));
+    return ok(await this.inboxService.updateInboxThreadStatus(id, dto, this.requireUserContext(context)));
   }
 
   @Post('inbox-threads/:id/reply')
@@ -52,7 +51,7 @@ export class CrmInboxController extends CrmControllerBase {
     @Param('id') id: string,
     @Body() dto: ReplyCrmInboxThreadDto
   ) {
-    return ok(await this.crmService.replyInboxThread(id, dto, this.requireUserContext(context)));
+    return ok(await this.inboxService.replyInboxThread(id, dto, this.requireUserContext(context)));
   }
 
   @Post('inbox-threads/:id/ai-reply-polish')
@@ -61,7 +60,7 @@ export class CrmInboxController extends CrmControllerBase {
     @Param('id') id: string,
     @Body() dto: PolishCrmInboxReplyDraftDto
   ) {
-    return ok(await this.crmService.polishInboxReplyDraft(id, dto, this.requireUserContext(context)));
+    return ok(await this.inboxService.polishInboxReplyDraft(id, dto, this.requireUserContext(context)));
   }
 
   @Patch('inbox-threads/:id/reply-draft')
@@ -70,7 +69,7 @@ export class CrmInboxController extends CrmControllerBase {
     @Param('id') id: string,
     @Body() dto: SaveCrmInboxReplyDraftDto
   ) {
-    return ok(await this.crmService.saveInboxReplyDraft(id, dto, this.requireUserContext(context)));
+    return ok(await this.inboxService.saveInboxReplyDraft(id, dto, this.requireUserContext(context)));
   }
 
   @Post('inbox-messages/:id/confirm-unsubscribe')
@@ -78,7 +77,7 @@ export class CrmInboxController extends CrmControllerBase {
     @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string
   ) {
-    return ok(await this.crmService.confirmInboxMessageUnsubscribe(id, this.requireUserContext(context)));
+    return ok(await this.inboxService.confirmInboxMessageUnsubscribe(id, this.requireUserContext(context)));
   }
 
   @Post('messages/:id/mock-reply')
@@ -91,6 +90,6 @@ export class CrmInboxController extends CrmControllerBase {
     const requestContext = this.requireUserContext(context);
     this.requireMockEndpointsEnabled(requestContext);
 
-    return ok(await this.crmService.mockCustomerReply(id, dto, requestContext));
+    return ok(await this.inboxService.mockCustomerReply(id, dto, requestContext));
   }
 }

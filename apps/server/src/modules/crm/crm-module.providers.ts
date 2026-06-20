@@ -22,7 +22,6 @@ import { CrmSendSchedulerHost } from './crm-send-scheduler-host.service';
 import { CrmSendSchedulerService } from './crm-send-scheduler.service';
 import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
-import { CrmService } from './crm.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmAccountController } from './controllers/crm-account.controller';
 import { CrmInboxController } from './controllers/crm-inbox.controller';
@@ -42,6 +41,7 @@ import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
+import { CrmMessageDraftApprovalRouterService } from './sequence/crm-message-draft-approval-router.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcile.service';
 import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
@@ -85,7 +85,6 @@ export const crmControllers = [
 ];
 
 export const crmDomainServices: Provider[] = [
-  CrmService,
   CrmAccountService,
   CrmAiDraftTaskService,
   CrmDashboardService,
@@ -99,6 +98,7 @@ export const crmDomainServices: Provider[] = [
   CrmDraftPreviewService,
   CrmDraftService,
   CrmFollowUpApprovalService,
+  CrmMessageDraftApprovalRouterService,
   CrmNextDraftService,
   CrmSendQueueReconcileService,
   CrmSequenceControlService,

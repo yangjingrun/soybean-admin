@@ -2,11 +2,31 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { UserInfo } from '../auth/auth.types';
+import { CrmAccountService } from './accounts/crm-account.service';
+import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmAccountController } from './controllers/crm-account.controller';
 import { CrmInboxController } from './controllers/crm-inbox.controller';
 import { CrmMailboxController } from './controllers/crm-mailbox.controller';
 import { CrmSequenceController } from './controllers/crm-sequence.controller';
 import { CrmSettingsController } from './controllers/crm-settings.controller';
+import { CrmDashboardService } from './dashboard/crm-dashboard.service';
+import { CrmInboxService } from './inbox/crm-inbox.service';
+import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
+import { CrmProductLineService } from './product-lines/crm-product-line.service';
+import { CrmBatchDraftApprovalService } from './sequence/crm-batch-draft-approval.service';
+import { CrmBatchSequenceStopService } from './sequence/crm-batch-sequence-stop.service';
+import { CrmDraftPreviewService } from './sequence/crm-draft-preview.service';
+import { CrmDraftService } from './sequence/crm-draft.service';
+import { CrmMessageDraftApprovalRouterService } from './sequence/crm-message-draft-approval-router.service';
+import { CrmNextDraftService } from './sequence/crm-next-draft.service';
+import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcile.service';
+import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
+import { CrmSequenceService } from './sequence/crm-sequence.service';
+import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
+import { CrmSettingsService } from './settings/crm-settings.service';
+import { CrmSuppressionService } from './suppression/crm-suppression.service';
+import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
 import { CrmService } from './crm.service';
 import type { CrmUserContext, ImportCrmLeadInput } from './crm.types';
 
@@ -1746,7 +1766,7 @@ function createUserBase() {
 
 /** Creates the real account controller with the shared service stub. */
 function createAccountController(partial: Partial<CrmService> = {}) {
-  return new CrmAccountController(createCrmService(partial));
+  return new CrmAccountController(createControllerService<CrmAccountService>(partial));
 }
 
 /** Creates the real mailbox controller and optional watch/config collaborators. */
@@ -1755,17 +1775,46 @@ function createMailboxController(
   gmailWatchService?: ConstructorParameters<typeof CrmMailboxController>[1],
   appConfigService?: ConstructorParameters<typeof CrmMailboxController>[2]
 ) {
-  return new CrmMailboxController(createCrmService(partial), gmailWatchService, appConfigService);
+  return new CrmMailboxController(
+    createControllerService<CrmMailboxService>(partial),
+    gmailWatchService as ConstructorParameters<typeof CrmMailboxController>[1],
+    appConfigService as ConstructorParameters<typeof CrmMailboxController>[2]
+  );
 }
 
 /** Creates the real settings controller with the shared service stub. */
 function createSettingsController(partial: Partial<CrmService> = {}) {
-  return new CrmSettingsController(createCrmService(partial));
+  const service = createCrmService(partial);
+
+  return new CrmSettingsController(
+    asControllerService<CrmSettingsService>(service),
+    asControllerService<CrmAiDraftTaskService>(service),
+    asControllerService<CrmSendQueueReconcileService>(service),
+    asControllerService<CrmSuppressionService>(service),
+    asControllerService<CrmProductLineService>(service),
+    asControllerService<CrmPersonaProfileService>(service),
+    asControllerService<CrmEmailTemplateGroupService>(service),
+    asControllerService<CrmSequencePolicyService>(service),
+    asControllerService<CrmDashboardService>(service)
+  );
 }
 
 /** Creates the real sequence controller with the shared service stub. */
 function createSequenceController(partial: Partial<CrmService> = {}) {
-  return new CrmSequenceController(createCrmService(partial));
+  const service = createCrmService(partial);
+
+  return new CrmSequenceController(
+    asControllerService<CrmSequenceService>(service),
+    asControllerService<CrmNextDraftService>(service),
+    asControllerService<CrmAiDraftTaskService>(service),
+    asControllerService<CrmBatchDraftApprovalService>(service),
+    asControllerService<CrmBatchSequenceStopService>(service),
+    asControllerService<CrmDraftPreviewService>(service),
+    asControllerService<CrmDraftService>(service),
+    asControllerService<CrmMessageDraftApprovalRouterService>(service),
+    asControllerService<CrmSequenceControlService>(service),
+    undefined as unknown as ConstructorParameters<typeof CrmSequenceController>[9]
+  );
 }
 
 /** Creates the real inbox controller and optional config collaborator. */
@@ -1773,7 +1822,19 @@ function createInboxController(
   partial: Partial<CrmService> = {},
   appConfigService?: ConstructorParameters<typeof CrmInboxController>[1]
 ) {
-  return new CrmInboxController(createCrmService(partial), appConfigService);
+  return new CrmInboxController(
+    createControllerService<CrmInboxService>(partial),
+    appConfigService as ConstructorParameters<typeof CrmInboxController>[1]
+  );
+}
+
+/** Casts the existing method stub to the domain service currently injected by a split controller. */
+function createControllerService<T>(partial: Partial<CrmService> = {}) {
+  return asControllerService<T>(createCrmService(partial));
+}
+
+function asControllerService<T>(service: CrmService): T {
+  return service as unknown as T;
 }
 
 function createAccountView(overrides: Partial<CrmAccountView> = {}) {

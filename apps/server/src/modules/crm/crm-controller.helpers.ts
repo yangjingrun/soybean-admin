@@ -2,17 +2,11 @@ import { ForbiddenException } from '@nestjs/common';
 import { assertSuper, requireSuperUserContext as requirePlatformSuperContext } from '../../shared/permission-policy';
 import { requireRequestUserContext } from '../../shared/request-context';
 import { AppConfigService } from '../app-config/app-config.service';
-import { CrmGmailWatchService } from './crm-gmail-watch.service';
-import { CrmService } from './crm.service';
 import type { CrmUserContext } from './crm.types';
 
 /** CRM controllers common request-context and feature-gate helpers. */
 export abstract class CrmControllerBase {
-  protected constructor(
-    protected readonly crmService: CrmService,
-    protected readonly gmailWatchService?: CrmGmailWatchService,
-    protected readonly appConfigService?: AppConfigService
-  ) {}
+  protected constructor(protected readonly appConfigService?: AppConfigService) {}
 
   protected requireMockEndpointsEnabled(context: CrmUserContext) {
     const mockEndpointsEnabled =

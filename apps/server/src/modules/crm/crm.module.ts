@@ -5,7 +5,7 @@ import { RedisModule } from '../redis/redis.module';
 import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
 import { AiGatewayModule } from '../ai-gateway/ai-gateway.module';
-import { CrmService } from './crm.service';
+import { CrmAccountService } from './accounts/crm-account.service';
 import {
   crmControllers,
   crmDomainServices,
@@ -27,6 +27,6 @@ import {
     ...crmQueueProviders,
     ...crmIntegrationProviders
   ],
-  exports: [CrmService]
+  exports: [CrmAccountService]
 })
 export class CrmModule {}
