@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -24,10 +25,12 @@ import type {
   CrmAiDraftTaskUpdateGuard,
   CrmAiDraftTaskUpdateInput
 } from '../crm.types';
+import type { CrmAiDraftTaskRepository } from '../ai-draft-task/crm-ai-draft-task.repository';
 
 const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 
-export class PrismaCrmAiDraftTaskStore {
+@Injectable()
+export class PrismaCrmAiDraftTaskStore implements CrmAiDraftTaskRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async createAiDraftTask(input: CrmAiDraftTaskCreateInput) {

@@ -5,7 +5,11 @@ import { SystemLogService } from '../../system-log/system-log.service';
 import type { SystemLogRecorder } from '../../system-log/system-log.types';
 import { SystemNotificationService } from '../../system-notification/system-notification.service';
 import { crmAiDraftActiveTaskStatuses } from '../crm-ai-draft-task-state';
-import { CRM_AI_DRAFT_TASK_QUEUE, CRM_AI_DRAFT_TASK_REPOSITORY } from '../crm.tokens';
+import {
+  CRM_AI_DRAFT_TASK_QUEUE,
+  CRM_AI_DRAFT_TASK_REPOSITORY,
+  CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY
+} from '../crm.tokens';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { CrmSettingsService } from '../settings/crm-settings.service';
 import type {
@@ -16,13 +20,12 @@ import type {
   CrmSequenceReviewRecord,
   CrmUserContext
 } from '../crm.types';
-import type { CrmAiDraftTaskRepository } from './crm-ai-draft-task.repository';
+import type { CrmAiDraftTaskRepository, CrmAiDraftTaskSourceRepository } from './crm-ai-draft-task.repository';
 import {
   countAiDraftTaskItemRecords,
   getAiDraftTaskItemSkipMessage,
   normalizeAiDraftTaskEnrollmentIds,
   normalizeAiDraftTaskPositiveInteger,
-  toAiDraftQueueConfigView,
   toAiDraftTaskCreateLimitMessage,
   toAiDraftTaskItemView,
   toAiDraftTaskView
@@ -45,6 +48,9 @@ export interface AiDraftTaskListQuery {
 export class CrmAiDraftTaskService {
   constructor(
     @Inject(CRM_AI_DRAFT_TASK_REPOSITORY) private readonly repository: CrmAiDraftTaskRepository,
+    @Inject(CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY) private readonly sourceRepository: CrmAiDraftTaskSourceRepository,
+    @Inject(CrmSettingsService)
+    private readonly settingsService: CrmSettingsService,
     @Optional()
     @Inject(CRM_AI_DRAFT_TASK_QUEUE)
     private readonly aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null,
@@ -56,17 +62,14 @@ export class CrmAiDraftTaskService {
     private readonly crmLogger?: CrmLoggerService,
     @Optional()
     @Inject(SystemLogService)
-    private readonly systemLogService?: SystemLogRecorder,
-    @Optional()
-    @Inject(CrmSettingsService)
-    private readonly settingsService?: CrmSettingsService
+    private readonly systemLogService?: SystemLogRecorder
   ) {}
 
   /** Creates a local CRM AI draft task and queues pending items for review-only draft generation. */
   async createAiDraftTask(input: CreateAiDraftTaskInput, context: CrmUserContext) {
     const enrollmentIds = normalizeAiDraftTaskEnrollmentIds(input.enrollmentIds, 200);
     const items: CrmAiDraftTaskCreateItemInput[] = [];
-    const reviewItems = await this.repository.listSequenceReviewItemsByIds({
+    const reviewItems = await this.sourceRepository.listSequenceReviewItemsByIds({
       ids: enrollmentIds,
       organizationId: context.organizationId,
       ownerUserId: context.userId
@@ -389,35 +392,12 @@ export class CrmAiDraftTaskService {
 
   /** Reads the current AI draft queue configuration. */
   async getAiDraftQueueConfig() {
-    if (this.settingsService) {
-      return this.settingsService.getAiDraftQueueConfig();
-    }
-
-    return toAiDraftQueueConfigView(await this.repository.getAiDraftQueueConfig());
+    return this.settingsService.getAiDraftQueueConfig();
   }
 
   /** Saves AI draft queue configuration and applies runtime queue concurrency. */
   async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput, context: CrmUserContext) {
-    if (this.settingsService) {
-      return this.settingsService.saveAiDraftQueueConfig(input, context);
-    }
-
-    const config = await this.repository.saveAiDraftQueueConfig({
-      ...input,
-      updatedById: context.userId,
-      updatedByName: context.userName
-    });
-
-    await this.aiDraftTaskQueue?.applyGlobalConcurrency(config.maxActiveTasksPerOrg);
-    await this.recordCrmLog('ai-draft-queue-config-save', 'CRM AI 草稿队列配置保存', context, {
-      itemConcurrency: config.itemConcurrency,
-      maxItemConcurrency: config.maxItemConcurrency,
-      maxActiveTasksPerUser: config.maxActiveTasksPerUser,
-      maxActiveTasksPerOrg: config.maxActiveTasksPerOrg,
-      maxAttempts: config.maxAttempts
-    });
-
-    return toAiDraftQueueConfigView(config);
+    return this.settingsService.saveAiDraftQueueConfig(input, context);
   }
 
   private async enqueueAiDraftTaskIfPossible(task: CrmAiDraftTaskRecord) {
@@ -517,7 +497,7 @@ export class CrmAiDraftTaskService {
       return new Set<string>();
     }
 
-    const entries = await this.repository.listBlacklistEntriesByEmailHashes({
+    const entries = await this.sourceRepository.listBlacklistEntriesByEmailHashes({
       organizationId,
       emailHashes
     });

@@ -2,8 +2,6 @@ import type { CrmStore } from '../crm.types';
 
 export type CrmAiDraftTaskRepository = Pick<
   CrmStore,
-  | 'listSequenceReviewItemsByIds'
-  | 'listBlacklistEntriesByEmailHashes'
   | 'createAiDraftTask'
   | 'findCurrentAiDraftTaskForUser'
   | 'findAiDraftTaskById'
@@ -11,6 +9,9 @@ export type CrmAiDraftTaskRepository = Pick<
   | 'listAiDraftTaskItems'
   | 'updateAiDraftTask'
   | 'updateAiDraftTaskItem'
-  | 'getAiDraftQueueConfig'
-  | 'saveAiDraftQueueConfig'
+>;
+
+export type CrmAiDraftTaskSourceRepository = Pick<
+  CrmStore,
+  'listSequenceReviewItemsByIds' | 'listBlacklistEntriesByEmailHashes'
 >;

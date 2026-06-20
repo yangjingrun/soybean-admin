@@ -23,7 +23,6 @@ import { CrmSendSchedulerService } from './crm-send-scheduler.service';
 import { CrmSendWorkerHost } from './crm-send-worker-host.service';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
-import { LegacyCrmAiDraftTaskRepository } from './ai-draft-task/legacy-crm-ai-draft-task.repository';
 import { CrmAccountController } from './controllers/crm-account.controller';
 import { CrmInboxController } from './controllers/crm-inbox.controller';
 import { CrmMailboxController } from './controllers/crm-mailbox.controller';
@@ -60,6 +59,7 @@ import {
   CRM_ACCOUNT_REPOSITORY,
   CRM_AI_DRAFT_TASK_QUEUE,
   CRM_AI_DRAFT_TASK_REPOSITORY,
+  CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY,
   CRM_DASHBOARD_REPOSITORY,
   CRM_EMAIL_DNS_RESOLVER,
   CRM_EMAIL_SEND_GATEWAY,
@@ -76,6 +76,8 @@ import {
   CRM_SUPPRESSION_REPOSITORY
 } from './crm.tokens';
 import { PrismaCrmAccountStore } from './store/prisma-crm-account.store';
+import { PrismaCrmAiDraftTaskSourceStore } from './store/prisma-crm-ai-draft-task-source.store';
+import { PrismaCrmAiDraftTaskStore } from './store/prisma-crm-ai-draft-task.store';
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
 import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
@@ -182,7 +184,11 @@ export const crmRepositoryProviders: Provider[] = [
   },
   {
     provide: CRM_AI_DRAFT_TASK_REPOSITORY,
-    useClass: LegacyCrmAiDraftTaskRepository
+    useClass: PrismaCrmAiDraftTaskStore
+  },
+  {
+    provide: CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY,
+    useClass: PrismaCrmAiDraftTaskSourceStore
   },
   {
     provide: CRM_SEQUENCE_POLICY_REPOSITORY,

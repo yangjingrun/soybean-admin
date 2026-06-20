@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   CRM_ACCOUNT_REPOSITORY,
   CRM_AI_DRAFT_TASK_REPOSITORY,
+  CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY,
   CRM_DASHBOARD_REPOSITORY,
   CRM_INBOX_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
@@ -16,6 +17,8 @@ import { CRM_PERSONA_PROFILE_REPOSITORY } from './persona-profiles/crm-persona-p
 import { CRM_PRODUCT_LINE_REPOSITORY } from './product-lines/crm-product-line.repository';
 import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence-policy.repository';
 import { PrismaCrmAccountStore } from './store/prisma-crm-account.store';
+import { PrismaCrmAiDraftTaskSourceStore } from './store/prisma-crm-ai-draft-task-source.store';
+import { PrismaCrmAiDraftTaskStore } from './store/prisma-crm-ai-draft-task.store';
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
 import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
@@ -36,6 +39,7 @@ const domainRepositoryTokens = [
   CRM_MAILBOX_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
   CRM_AI_DRAFT_TASK_REPOSITORY,
+  CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY,
   CRM_SEQUENCE_POLICY_REPOSITORY,
   CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY,
   CRM_INBOX_REPOSITORY,
@@ -68,6 +72,8 @@ describe('crmRepositoryProviders', () => {
       [CRM_PERSONA_PROFILE_REPOSITORY, PrismaCrmPersonaStore],
       [CRM_SUPPRESSION_REPOSITORY, PrismaCrmSuppressionStore],
       [CRM_MAILBOX_REPOSITORY, PrismaCrmMailboxStore],
+      [CRM_AI_DRAFT_TASK_REPOSITORY, PrismaCrmAiDraftTaskStore],
+      [CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY, PrismaCrmAiDraftTaskSourceStore],
       [CRM_SEQUENCE_POLICY_REPOSITORY, PrismaCrmSequencePolicyStore],
       [CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY, PrismaCrmEmailTemplateGroupStore],
       [CRM_INBOX_REPOSITORY, PrismaCrmInboxStore],
