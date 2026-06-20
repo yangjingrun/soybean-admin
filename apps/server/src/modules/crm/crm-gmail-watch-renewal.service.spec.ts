@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CrmGmailWatchRenewalService } from './crm-gmail-watch-renewal.service';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
-import type { CrmMailboxRecord, CrmStore } from './crm.types';
+import type { CrmGmailWatchRepository } from './crm-gmail-watch.repository';
+import type { CrmMailboxRecord } from './crm.types';
 
 describe('CrmGmailWatchRenewalService', () => {
   it('treats a trimmed case-insensitive disabled env as disabled', () => {
@@ -322,10 +323,11 @@ function createGateway(): CrmGmailWatchGateway {
 }
 
 function createStore(mailboxes: CrmMailboxRecord[]) {
-  const renewalListCalls: Array<Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]> = [];
-  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
+  const renewalListCalls: Array<Parameters<CrmGmailWatchRepository['listMailboxesForWatchRenewal']>[0]> = [];
+  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }> =
+    [];
   let listMailboxesForWatchRenewalOverride:
-    | ((input: Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>)
+    | ((input: Parameters<CrmGmailWatchRepository['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>)
     | null = null;
   const authorizationExpiredCalls: Array<{
     mailboxId: string;
@@ -340,7 +342,9 @@ function createStore(mailboxes: CrmMailboxRecord[]) {
     mailboxUpdateCalls,
     authorizationExpiredCalls,
     setListMailboxesForWatchRenewalOverride(
-      override: (input: Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>
+      override: (
+        input: Parameters<CrmGmailWatchRepository['listMailboxesForWatchRenewal']>[0]
+      ) => Promise<CrmMailboxRecord[]>
     ) {
       listMailboxesForWatchRenewalOverride = override;
     },
@@ -390,12 +394,17 @@ function createStore(mailboxes: CrmMailboxRecord[]) {
         resetMessageCount: 3
       };
     }
-  } as Pick<CrmStore, 'listMailboxesForWatchRenewal' | 'updateMailbox' | 'markMailboxAuthorizationExpired'> as CrmStore & {
+  } as Pick<
+    CrmGmailWatchRepository,
+    'listMailboxesForWatchRenewal' | 'updateMailbox' | 'markMailboxAuthorizationExpired'
+  > as CrmGmailWatchRepository & {
     mailboxes: CrmMailboxRecord[];
-    renewalListCalls: Array<Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]>;
-    mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
+    renewalListCalls: Array<Parameters<CrmGmailWatchRepository['listMailboxesForWatchRenewal']>[0]>;
+    mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }>;
     setListMailboxesForWatchRenewalOverride(
-      override: (input: Parameters<CrmStore['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>
+      override: (
+        input: Parameters<CrmGmailWatchRepository['listMailboxesForWatchRenewal']>[0]
+      ) => Promise<CrmMailboxRecord[]>
     ): void;
     authorizationExpiredCalls: Array<{
       mailboxId: string;

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 import { CrmGmailWebhookService } from './crm-gmail-webhook.service';
-import type { CrmGmailHistorySyncQueueJob, CrmStore } from './crm.types';
+import type { CrmGmailWatchRepository } from './crm-gmail-watch.repository';
+import type { CrmGmailHistorySyncQueueJob } from './crm.types';
 
 describe('CrmGmailWebhookService', () => {
   it('enqueues a history sync job for a known Gmail mailbox', async () => {
@@ -97,7 +98,9 @@ describe('CrmGmailWebhookService', () => {
   });
 });
 
-function createStore(options: { mailbox?: Awaited<ReturnType<CrmStore['findMailboxByProviderAndEmailHash']>> } = {}) {
+function createStore(
+  options: { mailbox?: Awaited<ReturnType<CrmGmailWatchRepository['findMailboxByProviderAndEmailHash']>> } = {}
+) {
   const mailbox =
     options.mailbox === undefined
       ? createMailbox()
@@ -109,10 +112,12 @@ function createStore(options: { mailbox?: Awaited<ReturnType<CrmStore['findMailb
 
       return mailbox;
     }
-  } as Pick<CrmStore, 'findMailboxByProviderAndEmailHash'> as CrmStore;
+  } as Pick<CrmGmailWatchRepository, 'findMailboxByProviderAndEmailHash'> as CrmGmailWatchRepository;
 }
 
-function createMailbox(input: Partial<NonNullable<Awaited<ReturnType<CrmStore['findMailboxByProviderAndEmailHash']>>>> = {}) {
+function createMailbox(
+  input: Partial<NonNullable<Awaited<ReturnType<CrmGmailWatchRepository['findMailboxByProviderAndEmailHash']>>>> = {}
+) {
   return {
     id: 'mailbox-1',
     organizationId: 'org-1',

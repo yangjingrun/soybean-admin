@@ -3,15 +3,16 @@ import { isOrganizationAdmin } from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
-import { CRM_GMAIL_HISTORY_SYNC_QUEUE, CRM_GMAIL_WATCH_GATEWAY, CRM_STORE } from './crm.tokens';
+import { CRM_GMAIL_HISTORY_SYNC_QUEUE, CRM_GMAIL_WATCH_GATEWAY, CRM_GMAIL_WATCH_REPOSITORY } from './crm.tokens';
+import type { CrmGmailWatchRepository } from './crm-gmail-watch.repository';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
 import { toMailboxView } from './shared/crm-view-mappers';
-import type { CrmGmailHistorySyncQueuePort, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
+import type { CrmGmailHistorySyncQueuePort, CrmMailboxRecord, CrmUserContext } from './crm.types';
 
 @Injectable()
 export class CrmGmailWatchService {
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_GMAIL_WATCH_REPOSITORY) private readonly store: CrmGmailWatchRepository,
     @Inject(CRM_GMAIL_WATCH_GATEWAY) private readonly gateway: CrmGmailWatchGateway,
     @Optional()
     @Inject(SystemLogService)

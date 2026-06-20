@@ -68,6 +68,7 @@ import {
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
   CRM_GMAIL_OAUTH_FLOW,
   CRM_GMAIL_WATCH_GATEWAY,
+  CRM_GMAIL_WATCH_REPOSITORY,
   CRM_INBOX_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
   CRM_SEND_QUEUE,
@@ -88,6 +89,7 @@ import { PrismaCrmArchiveSlimmingStore } from './store/prisma-crm-archive-slimmi
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
 import { PrismaCrmGmailHistorySyncStore } from './store/prisma-crm-gmail-history-sync.store';
+import { PrismaCrmGmailWatchStore } from './store/prisma-crm-gmail-watch.store';
 import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
@@ -239,6 +241,10 @@ export const crmRepositoryProviders: Provider[] = [
   {
     provide: CRM_GMAIL_HISTORY_SYNC_REPOSITORY,
     useClass: PrismaCrmGmailHistorySyncStore
+  },
+  {
+    provide: CRM_GMAIL_WATCH_REPOSITORY,
+    useClass: PrismaCrmGmailWatchStore
   },
   {
     provide: CRM_ARCHIVE_SLIMMING_REPOSITORY,

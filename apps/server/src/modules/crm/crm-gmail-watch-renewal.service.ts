@@ -4,9 +4,10 @@ import { canRunSchedulers } from '../app-config/app-config.loader';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
-import { CRM_GMAIL_WATCH_GATEWAY, CRM_STORE } from './crm.tokens';
+import { CRM_GMAIL_WATCH_GATEWAY, CRM_GMAIL_WATCH_REPOSITORY } from './crm.tokens';
+import type { CrmGmailWatchRepository } from './crm-gmail-watch.repository';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
-import type { CrmMailboxRecord, CrmStore } from './crm.types';
+import type { CrmMailboxRecord } from './crm.types';
 
 const defaultRenewalIntervalMs = 6 * 60 * 60 * 1000;
 const defaultRenewalWindowMs = 24 * 60 * 60 * 1000;
@@ -25,7 +26,7 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
   private renewalTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_GMAIL_WATCH_REPOSITORY) private readonly store: CrmGmailWatchRepository,
     @Inject(CRM_GMAIL_WATCH_GATEWAY) private readonly gateway: CrmGmailWatchGateway,
     @Optional()
     @Inject(SystemLogService)

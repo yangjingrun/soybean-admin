@@ -7,6 +7,7 @@ import {
   CRM_ARCHIVE_SLIMMING_REPOSITORY,
   CRM_DASHBOARD_REPOSITORY,
   CRM_GMAIL_HISTORY_SYNC_REPOSITORY,
+  CRM_GMAIL_WATCH_REPOSITORY,
   CRM_INBOX_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
   CRM_SEND_QUEUE_RECONCILE_REPOSITORY,
@@ -30,6 +31,7 @@ import { PrismaCrmArchiveSlimmingStore } from './store/prisma-crm-archive-slimmi
 import { PrismaCrmDashboardStore } from './store/prisma-crm-dashboard.store';
 import { PrismaCrmEmailTemplateGroupStore } from './store/prisma-crm-email-template-group.store';
 import { PrismaCrmGmailHistorySyncStore } from './store/prisma-crm-gmail-history-sync.store';
+import { PrismaCrmGmailWatchStore } from './store/prisma-crm-gmail-watch.store';
 import { PrismaCrmInboxStore } from './store/prisma-crm-inbox.store';
 import { PrismaCrmMailboxStore } from './store/prisma-crm-mailbox.store';
 import { PrismaCrmPersonaStore } from './store/prisma-crm-persona.store';
@@ -64,6 +66,7 @@ const domainRepositoryTokens = [
   CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY,
   CRM_INBOX_REPOSITORY,
   CRM_GMAIL_HISTORY_SYNC_REPOSITORY,
+  CRM_GMAIL_WATCH_REPOSITORY,
   CRM_ARCHIVE_SLIMMING_REPOSITORY,
   CRM_DASHBOARD_REPOSITORY
 ];
@@ -106,6 +109,7 @@ describe('crmRepositoryProviders', () => {
       [CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY, PrismaCrmEmailTemplateGroupStore],
       [CRM_INBOX_REPOSITORY, PrismaCrmInboxStore],
       [CRM_GMAIL_HISTORY_SYNC_REPOSITORY, PrismaCrmGmailHistorySyncStore],
+      [CRM_GMAIL_WATCH_REPOSITORY, PrismaCrmGmailWatchStore],
       [CRM_ARCHIVE_SLIMMING_REPOSITORY, PrismaCrmArchiveSlimmingStore],
       [CRM_DASHBOARD_REPOSITORY, PrismaCrmDashboardStore]
     ]);

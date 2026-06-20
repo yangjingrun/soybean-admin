@@ -1,12 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { parseGmailPubSubPushPayload } from './crm-gmail-pubsub';
-import { CRM_GMAIL_HISTORY_SYNC_QUEUE, CRM_STORE } from './crm.tokens';
-import type { CrmGmailHistorySyncQueuePort, CrmGmailPubSubPushResult, CrmStore } from './crm.types';
+import { CRM_GMAIL_HISTORY_SYNC_QUEUE, CRM_GMAIL_WATCH_REPOSITORY } from './crm.tokens';
+import type { CrmGmailWatchRepository } from './crm-gmail-watch.repository';
+import type { CrmGmailHistorySyncQueuePort, CrmGmailPubSubPushResult } from './crm.types';
 
 @Injectable()
 export class CrmGmailWebhookService {
   constructor(
-    @Inject(CRM_STORE) private readonly store: CrmStore,
+    @Inject(CRM_GMAIL_WATCH_REPOSITORY) private readonly store: CrmGmailWatchRepository,
     @Inject(CRM_GMAIL_HISTORY_SYNC_QUEUE) private readonly historySyncQueue: CrmGmailHistorySyncQueuePort
   ) {}
 

@@ -3,7 +3,8 @@ import { describe, it } from 'node:test';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
-import type { CrmGmailHistorySyncQueueJob, CrmMailboxRecord, CrmStore, CrmUserContext } from './crm.types';
+import type { CrmGmailWatchRepository } from './crm-gmail-watch.repository';
+import type { CrmGmailHistorySyncQueueJob, CrmMailboxRecord, CrmUserContext } from './crm.types';
 
 describe('CrmGmailWatchService', () => {
   it('renews an active mailbox watch without advancing an existing checkpoint', async () => {
@@ -318,8 +319,9 @@ function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext 
 }
 
 function createStore(mailboxes: CrmMailboxRecord[]) {
-  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }> = [];
-  let lastMailboxDetailArgs: Parameters<CrmStore['findMailboxById']>[0] | undefined;
+  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }> =
+    [];
+  let lastMailboxDetailArgs: Parameters<CrmGmailWatchRepository['findMailboxById']>[0] | undefined;
 
   return {
     mailboxes,
@@ -346,10 +348,10 @@ function createStore(mailboxes: CrmMailboxRecord[]) {
       Object.assign(mailbox, input, { updatedAt: new Date('2026-06-19T08:30:00.000Z') });
       return mailbox;
     }
-  } as Pick<CrmStore, 'findMailboxById' | 'updateMailbox'> as CrmStore & {
+  } as Pick<CrmGmailWatchRepository, 'findMailboxById' | 'updateMailbox'> as CrmGmailWatchRepository & {
     mailboxes: CrmMailboxRecord[];
-    mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmStore['updateMailbox']>[1] }>;
-    lastMailboxDetailArgs?: Parameters<CrmStore['findMailboxById']>[0];
+    mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }>;
+    lastMailboxDetailArgs?: Parameters<CrmGmailWatchRepository['findMailboxById']>[0];
   };
 }
 
