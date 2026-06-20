@@ -3,6 +3,7 @@ import type {
   CrmAiDraftTaskRecord,
   CrmAiDraftTaskStatus
 } from './crm-ai-draft-task.types';
+import { resolveCurrentTask } from '../../shared/task-state';
 
 export const defaultCrmAiDraftItemConcurrency = 3;
 export const maxCrmAiDraftItemConcurrency = 5;
@@ -53,25 +54,11 @@ export function normalizeCrmAiDraftRetryBackoffSeconds(value: unknown) {
 
 /** Picks the task that should be shown as current for the CRM user. */
 export function resolveCurrentCrmAiDraftTask(records: CrmAiDraftTaskRecord[]) {
-  const candidates = records.filter(record => {
-    if (isCrmAiDraftTaskActiveStatus(record.status)) {
-      return true;
-    }
-
-    return (record.status === 'completed' || record.status === 'failed') && !record.readAt;
+  return resolveCurrentTask(records, {
+    activeStatuses: crmAiDraftActiveTaskStatuses,
+    unreadTerminalStatuses: ['completed', 'failed'],
+    statusWeight: currentTaskStatusWeight
   });
-
-  return (
-    candidates.sort((left, right) => {
-      const statusWeight = currentTaskStatusWeight[left.status] - currentTaskStatusWeight[right.status];
-
-      if (statusWeight !== 0) {
-        return statusWeight;
-      }
-
-      return right.updatedAt.getTime() - left.updatedAt.getTime();
-    })[0] ?? null
-  );
 }
 
 export function isCrmAiDraftTaskActiveStatus(status: CrmAiDraftTaskStatus) {
@@ -88,7 +75,9 @@ export function classifyCrmAiDraftTaskItemFailure(error: unknown): CrmAiDraftTas
     return 'retryable';
   }
 
-  if (['timeout', 'etimedout', 'econnreset', 'econnrefused', 'enotfound', 'eai_again'].some(item => code.includes(item))) {
+  if (
+    ['timeout', 'etimedout', 'econnreset', 'econnrefused', 'enotfound', 'eai_again'].some(item => code.includes(item))
+  ) {
     return 'retryable';
   }
 

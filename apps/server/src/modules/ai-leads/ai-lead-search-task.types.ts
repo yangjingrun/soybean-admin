@@ -1,4 +1,4 @@
-import type { UserInfo } from '../auth/auth.types';
+import type { RequestUserContext } from '../../shared/request-context';
 
 export type AiLeadSearchTaskStatus = 'queued' | 'running' | 'interrupted' | 'failed' | 'completed' | 'discarded';
 
@@ -9,7 +9,7 @@ export interface AiLeadSearchTaskRecord {
   userId: string;
   userName: string | null;
   organizationId: string;
-  organizationRole: UserInfo['organizationRole'];
+  organizationRole: RequestUserContext['organizationRole'];
   requirement: string;
   targetLeadCount: number;
   keywordPlan: unknown;
@@ -32,7 +32,7 @@ export interface AiLeadSearchTaskCreateInput {
   userId: string;
   userName?: string | null;
   organizationId: string;
-  organizationRole: UserInfo['organizationRole'];
+  organizationRole: RequestUserContext['organizationRole'];
   requirement: string;
   targetLeadCount: number;
   keywordPlan: unknown;
@@ -136,5 +136,5 @@ export interface AiLeadSearchTaskQueuePort {
 }
 
 export interface AiLeadSearchTaskContext {
-  user?: UserInfo | null;
+  user?: RequestUserContext | null;
 }

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { DEFAULT_ORGANIZATION_ID, type OrganizationRole } from '@soybean/shared';
 import type { Organization, Prisma, SystemUser } from '../../generated/prisma/client';
+import { createPageResult } from '../../shared/pagination';
 import { hashPassword, generateTemporaryPassword } from '../auth/password';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../database/prisma.service';
@@ -52,12 +53,12 @@ export class SystemUserService {
       this.prisma.systemUser.count({ where })
     ]);
 
-    return {
+    return createPageResult({
       current,
       size,
       total,
       records: records.map(user => this.toListItem(user))
-    };
+    });
   }
 
   /** Create one user and return a one-time temporary password. */

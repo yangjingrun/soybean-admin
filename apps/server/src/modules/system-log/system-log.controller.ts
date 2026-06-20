@@ -1,60 +1,43 @@
-import { Controller, ForbiddenException, Get, Headers, Inject, Param, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
-import { CurrentUser } from '../auth/auth.decorators';
-import { AuthService } from '../auth/auth.service';
-import type { UserInfo } from '../auth/auth.types';
+import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
+import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
+import { CurrentContext } from '../auth/auth.decorators';
 import { SystemLogIdParamDto, SystemLogQueryDto } from './dto/system-log-query.dto';
 import { SystemLogService } from './system-log.service';
 
 @Controller('system-logs')
 export class SystemLogController {
-  constructor(
-    @Inject(SystemLogService) private readonly systemLogService: SystemLogService,
-    @Inject(AuthService) private readonly authService: AuthService
-  ) {}
+  constructor(@Inject(SystemLogService) private readonly systemLogService: SystemLogService) {}
 
   @Get()
-  async list(
-    @Headers('authorization') authorization = '',
-    @CurrentUser() currentUser: UserInfo | null = null,
-    @Query() query: SystemLogQueryDto
-  ) {
-    await this.assertSuper(authorization, currentUser);
+  async list(@CurrentContext() context: RequestUserContext | null = null, @Query() query: SystemLogQueryDto) {
+    this.requireSuperContext(context);
 
     return ok(await this.systemLogService.list(query));
   }
 
   @Get('users')
-  async users(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    await this.assertSuper(authorization, currentUser);
+  async users(@CurrentContext() context: RequestUserContext | null = null) {
+    this.requireSuperContext(context);
 
     return ok(await this.systemLogService.listUsers());
   }
 
   @Get(':id')
   async detail(
-    @Headers('authorization') authorization = '',
-    @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: RequestUserContext | null = null,
     @Param() params: SystemLogIdParamDto
   ) {
-    await this.assertSuper(authorization, currentUser);
+    this.requireSuperContext(context);
 
     return ok(await this.systemLogService.getById(params.id));
   }
 
-  private async assertSuper(authorization: string, currentUser: UserInfo | null) {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
+  private requireSuperContext(context: RequestUserContext | null) {
+    const userContext = requireRequestUserContext(context);
+    assertSuperRole(userContext, '无权访问后端日志');
 
-    if (!user?.roles.includes('R_SUPER')) {
-      throw new ForbiddenException('无权访问后端日志');
-    }
-
-    return user;
-  }
-
-  private extractBearerToken(authorization: string) {
-    const [scheme, token] = authorization.split(' ');
-
-    return scheme?.toLowerCase() === 'bearer' ? token || '' : '';
+    return userContext;
   }
 }

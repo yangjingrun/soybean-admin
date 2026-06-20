@@ -1,5 +1,6 @@
 import type { CrmFollowUpDelayDays } from './crm-global-config';
 import type { CrmAiDraftTaskStatus, CrmAiDraftTaskStore } from './crm-ai-draft-task.types';
+import type { RequestUserContext } from '../../shared/request-context';
 import type {
   CrmSequencePolicyLinkPolicy,
   CrmSequencePolicySameCompanyStrategy,
@@ -9,7 +10,7 @@ import type {
 
 export type * from './crm-ai-draft-task.types';
 
-export type OrganizationRole = 'member' | 'admin';
+export type OrganizationRole = RequestUserContext['organizationRole'];
 
 export const crmAccountStatuses = [
   'candidate',
@@ -95,13 +96,7 @@ export type CrmInboxMessageType = (typeof crmInboxMessageTypes)[number];
 export type CrmGmailHistoryMessageDirection = 'inbound' | 'outbound';
 export type CrmGmailHistoryLabelChangeType = 'labels_added' | 'labels_removed' | 'message_deleted';
 
-export interface CrmUserContext {
-  userId: string;
-  userName: string;
-  roles: string[];
-  organizationId: string;
-  organizationRole: OrganizationRole;
-}
+export type CrmUserContext = RequestUserContext;
 
 export interface ImportCrmLeadInput {
   name: string;
@@ -1676,7 +1671,11 @@ export interface CrmStore extends CrmAiDraftTaskStore {
     take: number;
   }): Promise<{ records: CrmSequenceReviewRecord[]; total: number }>;
   listStrategyStats(args: { organizationId: string; ownerUserId?: string }): Promise<CrmStrategyStatsRecord>;
-  getWorkbenchOverview(args: { organizationId: string; ownerUserId: string; now: Date }): Promise<CrmWorkbenchOverviewRecord>;
+  getWorkbenchOverview(args: {
+    organizationId: string;
+    ownerUserId: string;
+    now: Date;
+  }): Promise<CrmWorkbenchOverviewRecord>;
   getSequenceReviewItem(args: {
     id: string;
     organizationId: string;

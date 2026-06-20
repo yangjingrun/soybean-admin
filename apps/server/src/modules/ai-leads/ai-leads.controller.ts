@@ -3,9 +3,7 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
-  Headers,
   Inject,
   Param,
   Patch,
@@ -17,9 +15,9 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { FastifyReply } from 'fastify';
 import { ok } from '../../shared/api-response';
-import { CurrentUser } from '../auth/auth.decorators';
-import { AuthService } from '../auth/auth.service';
-import type { UserInfo } from '../auth/auth.types';
+import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
+import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
+import { CurrentContext, Roles } from '../auth/auth.decorators';
 import { AiLeadsService } from './ai-leads.service';
 import { KeywordHistoryQueryDto, UpdateKeywordHistoryDto } from './dto/keyword-history.dto';
 import { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
@@ -32,22 +30,27 @@ import { createLeadSearchProgressEmitter, serializeLeadSearchProgressEvent } fro
 export class AiLeadsController {
   constructor(
     @Inject(AiLeadsService) private readonly aiLeadsService: AiLeadsService,
-    @Inject(AuthService) private readonly authService: AuthService,
     @Inject(AiLeadSearchTaskService) private readonly searchTaskService: AiLeadSearchTaskService
   ) {}
 
   @Post('keyword-optimize')
   @Throttle({ default: { limit: 20, ttl: 60000 } })
-  async optimizeKeywords(@Body() dto: KeywordOptimizeDto, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
+  async optimizeKeywords(
+    @Body() dto: KeywordOptimizeDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.aiLeadsService.optimizeKeywords(dto, { user }));
   }
 
   @Post('search-orchestrate')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async searchOrchestrate(@Body() dto: SearchOrchestrateDto, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async searchOrchestrate(
+    @Body() dto: SearchOrchestrateDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.aiLeadsService.searchOrchestrate(dto, { user }));
   }
@@ -56,10 +59,10 @@ export class AiLeadsController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async searchOrchestrateStream(
     @Body() dto: SearchOrchestrateDto,
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() currentContext: RequestUserContext | null = null,
     @Res() reply: FastifyReply
   ) {
-    const user = await this.requireUser(authorization, currentUser);
+    const user = requireRequestUserContext(currentContext);
     const reporter = createLeadSearchProgressEmitter(randomUUID(), event => {
       reply.raw.write(serializeLeadSearchProgressEvent(event));
     });
@@ -86,79 +89,111 @@ export class AiLeadsController {
 
   @Post('search-tasks')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async createSearchTask(@Body() dto: CreateSearchTaskDto, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async createSearchTask(
+    @Body() dto: CreateSearchTaskDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.createTask(dto, { user }));
   }
 
   @Get('search-tasks/current')
-  async getCurrentSearchTask(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async getCurrentSearchTask(
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.getCurrentTask({ user }));
   }
 
   @Get('search-tasks/:id')
-  async getSearchTask(@Param('id') id: string, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async getSearchTask(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
     const task = await this.searchTaskService.getTaskById(id, { user });
 
     return ok(task);
   }
 
   @Post('search-tasks/:id/interrupt')
-  async interruptSearchTask(@Param('id') id: string, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async interruptSearchTask(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.interruptTask(id, { user }));
   }
 
   @Post('search-tasks/:id/resume')
-  async resumeSearchTask(@Param('id') id: string, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async resumeSearchTask(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.resumeTask(id, { user }));
   }
 
   @Post('search-tasks/:id/retry')
-  async retrySearchTask(@Param('id') id: string, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async retrySearchTask(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.retryTask(id, { user }));
   }
 
   @Post('search-tasks/:id/discard')
-  async discardSearchTask(@Param('id') id: string, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async discardSearchTask(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.discardTask(id, { user }));
   }
 
   @Post('search-tasks/:id/read')
-  async markSearchTaskRead(@Param('id') id: string, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.requireUser(authorization, currentUser);
+  async markSearchTaskRead(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.markTaskRead(id, { user }));
   }
 
   @Get('queue-config')
-  async getQueueConfig(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    await this.assertSuper(authorization, currentUser);
+  @Roles('R_SUPER')
+  async getQueueConfig(@CurrentContext() currentContext: RequestUserContext | null = null) {
+    this.assertSuper(currentContext);
 
     return ok(await this.searchTaskService.getQueueConfig());
   }
 
   @Post('queue-config')
-  async saveQueueConfig(@Body() dto: SaveAiLeadQueueConfigDto, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = await this.assertSuper(authorization, currentUser);
+  @Roles('R_SUPER')
+  async saveQueueConfig(
+    @Body() dto: SaveAiLeadQueueConfigDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    this.assertSuper(currentContext);
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.saveQueueConfig(dto.workerConcurrency, { user }));
   }
 
   @Get('keyword-histories')
-  async listKeywordHistories(@Query() query: KeywordHistoryQueryDto, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
+  async listKeywordHistories(
+    @Query() query: KeywordHistoryQueryDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.aiLeadsService.listKeywordHistories(query, { user }));
   }
@@ -167,43 +202,29 @@ export class AiLeadsController {
   async updateKeywordHistory(
     @Param('id') id: string,
     @Body() dto: UpdateKeywordHistoryDto,
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null
+    @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.aiLeadsService.updateKeywordHistory(id, dto, { user }));
   }
 
   @Delete('keyword-histories/:id')
-  async deleteKeywordHistory(@Param('id') id: string, @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
+  async deleteKeywordHistory(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = requireRequestUserContext(currentContext);
 
     return ok(await this.aiLeadsService.deleteKeywordHistory(id, { user }));
   }
 
-  private extractBearerToken(authorization: string) {
-    const [scheme, token] = authorization.split(' ');
-
-    return scheme?.toLowerCase() === 'bearer' ? token || '' : '';
-  }
-
-  private async assertSuper(authorization: string, currentUser: UserInfo | null) {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
-
-    if (!user?.roles.includes('R_SUPER')) {
-      throw new ForbiddenException('无权维护 AI 获客任务配置');
-    }
-
-    return user;
-  }
-
-  private async requireUser(authorization: string, currentUser: UserInfo | null): Promise<UserInfo> {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
-
-    if (!user?.userId) {
+  private assertSuper(currentContext: RequestUserContext | null) {
+    if (!currentContext) {
       throw new UnauthorizedException('请先登录');
     }
 
-    return user;
+    assertSuperRole(currentContext, '无权维护 AI 获客任务配置');
   }
+
 }

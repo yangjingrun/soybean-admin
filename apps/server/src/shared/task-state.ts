@@ -56,8 +56,14 @@ export function resolveCurrentTask<TTask extends { status: TStatus; updatedAt: D
 }
 
 /** Keep system-notification metadata intentionally small for background task reminders. */
-export function createTaskNotificationMetadata(taskId: string) {
-  return { taskId };
+export function createTaskNotificationMetadata<TExtra extends Record<string, unknown> = Record<string, never>>(
+  taskId: string,
+  extra?: TExtra
+) {
+  return {
+    taskId,
+    ...(extra ?? {})
+  };
 }
 
 /** Build a typed task event payload for state transitions. */

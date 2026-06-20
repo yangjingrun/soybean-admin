@@ -1,5 +1,4 @@
 import { Global, Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { PrismaSystemLogStore } from './store/prisma-system-log.store';
 import { SystemLogController } from './system-log.controller';
@@ -8,7 +7,7 @@ import { SYSTEM_LOG_STORE } from './system-log.tokens';
 
 @Global()
 @Module({
-  imports: [AuthModule, DatabaseModule],
+  imports: [DatabaseModule],
   controllers: [SystemLogController],
   providers: [
     SystemLogService,

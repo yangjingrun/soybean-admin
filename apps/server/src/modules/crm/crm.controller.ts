@@ -4,20 +4,18 @@ import {
   Delete,
   ForbiddenException,
   Get,
-  Headers,
   Inject,
   Optional,
   Param,
   Patch,
   Post,
-  Query,
-  UnauthorizedException
+  Query
 } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
+import { assertSuper } from '../../shared/permission-policy';
+import { requireRequestUserContext } from '../../shared/request-context';
 import { AppConfigService } from '../app-config/app-config.service';
-import { CurrentUser } from '../auth/auth.decorators';
-import { AuthService } from '../auth/auth.service';
-import type { UserInfo } from '../auth/auth.types';
+import { CurrentContext } from '../auth/auth.decorators';
 import { CrmService } from './crm.service';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { ArchiveCrmAccountDto } from './dto/archive-crm-account.dto';
@@ -64,7 +62,6 @@ import type { CrmUserContext } from './crm.types';
 @Controller('crm')
 export class CrmController {
   constructor(
-    @Inject(AuthService) private readonly authService: AuthService,
     @Inject(CrmService) private readonly crmService: CrmService,
     @Optional()
     @Inject(CrmGmailWatchService)
@@ -75,516 +72,556 @@ export class CrmController {
   ) {}
 
   @Get('accounts')
-  async listAccounts(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmAccountQueryDto) {
-    return ok(await this.crmService.listAccounts(await this.requireUserContext(authorization, currentUser), query));
+  async listAccounts(@CurrentContext() context: CrmUserContext | null = null, @Query() query: CrmAccountQueryDto) {
+    return ok(await this.crmService.listAccounts(this.requireUserContext(context), query));
   }
 
   @Post('accounts/import-lead')
-  async importLead(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: ImportCrmLeadDto) {
+  async importLead(@CurrentContext() context: CrmUserContext | null = null, @Body() dto: ImportCrmLeadDto) {
     return ok(
-      await this.crmService.importAccountFromLead(
-        { ...dto, sourceTaskId: null },
-        await this.requireUserContext(authorization, currentUser)
-      )
+      await this.crmService.importAccountFromLead({ ...dto, sourceTaskId: null }, this.requireUserContext(context))
     );
   }
 
   @Get('accounts/:id')
-  async getAccountDetail(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.getAccountDetail(id, await this.requireUserContext(authorization, currentUser)));
+  async getAccountDetail(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.getAccountDetail(id, this.requireUserContext(context)));
   }
 
   @Patch('accounts/:id/status')
   async updateAccountStatus(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateCrmAccountStatusDto
   ) {
-    return ok(await this.crmService.updateAccountStatus(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.updateAccountStatus(id, dto, this.requireUserContext(context)));
   }
 
   @Post('accounts/:id/notes')
   async addAccountNote(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: CreateCrmAccountNoteDto
   ) {
-    return ok(await this.crmService.addAccountNote(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.addAccountNote(id, dto, this.requireUserContext(context)));
   }
 
   @Post('accounts/:id/archive')
   async archiveAccount(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: ArchiveCrmAccountDto
   ) {
-    return ok(await this.crmService.archiveAccount(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.archiveAccount(id, dto, this.requireUserContext(context)));
   }
 
   @Post('accounts/:id/restore')
-  async restoreAccount(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.restoreAccount(id, await this.requireUserContext(authorization, currentUser)));
+  async restoreAccount(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.restoreAccount(id, this.requireUserContext(context)));
   }
 
   @Post('contacts/:id/verify-email')
-  async verifyContactEmail(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.verifyContactEmail(id, await this.requireUserContext(authorization, currentUser)));
+  async verifyContactEmail(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.verifyContactEmail(id, this.requireUserContext(context)));
   }
 
   @Get('global-config')
-  async getGlobalConfig(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    await this.requireSuperUserContext(authorization, currentUser);
+  async getGlobalConfig(@CurrentContext() context: CrmUserContext | null = null) {
+    this.requireSuperUserContext(context);
 
     return ok(await this.crmService.getGlobalConfig());
   }
 
   @Post('global-config')
-  async saveGlobalConfig(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: SaveCrmGlobalConfigDto) {
-    return ok(await this.crmService.saveGlobalConfig(dto, await this.requireSuperUserContext(authorization, currentUser)));
+  async saveGlobalConfig(@CurrentContext() context: CrmUserContext | null = null, @Body() dto: SaveCrmGlobalConfigDto) {
+    return ok(await this.crmService.saveGlobalConfig(dto, this.requireSuperUserContext(context)));
   }
 
   @Get('ai-draft-queue-config')
-  async getAiDraftQueueConfig(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    await this.requireSuperUserContext(authorization, currentUser);
+  async getAiDraftQueueConfig(@CurrentContext() context: CrmUserContext | null = null) {
+    this.requireSuperUserContext(context);
 
     return ok(await this.crmService.getAiDraftQueueConfig());
   }
 
   @Patch('ai-draft-queue-config')
   async saveAiDraftQueueConfig(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: UpdateCrmAiDraftQueueConfigDto
   ) {
-    return ok(await this.crmService.saveAiDraftQueueConfig(dto, await this.requireSuperUserContext(authorization, currentUser)));
+    return ok(await this.crmService.saveAiDraftQueueConfig(dto, this.requireSuperUserContext(context)));
   }
 
   @Post('operations/send-queue/reconcile')
-  async reconcileSendQueue(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(await this.crmService.reconcileSendQueue({}, await this.requireSuperUserContext(authorization, currentUser)));
+  async reconcileSendQueue(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.crmService.reconcileSendQueue({}, this.requireSuperUserContext(context)));
   }
 
   @Get('send-preference')
-  async getSendPreference(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(await this.crmService.getSendPreference(await this.requireUserContext(authorization, currentUser)));
+  async getSendPreference(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.crmService.getSendPreference(this.requireUserContext(context)));
   }
 
   @Post('send-preference')
-  async saveSendPreference(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: SaveCrmSendPreferenceDto) {
-    return ok(await this.crmService.saveSendPreference(dto, await this.requireUserContext(authorization, currentUser)));
+  async saveSendPreference(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: SaveCrmSendPreferenceDto
+  ) {
+    return ok(await this.crmService.saveSendPreference(dto, this.requireUserContext(context)));
   }
 
   @Get('organization-config')
-  async getOrganizationConfig(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(await this.crmService.getOrganizationConfig(await this.requireUserContext(authorization, currentUser)));
+  async getOrganizationConfig(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.crmService.getOrganizationConfig(this.requireUserContext(context)));
   }
 
   @Post('organization-config')
   async saveOrganizationConfig(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: SaveCrmOrganizationConfigDto
   ) {
-    return ok(await this.crmService.saveOrganizationConfig(dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.saveOrganizationConfig(dto, this.requireUserContext(context)));
   }
 
   @Get('blacklist-entries')
-  async listBlacklistEntries(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmBlacklistQueryDto) {
-    return ok(await this.crmService.listBlacklistEntries(await this.requireUserContext(authorization, currentUser), query));
+  async listBlacklistEntries(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Query() query: CrmBlacklistQueryDto
+  ) {
+    return ok(await this.crmService.listBlacklistEntries(this.requireUserContext(context), query));
   }
 
   @Delete('blacklist-entries/:id')
   async removeBlacklistEntry(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: RemoveCrmBlacklistEntryDto
   ) {
-    return ok(await this.crmService.removeBlacklistEntry(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.removeBlacklistEntry(id, dto, this.requireUserContext(context)));
   }
 
   @Post('mailboxes/mock-authorize')
-  async mockAuthorizeMailbox(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: MockAuthorizeCrmMailboxDto) {
-    const context = await this.requireUserContext(authorization, currentUser);
-    this.requireMockEndpointsEnabled(context);
+  async mockAuthorizeMailbox(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: MockAuthorizeCrmMailboxDto
+  ) {
+    const requestContext = this.requireUserContext(context);
+    this.requireMockEndpointsEnabled(requestContext);
 
-    return ok(await this.crmService.mockAuthorizeMailbox(dto, context));
+    return ok(await this.crmService.mockAuthorizeMailbox(dto, requestContext));
   }
 
   @Post('mailboxes/gmail/oauth-url')
-  async createGmailOAuthUrl(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(this.crmService.createGmailOAuthAuthorizationUrl(await this.requireUserContext(authorization, currentUser)));
+  async createGmailOAuthUrl(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(this.crmService.createGmailOAuthAuthorizationUrl(this.requireUserContext(context)));
   }
 
   @Post('mailboxes/gmail/oauth-callback')
   async completeGmailOAuthCallback(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: CompleteCrmGmailOAuthDto
   ) {
-    return ok(await this.crmService.completeGmailOAuthAuthorization(dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.completeGmailOAuthAuthorization(dto, this.requireUserContext(context)));
   }
 
   @Get('mailboxes')
-  async listMailboxes(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmMailboxQueryDto) {
-    return ok(await this.crmService.listMailboxes(await this.requireUserContext(authorization, currentUser), query));
+  async listMailboxes(@CurrentContext() context: CrmUserContext | null = null, @Query() query: CrmMailboxQueryDto) {
+    return ok(await this.crmService.listMailboxes(this.requireUserContext(context), query));
   }
 
   @Patch('mailboxes/:id/pause')
-  async pauseMailbox(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.pauseMailbox(id, await this.requireUserContext(authorization, currentUser)));
+  async pauseMailbox(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.pauseMailbox(id, this.requireUserContext(context)));
   }
 
   @Patch('mailboxes/:id/resume')
-  async resumeMailbox(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.resumeMailbox(id, await this.requireUserContext(authorization, currentUser)));
+  async resumeMailbox(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.resumeMailbox(id, this.requireUserContext(context)));
   }
 
   @Post('mailboxes/:id/renew-watch')
-  async renewMailboxWatch(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.gmailWatchService!.renewMailboxWatch(id, await this.requireUserContext(authorization, currentUser)));
+  async renewMailboxWatch(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.gmailWatchService!.renewMailboxWatch(id, this.requireUserContext(context)));
   }
 
   @Post('mailboxes/:id/sync-now')
-  async syncMailboxNow(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.gmailWatchService!.syncMailboxNow(id, await this.requireUserContext(authorization, currentUser)));
+  async syncMailboxNow(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.gmailWatchService!.syncMailboxNow(id, this.requireUserContext(context)));
   }
 
   @Get('product-lines')
-  async listProductLines(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmProductLineQueryDto) {
-    return ok(await this.crmService.listProductLines(await this.requireUserContext(authorization, currentUser), query));
+  async listProductLines(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Query() query: CrmProductLineQueryDto
+  ) {
+    return ok(await this.crmService.listProductLines(this.requireUserContext(context), query));
   }
 
   @Post('product-lines')
-  async createProductLine(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: CreateCrmProductLineDto) {
-    return ok(await this.crmService.createProductLine(dto, await this.requireUserContext(authorization, currentUser)));
+  async createProductLine(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: CreateCrmProductLineDto
+  ) {
+    return ok(await this.crmService.createProductLine(dto, this.requireUserContext(context)));
   }
 
   @Patch('product-lines/:id')
   async updateProductLine(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateCrmProductLineDto
   ) {
-    return ok(await this.crmService.updateProductLine(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.updateProductLine(id, dto, this.requireUserContext(context)));
   }
 
   @Patch('product-lines/:id/archive')
-  async archiveProductLine(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.archiveProductLine(id, await this.requireUserContext(authorization, currentUser)));
+  async archiveProductLine(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.archiveProductLine(id, this.requireUserContext(context)));
   }
 
   @Get('product-lines/:id/ai-prompt-versions')
-  async listProductLineAiPromptVersions(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.listProductLineAiPromptVersions(id, await this.requireUserContext(authorization, currentUser)));
+  async listProductLineAiPromptVersions(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Param('id') id: string
+  ) {
+    return ok(await this.crmService.listProductLineAiPromptVersions(id, this.requireUserContext(context)));
   }
 
   @Post('product-lines/:id/ai-prompt-versions/:versionId/restore')
   async restoreProductLineAiPromptVersion(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Param('versionId') versionId: string
   ) {
-    return ok(
-      await this.crmService.restoreProductLineAiPromptVersion(id, versionId, await this.requireUserContext(authorization, currentUser))
-    );
+    return ok(await this.crmService.restoreProductLineAiPromptVersion(id, versionId, this.requireUserContext(context)));
   }
 
   @Get('persona-profiles')
-  async listPersonaProfiles(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmPersonaProfileQueryDto) {
-    return ok(await this.crmService.listPersonaProfiles(await this.requireUserContext(authorization, currentUser), query));
+  async listPersonaProfiles(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Query() query: CrmPersonaProfileQueryDto
+  ) {
+    return ok(await this.crmService.listPersonaProfiles(this.requireUserContext(context), query));
   }
 
   @Post('persona-profiles')
-  async createPersonaProfile(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: CreateCrmPersonaProfileDto) {
-    return ok(await this.crmService.createPersonaProfile(dto, await this.requireUserContext(authorization, currentUser)));
+  async createPersonaProfile(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: CreateCrmPersonaProfileDto
+  ) {
+    return ok(await this.crmService.createPersonaProfile(dto, this.requireUserContext(context)));
   }
 
   @Patch('persona-profiles/:id')
   async updatePersonaProfile(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateCrmPersonaProfileDto
   ) {
-    return ok(await this.crmService.updatePersonaProfile(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.updatePersonaProfile(id, dto, this.requireUserContext(context)));
   }
 
   @Patch('persona-profiles/:id/archive')
-  async archivePersonaProfile(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.archivePersonaProfile(id, await this.requireUserContext(authorization, currentUser)));
+  async archivePersonaProfile(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.archivePersonaProfile(id, this.requireUserContext(context)));
   }
 
   @Post('persona-profiles/:id/default')
-  async setDefaultPersonaProfile(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.setDefaultPersonaProfile(id, await this.requireUserContext(authorization, currentUser)));
+  async setDefaultPersonaProfile(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.setDefaultPersonaProfile(id, this.requireUserContext(context)));
   }
 
   @Get('email-template-groups')
   async listEmailTemplateGroups(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Query() query: CrmEmailTemplateQueryDto
   ) {
-    return ok(await this.crmService.listEmailTemplateGroups(await this.requireUserContext(authorization, currentUser), query));
+    return ok(await this.crmService.listEmailTemplateGroups(this.requireUserContext(context), query));
   }
 
   @Post('email-template-groups')
-  async createEmailTemplateGroup(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: CreateCrmEmailTemplateDto) {
-    return ok(await this.crmService.createEmailTemplateGroup(dto, await this.requireUserContext(authorization, currentUser)));
+  async createEmailTemplateGroup(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: CreateCrmEmailTemplateDto
+  ) {
+    return ok(await this.crmService.createEmailTemplateGroup(dto, this.requireUserContext(context)));
   }
 
   @Patch('email-template-groups/:id')
   async updateEmailTemplateGroup(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateCrmEmailTemplateDto
   ) {
-    return ok(await this.crmService.updateEmailTemplateGroup(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.updateEmailTemplateGroup(id, dto, this.requireUserContext(context)));
   }
 
   @Patch('email-template-groups/:id/archive')
-  async archiveEmailTemplateGroup(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.archiveEmailTemplateGroup(id, await this.requireUserContext(authorization, currentUser)));
+  async archiveEmailTemplateGroup(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.archiveEmailTemplateGroup(id, this.requireUserContext(context)));
   }
 
   @Post('email-template-groups/:id/default')
-  async setDefaultEmailTemplateGroup(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.setDefaultEmailTemplateGroup(id, await this.requireUserContext(authorization, currentUser)));
+  async setDefaultEmailTemplateGroup(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.setDefaultEmailTemplateGroup(id, this.requireUserContext(context)));
   }
 
   @Get('template-defaults')
-  async getTemplateDefaults(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(await this.crmService.getTemplateDefaults(await this.requireUserContext(authorization, currentUser)));
+  async getTemplateDefaults(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.crmService.getTemplateDefaults(this.requireUserContext(context)));
   }
 
   @Get('strategy-stats')
-  async listStrategyStats(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(await this.crmService.listStrategyStats(await this.requireUserContext(authorization, currentUser)));
+  async listStrategyStats(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.crmService.listStrategyStats(this.requireUserContext(context)));
   }
 
   @Get('workbench/overview')
-  async getWorkbenchOverview(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(await this.crmService.getWorkbenchOverview(await this.requireUserContext(authorization, currentUser)));
+  async getWorkbenchOverview(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.crmService.getWorkbenchOverview(this.requireUserContext(context)));
   }
 
   @Get('sequence-policies')
-  async listSequencePolicies(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmSequencePolicyQueryDto) {
-    return ok(await this.crmService.listSequencePolicies(await this.requireUserContext(authorization, currentUser), query));
+  async listSequencePolicies(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Query() query: CrmSequencePolicyQueryDto
+  ) {
+    return ok(await this.crmService.listSequencePolicies(this.requireUserContext(context), query));
   }
 
   @Post('sequence-policies')
-  async createSequencePolicy(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: CreateCrmSequencePolicyDto) {
-    return ok(await this.crmService.createSequencePolicy(dto, await this.requireUserContext(authorization, currentUser)));
+  async createSequencePolicy(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: CreateCrmSequencePolicyDto
+  ) {
+    return ok(await this.crmService.createSequencePolicy(dto, this.requireUserContext(context)));
   }
 
   @Patch('sequence-policies/:id')
   async updateSequencePolicy(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateCrmSequencePolicyDto
   ) {
-    return ok(await this.crmService.updateSequencePolicy(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.updateSequencePolicy(id, dto, this.requireUserContext(context)));
   }
 
   @Patch('sequence-policies/:id/archive')
-  async archiveSequencePolicy(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.archiveSequencePolicy(id, await this.requireUserContext(authorization, currentUser)));
+  async archiveSequencePolicy(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.archiveSequencePolicy(id, this.requireUserContext(context)));
   }
 
   @Post('sequence-policies/:id/default')
-  async setDefaultSequencePolicy(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.setDefaultSequencePolicy(id, await this.requireUserContext(authorization, currentUser)));
+  async setDefaultSequencePolicy(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.setDefaultSequencePolicy(id, this.requireUserContext(context)));
   }
 
   @Get('sequence-review-items')
   async listSequenceReviewItems(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Query() query: CrmSequenceReviewQueryDto
   ) {
-    return ok(await this.crmService.listSequenceReviewItems(await this.requireUserContext(authorization, currentUser), query));
+    return ok(await this.crmService.listSequenceReviewItems(this.requireUserContext(context), query));
   }
 
   @Post('sequence-review-items')
   async createSequenceReviewItem(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: CreateCrmSequenceReviewItemDto
   ) {
-    return ok(await this.crmService.createSequenceReviewItem(dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.createSequenceReviewItem(dto, this.requireUserContext(context)));
   }
 
   @Get('sequence-review-items/:id')
-  async getSequenceReviewItem(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.getSequenceReviewItem(id, await this.requireUserContext(authorization, currentUser)));
+  async getSequenceReviewItem(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.getSequenceReviewItem(id, this.requireUserContext(context)));
   }
 
   @Post('sequence-review-items/batch-generate-next-draft')
   async batchGenerateNextDrafts(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: BatchCrmSequenceReviewItemsDto
   ) {
-    return ok(await this.crmService.batchGenerateNextDrafts(dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.batchGenerateNextDrafts(dto, this.requireUserContext(context)));
   }
 
   @Post('ai-draft-tasks')
-  async createAiDraftTask(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: CreateCrmAiDraftTaskDto) {
-    return ok(await this.crmService.createAiDraftTask(dto, await this.requireUserContext(authorization, currentUser)));
+  async createAiDraftTask(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: CreateCrmAiDraftTaskDto
+  ) {
+    return ok(await this.crmService.createAiDraftTask(dto, this.requireUserContext(context)));
   }
 
   @Get('ai-draft-tasks/current')
-  async getCurrentAiDraftTask(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
-    return ok(await this.crmService.getCurrentAiDraftTask(await this.requireUserContext(authorization, currentUser)));
+  async getCurrentAiDraftTask(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.crmService.getCurrentAiDraftTask(this.requireUserContext(context)));
   }
 
   @Get('ai-draft-tasks')
-  async listAiDraftTasks(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmAiDraftTaskQueryDto) {
-    return ok(await this.crmService.listAiDraftTasks(await this.requireUserContext(authorization, currentUser), query));
+  async listAiDraftTasks(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Query() query: CrmAiDraftTaskQueryDto
+  ) {
+    return ok(await this.crmService.listAiDraftTasks(this.requireUserContext(context), query));
   }
 
   @Get('ai-draft-tasks/:id')
-  async getAiDraftTaskDetail(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.getAiDraftTaskDetail(id, await this.requireUserContext(authorization, currentUser)));
+  async getAiDraftTaskDetail(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.getAiDraftTaskDetail(id, this.requireUserContext(context)));
   }
 
   @Post('ai-draft-tasks/:id/retry-failed')
-  async retryFailedAiDraftTask(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.retryFailedAiDraftTask(id, await this.requireUserContext(authorization, currentUser)));
+  async retryFailedAiDraftTask(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.retryFailedAiDraftTask(id, this.requireUserContext(context)));
   }
 
   @Post('ai-draft-tasks/:id/cancel')
-  async cancelAiDraftTask(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.cancelAiDraftTask(id, await this.requireUserContext(authorization, currentUser)));
+  async cancelAiDraftTask(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.cancelAiDraftTask(id, this.requireUserContext(context)));
   }
 
   @Patch('ai-draft-tasks/:id/read')
-  async markAiDraftTaskRead(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.markAiDraftTaskRead(id, await this.requireUserContext(authorization, currentUser)));
+  async markAiDraftTaskRead(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.markAiDraftTaskRead(id, this.requireUserContext(context)));
   }
 
   @Post('sequence-review-items/batch-approve-draft')
   async batchApproveMessageDrafts(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: BatchCrmSequenceReviewItemsDto
   ) {
-    return ok(await this.crmService.batchApproveMessageDrafts(dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.batchApproveMessageDrafts(dto, this.requireUserContext(context)));
   }
 
   @Post('sequence-review-items/batch-stop')
   async batchStopSequenceEnrollments(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: BatchCrmSequenceReviewItemsDto
   ) {
-    return ok(await this.crmService.batchStopSequenceEnrollments(dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.batchStopSequenceEnrollments(dto, this.requireUserContext(context)));
   }
 
   @Post('ai-drafts/preview')
-  async previewAiDraft(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Body() dto: PreviewCrmAiDraftDto) {
-    return ok(await this.crmService.previewAiDraft(dto, await this.requireUserContext(authorization, currentUser)));
+  async previewAiDraft(@CurrentContext() context: CrmUserContext | null = null, @Body() dto: PreviewCrmAiDraftDto) {
+    return ok(await this.crmService.previewAiDraft(dto, this.requireUserContext(context)));
   }
 
   @Patch('messages/:id/draft')
   async updateMessageDraft(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateCrmMessageDraftDto
   ) {
-    return ok(await this.crmService.updateMessageDraft(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.updateMessageDraft(id, dto, this.requireUserContext(context)));
   }
 
   @Post('messages/:id/regenerate-ai-draft')
-  async regenerateMessageAiDraft(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.regenerateMessageAiDraft(id, await this.requireUserContext(authorization, currentUser)));
+  async regenerateMessageAiDraft(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.regenerateMessageAiDraft(id, this.requireUserContext(context)));
   }
 
   @Post('messages/:id/approve')
-  async approveMessageDraft(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.approveMessageDraft(id, await this.requireUserContext(authorization, currentUser)));
+  async approveMessageDraft(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.approveMessageDraft(id, this.requireUserContext(context)));
   }
 
   @Get('messages/:id/draft-versions')
-  async listMessageDraftVersions(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.listMessageDraftVersions(id, await this.requireUserContext(authorization, currentUser)));
+  async listMessageDraftVersions(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.listMessageDraftVersions(id, this.requireUserContext(context)));
   }
 
   @Post('messages/:id/draft-versions/:versionId/restore')
   async restoreMessageDraftVersion(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Param('versionId') versionId: string
   ) {
-    return ok(await this.crmService.restoreMessageDraftVersion(id, versionId, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.restoreMessageDraftVersion(id, versionId, this.requireUserContext(context)));
   }
 
   @Post('sequence-review-items/:id/start-send')
-  async startFirstMessageSend(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.startFirstMessageSend(id, await this.requireUserContext(authorization, currentUser)));
+  async startFirstMessageSend(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.startFirstMessageSend(id, this.requireUserContext(context)));
   }
 
   @Post('sequence-review-items/:id/generate-next-draft')
-  async generateNextDraft(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.generateNextDraft(id, await this.requireUserContext(authorization, currentUser)));
+  async generateNextDraft(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.generateNextDraft(id, this.requireUserContext(context)));
   }
 
   @Post('sequence-review-items/:id/stop')
-  async stopSequenceEnrollment(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.stopSequenceEnrollment(id, await this.requireUserContext(authorization, currentUser)));
+  async stopSequenceEnrollment(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.stopSequenceEnrollment(id, this.requireUserContext(context)));
   }
 
   @Get('inbox-threads')
-  async listInboxThreads(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Query() query: CrmInboxThreadQueryDto) {
-    return ok(await this.crmService.listInboxThreads(await this.requireUserContext(authorization, currentUser), query));
+  async listInboxThreads(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Query() query: CrmInboxThreadQueryDto
+  ) {
+    return ok(await this.crmService.listInboxThreads(this.requireUserContext(context), query));
   }
 
   @Get('inbox-threads/:id')
-  async getInboxThread(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.getInboxThread(id, await this.requireUserContext(authorization, currentUser)));
+  async getInboxThread(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.crmService.getInboxThread(id, this.requireUserContext(context)));
   }
 
   @Patch('inbox-threads/:id/status')
   async updateInboxThreadStatus(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateCrmInboxThreadStatusDto
   ) {
-    return ok(await this.crmService.updateInboxThreadStatus(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.updateInboxThreadStatus(id, dto, this.requireUserContext(context)));
   }
 
   @Post('inbox-threads/:id/reply')
   async replyInboxThread(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: ReplyCrmInboxThreadDto
   ) {
-    return ok(await this.crmService.replyInboxThread(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.replyInboxThread(id, dto, this.requireUserContext(context)));
   }
 
   @Post('inbox-threads/:id/ai-reply-polish')
   async polishInboxReplyDraft(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: PolishCrmInboxReplyDraftDto
   ) {
-    return ok(await this.crmService.polishInboxReplyDraft(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.polishInboxReplyDraft(id, dto, this.requireUserContext(context)));
   }
 
   @Patch('inbox-threads/:id/reply-draft')
   async saveInboxReplyDraft(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: SaveCrmInboxReplyDraftDto
   ) {
-    return ok(await this.crmService.saveInboxReplyDraft(id, dto, await this.requireUserContext(authorization, currentUser)));
+    return ok(await this.crmService.saveInboxReplyDraft(id, dto, this.requireUserContext(context)));
   }
 
   @Post('inbox-messages/:id/confirm-unsubscribe')
-  async confirmInboxMessageUnsubscribe(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null, @Param('id') id: string) {
-    return ok(await this.crmService.confirmInboxMessageUnsubscribe(id, await this.requireUserContext(authorization, currentUser)));
+  async confirmInboxMessageUnsubscribe(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Param('id') id: string
+  ) {
+    return ok(await this.crmService.confirmInboxMessageUnsubscribe(id, this.requireUserContext(context)));
   }
 
   @Post('messages/:id/mock-reply')
   async mockCustomerReply(
-    @Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null,
+    @CurrentContext() context: CrmUserContext | null = null,
     @Param('id') id: string,
     @Body() dto: MockCrmReplyDto
   ) {
-    const context = await this.requireUserContext(authorization, currentUser);
-    this.requireMockEndpointsEnabled(context);
+    const requestContext = this.requireUserContext(context);
+    this.requireMockEndpointsEnabled(requestContext);
 
-    return ok(await this.crmService.mockCustomerReply(id, dto, context));
+    return ok(await this.crmService.mockCustomerReply(id, dto, requestContext));
   }
 
   private requireMockEndpointsEnabled(context: CrmUserContext) {
@@ -596,46 +633,17 @@ export class CrmController {
       throw new ForbiddenException('CRM mock 接口未启用');
     }
 
-    if (!context.roles.includes('R_SUPER')) {
-      throw new ForbiddenException('无权使用 CRM mock 接口');
-    }
+    assertSuper(context, '无权使用 CRM mock 接口');
   }
 
-  private async requireUserContext(authorization: string, currentUser: UserInfo | null): Promise<CrmUserContext> {
-    const user = await this.requireUser(authorization, currentUser);
-
-    return {
-      userId: user.userId,
-      userName: user.userName,
-      roles: user.roles,
-      organizationId: user.organizationId,
-      organizationRole: user.organizationRole
-    };
+  private requireUserContext(context: CrmUserContext | null): CrmUserContext {
+    return requireRequestUserContext(context);
   }
 
-  private async requireSuperUserContext(authorization: string, currentUser: UserInfo | null): Promise<CrmUserContext> {
-    const context = await this.requireUserContext(authorization, currentUser);
+  private requireSuperUserContext(context: CrmUserContext | null): CrmUserContext {
+    const requestContext = this.requireUserContext(context);
+    assertSuper(requestContext, '无权维护 CRM 全局配置');
 
-    if (!context.roles.includes('R_SUPER')) {
-      throw new ForbiddenException('无权维护 CRM 全局配置');
-    }
-
-    return context;
-  }
-
-  private async requireUser(authorization: string, currentUser: UserInfo | null): Promise<UserInfo> {
-    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
-
-    if (!user?.userId) {
-      throw new UnauthorizedException('请先登录');
-    }
-
-    return user;
-  }
-
-  private extractBearerToken(authorization: string) {
-    const [scheme, token] = authorization.split(' ');
-
-    return scheme?.toLowerCase() === 'bearer' ? token || '' : '';
+    return requestContext;
   }
 }

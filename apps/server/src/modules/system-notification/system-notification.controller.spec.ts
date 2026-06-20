@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AuthService } from '../auth/auth.service';
+import type { RequestUserContext } from '../../shared/request-context';
 import { SystemNotificationController } from './system-notification.controller';
 import type { SystemNotificationService } from './system-notification.service';
 import type { SystemNotificationView } from './system-notification.types';
 
 describe('SystemNotificationController', () => {
-  it('lists pending notifications for the bearer token user', async () => {
+  it('lists pending notifications for the current user context', async () => {
     const service = createSystemNotificationService();
-    const controller = new SystemNotificationController(service, createAuthService());
+    const controller = new SystemNotificationController(service);
 
-    const result = await controller.pending('Bearer access-token');
+    const result = await controller.pending(createContext());
 
     assert.equal(service.lastListUserId, 'u-1');
     assert.deepEqual(result, {
@@ -39,12 +39,12 @@ describe('SystemNotificationController', () => {
     });
   });
 
-  it('marks notifications shown and read for the bearer token user', async () => {
+  it('marks notifications shown and read for the current user context', async () => {
     const service = createSystemNotificationService();
-    const controller = new SystemNotificationController(service, createAuthService());
+    const controller = new SystemNotificationController(service);
 
-    await controller.shown('notification-1', 'Bearer access-token');
-    const readResult = await controller.read('notification-1', 'Bearer access-token');
+    await controller.shown('notification-1', createContext());
+    const readResult = await controller.read('notification-1', createContext());
 
     assert.deepEqual(service.lastShownArgs, {
       id: 'notification-1',
@@ -116,17 +116,12 @@ function createSystemNotificationService() {
   return service;
 }
 
-function createAuthService(): AuthService {
+function createContext(): RequestUserContext {
   return {
-    getUserByAccessToken(token: string) {
-      return token === 'access-token'
-        ? {
-            userId: 'u-1',
-            userName: 'tester',
-            roles: ['R_ADMIN'],
-            buttons: []
-          }
-        : null;
-    }
-  } as unknown as AuthService;
+    userId: 'u-1',
+    userName: 'tester',
+    roles: ['R_ADMIN'],
+    organizationId: 'org-default',
+    organizationRole: 'admin'
+  };
 }

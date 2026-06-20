@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { createTaskNotificationMetadata, isStaleRunVersion } from '../../shared/task-state';
 import { CrmService } from '../crm/crm.service';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import type { SearchRequestTrace } from './ai-lead-search-orchestrator.service';
@@ -58,7 +59,7 @@ export class AiLeadSearchTaskWorkerService {
   async processTaskJob(job: AiLeadSearchTaskQueueJob) {
     const task = await this.taskStore.findTaskById(job.taskId);
 
-    if (!task || task.runVersion !== job.runVersion || task.status === 'discarded') {
+    if (!task || isStaleRunVersion(task, job.runVersion) || task.status === 'discarded') {
       return;
     }
 
@@ -91,9 +92,7 @@ export class AiLeadSearchTaskWorkerService {
             userId: task.userId,
             userName: task.userName || '',
             roles: [],
-            buttons: [],
             organizationId: task.organizationId,
-            organizationName: '',
             organizationRole: task.organizationRole
           }
         },
@@ -156,7 +155,7 @@ export class AiLeadSearchTaskWorkerService {
   private async assertTaskStillRunning(taskId: string, runVersion: number) {
     const latestTask = await this.taskStore.findTaskById(taskId);
 
-    if (!latestTask || latestTask.status !== 'running' || latestTask.runVersion !== runVersion) {
+    if (!latestTask || latestTask.status !== 'running' || isStaleRunVersion(latestTask, runVersion)) {
       throw new AiLeadSearchTaskInterruptedError();
     }
   }
@@ -366,9 +365,7 @@ export class AiLeadSearchTaskWorkerService {
       targetType: 'aiLeadSearchTask',
       targetId: task.id,
       routePath: '/ai-leads',
-      metadata: {
-        taskId: task.id
-      }
+      metadata: createTaskNotificationMetadata(task.id)
     });
   }
 

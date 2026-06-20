@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Optional
 } from '@nestjs/common';
+import { isSuper } from '../../shared/permission-policy';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -325,7 +326,7 @@ export class AiLeadSearchTaskService {
 
   /** Hides raw search traces from ordinary users while keeping super-admin diagnostics intact. */
   private toVisibleTask(task: AiLeadSearchTaskRecord, context: AiLeadSearchTaskContext) {
-    if (context.user?.roles.includes('R_SUPER') || !task.result) {
+    if ((context.user && isSuper(context.user)) || !task.result) {
       return task;
     }
 

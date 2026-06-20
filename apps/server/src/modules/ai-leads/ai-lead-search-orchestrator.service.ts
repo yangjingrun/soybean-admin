@@ -1,5 +1,5 @@
 import { BadGatewayException, Inject, Injectable } from '@nestjs/common';
-import type { UserInfo } from '../auth/auth.types';
+import type { RequestUserContext } from '../../shared/request-context';
 import {
   defaultAiModelConfigKey,
   defaultSerperConfigKey,
@@ -28,7 +28,7 @@ const maxPlacesPages = 2;
 const candidatePoolMultiplier = 1.5;
 
 export interface AiLeadSearchContext {
-  user?: UserInfo | null;
+  user?: RequestUserContext | null;
 }
 
 export interface OptimizedKeywordPlan {

@@ -6,7 +6,8 @@ import {
   Optional,
   UnauthorizedException
 } from '@nestjs/common';
-import type { UserInfo } from '../auth/auth.types';
+import { isSuper } from '../../shared/permission-policy';
+import type { RequestUserContext } from '../../shared/request-context';
 import { defaultAiModelConfigKey, leadKeywordOptimizePromptKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -28,7 +29,7 @@ const keywordOptimizeMaxOutputTokens = 3600;
 const defaultHistorySize = 20;
 
 export interface AiLeadsContext {
-  user?: UserInfo | null;
+  user?: RequestUserContext | null;
 }
 
 @Injectable()
@@ -221,8 +222,8 @@ export class AiLeadsService {
   }
 
   /** Keeps super-admin diagnostics raw while hiding search traces from ordinary users. */
-  private toVisibleSearchResult<T extends Parameters<typeof toLeadSearchPublicResult>[0]>(result: T, user: UserInfo) {
-    if (user.roles.includes('R_SUPER')) {
+  private toVisibleSearchResult<T extends Parameters<typeof toLeadSearchPublicResult>[0]>(result: T, user: RequestUserContext) {
+    if (isSuper(user)) {
       return result;
     }
 

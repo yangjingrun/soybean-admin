@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { createPageResult } from '../../shared/pagination';
 import { SYSTEM_LOG_STORE } from './system-log.tokens';
 import type {
   SystemLogListInput,
@@ -44,12 +45,12 @@ export class SystemLogService {
       this.store.count(where)
     ]);
 
-    return {
+    return createPageResult({
       current,
       size,
       total,
       records: records.map(record => this.toView(record))
-    };
+    });
   }
 
   /** Read one log detail by id. */

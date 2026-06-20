@@ -1,4 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { createTaskNotificationMetadata, isStaleRunVersion, isTaskInStatus } from '../../shared/task-state';
 import { requireEnabledCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import {
@@ -39,8 +40,11 @@ class CrmAiDraftTaskInterruptedError extends Error {
 export class CrmAiDraftTaskWorkerService {
   constructor(
     @Inject(CRM_STORE) private readonly store: CrmStore,
-    @Inject(CrmAiDraftService) private readonly aiDraftService: CrmAiDraftService,
-    @Optional() @Inject(SystemNotificationService) private readonly notificationService?: SystemNotificationService
+    @Inject(CrmAiDraftService)
+    private readonly aiDraftService: CrmAiDraftService,
+    @Optional()
+    @Inject(SystemNotificationService)
+    private readonly notificationService?: SystemNotificationService
   ) {}
 
   /** Processes one bulk AI draft task without touching Gmail or the send queue. */
@@ -51,7 +55,7 @@ export class CrmAiDraftTaskWorkerService {
       ownerUserId: job.ownerUserId
     });
 
-    if (!task || task.runVersion !== job.runVersion || !['queued', 'running'].includes(task.status)) {
+    if (!task || isStaleRunVersion(task, job.runVersion) || !isTaskInStatus(task, ['queued', 'running'])) {
       return;
     }
 
@@ -419,7 +423,9 @@ export class CrmAiDraftTaskWorkerService {
         progressState: {
           ...task.progressState,
           recentRetryableFailureCount,
-          effectiveConcurrencyReason: shouldSlowDown ? 'retryable_failures_clustered' : task.progressState?.effectiveConcurrencyReason
+          effectiveConcurrencyReason: shouldSlowDown
+            ? 'retryable_failures_clustered'
+            : task.progressState?.effectiveConcurrencyReason
         }
       },
       this.taskGuard(task, 'running')
@@ -428,7 +434,9 @@ export class CrmAiDraftTaskWorkerService {
     task.progressState = {
       ...task.progressState,
       recentRetryableFailureCount,
-      effectiveConcurrencyReason: shouldSlowDown ? 'retryable_failures_clustered' : task.progressState?.effectiveConcurrencyReason
+      effectiveConcurrencyReason: shouldSlowDown
+        ? 'retryable_failures_clustered'
+        : task.progressState?.effectiveConcurrencyReason
     };
 
     if (shouldSlowDown) {
@@ -455,7 +463,8 @@ export class CrmAiDraftTaskWorkerService {
       task.id,
       {
         status,
-        failureReason: status === 'failed' ? (hasUnfinishedItems ? '部分草稿未完成，请重试失败项' : '部分草稿生成失败') : null,
+        failureReason:
+          status === 'failed' ? (hasUnfinishedItems ? '部分草稿未完成，请重试失败项' : '部分草稿生成失败') : null,
         resultSummary: summary,
         readAt: null,
         notifiedAt: new Date(),
@@ -472,7 +481,9 @@ export class CrmAiDraftTaskWorkerService {
       completedTask,
       status === 'failed' ? 'crm_ai_draft_task_failed' : 'crm_ai_draft_task_completed',
       status === 'failed' ? '批量 AI 草稿任务部分失败' : '批量 AI 草稿任务已完成',
-      status === 'failed' ? '部分 CRM AI 草稿生成失败，请回到邮件序列页查看。' : 'CRM AI 草稿已生成，请回到邮件序列页审核。'
+      status === 'failed'
+        ? '部分 CRM AI 草稿生成失败，请回到邮件序列页查看。'
+        : 'CRM AI 草稿已生成，请回到邮件序列页审核。'
     );
   }
 
@@ -536,18 +547,13 @@ export class CrmAiDraftTaskWorkerService {
       ownerUserId: task.ownerUserId
     });
 
-    if (!latestTask || latestTask.status !== 'running' || latestTask.runVersion !== task.runVersion) {
+    if (!latestTask || isStaleRunVersion(latestTask, task.runVersion) || !isTaskInStatus(latestTask, ['running'])) {
       throw new CrmAiDraftTaskInterruptedError();
     }
   }
 
   /** Creates a notification without letting notification delivery rewrite task status. */
-  private async createTaskNotificationSafely(
-    task: CrmAiDraftTaskRecord,
-    type: string,
-    title: string,
-    content: string
-  ) {
+  private async createTaskNotificationSafely(task: CrmAiDraftTaskRecord, type: string, title: string, content: string) {
     await this.notificationService?.create({
       userId: task.ownerUserId,
       userName: task.ownerUserName,
@@ -558,10 +564,9 @@ export class CrmAiDraftTaskWorkerService {
       targetType: 'crmAiDraftTask',
       targetId: task.id,
       routePath: '/crm/email-sequences',
-      metadata: {
-        taskId: task.id,
+      metadata: createTaskNotificationMetadata(task.id, {
         resultSummary: task.resultSummary
-      }
+      })
     });
   }
 

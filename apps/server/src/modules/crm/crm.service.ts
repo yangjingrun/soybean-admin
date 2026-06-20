@@ -11,6 +11,14 @@ import {
 import { createHash } from 'node:crypto';
 import { resolveMx } from 'node:dns/promises';
 import { Prisma } from '../../generated/prisma/client';
+import { createPageResult } from '../../shared/pagination';
+import {
+  assertOrganizationAdmin,
+  assertSuper,
+  canViewEmailBody,
+  isOrganizationAdmin as hasOrganizationAdminRole,
+  isSuper
+} from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
@@ -422,12 +430,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toAccountView)
-    };
+    });
   }
 
   /** Returns one account detail within the current user's organization scope. */
@@ -726,12 +734,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toBlacklistView)
-    };
+    });
   }
 
   /** Removes one organization blacklist entry after recording an audit reason. */
@@ -930,12 +938,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toMailboxView)
-    };
+    });
   }
 
   /** Pauses a scoped mailbox after verifying the current user can read it. */
@@ -969,12 +977,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toProductLineView)
-    };
+    });
   }
 
   /** Creates an organization-level product line after checking name uniqueness. */
@@ -1058,7 +1066,7 @@ export class CrmService {
 
   /** Restores a saved AI prompt version to the current product-line config. */
   async restoreProductLineAiPromptVersion(id: string, versionId: string, context: CrmUserContext) {
-    if (!isOrganizationAdmin(context)) {
+    if (!hasOrganizationAdminRole(context)) {
       throw new ForbiddenException('只有组织管理员可以恢复 AI 写信配置版本');
     }
 
@@ -1135,12 +1143,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toPersonaProfileView)
-    };
+    });
   }
 
   /** Creates an organization-level persona profile after checking manager permission. */
@@ -1284,12 +1292,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toEmailTemplateGroupView)
-    };
+    });
   }
 
   /** Creates one organization-level email template group with exactly five sequence steps. */
@@ -1408,16 +1416,24 @@ export class CrmService {
     ]);
     const templatePersonas = activePersonaProfiles.length
       ? activePersonaProfiles.map(toTemplatePersonaProfile)
-      : personaProfiles.map(profile => ({ ...profile, aliases: [...profile.aliases] }));
+      : personaProfiles.map(profile => ({
+          ...profile,
+          aliases: [...profile.aliases]
+        }));
 
     if (defaultTemplateGroup) {
       return {
         templateGroup: {
           ...toEmailTemplateGroupView(defaultTemplateGroup),
           scope: 'organization' as const,
-          variables: defaultTemplateVariables.map(variable => ({ ...variable }))
+          variables: defaultTemplateVariables.map(variable => ({
+            ...variable
+          }))
         },
-        personas: templatePersonas.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
+        personas: templatePersonas.map(profile => ({
+          ...profile,
+          aliases: [...profile.aliases]
+        }))
       };
     }
 
@@ -1429,13 +1445,18 @@ export class CrmService {
         name: '默认开发信序列模板',
         scope: 'global' as const,
         language: 'en',
-        variables: defaultTemplateVariables.map(variable => ({ ...variable })),
+        variables: defaultTemplateVariables.map(variable => ({
+          ...variable
+        })),
         steps: defaultTemplateSteps.map(step => ({
           ...step,
           delayDays: getTemplateStepDelayDays(step.stepIndex, globalConfig.followUpDelayDays)
         }))
       },
-      personas: templatePersonas.map(profile => ({ ...profile, aliases: [...profile.aliases] }))
+      personas: templatePersonas.map(profile => ({
+        ...profile,
+        aliases: [...profile.aliases]
+      }))
     };
   }
 
@@ -1461,12 +1482,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toSequencePolicyView)
-    };
+    });
   }
 
   /** Creates one organization sequence policy. */
@@ -1791,14 +1812,14 @@ export class CrmService {
 
     const organizationProfiles = await this.store.listActivePersonaProfiles(context.organizationId);
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(record =>
         toSequenceReviewView(record, context, buildPersonaMatch(organizationProfiles, record.account, record.contact))
       )
-    };
+    });
   }
 
   /** Reads local CRM funnel stats grouped by template, policy, persona and product line. */
@@ -2285,7 +2306,9 @@ export class CrmService {
             skippedCount,
             failedCount: 0
           });
-    const savedItems = await this.store.listAiDraftTaskItems({ taskId: task.id });
+    const savedItems = await this.store.listAiDraftTaskItems({
+      taskId: task.id
+    });
 
     await this.recordCrmLog('ai-draft-task-create', 'CRM 批量 AI 草稿任务创建', context, {
       taskId: task.id,
@@ -2407,17 +2430,17 @@ export class CrmService {
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const result = await this.store.listAiDraftTasks({
       organizationId: context.organizationId,
-      ownerUserId: isOrganizationAdmin(context) ? undefined : context.userId,
+      ownerUserId: hasOrganizationAdminRole(context) ? undefined : context.userId,
       skip: (current - 1) * size,
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(toAiDraftTaskView)
-    };
+    });
   }
 
   async getAiDraftTaskDetail(id: string, context: CrmUserContext) {
@@ -2462,7 +2485,9 @@ export class CrmService {
     }
 
     const nextRunVersion = task.runVersion + 1;
-    const updatedItems = await this.store.listAiDraftTaskItems({ taskId: task.id });
+    const updatedItems = await this.store.listAiDraftTaskItems({
+      taskId: task.id
+    });
     const counts = countAiDraftTaskItemRecords(updatedItems);
     const queuedTask = await this.store.updateAiDraftTask(
       task.id,
@@ -2562,7 +2587,9 @@ export class CrmService {
       await this.aiDraftTaskQueue.removeTaskJob(bullJobId);
     }
 
-    const updatedItems = await this.store.listAiDraftTaskItems({ taskId: task.id });
+    const updatedItems = await this.store.listAiDraftTaskItems({
+      taskId: task.id
+    });
     const counts = countAiDraftTaskItemRecords(updatedItems);
     const refreshedTask =
       (await this.store.updateAiDraftTask(
@@ -2959,9 +2986,7 @@ export class CrmService {
 
   /** Repairs stale queued messages that lost their BullMQ job. */
   async reconcileSendQueue(input: { now?: Date; staleMinutes?: number; take?: number } = {}, context: CrmUserContext) {
-    if (!context.roles.includes('R_SUPER')) {
-      throw new ForbiddenException('无权维护 CRM 发送队列');
-    }
+    assertSuper(context, '无权维护 CRM 发送队列');
 
     if (!this.sendQueue) {
       throw new BadRequestException('CRM 邮件发送队列未启用');
@@ -2971,7 +2996,10 @@ export class CrmService {
     const staleMinutes = normalizePositiveInteger(input.staleMinutes, 10, 1, 1440);
     const take = normalizePositiveInteger(input.take, 100, 1, 500);
     const before = new Date(now.getTime() - staleMinutes * 60 * 1000);
-    const candidates = await this.store.listStaleQueuedMessages({ before, take });
+    const candidates = await this.store.listStaleQueuedMessages({
+      before,
+      take
+    });
     let repairedCount = 0;
     let skippedCount = 0;
 
@@ -3057,12 +3085,12 @@ export class CrmService {
       take: size
     });
 
-    return {
+    return createPageResult({
       current,
       size,
       total: result.total,
       records: result.records.map(record => toInboxThreadListView(record, context, organizationConfig))
-    };
+    });
   }
 
   /** Returns one customer reply inbox thread with messages and timeline. */
@@ -3490,7 +3518,9 @@ export class CrmService {
   ) {
     const detail = await this.requireScopedAccountDetail(id, context);
     const fromStatus = detail.account.status;
-    const account = await this.store.updateAccount(detail.account.id, { status });
+    const account = await this.store.updateAccount(detail.account.id, {
+      status
+    });
 
     if (!account) {
       throw new NotFoundException('线索不存在');
@@ -3667,7 +3697,10 @@ export class CrmService {
   ) {
     const currentMailbox = await this.requireScopedMailbox(id, context);
     const fromStatus = currentMailbox.status;
-    const mailbox = await this.store.updateMailbox(currentMailbox.id, { status, pausedAt });
+    const mailbox = await this.store.updateMailbox(currentMailbox.id, {
+      status,
+      pausedAt
+    });
 
     if (!mailbox) {
       throw new NotFoundException('邮箱不存在');
@@ -3956,7 +3989,9 @@ export class CrmService {
     const status: SequenceBatchItemStatus =
       error instanceof HttpException && error.getStatus() < 500 ? 'skipped' : 'failed';
 
-    return this.createSequenceBatchResult(id, status, message, { enrollmentId });
+    return this.createSequenceBatchResult(id, status, message, {
+      enrollmentId
+    });
   }
 
   private getNextDraftSkipMessage(item: CrmSequenceReviewRecord) {
@@ -4026,7 +4061,7 @@ export class CrmService {
     const task = await this.store.findAiDraftTaskById({
       id,
       organizationId: context.organizationId,
-      ownerUserId: isOrganizationAdmin(context) ? undefined : context.userId
+      ownerUserId: hasOrganizationAdminRole(context) ? undefined : context.userId
     });
 
     if (!task) {
@@ -4474,13 +4509,13 @@ export class CrmService {
 
     const hasInstruction = Boolean(
       config?.enabled ||
-      config?.commonRequirements ||
-      config?.forbiddenClaims ||
-      config?.productEmphasis ||
-      config?.steps.some(step => step.prompt)
+        config?.commonRequirements ||
+        config?.forbiddenClaims ||
+        config?.productEmphasis ||
+        config?.steps.some(step => step.prompt)
     );
 
-    if (hasInstruction && !isOrganizationAdmin(context)) {
+    if (hasInstruction && !hasOrganizationAdminRole(context)) {
       throw new ForbiddenException('只有组织管理员可以编辑 AI 写信配置');
     }
   }
@@ -4587,11 +4622,7 @@ export class CrmService {
   }
 
   private requireOrganizationConfigManager(context: CrmUserContext) {
-    if (context.organizationRole === 'admin' || context.roles.includes('R_SUPER')) {
-      return;
-    }
-
-    throw new ForbiddenException('仅组织管理员可修改 CRM 权限配置');
+    assertOrganizationAdmin(context, '仅组织管理员可修改 CRM 权限配置');
   }
 
   private recordSuperAdminInboxBodyAudit(
@@ -4599,11 +4630,7 @@ export class CrmService {
     visibleMessageCount: number,
     context: CrmUserContext
   ) {
-    if (
-      !context.roles.includes('R_SUPER') ||
-      record.thread.ownerUserId === context.userId ||
-      visibleMessageCount <= 0
-    ) {
+    if (!isSuper(context) || record.thread.ownerUserId === context.userId || visibleMessageCount <= 0) {
       return undefined;
     }
 
@@ -4973,7 +5000,7 @@ function toInboxThreadListView(
   context: CrmUserContext,
   organizationConfig: CrmOrganizationConfigRecord | null
 ) {
-  const canReadBody = canReadInboxBody(record.thread, context, organizationConfig);
+  const canReadBody = canViewEmailBody(context, record.thread.ownerUserId, organizationConfig);
 
   return {
     ...toInboxThreadView(record.thread),
@@ -4993,7 +5020,7 @@ function toInboxThreadDetailView(
   organizationConfig: CrmOrganizationConfigRecord | null
 ) {
   const thread = toInboxThreadListView(record, context, organizationConfig);
-  const canReadBody = canReadInboxBody(record.thread, context, organizationConfig);
+  const canReadBody = canViewEmailBody(context, record.thread.ownerUserId, organizationConfig);
 
   return {
     thread,
@@ -5129,7 +5156,7 @@ function toSequenceReviewView(
     firstMessage: record.firstMessage ? toMessageView(record.firstMessage) : null,
     messages: record.messages.map(toMessageView),
     canOperateDraft: record.enrollment.ownerUserId === context.userId,
-    canControlSequence: record.enrollment.ownerUserId === context.userId || isOrganizationAdmin(context),
+    canControlSequence: record.enrollment.ownerUserId === context.userId || hasOrganizationAdminRole(context),
     personaMatch: toPersonaMatchView(personaMatch),
     checklist: buildReviewChecklist(record, personaMatch)
   };
@@ -5177,7 +5204,7 @@ function buildReviewChecklist(record: CrmSequenceReviewRecord, personaMatch: Res
 }
 
 function toOwnerScope(context: CrmUserContext) {
-  return isOrganizationAdmin(context) ? {} : { ownerUserId: context.userId };
+  return hasOrganizationAdminRole(context) ? {} : { ownerUserId: context.userId };
 }
 
 function buildLeadImportFingerprints(domain: string | null, input: ImportCrmLeadInput) {
@@ -5255,24 +5282,8 @@ function toArchivedFingerprintMatchMetadata(record: CrmArchivedFingerprintRecord
   };
 }
 
-function isOrganizationAdmin(context: CrmUserContext) {
-  return context.organizationRole === 'admin' || context.roles.includes('R_SUPER');
-}
-
 function isOwnedMailbox(mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'ownerUserId'>, context: CrmUserContext) {
   return mailbox.organizationId === context.organizationId && mailbox.ownerUserId === context.userId;
-}
-
-function canReadInboxBody(
-  thread: Pick<CrmInboxThreadRecord, 'ownerUserId'>,
-  context: CrmUserContext,
-  organizationConfig: Pick<CrmOrganizationConfigRecord, 'allowAdminViewMemberEmailBody'> | null
-) {
-  if (thread.ownerUserId === context.userId || context.roles.includes('R_SUPER')) {
-    return true;
-  }
-
-  return context.organizationRole === 'admin' && Boolean(organizationConfig?.allowAdminViewMemberEmailBody);
 }
 
 function normalizeDomain(value?: string | null) {

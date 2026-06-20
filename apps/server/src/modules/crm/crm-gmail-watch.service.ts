@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { isOrganizationAdmin } from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
@@ -291,10 +292,6 @@ function toMailboxSyncIssueView(record: CrmMailboxRecord) {
 
 function toOwnerScope(context: CrmUserContext) {
   return isOrganizationAdmin(context) ? {} : { ownerUserId: context.userId };
-}
-
-function isOrganizationAdmin(context: CrmUserContext) {
-  return context.organizationRole === 'admin' || context.roles.includes('R_SUPER');
 }
 
 function isHistoryIdAtOrBefore(historyId: string, lastHistoryId: string) {

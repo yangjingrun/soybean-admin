@@ -1,3 +1,4 @@
+import { resolveCurrentTask } from '../../shared/task-state';
 import type { AiLeadSearchTaskRecord, AiLeadSearchTaskStatus } from './ai-lead-search-task.types';
 
 export const defaultAiLeadQueueConcurrency = 2;
@@ -26,25 +27,11 @@ export function normalizeAiLeadQueueConcurrency(value: unknown) {
 
 /** Picks the one task that should be restored when the AI leads page opens. */
 export function resolveCurrentAiLeadSearchTask(records: AiLeadSearchTaskRecord[]) {
-  const candidates = records.filter(record => {
-    if (aiLeadActiveTaskStatuses.includes(record.status)) {
-      return true;
-    }
-
-    return record.status === 'completed' && !record.readAt;
+  return resolveCurrentTask(records, {
+    activeStatuses: aiLeadActiveTaskStatuses,
+    unreadTerminalStatuses: ['completed'],
+    statusWeight: currentTaskStatusWeight
   });
-
-  return (
-    candidates.sort((left, right) => {
-      const statusWeight = currentTaskStatusWeight[left.status] - currentTaskStatusWeight[right.status];
-
-      if (statusWeight !== 0) {
-        return statusWeight;
-      }
-
-      return right.updatedAt.getTime() - left.updatedAt.getTime();
-    })[0] ?? null
-  );
 }
 
 export function isAiLeadActiveTaskStatus(status: AiLeadSearchTaskStatus) {

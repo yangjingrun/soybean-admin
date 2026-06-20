@@ -16,8 +16,8 @@ describe('task-state', () => {
   });
 
   it('checks status membership', () => {
-    assert.equal(isTaskInStatus({ status: 'running', runVersion: 1 }, ['queued', 'running']), true);
-    assert.equal(isTaskInStatus({ status: 'completed', runVersion: 1 }, ['queued', 'running']), false);
+    assert.equal(isTaskInStatus({ status: 'running' }, ['queued', 'running']), true);
+    assert.equal(isTaskInStatus({ status: 'completed' }, ['queued', 'running']), false);
   });
 
   it('resolves the current task by active/unread status and update time', () => {
@@ -39,6 +39,11 @@ describe('task-state', () => {
 
   it('builds minimal notification metadata and typed state events', () => {
     assert.deepEqual(createTaskNotificationMetadata('task-1'), { taskId: 'task-1' });
+    assert.deepEqual(createTaskNotificationMetadata('task-1', { resultSummary: { successCount: 2 } }), {
+      taskId: 'task-1',
+      resultSummary: { successCount: 2 }
+    });
+
     assert.deepEqual(
       createTaskStateChangeEvent({
         taskId: 'task-1',

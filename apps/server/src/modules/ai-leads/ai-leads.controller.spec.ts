@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { UnauthorizedException } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
-import type { AuthService } from '../auth/auth.service';
+import type { RequestUserContext } from '../../shared/request-context';
 import { AiLeadsController } from './ai-leads.controller';
 import type { AiLeadsContext } from './ai-leads.service';
 import type { AiLeadsService } from './ai-leads.service';
@@ -19,7 +19,6 @@ describe('AiLeadsController', () => {
           called = true;
         }
       } as unknown as AiLeadsService,
-      createAuthService(),
       {} as unknown as AiLeadSearchTaskService
     );
 
@@ -30,7 +29,32 @@ describe('AiLeadsController', () => {
             requirement: '找沙特轴承进口商',
             targetLeadCount: 20
           },
-          ''
+          null
+        ),
+      UnauthorizedException
+    );
+    assert.equal(called, false);
+  });
+
+  it('does not resolve synchronous search orchestration from authorization headers', async () => {
+    let called = false;
+    const controller = new AiLeadsController(
+      {
+        async searchOrchestrate() {
+          called = true;
+        }
+      } as unknown as AiLeadsService,
+      {} as unknown as AiLeadSearchTaskService
+    );
+
+    await assert.rejects(
+      () =>
+        controller.searchOrchestrate(
+          {
+            requirement: '找沙特轴承进口商',
+            targetLeadCount: 20
+          },
+          null
         ),
       UnauthorizedException
     );
@@ -46,7 +70,6 @@ describe('AiLeadsController', () => {
           called = true;
         }
       } as unknown as AiLeadsService,
-      createAuthService(),
       {} as unknown as AiLeadSearchTaskService
     );
 
@@ -57,7 +80,6 @@ describe('AiLeadsController', () => {
             requirement: '找沙特轴承进口商',
             targetLeadCount: 20
           },
-          '',
           null,
           reply.reply
         ),
@@ -70,6 +92,7 @@ describe('AiLeadsController', () => {
 
   it('writes search progress as NDJSON stream events', async () => {
     const reply = createReply();
+    const user = createUser(['R_SUPER']);
     const controller = new AiLeadsController(
       {
         async searchOrchestrateStream(
@@ -86,7 +109,6 @@ describe('AiLeadsController', () => {
           return { stopReason: '所有查询已完成' };
         }
       } as unknown as AiLeadsService,
-      createAuthService(),
       {} as unknown as AiLeadSearchTaskService
     );
 
@@ -95,8 +117,7 @@ describe('AiLeadsController', () => {
         requirement: '找沙特轴承进口商',
         targetLeadCount: 20
       },
-      'Bearer access-token',
-      null,
+      user,
       reply.reply
     );
 
@@ -112,19 +133,14 @@ describe('AiLeadsController', () => {
   });
 });
 
-function createAuthService(): AuthService {
+function createUser(roles = ['R_ADMIN']): RequestUserContext {
   return {
-    getUserByAccessToken(token: string) {
-      return token === 'access-token'
-        ? {
-            userId: 'u-1',
-            userName: 'Super',
-            roles: ['R_SUPER'],
-            buttons: []
-          }
-        : null;
-    }
-  } as unknown as AuthService;
+    userId: 'u-1',
+    userName: 'Super',
+    roles,
+    organizationId: 'org-1',
+    organizationRole: 'admin'
+  };
 }
 
 function createReply() {

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import type { RequestUserContext } from '../../shared/request-context';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
-import type { UserInfo } from '../auth/auth.types';
 import {
   aiPromptDefinitions,
   aiPromptKeys,
@@ -480,7 +480,7 @@ export class AiGatewayService {
 }
 
 export interface GenerateAiTextContext {
-  user?: UserInfo | null;
+  user?: RequestUserContext | null;
 }
 
 function normalizePromptKey(promptKey: string) {

@@ -1,4 +1,5 @@
 import { createParamDecorator, SetMetadata, type ExecutionContext } from '@nestjs/common';
+import { toRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import type { UserInfo } from './auth.types';
 
 export const IS_PUBLIC_KEY = 'auth:isPublic';
@@ -14,4 +15,10 @@ export const CurrentUser = createParamDecorator((_data: unknown, context: Execut
   const request = context.switchToHttp().getRequest<{ user?: UserInfo }>();
 
   return request.user || null;
+});
+
+export const CurrentContext = createParamDecorator((_data: unknown, context: ExecutionContext): RequestUserContext | null => {
+  const request = context.switchToHttp().getRequest<{ user?: UserInfo }>();
+
+  return request.user ? toRequestUserContext(request.user) : null;
 });

@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException } from '@nestjs/common';
-import { AuthService } from '../auth/auth.service';
+import type { RequestUserContext } from '../../shared/request-context';
 import { SystemLogController } from './system-log.controller';
 import type { SystemLogService } from './system-log.service';
 
 describe('SystemLogController', () => {
   it('allows super administrators to query logs', async () => {
-    const controller = new SystemLogController(createSystemLogService(), createAuthService(['R_SUPER']));
+    const controller = new SystemLogController(createSystemLogService());
 
-    const result = await controller.list('Bearer token', null, {});
+    const result = await controller.list(createContext(['R_SUPER']), {});
 
     assert.deepEqual(result, {
       code: '0000',
@@ -24,9 +24,9 @@ describe('SystemLogController', () => {
   });
 
   it('rejects non-super administrators', async () => {
-    const controller = new SystemLogController(createSystemLogService(), createAuthService(['R_ADMIN']));
+    const controller = new SystemLogController(createSystemLogService());
 
-    await assert.rejects(() => controller.users('Bearer token', null), ForbiddenException);
+    await assert.rejects(() => controller.users(createContext(['R_ADMIN'])), ForbiddenException);
   });
 });
 
@@ -49,15 +49,12 @@ function createSystemLogService(): SystemLogService {
   } as unknown as SystemLogService;
 }
 
-function createAuthService(roles: string[]): AuthService {
+function createContext(roles: string[]): RequestUserContext {
   return {
-    getUserByAccessToken() {
-      return {
-        userId: 'u-1',
-        userName: 'tester',
-        roles,
-        buttons: []
-      };
-    }
-  } as unknown as AuthService;
+    userId: 'u-1',
+    userName: 'tester',
+    roles,
+    organizationId: 'org-default',
+    organizationRole: roles.includes('R_SUPER') ? 'admin' : 'member'
+  };
 }

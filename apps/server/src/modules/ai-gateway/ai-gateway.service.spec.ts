@@ -211,9 +211,7 @@ describe('AiGatewayService', () => {
           userId: 'u-1',
           userName: 'Super',
           roles: ['R_SUPER'],
-          buttons: [],
           organizationId: 'org-1',
-          organizationName: 'Org One',
           organizationRole: 'admin'
         }
       }
@@ -301,9 +299,7 @@ describe('AiGatewayService', () => {
               userId: 'u-1',
               userName: 'Super',
               roles: ['R_SUPER'],
-              buttons: [],
               organizationId: 'org-1',
-              organizationName: 'Org One',
               organizationRole: 'admin'
             }
           }
@@ -398,9 +394,7 @@ describe('AiGatewayService', () => {
           userId: 'u-1',
           userName: 'Super',
           roles: ['R_SUPER'],
-          buttons: [],
           organizationId: 'org-1',
-          organizationName: 'Org One',
           organizationRole: 'admin'
         }
       }
