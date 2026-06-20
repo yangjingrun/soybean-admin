@@ -1,9 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { IsInt, IsObject, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
-
-function trimValue({ value }: { value: unknown }) {
-  return typeof value === 'string' ? value.trim() : value;
-}
+import { trimStringValue } from '../../../shared/dto-transformers';
 
 export class KeywordHistoryQueryDto {
   @IsOptional()
@@ -18,7 +15,7 @@ export class UpdateKeywordHistoryDto {
   @IsString()
   @MinLength(1)
   @MaxLength(12000)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   requirement!: string;
 
   @IsObject()

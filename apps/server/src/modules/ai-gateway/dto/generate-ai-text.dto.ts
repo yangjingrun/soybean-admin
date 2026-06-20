@@ -1,62 +1,59 @@
 import { Transform } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { trimStringValue } from '../../../shared/dto-transformers';
 import { aiPromptKeys, defaultAiModelConfigKey } from '../ai-gateway.constants';
-
-function trimValue({ value }: { value: unknown }) {
-  return typeof value === 'string' ? value.trim() : value;
-}
 
 export class GenerateAiTextDto {
   @IsOptional()
   @IsString()
   @MaxLength(40)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   providerName?: string;
 
   @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   apiBase?: string;
 
   @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(300)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   apiKey?: string;
 
   @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(120)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   model?: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(12000)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   prompt!: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(12000)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   systemPrompt?: string;
 
   @IsOptional()
   @IsString()
   @IsIn(aiPromptKeys, { message: 'promptKey 不在固定提示词列表中' })
   @MaxLength(60)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   promptKey?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(60)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   modelConfigKey?: string = defaultAiModelConfigKey;
 
   @IsOptional()

@@ -1,15 +1,12 @@
 import { Transform } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { trimStringValue } from '../../../shared/dto-transformers';
 import { defaultAiModelConfigKey } from '../ai-gateway.constants';
-
-function trimValue({ value }: { value: unknown }) {
-  return typeof value === 'string' ? value.trim() : value;
-}
 
 export class AiModelConfigKeyParamDto {
   @IsString()
   @MaxLength(60)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   configKey = defaultAiModelConfigKey;
 }
 
@@ -17,31 +14,31 @@ export class SaveAiModelConfigDto extends AiModelConfigKeyParamDto {
   @IsString()
   @MinLength(1)
   @MaxLength(80)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   title = '默认模型';
 
   @IsString()
   @MinLength(1)
   @MaxLength(40)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   providerName!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   apiBase!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(300)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   apiKey!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(120)
-  @Transform(trimValue)
+  @Transform(trimStringValue)
   model!: string;
 
   @IsOptional()
