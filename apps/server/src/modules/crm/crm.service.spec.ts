@@ -23,8 +23,10 @@ import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from './sequence/crm-follow-up-approval.service';
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
+import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
+import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
 import type {
   CrmArchivedFingerprintRecord,
   CrmAiDraftQueueConfigInput,
@@ -1882,8 +1884,8 @@ describe('CrmService', () => {
   });
 
   it('returns read-only default templates and persona profiles', async () => {
-    const service = new CrmService(
-      createStore([], {
+    const service = createServiceWithSplitServices({
+      store: createStore([], {
         globalConfig: createGlobalConfig({
           followUpDelayDays: {
             step2Days: 2,
@@ -1893,7 +1895,7 @@ describe('CrmService', () => {
           }
         })
       })
-    );
+    });
 
     const result = await service.getTemplateDefaults(createContext());
 
@@ -1982,7 +1984,12 @@ describe('CrmService', () => {
       emailTemplateGroups: [createEmailTemplateGroup({ id: 'template-1', name: 'Distributor follow-up' })]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      templateGroupService: createEmailTemplateGroupService(store, {
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
+    });
 
     const created = await service.createEmailTemplateGroup(
       createEmailTemplatePayload({ name: 'Starter sequence' }),
@@ -2020,7 +2027,12 @@ describe('CrmService', () => {
       ]
     });
     const logs = createLogRecorder();
-    const service = new CrmService(store, undefined, logs.service);
+    const service = createServiceWithSplitServices({
+      store,
+      sequencePolicyService: createSequencePolicyService(store, {
+        crmLogger: new CrmLoggerService(logs.service as never)
+      })
+    });
 
     const created = await service.createSequencePolicy(
       {
@@ -9386,6 +9398,8 @@ function createServiceWithSplitServices(options: {
   personaProfileService?: unknown;
   productLineService?: unknown;
   sequenceService?: unknown;
+  sequencePolicyService?: unknown;
+  templateGroupService?: unknown;
   draftService?: unknown;
   nextDraftService?: unknown;
   draftApprovalService?: unknown;
@@ -9417,6 +9431,8 @@ function createServiceWithSplitServices(options: {
     (options.personaProfileService ?? createPersonaProfileService(store)) as never,
     (options.productLineService ?? createProductLineService(store)) as never,
     options.sequenceService as never,
+    (options.sequencePolicyService ?? createSequencePolicyService(store)) as never,
+    (options.templateGroupService ?? createEmailTemplateGroupService(store)) as never,
     options.draftService as never,
     options.nextDraftService as never,
     options.draftApprovalService as never,
@@ -9441,6 +9457,14 @@ function createProductLineService(store: CrmStore, options: { crmLogger?: CrmLog
 
 function createPersonaProfileService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
   return new CrmPersonaProfileService(store, options.crmLogger);
+}
+
+function createSequencePolicyService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmSequencePolicyService(store, options.crmLogger);
+}
+
+function createEmailTemplateGroupService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmEmailTemplateGroupService(store, options.crmLogger);
 }
 
 function createBatchDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {

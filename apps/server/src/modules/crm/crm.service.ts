@@ -52,25 +52,27 @@ import {
   type SequenceBatchOperationInput
 } from './sequence/crm-sequence-batch';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
+import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-policy.service';
+import {
+  toSequencePolicyView,
+  type SequencePolicyWriteInput
+} from './sequence-policies/crm-sequence-policy-rules';
 import { CrmSettingsService } from './settings/crm-settings.service';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
+import { CrmEmailTemplateGroupService } from './template-groups/crm-email-template-group.service';
+import {
+  toEmailTemplateGroupView,
+  type EmailTemplateGroupCreateInput,
+  type EmailTemplateGroupUpdateInput
+} from './template-groups/crm-email-template-group-rules';
 import { requireEnabledCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
 import {
-  defaultSequencePolicySteps,
-  normalizeSequencePolicyLinkPolicy,
-  normalizeSequencePolicySameCompanyStrategy,
-  normalizeSequencePolicyStatus,
-  normalizeSequencePolicySteps
-} from './crm-sequence-policy';
-import {
   defaultTemplateSteps,
-  defaultTemplateVariables,
   findPersonaProfile,
-  personaProfiles,
   renderEmailTemplateText,
   type PersonaProfile
 } from './crm-email-template-renderer';
-import { buildPersonaMatch, toTemplatePersonaProfile, type ResolvedPersonaMatch } from './crm-persona-match';
+import { buildPersonaMatch, type ResolvedPersonaMatch } from './crm-persona-match';
 import {
   CRM_AI_DRAFT_TASK_QUEUE,
   CRM_EMAIL_DNS_RESOLVER,
@@ -101,9 +103,7 @@ import type {
   CrmMailboxStatus,
   CrmContactRecord,
   CrmEmailTemplateGroupRecord,
-  CrmEmailTemplateGroupUpdateInput,
   CrmEmailTemplateStatus,
-  CrmEmailTemplateStepInput,
   CrmEmailVerificationReason,
   CrmEmailStatus,
   CrmEmailSendGateway,
@@ -143,7 +143,6 @@ const gmailHistorySyncScopes = new Set([
 ]);
 const defaultMailboxDailyLimit = 50;
 const defaultMailboxHourlyLimit = 10;
-const defaultEmailTemplateStatus: CrmEmailTemplateStatus = 'active';
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex = 1;
 const accountArchiveRecoveryDays = 30;
@@ -198,28 +197,6 @@ interface ProductLineUpdateInput extends Partial<ProductLineCreateInput> {
   status?: CrmProductLineStatus;
 }
 
-interface EmailTemplateStepInput {
-  stepIndex: number;
-  name: string;
-  threadMode: CrmMessageThreadMode;
-  delayDays: number;
-  subjectTemplate: string;
-  bodyTemplate: string;
-}
-
-interface EmailTemplateCreateInput {
-  name: string;
-  language?: string | null;
-  description?: string | null;
-  steps: EmailTemplateStepInput[];
-}
-
-interface EmailTemplateUpdateInput extends Partial<Omit<EmailTemplateCreateInput, 'steps'>> {
-  status?: CrmEmailTemplateStatus;
-  isDefault?: boolean;
-  steps?: EmailTemplateStepInput[];
-}
-
 interface SequenceReviewCreateInput {
   accountId: string;
   contactId: string;
@@ -235,17 +212,6 @@ interface CreateAiDraftTaskInput {
 interface AiDraftTaskListQuery {
   current?: number;
   size?: number;
-}
-
-interface SequencePolicyWriteInput {
-  name?: string;
-  description?: string | null;
-  status?: unknown;
-  isDefault?: boolean;
-  steps?: unknown;
-  linkPolicy?: unknown;
-  allowLowRiskAutoSend?: boolean;
-  sameCompanyContactStrategy?: unknown;
 }
 
 interface MessageDraftUpdateInput {
@@ -324,6 +290,12 @@ export class CrmService {
     @Optional()
     @Inject(CrmSequenceService)
     private readonly sequenceService?: CrmSequenceService,
+    @Optional()
+    @Inject(CrmSequencePolicyService)
+    private readonly sequencePolicyService?: CrmSequencePolicyService,
+    @Optional()
+    @Inject(CrmEmailTemplateGroupService)
+    private readonly templateGroupService?: CrmEmailTemplateGroupService,
     @Optional()
     @Inject(CrmDraftService)
     private readonly draftService?: CrmDraftService,
@@ -1088,183 +1060,56 @@ export class CrmService {
       status?: CrmEmailTemplateStatus;
     } = {}
   ) {
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const result = await this.store.listEmailTemplateGroups({
-      organizationId: context.organizationId,
-      ...(keyword ? { keyword } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
+    if (!this.templateGroupService) {
+      throw new BadRequestException('CRM 邮件模板服务未启用');
+    }
 
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toEmailTemplateGroupView)
-    });
+    return this.templateGroupService.listEmailTemplateGroups(context, query);
   }
 
   /** Creates one organization-level email template group with exactly five sequence steps. */
-  async createEmailTemplateGroup(input: EmailTemplateCreateInput, context: CrmUserContext) {
-    const data = normalizeEmailTemplateCreateInput(input);
-    await this.assertEmailTemplateNameAvailable(context.organizationId, data.name);
-    const templateGroup = await this.runEmailTemplateWrite(() =>
-      this.store.createEmailTemplateGroup({
-        organizationId: context.organizationId,
-        ...data,
-        status: defaultEmailTemplateStatus,
-        isDefault: false,
-        createdById: context.userId,
-        createdByName: context.userName
-      })
-    );
+  async createEmailTemplateGroup(input: EmailTemplateGroupCreateInput, context: CrmUserContext) {
+    if (!this.templateGroupService) {
+      throw new BadRequestException('CRM 邮件模板服务未启用');
+    }
 
-    await this.recordEmailTemplateLog(
-      'email-template-create',
-      'CRM 邮件模板新建',
-      context,
-      templateGroup,
-      null,
-      templateGroup.status
-    );
-
-    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+    return this.templateGroupService.createEmailTemplateGroup(input, context);
   }
 
   /** Updates one organization-level email template group and replaces step rows when provided. */
-  async updateEmailTemplateGroup(id: string, input: EmailTemplateUpdateInput, context: CrmUserContext) {
-    const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
-    const fromStatus = currentTemplate.status;
-    const data = normalizeEmailTemplateUpdateInput(input);
-
-    if (data.name && data.name !== currentTemplate.name) {
-      await this.assertEmailTemplateNameAvailable(context.organizationId, data.name, currentTemplate.id);
+  async updateEmailTemplateGroup(id: string, input: EmailTemplateGroupUpdateInput, context: CrmUserContext) {
+    if (!this.templateGroupService) {
+      throw new BadRequestException('CRM 邮件模板服务未启用');
     }
 
-    const templateGroup = await this.runEmailTemplateWrite(() =>
-      this.store.updateEmailTemplateGroup(currentTemplate.id, context.organizationId, data)
-    );
-
-    if (!templateGroup) {
-      throw new NotFoundException('邮件模板不存在');
-    }
-
-    await this.recordEmailTemplateLog(
-      'email-template-update',
-      'CRM 邮件模板更新',
-      context,
-      templateGroup,
-      fromStatus,
-      templateGroup.status
-    );
-
-    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+    return this.templateGroupService.updateEmailTemplateGroup(id, input, context);
   }
 
   /** Archives one organization-level email template group instead of deleting it. */
   async archiveEmailTemplateGroup(id: string, context: CrmUserContext) {
-    const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
-    const fromStatus = currentTemplate.status;
-    const templateGroup = await this.store.updateEmailTemplateGroup(currentTemplate.id, context.organizationId, {
-      status: 'archived',
-      isDefault: false
-    });
-
-    if (!templateGroup) {
-      throw new NotFoundException('邮件模板不存在');
+    if (!this.templateGroupService) {
+      throw new BadRequestException('CRM 邮件模板服务未启用');
     }
 
-    await this.recordEmailTemplateLog(
-      'email-template-archive',
-      'CRM 邮件模板归档',
-      context,
-      templateGroup,
-      fromStatus,
-      templateGroup.status
-    );
-
-    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+    return this.templateGroupService.archiveEmailTemplateGroup(id, context);
   }
 
   /** Marks one active organization-level email template group as the default drafting template. */
   async setDefaultEmailTemplateGroup(id: string, context: CrmUserContext) {
-    const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
-
-    if (currentTemplate.status !== 'active') {
-      throw new BadRequestException('只能将启用模板设为默认');
+    if (!this.templateGroupService) {
+      throw new BadRequestException('CRM 邮件模板服务未启用');
     }
 
-    const templateGroup = await this.store.setDefaultEmailTemplateGroup(currentTemplate.id, context.organizationId);
-
-    if (!templateGroup) {
-      throw new NotFoundException('邮件模板不存在');
-    }
-
-    await this.recordEmailTemplateLog(
-      'email-template-default',
-      'CRM 默认邮件模板更新',
-      context,
-      templateGroup,
-      currentTemplate.status,
-      templateGroup.status
-    );
-
-    return { templateGroup: toEmailTemplateGroupView(templateGroup) };
+    return this.templateGroupService.setDefaultEmailTemplateGroup(id, context);
   }
 
   /** Returns the read-only default template and persona rules used by first-draft generation. */
   async getTemplateDefaults(context: CrmUserContext) {
-    const [defaultTemplateGroup, activePersonaProfiles] = await Promise.all([
-      this.store.findDefaultEmailTemplateGroup(context.organizationId),
-      this.store.listActivePersonaProfiles(context.organizationId)
-    ]);
-    const templatePersonas = activePersonaProfiles.length
-      ? activePersonaProfiles.map(toTemplatePersonaProfile)
-      : personaProfiles.map(profile => ({
-          ...profile,
-          aliases: [...profile.aliases]
-        }));
-
-    if (defaultTemplateGroup) {
-      return {
-        templateGroup: {
-          ...toEmailTemplateGroupView(defaultTemplateGroup),
-          scope: 'organization' as const,
-          variables: defaultTemplateVariables.map(variable => ({
-            ...variable
-          }))
-        },
-        personas: templatePersonas.map(profile => ({
-          ...profile,
-          aliases: [...profile.aliases]
-        }))
-      };
+    if (!this.templateGroupService) {
+      throw new BadRequestException('CRM 邮件模板服务未启用');
     }
 
-    const globalConfig = await this.store.getGlobalConfig();
-
-    return {
-      templateGroup: {
-        id: 'global-first-touch',
-        name: '默认开发信序列模板',
-        scope: 'global' as const,
-        language: 'en',
-        variables: defaultTemplateVariables.map(variable => ({
-          ...variable
-        })),
-        steps: defaultTemplateSteps.map(step => ({
-          ...step,
-          delayDays: getTemplateStepDelayDays(step.stepIndex, globalConfig.followUpDelayDays)
-        }))
-      },
-      personas: templatePersonas.map(profile => ({
-        ...profile,
-        aliases: [...profile.aliases]
-      }))
-    };
+    return this.templateGroupService.getTemplateDefaults(context);
   }
 
   /** Lists organization sequence policies for sequence creation and settings. */
@@ -1277,125 +1122,47 @@ export class CrmService {
       status?: unknown;
     } = {}
   ) {
-    const current = normalizePositiveInteger(query.current, defaultPage);
-    const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
-    const keyword = normalizeNullableString(query.keyword);
-    const status = query.status ? normalizeSequencePolicyStatus(query.status) : undefined;
-    const result = await this.store.listSequencePolicies({
-      organizationId: context.organizationId,
-      ...(keyword ? { keyword } : {}),
-      ...(status ? { status } : {}),
-      skip: (current - 1) * size,
-      take: size
-    });
+    if (!this.sequencePolicyService) {
+      throw new BadRequestException('CRM 序列策略服务未启用');
+    }
 
-    return createPageResult({
-      current,
-      size,
-      total: result.total,
-      records: result.records.map(toSequencePolicyView)
-    });
+    return this.sequencePolicyService.listSequencePolicies(context, query);
   }
 
   /** Creates one organization sequence policy. */
   async createSequencePolicy(input: SequencePolicyWriteInput, context: CrmUserContext) {
-    const data = normalizeSequencePolicyCreateInput(input, context);
-    const policy = await this.runSequencePolicyWrite(() => this.store.createSequencePolicy(data));
+    if (!this.sequencePolicyService) {
+      throw new BadRequestException('CRM 序列策略服务未启用');
+    }
 
-    await this.recordSequencePolicyLog(
-      'sequence-policy-create',
-      'CRM 序列策略新建',
-      context,
-      policy,
-      null,
-      policy.status
-    );
-
-    return { policy: toSequencePolicyView(policy) };
+    return this.sequencePolicyService.createSequencePolicy(input, context);
   }
 
   /** Updates one organization sequence policy. */
   async updateSequencePolicy(id: string, input: SequencePolicyWriteInput, context: CrmUserContext) {
-    const currentPolicy = await this.requireScopedSequencePolicy(id, context);
-    const data = normalizeSequencePolicyUpdateInput(input);
-    const nextStatus = data.status ?? currentPolicy.status;
-
-    if (data.isDefault && nextStatus !== 'active') {
-      throw new BadRequestException('只能将启用策略设为默认');
+    if (!this.sequencePolicyService) {
+      throw new BadRequestException('CRM 序列策略服务未启用');
     }
 
-    if (data.status === 'archived') {
-      data.isDefault = false;
-    }
-
-    const policy = await this.runSequencePolicyWrite(() =>
-      this.store.updateSequencePolicy(currentPolicy.id, context.organizationId, data)
-    );
-
-    if (!policy) {
-      throw new NotFoundException('序列策略不存在');
-    }
-
-    await this.recordSequencePolicyLog(
-      'sequence-policy-update',
-      'CRM 序列策略更新',
-      context,
-      policy,
-      currentPolicy.status,
-      policy.status
-    );
-
-    return { policy: toSequencePolicyView(policy) };
+    return this.sequencePolicyService.updateSequencePolicy(id, input, context);
   }
 
   /** Archives one sequence policy instead of deleting it. */
   async archiveSequencePolicy(id: string, context: CrmUserContext) {
-    const currentPolicy = await this.requireScopedSequencePolicy(id, context);
-    const policy = await this.store.updateSequencePolicy(currentPolicy.id, context.organizationId, {
-      status: 'archived',
-      isDefault: false
-    });
-
-    if (!policy) {
-      throw new NotFoundException('序列策略不存在');
+    if (!this.sequencePolicyService) {
+      throw new BadRequestException('CRM 序列策略服务未启用');
     }
 
-    await this.recordSequencePolicyLog(
-      'sequence-policy-archive',
-      'CRM 序列策略归档',
-      context,
-      policy,
-      currentPolicy.status,
-      policy.status
-    );
-
-    return { policy: toSequencePolicyView(policy) };
+    return this.sequencePolicyService.archiveSequencePolicy(id, context);
   }
 
   /** Marks one active organization sequence policy as default. */
   async setDefaultSequencePolicy(id: string, context: CrmUserContext) {
-    const currentPolicy = await this.requireScopedSequencePolicy(id, context);
-
-    if (currentPolicy.status !== 'active') {
-      throw new BadRequestException('只能将启用策略设为默认');
+    if (!this.sequencePolicyService) {
+      throw new BadRequestException('CRM 序列策略服务未启用');
     }
 
-    const policy = await this.store.setDefaultSequencePolicy(currentPolicy.id, context.organizationId);
-
-    if (!policy) {
-      throw new NotFoundException('序列策略不存在');
-    }
-
-    await this.recordSequencePolicyLog(
-      'sequence-policy-default',
-      'CRM 默认序列策略更新',
-      context,
-      policy,
-      currentPolicy.status,
-      policy.status
-    );
-
-    return { policy: toSequencePolicyView(policy) };
+    return this.sequencePolicyService.setDefaultSequencePolicy(id, context);
   }
 
   /** Creates one first-email review item and deterministic draft without queueing any send job. */
@@ -2814,19 +2581,6 @@ export class CrmService {
     return buildPersonaMatch(organizationProfiles, account, contact);
   }
 
-  private async requireScopedEmailTemplateGroup(id: string, context: CrmUserContext) {
-    const templateGroup = await this.store.findEmailTemplateGroupById({
-      id,
-      organizationId: context.organizationId
-    });
-
-    if (!templateGroup) {
-      throw new NotFoundException('邮件模板不存在');
-    }
-
-    return templateGroup;
-  }
-
   private async requireScopedSequencePolicy(id: string, context: CrmUserContext) {
     const policy = await this.store.findSequencePolicyById({
       id,
@@ -3124,38 +2878,6 @@ export class CrmService {
     );
   }
 
-  private async assertEmailTemplateNameAvailable(organizationId: string, name: string, ignoredId?: string) {
-    const existingTemplate = await this.store.findEmailTemplateGroupByName(organizationId, name);
-
-    if (existingTemplate && existingTemplate.id !== ignoredId) {
-      throw new BadRequestException('邮件模板名称已存在');
-    }
-  }
-
-  private async runEmailTemplateWrite<T>(operation: () => Promise<T>) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        throw new BadRequestException('邮件模板名称已存在');
-      }
-
-      throw error;
-    }
-  }
-
-  private async runSequencePolicyWrite<T>(operation: () => Promise<T>) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        throw new BadRequestException('序列策略名称已存在');
-      }
-
-      throw error;
-    }
-  }
-
   private async runSequenceWrite<T>(operation: () => Promise<T>) {
     try {
       return await operation();
@@ -3207,46 +2929,6 @@ export class CrmService {
     });
   }
 
-  private recordEmailTemplateLog(
-    action: string,
-    message: string,
-    context: CrmUserContext,
-    templateGroup: CrmEmailTemplateGroupRecord,
-    fromStatus: CrmEmailTemplateStatus | null,
-    toStatus: CrmEmailTemplateStatus
-  ) {
-    return this.recordCrmLog(action, message, context, {
-      organizationId: templateGroup.organizationId,
-      templateGroupId: templateGroup.id,
-      name: templateGroup.name,
-      status: templateGroup.status,
-      isDefault: templateGroup.isDefault,
-      fromStatus,
-      toStatus
-    });
-  }
-
-  private recordSequencePolicyLog(
-    action: string,
-    message: string,
-    context: CrmUserContext,
-    policy: CrmSequencePolicyRecord,
-    fromStatus: CrmSequencePolicyRecord['status'] | null,
-    toStatus: CrmSequencePolicyRecord['status']
-  ) {
-    return this.recordCrmLog(action, message, context, {
-      organizationId: policy.organizationId,
-      policyId: policy.id,
-      name: policy.name,
-      status: policy.status,
-      isDefault: policy.isDefault,
-      linkPolicy: policy.linkPolicy,
-      allowLowRiskAutoSend: policy.allowLowRiskAutoSend,
-      sameCompanyContactStrategy: policy.sameCompanyContactStrategy,
-      fromStatus,
-      toStatus
-    });
-  }
 }
 
 function toAccountView(record: CrmAccountRecord) {
@@ -3347,28 +3029,6 @@ function toMailboxSyncIssueView(record: CrmMailboxRecord) {
 function toProductLineView(record: CrmProductLineRecord) {
   return {
     ...record,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toEmailTemplateGroupView(record: CrmEmailTemplateGroupRecord) {
-  return {
-    ...record,
-    steps: record.steps.map(step => ({
-      ...step,
-      createdAt: step.createdAt.toISOString(),
-      updatedAt: step.updatedAt.toISOString()
-    })),
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toSequencePolicyView(record: CrmSequencePolicyRecord) {
-  return {
-    ...record,
-    steps: record.steps.map(step => ({ ...step })),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };
@@ -3651,139 +3311,6 @@ function parseOptionalDate(value?: string | null) {
   return date;
 }
 
-function normalizeEmailTemplateCreateInput(input: EmailTemplateCreateInput) {
-  return {
-    name: normalizeRequiredString(input.name, '邮件模板名称不能为空'),
-    language: normalizeNullableString(input.language) || 'en',
-    description: normalizeNullableString(input.description),
-    steps: normalizeEmailTemplateSteps(input.steps)
-  };
-}
-
-function normalizeEmailTemplateUpdateInput(input: EmailTemplateUpdateInput): CrmEmailTemplateGroupUpdateInput {
-  const data: CrmEmailTemplateGroupUpdateInput = {};
-
-  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '邮件模板名称不能为空');
-  if (hasOwn(input, 'language')) data.language = normalizeNullableString(input.language) || 'en';
-  if (hasOwn(input, 'description')) data.description = normalizeNullableString(input.description);
-  if (hasOwn(input, 'status')) data.status = input.status;
-  if (hasOwn(input, 'isDefault')) data.isDefault = input.isDefault;
-  if (hasOwn(input, 'steps')) data.steps = normalizeEmailTemplateSteps(input.steps ?? []);
-
-  return data;
-}
-
-function normalizeEmailTemplateSteps(steps: EmailTemplateStepInput[]): CrmEmailTemplateStepInput[] {
-  if (steps.length !== defaultSequenceStepCount) {
-    throw new BadRequestException('邮件模板必须包含 5 个步骤');
-  }
-
-  const normalizedSteps = steps
-    .map(step => ({
-      stepIndex: step.stepIndex,
-      name: normalizeRequiredString(step.name, '步骤名称不能为空'),
-      threadMode: step.threadMode,
-      delayDays: normalizeEmailTemplateDelayDays(step.stepIndex, step.delayDays),
-      subjectTemplate: normalizeEmailTemplateSubject(step.stepIndex, step.subjectTemplate),
-      bodyTemplate: normalizeLimitedContent(step.bodyTemplate, '邮件正文不能为空', 4000)
-    }))
-    .toSorted((left, right) => left.stepIndex - right.stepIndex);
-
-  if (normalizedSteps.some((step, index) => step.stepIndex !== index + 1)) {
-    throw new BadRequestException('邮件模板步骤必须为 1-5');
-  }
-
-  return normalizedSteps;
-}
-
-function normalizeEmailTemplateDelayDays(stepIndex: number, value: number) {
-  if (!Number.isInteger(value) || value < 0 || value > 90) {
-    throw new BadRequestException('发送间隔必须在 0-90 天之间');
-  }
-
-  return stepIndex === initialDraftStepIndex ? 0 : value;
-}
-
-function normalizeEmailTemplateSubject(stepIndex: number, value: string) {
-  const normalized = value.trim();
-
-  if (normalized.length > 300) {
-    throw new BadRequestException('邮件主题不能超过 300 个字符');
-  }
-
-  if (stepIndex !== 2 && !normalized) {
-    throw new BadRequestException('新主题邮件必须填写主题');
-  }
-
-  return normalized;
-}
-
-function normalizeSequencePolicyCreateInput(input: SequencePolicyWriteInput, context: CrmUserContext) {
-  const status = normalizeSequencePolicyStatus(input.status);
-  const isDefault = Boolean(input.isDefault);
-
-  if (isDefault && status !== 'active') {
-    throw new BadRequestException('只能将启用策略设为默认');
-  }
-
-  return {
-    organizationId: context.organizationId,
-    name: normalizeRequiredString(input.name ?? '', '序列策略名称不能为空'),
-    description: normalizeNullableString(input.description),
-    status,
-    isDefault,
-    steps: normalizeSequencePolicyWriteSteps(input.steps),
-    linkPolicy: normalizeSequencePolicyLinkPolicy(input.linkPolicy),
-    allowLowRiskAutoSend: Boolean(input.allowLowRiskAutoSend),
-    sameCompanyContactStrategy: normalizeSequencePolicySameCompanyStrategy(input.sameCompanyContactStrategy),
-    createdById: context.userId,
-    createdByName: context.userName
-  };
-}
-
-function normalizeSequencePolicyUpdateInput(input: SequencePolicyWriteInput) {
-  const data: {
-    name?: string;
-    description?: string | null;
-    status?: ReturnType<typeof normalizeSequencePolicyStatus>;
-    isDefault?: boolean;
-    steps?: ReturnType<typeof normalizeSequencePolicyWriteSteps>;
-    linkPolicy?: ReturnType<typeof normalizeSequencePolicyLinkPolicy>;
-    allowLowRiskAutoSend?: boolean;
-    sameCompanyContactStrategy?: ReturnType<typeof normalizeSequencePolicySameCompanyStrategy>;
-  } = {};
-
-  if (hasOwn(input, 'name')) data.name = normalizeRequiredString(input.name ?? '', '序列策略名称不能为空');
-  if (hasOwn(input, 'description')) data.description = normalizeNullableString(input.description);
-  if (hasOwn(input, 'status')) data.status = normalizeSequencePolicyStatus(input.status);
-  if (hasOwn(input, 'isDefault')) data.isDefault = Boolean(input.isDefault);
-  if (hasOwn(input, 'steps')) data.steps = normalizeSequencePolicyWriteSteps(input.steps);
-  if (hasOwn(input, 'linkPolicy')) data.linkPolicy = normalizeSequencePolicyLinkPolicy(input.linkPolicy);
-  if (hasOwn(input, 'allowLowRiskAutoSend')) data.allowLowRiskAutoSend = Boolean(input.allowLowRiskAutoSend);
-  if (hasOwn(input, 'sameCompanyContactStrategy')) {
-    data.sameCompanyContactStrategy = normalizeSequencePolicySameCompanyStrategy(input.sameCompanyContactStrategy);
-  }
-
-  return data;
-}
-
-function normalizeSequencePolicyWriteSteps(value: unknown) {
-  if (!Array.isArray(value)) {
-    return defaultSequencePolicySteps.map(step => ({ ...step }));
-  }
-
-  if (value.length !== defaultSequenceStepCount) {
-    throw new BadRequestException('序列策略必须包含 5 个步骤');
-  }
-
-  const steps = normalizeSequencePolicySteps(value);
-  if (steps.some((step, index) => step.stepIndex !== index + 1)) {
-    throw new BadRequestException('序列策略步骤必须为 1-5');
-  }
-
-  return steps;
-}
-
 function normalizeRequiredString(value: string, emptyMessage: string) {
   const normalized = value.trim();
 
@@ -3796,21 +3323,6 @@ function normalizeRequiredString(value: string, emptyMessage: string) {
 
 function isPastArchiveRecoveryWindow(archivedAt: Date, now = new Date()) {
   return now.getTime() - archivedAt.getTime() > accountArchiveRecoveryDays * 24 * 60 * 60 * 1000;
-}
-
-function getTemplateStepDelayDays(stepIndex: number, followUpDelayDays: CrmGlobalConfigRecord['followUpDelayDays']) {
-  if (stepIndex === initialDraftStepIndex) {
-    return 0;
-  }
-
-  const delayDaysByStep = new Map([
-    [2, followUpDelayDays.step2Days],
-    [3, followUpDelayDays.step3Days],
-    [4, followUpDelayDays.step4Days],
-    [5, followUpDelayDays.step5Days]
-  ]);
-
-  return delayDaysByStep.get(stepIndex) ?? 0;
 }
 
 function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex: number) {
