@@ -11,6 +11,7 @@ import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
 import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
+import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
@@ -170,6 +171,27 @@ describe('CrmService', () => {
     assert.equal(await service.listMessageDraftVersions('message-1', context), versions);
     assert.equal(await service.restoreMessageDraftVersion('message-1', 'draft-version-1', context), restored);
     assert.deepEqual(calls, ['update', 'regenerate', 'versions', 'restore']);
+  });
+
+  it('delegates first draft approval when the split draft approval service is injected', async () => {
+    const context = createContext();
+    const expected = { message: { id: 'approved' }, enrollment: { id: 'enrollment-1' } };
+    const store = createStore([createAccount({ id: 'account-1' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
+      messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1', stepIndex: 1 })]
+    });
+    const draftApprovalService = {
+      async approveInitialMessageDraft(id: string, actualContext: CrmUserContext) {
+        assert.equal(id, 'message-1');
+        assert.equal(actualContext, context);
+        return expected;
+      }
+    };
+    const service = createServiceWithSplitServices({ store, draftApprovalService });
+
+    assert.equal(await service.approveMessageDraft('message-1', context), expected);
+    assert.equal(store.sequenceReviewDetailCalls.length, 0);
   });
 
   it('imports one lead account and contact with organization scoped dedupe', async () => {
@@ -3984,6 +4006,77 @@ describe('CrmService', () => {
       NotFoundException
     );
     assert.equal(store.messages[0].status, 'draft_pending_review');
+  });
+
+  it('approves first owner drafts through split draft approval service', async () => {
+    const store = createStore([createAccount({ id: 'account-1', status: 'manual_review_pending' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1' })],
+      enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          subject: 'Ready subject'
+        })
+      ]
+    });
+    const logs = createLogRecorder();
+    const service = createDraftApprovalService(store, {
+      crmLogger: new CrmLoggerService(logs.service as never)
+    });
+
+    const approved = await service.approveInitialMessageDraft('message-1', createContext());
+
+    assert.equal(approved.message.status, 'draft_ready');
+    assert.equal(approved.enrollment.status, 'ready_to_send');
+    assert.equal(store.messages[0].status, 'draft_ready');
+    assert.equal(store.enrollments[0].status, 'ready_to_send');
+    assert.equal(store.accounts[0].status, 'ready');
+    assert.equal(store.timelineEvents.at(-1)?.eventType, 'draft_approved');
+    assert.equal(logs.records.at(-1)?.action, 'draft-approve');
+    assert.equal((logs.records.at(-1)?.metadata as Record<string, unknown>).messageId, 'message-1');
+  });
+
+  it('keeps split first draft approval owner-only and rejects follow-up drafts', async () => {
+    const store = createStore([createAccount({ id: 'account-1', ownerUserId: 'user-2' })], {
+      contacts: [createContact({ id: 'contact-1', accountId: 'account-1', ownerUserId: 'user-2' })],
+      enrollments: [
+        createEnrollment({
+          id: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        })
+      ],
+      messages: [
+        createMessage({
+          id: 'message-1',
+          enrollmentId: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          ownerUserId: 'user-2'
+        }),
+        createMessage({
+          id: 'message-2',
+          enrollmentId: 'enrollment-1',
+          accountId: 'account-1',
+          contactId: 'contact-1',
+          stepIndex: 2
+        })
+      ]
+    });
+    const service = createDraftApprovalService(store);
+
+    await assert.rejects(
+      () => service.approveInitialMessageDraft('message-1', createContext({ organizationRole: 'admin' })),
+      NotFoundException
+    );
+    await assert.rejects(
+      () => service.approveInitialMessageDraft('message-2', createContext()),
+      /当前草稿不是首封开发信/
+    );
+    assert.equal(store.messages[0].status, 'draft_pending_review');
+    assert.equal(store.messages[1].status, 'draft_pending_review');
   });
 
   it('starts an approved first message into the local send scheduling pool', async () => {
@@ -8741,14 +8834,16 @@ function createAiDraftTaskQueue(
 }
 
 function createServiceWithSplitServices(options: {
+  store?: CrmStore;
   suppressionService?: unknown;
   accountService?: unknown;
   mailboxService?: unknown;
   sequenceService?: unknown;
   draftService?: unknown;
+  draftApprovalService?: unknown;
 }) {
   return new CrmService(
-    {} as CrmStore,
+    options.store ?? ({} as CrmStore),
     undefined,
     undefined,
     undefined,
@@ -8765,8 +8860,13 @@ function createServiceWithSplitServices(options: {
     options.accountService as never,
     options.mailboxService as never,
     options.sequenceService as never,
-    options.draftService as never
+    options.draftService as never,
+    options.draftApprovalService as never
   );
+}
+
+function createDraftApprovalService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {
+  return new CrmDraftApprovalService(store, options.crmLogger);
 }
 
 function createDraftService(

@@ -6,7 +6,6 @@ import type {
   CrmAiDraftMetadata,
   CrmAiWritingStepIndex,
   CrmContactRecord,
-  CrmMessageDraftVersionRecord,
   CrmMessageRecord,
   CrmMessageStatus,
   CrmProductLineRecord,
@@ -14,6 +13,7 @@ import type {
 } from '../crm.types';
 import { normalizeLimitedContent } from '../shared/crm-normalizers';
 import { CrmLoggerService } from '../shared/crm-logger.service';
+import { toMessageDraftVersionView, toMessageView } from '../shared/crm-view-mappers';
 import type { CrmDraftRepository } from './crm-draft.repository';
 
 const defaultSequenceStepCount = 5;
@@ -356,24 +356,6 @@ export class CrmDraftService {
   }
 }
 
-function toMessageView(record: CrmMessageRecord) {
-  return {
-    ...record,
-    aiDraft: readCrmMessageAiDraftMetadata(record.metadata),
-    scheduledAt: record.scheduledAt?.toISOString() ?? null,
-    sentAt: record.sentAt?.toISOString() ?? null,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
-  };
-}
-
-function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
-  return {
-    ...record,
-    createdAt: record.createdAt.toISOString()
-  };
-}
-
 function mergeAiDraftMessageMetadata(metadata: unknown, aiDraft?: CrmAiDraftMetadata | null) {
   if (!aiDraft) return metadata ?? null;
 
@@ -385,26 +367,6 @@ function mergeAiDraftMessageMetadata(metadata: unknown, aiDraft?: CrmAiDraftMeta
     ...metadata,
     aiDraft
   };
-}
-
-function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | null {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
-
-  const value = (metadata as { aiDraft?: unknown }).aiDraft;
-
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-
-  const record = value as Partial<CrmAiDraftMetadata>;
-
-  if (record.generated !== true || typeof record.reason !== 'string' || !Array.isArray(record.riskNotes)) {
-    return null;
-  }
-
-  if (!record.snapshot || typeof record.snapshot !== 'object' || Array.isArray(record.snapshot)) {
-    return null;
-  }
-
-  return record as CrmAiDraftMetadata;
 }
 
 function toAiWritingStepIndex(stepIndex: number): CrmAiWritingStepIndex {

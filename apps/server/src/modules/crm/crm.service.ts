@@ -41,6 +41,7 @@ import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
+import { CrmDraftApprovalService } from './sequence/crm-draft-approval.service';
 import { CrmDraftService } from './sequence/crm-draft.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CrmSettingsService } from './settings/crm-settings.service';
@@ -382,7 +383,10 @@ export class CrmService {
     private readonly sequenceService?: CrmSequenceService,
     @Optional()
     @Inject(CrmDraftService)
-    private readonly draftService?: CrmDraftService
+    private readonly draftService?: CrmDraftService,
+    @Optional()
+    @Inject(CrmDraftApprovalService)
+    private readonly draftApprovalService?: CrmDraftApprovalService
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -2199,10 +2203,19 @@ export class CrmService {
   /** Marks one reviewed draft as ready for the future send queue without sending it. */
   async approveMessageDraft(id: string, context: CrmUserContext) {
     const message = await this.requireOwnedEditableMessage(id, context);
+
+    if (message.stepIndex === initialDraftStepIndex && this.draftApprovalService) {
+      return this.draftApprovalService.approveInitialMessageDraft(id, context);
+    }
+
     const reviewItem = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
 
     if (message.stepIndex > initialDraftStepIndex) {
       return this.approveFollowUpMessageDraft(message, reviewItem, context);
+    }
+
+    if (message.stepIndex !== initialDraftStepIndex) {
+      throw new BadRequestException('当前草稿不是首封开发信');
     }
 
     if (reviewItem.enrollment.status !== 'draft_review_pending') {

@@ -1,9 +1,13 @@
 import type {
   CrmAccountDetailRecord,
   CrmAccountRecord,
+  CrmAiDraftMetadata,
   CrmBlacklistRecord,
   CrmContactRecord,
   CrmMailboxRecord,
+  CrmMessageDraftVersionRecord,
+  CrmMessageRecord,
+  CrmSequenceEnrollmentRecord,
   CrmTimelineEventRecord
 } from '../crm.types';
 
@@ -87,6 +91,35 @@ export function toMailboxView(record: CrmMailboxRecord) {
   };
 }
 
+/** Convert one CRM sequence enrollment to the API view shape. */
+export function toSequenceEnrollmentView(record: CrmSequenceEnrollmentRecord) {
+  return {
+    ...record,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+/** Convert one CRM message to the API view shape and expose parsed AI draft metadata. */
+export function toMessageView(record: CrmMessageRecord) {
+  return {
+    ...record,
+    aiDraft: readCrmMessageAiDraftMetadata(record.metadata),
+    scheduledAt: record.scheduledAt?.toISOString() ?? null,
+    sentAt: record.sentAt?.toISOString() ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+/** Convert one draft version snapshot to the API view shape. */
+export function toMessageDraftVersionView(record: CrmMessageDraftVersionRecord) {
+  return {
+    ...record,
+    createdAt: record.createdAt.toISOString()
+  };
+}
+
 function resolveMailboxSyncMode() {
   const scopes = parseConfiguredGmailScopes(process.env.CRM_GMAIL_OAUTH_SCOPES);
   const supportsHistorySync = scopes.length === 0 || scopes.some(scope => gmailHistorySyncScopes.has(scope));
@@ -121,4 +154,24 @@ function toMailboxSyncIssueView(record: CrmMailboxRecord) {
     message: record.syncIssueMessage ?? 'Gmail 同步需要人工处理',
     happenedAt: record.syncIssueAt.toISOString()
   };
+}
+
+function readCrmMessageAiDraftMetadata(metadata: unknown): CrmAiDraftMetadata | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+
+  const value = (metadata as { aiDraft?: unknown }).aiDraft;
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const record = value as Partial<CrmAiDraftMetadata>;
+
+  if (record.generated !== true || typeof record.reason !== 'string' || !Array.isArray(record.riskNotes)) {
+    return null;
+  }
+
+  if (!record.snapshot || typeof record.snapshot !== 'object' || Array.isArray(record.snapshot)) {
+    return null;
+  }
+
+  return record as CrmAiDraftMetadata;
 }
