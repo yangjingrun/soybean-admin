@@ -22,7 +22,9 @@ import {
   CRM_SETTINGS_REPOSITORY,
   CRM_SUPPRESSION_REPOSITORY
 } from './crm.tokens';
-import { crmRepositoryProviders } from './crm-module.providers';
+import { crmBusinessDomainProviders, crmRepositoryProviders } from './crm-module.providers';
+import { CrmSequenceEligibilityService } from './sequence/crm-sequence-eligibility.service';
+import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CRM_PERSONA_PROFILE_REPOSITORY } from './persona-profiles/crm-persona-profile.repository';
 import { CRM_PRODUCT_LINE_REPOSITORY } from './product-lines/crm-product-line.repository';
 import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence-policy.repository';
@@ -126,5 +128,19 @@ describe('crmRepositoryProviders', () => {
       const classProvider = provider as { useClass: unknown };
       assert.equal(classProvider.useClass, repositoryClass);
     }
+  });
+});
+
+describe('crmBusinessDomainProviders', () => {
+  it('keeps sequence eligibility inside the outreach business domain', () => {
+    assert.ok(crmBusinessDomainProviders.outreach.includes(CrmSequenceEligibilityService));
+    assert.ok(crmBusinessDomainProviders.outreach.includes(CrmSequenceReviewCreationService));
+  });
+
+  it('does not register one provider in multiple business domains', () => {
+    const providers = Object.values(crmBusinessDomainProviders).flat();
+    const duplicatedProviders = providers.filter((provider, index) => providers.indexOf(provider) !== index);
+
+    assert.deepEqual(duplicatedProviders, []);
   });
 });

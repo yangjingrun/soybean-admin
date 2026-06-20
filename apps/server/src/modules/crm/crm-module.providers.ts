@@ -45,6 +45,7 @@ import { CrmMessageDraftApprovalRouterService } from './sequence/crm-message-dra
 import { CrmNextDraftService } from './sequence/crm-next-draft.service';
 import { CrmSendQueueReconcileService } from './sequence/crm-send-queue-reconcile.service';
 import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
+import { CrmSequenceEligibilityService } from './sequence/crm-sequence-eligibility.service';
 import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
 import { CrmSequenceService } from './sequence/crm-sequence.service';
 import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence-policy.repository';
@@ -118,54 +119,59 @@ export const crmControllers = [
   CrmGmailWebhookController
 ];
 
+export const crmBusinessDomainProviders = {
+  lead: [CrmAccountService, CrmArchiveSlimmingService, CrmDashboardService],
+  settingsCatalog: [
+    CrmSettingsService,
+    CrmProductLineService,
+    CrmPersonaProfileService,
+    CrmSequencePolicyService,
+    CrmEmailTemplateGroupService,
+    CrmSuppressionService
+  ],
+  outreach: [
+    CrmSequenceEligibilityService,
+    CrmSequenceService,
+    CrmSequenceReviewCreationService,
+    CrmDraftPreviewService,
+    CrmDraftService,
+    CrmDraftApprovalService,
+    CrmFollowUpApprovalService,
+    CrmMessageDraftApprovalRouterService,
+    CrmNextDraftService,
+    CrmBatchDraftApprovalService,
+    CrmBatchSequenceStopService,
+    CrmSequenceControlService,
+    CrmSendQueueReconcileService,
+    CrmSendSchedulerService,
+    CrmSendWorkerService
+  ],
+  mailbox: [
+    CrmMailboxService,
+    CrmGmailPubSubOidcVerifier,
+    CrmGmailWebhookService,
+    CrmGmailWatchService,
+    CrmGmailWatchRenewalService,
+    CrmGmailHistorySyncWorkerService
+  ],
+  inbox: [CrmInboxService, CrmAiReplyDraftService],
+  aiDraft: [CrmAiDraftService, CrmAiDraftTaskService, CrmAiDraftTaskWorkerService]
+} as const satisfies Record<string, Provider[]>;
+
 export const crmDomainServices: Provider[] = [
-  CrmAccountService,
-  CrmAiDraftTaskService,
-  CrmDashboardService,
-  CrmInboxService,
-  CrmMailboxService,
-  CrmPersonaProfileService,
-  CrmProductLineService,
-  CrmBatchDraftApprovalService,
-  CrmBatchSequenceStopService,
-  CrmDraftApprovalService,
-  CrmDraftPreviewService,
-  CrmDraftService,
-  CrmFollowUpApprovalService,
-  CrmMessageDraftApprovalRouterService,
-  CrmNextDraftService,
-  CrmSendQueueReconcileService,
-  CrmSequenceControlService,
-  CrmSequenceReviewCreationService,
-  CrmSequenceService,
-  CrmSequencePolicyService,
-  CrmSettingsService,
-  CrmSuppressionService,
-  CrmEmailTemplateGroupService,
+  ...Object.values(crmBusinessDomainProviders).flat(),
   CrmLoggerService
 ];
 
-export const crmIntegrationServices: Provider[] = [
-  CrmAiDraftService,
-  CrmAiReplyDraftService,
-  CrmGmailPubSubOidcVerifier,
-  CrmGmailWebhookService,
-  CrmGmailWatchService,
-  CrmGmailWatchRenewalService
-];
+export const crmIntegrationServices: Provider[] = [];
 
 export const crmWorkerServices: Provider[] = [
   CrmAiDraftTaskQueueService,
-  CrmAiDraftTaskWorkerService,
   CrmAiDraftTaskWorkerHost,
-  CrmArchiveSlimmingService,
   CrmSendQueueService,
   CrmGmailHistorySyncQueueService,
-  CrmGmailHistorySyncWorkerService,
   CrmGmailHistorySyncWorkerHost,
-  CrmSendSchedulerService,
   CrmSendSchedulerHost,
-  CrmSendWorkerService,
   CrmSendWorkerHost
 ];
 

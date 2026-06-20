@@ -7,8 +7,7 @@ import {
   CRM_ACCOUNT_REPOSITORY,
   CRM_MAILBOX_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
-  CRM_SETTINGS_REPOSITORY,
-  CRM_SUPPRESSION_REPOSITORY
+  CRM_SETTINGS_REPOSITORY
 } from '../crm.tokens';
 import type {
   CrmAccountRecord,
@@ -19,7 +18,6 @@ import type {
   CrmMailboxRecord,
   CrmMessageRecord,
   CrmProductLineRecord,
-  CrmSequenceEnrollmentStatus,
   CrmSequencePolicyRecord,
   CrmUserContext
 } from '../crm.types';
@@ -28,18 +26,12 @@ import { createCrmReadScope } from '../shared/crm-scope';
 import type { CrmAccountRepository } from '../accounts/crm-account.repository';
 import type { CrmMailboxRepository } from '../mailbox/crm-mailbox.repository';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
-import type { CrmSuppressionRepository } from '../suppression/crm-suppression.repository';
+import { CrmSequenceEligibilityService } from './crm-sequence-eligibility.service';
 import type { CrmSequenceRepository } from './crm-sequence.repository';
 import { toSequenceReviewView } from './crm-sequence-review-view';
 
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex: CrmAiWritingStepIndex = 1;
-const activeSequenceStatuses: CrmSequenceEnrollmentStatus[] = [
-  'draft_review_pending',
-  'ready_to_send',
-  'sequence_running',
-  'paused'
-];
 
 export interface SequenceReviewCreateInput {
   accountId: string;
@@ -66,8 +58,8 @@ export class CrmSequenceReviewCreationService {
     private readonly mailboxRepository: CrmMailboxRepository,
     @Inject(CRM_SEQUENCE_REPOSITORY)
     private readonly sequenceRepository: CrmSequenceRepository,
-    @Inject(CRM_SUPPRESSION_REPOSITORY)
-    private readonly suppressionRepository: CrmSuppressionRepository,
+    @Inject(CrmSequenceEligibilityService)
+    private readonly sequenceEligibilityService: CrmSequenceEligibilityService,
     @Optional()
     @Inject(CrmAiDraftService)
     private readonly aiDraftService?: CrmAiDraftService | null,
@@ -79,17 +71,7 @@ export class CrmSequenceReviewCreationService {
   /** Creates one first-email review item and deterministic draft without queueing any send job. */
   async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
     const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
-    await this.assertContactNotBlacklisted(contact, context);
-    const existingEnrollment = await this.sequenceRepository.findActiveEnrollmentByContact({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      contactId: contact.id,
-      statuses: activeSequenceStatuses
-    });
-
-    if (existingEnrollment) {
-      throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
-    }
+    await this.sequenceEligibilityService.assertLeadCanStartSequence(account, contact, context);
 
     const [productLine, mailbox, selectedPolicy, defaultPolicy] = await Promise.all([
       input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
@@ -98,7 +80,7 @@ export class CrmSequenceReviewCreationService {
       input.policyId ? Promise.resolve(null) : this.settingsRepository.findDefaultSequencePolicy(context.organizationId)
     ]);
     const policy = selectedPolicy ?? defaultPolicy;
-    await this.assertSameCompanySequencePolicy(account, contact, policy, context);
+    await this.sequenceEligibilityService.assertPolicyAllowsSequence(account, contact, policy, context);
     const [defaultTemplateGroup, personaMatch] = await Promise.all([
       this.settingsRepository.findDefaultEmailTemplateGroup(context.organizationId),
       this.resolvePersonaProfileMatch(account, contact, context)
@@ -219,14 +201,6 @@ export class CrmSequenceReviewCreationService {
       throw new NotFoundException('联系人不存在');
     }
 
-    if (detail.account.status === 'archived' || detail.account.status === 'blocked') {
-      throw new BadRequestException('当前线索不可开发');
-    }
-
-    if (detail.account.ownerUserId !== context.userId || contact.ownerUserId !== context.userId) {
-      throw new BadRequestException('只能为自己的线索创建开发信序列');
-    }
-
     return {
       account: detail.account,
       contact
@@ -283,42 +257,6 @@ export class CrmSequenceReviewCreationService {
     }
 
     return mailbox;
-  }
-
-  private async assertContactNotBlacklisted(contact: CrmContactRecord, context: CrmUserContext) {
-    const blacklistEntry = await this.suppressionRepository.findBlacklistEntry({
-      organizationId: context.organizationId,
-      emailHash: contact.emailHash
-    });
-
-    if (blacklistEntry) {
-      throw new BadRequestException('该邮箱已在组织黑名单中，不能继续开发');
-    }
-  }
-
-  /**
-   * Applies the sequence policy before creating another active sequence for the same account.
-   */
-  private async assertSameCompanySequencePolicy(
-    account: CrmAccountRecord,
-    contact: CrmContactRecord,
-    policy: CrmSequencePolicyRecord | null,
-    context: CrmUserContext
-  ) {
-    if (policy?.sameCompanyContactStrategy === 'allow_multiple_contacts') {
-      return;
-    }
-
-    const existingEnrollment = await this.sequenceRepository.findActiveEnrollmentByAccount({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      accountId: account.id,
-      statuses: activeSequenceStatuses
-    });
-
-    if (existingEnrollment && existingEnrollment.contactId !== contact.id) {
-      throw new BadRequestException('同公司已有进行中的开发信序列，请使用允许多联系人策略后再创建');
-    }
   }
 
   private async resolvePersonaProfileMatch(
