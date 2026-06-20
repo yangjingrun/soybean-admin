@@ -14,6 +14,7 @@ import type { CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
 import { CrmService } from './crm.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmAccountService } from './accounts/crm-account.service';
+import { CrmDashboardService } from './dashboard/crm-dashboard.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
@@ -78,6 +79,28 @@ describe('CrmService', () => {
     const service = createServiceWithSplitServices({ accountService });
 
     assert.equal(await service.listAccounts(context, query), expected);
+  });
+
+  it('delegates dashboard facade reads when the split dashboard service is injected', async () => {
+    const context = createContext();
+    const now = new Date('2026-06-20T09:00:00.000Z');
+    const stats = { rows: {} };
+    const overview = { today: {} };
+    const dashboardService = {
+      async listStrategyStats(actualContext: CrmUserContext) {
+        assert.equal(actualContext, context);
+        return stats;
+      },
+      async getWorkbenchOverview(actualContext: CrmUserContext, actualNow: Date) {
+        assert.equal(actualContext, context);
+        assert.equal(actualNow, now);
+        return overview;
+      }
+    };
+    const service = createServiceWithSplitServices({ dashboardService });
+
+    assert.equal(await service.listStrategyStats(context), stats);
+    assert.equal(await service.getWorkbenchOverview(context, now), overview);
   });
 
   it('delegates suppression facade reads when the split suppression service is injected', async () => {
@@ -3005,7 +3028,7 @@ describe('CrmService', () => {
       enrollments: [createEnrollment({ id: 'enrollment-1', accountId: 'account-1', contactId: 'contact-1' })],
       messages: [createMessage({ id: 'message-1', enrollmentId: 'enrollment-1', status: 'draft_pending_review' })]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     const result = await service.listStrategyStats(createContext());
 
@@ -4225,7 +4248,7 @@ describe('CrmService', () => {
         })
       ]
     });
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
 
     await assert.rejects(
       () => service.updateMessageDraft('message-1', { subject: 'Change', bodyText: 'Body' }, createContext()),
@@ -6315,7 +6338,7 @@ describe('CrmService', () => {
 
   it('loads the workbench overview with current user owner scope even for organization admins', async () => {
     const store = createStore();
-    const service = new CrmService(store);
+    const service = createServiceWithSplitServices({ store });
     const now = new Date('2026-06-20T09:00:00.000Z');
 
     const overview = await service.getWorkbenchOverview(createContext({ organizationRole: 'admin' }), now);
@@ -9507,6 +9530,7 @@ function createServiceWithSplitServices(options: {
   batchSequenceStopService?: unknown;
   aiDraftTaskService?: unknown;
   inboxService?: unknown;
+  dashboardService?: unknown;
 }) {
   const store = options.store ?? ({} as CrmStore);
 
@@ -9542,7 +9566,8 @@ function createServiceWithSplitServices(options: {
     options.batchDraftApprovalService as never,
     options.batchSequenceStopService as never,
     options.aiDraftTaskService as never,
-    options.inboxService as never
+    options.inboxService as never,
+    (options.dashboardService ?? createDashboardService(store)) as never
   );
 }
 
@@ -9617,6 +9642,10 @@ function createSettingsService(
   options: { aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null; crmLogger?: CrmLoggerService } = {}
 ) {
   return new CrmSettingsService(store, options.aiDraftTaskQueue, options.crmLogger);
+}
+
+function createDashboardService(store: CrmStore) {
+  return new CrmDashboardService(store);
 }
 
 function createProductLineService(store: CrmStore, options: { crmLogger?: CrmLoggerService } = {}) {

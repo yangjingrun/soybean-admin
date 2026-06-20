@@ -5,21 +5,18 @@ import {
   NotFoundException,
   Optional
 } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
-import { assertOrganizationAdmin } from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmLoggerService } from './shared/crm-logger.service';
 import type { CrmEmailDnsResolver } from './shared/crm-email-utils';
-import { createCrmReadScope } from './shared/crm-scope';
 import type { CrmGmailOAuthFlowPort } from './crm-gmail-oauth-flow';
-import { normalizeOwnerConcurrentSendLimit } from './crm-global-config';
 import { CrmGmailWatchService } from './crm-gmail-watch.service';
 import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
 import { CrmAiDraftService } from './crm-ai-draft.service';
 import { CrmAiReplyDraftService } from './crm-ai-reply-draft.service';
+import { CrmDashboardService } from './dashboard/crm-dashboard.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
@@ -71,14 +68,11 @@ import type {
   CrmEmailSendGateway,
   CrmGlobalConfigRecord,
   CrmInboxThreadStatus,
-  CrmMessageRecord,
   CrmMessageStatus,
   CrmPersonaProfileStatus,
   CrmProductLineStatus,
-  CrmSequenceEnrollmentRecord,
   CrmSequenceEnrollmentStatus,
   CrmSequenceReviewTodoType,
-  CrmStrategyStatsRecord,
   CrmSendQueuePort,
   CrmStore,
   CrmUserContext,
@@ -142,16 +136,16 @@ export class CrmService {
     _dnsResolver?: CrmEmailDnsResolver,
     @Optional()
     @Inject(SystemLogService)
-    private readonly systemLogService?: SystemLogRecorder,
+    _systemLogService?: SystemLogRecorder,
     @Optional()
     @Inject(CRM_SEND_QUEUE)
-    private readonly sendQueue?: CrmSendQueuePort,
+    _sendQueue?: CrmSendQueuePort,
     @Optional()
     @Inject(SystemNotificationService)
-    private readonly systemNotificationService?: SystemNotificationService,
+    _systemNotificationService?: SystemNotificationService,
     @Optional()
     @Inject(CRM_EMAIL_SEND_GATEWAY)
-    private readonly sendGateway?: CrmEmailSendGateway,
+    _sendGateway?: CrmEmailSendGateway,
     @Optional()
     @Inject(CRM_GMAIL_OAUTH_FLOW)
     _gmailOAuthFlow?: CrmGmailOAuthFlowPort | null,
@@ -169,7 +163,7 @@ export class CrmService {
     _aiDraftTaskQueue?: CrmAiDraftTaskQueuePort | null,
     @Optional()
     @Inject(CrmLoggerService)
-    private readonly crmLogger?: CrmLoggerService,
+    _crmLogger?: CrmLoggerService,
     @Optional()
     @Inject(CrmSettingsService)
     private readonly settingsService?: CrmSettingsService,
@@ -229,7 +223,10 @@ export class CrmService {
     private readonly aiDraftTaskService?: CrmAiDraftTaskService,
     @Optional()
     @Inject(CrmInboxService)
-    private readonly inboxService?: CrmInboxService
+    private readonly inboxService?: CrmInboxService,
+    @Optional()
+    @Inject(CrmDashboardService)
+    private readonly dashboardService?: CrmDashboardService
   ) {}
 
   /** Imports one lead candidate into the organization CRM with domain and email dedupe. */
@@ -572,20 +569,13 @@ export class CrmService {
   }
 
   /** Reads local CRM funnel stats grouped by template, policy, persona and product line. */
-  async listStrategyStats(context: CrmUserContext): Promise<CrmStrategyStatsRecord> {
-    return this.store.listStrategyStats({
-      organizationId: context.organizationId,
-      ...toOwnerScope(context)
-    });
+  async listStrategyStats(context: CrmUserContext) {
+    return this.requireDashboardService().listStrategyStats(context);
   }
 
   /** Reads the current user's action-first CRM workbench overview. */
   async getWorkbenchOverview(context: CrmUserContext, now = new Date()) {
-    return this.store.getWorkbenchOverview({
-      organizationId: context.organizationId,
-      ownerUserId: context.userId,
-      now
-    });
+    return this.requireDashboardService().getWorkbenchOverview(context, now);
   }
 
   /** Returns one review item detail with the first draft message. */
@@ -996,36 +986,6 @@ export class CrmService {
     return this.followUpApprovalService;
   }
 
-  /** Ensures one owner does not keep more queued outbound emails than the platform allows. */
-  private async assertOwnerSendConcurrencyAvailable(context: CrmUserContext) {
-    const [globalConfig, queuedCount] = await Promise.all([
-      this.store.getGlobalConfig(),
-      this.store.countOwnerQueuedMessages({
-        organizationId: context.organizationId,
-        ownerUserId: context.userId
-      })
-    ]);
-    const limit = normalizeOwnerConcurrentSendLimit(globalConfig.ownerConcurrentSendLimit);
-
-    if (queuedCount >= limit) {
-      throw new BadRequestException(`当前用户已有 ${queuedCount} 封邮件在发送队列中，已达到并发上限 ${limit} 封`);
-    }
-  }
-
-  private async requireOwnedMessage(id: string, context: CrmUserContext) {
-    const message = await this.store.findMessageById({
-      id,
-      organizationId: context.organizationId,
-      ownerUserId: context.userId
-    });
-
-    if (!message) {
-      throw new NotFoundException('邮件草稿不存在');
-    }
-
-    return message;
-  }
-
   private async requireOwnedEditableMessage(id: string, context: CrmUserContext) {
     const message = await this.store.findMessageById({
       id,
@@ -1044,67 +1004,11 @@ export class CrmService {
     return message;
   }
 
-  private async enqueueFirstMessage(
-    enrollment: CrmSequenceEnrollmentRecord,
-    message: CrmMessageRecord,
-    delayMs?: number
-  ) {
-    if (!this.sendQueue) {
-      throw new BadRequestException('CRM 邮件发送队列未启用');
+  private requireDashboardService() {
+    if (!this.dashboardService) {
+      throw new BadRequestException('CRM 工作台服务未启用');
     }
 
-    return this.sendQueue.enqueueFirstMessage(
-      {
-        enrollmentId: enrollment.id,
-        messageId: message.id,
-        organizationId: enrollment.organizationId,
-        ownerUserId: enrollment.ownerUserId,
-        runVersion: enrollment.runVersion
-      },
-      delayMs ? { delayMs } : undefined
-    );
+    return this.dashboardService;
   }
-
-  private async runSequenceWrite<T>(operation: () => Promise<T>) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (isPrismaUniqueConflict(error)) {
-        throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
-      }
-
-      throw error;
-    }
-  }
-
-  private recordCrmLog(action: string, message: string, context: CrmUserContext, metadata: Record<string, unknown>) {
-    if (this.crmLogger) {
-      return this.crmLogger.record(action, message, context, metadata);
-    }
-
-    return this.systemLogService?.record({
-      level: 'info',
-      status: 'success',
-      module: 'crm',
-      action,
-      message,
-      userId: context.userId,
-      userName: context.userName,
-      metadata
-    });
-  }
-
-  private requireOrganizationConfigManager(context: CrmUserContext) {
-    assertOrganizationAdmin(context, '仅组织管理员可修改 CRM 权限配置');
-  }
-
-}
-
-function toOwnerScope(context: CrmUserContext) {
-  const scope = createCrmReadScope(context);
-  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
-}
-
-function isPrismaUniqueConflict(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }

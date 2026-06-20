@@ -31,6 +31,7 @@ import { CrmSendWorkerService } from './crm-send-worker.service';
 import { CrmService } from './crm.service';
 import { CrmAccountService } from './accounts/crm-account.service';
 import { CrmAiDraftTaskService } from './ai-draft-task/crm-ai-draft-task.service';
+import { CrmDashboardService } from './dashboard/crm-dashboard.service';
 import { CrmInboxService } from './inbox/crm-inbox.service';
 import { CrmMailboxService } from './mailbox/crm-mailbox.service';
 import { CRM_PERSONA_PROFILE_REPOSITORY } from './persona-profiles/crm-persona-profile.repository';
@@ -83,6 +84,7 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     CrmService,
     CrmAccountService,
     CrmAiDraftTaskService,
+    CrmDashboardService,
     CrmInboxService,
     CrmMailboxService,
     CrmPersonaProfileService,
