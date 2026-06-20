@@ -2,101 +2,38 @@ import { computed, onMounted, provide, reactive, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import {
-  approveCrmMessageDraft,
   batchApproveCrmMessageDrafts,
   batchGenerateCrmNextSequenceDrafts,
   batchStopCrmSequenceEnrollments,
-  cancelCrmAiDraftTask,
-  createCrmAiDraftTask,
-  createCrmSequenceReviewItem,
-  fetchCrmAccountDetail,
-  fetchCrmAccounts,
-  fetchCrmAiDraftTaskDetail,
-  fetchCurrentCrmAiDraftTask,
-  fetchCrmMailboxes,
-  fetchCrmMessageDraftVersions,
-  fetchCrmProductLines,
-  fetchCrmSequencePolicies,
-  fetchCrmSequenceReviewItem,
-  fetchCrmSequenceReviewItems,
-  generateCrmNextSequenceDraft,
-  markCrmAiDraftTaskRead,
-  retryFailedCrmAiDraftTask,
-  restoreCrmMessageDraftVersion,
-  startCrmFirstMessageSend,
-  stopCrmSequenceEnrollment,
-  updateCrmMessageDraft
+  fetchCrmSequenceReviewItems
 } from '@/service/api';
 import {
-  buildSequenceReviewSearchParams,
   buildSequenceBatchResultDisplayItems,
+  buildSequenceReviewSearchParams,
   canApproveSequenceDraftInBatch,
-  canCreateAiDraftTaskForSequence,
   canGenerateNextSequenceDraft,
-  canStopSequenceInBatch,
-  createDefaultSequenceCreateForm,
   createDefaultSequenceFilterModel,
   formatSequenceBatchResultText,
-  getPendingReviewMessage,
-  normalizeSequenceCreatePayload,
+  getStoppableSequenceIds,
   sequenceBatchResultDisplayKey,
-  type DraftReviewApprovePayload,
-  type DraftReviewSavePayload,
   type SequenceBatchResultDisplayItem
 } from './shared';
-import { isMailboxAvailableForSequence } from '../../settings/modules/shared';
+import { useDraftReviewFlow } from './useDraftReviewFlow';
+import { useEmailSequenceAiDraftTask } from './useEmailSequenceAiDraftTask';
+import { useSequenceCreateFlow } from './useSequenceCreateFlow';
 
-/** Manage sequence review list, creation resources and draft drawer operations. */
+/** Manage sequence review list, batch operations and page-level flow composition. */
 export function useEmailSequenceTable() {
   const message = useMessage();
   const route = useRoute();
   const records = shallowRef<Api.Crm.SequenceReviewItem[]>([]);
-  const accountOptions = shallowRef<Api.Crm.LeadRecord[]>([]);
-  const contactOptions = shallowRef<Api.Crm.LeadContact[]>([]);
-  const mailboxOptions = shallowRef<Api.Crm.MailboxRecord[]>([]);
-  const productLineOptions = shallowRef<Api.Crm.ProductLineRecord[]>([]);
-  const sequencePolicyOptions = shallowRef<Api.Crm.SequencePolicyRecord[]>([]);
-  const currentItem = shallowRef<Api.Crm.SequenceReviewItem | null>(null);
-  const aiDraftTaskDetail = shallowRef<Api.Crm.AiDraftTaskDetail | null>(null);
-  const draftVersions = shallowRef<Api.Crm.MessageDraftVersionRecord[]>([]);
   const checkedRowKeys = shallowRef<string[]>([]);
   const batchNextDraftResultDisplays = shallowRef<SequenceBatchResultDisplayItem[]>([]);
   const loading = shallowRef(false);
-  const createResourceLoading = shallowRef(false);
-  const contactLoading = shallowRef(false);
-  const createVisible = shallowRef(false);
-  const createSubmitting = shallowRef(false);
-  const drawerVisible = shallowRef(false);
-  const drawerLoading = shallowRef(false);
-  const draftSaving = shallowRef(false);
-  const draftApproving = shallowRef(false);
-  const draftVersionLoading = shallowRef(false);
-  const draftVersionRestoring = shallowRef(false);
-  const detailRefreshing = shallowRef(false);
-  const nextDraftGenerating = shallowRef(false);
   const batchDraftApproving = shallowRef(false);
-  const aiDraftTaskCreating = shallowRef(false);
-  const aiDraftTaskDrawerVisible = shallowRef(false);
-  const aiDraftTaskLoading = shallowRef(false);
-  const aiDraftTaskRetrying = shallowRef(false);
-  const aiDraftTaskCancelling = shallowRef(false);
-  const aiDraftTaskReading = shallowRef(false);
   const batchNextDraftGenerating = shallowRef(false);
   const batchSequenceStopping = shallowRef(false);
-  const sendStarting = shallowRef(false);
-  const sequenceStopping = shallowRef(false);
-  const selectedEnrollmentId = shallowRef<string | null>(null);
-  const selectedMessageId = shallowRef<string | null>(null);
   let latestListRequestId = 0;
-  let latestDetailRequestId = 0;
-  let latestDraftApproveRequestId = 0;
-  let latestDraftSaveRequestId = 0;
-  let latestDraftVersionRequestId = 0;
-  let latestDraftVersionRestoreRequestId = 0;
-  let latestNextDraftGenerateRequestId = 0;
-  let latestAiDraftTaskRequestId = 0;
-  let latestResourceRequestId = 0;
-  let latestContactRequestId = 0;
 
   const pagination = reactive({
     current: 1,
@@ -104,46 +41,43 @@ export function useEmailSequenceTable() {
     total: 0
   });
   const filterModel = reactive<Api.Crm.SequenceReviewFilterModel>(createDefaultSequenceFilterModel());
-  const createForm = reactive<Api.Crm.SequenceReviewCreateFormModel>(createDefaultSequenceCreateForm());
 
-  const accountSelectOptions = computed(() =>
-    accountOptions.value.map(account => ({
-      label: `${account.name}${account.domain ? ` · ${account.domain}` : ''}`,
-      value: account.id
-    }))
-  );
-  const contactSelectOptions = computed(() =>
-    contactOptions.value.map(contact => ({
-      label: `${contact.fullName || contact.title || contact.maskedEmail} · ${contact.maskedEmail}`,
-      value: contact.id
-    }))
-  );
-  const mailboxSelectOptions = computed(() =>
-    mailboxOptions.value
-      .filter(mailbox => isMailboxAvailableForSequence(mailbox))
-      .map(mailbox => ({
-        label: mailbox.maskedEmail,
-        value: mailbox.id
-      }))
-  );
-  const productLineSelectOptions = computed(() =>
-    productLineOptions.value.map(productLine => ({
-      label: productLine.name,
-      value: productLine.id,
-      aiWritingConfig: productLine.aiWritingConfig
-    }))
-  );
-  const sequencePolicySelectOptions = computed(() =>
-    sequencePolicyOptions.value.map(policy => ({
-      label: `${policy.name}${policy.isDefault ? ' · 默认' : ''}`,
-      value: policy.id
-    }))
-  );
-  const resourceLoading = computed(() => createResourceLoading.value || contactLoading.value);
   const checkedRows = computed(() => {
     const checkedSet = new Set(checkedRowKeys.value);
 
     return records.value.filter(record => checkedSet.has(record.enrollment.id));
+  });
+  const draftReviewFlow = useDraftReviewFlow({
+    loadSequences
+  });
+  const createFlow = useSequenceCreateFlow({
+    async onCreated(item) {
+      draftReviewFlow.openCreatedReviewItem(item);
+      pagination.current = 1;
+      await loadSequences();
+    }
+  });
+  const {
+    aiDraftTaskCancelling,
+    aiDraftTaskCreating,
+    aiDraftTaskDetail,
+    aiDraftTaskDrawerVisible,
+    aiDraftTaskLoading,
+    aiDraftTaskReading,
+    aiDraftTaskRetrying,
+    handleAiDraftTaskDrawerVisibleUpdate,
+    handleCancelAiDraftTask,
+    handleCreateAiDraftTask,
+    handleReadAiDraftTask,
+    handleRetryAiDraftTask,
+    loadCurrentAiDraftTask,
+    refreshAiDraftTaskDetail
+  } = useEmailSequenceAiDraftTask({
+    checkedRows,
+    clearSelection: () => {
+      checkedRowKeys.value = [];
+    },
+    loadSequences
   });
 
   provide(sequenceBatchResultDisplayKey, batchNextDraftResultDisplays);
@@ -157,11 +91,11 @@ export function useEmailSequenceTable() {
     const contactId = getRouteQueryString(route.query.contactId);
 
     if (accountId && contactId) {
-      void openCreateModalWithSelection(accountId, contactId);
+      void createFlow.openCreateModalWithSelection(accountId, contactId);
       return;
     }
 
-    void loadCreateResources();
+    void createFlow.loadCreateResources();
   });
 
   watch(
@@ -225,381 +159,6 @@ export function useEmailSequenceTable() {
     }
   }
 
-  async function loadCreateResources() {
-    const requestId = latestResourceRequestId + 1;
-    latestResourceRequestId = requestId;
-    createResourceLoading.value = true;
-
-    try {
-      const [accounts, mailboxes, productLines, sequencePolicies] = await Promise.all([
-        fetchCrmAccounts({ current: 1, size: 100 }),
-        fetchCrmMailboxes({ current: 1, size: 100, status: 'active' }),
-        fetchCrmProductLines({ current: 1, size: 100, status: 'active' }),
-        fetchCrmSequencePolicies({ current: 1, size: 100, status: 'active' })
-      ]);
-
-      if (requestId !== latestResourceRequestId) {
-        return;
-      }
-
-      if (!accounts.error) accountOptions.value = accounts.data.records;
-      if (!mailboxes.error) mailboxOptions.value = mailboxes.data.records;
-      if (!productLines.error) productLineOptions.value = productLines.data.records;
-      if (!sequencePolicies.error) sequencePolicyOptions.value = sequencePolicies.data.records;
-    } finally {
-      if (requestId === latestResourceRequestId) {
-        createResourceLoading.value = false;
-      }
-    }
-  }
-
-  /** Load contacts for the selected account and reset stale contact selection. */
-  async function handleAccountChange(accountId: string | null) {
-    createForm.accountId = accountId;
-    createForm.contactId = null;
-
-    await loadAccountContacts(accountId);
-  }
-
-  function openCreateModal() {
-    Object.assign(createForm, createDefaultSequenceCreateForm());
-    contactOptions.value = [];
-    createVisible.value = true;
-    void loadCreateResources();
-  }
-
-  async function openCreateModalWithSelection(accountId: string, contactId: string) {
-    Object.assign(createForm, {
-      ...createDefaultSequenceCreateForm(),
-      accountId,
-      contactId
-    });
-    contactOptions.value = [];
-    createVisible.value = true;
-    await Promise.all([loadCreateResources(), loadAccountContacts(accountId, contactId)]);
-  }
-
-  function handleCreateVisibleUpdate(show: boolean) {
-    createVisible.value = show;
-
-    if (!show) {
-      Object.assign(createForm, createDefaultSequenceCreateForm());
-      contactOptions.value = [];
-    }
-  }
-
-  /** Load contacts for one account and optionally keep a known contact selected from route prefill. */
-  async function loadAccountContacts(accountId: string | null, preferredContactId?: string) {
-    contactOptions.value = [];
-
-    if (!accountId) {
-      return;
-    }
-
-    const requestId = latestContactRequestId + 1;
-    latestContactRequestId = requestId;
-    contactLoading.value = true;
-
-    try {
-      const { data, error } = await fetchCrmAccountDetail(accountId);
-
-      if (error || requestId !== latestContactRequestId) {
-        return;
-      }
-
-      contactOptions.value = data.contacts;
-      const matchedPreferredContactId =
-        preferredContactId && data.contacts.some(contact => contact.id === preferredContactId)
-          ? preferredContactId
-          : null;
-      createForm.contactId = matchedPreferredContactId
-        ? matchedPreferredContactId
-        : data.contacts.some(contact => contact.id === createForm.contactId)
-          ? createForm.contactId
-          : null;
-    } finally {
-      if (requestId === latestContactRequestId) {
-        contactLoading.value = false;
-      }
-    }
-  }
-
-  async function handleCreateReviewItem() {
-    if (!createForm.accountId || !createForm.contactId) {
-      message.warning('请选择线索和联系人');
-      return;
-    }
-
-    createSubmitting.value = true;
-
-    try {
-      const { data, error } = await createCrmSequenceReviewItem(normalizeSequenceCreatePayload(createForm));
-
-      if (error) {
-        return;
-      }
-
-      message.success('首封草稿已生成');
-      createVisible.value = false;
-      currentItem.value = data.item;
-      selectedEnrollmentId.value = data.item.enrollment.id;
-      selectedMessageId.value = data.item.firstMessage?.id ?? null;
-      drawerVisible.value = true;
-      pagination.current = 1;
-      await loadSequences();
-    } finally {
-      createSubmitting.value = false;
-    }
-  }
-
-  async function openDraftDrawer(row: Api.Crm.SequenceReviewItem) {
-    latestDraftApproveRequestId += 1;
-    latestDraftSaveRequestId += 1;
-    latestDraftVersionRequestId += 1;
-    latestDraftVersionRestoreRequestId += 1;
-    selectedEnrollmentId.value = row.enrollment.id;
-    selectedMessageId.value = getPendingReviewMessage(row.messages)?.id ?? row.firstMessage?.id ?? null;
-    currentItem.value = null;
-    draftVersions.value = [];
-    drawerVisible.value = true;
-    await loadSequenceDetail(row.enrollment.id);
-  }
-
-  async function loadSequenceDetail(id: string) {
-    const requestId = latestDetailRequestId + 1;
-    latestDetailRequestId = requestId;
-    drawerLoading.value = true;
-
-    try {
-      const { data, error } = await fetchCrmSequenceReviewItem(id);
-
-      if (error || requestId !== latestDetailRequestId) {
-        return;
-      }
-
-      if (selectedEnrollmentId.value !== data.enrollment.id) {
-        return;
-      }
-
-      currentItem.value = data;
-      selectedMessageId.value =
-        data.messages.find(reviewMessage => reviewMessage.id === selectedMessageId.value)?.id ??
-        data.firstMessage?.id ??
-        null;
-      if (selectedMessageId.value) {
-        void loadDraftVersions(selectedMessageId.value);
-      }
-    } finally {
-      if (requestId === latestDetailRequestId) {
-        drawerLoading.value = false;
-      }
-    }
-  }
-
-  async function handleSaveDraft(payload: DraftReviewSavePayload) {
-    const { messageId } = payload;
-
-    if (!messageId || !currentItem.value) {
-      return;
-    }
-
-    const enrollmentId = currentItem.value.enrollment.id;
-    const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === messageId);
-
-    if (targetMessage?.status !== 'draft_pending_review') {
-      return;
-    }
-
-    selectedMessageId.value = messageId;
-    const requestId = latestDraftSaveRequestId + 1;
-    latestDraftSaveRequestId = requestId;
-    draftSaving.value = true;
-
-    try {
-      const { data, error } = await updateCrmMessageDraft(messageId, payload.draft);
-
-      if (error || requestId !== latestDraftSaveRequestId) {
-        return;
-      }
-
-      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== messageId || !currentItem.value) {
-        return;
-      }
-
-      message.success('草稿已保存');
-      currentItem.value = replaceReviewMessage(currentItem.value, data.message);
-      await loadDraftVersions(messageId);
-      await loadSequences();
-    } finally {
-      if (requestId === latestDraftSaveRequestId) {
-        draftSaving.value = false;
-      }
-    }
-  }
-
-  /** Load saved draft versions for one selected owner message. */
-  async function loadDraftVersions(messageId: string | null) {
-    draftVersions.value = [];
-
-    if (!messageId) {
-      return;
-    }
-
-    const requestId = latestDraftVersionRequestId + 1;
-    latestDraftVersionRequestId = requestId;
-    draftVersionLoading.value = true;
-
-    try {
-      const { data, error } = await fetchCrmMessageDraftVersions(messageId);
-
-      if (error || requestId !== latestDraftVersionRequestId) {
-        return;
-      }
-
-      if (selectedMessageId.value !== messageId) {
-        return;
-      }
-
-      draftVersions.value = data.versions;
-    } finally {
-      if (requestId === latestDraftVersionRequestId) {
-        draftVersionLoading.value = false;
-      }
-    }
-  }
-
-  async function handleRestoreDraftVersion(payload: { messageId: string; versionId: string }) {
-    const enrollmentId = selectedEnrollmentId.value;
-
-    if (!enrollmentId || !currentItem.value) {
-      return;
-    }
-
-    const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === payload.messageId);
-
-    if (targetMessage?.status !== 'draft_pending_review') {
-      return;
-    }
-
-    selectedMessageId.value = payload.messageId;
-    const requestId = latestDraftVersionRestoreRequestId + 1;
-    latestDraftVersionRestoreRequestId = requestId;
-    draftVersionRestoring.value = true;
-
-    try {
-      const { data, error } = await restoreCrmMessageDraftVersion(payload.messageId, payload.versionId);
-
-      if (error || requestId !== latestDraftVersionRestoreRequestId) {
-        return;
-      }
-
-      if (
-        selectedEnrollmentId.value !== enrollmentId ||
-        selectedMessageId.value !== payload.messageId ||
-        !currentItem.value
-      ) {
-        return;
-      }
-
-      message.success('草稿历史版本已恢复');
-      currentItem.value = replaceReviewMessage(currentItem.value, data.message);
-      await loadDraftVersions(payload.messageId);
-      await loadSequences();
-    } finally {
-      if (requestId === latestDraftVersionRestoreRequestId) {
-        draftVersionRestoring.value = false;
-      }
-    }
-  }
-
-  async function handleApproveDraft(payload: DraftReviewApprovePayload) {
-    const { messageId } = payload;
-
-    if (!messageId || !currentItem.value) {
-      return;
-    }
-
-    const enrollmentId = currentItem.value.enrollment.id;
-    const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === messageId);
-
-    if (targetMessage?.status !== 'draft_pending_review') {
-      return;
-    }
-
-    selectedMessageId.value = messageId;
-    const requestId = latestDraftApproveRequestId + 1;
-    latestDraftApproveRequestId = requestId;
-    draftApproving.value = true;
-
-    try {
-      const { data, error } = await approveCrmMessageDraft(messageId);
-
-      if (error || requestId !== latestDraftApproveRequestId) {
-        return;
-      }
-
-      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== messageId || !currentItem.value) {
-        return;
-      }
-
-      message.success(data.message.status === 'queued' ? '后续草稿已确认并进入发送队列' : '草稿已确认，等待启动发送');
-      currentItem.value = replaceReviewMessage(
-        {
-          ...currentItem.value,
-          enrollment: data.enrollment
-        },
-        data.message
-      );
-      await loadSequenceDetail(data.enrollment.id);
-      await loadSequences();
-    } finally {
-      if (requestId === latestDraftApproveRequestId) {
-        draftApproving.value = false;
-      }
-    }
-  }
-
-  async function handleGenerateNextDraft() {
-    const enrollmentId = selectedEnrollmentId.value;
-    const messageId = selectedMessageId.value;
-
-    if (!enrollmentId || !messageId || !currentItem.value || !canGenerateNextSequenceDraft(currentItem.value)) {
-      return;
-    }
-
-    const requestId = latestNextDraftGenerateRequestId + 1;
-    latestNextDraftGenerateRequestId = requestId;
-    nextDraftGenerating.value = true;
-
-    try {
-      const { data, error } = await generateCrmNextSequenceDraft(enrollmentId);
-
-      if (error || requestId !== latestNextDraftGenerateRequestId) {
-        return;
-      }
-
-      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== messageId || !currentItem.value) {
-        return;
-      }
-
-      message.success(`第 ${data.message.stepIndex} 封草稿已生成`);
-      currentItem.value = replaceReviewMessage(
-        {
-          ...currentItem.value,
-          enrollment: data.enrollment
-        },
-        data.message
-      );
-      selectedMessageId.value = data.message.id;
-      await loadSequenceDetail(data.enrollment.id);
-      await loadSequences();
-    } finally {
-      if (requestId === latestNextDraftGenerateRequestId) {
-        nextDraftGenerating.value = false;
-      }
-    }
-  }
-
   async function handleBatchGenerateNextDrafts() {
     const executableRows = checkedRows.value.filter(canGenerateNextSequenceDraft);
     const ids = executableRows.map(item => item.enrollment.id);
@@ -631,158 +190,6 @@ export function useEmailSequenceTable() {
     } finally {
       batchNextDraftGenerating.value = false;
     }
-  }
-
-  async function loadCurrentAiDraftTask() {
-    const requestId = latestAiDraftTaskRequestId + 1;
-    latestAiDraftTaskRequestId = requestId;
-    aiDraftTaskLoading.value = true;
-
-    try {
-      const { data, error } = await fetchCurrentCrmAiDraftTask();
-
-      if (error || requestId !== latestAiDraftTaskRequestId) {
-        return;
-      }
-
-      aiDraftTaskDetail.value = data;
-      aiDraftTaskDrawerVisible.value = Boolean(
-        data && ['queued', 'running', 'failed', 'completed'].includes(data.task.status)
-      );
-    } finally {
-      if (requestId === latestAiDraftTaskRequestId) {
-        aiDraftTaskLoading.value = false;
-      }
-    }
-  }
-
-  async function refreshAiDraftTaskDetail(taskId = aiDraftTaskDetail.value?.task.id ?? null) {
-    if (!taskId) {
-      return;
-    }
-
-    const requestId = latestAiDraftTaskRequestId + 1;
-    latestAiDraftTaskRequestId = requestId;
-    aiDraftTaskLoading.value = true;
-
-    try {
-      const { data, error } = await fetchCrmAiDraftTaskDetail(taskId);
-
-      if (error || requestId !== latestAiDraftTaskRequestId) {
-        return;
-      }
-
-      aiDraftTaskDetail.value = data;
-      aiDraftTaskDrawerVisible.value = true;
-    } finally {
-      if (requestId === latestAiDraftTaskRequestId) {
-        aiDraftTaskLoading.value = false;
-      }
-    }
-  }
-
-  async function handleCreateAiDraftTask() {
-    const executableRows = checkedRows.value.filter(canCreateAiDraftTaskForSequence);
-    const ids = executableRows.map(item => item.enrollment.id);
-
-    if (ids.length === 0) {
-      message.warning('当前选中序列没有可 AI 生成草稿的记录');
-      return;
-    }
-
-    aiDraftTaskCreating.value = true;
-
-    try {
-      const { data, error } = await createCrmAiDraftTask({ enrollmentIds: ids });
-
-      if (error) {
-        return;
-      }
-
-      aiDraftTaskDetail.value = data;
-      aiDraftTaskDrawerVisible.value = true;
-      checkedRowKeys.value = [];
-      message.success(data.task.pendingCount > 0 ? '批量 AI 草稿任务已创建' : '批量 AI 草稿任务已完成');
-      await loadSequences();
-    } finally {
-      aiDraftTaskCreating.value = false;
-    }
-  }
-
-  async function handleRetryAiDraftTask() {
-    const taskId = aiDraftTaskDetail.value?.task.id;
-
-    if (!taskId) {
-      return;
-    }
-
-    aiDraftTaskRetrying.value = true;
-
-    try {
-      const { data, error } = await retryFailedCrmAiDraftTask(taskId);
-
-      if (error) {
-        return;
-      }
-
-      aiDraftTaskDetail.value = data;
-      message.success('已重新排队可重试失败项');
-    } finally {
-      aiDraftTaskRetrying.value = false;
-    }
-  }
-
-  async function handleCancelAiDraftTask() {
-    const taskId = aiDraftTaskDetail.value?.task.id;
-
-    if (!taskId) {
-      return;
-    }
-
-    aiDraftTaskCancelling.value = true;
-
-    try {
-      const { data, error } = await cancelCrmAiDraftTask(taskId);
-
-      if (error) {
-        return;
-      }
-
-      aiDraftTaskDetail.value = data;
-      message.success('批量 AI 草稿任务已取消');
-      await loadSequences();
-    } finally {
-      aiDraftTaskCancelling.value = false;
-    }
-  }
-
-  async function handleReadAiDraftTask() {
-    const taskId = aiDraftTaskDetail.value?.task.id;
-
-    if (!taskId) {
-      aiDraftTaskDrawerVisible.value = false;
-      return;
-    }
-
-    aiDraftTaskReading.value = true;
-
-    try {
-      const { error } = await markCrmAiDraftTaskRead(taskId);
-
-      if (error) {
-        return;
-      }
-
-      aiDraftTaskDrawerVisible.value = false;
-      aiDraftTaskDetail.value = null;
-      await loadSequences();
-    } finally {
-      aiDraftTaskReading.value = false;
-    }
-  }
-
-  function handleAiDraftTaskDrawerVisibleUpdate(show: boolean) {
-    aiDraftTaskDrawerVisible.value = show;
   }
 
   async function handleBatchApproveDrafts() {
@@ -817,107 +224,10 @@ export function useEmailSequenceTable() {
     }
   }
 
-  async function handleStartSend() {
-    const enrollmentId = selectedEnrollmentId.value;
-    const messageId = selectedMessageId.value;
-
-    if (!enrollmentId || !messageId || !currentItem.value) {
-      return;
-    }
-
-    sendStarting.value = true;
-
-    try {
-      const { data, error } = await startCrmFirstMessageSend(enrollmentId);
-
-      if (error) {
-        return;
-      }
-
-      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== messageId || !currentItem.value) {
-        return;
-      }
-
-      message.success('首封开发信已进入发送队列');
-      currentItem.value = replaceReviewMessage(
-        {
-          ...currentItem.value,
-          account: data.account,
-          enrollment: data.enrollment
-        },
-        data.message
-      );
-      await loadSequenceDetail(data.enrollment.id);
-      await loadSequences();
-    } finally {
-      sendStarting.value = false;
-    }
-  }
-
-  async function handleRefreshCurrentSequence() {
-    const enrollmentId = selectedEnrollmentId.value;
-
-    if (!enrollmentId) {
-      return;
-    }
-
-    detailRefreshing.value = true;
-
-    try {
-      await loadSequenceDetail(enrollmentId);
-      await loadSequences();
-    } finally {
-      detailRefreshing.value = false;
-    }
-  }
-
-  async function handleStopSequence() {
-    const enrollmentId = selectedEnrollmentId.value;
-
-    if (!enrollmentId || !currentItem.value) {
-      return;
-    }
-
-    sequenceStopping.value = true;
-
-    try {
-      const { data, error } = await stopCrmSequenceEnrollment(enrollmentId);
-
-      if (error) {
-        return;
-      }
-
-      if (selectedEnrollmentId.value !== enrollmentId || !currentItem.value) {
-        return;
-      }
-
-      message.success('开发信序列已停止');
-      currentItem.value = data.message
-        ? replaceReviewMessage(
-            {
-              ...currentItem.value,
-              account: data.account,
-              enrollment: data.enrollment
-            },
-            data.message
-          )
-        : {
-            ...currentItem.value,
-            account: data.account,
-            enrollment: data.enrollment
-          };
-      await loadSequenceDetail(data.enrollment.id);
-      await loadSequences();
-    } finally {
-      sequenceStopping.value = false;
-    }
-  }
-
   async function handleBatchStopSequences() {
-    const executableCount = checkedRows.value.filter(canStopSequenceInBatch).length;
-    const ids = checkedRows.value.map(item => item.enrollment.id);
+    const ids = getStoppableSequenceIds(checkedRows.value);
 
-    if (executableCount === 0) {
+    if (ids.length === 0) {
       message.warning('当前选中序列没有可停止的记录');
       return;
     }
@@ -956,23 +266,6 @@ export function useEmailSequenceTable() {
     void loadSequences();
   }
 
-  function handleDrawerVisibleUpdate(show: boolean) {
-    drawerVisible.value = show;
-
-    if (!show) {
-      latestDetailRequestId += 1;
-      latestDraftApproveRequestId += 1;
-      latestDraftSaveRequestId += 1;
-      latestDraftVersionRequestId += 1;
-      latestDraftVersionRestoreRequestId += 1;
-      latestNextDraftGenerateRequestId += 1;
-      selectedEnrollmentId.value = null;
-      selectedMessageId.value = null;
-      currentItem.value = null;
-      draftVersions.value = [];
-    }
-  }
-
   function handlePageUpdate(page: number) {
     pagination.current = page;
     void loadSequences();
@@ -989,7 +282,7 @@ export function useEmailSequenceTable() {
   }
 
   return {
-    accountSelectOptions,
+    accountSelectOptions: createFlow.accountSelectOptions,
     aiDraftTaskCancelling,
     aiDraftTaskCreating,
     aiDraftTaskDetail,
@@ -1001,22 +294,22 @@ export function useEmailSequenceTable() {
     batchNextDraftGenerating,
     batchSequenceStopping,
     checkedRowKeys,
-    contactSelectOptions,
-    createForm,
-    createSubmitting,
-    createVisible,
-    currentItem,
-    detailRefreshing,
-    draftApproving,
-    draftSaving,
-    draftVersionLoading,
-    draftVersionRestoring,
-    draftVersions,
-    drawerLoading,
-    drawerVisible,
+    contactSelectOptions: createFlow.contactSelectOptions,
+    createForm: createFlow.createForm,
+    createSubmitting: createFlow.createSubmitting,
+    createVisible: createFlow.createVisible,
+    currentItem: draftReviewFlow.currentItem,
+    detailRefreshing: draftReviewFlow.detailRefreshing,
+    draftApproving: draftReviewFlow.draftApproving,
+    draftSaving: draftReviewFlow.draftSaving,
+    draftVersionLoading: draftReviewFlow.draftVersionLoading,
+    draftVersionRestoring: draftReviewFlow.draftVersionRestoring,
+    draftVersions: draftReviewFlow.draftVersions,
+    drawerLoading: draftReviewFlow.drawerLoading,
+    drawerVisible: draftReviewFlow.drawerVisible,
     filterModel,
-    handleAccountChange,
-    handleApproveDraft,
+    handleAccountChange: createFlow.handleAccountChange,
+    handleApproveDraft: draftReviewFlow.handleApproveDraft,
     handleBatchApproveDrafts,
     handleBatchGenerateNextDrafts,
     handleBatchStopSequences,
@@ -1024,57 +317,38 @@ export function useEmailSequenceTable() {
     handleCancelAiDraftTask,
     handleCheckedRowKeysUpdate,
     handleCreateAiDraftTask,
-    handleCreateReviewItem,
-    handleCreateVisibleUpdate,
-    handleDrawerVisibleUpdate,
-    handleGenerateNextDraft,
+    handleCreateReviewItem: createFlow.handleCreateReviewItem,
+    handleCreateVisibleUpdate: createFlow.handleCreateVisibleUpdate,
+    handleDrawerVisibleUpdate: draftReviewFlow.handleDrawerVisibleUpdate,
+    handleGenerateNextDraft: draftReviewFlow.handleGenerateNextDraft,
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
-    handleRefreshCurrentSequence,
+    handleRefreshCurrentSequence: draftReviewFlow.handleRefreshCurrentSequence,
     handleReadAiDraftTask,
     handleRetryAiDraftTask,
-    handleRestoreDraftVersion,
-    handleSaveDraft,
+    handleRestoreDraftVersion: draftReviewFlow.handleRestoreDraftVersion,
+    handleSaveDraft: draftReviewFlow.handleSaveDraft,
     handleSearch,
-    handleStartSend,
-    handleStopSequence,
-    loadCreateResources,
+    handleStartSend: draftReviewFlow.handleStartSend,
+    handleStopSequence: draftReviewFlow.handleStopSequence,
+    loadCreateResources: createFlow.loadCreateResources,
     loadCurrentAiDraftTask,
-    loadDraftVersions,
+    loadDraftVersions: draftReviewFlow.loadDraftVersions,
     loadSequences,
     loading,
-    mailboxSelectOptions,
-    nextDraftGenerating,
-    openCreateModal,
-    openDraftDrawer,
+    mailboxSelectOptions: createFlow.mailboxSelectOptions,
+    nextDraftGenerating: draftReviewFlow.nextDraftGenerating,
+    openCreateModal: createFlow.openCreateModal,
+    openDraftDrawer: draftReviewFlow.openDraftDrawer,
     pagination,
-    productLineSelectOptions,
+    productLineSelectOptions: createFlow.productLineSelectOptions,
     records,
     refreshAiDraftTaskDetail,
-    resourceLoading,
-    sendStarting,
-    sequencePolicySelectOptions,
-    sequenceStopping
-  };
-}
-
-/** Replace one message inside a review item while keeping firstMessage compatible with old callers. */
-function replaceReviewMessage(
-  item: Api.Crm.SequenceReviewItem,
-  message: Api.Crm.MessageRecord
-): Api.Crm.SequenceReviewItem {
-  const hasMessage = item.messages.some(current => current.id === message.id);
-  const messages = (
-    hasMessage
-      ? item.messages.map(current => (current.id === message.id ? message : current))
-      : [...item.messages, message]
-  ).sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt));
-
-  return {
-    ...item,
-    firstMessage: message.stepIndex === 1 ? message : item.firstMessage,
-    messages
+    resourceLoading: createFlow.resourceLoading,
+    sendStarting: draftReviewFlow.sendStarting,
+    sequencePolicySelectOptions: createFlow.sequencePolicySelectOptions,
+    sequenceStopping: draftReviewFlow.sequenceStopping
   };
 }
 

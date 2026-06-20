@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, shallowRef, watch } from 'vue';
 import { useMessage } from 'naive-ui';
+import DraftAiInfoPanel from './DraftAiInfoPanel.vue';
+import DraftVersionHistory from './DraftVersionHistory.vue';
 import SendAuditPanel from './SendAuditPanel.vue';
+import SequenceMessageTimeline from './SequenceMessageTimeline.vue';
 import {
   formatNullableText,
   formatSequenceDate,
@@ -443,25 +446,11 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             </NDescriptionsItem>
           </NDescriptions>
 
-          <div v-if="timelineItems.length > 1" class="message-timeline">
-            <button
-              v-for="timelineItem in timelineItems"
-              :key="timelineItem.id"
-              type="button"
-              class="message-step-button"
-              :class="{ 'message-step-button--selected': timelineItem.selected }"
-              @click="selectedMessageId = timelineItem.id"
-            >
-              <span class="message-step-header">
-                <span class="message-step-title">{{ timelineItem.title }}</span>
-                <NTag :type="timelineItem.statusTagType" :bordered="false" size="small">
-                  {{ timelineItem.statusLabel }}
-                </NTag>
-              </span>
-              <span class="message-step-subject">{{ timelineItem.subject }}</span>
-              <span class="message-step-meta">{{ timelineItem.metaText }}</span>
-            </button>
-          </div>
+          <SequenceMessageTimeline
+            v-if="timelineItems.length > 1"
+            :items="timelineItems"
+            @select="selectedMessageId = $event"
+          />
 
           <SendAuditPanel :item="item" :current-message="currentMessage" />
 
@@ -485,31 +474,12 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             <NAlert type="info" :bordered="false" class="status-alert">
               {{ statusTip }}
             </NAlert>
-            <NAlert v-if="aiDraftInfo" title="AI 生成信息" type="warning" :bordered="false" class="status-alert">
-              <NSpace vertical :size="10">
-                <NDescriptions :column="1" bordered size="small" label-placement="left">
-                  <NDescriptionsItem v-for="row in aiDraftSummaryRows" :key="row.key" :label="row.label">
-                    <span class="ai-draft-text">{{ row.value }}</span>
-                  </NDescriptionsItem>
-                </NDescriptions>
-
-                <NSpace v-if="aiDraftReviewTags.length" :size="6">
-                  <NTag v-for="tag in aiDraftReviewTags" :key="tag.key" size="small" :type="tag.type" :bordered="false">
-                    {{ tag.label }}
-                  </NTag>
-                </NSpace>
-
-                <NCollapse v-if="aiDraftPromptSnapshotRows.length">
-                  <NCollapseItem title="Prompt 快照" name="prompt-snapshot">
-                    <NDescriptions :column="1" bordered size="small" label-placement="left">
-                      <NDescriptionsItem v-for="row in aiDraftPromptSnapshotRows" :key="row.key" :label="row.label">
-                        <pre class="ai-prompt-text">{{ row.value }}</pre>
-                      </NDescriptionsItem>
-                    </NDescriptions>
-                  </NCollapseItem>
-                </NCollapse>
-              </NSpace>
-            </NAlert>
+            <DraftAiInfoPanel
+              v-if="aiDraftInfo"
+              :summary-rows="aiDraftSummaryRows"
+              :review-tags="aiDraftReviewTags"
+              :prompt-snapshot-rows="aiDraftPromptSnapshotRows"
+            />
             <NForm :model="draftForm" label-placement="top" size="small">
               <NFormItem label="主题">
                 <NInput v-model:value="draftForm.subject" :disabled="!canEdit" maxlength="200" show-count />
@@ -527,81 +497,16 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             </NForm>
           </div>
 
-          <div class="drawer-section">
-            <div class="section-title">历史版本</div>
-            <NSpin :show="versionLoading">
-              <NSpace v-if="draftVersionPreviewItems.length" vertical :size="8">
-                <div
-                  v-for="version in draftVersionPreviewItems"
-                  :key="version.id"
-                  class="draft-version-row"
-                  :class="{ 'draft-version-row--selected': version.selected }"
-                  role="button"
-                  tabindex="0"
-                  @click="handleSelectDraftVersion(version.id)"
-                  @keydown.enter.prevent="handleSelectDraftVersion(version.id)"
-                  @mouseenter="hoveredDraftVersionId = version.id"
-                  @mouseleave="hoveredDraftVersionId = null"
-                >
-                  <div class="draft-version-main">
-                    <NSpace align="center" :size="8">
-                      <NTag size="small" :bordered="false" type="info">{{ version.versionLabel }}</NTag>
-                      <span class="draft-version-time">{{ version.createdAtText }}</span>
-                    </NSpace>
-                    <div class="draft-version-subject">{{ version.subjectSummary }}</div>
-                    <div class="draft-version-diff">{{ version.diff?.summaryText }}</div>
-                    <div class="draft-version-editor">编辑人：{{ version.editorName }}</div>
-                  </div>
-                  <NPopconfirm
-                    positive-text="恢复"
-                    negative-text="取消"
-                    @positive-click="handleRestoreVersion(version.id)"
-                  >
-                    <template #trigger>
-                      <NButton
-                        size="small"
-                        secondary
-                        :disabled="!canEdit || versionRestoring"
-                        :loading="versionRestoring"
-                      >
-                        恢复
-                      </NButton>
-                    </template>
-                    <div class="restore-confirm">
-                      <div>恢复后会覆盖当前待审草稿内容。</div>
-                      <div class="restore-confirm-diff">{{ version.diff?.summaryText }}</div>
-                      <div class="restore-confirm-label">将恢复主题</div>
-                      <div class="restore-confirm-subject">{{ version.record?.subject || '-' }}</div>
-                      <div class="restore-confirm-label">将恢复正文</div>
-                      <pre class="restore-confirm-body">{{ version.record?.bodyText || '-' }}</pre>
-                    </div>
-                  </NPopconfirm>
-                </div>
-                <div v-if="activeDraftVersionPreview" class="draft-version-preview">
-                  <div class="draft-version-preview-header">
-                    <span>{{ activeDraftVersionPreview.versionLabel }} 对比当前草稿</span>
-                    <NTag
-                      size="small"
-                      :bordered="false"
-                      :type="activeDraftVersionPreview.diff?.hasChanges ? 'warning' : 'success'"
-                    >
-                      {{ activeDraftVersionPreview.diff?.summaryText }}
-                    </NTag>
-                  </div>
-                  <div v-if="activeDraftVersionPreview.diff?.previewLines.length" class="draft-version-preview-lines">
-                    <span v-for="line in activeDraftVersionPreview.diff.previewLines" :key="line">{{ line }}</span>
-                  </div>
-                  <div class="draft-version-preview-label">恢复后主题</div>
-                  <div class="draft-version-preview-subject">
-                    {{ activeDraftVersionPreview.record?.subject || '-' }}
-                  </div>
-                  <div class="draft-version-preview-label">恢复后正文</div>
-                  <pre class="draft-version-preview-body">{{ activeDraftVersionPreview.record?.bodyText || '-' }}</pre>
-                </div>
-              </NSpace>
-              <NEmpty v-else description="暂无历史版本" />
-            </NSpin>
-          </div>
+          <DraftVersionHistory
+            :items="draftVersionPreviewItems"
+            :active-preview="activeDraftVersionPreview"
+            :loading="versionLoading"
+            :can-edit="canEdit"
+            :restoring="versionRestoring"
+            @select="handleSelectDraftVersion"
+            @hover="hoveredDraftVersionId = $event"
+            @restore="handleRestoreVersion"
+          />
         </NSpace>
         <NEmpty v-else description="请选择审核项" />
       </NSpin>
@@ -739,20 +644,6 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   font-size: 12px;
 }
 
-.ai-draft-text {
-  word-break: break-word;
-}
-
-.ai-prompt-text {
-  margin: 0;
-  color: var(--n-text-color-2);
-  font-family: inherit;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .section-title {
   color: var(--n-text-color);
   font-size: 14px;
@@ -763,178 +654,4 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   margin-bottom: 10px;
 }
 
-.message-timeline {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-}
-
-.message-step-button {
-  display: flex;
-  min-width: 0;
-  border: 1px solid var(--n-border-color);
-  border-radius: 8px;
-  background: var(--n-color);
-  color: var(--n-text-color);
-  cursor: pointer;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  text-align: left;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.message-step-button:hover,
-.message-step-button--selected {
-  border-color: var(--n-primary-color);
-  box-shadow: 0 0 0 1px var(--n-primary-color);
-}
-
-.message-step-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.message-step-title,
-.message-step-subject {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.message-step-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.message-step-subject {
-  color: var(--n-text-color-2);
-  font-size: 12px;
-}
-
-.message-step-meta {
-  color: var(--n-text-color-3);
-  font-size: 12px;
-}
-
-.draft-version-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--n-border-color);
-  border-radius: 8px;
-  padding: 10px;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.draft-version-row:hover,
-.draft-version-row--selected {
-  border-color: var(--n-primary-color);
-  box-shadow: 0 0 0 1px var(--n-primary-color);
-}
-
-.draft-version-main {
-  min-width: 0;
-}
-
-.draft-version-time,
-.draft-version-editor {
-  color: var(--n-text-color-3);
-  font-size: 12px;
-}
-
-.draft-version-subject {
-  overflow: hidden;
-  margin-top: 6px;
-  color: var(--n-text-color-2);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.draft-version-diff {
-  margin-top: 4px;
-  color: var(--n-warning-color);
-  font-size: 12px;
-}
-
-.draft-version-preview {
-  display: flex;
-  border: 1px solid var(--n-border-color);
-  border-radius: 8px;
-  background: var(--n-table-color);
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-}
-
-.draft-version-preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--n-text-color);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.draft-version-preview-lines {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  color: var(--n-text-color-2);
-  font-size: 12px;
-}
-
-.draft-version-preview-label,
-.restore-confirm-label {
-  color: var(--n-text-color-3);
-  font-size: 12px;
-}
-
-.draft-version-preview-subject,
-.restore-confirm-subject {
-  color: var(--n-text-color);
-  font-size: 13px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.draft-version-preview-body,
-.restore-confirm-body {
-  overflow: auto;
-  max-height: 180px;
-  margin: 0;
-  border: 1px solid var(--n-border-color);
-  border-radius: 6px;
-  background: var(--n-color);
-  color: var(--n-text-color-2);
-  font-family: inherit;
-  font-size: 12px;
-  line-height: 1.6;
-  padding: 8px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.restore-confirm {
-  display: flex;
-  width: 320px;
-  max-width: 70vw;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.restore-confirm-diff {
-  color: var(--n-warning-color);
-  font-size: 12px;
-}
 </style>

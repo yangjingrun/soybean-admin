@@ -449,6 +449,11 @@ export function canStopSequenceInBatch(item: Api.Crm.SequenceReviewItem) {
   );
 }
 
+/** Collect only owner-operable enrollment ids for batch stop requests. */
+export function getStoppableSequenceIds(items: Api.Crm.SequenceReviewItem[]) {
+  return items.filter(canStopSequenceInBatch).map(item => item.enrollment.id);
+}
+
 /** Summarize currently selected sequence rows for the batch toolbar. */
 export function summarizeSequenceBatchSelection(items: Api.Crm.SequenceReviewItem[]): SequenceBatchSelectionSummary {
   const approveDraftCount = items.filter(canApproveSequenceDraftInBatch).length;

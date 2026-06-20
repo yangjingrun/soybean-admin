@@ -26,6 +26,7 @@ import {
   canApproveSequenceDraftInBatch,
   canCreateAiDraftTaskForSequence,
   canStopSequenceInBatch,
+  getStoppableSequenceIds,
   isDraftBlockedBySequencePolicy,
   summarizeSequenceBatchSelection,
   normalizeSequenceCreatePayload
@@ -709,6 +710,25 @@ describe('email sequence review shared helpers', () => {
         skippedCount: 2
       }
     );
+  });
+
+  it('returns only owner-operable sequence ids for batch stop requests', () => {
+    const stoppable = createSequenceItem({
+      enrollment: { id: 'enrollment-stoppable', status: 'paused' },
+      messages: [createMessage({ id: 'message-stoppable', enrollmentId: 'enrollment-stoppable', status: 'queued' })]
+    });
+    const adminVisibleMember = createSequenceItem({
+      enrollment: { id: 'enrollment-admin-visible', status: 'sequence_running' },
+      messages: [createMessage({ id: 'message-admin-visible', enrollmentId: 'enrollment-admin-visible', status: 'sent' })]
+    });
+    adminVisibleMember.canOperateDraft = false;
+    adminVisibleMember.canControlSequence = true;
+    const terminal = createSequenceItem({
+      enrollment: { id: 'enrollment-terminal', status: 'stopped' },
+      messages: [createMessage({ id: 'message-terminal', enrollmentId: 'enrollment-terminal', status: 'sent' })]
+    });
+
+    assert.deepEqual(getStoppableSequenceIds([stoppable, adminVisibleMember, terminal]), ['enrollment-stoppable']);
   });
 
   it('blocks draft approval when link policy forbids remaining links', () => {
