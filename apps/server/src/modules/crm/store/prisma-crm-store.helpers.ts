@@ -1,190 +1,37 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../generated/prisma/client';
-import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
-import type { CrmAiDraftQueueConfigModel } from '../../../generated/prisma/models/CrmAiDraftQueueConfig';
-import type { CrmAiDraftTaskModel } from '../../../generated/prisma/models/CrmAiDraftTask';
-import type { CrmAiDraftTaskItemModel } from '../../../generated/prisma/models/CrmAiDraftTaskItem';
-import type { CrmArchivedFingerprintModel } from '../../../generated/prisma/models/CrmArchivedFingerprint';
-import type { CrmBlacklistModel } from '../../../generated/prisma/models/CrmBlacklist';
-import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
-import type { CrmEmailTemplateGroupModel } from '../../../generated/prisma/models/CrmEmailTemplateGroup';
-import type { CrmEmailTemplateStepModel } from '../../../generated/prisma/models/CrmEmailTemplateStep';
-import type { CrmEmailVerificationCacheModel } from '../../../generated/prisma/models/CrmEmailVerificationCache';
-import type { CrmGlobalConfigModel } from '../../../generated/prisma/models/CrmGlobalConfig';
-import type { CrmInboxMessageModel } from '../../../generated/prisma/models/CrmInboxMessage';
-import type { CrmInboxThreadModel } from '../../../generated/prisma/models/CrmInboxThread';
-import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
-import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
-import type { CrmOrganizationConfigModel } from '../../../generated/prisma/models/CrmOrganizationConfig';
-import type { CrmPersonaProfileModel } from '../../../generated/prisma/models/CrmPersonaProfile';
-import type { CrmProductLineAiPromptVersionModel } from '../../../generated/prisma/models/CrmProductLineAiPromptVersion';
-import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
-import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
-import type { CrmSequencePolicyModel } from '../../../generated/prisma/models/CrmSequencePolicy';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
-import type { CrmUserSendPreferenceModel } from '../../../generated/prisma/models/CrmUserSendPreference';
-import { PrismaService } from '../../database/prisma.service';
 import type {
-  CrmAccountCreateInput,
-  CrmAccountRecord,
   CrmAccountStatus,
-  CrmAccountUpdateInput,
-  CrmAiDraftQueueConfigInput,
-  CrmAiDraftQueueConfigRecord,
   CrmAiDraftTaskCreateInput,
-  CrmAiDraftTaskItemRecord,
-  CrmAiDraftTaskItemUpdateGuard,
   CrmAiDraftTaskItemUpdateInput,
-  CrmAiDraftTaskRecord,
-  CrmAiDraftTaskUpdateGuard,
   CrmAiDraftTaskUpdateInput,
-  CrmArchiveSlimInput,
-  CrmArchiveSlimmingListInput,
-  CrmArchivedFingerprintLookupInput,
-  CrmArchivedFingerprintRecord,
-  CrmArchivedFingerprintUpsertInput,
-  CrmBlacklistDeleteInput,
   CrmBlacklistListInput,
-  CrmBlacklistRecord,
-  CrmBlacklistUpsertInput,
-  CrmMailboxCreateInput,
-  CrmMailboxAuthorizationExpiredInput,
-  CrmMailboxAuthorizationExpiredRecord,
-  CrmMailboxSendStateBatchInput,
-  CrmMailboxProvider,
-  CrmMailboxRecord,
   CrmMailboxStatus,
-  CrmMailboxHistoryAdvanceInput,
-  CrmMailboxUpdateInput,
-  CrmMailboxWatchRenewalListInput,
-  CrmContactCreateInput,
-  CrmContactRecord,
-  CrmContactUpdateInput,
-  CrmCustomerReplyIngestInput,
-  CrmCustomerReplyIngestRecord,
-  CrmDispatchedMessageCountInput,
-  CrmDueSendCandidateListInput,
-  CrmDueSendCandidateRecord,
-  CrmEmailTemplateGroupCreateInput,
   CrmEmailTemplateGroupListInput,
-  CrmEmailTemplateGroupRecord,
-  CrmEmailTemplateGroupUpdateInput,
   CrmEmailTemplateStepInput,
-  CrmEmailTemplateStepRecord,
-  CrmEmailVerificationCacheRecord,
-  CrmEmailVerificationCacheUpsertInput,
-  CrmGlobalConfigInput,
-  CrmGlobalConfigRecord,
-  CrmEmailStatus,
-  CrmInboxThreadDetailRecord,
-  CrmInboxThreadListRecord,
-  CrmInboxMessageRecord,
   CrmInboxThreadRecord,
   CrmInboxThreadGmailStateSyncInput,
-  CrmInboxUnsubscribeConfirmInput,
-  CrmInboxUnsubscribeConfirmRecord,
-  CrmInboxReplyDraftSaveInput,
-  CrmInboxThreadReplyInput,
-  CrmInboxThreadReplyRecord,
   CrmInboxThreadStatus,
-  CrmInboxThreadStatusUpdateInput,
-  CrmInboxThreadStatusUpdateRecord,
-  CrmProductLineAiPromptVersionCreateInput,
-  CrmProductLineAiPromptVersionRecord,
-  CrmProductLineAiPromptVersionRestoreInput,
-  CrmProductLineAiWritingConfig,
-  CrmProductLineCreateInput,
-  CrmProductLineRecord,
-  CrmProductLineStatus,
-  CrmProductLineUpdateInput,
-  CrmMessageCreateInput,
-  CrmMessageDraftUpdateGuard,
-  CrmMessageDraftVersionCreateInput,
-  CrmMessageDraftVersionRecord,
-  CrmMessageDraftVersionRestoreInput,
   CrmMessageRecord,
   CrmMessageStatus,
-  CrmMessageUpdateInput,
-  CrmOrganizationConfigInput,
-  CrmOrganizationConfigRecord,
-  CrmOwnerSendStateBatchInput,
   CrmPersonaProfileCreateInput,
   CrmPersonaProfileListInput,
-  CrmPersonaProfileRecord,
   CrmPersonaProfileUpdateInput,
-  CrmDraftApprovalInput,
-  CrmDraftApprovalRecord,
-  CrmFollowUpDraftBundleCreateInput,
-  CrmFollowUpDraftBundleRecord,
-  CrmSequenceEnrollmentCreateInput,
-  CrmSequenceEnrollmentRecord,
+  CrmProductLineStatus,
   CrmSequenceEnrollmentStatus,
-  CrmSequenceEnrollmentUpdateInput,
-  CrmSequenceDraftBundleCreateInput,
   CrmSequencePolicyCreateInput,
   CrmSequencePolicyListInput,
-  CrmSequencePolicyRecord,
   CrmSequencePolicyUpdateInput,
-  CrmSequenceDraftBundleRecord,
-  CrmSequenceReviewRecord,
   CrmSequenceReviewTodoType,
-  CrmSendCompletionInput,
-  CrmSendCompletionRecord,
-  CrmSendDeliveryClaimInput,
-  CrmSendDeliveryClaimRecord,
-  CrmSendFailureInput,
-  CrmSendFailureRecord,
-  CrmSendPreferenceInput,
-  CrmSendPreferenceRecord,
-  CrmSendStartInput,
   CrmScheduledMessageStepKind,
-  CrmSendStartRecord,
-  CrmSequenceStopInput,
-  CrmSequenceStopRecord,
   CrmStrategyStatDimension,
-  CrmStrategyStatRow,
-  CrmStrategyStatsRecord,
-  CrmTimelineEventCreateInput,
-  CrmTimelineEventRecord,
-  CrmWorkbenchOverviewRecord
+  CrmStrategyStatRow
 } from '../crm.types';
 import {
-  crmAiDraftActiveTaskStatuses,
-  defaultCrmAiDraftItemConcurrency,
-  defaultCrmAiDraftMaxAttempts,
-  defaultCrmAiDraftRetryBackoffSeconds,
-  maxCrmAiDraftItemConcurrency,
-  normalizeCrmAiDraftItemConcurrency,
-  normalizeCrmAiDraftMaxAttempts,
-  normalizeCrmAiDraftRetryBackoffSeconds
-} from '../crm-ai-draft-task-state';
-import {
-  crmGlobalConfigKey,
-  defaultEmailVerificationCooldownDays,
-  defaultFollowUpDelayDays,
-  defaultOwnerConcurrentSendLimit,
-  defaultOwnerDailySendLimitMax,
-  normalizeEmailVerificationCooldownDays,
-  normalizeFollowUpDelayDays,
-  normalizeOwnerConcurrentSendLimit,
-  normalizeOwnerDailySendLimitMax,
-  serializeFollowUpDelayDays
-} from '../crm-global-config';
-import {
-  normalizeSequencePolicyLinkPolicy,
-  normalizeSequencePolicySameCompanyStrategy,
-  normalizeSequencePolicyStatus,
-  parseSequencePolicySteps,
   serializeSequencePolicyStepDelayDays,
   serializeSequencePolicyThreadModes
 } from '../crm-sequence-policy';
 
-export type CrmEmailTemplateGroupModelWithSteps = CrmEmailTemplateGroupModel & {
-  steps: CrmEmailTemplateStepModel[];
-};
-
-const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 // Workbench "today" follows the current CRM business day, while quota buckets remain UTC elsewhere.
 const crmBusinessDayOffsetMinutes = 8 * 60;
 
@@ -424,7 +271,7 @@ export function toMailboxCountMap(rows: Array<{ organizationId: string; mailboxI
       continue;
     }
 
-    result.set(toMailboxPairKey(row.organizationId, row.mailboxId), row._count._all);
+    result.set(toMailboxPairKey(row.organizationId, row.mailboxId), row['_count']['_all']);
   }
 
   return result;
@@ -834,79 +681,6 @@ export function toInboxThreadDetailInclude() {
   };
 }
 
-export function toAccountRecord(record: CrmAccountModel): CrmAccountRecord {
-  return {
-    ...record,
-    status: record.status as CrmAccountRecord['status']
-  };
-}
-
-export function toArchivedFingerprintRecord(record: CrmArchivedFingerprintModel): CrmArchivedFingerprintRecord {
-  return {
-    ...record,
-    fingerprintType: record.fingerprintType as CrmArchivedFingerprintRecord['fingerprintType']
-  };
-}
-
-export function toBlacklistRecord(record: CrmBlacklistModel): CrmBlacklistRecord {
-  return {
-    ...record,
-    reason: record.reason as CrmBlacklistRecord['reason']
-  };
-}
-
-export function toContactRecord(record: CrmContactModel): CrmContactRecord {
-  return {
-    ...record,
-    emailStatus: record.emailStatus as CrmContactRecord['emailStatus']
-  };
-}
-
-export function toEmailVerificationCacheRecord(record: CrmEmailVerificationCacheModel): CrmEmailVerificationCacheRecord {
-  return {
-    ...record,
-    status: record.status as CrmEmailVerificationCacheRecord['status'],
-    reason: record.reason as CrmEmailVerificationCacheRecord['reason']
-  };
-}
-
-export function createDefaultGlobalConfig(): CrmGlobalConfigRecord {
-  return {
-    configKey: crmGlobalConfigKey,
-    emailVerificationCooldownDays: defaultEmailVerificationCooldownDays,
-    ownerConcurrentSendLimit: defaultOwnerConcurrentSendLimit,
-    ownerDailySendLimitMax: defaultOwnerDailySendLimitMax,
-    followUpDelayDays: { ...defaultFollowUpDelayDays },
-    updatedAt: new Date(0)
-  };
-}
-
-export function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalConfigRecord {
-  return {
-    configKey: record.configKey,
-    emailVerificationCooldownDays: normalizeEmailVerificationCooldownDays(record.emailVerificationCooldownDays),
-    ownerConcurrentSendLimit: normalizeOwnerConcurrentSendLimit(record.ownerConcurrentSendLimit),
-    ownerDailySendLimitMax: normalizeOwnerDailySendLimitMax(record.ownerDailySendLimitMax),
-    followUpDelayDays: normalizeFollowUpDelayDays(record.followUpDelayDaysText),
-    updatedAt: record.updatedAt
-  };
-}
-
-export function toSendPreferenceRecord(record: CrmUserSendPreferenceModel): CrmSendPreferenceRecord {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    ownerUserId: record.ownerUserId,
-    ownerUserName: record.ownerUserName,
-    dailySendLimit: record.dailySendLimit,
-    followUpSharePercent: record.followUpSharePercent,
-    updatedById: record.updatedById,
-    updatedByName: record.updatedByName,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt
-  };
-}
-
 export function toStepKindWhere(stepKind?: CrmScheduledMessageStepKind): Prisma.CrmMessageWhereInput {
   if (stepKind === 'first_touch') {
     return { stepIndex: 1 };
@@ -917,50 +691,6 @@ export function toStepKindWhere(stepKind?: CrmScheduledMessageStepKind): Prisma.
   }
 
   return {};
-}
-
-export function toOrganizationConfigRecord(record: CrmOrganizationConfigModel): CrmOrganizationConfigRecord {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    allowAdminViewMemberEmailBody: record.allowAdminViewMemberEmailBody,
-    updatedById: record.updatedById,
-    updatedByName: record.updatedByName,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt
-  };
-}
-
-export function toTimelineEventRecord(record: CrmTimelineEventModel): CrmTimelineEventRecord {
-  return record;
-}
-
-export function toMailboxRecord(record: CrmMailboxModel): CrmMailboxRecord {
-  return {
-    ...record,
-    provider: record.provider as CrmMailboxRecord['provider'],
-    status: record.status as CrmMailboxRecord['status'],
-    warmupStage: record.warmupStage as CrmMailboxRecord['warmupStage'],
-    syncIssueType: record.syncIssueType as CrmMailboxRecord['syncIssueType']
-  };
-}
-
-export function toProductLineRecord(record: CrmProductLineModel): CrmProductLineRecord {
-  return {
-    ...record,
-    aiWritingConfig: toProductLineAiWritingConfig(record.aiWritingConfig),
-    status: record.status as CrmProductLineRecord['status']
-  };
-}
-
-export function toProductLineAiWritingConfig(value: unknown): CrmProductLineRecord['aiWritingConfig'] {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-
-  return value as CrmProductLineRecord['aiWritingConfig'];
-}
-
-export function toProductLineAiPromptVersionJson(config: CrmProductLineAiWritingConfig | null) {
-  return config === null ? Prisma.JsonNull : (config as unknown as Prisma.InputJsonValue);
 }
 
 export function toNullableJsonInput(value: unknown) {
@@ -982,94 +712,6 @@ export function toStatusWhere<T extends string>(status: T | T[]) {
   return Array.isArray(status) ? { in: status } : status;
 }
 
-export function createDefaultAiDraftQueueConfig(): CrmAiDraftQueueConfigRecord {
-  return {
-    configKey: crmAiDraftQueueConfigKey,
-    itemConcurrency: defaultCrmAiDraftItemConcurrency,
-    maxItemConcurrency: maxCrmAiDraftItemConcurrency,
-    maxActiveTasksPerUser: 1,
-    maxActiveTasksPerOrg: 2,
-    maxAttempts: defaultCrmAiDraftMaxAttempts,
-    retryBackoffSeconds: [...defaultCrmAiDraftRetryBackoffSeconds],
-    updatedById: null,
-    updatedByName: null,
-    updatedAt: new Date(0)
-  };
-}
-
-export function toAiDraftQueueConfigRecord(record: CrmAiDraftQueueConfigModel): CrmAiDraftQueueConfigRecord {
-  return {
-    configKey: record.configKey,
-    itemConcurrency: normalizeCrmAiDraftItemConcurrency(record.itemConcurrency, record.maxItemConcurrency),
-    maxItemConcurrency: normalizeCrmAiDraftItemConcurrency(record.maxItemConcurrency, maxCrmAiDraftItemConcurrency),
-    maxActiveTasksPerUser: normalizePositiveConfigInteger(record.maxActiveTasksPerUser, 1),
-    maxActiveTasksPerOrg: normalizePositiveConfigInteger(record.maxActiveTasksPerOrg, 2),
-    maxAttempts: normalizeCrmAiDraftMaxAttempts(record.maxAttempts),
-    retryBackoffSeconds: normalizeCrmAiDraftRetryBackoffSeconds(record.retryBackoffSeconds),
-    updatedById: record.updatedById,
-    updatedByName: record.updatedByName,
-    updatedAt: record.updatedAt
-  };
-}
-
-export function toAiDraftTaskRecord(record: CrmAiDraftTaskModel): CrmAiDraftTaskRecord {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    organizationRole: record.organizationRole,
-    ownerUserId: record.ownerUserId,
-    ownerUserName: record.ownerUserName,
-    status: record.status as CrmAiDraftTaskRecord['status'],
-    runVersion: record.runVersion,
-    bullJobId: record.bullJobId,
-    requestedCount: record.requestedCount,
-    successCount: record.successCount,
-    skippedCount: record.skippedCount,
-    failedCount: record.failedCount,
-    retryingCount: record.retryingCount,
-    runningCount: record.runningCount,
-    pendingCount: record.pendingCount,
-    effectiveConcurrency: record.effectiveConcurrency,
-    maxAttempts: record.maxAttempts,
-    failureReason: record.failureReason,
-    progressState: record.progressState as CrmAiDraftTaskRecord['progressState'],
-    resultSummary: record.resultSummary as CrmAiDraftTaskRecord['resultSummary'],
-    readAt: record.readAt,
-    notifiedAt: record.notifiedAt,
-    startedAt: record.startedAt,
-    finishedAt: record.finishedAt,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt
-  };
-}
-
-export function toAiDraftTaskItemRecord(record: CrmAiDraftTaskItemModel): CrmAiDraftTaskItemRecord {
-  return {
-    id: record.id,
-    taskId: record.taskId,
-    organizationId: record.organizationId,
-    ownerUserId: record.ownerUserId,
-    enrollmentId: record.enrollmentId,
-    messageId: record.messageId,
-    contactId: record.contactId,
-    accountId: record.accountId,
-    productLineId: record.productLineId,
-    stepIndex: record.stepIndex,
-    status: record.status as CrmAiDraftTaskItemRecord['status'],
-    attemptCount: record.attemptCount,
-    maxAttempts: record.maxAttempts,
-    failureType: record.failureType as CrmAiDraftTaskItemRecord['failureType'],
-    failureReason: record.failureReason,
-    draftSubject: record.draftSubject,
-    draftBodyText: record.draftBodyText,
-    metadata: record.metadata as CrmAiDraftTaskItemRecord['metadata'],
-    startedAt: record.startedAt,
-    finishedAt: record.finishedAt,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt
-  };
-}
-
 export function toAiDraftTaskUpdateData(input: CrmAiDraftTaskUpdateInput): Prisma.CrmAiDraftTaskUncheckedUpdateInput {
   return {
     ...input,
@@ -1084,60 +726,6 @@ export function toAiDraftTaskItemUpdateData(
   return {
     ...input,
     metadata: input.metadata === undefined ? undefined : toNullableJsonInput(input.metadata)
-  };
-}
-
-export function normalizePositiveConfigInteger(value: unknown, fallback: number) {
-  const numberValue = Number(value);
-
-  if (!Number.isInteger(numberValue) || numberValue <= 0) {
-    return fallback;
-  }
-
-  return numberValue;
-}
-
-export function toProductLineAiPromptVersionRecord(
-  record: CrmProductLineAiPromptVersionModel
-): CrmProductLineAiPromptVersionRecord {
-  return {
-    ...record,
-    aiWritingConfig: toProductLineAiWritingConfig(record.aiWritingConfig)
-  };
-}
-
-export function toPersonaProfileRecord(record: CrmPersonaProfileModel): CrmPersonaProfileRecord {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    name: record.name,
-    description: record.description,
-    titleKeywordsText: record.titleKeywordsText,
-    customerTypeKeywordsText: record.customerTypeKeywordsText,
-    painPoints: record.painPoints,
-    focusText: record.focusText,
-    avoidText: record.avoidText,
-    status: record.status as CrmPersonaProfileRecord['status'],
-    isDefault: record.isDefault,
-    createdById: record.createdById,
-    createdByName: record.createdByName,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt
-  };
-}
-
-export function toEmailTemplateStepRecord(record: CrmEmailTemplateStepModel): CrmEmailTemplateStepRecord {
-  return {
-    ...record,
-    threadMode: record.threadMode as CrmEmailTemplateStepRecord['threadMode']
-  };
-}
-
-export function toEmailTemplateGroupRecord(record: CrmEmailTemplateGroupModelWithSteps): CrmEmailTemplateGroupRecord {
-  return {
-    ...record,
-    status: record.status as CrmEmailTemplateGroupRecord['status'],
-    steps: record.steps.map(toEmailTemplateStepRecord)
   };
 }
 
@@ -1156,25 +744,6 @@ export function toEmailTemplateStepCreateManyInput(
     subjectTemplate: step.subjectTemplate,
     bodyTemplate: step.bodyTemplate
   }));
-}
-
-export function toSequencePolicyRecord(record: CrmSequencePolicyModel): CrmSequencePolicyRecord {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    name: record.name,
-    description: record.description,
-    status: normalizeSequencePolicyStatus(record.status),
-    isDefault: record.isDefault,
-    steps: parseSequencePolicySteps(record.stepDelayDaysText, record.stepThreadModesText),
-    linkPolicy: normalizeSequencePolicyLinkPolicy(record.linkPolicy),
-    allowLowRiskAutoSend: record.allowLowRiskAutoSend,
-    sameCompanyContactStrategy: normalizeSequencePolicySameCompanyStrategy(record.sameCompanyContactStrategy),
-    createdById: record.createdById,
-    createdByName: record.createdByName,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt
-  };
 }
 
 export function toPersonaProfileCreateInput(
@@ -1251,144 +820,6 @@ export function toSequencePolicyUpdateInput(
   };
 }
 
-export function toSequenceEnrollmentRecord(record: CrmSequenceEnrollmentModel): CrmSequenceEnrollmentRecord {
-  return {
-    ...record,
-    status: record.status as CrmSequenceEnrollmentRecord['status']
-  };
-}
-
-export function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
-  const message = record as CrmMessageModel & {
-    providerMessageId?: string | null;
-    providerThreadId?: string | null;
-    metadata?: unknown | null;
-  };
-
-  return {
-    ...message,
-    threadMode: message.threadMode as CrmMessageRecord['threadMode'],
-    status: message.status as CrmMessageRecord['status'],
-    providerMessageId: message.providerMessageId ?? null,
-    providerThreadId: message.providerThreadId ?? null,
-    metadata: message.metadata ?? null
-  };
-}
-
-export function toInboxThreadRecord(record: CrmInboxThreadModel): CrmInboxThreadRecord {
-  return {
-    ...record,
-    replyDraftMetadata: toInboxReplyDraftMetadata(record.replyDraftMetadata),
-    provider: record.provider as CrmInboxThreadRecord['provider'],
-    status: record.status as CrmInboxThreadRecord['status']
-  };
-}
-
-export function toInboxReplyDraftMetadata(value: unknown): CrmInboxThreadRecord['replyDraftMetadata'] {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-
-  const record = value as Partial<NonNullable<CrmInboxThreadRecord['replyDraftMetadata']>>;
-
-  return {
-    generated: Boolean(record.generated),
-    reason: typeof record.reason === 'string' ? record.reason : '',
-    riskNotes: Array.isArray(record.riskNotes) ? record.riskNotes.filter(item => typeof item === 'string') : [],
-    productLineId: typeof record.productLineId === 'string' ? record.productLineId : null,
-    productLineName: typeof record.productLineName === 'string' ? record.productLineName : null,
-    generatedAt: typeof record.generatedAt === 'string' ? record.generatedAt : undefined
-  };
-}
-
-export function toInboxMessageRecord(record: CrmInboxMessageModel): CrmInboxMessageRecord {
-  return {
-    ...record,
-    provider: record.provider as CrmInboxMessageRecord['provider'],
-    messageType: record.messageType as CrmInboxMessageRecord['messageType']
-  };
-}
-
-export type CrmMessageDraftVersionRaw = CrmMessageDraftVersionRecord;
-
-export function toMessageDraftVersionRecord(record: CrmMessageDraftVersionRaw): CrmMessageDraftVersionRecord {
-  return {
-    id: record.id,
-    organizationId: record.organizationId,
-    ownerUserId: record.ownerUserId,
-    accountId: record.accountId,
-    contactId: record.contactId,
-    enrollmentId: record.enrollmentId,
-    messageId: record.messageId,
-    mailboxId: record.mailboxId,
-    stepIndex: record.stepIndex,
-    versionNo: record.versionNo,
-    subject: record.subject,
-    bodyText: record.bodyText,
-    editorId: record.editorId,
-    editorName: record.editorName,
-    createdAt: new Date(record.createdAt)
-  };
-}
-
-export function toSequenceReviewRecord(
-  record: CrmSequenceEnrollmentModel & {
-    account: CrmAccountModel;
-    contact: CrmContactModel;
-    productLine: CrmProductLineModel | null;
-    mailbox: CrmMailboxModel | null;
-    policy?: CrmSequencePolicyModel | null;
-    messages: CrmMessageModel[];
-  }
-): CrmSequenceReviewRecord {
-  const messages = record.messages.map(toMessageRecord);
-
-  return {
-    enrollment: toSequenceEnrollmentRecord(record),
-    account: toAccountRecord(record.account),
-    contact: toContactRecord(record.contact),
-    productLine: record.productLine ? toProductLineRecord(record.productLine) : null,
-    mailbox: record.mailbox ? toMailboxRecord(record.mailbox) : null,
-    policy: record.policy ? toSequencePolicyRecord(record.policy) : null,
-    firstMessage: messages.find(message => message.stepIndex === 1) || messages[0] || null,
-    messages
-  };
-}
-
-export function toInboxThreadListRecord(
-  record: CrmInboxThreadModel & {
-    account: CrmAccountModel;
-    contact: CrmContactModel;
-    mailbox: CrmMailboxModel | null;
-    enrollment: CrmSequenceEnrollmentModel | null;
-    messages: CrmInboxMessageModel[];
-  }
-): CrmInboxThreadListRecord {
-  return {
-    thread: toInboxThreadRecord(record),
-    account: toAccountRecord(record.account),
-    contact: toContactRecord(record.contact),
-    mailbox: record.mailbox ? toMailboxRecord(record.mailbox) : null,
-    enrollment: record.enrollment ? toSequenceEnrollmentRecord(record.enrollment) : null,
-    lastMessage: record.messages[0] ? toInboxMessageRecord(record.messages[0]) : null
-  };
-}
-
-export function toInboxThreadDetailRecord(
-  record: CrmInboxThreadModel & {
-    account: CrmAccountModel;
-    contact: CrmContactModel;
-    mailbox: CrmMailboxModel | null;
-    enrollment: CrmSequenceEnrollmentModel | null;
-    messages: CrmInboxMessageModel[];
-  },
-  timelineEvents: CrmTimelineEventModel[]
-): CrmInboxThreadDetailRecord {
-  return {
-    ...toInboxThreadListRecord(record),
-    messages: record.messages.map(toInboxMessageRecord),
-    timelineEvents: timelineEvents.map(toTimelineEventRecord)
-  };
-}
-
 export function toSnippet(bodyText: string) {
   const normalized = bodyText.replace(/\s+/g, ' ').trim();
   return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
@@ -1449,4 +880,11 @@ export function resolveGmailThreadStateUpdate(
   return null;
 }
 
+export * from './prisma-crm-ai-draft.mapper';
+export * from './prisma-crm-catalog.mapper';
+export * from './prisma-crm-core.mapper';
+export * from './prisma-crm-inbox.mapper';
+export * from './prisma-crm-mailbox.mapper';
+export * from './prisma-crm-sequence.mapper';
+export * from './prisma-crm-settings.mapper';
 export { isPrismaConcurrentTaskCreateConflict, isPrismaUniqueConflict } from './prisma-error.helpers';
