@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   SystemLog: 'SystemLog',
   SystemUser: 'SystemUser',
+  AuthSession: 'AuthSession',
   Organization: 'Organization',
   CrmAccount: 'CrmAccount',
   CrmContact: 'CrmContact',
@@ -150,6 +151,24 @@ export const SystemUserScalarFieldEnum = {
 } as const
 
 export type SystemUserScalarFieldEnum = (typeof SystemUserScalarFieldEnum)[keyof typeof SystemUserScalarFieldEnum]
+
+
+export const AuthSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  accessTokenHash: 'accessTokenHash',
+  refreshTokenHash: 'refreshTokenHash',
+  accessTokenExpiresAt: 'accessTokenExpiresAt',
+  refreshTokenExpiresAt: 'refreshTokenExpiresAt',
+  revokedAt: 'revokedAt',
+  loginIp: 'loginIp',
+  userAgent: 'userAgent',
+  lastUsedAt: 'lastUsedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AuthSessionScalarFieldEnum = (typeof AuthSessionScalarFieldEnum)[keyof typeof AuthSessionScalarFieldEnum]
 
 
 export const OrganizationScalarFieldEnum = {

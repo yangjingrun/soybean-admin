@@ -1,7 +1,9 @@
 import { Body, Controller, ForbiddenException, Get, Headers, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ok } from '../../shared/api-response';
+import { CurrentUser } from '../auth/auth.decorators';
 import { AuthService } from '../auth/auth.service';
+import type { UserInfo } from '../auth/auth.types';
 import { AiGatewayService } from './ai-gateway.service';
 import { AiModelConfigKeyParamDto, SaveAiModelConfigDto } from './dto/ai-model-config.dto';
 import { AiPromptKeyParamDto, SaveAiPromptDto } from './dto/ai-prompt.dto';
@@ -17,81 +19,125 @@ export class AiGatewayController {
   ) {}
 
   @Post('prompts')
-  async savePrompt(@Body() dto: SaveAiPromptDto, @Headers('authorization') authorization = '') {
-    this.assertSuper(authorization);
+  async savePrompt(
+    @Body() dto: SaveAiPromptDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.savePrompt(dto));
   }
 
   @Get('prompts/:promptKey')
-  async getPrompt(@Param() params: AiPromptKeyParamDto, @Headers('authorization') authorization = '') {
-    this.assertSuper(authorization);
+  async getPrompt(
+    @Param() params: AiPromptKeyParamDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.getPrompt(params.promptKey));
   }
 
   @Post('model-configs')
-  async saveModelConfig(@Body() dto: SaveAiModelConfigDto, @Headers('authorization') authorization = '') {
-    this.assertSuper(authorization);
+  async saveModelConfig(
+    @Body() dto: SaveAiModelConfigDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.saveModelConfig(dto));
   }
 
   @Get('model-configs/:configKey')
-  async getModelConfig(@Param() params: AiModelConfigKeyParamDto, @Headers('authorization') authorization = '') {
-    this.assertSuper(authorization);
+  async getModelConfig(
+    @Param() params: AiModelConfigKeyParamDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
   }
 
   @Post('serper-configs')
-  async saveSerperConfig(@Body() dto: SaveSerperConfigDto, @Headers('authorization') authorization = '') {
-    const user = this.assertSuper(authorization);
+  async saveSerperConfig(
+    @Body() dto: SaveSerperConfigDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    const user = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.saveSerperConfig(dto, { user }));
   }
 
   @Get('serper-configs/:configKey')
-  async getSerperConfig(@Param() params: SerperConfigKeyParamDto, @Headers('authorization') authorization = '') {
-    this.assertSuper(authorization);
+  async getSerperConfig(
+    @Param() params: SerperConfigKeyParamDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.getSerperConfigDraft(params.configKey));
   }
 
   @Post('serper-configs/test')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  async testSerperConfig(@Body() dto: SaveSerperConfigDto, @Headers('authorization') authorization = '') {
-    const user = this.assertSuper(authorization);
+  async testSerperConfig(
+    @Body() dto: SaveSerperConfigDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    const user = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.testSerperConfig(dto, { user }));
   }
 
   @Post('hunter-configs')
-  async saveHunterConfig(@Body() dto: SaveHunterConfigDto, @Headers('authorization') authorization = '') {
-    const user = this.assertSuper(authorization);
+  async saveHunterConfig(
+    @Body() dto: SaveHunterConfigDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    const user = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.saveHunterConfig(dto, { user }));
   }
 
   @Get('hunter-configs/:configKey')
-  async getHunterConfig(@Param() params: HunterConfigKeyParamDto, @Headers('authorization') authorization = '') {
-    this.assertSuper(authorization);
+  async getHunterConfig(
+    @Param() params: HunterConfigKeyParamDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.getHunterConfigDraft(params.configKey));
   }
 
   @Post('hunter-configs/test')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  async testHunterConfig(@Body() dto: SaveHunterConfigDto, @Headers('authorization') authorization = '') {
-    const user = this.assertSuper(authorization);
+  async testHunterConfig(
+    @Body() dto: SaveHunterConfigDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    const user = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.aiGatewayService.testHunterConfig(dto, { user }));
   }
 
   @Post('generate-text')
   @Throttle({ default: { limit: 20, ttl: 60000 } })
-  async generateText(@Body() dto: GenerateAiTextDto, @Headers('authorization') authorization = '') {
-    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+  async generateText(
+    @Body() dto: GenerateAiTextDto,
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null
+  ) {
+    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
 
     return ok(await this.aiGatewayService.generateText(dto, { user }));
   }
@@ -102,8 +148,8 @@ export class AiGatewayController {
     return scheme?.toLowerCase() === 'bearer' ? token || '' : '';
   }
 
-  private assertSuper(authorization: string) {
-    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+  private async assertSuper(authorization: string, currentUser: UserInfo | null) {
+    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
 
     if (!user?.roles.includes('R_SUPER')) {
       throw new ForbiddenException('无权维护 AI 配置');

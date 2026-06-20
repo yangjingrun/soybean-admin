@@ -50,6 +50,11 @@ export type SystemLog = Prisma.SystemLogModel
  */
 export type SystemUser = Prisma.SystemUserModel
 /**
+ * Model AuthSession
+ *
+ */
+export type AuthSession = Prisma.AuthSessionModel
+/**
  * Model Organization
  *
  */

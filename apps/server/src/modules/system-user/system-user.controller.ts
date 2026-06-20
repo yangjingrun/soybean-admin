@@ -1,6 +1,8 @@
 import { Body, Controller, ForbiddenException, Get, Headers, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
+import { CurrentUser } from '../auth/auth.decorators';
 import { AuthService } from '../auth/auth.service';
+import type { UserInfo } from '../auth/auth.types';
 import { CreateSystemUserDto, UpdateSystemUserDto, UpdateSystemUserStatusDto } from './dto/system-user-operate.dto';
 import { SystemUserQueryDto } from './dto/system-user-query.dto';
 import { SystemUserService } from './system-user.service';
@@ -13,15 +15,23 @@ export class SystemUserController {
   ) {}
 
   @Get()
-  async list(@Headers('authorization') authorization = '', @Query() query: SystemUserQueryDto) {
-    this.assertSuper(authorization);
+  async list(
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null,
+    @Query() query: SystemUserQueryDto
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemUserService.list(query));
   }
 
   @Post()
-  async create(@Headers('authorization') authorization = '', @Body() dto: CreateSystemUserDto) {
-    const operator = this.assertSuper(authorization);
+  async create(
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null,
+    @Body() dto: CreateSystemUserDto
+  ) {
+    const operator = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemUserService.create(dto, operator));
   }
@@ -29,10 +39,11 @@ export class SystemUserController {
   @Patch(':id')
   async update(
     @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateSystemUserDto
   ) {
-    const operator = this.assertSuper(authorization);
+    const operator = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemUserService.update(id, dto, operator));
   }
@@ -40,23 +51,28 @@ export class SystemUserController {
   @Patch(':id/status')
   async updateStatus(
     @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null,
     @Param('id') id: string,
     @Body() dto: UpdateSystemUserStatusDto
   ) {
-    const operator = this.assertSuper(authorization);
+    const operator = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemUserService.updateStatus(id, dto.status, operator));
   }
 
   @Post(':id/reset-password')
-  async resetPassword(@Headers('authorization') authorization = '', @Param('id') id: string) {
-    const operator = this.assertSuper(authorization);
+  async resetPassword(
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null,
+    @Param('id') id: string
+  ) {
+    const operator = await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemUserService.resetPassword(id, operator));
   }
 
-  private assertSuper(authorization: string) {
-    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+  private async assertSuper(authorization: string, currentUser: UserInfo | null) {
+    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
 
     if (!user?.roles.includes('R_SUPER')) {
       throw new ForbiddenException('无权访问用户管理');

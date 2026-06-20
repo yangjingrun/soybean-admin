@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { resolveMx } from 'node:dns/promises';
+import { AppConfigService } from '../app-config/app-config.service';
 import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { RedisModule } from '../redis/redis.module';
@@ -82,19 +83,27 @@ import { PrismaCrmStore } from './store/prisma-crm.store';
     },
     {
       provide: CRM_GMAIL_HISTORY_GATEWAY,
-      useFactory: () => createCrmGmailIntegrationProviders(process.env).historyGateway
+      useFactory: (appConfigService: AppConfigService) =>
+        createCrmGmailIntegrationProviders(appConfigService.config.crmGmailIntegrationEnv).historyGateway,
+      inject: [AppConfigService]
     },
     {
       provide: CRM_GMAIL_WATCH_GATEWAY,
-      useFactory: () => createCrmGmailIntegrationProviders(process.env).watchGateway
+      useFactory: (appConfigService: AppConfigService) =>
+        createCrmGmailIntegrationProviders(appConfigService.config.crmGmailIntegrationEnv).watchGateway,
+      inject: [AppConfigService]
     },
     {
       provide: CRM_GMAIL_OAUTH_FLOW,
-      useFactory: () => createCrmGmailIntegrationProviders(process.env).oauthFlow
+      useFactory: (appConfigService: AppConfigService) =>
+        createCrmGmailIntegrationProviders(appConfigService.config.crmGmailIntegrationEnv).oauthFlow,
+      inject: [AppConfigService]
     },
     {
       provide: CRM_EMAIL_SEND_GATEWAY,
-      useFactory: () => createCrmGmailIntegrationProviders(process.env).emailSendGateway
+      useFactory: (appConfigService: AppConfigService) =>
+        createCrmGmailIntegrationProviders(appConfigService.config.crmGmailIntegrationEnv).emailSendGateway,
+      inject: [AppConfigService]
     },
     {
       provide: CRM_EMAIL_DNS_RESOLVER,

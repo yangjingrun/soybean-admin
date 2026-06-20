@@ -14,7 +14,7 @@ describe('AuthService', () => {
     const token = await service.login('super', '123456', undefined, undefined, '127.0.0.1');
 
     assert.equal(Boolean(token?.token), true);
-    assert.deepEqual(service.getUserByAccessToken(token!.token), {
+    assert.deepEqual(await service.getUserByAccessToken(token!.token), {
       userId: '1',
       userName: 'Super',
       roles: ['R_SUPER'],
@@ -25,6 +25,45 @@ describe('AuthService', () => {
     });
     assert.equal(user.failedLoginCount, 0);
     assert.equal(user.lastLoginIp, '127.0.0.1');
+  });
+
+  it('persists issued sessions so access tokens survive service restart', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({ passwordHash: password.hash, passwordSalt: password.salt });
+    const store = createPrismaStore([user]);
+    const service = createServiceFromStore(store);
+
+    const token = await service.login('Super', '123456', undefined, undefined, '127.0.0.1', 'Chrome');
+    const restartedService = createServiceFromStore(store);
+
+    assert.equal(store.sessions.length, 1);
+    assert.equal(store.sessions[0].userId, user.id);
+    assert.equal(store.sessions[0].loginIp, '127.0.0.1');
+    assert.equal(store.sessions[0].userAgent, 'Chrome');
+    assert.deepEqual(await restartedService.getUserByAccessToken(token!.token), {
+      userId: '1',
+      userName: 'Super',
+      roles: ['R_SUPER'],
+      buttons: ['B_CODE1', 'B_CODE2', 'B_CODE3'],
+      organizationId: 'org-default',
+      organizationName: '默认组织',
+      organizationRole: 'admin'
+    });
+  });
+
+  it('rotates refresh tokens and revokes the old session token', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({ passwordHash: password.hash, passwordSalt: password.salt });
+    const store = createPrismaStore([user]);
+    const service = createServiceFromStore(store);
+    const firstToken = await service.login('Super', '123456');
+
+    const rotatedToken = await service.refresh(firstToken!.refreshToken);
+
+    assert.equal(Boolean(rotatedToken?.token), true);
+    assert.equal(await service.refresh(firstToken!.refreshToken), null);
+    assert.equal(await service.getUserByAccessToken(firstToken!.token), null);
+    assert.equal(Boolean(await service.getUserByAccessToken(rotatedToken!.token)), true);
   });
 
   it('rejects disabled, expired and locked users', async () => {
@@ -62,14 +101,23 @@ describe('AuthService', () => {
     const firstToken = await service.login('Super', '123456');
     const secondToken = await service.login('Super', '123456');
 
-    service.revokeUserTokens(user.id);
+    await service.revokeUserTokens(user.id);
 
-    assert.equal(service.getUserByAccessToken(firstToken!.token), null);
-    assert.equal(service.getUserByAccessToken(secondToken!.token), null);
+    assert.equal(await service.getUserByAccessToken(firstToken!.token), null);
+    assert.equal(await service.getUserByAccessToken(secondToken!.token), null);
   });
 });
 
 function createService(users: TestSystemUser[]) {
+  return createServiceFromStore(createPrismaStore(users));
+}
+
+function createServiceFromStore(store: ReturnType<typeof createPrismaStore>) {
+  return new AuthService({} as unknown as RedisService, store.prisma);
+}
+
+function createPrismaStore(users: TestSystemUser[]) {
+  const sessions: TestAuthSession[] = [];
   const prisma = {
     systemUser: {
       findFirst({ where }: { where: { userName: { equals: string } } }) {
@@ -88,11 +136,59 @@ function createService(users: TestSystemUser[]) {
 
         return Promise.resolve(user);
       }
+    },
+    authSession: {
+      create({ data }: { data: TestAuthSession }) {
+        sessions.push({ ...data });
+
+        return Promise.resolve(data);
+      },
+      findFirst({ where }: { where: { accessTokenHash?: string; refreshTokenHash?: string; revokedAt: null } }) {
+        const session =
+          sessions.find(item => {
+            if (item.revokedAt !== null) {
+              return false;
+            }
+
+            return where.accessTokenHash
+              ? item.accessTokenHash === where.accessTokenHash
+              : item.refreshTokenHash === where.refreshTokenHash;
+          }) || null;
+
+        return Promise.resolve(session ? { ...session, user: users.find(user => user.id === session.userId) } : null);
+      },
+      update({ where, data }: { where: { id: string }; data: Partial<TestAuthSession> }) {
+        const session = sessions.find(item => item.id === where.id);
+
+        if (!session) {
+          throw new Error('session not found');
+        }
+
+        Object.assign(session, data);
+
+        return Promise.resolve(session);
+      },
+      updateMany({ where, data }: { where: { userId?: string; id?: string }; data: Partial<TestAuthSession> }) {
+        const matchedSessions = sessions.filter(session => {
+          if (where.userId && session.userId !== where.userId) {
+            return false;
+          }
+
+          if (where.id && session.id !== where.id) {
+            return false;
+          }
+
+          return true;
+        });
+
+        matchedSessions.forEach(session => Object.assign(session, data));
+
+        return Promise.resolve({ count: matchedSessions.length });
+      }
     }
   } as unknown as PrismaService;
-  const redis = {} as unknown as RedisService;
 
-  return new AuthService(redis, prisma);
+  return { prisma, sessions };
 }
 
 function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
@@ -157,6 +253,21 @@ interface TestSystemUser {
   failedLoginCount: number;
   lockedUntil: Date | null;
   passwordResetAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface TestAuthSession {
+  id: string;
+  userId: string;
+  accessTokenHash: string;
+  refreshTokenHash: string;
+  accessTokenExpiresAt: Date;
+  refreshTokenExpiresAt: Date;
+  revokedAt: Date | null;
+  loginIp: string | null;
+  userAgent: string | null;
+  lastUsedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }

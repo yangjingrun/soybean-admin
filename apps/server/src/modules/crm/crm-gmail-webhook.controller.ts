@@ -1,5 +1,6 @@
 import { Body, Controller, Headers, Inject, Optional, Post, UnauthorizedException } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
+import { Public } from '../auth/auth.decorators';
 import { CrmGmailPubSubOidcVerifier } from './crm-gmail-pubsub-oidc.verifier';
 import { CrmGmailWebhookService } from './crm-gmail-webhook.service';
 
@@ -11,6 +12,7 @@ export class CrmGmailWebhookController {
   ) {}
 
   @Post('pubsub/push')
+  @Public()
   async handlePubSubPush(
     @Body() payload: unknown,
     @Headers('x-crm-gmail-pubsub-secret') pushSecret = '',

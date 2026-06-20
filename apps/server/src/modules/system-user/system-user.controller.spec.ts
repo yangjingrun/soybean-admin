@@ -9,7 +9,7 @@ describe('SystemUserController', () => {
   it('allows super administrators to list users', async () => {
     const controller = new SystemUserController(createAuthService(['R_SUPER']), createSystemUserService());
 
-    const result = await controller.list('Bearer token', {
+    const result = await controller.list('Bearer token', null, {
       current: 1,
       size: 10,
       keyword: 'super'
@@ -50,7 +50,7 @@ describe('SystemUserController', () => {
   it('rejects non-super administrators', async () => {
     const controller = new SystemUserController(createAuthService(['R_ADMIN']), createSystemUserService());
 
-    await assert.rejects(() => controller.list('Bearer token', {}), ForbiddenException);
+    await assert.rejects(() => controller.list('Bearer token', null, {}), ForbiddenException);
   });
 });
 

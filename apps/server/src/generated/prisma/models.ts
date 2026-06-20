@@ -10,6 +10,7 @@
  */
 export type * from './models/SystemLog'
 export type * from './models/SystemUser'
+export type * from './models/AuthSession'
 export type * from './models/Organization'
 export type * from './models/CrmAccount'
 export type * from './models/CrmContact'

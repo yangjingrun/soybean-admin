@@ -9,7 +9,7 @@ describe('SystemLogController', () => {
   it('allows super administrators to query logs', async () => {
     const controller = new SystemLogController(createSystemLogService(), createAuthService(['R_SUPER']));
 
-    const result = await controller.list('Bearer token', {});
+    const result = await controller.list('Bearer token', null, {});
 
     assert.deepEqual(result, {
       code: '0000',
@@ -26,7 +26,7 @@ describe('SystemLogController', () => {
   it('rejects non-super administrators', async () => {
     const controller = new SystemLogController(createSystemLogService(), createAuthService(['R_ADMIN']));
 
-    await assert.rejects(() => controller.users('Bearer token'), ForbiddenException);
+    await assert.rejects(() => controller.users('Bearer token', null), ForbiddenException);
   });
 });
 

@@ -58,6 +58,7 @@ describe('AiLeadsController', () => {
             targetLeadCount: 20
           },
           '',
+          null,
           reply.reply
         ),
       UnauthorizedException
@@ -95,6 +96,7 @@ describe('AiLeadsController', () => {
         targetLeadCount: 20
       },
       'Bearer access-token',
+      null,
       reply.reply
     );
 

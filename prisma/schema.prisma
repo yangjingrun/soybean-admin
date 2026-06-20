@@ -50,12 +50,34 @@ model SystemUser {
   updatedAt        DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
+  authSessions AuthSession[]
 
   @@index([status])
   @@index([organizationId])
   @@index([organizationRole])
   @@index([expireAt])
   @@index([lockedUntil])
+}
+
+model AuthSession {
+  id                    String    @id @default(uuid())
+  userId                String
+  accessTokenHash       String    @unique
+  refreshTokenHash      String    @unique
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  revokedAt             DateTime?
+  loginIp               String?
+  userAgent             String?
+  lastUsedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([accessTokenExpiresAt])
+  @@index([refreshTokenExpiresAt])
 }
 
 model Organization {

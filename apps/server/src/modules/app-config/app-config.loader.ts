@@ -9,6 +9,17 @@ export interface AppConfig {
   authRefreshTokenTtlSeconds: number;
   authDevFixedTokenEnabled: boolean;
   crmEnableMockEndpoints: boolean;
+  crmGmailIntegrationEnv: {
+    NODE_ENV?: string;
+    CRM_GMAIL_OAUTH_CLIENT_ID?: string;
+    CRM_GMAIL_OAUTH_CLIENT_SECRET?: string;
+    CRM_GMAIL_OAUTH_REDIRECT_URI?: string;
+    CRM_GMAIL_TOKEN_ENCRYPTION_KEY?: string;
+    CRM_GMAIL_OAUTH_STATE_SECRET?: string;
+    CRM_GMAIL_OAUTH_SCOPES?: string;
+    CRM_GMAIL_PUBSUB_TOPIC_NAME?: string;
+    CRM_GMAIL_PUBSUB_PUSH_SECRET?: string;
+  };
 }
 
 const DEFAULT_NODE_ENV = 'development';
@@ -33,7 +44,18 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     authRefreshTokenTtlSeconds: readNumber(env.AUTH_REFRESH_TOKEN_TTL_SECONDS, DEFAULT_AUTH_REFRESH_TOKEN_TTL_SECONDS),
     // Dev fixed tokens are never available in production, even if env is misconfigured.
     authDevFixedTokenEnabled: isProduction ? false : readBoolean(env.AUTH_DEV_FIXED_TOKEN_ENABLED, true),
-    crmEnableMockEndpoints: readBoolean(env.CRM_ENABLE_MOCK_ENDPOINTS, false)
+    crmEnableMockEndpoints: readBoolean(env.CRM_ENABLE_MOCK_ENDPOINTS, false),
+    crmGmailIntegrationEnv: {
+      NODE_ENV: nodeEnv,
+      CRM_GMAIL_OAUTH_CLIENT_ID: env.CRM_GMAIL_OAUTH_CLIENT_ID,
+      CRM_GMAIL_OAUTH_CLIENT_SECRET: env.CRM_GMAIL_OAUTH_CLIENT_SECRET,
+      CRM_GMAIL_OAUTH_REDIRECT_URI: env.CRM_GMAIL_OAUTH_REDIRECT_URI,
+      CRM_GMAIL_TOKEN_ENCRYPTION_KEY: env.CRM_GMAIL_TOKEN_ENCRYPTION_KEY,
+      CRM_GMAIL_OAUTH_STATE_SECRET: env.CRM_GMAIL_OAUTH_STATE_SECRET,
+      CRM_GMAIL_OAUTH_SCOPES: env.CRM_GMAIL_OAUTH_SCOPES,
+      CRM_GMAIL_PUBSUB_TOPIC_NAME: env.CRM_GMAIL_PUBSUB_TOPIC_NAME,
+      CRM_GMAIL_PUBSUB_PUSH_SECRET: env.CRM_GMAIL_PUBSUB_PUSH_SECRET
+    }
   };
 }
 

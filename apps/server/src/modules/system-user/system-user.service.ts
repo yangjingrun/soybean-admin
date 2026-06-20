@@ -149,7 +149,7 @@ export class SystemUserService {
     });
 
     if (input.status === 'disabled') {
-      this.authService.revokeUserTokens(id);
+      await this.authService.revokeUserTokens(id);
     }
 
     await this.recordUserLog('update', '更新用户', operator, updated, {
@@ -179,7 +179,7 @@ export class SystemUserService {
     });
 
     if (status === 'disabled') {
-      this.authService.revokeUserTokens(id);
+      await this.authService.revokeUserTokens(id);
     }
 
     await this.recordUserLog(
@@ -216,7 +216,7 @@ export class SystemUserService {
       }
     });
 
-    this.authService.revokeUserTokens(id);
+    await this.authService.revokeUserTokens(id);
 
     await this.recordUserLog('reset-password', '重置用户密码', operator, updated, {
       targetUserId: updated.id,

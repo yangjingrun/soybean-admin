@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { createHash, randomUUID } from 'node:crypto';
 import * as svgCaptcha from 'svg-captcha';
 import type { Organization, SystemUser } from '../../generated/prisma/client';
+import { AppConfigService } from '../app-config/app-config.service';
 import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import type { ImageCaptchaResult, LoginToken, UserInfo } from './auth.types';
@@ -13,17 +14,15 @@ const devRefreshToken = 'dev_refresh_soybean';
 const devUserId = '4';
 const maxFailedLoginCount = 5;
 const lockDurationMs = 15 * 60 * 1000;
+const defaultAccessTokenTtlSeconds = 7200;
+const defaultRefreshTokenTtlSeconds = 1209600;
 
 @Injectable()
 export class AuthService {
-  private readonly accessTokens = new Map<string, UserInfoWithSession>();
-  private readonly refreshTokens = new Map<string, UserInfoWithSession>();
-  private readonly userAccessTokens = new Map<string, Set<string>>();
-  private readonly userRefreshTokens = new Map<string, Set<string>>();
-
   constructor(
     @Inject(RedisService) private readonly redisService: RedisService,
-    @Inject(PrismaService) private readonly prisma: PrismaService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Optional() @Inject(AppConfigService) private readonly appConfigService?: AppConfigService
   ) {}
 
   /** Validate captcha and database credentials, then issue frontend-compatible tokens. */
@@ -32,7 +31,8 @@ export class AuthService {
     password: string,
     captchaId?: string,
     captchaCode?: string,
-    loginIp?: string
+    loginIp?: string,
+    userAgent?: string
   ): Promise<LoginToken | null> {
     const captchaPassed = this.isDevAuth() || (await this.verifyCaptcha(captchaId, captchaCode));
 
@@ -63,7 +63,7 @@ export class AuthService {
       }
     });
 
-    return this.issueTokens(this.toUserInfo(user));
+    return this.issueTokens(this.toUserInfo(user), loginIp, userAgent);
   }
 
   /** Create a short-lived image captcha for password login. */
@@ -109,12 +109,39 @@ export class AuthService {
   }
 
   /** Resolve the current user from the Authorization header token. */
-  getUserByAccessToken(token: string): UserInfo | null {
-    const user = this.accessTokens.get(token);
+  async getUserByAccessToken(token: string): Promise<UserInfo | null> {
+    if (!token) {
+      return null;
+    }
+
+    const session = await this.prisma.authSession.findFirst({
+      where: {
+        accessTokenHash: this.hashToken(token),
+        revokedAt: null
+      },
+      include: {
+        user: {
+          include: {
+            organization: true
+          }
+        }
+      }
+    });
+
+    if (!session || session.accessTokenExpiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+
+    const user = this.toUserInfo(session.user);
 
     if (!user || this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
       return null;
     }
+
+    await this.prisma.authSession.update({
+      where: { id: session.id },
+      data: { lastUsedAt: new Date() }
+    });
 
     return {
       userId: user.userId,
@@ -128,66 +155,92 @@ export class AuthService {
   }
 
   /** Rotate access and refresh tokens from an existing refresh token. */
-  refresh(refreshToken: string): LoginToken | null {
-    if (this.isDevAuth() && refreshToken === devRefreshToken) {
-      const user = this.accessTokens.get(devAccessToken);
-      return user ? this.issueTokens(user) : null;
-    }
-
-    const user = this.refreshTokens.get(refreshToken);
-
-    if (!user || this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
+  async refresh(refreshToken: string): Promise<LoginToken | null> {
+    if (!refreshToken) {
       return null;
     }
 
-    this.deleteRefreshToken(refreshToken);
+    const session = await this.prisma.authSession.findFirst({
+      where: {
+        refreshTokenHash: this.hashToken(refreshToken),
+        revokedAt: null
+      },
+      include: {
+        user: {
+          include: {
+            organization: true
+          }
+        }
+      }
+    });
 
-    return this.issueTokens(user);
+    if (!session || session.refreshTokenExpiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+
+    const user = this.toUserInfo(session.user);
+
+    if (this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
+      return null;
+    }
+
+    await this.prisma.authSession.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() }
+    });
+
+    return this.issueTokens(user, session.loginIp || undefined, session.userAgent || undefined);
   }
 
   /** Revoke tokens for an explicit logout action. */
-  logout(token: string) {
-    if (this.isDevAuth() && token === devAccessToken) {
-      this.revokeUserTokens(devUserId);
+  async logout(token: string) {
+    if (!token) {
       return;
     }
 
-    const user = this.accessTokens.get(token);
-
-    if (!user) {
-      return;
-    }
-
-    this.deleteAccessToken(token);
-    this.clearRefreshTokens(user.userId);
+    await this.prisma.authSession.updateMany({
+      where: {
+        accessTokenHash: this.hashToken(token),
+        revokedAt: null
+      },
+      data: { revokedAt: new Date() }
+    });
   }
 
   /** Revoke every issued token for one user. */
-  revokeUserTokens(userId: string) {
-    this.clearAccessTokens(userId);
-    this.clearRefreshTokens(userId);
+  async revokeUserTokens(userId: string) {
+    await this.prisma.authSession.updateMany({
+      where: {
+        userId,
+        revokedAt: null
+      },
+      data: { revokedAt: new Date() }
+    });
   }
 
-  private issueTokens(user: UserInfoWithSession): LoginToken {
-    if (this.isDevAuth() && user.userId === devUserId) {
-      this.accessTokens.set(devAccessToken, user);
-      this.refreshTokens.set(devRefreshToken, user);
-      this.trackAccessToken(user.userId, devAccessToken);
-      this.trackRefreshToken(user.userId, devRefreshToken);
+  private async issueTokens(user: UserInfoWithSession, loginIp?: string, userAgent?: string): Promise<LoginToken> {
+    const useDevFixedToken = this.isDevAuth() && user.userId === devUserId;
+    const token = useDevFixedToken ? devAccessToken : `access_${randomUUID()}`;
+    const refreshToken = useDevFixedToken ? devRefreshToken : `refresh_${randomUUID()}`;
+    const now = new Date();
 
-      return {
-        token: devAccessToken,
-        refreshToken: devRefreshToken
-      };
+    if (useDevFixedToken) {
+      await this.revokeUserTokens(user.userId);
     }
 
-    const token = `access_${randomUUID()}`;
-    const refreshToken = `refresh_${randomUUID()}`;
-
-    this.accessTokens.set(token, user);
-    this.refreshTokens.set(refreshToken, user);
-    this.trackAccessToken(user.userId, token);
-    this.trackRefreshToken(user.userId, refreshToken);
+    await this.prisma.authSession.create({
+      data: {
+        userId: user.userId,
+        accessTokenHash: this.hashToken(token),
+        refreshTokenHash: this.hashToken(refreshToken),
+        accessTokenExpiresAt: new Date(now.getTime() + this.getAccessTokenTtlMs()),
+        refreshTokenExpiresAt: new Date(now.getTime() + this.getRefreshTokenTtlMs()),
+        revokedAt: null,
+        loginIp: loginIp || null,
+        userAgent: userAgent || null,
+        lastUsedAt: now
+      }
+    });
 
     return {
       token,
@@ -265,60 +318,20 @@ export class AuthService {
     return Boolean(user.lockedUntil && new Date(user.lockedUntil).getTime() > Date.now());
   }
 
-  private trackAccessToken(userId: string, token: string) {
-    const tokens = this.userAccessTokens.get(userId) || new Set<string>();
-    tokens.add(token);
-    this.userAccessTokens.set(userId, tokens);
+  private hashToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
   }
 
-  private trackRefreshToken(userId: string, token: string) {
-    const tokens = this.userRefreshTokens.get(userId) || new Set<string>();
-    tokens.add(token);
-    this.userRefreshTokens.set(userId, tokens);
+  private getAccessTokenTtlMs() {
+    return (this.appConfigService?.config.authAccessTokenTtlSeconds || defaultAccessTokenTtlSeconds) * 1000;
   }
 
-  private clearAccessTokens(userId: string) {
-    const tokens = this.userAccessTokens.get(userId);
-
-    if (!tokens) {
-      return;
-    }
-
-    tokens.forEach(token => this.accessTokens.delete(token));
-    this.userAccessTokens.delete(userId);
-  }
-
-  private clearRefreshTokens(userId: string) {
-    const tokens = this.userRefreshTokens.get(userId);
-
-    if (!tokens) {
-      return;
-    }
-
-    tokens.forEach(token => this.refreshTokens.delete(token));
-    this.userRefreshTokens.delete(userId);
-  }
-
-  private deleteAccessToken(token: string) {
-    const user = this.accessTokens.get(token);
-    this.accessTokens.delete(token);
-
-    if (user) {
-      this.userAccessTokens.get(user.userId)?.delete(token);
-    }
-  }
-
-  private deleteRefreshToken(token: string) {
-    const user = this.refreshTokens.get(token);
-    this.refreshTokens.delete(token);
-
-    if (user) {
-      this.userRefreshTokens.get(user.userId)?.delete(token);
-    }
+  private getRefreshTokenTtlMs() {
+    return (this.appConfigService?.config.authRefreshTokenTtlSeconds || defaultRefreshTokenTtlSeconds) * 1000;
   }
 
   private isDevAuth() {
-    return process.env.NODE_ENV !== 'production';
+    return this.appConfigService?.config.authDevFixedTokenEnabled ?? process.env.NODE_ENV !== 'production';
   }
 }
 

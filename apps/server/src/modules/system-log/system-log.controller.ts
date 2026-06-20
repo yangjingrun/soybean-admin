@@ -1,6 +1,8 @@
 import { Controller, ForbiddenException, Get, Headers, Inject, Param, Query } from '@nestjs/common';
 import { ok } from '../../shared/api-response';
+import { CurrentUser } from '../auth/auth.decorators';
 import { AuthService } from '../auth/auth.service';
+import type { UserInfo } from '../auth/auth.types';
 import { SystemLogIdParamDto, SystemLogQueryDto } from './dto/system-log-query.dto';
 import { SystemLogService } from './system-log.service';
 
@@ -12,28 +14,36 @@ export class SystemLogController {
   ) {}
 
   @Get()
-  async list(@Headers('authorization') authorization = '', @Query() query: SystemLogQueryDto) {
-    this.assertSuper(authorization);
+  async list(
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null,
+    @Query() query: SystemLogQueryDto
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemLogService.list(query));
   }
 
   @Get('users')
-  async users(@Headers('authorization') authorization = '') {
-    this.assertSuper(authorization);
+  async users(@Headers('authorization') authorization = '', @CurrentUser() currentUser: UserInfo | null = null) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemLogService.listUsers());
   }
 
   @Get(':id')
-  async detail(@Headers('authorization') authorization = '', @Param() params: SystemLogIdParamDto) {
-    this.assertSuper(authorization);
+  async detail(
+    @Headers('authorization') authorization = '',
+    @CurrentUser() currentUser: UserInfo | null = null,
+    @Param() params: SystemLogIdParamDto
+  ) {
+    await this.assertSuper(authorization, currentUser);
 
     return ok(await this.systemLogService.getById(params.id));
   }
 
-  private assertSuper(authorization: string) {
-    const user = this.authService.getUserByAccessToken(this.extractBearerToken(authorization));
+  private async assertSuper(authorization: string, currentUser: UserInfo | null) {
+    const user = currentUser || (await this.authService.getUserByAccessToken(this.extractBearerToken(authorization)));
 
     if (!user?.roles.includes('R_SUPER')) {
       throw new ForbiddenException('无权访问后端日志');

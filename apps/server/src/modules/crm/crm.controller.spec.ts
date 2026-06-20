@@ -48,7 +48,7 @@ describe('CrmController', () => {
     );
 
     const query = { current: 1, size: 20, keyword: 'abc', status: 'ready' as const };
-    const result = await controller.listAccounts('Bearer token', query);
+    const result = await controller.listAccounts('Bearer token', null, query);
 
     assert.equal(result.code, '0000');
     assert.deepEqual(calls[0].context, {
@@ -74,7 +74,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.getWorkbenchOverview('Bearer token');
+    const result = await controller.getWorkbenchOverview('Bearer token', null);
 
     assert.equal(result.code, '0000');
     assert.equal(result.data.today.pendingReplyCount, 3);
@@ -120,7 +120,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.importLead('Bearer token', {
+    const result = await controller.importLead('Bearer token', null, {
       name: 'ABC Trading',
       websiteUrl: 'https://abc.example',
       country: 'AE',
@@ -151,7 +151,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.getAccountDetail('Bearer token', 'account-1');
+    const result = await controller.getAccountDetail('Bearer token', null, 'account-1');
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].id, 'account-1');
@@ -176,7 +176,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.listBlacklistEntries('Bearer token', { keyword: 'alice' });
+    const result = await controller.listBlacklistEntries('Bearer token', null, { keyword: 'alice' });
 
     assert.equal(result.code, '0000');
     assert.equal(result.data.records[0].maskedEmail, 'a***@example.com');
@@ -199,7 +199,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.removeBlacklistEntry('Bearer token', 'blacklist-1', {
+    const result = await controller.removeBlacklistEntry('Bearer token', null, 'blacklist-1', {
       reason: '客户确认恢复联系'
     });
 
@@ -227,7 +227,7 @@ describe('CrmController', () => {
     );
 
     const dto = { status: 'ready' as const, remark: 'verified' };
-    const result = await controller.updateAccountStatus('Bearer token', 'account-1', dto);
+    const result = await controller.updateAccountStatus('Bearer token', null, 'account-1', dto);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].id, 'account-1');
@@ -249,7 +249,7 @@ describe('CrmController', () => {
     );
 
     const dto = { content: 'Call next week.' };
-    const result = await controller.addAccountNote('Bearer token', 'account-1', dto);
+    const result = await controller.addAccountNote('Bearer token', null, 'account-1', dto);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].id, 'account-1');
@@ -274,7 +274,7 @@ describe('CrmController', () => {
     );
 
     const dto = { reason: 'Not a fit' };
-    const result = await controller.archiveAccount('Bearer token', 'account-1', dto);
+    const result = await controller.archiveAccount('Bearer token', null, 'account-1', dto);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].id, 'account-1');
@@ -298,7 +298,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.restoreAccount('Bearer token', 'account-1');
+    const result = await controller.restoreAccount('Bearer token', null, 'account-1');
 
     assert.equal(result.code, '0000');
     assert.equal(result.data.event.eventType, 'account_restored');
@@ -319,7 +319,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.verifyContactEmail('Bearer token', 'contact-1');
+    const result = await controller.verifyContactEmail('Bearer token', null, 'contact-1');
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].id, 'contact-1');
@@ -342,7 +342,7 @@ describe('CrmController', () => {
     );
 
     const dto = { emailAddress: 'Alice@Gmail.COM' };
-    const result = await withCrmMockEndpointsEnabled(() => controller.mockAuthorizeMailbox('Bearer token', dto));
+    const result = await withCrmMockEndpointsEnabled(() => controller.mockAuthorizeMailbox('Bearer token', null, dto));
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].dto, dto);
@@ -354,11 +354,11 @@ describe('CrmController', () => {
     const controller = new CrmController(createAuthService(), createCrmService());
 
     await assert.rejects(
-      () => controller.mockAuthorizeMailbox('Bearer token', { emailAddress: 'alice@gmail.com' }),
+      () => controller.mockAuthorizeMailbox('Bearer token', null, { emailAddress: 'alice@gmail.com' }),
       ForbiddenException
     );
     await assert.rejects(
-      () => controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' }),
+      () => controller.mockCustomerReply('Bearer token', null, 'message-1', { bodyText: 'Please send details.' }),
       ForbiddenException
     );
   });
@@ -369,7 +369,7 @@ describe('CrmController', () => {
     await assert.rejects(
       () =>
         withCrmMockEndpointsEnabled(() =>
-          controller.mockAuthorizeMailbox('Bearer token', { emailAddress: 'alice@gmail.com' })
+          controller.mockAuthorizeMailbox('Bearer token', null, { emailAddress: 'alice@gmail.com' })
         ),
       ForbiddenException
     );
@@ -382,7 +382,7 @@ describe('CrmController', () => {
       () =>
         withNodeEnv('production', () =>
           withCrmMockEndpointsEnabled(() =>
-            controller.mockAuthorizeMailbox('Bearer token', { emailAddress: 'alice@gmail.com' })
+            controller.mockAuthorizeMailbox('Bearer token', null, { emailAddress: 'alice@gmail.com' })
           )
         ),
       ForbiddenException
@@ -405,7 +405,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = controller.createGmailOAuthUrl('Bearer token');
+    const result = await controller.createGmailOAuthUrl('Bearer token', null);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].userId, 'user-1');
@@ -427,7 +427,7 @@ describe('CrmController', () => {
     );
 
     const dto = { code: 'code-1', state: 'state-1' };
-    const result = await controller.completeGmailOAuthCallback('Bearer token', dto);
+    const result = await controller.completeGmailOAuthCallback('Bearer token', null, dto);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].dto, dto);
@@ -454,7 +454,7 @@ describe('CrmController', () => {
     );
 
     const query = { current: 1, size: 20, keyword: 'gmail', status: 'active' as const };
-    const result = await controller.listMailboxes('Bearer token', query);
+    const result = await controller.listMailboxes('Bearer token', null, query);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].query, query);
@@ -480,8 +480,8 @@ describe('CrmController', () => {
       })
     );
 
-    const paused = await controller.pauseMailbox('Bearer token', 'mailbox-1');
-    const resumed = await controller.resumeMailbox('Bearer token', 'mailbox-1');
+    const paused = await controller.pauseMailbox('Bearer token', null, 'mailbox-1');
+    const resumed = await controller.resumeMailbox('Bearer token', null, 'mailbox-1');
 
     assert.equal(paused.data.mailbox.status, 'paused');
     assert.equal(resumed.data.mailbox.status, 'active');
@@ -510,7 +510,7 @@ describe('CrmController', () => {
       }
     } as never);
 
-    const result = await controller.renewMailboxWatch('Bearer token', 'mailbox-1');
+    const result = await controller.renewMailboxWatch('Bearer token', null, 'mailbox-1');
 
     assert.equal(result.code, '0000');
     assert.ok(result.data);
@@ -543,7 +543,7 @@ describe('CrmController', () => {
       }
     } as never);
 
-    const result = await controller.syncMailboxNow('Bearer token', 'mailbox-1');
+    const result = await controller.syncMailboxNow('Bearer token', null, 'mailbox-1');
 
     assert.equal(result.code, '0000');
     assert.equal(result.data.sync.queued, true);
@@ -572,7 +572,7 @@ describe('CrmController', () => {
     );
 
     const query = { current: 1, size: 20, keyword: 'bearing', status: 'active' as const };
-    const result = await controller.listProductLines('Bearer token', query);
+    const result = await controller.listProductLines('Bearer token', null, query);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].context.organizationId, 'org-1');
@@ -605,9 +605,9 @@ describe('CrmController', () => {
 
     const createDto = { name: 'Bearing Series' };
     const updateDto = { name: 'Premium Bearing Series', status: 'active' as const };
-    const created = await controller.createProductLine('Bearer token', createDto);
-    const updated = await controller.updateProductLine('Bearer token', 'line-1', updateDto);
-    const archived = await controller.archiveProductLine('Bearer token', 'line-1');
+    const created = await controller.createProductLine('Bearer token', null, createDto);
+    const updated = await controller.updateProductLine('Bearer token', null, 'line-1', updateDto);
+    const archived = await controller.archiveProductLine('Bearer token', null, 'line-1');
 
     assert.equal(created.data.productLine.name, 'Bearing Series');
     assert.equal(updated.data.productLine.name, 'Premium Bearing Series');
@@ -667,8 +667,8 @@ describe('CrmController', () => {
       })
     );
 
-    const versions = await controller.listProductLineAiPromptVersions('Bearer token', 'line-1');
-    const restored = await controller.restoreProductLineAiPromptVersion('Bearer token', 'line-1', 'prompt-version-1');
+    const versions = await controller.listProductLineAiPromptVersions('Bearer token', null, 'line-1');
+    const restored = await controller.restoreProductLineAiPromptVersion('Bearer token', null, 'line-1', 'prompt-version-1');
 
     assert.equal(versions.data.records[0].version, 1);
     assert.equal(restored.data.version.version, 2);
@@ -728,11 +728,11 @@ describe('CrmController', () => {
       focusText: 'MOQ and lead time',
       avoidText: 'do not overpromise'
     };
-    const listed = await controller.listPersonaProfiles('Bearer token', { current: 1, size: 20, keyword: 'buyer' });
-    const created = await controller.createPersonaProfile('Bearer token', payload);
-    const updated = await controller.updatePersonaProfile('Bearer token', 'persona-1', { name: 'Buyer lead' });
-    const archived = await controller.archivePersonaProfile('Bearer token', 'persona-1');
-    const defaulted = await controller.setDefaultPersonaProfile('Bearer token', 'persona-1');
+    const listed = await controller.listPersonaProfiles('Bearer token', null, { current: 1, size: 20, keyword: 'buyer' });
+    const created = await controller.createPersonaProfile('Bearer token', null, payload);
+    const updated = await controller.updatePersonaProfile('Bearer token', null, 'persona-1', { name: 'Buyer lead' });
+    const archived = await controller.archivePersonaProfile('Bearer token', null, 'persona-1');
+    const defaulted = await controller.setDefaultPersonaProfile('Bearer token', null, 'persona-1');
 
     assert.equal(listed.data.records.length, 1);
     assert.equal(created.data.personaProfile.name, 'Procurement lead');
@@ -764,7 +764,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.getTemplateDefaults('Bearer token');
+    const result = await controller.getTemplateDefaults('Bearer token', null);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].organizationId, 'org-1');
@@ -822,13 +822,13 @@ describe('CrmController', () => {
         bodyTemplate: step.bodyTemplate
       }))
     };
-    const listed = await controller.listEmailTemplateGroups('Bearer token', { current: 1, size: 20 });
-    const created = await controller.createEmailTemplateGroup('Bearer token', payload);
-    const updated = await controller.updateEmailTemplateGroup('Bearer token', 'template-1', {
+    const listed = await controller.listEmailTemplateGroups('Bearer token', null, { current: 1, size: 20 });
+    const created = await controller.createEmailTemplateGroup('Bearer token', null, payload);
+    const updated = await controller.updateEmailTemplateGroup('Bearer token', null, 'template-1', {
       name: 'Updated sequence'
     });
-    const archived = await controller.archiveEmailTemplateGroup('Bearer token', 'template-1');
-    const defaulted = await controller.setDefaultEmailTemplateGroup('Bearer token', 'template-1');
+    const archived = await controller.archiveEmailTemplateGroup('Bearer token', null, 'template-1');
+    const defaulted = await controller.setDefaultEmailTemplateGroup('Bearer token', null, 'template-1');
 
     assert.equal(listed.data.records.length, 1);
     assert.equal(created.data.templateGroup.name, 'Distributor sequence');
@@ -876,15 +876,15 @@ describe('CrmController', () => {
     );
 
     const dto = { accountId: 'account-1', contactId: 'contact-1', productLineId: 'line-1', mailboxId: 'mailbox-1' };
-    const created = await controller.createSequenceReviewItem('Bearer token', dto);
-    const listed = await controller.listSequenceReviewItems('Bearer token', {
+    const created = await controller.createSequenceReviewItem('Bearer token', null, dto);
+    const listed = await controller.listSequenceReviewItems('Bearer token', null, {
       current: 1,
       size: 20,
       status: 'draft_review_pending',
       messageStatus: 'sent',
       dateScope: 'today'
     });
-    const detail = await controller.getSequenceReviewItem('Bearer token', 'enrollment-1');
+    const detail = await controller.getSequenceReviewItem('Bearer token', null, 'enrollment-1');
 
     assert.equal(created.code, '0000');
     assert.equal(listed.data.records[0].enrollment.id, 'enrollment-1');
@@ -924,7 +924,7 @@ describe('CrmController', () => {
     );
 
     const dto = { enrollmentIds: ['enrollment-1', 'enrollment-2'] };
-    const result = await controller.createAiDraftTask('Bearer token', dto);
+    const result = await controller.createAiDraftTask('Bearer token', null, dto);
 
     assert.equal(result.code, '0000');
     assert.equal(result.data.task.requestedCount, 2);
@@ -965,12 +965,12 @@ describe('CrmController', () => {
       })
     );
 
-    await controller.getCurrentAiDraftTask('Bearer token');
-    await controller.listAiDraftTasks('Bearer token', { current: 1, size: 20 });
-    await controller.getAiDraftTaskDetail('Bearer token', 'ai-draft-task-1');
-    await controller.retryFailedAiDraftTask('Bearer token', 'ai-draft-task-1');
-    await controller.cancelAiDraftTask('Bearer token', 'ai-draft-task-1');
-    const read = await controller.markAiDraftTaskRead('Bearer token', 'ai-draft-task-1');
+    await controller.getCurrentAiDraftTask('Bearer token', null);
+    await controller.listAiDraftTasks('Bearer token', null, { current: 1, size: 20 });
+    await controller.getAiDraftTaskDetail('Bearer token', null, 'ai-draft-task-1');
+    await controller.retryFailedAiDraftTask('Bearer token', null, 'ai-draft-task-1');
+    await controller.cancelAiDraftTask('Bearer token', null, 'ai-draft-task-1');
+    const read = await controller.markAiDraftTaskRead('Bearer token', null, 'ai-draft-task-1');
 
     assert.equal(read.data.task.readAt, '2026-06-20T10:00:00.000Z');
     assert.deepEqual(
@@ -1001,7 +1001,7 @@ describe('CrmController', () => {
       })
     );
 
-    const result = await controller.listStrategyStats('Bearer token');
+    const result = await controller.listStrategyStats('Bearer token', null);
 
     assert.equal(result.code, '0000');
     assert.equal(calls[0].userId, 'user-1');
@@ -1052,14 +1052,14 @@ describe('CrmController', () => {
       })
     );
 
-    const updated = await controller.updateMessageDraft('Bearer token', 'message-1', {
+    const updated = await controller.updateMessageDraft('Bearer token', null, 'message-1', {
       subject: 'Hello',
       bodyText: 'Body'
     });
-    const approved = await controller.approveMessageDraft('Bearer token', 'message-1');
-    const queued = await controller.startFirstMessageSend('Bearer token', 'enrollment-1');
-    const generated = await controller.generateNextDraft('Bearer token', 'enrollment-1');
-    const stopped = await controller.stopSequenceEnrollment('Bearer token', 'enrollment-1');
+    const approved = await controller.approveMessageDraft('Bearer token', null, 'message-1');
+    const queued = await controller.startFirstMessageSend('Bearer token', null, 'enrollment-1');
+    const generated = await controller.generateNextDraft('Bearer token', null, 'enrollment-1');
+    const stopped = await controller.stopSequenceEnrollment('Bearer token', null, 'enrollment-1');
 
     assert.equal(updated.data.message.subject, 'Hello');
     assert.equal(approved.data.enrollment.status, 'ready_to_send');
@@ -1119,8 +1119,8 @@ describe('CrmController', () => {
       })
     );
 
-    const versions = await controller.listMessageDraftVersions('Bearer token', 'message-1');
-    const restored = await controller.restoreMessageDraftVersion('Bearer token', 'message-1', 'draft-version-1');
+    const versions = await controller.listMessageDraftVersions('Bearer token', null, 'message-1');
+    const restored = await controller.restoreMessageDraftVersion('Bearer token', null, 'message-1', 'draft-version-1');
 
     assert.equal(versions.data.versions[0].versionNo, 1);
     assert.equal(restored.data.message.subject, 'Historic subject');
@@ -1186,8 +1186,8 @@ describe('CrmController', () => {
       previousMessages: [{ stepIndex: 1, subject: 'Previous subject', bodyText: 'Previous body' }]
     };
 
-    const preview = await controller.previewAiDraft('Bearer token', input);
-    const regenerated = await controller.regenerateMessageAiDraft('Bearer token', 'message-1');
+    const preview = await controller.previewAiDraft('Bearer token', null, input);
+    const regenerated = await controller.regenerateMessageAiDraft('Bearer token', null, 'message-1');
 
     assert.equal(preview.data.preview.subject, 'AI subject step 2');
     assert.equal(regenerated.data.message.subject, 'AI subject step 1');
@@ -1234,13 +1234,13 @@ describe('CrmController', () => {
       })
     );
 
-    const generated = await controller.batchGenerateNextDrafts('Bearer token', {
+    const generated = await controller.batchGenerateNextDrafts('Bearer token', null, {
       ids: ['enrollment-1', 'enrollment-2']
     });
-    const approved = await controller.batchApproveMessageDrafts('Bearer token', {
+    const approved = await controller.batchApproveMessageDrafts('Bearer token', null, {
       ids: ['enrollment-1', 'enrollment-2']
     });
-    const stopped = await controller.batchStopSequenceEnrollments('Bearer token', {
+    const stopped = await controller.batchStopSequenceEnrollments('Bearer token', null, {
       ids: ['enrollment-1', 'enrollment-2']
     });
 
@@ -1345,20 +1345,20 @@ describe('CrmController', () => {
       })
     );
 
-    const listed = await controller.listInboxThreads('Bearer token', { current: '1', size: '20', status: 'pending' });
-    const detail = await controller.getInboxThread('Bearer token', 'inbox-thread-1');
-    const status = await controller.updateInboxThreadStatus('Bearer token', 'inbox-thread-1', { status: 'handled' });
-    const sentReply = await controller.replyInboxThread('Bearer token', 'inbox-thread-1', { bodyText: 'Thanks.' });
-    const polishedDraft = await controller.polishInboxReplyDraft('Bearer token', 'inbox-thread-1', {
+    const listed = await controller.listInboxThreads('Bearer token', null, { current: '1', size: '20', status: 'pending' });
+    const detail = await controller.getInboxThread('Bearer token', null, 'inbox-thread-1');
+    const status = await controller.updateInboxThreadStatus('Bearer token', null, 'inbox-thread-1', { status: 'handled' });
+    const sentReply = await controller.replyInboxThread('Bearer token', null, 'inbox-thread-1', { bodyText: 'Thanks.' });
+    const polishedDraft = await controller.polishInboxReplyDraft('Bearer token', null, 'inbox-thread-1', {
       topic: 'send catalogue',
       productLineId: 'product-line-1'
     });
-    const savedDraft = await controller.saveInboxReplyDraft('Bearer token', 'inbox-thread-1', {
+    const savedDraft = await controller.saveInboxReplyDraft('Bearer token', null, 'inbox-thread-1', {
       topic: 'send catalogue',
       bodyText: 'Manual reply'
     });
     const reply = await withCrmMockEndpointsEnabled(() =>
-      controller.mockCustomerReply('Bearer token', 'message-1', { bodyText: 'Please send details.' })
+      controller.mockCustomerReply('Bearer token', null, 'message-1', { bodyText: 'Please send details.' })
     );
 
     assert.equal(listed.data.records[0].id, 'inbox-thread-1');
@@ -1385,7 +1385,7 @@ describe('CrmController', () => {
   it('rejects anonymous users', async () => {
     const controller = new CrmController(createAuthService(null), createCrmService());
 
-    await assert.rejects(() => controller.listAccounts('', {}), UnauthorizedException);
+    await assert.rejects(() => controller.listAccounts('', null, {}), UnauthorizedException);
   });
 
   it('reads and saves organization CRM config with the current organization context', async () => {
@@ -1407,8 +1407,8 @@ describe('CrmController', () => {
       })
     );
 
-    const loaded = await controller.getOrganizationConfig('Bearer token');
-    const saved = await controller.saveOrganizationConfig('Bearer token', {
+    const loaded = await controller.getOrganizationConfig('Bearer token', null);
+    const saved = await controller.saveOrganizationConfig('Bearer token', null, {
       allowAdminViewMemberEmailBody: true
     });
 
@@ -1446,8 +1446,8 @@ describe('CrmController', () => {
       })
     );
 
-    const loaded = await controller.getGlobalConfig('Bearer token');
-    const saved = await controller.saveGlobalConfig('Bearer token', {
+    const loaded = await controller.getGlobalConfig('Bearer token', null);
+    const saved = await controller.saveGlobalConfig('Bearer token', null, {
       emailVerificationCooldownDays: 45,
       ownerConcurrentSendLimit: 8,
       followUpDelayDays: {
@@ -1468,9 +1468,9 @@ describe('CrmController', () => {
   it('rejects ordinary users from CRM global config endpoints', async () => {
     const controller = new CrmController(createAuthService(), createCrmService());
 
-    await assert.rejects(() => controller.getGlobalConfig('Bearer token'), ForbiddenException);
+    await assert.rejects(() => controller.getGlobalConfig('Bearer token', null), ForbiddenException);
     await assert.rejects(
-      () => controller.saveGlobalConfig('Bearer token', { emailVerificationCooldownDays: 45 }),
+      () => controller.saveGlobalConfig('Bearer token', null, { emailVerificationCooldownDays: 45 }),
       ForbiddenException
     );
   });
@@ -1491,8 +1491,8 @@ describe('CrmController', () => {
       })
     );
 
-    const loaded = await controller.getAiDraftQueueConfig('Bearer token');
-    const saved = await controller.saveAiDraftQueueConfig('Bearer token', { itemConcurrency: 5 });
+    const loaded = await controller.getAiDraftQueueConfig('Bearer token', null);
+    const saved = await controller.saveAiDraftQueueConfig('Bearer token', null, { itemConcurrency: 5 });
 
     assert.equal(loaded.data.itemConcurrency, 3);
     assert.equal(saved.data.itemConcurrency, 5);
@@ -1502,9 +1502,9 @@ describe('CrmController', () => {
   it('rejects ordinary users from CRM AI draft queue config endpoints', async () => {
     const controller = new CrmController(createAuthService(), createCrmService());
 
-    await assert.rejects(() => controller.getAiDraftQueueConfig('Bearer token'), ForbiddenException);
+    await assert.rejects(() => controller.getAiDraftQueueConfig('Bearer token', null), ForbiddenException);
     await assert.rejects(
-      () => controller.saveAiDraftQueueConfig('Bearer token', { itemConcurrency: 5 }),
+      () => controller.saveAiDraftQueueConfig('Bearer token', null, { itemConcurrency: 5 }),
       ForbiddenException
     );
   });
