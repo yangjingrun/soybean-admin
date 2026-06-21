@@ -1,4 +1,5 @@
 import type { ImportCrmLeadInput } from '../crm/crm.types';
+import { buildCandidateCountryPatch } from './ai-lead-candidate-country';
 
 interface AiLeadCandidateLike {
   title?: unknown;
@@ -29,7 +30,7 @@ export function mapAiLeadTaskResultToCrmImportInputs(taskId: string, result: unk
       {
         name,
         websiteUrl: normalizeString(candidate.website) || normalizeString(candidate.url),
-        ...readCandidateCountry(candidate),
+        ...buildCandidateCountryPatch(candidate),
         sourceTaskId: taskId,
         contact: null,
         sourceSnapshot: buildCandidateSourceSnapshot(candidate)
@@ -56,12 +57,6 @@ function normalizeString(value: unknown) {
 
 function normalizeNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function readCandidateCountry(candidate: AiLeadCandidateLike) {
-  const country = normalizeString(candidate.country);
-
-  return country ? { country } : {};
 }
 
 function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {

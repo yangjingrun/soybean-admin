@@ -19,6 +19,7 @@ import {
 import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 import { toLeadSearchPublicResult } from './ai-lead-search-progress';
 import { AiLeadCrmPrecheckService, type AiLeadCrmPrecheckSummary } from './ai-lead-crm-precheck.service';
+import { applySerperRequestCountry } from './ai-lead-candidate-country';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -295,7 +296,7 @@ export class AiLeadSearchOrchestrator {
           result: serperResult
         });
 
-        const rawCandidates = withRequestCountry(extractCandidates(serperResult), currentRequest);
+        const rawCandidates = applySerperRequestCountry(extractCandidates(serperResult), currentRequest.requestBody);
         const precheckResult = await this.precheckCandidates(rawCandidates, context);
 
         this.addCandidates(precheckResult.acceptedCandidates, candidates, candidateKeys);
@@ -751,30 +752,6 @@ function extractCandidates(result: unknown): AiLeadSearchCandidate[] {
     ...extractPlaceCandidates(record.places, 'place'),
     ...extractPlaceCandidates(record.localResults, 'local')
   ];
-}
-
-/** Attach the Serper request country to candidates before CRM import. */
-function withRequestCountry(candidates: AiLeadSearchCandidate[], request: SearchRequestTrace) {
-  const country = readRequestCountry(request.requestBody);
-
-  if (!country) {
-    return candidates;
-  }
-
-  return candidates.map(candidate => ({
-    ...candidate,
-    country
-  }));
-}
-
-function readRequestCountry(requestBody: SerperRequestBody) {
-  const gl = requestBody.gl?.trim();
-
-  if (gl && /^[a-z]{2}$/i.test(gl)) {
-    return gl.toUpperCase();
-  }
-
-  return requestBody.location?.trim();
 }
 
 function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
