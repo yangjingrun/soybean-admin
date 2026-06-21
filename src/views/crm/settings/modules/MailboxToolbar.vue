@@ -16,12 +16,11 @@ const emit = defineEmits<{
   reset: [];
   search: [];
 }>();
-
 </script>
 
 <template>
   <NSpace vertical :size="10">
-    <NForm :model="filterModel" label-placement="left" label-width="68" size="small">
+    <NForm :model="filterModel" label-placement="left" label-width="68" size="small" :show-feedback="false">
       <NGrid class="app-filter-grid" :cols="24" :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
         <NGi span="24 m:12 xl:8">
           <NFormItem label="关键词">
@@ -45,8 +44,8 @@ const emit = defineEmits<{
           </NFormItem>
         </NGi>
 
-        <NGi span="24 xl:10">
-          <div class="toolbar-actions">
+        <NGi class="app-filter-actions-cell app-filter-actions-cell--wide" span="24 xl:10">
+          <div class="app-filter-actions">
             <NSpace :size="8">
               <NButton size="small" type="primary" :loading="loading" @click="emit('search')">查询</NButton>
               <NButton size="small" @click="emit('reset')">重置</NButton>
@@ -59,12 +58,3 @@ const emit = defineEmits<{
     </NForm>
   </NSpace>
 </template>
-
-<style scoped>
-.toolbar-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 1px;
-}
-
-</style>

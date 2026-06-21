@@ -45,7 +45,7 @@ function clearFilter(key: keyof Api.Crm.LeadFilterModel) {
 <template>
   <NCard :bordered="false" size="small" class="card-wrapper">
     <NSpace vertical :size="10">
-      <NForm :model="filterModel" label-placement="left" label-width="68" size="small">
+      <NForm :model="filterModel" label-placement="left" label-width="68" size="small" :show-feedback="false">
         <NGrid class="app-filter-grid" :cols="24" :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
           <NGi span="24 m:12 xl:8">
             <NFormItem label="关键词">
@@ -69,8 +69,8 @@ function clearFilter(key: keyof Api.Crm.LeadFilterModel) {
             </NFormItem>
           </NGi>
 
-          <NGi span="24 xl:10">
-            <div class="filter-actions">
+          <NGi class="app-filter-actions-cell" span="24 xl:10">
+            <div class="app-filter-actions">
               <NSpace :size="8">
                 <NButton size="small" type="primary" :loading="loading" @click="emit('search')">查询</NButton>
                 <NButton size="small" @click="emit('reset')">重置</NButton>
@@ -91,12 +91,6 @@ function clearFilter(key: keyof Api.Crm.LeadFilterModel) {
 </template>
 
 <style scoped>
-.filter-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 1px;
-}
-
 .active-filter-row {
   display: flex;
   flex-wrap: wrap;
