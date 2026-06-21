@@ -1,10 +1,13 @@
 import { Body, Controller, Get, Headers, Inject, Post, Query, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { fail, ok } from '../../shared/api-response';
+import { requireRequestUserContext } from '../../shared/request-context';
+import type { RequestUserContext } from '../../shared/request-context';
 import { SystemLogService } from '../system-log/system-log.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { Public } from './auth.decorators';
+import { CurrentContext, Public } from './auth.decorators';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -109,6 +112,50 @@ export class AuthController {
     return ok(null);
   }
 
+  @Post('change-password')
+  async changePassword(
+    @CurrentContext() context: RequestUserContext | null = null,
+    @Headers('authorization') authorization = '',
+    @Body() dto: ChangePasswordDto,
+    @Req() request: AuthRequestLike
+  ) {
+    const user = requireRequestUserContext(context);
+
+    try {
+      await this.authService.changePassword(
+        user.userId,
+        dto.oldPassword,
+        dto.newPassword,
+        this.extractBearerToken(authorization)
+      );
+    } catch (error) {
+      await this.recordAuthLog({
+        level: 'warn',
+        status: 'failed',
+        action: 'change-password',
+        message: '用户修改密码失败',
+        request,
+        userId: user.userId,
+        userName: user.userName,
+        errorMessage: getErrorMessage(error)
+      });
+
+      throw error;
+    }
+
+    await this.recordAuthLog({
+      level: 'info',
+      status: 'success',
+      action: 'change-password',
+      message: '用户修改密码',
+      request,
+      userId: user.userId,
+      userName: user.userName
+    });
+
+    return ok(null);
+  }
+
   @Get('error')
   @Public()
   customError(@Query('code') code?: string, @Query('msg') msg?: string) {
@@ -151,6 +198,10 @@ function getHeaderValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || '';
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : '未知错误';
+}
+
 interface AuthRequestLike {
   ip?: string;
   headers: Record<string, string | string[] | undefined>;
@@ -159,7 +210,7 @@ interface AuthRequestLike {
 interface AuthLogInput {
   level: 'info' | 'warn' | 'error';
   status: 'success' | 'failed';
-  action: 'login' | 'logout';
+  action: 'login' | 'logout' | 'change-password';
   message: string;
   request: AuthRequestLike;
   userId?: string;

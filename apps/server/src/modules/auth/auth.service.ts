@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { crmPermissionCodes, normalizePermissionCodes } from '@soybean/shared';
 import * as svgCaptcha from 'svg-captcha';
@@ -7,7 +7,7 @@ import { AppConfigService } from '../app-config/app-config.service';
 import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import type { ImageCaptchaResult, LoginToken, UserInfo } from './auth.types';
-import { verifyPassword } from './password';
+import { hashPassword, verifyPassword } from './password';
 
 const captchaExpiresIn = 300;
 const devAccessToken = 'dev_access_soybean';
@@ -214,6 +214,51 @@ export class AuthService {
       where: {
         userId,
         revokedAt: null
+      },
+      data: { revokedAt: new Date() }
+    });
+  }
+
+  /** Change current user's password after verifying the old password. */
+  async changePassword(userId: string, oldPassword: string, newPassword: string, currentAccessToken: string) {
+    const user = await this.prisma.systemUser.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    const oldPasswordPassed = await verifyPassword(oldPassword, user.passwordSalt, user.passwordHash);
+
+    if (!oldPasswordPassed) {
+      throw new BadRequestException('原密码错误');
+    }
+
+    if (oldPassword === newPassword) {
+      throw new BadRequestException('新密码不能与原密码相同');
+    }
+
+    const password = await hashPassword(newPassword);
+    await this.prisma.systemUser.update({
+      where: { id: userId },
+      data: {
+        passwordHash: password.hash,
+        passwordSalt: password.salt,
+        passwordResetAt: new Date(),
+        failedLoginCount: 0,
+        lockedUntil: null
+      }
+    });
+
+    // Keep the current session usable; revoke old sessions on other devices.
+    await this.prisma.authSession.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        accessTokenHash: {
+          not: this.hashToken(currentAccessToken)
+        }
       },
       data: { revokedAt: new Date() }
     });

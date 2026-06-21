@@ -97,6 +97,92 @@ describe('AuthController', () => {
       }
     });
   });
+
+  it('records current user password change', async () => {
+    const logs = createLogRecorder();
+    const auth = createAuthService({ loginUserId: '1' });
+    const controller = new AuthController(auth, logs.service);
+
+    const result = await controller.changePassword(
+      {
+        userId: '1',
+        userName: 'Super',
+        roles: ['R_SUPER'],
+        organizationId: 'org-default',
+        organizationRole: 'admin'
+      },
+      'Bearer access-token',
+      {
+        oldPassword: '123456',
+        newPassword: 'abc123'
+      },
+      createRequest({ ip: '127.0.0.1', userAgent: 'Chrome' })
+    );
+
+    assert.equal(result.code, '0000');
+    assert.deepEqual(auth.changedPasswords, [
+      {
+        userId: '1',
+        oldPassword: '123456',
+        newPassword: 'abc123',
+        currentAccessToken: 'access-token'
+      }
+    ]);
+    assert.deepEqual(logs.records[0], {
+      level: 'info',
+      status: 'success',
+      module: 'auth',
+      action: 'change-password',
+      message: '用户修改密码',
+      userId: '1',
+      userName: 'Super',
+      metadata: {
+        ip: '127.0.0.1',
+        userAgent: 'Chrome'
+      }
+    });
+  });
+
+  it('records password change failure without swallowing the error', async () => {
+    const logs = createLogRecorder();
+    const auth = createAuthService({ loginUserId: '1', changePasswordError: new Error('原密码错误') });
+    const controller = new AuthController(auth, logs.service);
+
+    await assert.rejects(
+      () =>
+        controller.changePassword(
+          {
+            userId: '1',
+            userName: 'Super',
+            roles: ['R_SUPER'],
+            organizationId: 'org-default',
+            organizationRole: 'admin'
+          },
+          'Bearer access-token',
+          {
+            oldPassword: 'badpwd',
+            newPassword: 'abc123'
+          },
+          createRequest({ ip: '127.0.0.1' })
+        ),
+      /原密码错误/
+    );
+
+    assert.deepEqual(logs.records[0], {
+      level: 'warn',
+      status: 'failed',
+      module: 'auth',
+      action: 'change-password',
+      message: '用户修改密码失败',
+      userId: '1',
+      userName: 'Super',
+      errorMessage: '原密码错误',
+      metadata: {
+        ip: '127.0.0.1',
+        userAgent: ''
+      }
+    });
+  });
 });
 
 function createLogRecorder() {
@@ -112,17 +198,27 @@ function createLogRecorder() {
   };
 }
 
-function createAuthService(options: { loginUserId: string | null }) {
+function createAuthService(options: { loginUserId: string | null; changePasswordError?: Error }) {
   const revokedTokens: string[] = [];
+  const changedPasswords: Array<{
+    userId: string;
+    oldPassword: string;
+    newPassword: string;
+    currentAccessToken: string;
+  }> = [];
   const user = {
     userId: '1',
     userName: 'Super',
     roles: ['R_SUPER'],
-    buttons: []
+    buttons: [],
+    organizationId: 'org-default',
+    organizationName: '默认组织',
+    organizationRole: 'admin'
   };
 
   return {
     revokedTokens,
+    changedPasswords,
     async login() {
       return options.loginUserId
         ? {
@@ -136,8 +232,15 @@ function createAuthService(options: { loginUserId: string | null }) {
     },
     logout(token: string) {
       revokedTokens.push(token);
+    },
+    changePassword(userId: string, oldPassword: string, newPassword: string, currentAccessToken: string) {
+      if (options.changePasswordError) {
+        throw options.changePasswordError;
+      }
+
+      changedPasswords.push({ userId, oldPassword, newPassword, currentAccessToken });
     }
-  } as unknown as AuthService & { revokedTokens: string[] };
+  } as unknown as AuthService & { revokedTokens: string[]; changedPasswords: typeof changedPasswords };
 }
 
 function createRequest(options: { ip: string; userAgent?: string; xForwardedFor?: string }) {

@@ -17,6 +17,11 @@ declare global {
       type UserInfo = SharedUserInfo;
 
       type ImageCaptchaResult = SharedImageCaptchaResult;
+
+      interface ChangePasswordPayload {
+        oldPassword: string;
+        newPassword: string;
+      }
     }
   }
 }

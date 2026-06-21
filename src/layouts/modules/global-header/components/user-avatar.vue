@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, shallowRef } from 'vue';
 import type { VNode } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouterPush } from '@/hooks/common/router';
 import { useSvgIcon } from '@/hooks/common/icon';
 import { $t } from '@/locales';
+import ChangePasswordModal from './change-password/ChangePasswordModal.vue';
 
 defineOptions({
   name: 'UserAvatar'
@@ -13,12 +14,13 @@ defineOptions({
 const authStore = useAuthStore();
 const { routerPushByKey, toLogin } = useRouterPush();
 const { SvgIconVNode } = useSvgIcon();
+const changePasswordVisible = shallowRef(false);
 
 function loginOrRegister() {
   toLogin();
 }
 
-type DropdownKey = 'logout';
+type DropdownKey = 'changePassword' | 'logout';
 
 type DropdownOption =
   | {
@@ -33,6 +35,15 @@ type DropdownOption =
 
 const options = computed(() => {
   const opts: DropdownOption[] = [
+    {
+      label: '修改密码',
+      key: 'changePassword',
+      icon: SvgIconVNode({ icon: 'ph:password', fontSize: 18 })
+    },
+    {
+      type: 'divider',
+      key: 'account-divider'
+    },
     {
       label: $t('common.logout'),
       key: 'logout',
@@ -56,7 +67,9 @@ function logout() {
 }
 
 function handleDropdown(key: DropdownKey) {
-  if (key === 'logout') {
+  if (key === 'changePassword') {
+    changePasswordVisible.value = true;
+  } else if (key === 'logout') {
     logout();
   } else {
     // If your other options are jumps from other routes, they will be directly supported here
@@ -77,6 +90,7 @@ function handleDropdown(key: DropdownKey) {
       </ButtonIcon>
     </div>
   </NDropdown>
+  <ChangePasswordModal v-model:show="changePasswordVisible" />
 </template>
 
 <style scoped></style>

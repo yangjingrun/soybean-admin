@@ -54,6 +54,15 @@ export function fetchLogout() {
   });
 }
 
+/** Change current user's password. */
+export function changeCurrentUserPassword(data: Api.Auth.ChangePasswordPayload) {
+  return request<null>({
+    url: '/auth/change-password',
+    method: 'post',
+    data
+  });
+}
+
 /**
  * return custom backend error
  *

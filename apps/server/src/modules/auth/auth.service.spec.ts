@@ -166,6 +166,33 @@ describe('AuthService', () => {
     assert.equal(await service.getUserByAccessToken(firstToken!.token), null);
     assert.equal(await service.getUserByAccessToken(secondToken!.token), null);
   });
+
+  it('changes password and revokes other sessions only', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({ passwordHash: password.hash, passwordSalt: password.salt });
+    const service = createService([user]);
+    const currentToken = await service.login('Super', '123456');
+    const otherToken = await service.login('Super', '123456');
+    user.failedLoginCount = 3;
+    user.lockedUntil = new Date();
+
+    await service.changePassword(user.id, '123456', 'abc123', currentToken!.token);
+
+    assert.equal(Boolean(await service.getUserByAccessToken(currentToken!.token)), true);
+    assert.equal(await service.getUserByAccessToken(otherToken!.token), null);
+    assert.equal(user.failedLoginCount, 0);
+    assert.equal(user.lockedUntil, null);
+    assert.equal(await service.login('Super', '123456'), null);
+    assert.equal(Boolean(await service.login('Super', 'abc123')), true);
+  });
+
+  it('rejects changing password when old password is wrong', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({ passwordHash: password.hash, passwordSalt: password.salt });
+    const service = createService([user]);
+
+    await assert.rejects(() => service.changePassword(user.id, 'badpwd', 'abc123', ''), /原密码错误/);
+  });
 });
 
 function createService(users: TestSystemUser[], roles?: TestSystemRole[]) {
@@ -184,6 +211,9 @@ function createPrismaStore(users: TestSystemUser[], roles: TestSystemRole[] = cr
         const userName = where.userName.equals.toLowerCase();
 
         return Promise.resolve(users.find(user => user.userName.toLowerCase() === userName) || null);
+      },
+      findUnique({ where }: { where: { id: string } }) {
+        return Promise.resolve(users.find(user => user.id === where.id) || null);
       },
       update({ where, data }: { where: { id: string }; data: Partial<TestSystemUser> }) {
         const user = users.find(item => item.id === where.id);
@@ -262,7 +292,12 @@ function createPrismaStore(users: TestSystemUser[], roles: TestSystemRole[] = cr
         where,
         data
       }: {
-        where: { userId?: string; id?: string; revokedAt?: Date | null };
+        where: {
+          userId?: string;
+          id?: string;
+          revokedAt?: Date | null;
+          accessTokenHash?: { not: string };
+        };
         data: Partial<TestAuthSession>;
       }) {
         const matchedSessions = sessions.filter(session => {
@@ -271,6 +306,10 @@ function createPrismaStore(users: TestSystemUser[], roles: TestSystemRole[] = cr
           }
 
           if (where.id && session.id !== where.id) {
+            return false;
+          }
+
+          if (where.accessTokenHash?.not && session.accessTokenHash === where.accessTokenHash.not) {
             return false;
           }
 
