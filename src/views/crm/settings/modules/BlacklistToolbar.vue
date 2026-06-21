@@ -14,7 +14,7 @@ const emit = defineEmits<{
 
 <template>
   <NForm :model="filterModel" label-placement="left" label-width="68" size="small">
-    <NGrid :cols="24" :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
+    <NGrid class="app-filter-grid" :cols="24" :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
       <NGi span="24 m:12 xl:8">
         <NFormItem label="关键词">
           <NInput
@@ -29,9 +29,9 @@ const emit = defineEmits<{
       <NGi span="24 xl:16">
         <div class="toolbar-actions">
           <NSpace :size="8">
+            <NButton size="small" type="primary" :loading="loading" @click="emit('search')">查询</NButton>
             <NButton size="small" @click="emit('reset')">重置</NButton>
             <NButton size="small" :loading="loading" @click="emit('refresh')">刷新</NButton>
-            <NButton size="small" type="primary" :loading="loading" @click="emit('search')">查询</NButton>
           </NSpace>
         </div>
       </NGi>

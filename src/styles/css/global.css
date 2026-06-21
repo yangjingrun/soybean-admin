@@ -13,3 +13,14 @@ html {
   overflow-x: hidden;
   color: rgb(var(--base-text-color));
 }
+
+.app-filter-grid {
+  --app-filter-item-min-width: 220px;
+
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--app-filter-item-min-width)), 1fr)) !important;
+}
+
+.app-filter-grid > * {
+  min-width: 0;
+  grid-column: span 1 / span 1 !important;
+}
