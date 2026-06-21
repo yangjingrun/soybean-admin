@@ -11,7 +11,7 @@ import {
 import { useAppStore } from '@/store/modules/app';
 import { defaultTransform, useNaivePaginatedTable } from '@/hooks/common/table';
 import TemporaryPasswordModal from './modules/TemporaryPasswordModal.vue';
-import UserOperateDrawer from './modules/UserOperateDrawer.vue';
+import UserOperateModal from './modules/UserOperateModal.vue';
 import UserSearch from './modules/UserSearch.vue';
 import {
   buildSystemUserSearchParams,
@@ -33,7 +33,7 @@ const searchParams = ref<Api.SystemUser.UserSearchParams>({
   current: 1,
   size: 10
 });
-const drawerVisible = shallowRef(false);
+const operateModalVisible = shallowRef(false);
 const operateType = shallowRef<OperateType>('add');
 const editingData = shallowRef<Api.SystemUser.UserListItem | null>(null);
 const submitting = shallowRef(false);
@@ -202,13 +202,13 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
 function handleAdd() {
   operateType.value = 'add';
   editingData.value = null;
-  drawerVisible.value = true;
+  operateModalVisible.value = true;
 }
 
 function handleEdit(row: Api.SystemUser.UserListItem) {
   operateType.value = 'edit';
   editingData.value = row;
-  drawerVisible.value = true;
+  operateModalVisible.value = true;
 }
 
 async function handleSearch() {
@@ -249,7 +249,7 @@ async function handleSubmit(payload: Api.SystemUser.UserCreatePayload | Api.Syst
       window.$message?.success('用户更新成功');
     }
 
-    drawerVisible.value = false;
+    operateModalVisible.value = false;
     await getData();
   } finally {
     submitting.value = false;
@@ -336,8 +336,8 @@ async function handleCopyUserName(userName: string) {
       />
     </NCard>
 
-    <UserOperateDrawer
-      v-model:show="drawerVisible"
+    <UserOperateModal
+      v-model:show="operateModalVisible"
       :operate-type="operateType"
       :row="editingData"
       :loading="submitting"

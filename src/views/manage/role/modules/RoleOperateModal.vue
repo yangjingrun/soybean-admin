@@ -13,7 +13,7 @@ interface RoleOperateFormModel {
   status: Api.SystemRole.RoleStatus;
 }
 
-const drawerVisible = defineModel<boolean>('show', { required: true });
+const modalVisible = defineModel<boolean>('show', { required: true });
 
 const props = defineProps<{
   loading?: boolean;
@@ -29,7 +29,7 @@ const { formRef, restoreValidation, validate } = useNaiveForm();
 const { createRequiredRule } = useFormRules();
 const formModel = reactive<RoleOperateFormModel>(createDefaultFormModel());
 
-const drawerTitle = computed(() => (props.operateType === 'add' ? '新增角色' : '编辑角色'));
+const modalTitle = computed(() => (props.operateType === 'add' ? '新增角色' : '编辑角色'));
 const isEdit = computed(() => props.operateType === 'edit');
 
 const rules: FormRules = {
@@ -39,7 +39,7 @@ const rules: FormRules = {
 };
 
 watch(
-  () => drawerVisible.value,
+  () => modalVisible.value,
   visible => {
     if (!visible) {
       return;
@@ -60,7 +60,7 @@ function createDefaultFormModel(): RoleOperateFormModel {
   };
 }
 
-/** Convert table row data into the drawer form model. */
+/** Convert table row data into the modal form model. */
 function createFormModelFromRow(row: Api.SystemRole.RoleListItem | null): RoleOperateFormModel {
   if (!row) {
     return createDefaultFormModel();
@@ -103,40 +103,39 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <NDrawer v-model:show="drawerVisible" :width="420" placement="right">
-    <NDrawerContent :title="drawerTitle" closable>
-      <NForm ref="formRef" :model="formModel" :rules="rules" label-placement="top" size="small">
-        <NFormItem label="角色名称" path="roleName">
-          <NInput v-model:value="formModel.roleName" clearable placeholder="请输入角色名称" />
-        </NFormItem>
-        <NFormItem label="角色编码" path="roleCode">
-          <NInput
-            v-model:value="formModel.roleCode"
-            :disabled="isEdit"
-            clearable
-            placeholder="例如 R_SALES_MANAGER"
-          />
-        </NFormItem>
-        <NFormItem label="状态" path="status">
-          <NSelect v-model:value="formModel.status" :options="roleStatusOptions" placeholder="请选择状态" />
-        </NFormItem>
-        <NFormItem label="描述" path="roleDesc">
-          <NInput
-            v-model:value="formModel.roleDesc"
-            type="textarea"
-            clearable
-            placeholder="请输入角色说明"
-            :autosize="{ minRows: 3, maxRows: 5 }"
-          />
-        </NFormItem>
-      </NForm>
+  <NModal v-model:show="modalVisible" preset="card" :title="modalTitle" :bordered="false" class="role-operate-modal">
+    <NForm ref="formRef" :model="formModel" :rules="rules" label-placement="top" size="small">
+      <NFormItem label="角色名称" path="roleName">
+        <NInput v-model:value="formModel.roleName" clearable placeholder="请输入角色名称" />
+      </NFormItem>
+      <NFormItem label="角色编码" path="roleCode">
+        <NInput v-model:value="formModel.roleCode" :disabled="isEdit" clearable placeholder="例如 R_SALES_MANAGER" />
+      </NFormItem>
+      <NFormItem label="状态" path="status">
+        <NSelect v-model:value="formModel.status" :options="roleStatusOptions" placeholder="请选择状态" />
+      </NFormItem>
+      <NFormItem label="描述" path="roleDesc">
+        <NInput
+          v-model:value="formModel.roleDesc"
+          type="textarea"
+          clearable
+          placeholder="请输入角色说明"
+          :autosize="{ minRows: 3, maxRows: 5 }"
+        />
+      </NFormItem>
+    </NForm>
 
-      <template #footer>
-        <NSpace justify="end" :size="8">
-          <NButton size="small" :disabled="loading" @click="drawerVisible = false">取消</NButton>
-          <NButton size="small" type="primary" :loading="loading" @click="handleSubmit">保存</NButton>
-        </NSpace>
-      </template>
-    </NDrawerContent>
-  </NDrawer>
+    <template #footer>
+      <NSpace justify="end" :size="8">
+        <NButton size="small" :disabled="loading" @click="modalVisible = false">取消</NButton>
+        <NButton size="small" type="primary" :loading="loading" @click="handleSubmit">保存</NButton>
+      </NSpace>
+    </template>
+  </NModal>
 </template>
+
+<style scoped>
+.role-operate-modal {
+  width: min(480px, calc(100vw - 32px));
+}
+</style>

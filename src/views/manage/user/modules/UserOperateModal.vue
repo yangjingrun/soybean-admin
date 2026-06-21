@@ -19,7 +19,7 @@ interface UserOperateFormModel {
   remark: string;
 }
 
-const drawerVisible = defineModel<boolean>('show', { required: true });
+const modalVisible = defineModel<boolean>('show', { required: true });
 
 const props = defineProps<{
   operateType: OperateType;
@@ -37,7 +37,7 @@ const { createRequiredRule, patternRules } = useFormRules();
 const formModel = reactive<UserOperateFormModel>(createDefaultFormModel());
 const roleOptions = shallowRef<Array<{ label: string; value: Api.SystemUser.UserRole }>>(userRoleOptions);
 
-const drawerTitle = computed(() => (props.operateType === 'add' ? '新增用户' : '编辑用户'));
+const modalTitle = computed(() => (props.operateType === 'add' ? '新增用户' : '编辑用户'));
 
 const rules: FormRules = {
   userName: [createRequiredRule('请输入用户名'), patternRules.userName],
@@ -56,7 +56,7 @@ const rules: FormRules = {
 };
 
 watch(
-  () => drawerVisible.value,
+  () => modalVisible.value,
   visible => {
     if (!visible) {
       return;
@@ -83,7 +83,7 @@ function createDefaultFormModel(): UserOperateFormModel {
   };
 }
 
-/** Convert a table row into the editable drawer form model. */
+/** Convert a table row into the editable modal form model. */
 function createFormModelFromRow(row: Api.SystemUser.UserListItem | null): UserOperateFormModel {
   if (!row) {
     return createDefaultFormModel();
@@ -109,7 +109,7 @@ function normalizeOptionalText(value: string) {
   return text || null;
 }
 
-/** Convert the drawer form model to the backend create/update payload. */
+/** Convert the modal form model to the backend create/update payload. */
 function createPayload(): Api.SystemUser.UserCreatePayload {
   return {
     userName: formModel.userName.trim(),
@@ -145,78 +145,70 @@ async function loadRoleOptions() {
 </script>
 
 <template>
-  <NDrawer v-model:show="drawerVisible" :width="520" placement="right">
-    <NDrawerContent :title="drawerTitle" closable>
-      <NForm ref="formRef" :model="formModel" :rules="rules" label-placement="top" size="small">
-        <NGrid :cols="24" :x-gap="12">
-          <NGi span="24 m:12">
-            <NFormItem label="用户名" path="userName">
-              <NInput v-model:value="formModel.userName" clearable placeholder="请输入登录账号" />
-            </NFormItem>
-          </NGi>
-          <NGi span="24 m:12">
-            <NFormItem label="昵称" path="nickName">
-              <NInput v-model:value="formModel.nickName" clearable placeholder="请输入昵称" />
-            </NFormItem>
-          </NGi>
-          <NGi span="24 m:12">
-            <NFormItem label="手机" path="phone">
-              <NInput v-model:value="formModel.phone" clearable placeholder="请输入手机号" />
-            </NFormItem>
-          </NGi>
-          <NGi span="24 m:12">
-            <NFormItem label="邮箱" path="email">
-              <NInput v-model:value="formModel.email" clearable placeholder="请输入邮箱" />
-            </NFormItem>
-          </NGi>
-          <NGi span="24">
-            <NFormItem label="角色" path="roles">
-              <NSelect
-                v-model:value="formModel.roles"
-                :options="roleOptions"
-                multiple
-                clearable
-                placeholder="请选择角色"
-              />
-            </NFormItem>
-          </NGi>
-          <NGi span="24 m:12">
-            <NFormItem label="状态" path="status">
-              <NSelect v-model:value="formModel.status" :options="userStatusOptions" placeholder="请选择状态" />
-            </NFormItem>
-          </NGi>
-          <NGi span="24 m:12">
-            <NFormItem label="有效期" path="expireAt">
-              <NDatePicker v-model:value="formModel.expireAt" type="datetime" clearable class="full-input" />
-            </NFormItem>
-          </NGi>
-          <NGi span="24">
-            <NFormItem label="公司" path="companyName">
-              <NInput v-model:value="formModel.companyName" clearable placeholder="请输入公司名称" />
-            </NFormItem>
-          </NGi>
-          <NGi span="24">
-            <NFormItem label="备注" path="remark">
-              <NInput
-                v-model:value="formModel.remark"
-                type="textarea"
-                clearable
-                placeholder="请输入备注"
-                :autosize="{ minRows: 3, maxRows: 5 }"
-              />
-            </NFormItem>
-          </NGi>
-        </NGrid>
-      </NForm>
+  <NModal v-model:show="modalVisible" preset="card" :title="modalTitle" :bordered="false" class="user-operate-modal">
+    <NForm ref="formRef" :model="formModel" :rules="rules" label-placement="top" size="small">
+      <NGrid :cols="24" :x-gap="12">
+        <NGi span="24 m:12">
+          <NFormItem label="用户名" path="userName">
+            <NInput v-model:value="formModel.userName" clearable placeholder="请输入登录账号" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="昵称" path="nickName">
+            <NInput v-model:value="formModel.nickName" clearable placeholder="请输入昵称" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="手机" path="phone">
+            <NInput v-model:value="formModel.phone" clearable placeholder="请输入手机号" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="邮箱" path="email">
+            <NInput v-model:value="formModel.email" clearable placeholder="请输入邮箱" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24">
+          <NFormItem label="角色" path="roles">
+            <NSelect v-model:value="formModel.roles" :options="roleOptions" multiple clearable placeholder="请选择角色" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="状态" path="status">
+            <NSelect v-model:value="formModel.status" :options="userStatusOptions" placeholder="请选择状态" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="有效期" path="expireAt">
+            <NDatePicker v-model:value="formModel.expireAt" type="datetime" clearable class="full-input" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24">
+          <NFormItem label="公司" path="companyName">
+            <NInput v-model:value="formModel.companyName" clearable placeholder="请输入公司名称" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24">
+          <NFormItem label="备注" path="remark">
+            <NInput
+              v-model:value="formModel.remark"
+              type="textarea"
+              clearable
+              placeholder="请输入备注"
+              :autosize="{ minRows: 3, maxRows: 5 }"
+            />
+          </NFormItem>
+        </NGi>
+      </NGrid>
+    </NForm>
 
-      <template #footer>
-        <NSpace justify="end" :size="8">
-          <NButton size="small" :disabled="loading" @click="drawerVisible = false">取消</NButton>
-          <NButton size="small" type="primary" :loading="loading" @click="handleSubmit">保存</NButton>
-        </NSpace>
-      </template>
-    </NDrawerContent>
-  </NDrawer>
+    <template #footer>
+      <NSpace justify="end" :size="8">
+        <NButton size="small" :disabled="loading" @click="modalVisible = false">取消</NButton>
+        <NButton size="small" type="primary" :loading="loading" @click="handleSubmit">保存</NButton>
+      </NSpace>
+    </template>
+  </NModal>
 </template>
 
 <style scoped>
@@ -224,4 +216,7 @@ async function loadRoleOptions() {
   width: 100%;
 }
 
+.user-operate-modal {
+  width: min(680px, calc(100vw - 32px));
+}
 </style>

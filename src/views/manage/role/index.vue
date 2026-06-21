@@ -7,7 +7,7 @@ import {
   updateSystemRole,
   updateSystemRolePermissions
 } from '@/service/api/system-role';
-import RoleOperateDrawer from './modules/RoleOperateDrawer.vue';
+import RoleOperateModal from './modules/RoleOperateModal.vue';
 import RolePermissionPanel from './modules/RolePermissionPanel.vue';
 import RoleSearch from './modules/RoleSearch.vue';
 import RoleTable from './modules/RoleTable.vue';
@@ -19,7 +19,7 @@ const filterModel = ref(createDefaultRoleFilterModel());
 const records = shallowRef<Api.SystemRole.RoleListItem[]>([]);
 const selectedRoleId = shallowRef<string | null>(null);
 const editingRole = shallowRef<Api.SystemRole.RoleListItem | null>(null);
-const drawerVisible = shallowRef(false);
+const operateModalVisible = shallowRef(false);
 const operateType = shallowRef<OperateType>('add');
 const draftPermissions = shallowRef<Api.SystemRole.PermissionCode[]>([]);
 const loading = shallowRef(false);
@@ -90,13 +90,13 @@ function handleSelectRole(role: Api.SystemRole.RoleListItem | null) {
 function handleAdd() {
   operateType.value = 'add';
   editingRole.value = null;
-  drawerVisible.value = true;
+  operateModalVisible.value = true;
 }
 
 function handleEdit(role: Api.SystemRole.RoleListItem) {
   operateType.value = 'edit';
   editingRole.value = role;
-  drawerVisible.value = true;
+  operateModalVisible.value = true;
 }
 
 async function handleSubmit(payload: Api.SystemRole.RoleCreatePayload | Api.SystemRole.RoleUpdatePayload) {
@@ -124,7 +124,7 @@ async function handleSubmit(payload: Api.SystemRole.RoleCreatePayload | Api.Syst
       records.value = records.value.map(role => (role.id === data.id ? data : role));
     }
 
-    drawerVisible.value = false;
+    operateModalVisible.value = false;
     await fetchRoles();
   } finally {
     submitting.value = false;
@@ -191,8 +191,8 @@ onMounted(fetchRoles);
       />
     </div>
 
-    <RoleOperateDrawer
-      v-model:show="drawerVisible"
+    <RoleOperateModal
+      v-model:show="operateModalVisible"
       :operate-type="operateType"
       :row="editingRole"
       :loading="submitting"
