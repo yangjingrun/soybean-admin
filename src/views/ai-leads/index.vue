@@ -128,7 +128,7 @@ const workflowSteps = computed(() => {
     {
       key: 'crm',
       title: '导入 CRM',
-      description: hasCompletedSearch ? '筛选候选客户并导入线索库' : '采集完成后处理候选客户',
+      description: hasCompletedSearch ? '筛选候选客户并导入客户管理' : '采集完成后处理候选客户',
       state: hasCompletedSearch ? 'active' : 'wait'
     }
   ] satisfies Array<{

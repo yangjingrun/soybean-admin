@@ -38,13 +38,13 @@ const selectedProductLineAiWritingStatus = computed(() =>
   <NModal v-model:show="show" preset="card" title="生成首封草稿" class="max-w-560px">
     <NSpin :show="loading">
       <NForm :model="formModel" label-placement="top">
-        <NFormItem label="线索">
+        <NFormItem label="客户">
           <NSelect
             :value="formModel.accountId"
             filterable
             clearable
             :options="accountOptions"
-            placeholder="选择 CRM 线索"
+            placeholder="选择 CRM 客户"
             @update:value="emit('accountChange', $event)"
           />
         </NFormItem>

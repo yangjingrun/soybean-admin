@@ -1,8 +1,8 @@
 <script setup lang="ts">
 const basicRules = [
   {
-    label: '线索隔离',
-    value: '成员只能看自己的线索和邮件正文'
+    label: '客户隔离',
+    value: '成员只能看自己的客户和邮件正文'
   },
   {
     label: '主记录去重',

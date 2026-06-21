@@ -175,7 +175,7 @@ export function useLeadTable() {
         return;
       }
 
-      message.success(data.contact ? '线索和联系人已导入' : '线索已导入');
+      message.success(data.contact ? '客户和联系人已导入' : '客户已导入');
       notifyCrmWorkbenchChanged();
       importVisible.value = false;
       pagination.current = 1;
@@ -321,8 +321,8 @@ export function useLeadTable() {
 
   function handleArchiveLead(record: Api.Crm.LeadRecord) {
     dialog.warning({
-      title: '确认归档线索',
-      content: `确认归档“${record.name}”？归档后线索会进入已归档状态。`,
+      title: '确认归档客户',
+      content: `确认归档“${record.name}”？归档后客户会进入已归档状态。`,
       positiveText: '归档',
       negativeText: '取消',
       onPositiveClick: () => archiveLead(record)
@@ -331,8 +331,8 @@ export function useLeadTable() {
 
   function handleRestoreLead(record: Api.Crm.LeadRecord) {
     dialog.warning({
-      title: '确认恢复线索',
-      content: `确认恢复“${record.name}”？恢复后线索会回到候选状态。`,
+      title: '确认恢复客户',
+      content: `确认恢复“${record.name}”？恢复后客户会回到候选状态。`,
       positiveText: '恢复',
       negativeText: '取消',
       onPositiveClick: () => restoreLead(record)
@@ -350,7 +350,7 @@ export function useLeadTable() {
         return;
       }
 
-      message.success('线索已归档');
+      message.success('客户已归档');
       notifyCrmWorkbenchChanged();
 
       if (selectedLeadId.value === record.id) {
@@ -374,7 +374,7 @@ export function useLeadTable() {
         return;
       }
 
-      message.success('线索已恢复');
+      message.success('客户已恢复');
       notifyCrmWorkbenchChanged();
       await loadLeads();
 

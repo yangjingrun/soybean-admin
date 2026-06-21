@@ -193,7 +193,7 @@ function handleSubmitNote() {
 /** Submit the selected status and optional remark to the parent action layer. */
 function handleSubmitStatus() {
   if (!statusForm.status) {
-    message.warning('请选择线索状态');
+    message.warning('请选择客户状态');
     return;
   }
 
@@ -208,7 +208,7 @@ function handleSubmitStatus() {
 
 <template>
   <NDrawer v-model:show="drawerVisible" :width="720" placement="right">
-    <NDrawerContent title="线索详情" closable>
+    <NDrawerContent title="客户详情" closable>
       <NSpin :show="loading">
         <NSpace v-if="account" vertical :size="16">
           <div class="drawer-toolbar">
@@ -243,7 +243,7 @@ function handleSubmitStatus() {
           >
             <NSpace vertical :size="8">
               <div class="historical-touch-content">
-                {{ archivedMatchGroups[0].event.content || '该线索命中过往归档记录，请确认是否需要重新开发。' }}
+                {{ archivedMatchGroups[0].event.content || '该客户命中过往归档记录，请确认是否需要重新开发。' }}
               </div>
               <NTag v-if="archivedMatchCount" size="small" type="warning" :bordered="false">
                 命中 {{ archivedMatchCount }} 条组织归档指纹
@@ -259,7 +259,7 @@ function handleSubmitStatus() {
                   </NTag>
                   <span class="historical-match-value">{{ formatLeadText(match.maskedValue) }}</span>
                   <span class="lead-secondary-text">归档于 {{ formatLeadDate(match.archivedAt) }}</span>
-                  <span v-if="match.accountName" class="lead-secondary-text">原线索：{{ match.accountName }}</span>
+                  <span v-if="match.accountName" class="lead-secondary-text">原客户：{{ match.accountName }}</span>
                 </div>
               </div>
             </NSpace>
@@ -376,7 +376,7 @@ function handleSubmitStatus() {
             <NEmpty v-else description="暂无时间线" />
           </div>
         </NSpace>
-        <NEmpty v-else description="请选择线索" />
+        <NEmpty v-else description="请选择客户" />
       </NSpin>
     </NDrawerContent>
   </NDrawer>

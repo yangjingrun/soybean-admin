@@ -46,7 +46,7 @@ const emit = defineEmits<{
               <NSpace :size="8">
                 <NButton size="small" type="primary" :loading="loading" @click="emit('search')">查询</NButton>
                 <NButton size="small" @click="emit('reset')">重置</NButton>
-                <NButton size="small" type="primary" ghost @click="emit('add')">新增线索</NButton>
+                <NButton size="small" type="primary" ghost @click="emit('add')">新增客户</NButton>
               </NSpace>
             </div>
           </NGi>

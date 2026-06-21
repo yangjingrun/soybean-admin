@@ -63,7 +63,7 @@ const columns = computed<DataTableColumns<Api.Crm.InboxThreadRecord>>(() => [
   },
   {
     key: 'relation',
-    title: '关联线索 / 联系人',
+    title: '关联客户 / 联系人',
     minWidth: 220,
     render: row => renderRelation(row)
   },

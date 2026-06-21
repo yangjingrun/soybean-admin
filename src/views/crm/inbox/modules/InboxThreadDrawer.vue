@@ -123,7 +123,7 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
           <div class="drawer-section">
             <div class="section-title">关联记录</div>
             <NDescriptions :column="1" label-placement="left" bordered size="small">
-              <NDescriptionsItem label="线索">{{ account.name }}</NDescriptionsItem>
+              <NDescriptionsItem label="客户">{{ account.name }}</NDescriptionsItem>
               <NDescriptionsItem label="联系人">
                 {{ formatInboxText(contact?.fullName || contact?.maskedEmail) }}
               </NDescriptionsItem>

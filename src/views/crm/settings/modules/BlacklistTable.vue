@@ -22,7 +22,7 @@ const emit = defineEmits<{
 
 function renderSource(row: Api.Crm.BlacklistRecord) {
   const values = [
-    row.sourceAccountId ? `线索 ${row.sourceAccountId}` : '',
+    row.sourceAccountId ? `客户 ${row.sourceAccountId}` : '',
     row.sourceContactId ? `联系人 ${row.sourceContactId}` : '',
     row.sourceMessageId ? `邮件 ${row.sourceMessageId}` : ''
   ].filter(Boolean);

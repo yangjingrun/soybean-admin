@@ -137,7 +137,7 @@ async function saveGlobalConfig() {
       </NAlert>
 
       <NAlert v-if="!canManageGlobalConfig" type="warning" :bordered="false">
-        当前账号没有 CRM 全局配置权限；组织用户的线索与邮件数据仍按组织和负责人隔离。
+        当前账号没有 CRM 全局配置权限；组织用户的客户与邮件数据仍按组织和负责人隔离。
       </NAlert>
 
       <template v-else>

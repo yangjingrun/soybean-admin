@@ -124,7 +124,7 @@ describe('crm lead shared helpers', () => {
     assert.deepEqual(
       stats.map(stat => [stat.label, stat.value]),
       [
-        ['匹配线索', 23],
+        ['匹配客户', 23],
         ['待处理', 2],
         ['可开发', 1],
         ['跟进中', 2]
@@ -140,7 +140,7 @@ describe('crm lead shared helpers', () => {
     });
     assert.deepEqual(getLeadNextAction('missing_contact'), {
       label: '缺联系人',
-      description: '补齐联系人或重新获取线索',
+      description: '补齐联系人或重新获取客户信息',
       type: 'warning'
     });
     assert.deepEqual(getLeadNextAction('email_verification_pending'), {

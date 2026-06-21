@@ -88,7 +88,7 @@ const leadNextActionMap: Record<Api.Crm.CrmAccountStatus, LeadNextAction> = {
   },
   missing_contact: {
     label: '缺联系人',
-    description: '补齐联系人或重新获取线索',
+    description: '补齐联系人或重新获取客户信息',
     type: 'warning'
   },
   email_verification_pending: {
@@ -298,7 +298,7 @@ export function buildLeadQueueStats(records: Api.Crm.LeadRecord[], total: number
   return [
     {
       key: 'matched',
-      label: '匹配线索',
+      label: '匹配客户',
       value: total
     },
     {

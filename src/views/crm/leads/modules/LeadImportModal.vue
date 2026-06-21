@@ -47,7 +47,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <NModal v-model:show="visible" preset="card" title="新增线索" class="lead-import-modal">
+  <NModal v-model:show="visible" preset="card" title="新增客户" class="lead-import-modal">
     <NForm ref="formRef" :model="formModel" :rules="rules" label-placement="left" :label-width="96">
       <NGrid :cols="24" :x-gap="12" responsive="screen" item-responsive>
         <NGi span="24 m:12">

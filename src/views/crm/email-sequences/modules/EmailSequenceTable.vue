@@ -85,7 +85,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
     },
     {
       key: 'account',
-      title: '线索',
+      title: '客户',
       minWidth: 220,
       render: row =>
         h('div', { class: 'sequence-cell' }, [

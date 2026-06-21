@@ -168,7 +168,7 @@ export function useSequenceCreateFlow(options: UseSequenceCreateFlowOptions) {
 
   async function handleCreateReviewItem() {
     if (!createForm.accountId || !createForm.contactId) {
-      message.warning('请选择线索和联系人');
+      message.warning('请选择客户和联系人');
       return;
     }
 

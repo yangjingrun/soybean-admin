@@ -25,7 +25,7 @@ const emit = defineEmits<{
               <NInput
                 v-model:value="filterModel.keyword"
                 clearable
-                placeholder="主题 / 线索 / 联系人"
+                placeholder="主题 / 客户 / 联系人"
                 @keyup.enter="emit('search')"
               />
             </NFormItem>

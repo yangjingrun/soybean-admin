@@ -179,7 +179,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="线索列表">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="客户列表">
     <NSpace vertical :size="12">
       <NDataTable
         :columns="columns"
@@ -191,7 +191,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
         remote
       >
         <template #empty>
-          <NEmpty description="暂无线索" />
+          <NEmpty description="暂无客户" />
         </template>
       </NDataTable>
 
