@@ -13,6 +13,13 @@ export interface PromptValidationSummary {
   label: string;
 }
 
+export interface PromptPublishGuardState {
+  hasDraft: boolean;
+  isDirty: boolean;
+  hasValidationResult: boolean;
+  validationPassed: boolean;
+}
+
 export interface PromptSectionAnchor {
   key: PromptSectionKey;
   label: string;
@@ -222,4 +229,25 @@ export function formatLatestPromptTestRunForCopy(run: Api.AiGateway.AiPromptTest
   }
 
   return lines.join('\n').trim();
+}
+
+/** Resolves the clearest next step before a draft can be published. */
+export function resolvePromptPublishBlockReason(state: PromptPublishGuardState): string {
+  if (state.isDirty) {
+    return '请先保存草稿';
+  }
+
+  if (!state.hasDraft) {
+    return '请先保存草稿后再发布';
+  }
+
+  if (!state.hasValidationResult) {
+    return '请先重新校验或运行测试';
+  }
+
+  if (!state.validationPassed) {
+    return '请先修复校验问题后再发布';
+  }
+
+  return '';
 }

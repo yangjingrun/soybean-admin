@@ -10,6 +10,7 @@ import {
   testAiPromptDraft,
   validateAiPromptDraft
 } from '@/service/api';
+import { resolvePromptPublishBlockReason } from './shared';
 import type { PromptFocusSectionRequest, PromptSectionKey } from './shared';
 
 const defaultTestInput = '我是河北卖轴承的，想找纽约周边有门店和电话的轴承经销商';
@@ -50,8 +51,17 @@ export function usePromptSettingsPage() {
   const canSaveDraft = computed(() => Boolean(systemPrompt.value.trim()) && !savingDraft.value);
   const canValidate = computed(() => Boolean(systemPrompt.value.trim()) && !validating.value);
   const canTest = computed(() => Boolean(systemPrompt.value.trim() && testInput.value.trim()) && !testing.value);
-  const canPublish = computed(
-    () => Boolean(detail.value?.draft && !isDirty.value && validationResult.value?.ok) && !publishing.value
+  const publishBlockedReason = computed(() =>
+    resolvePromptPublishBlockReason({
+      hasDraft: Boolean(detail.value?.draft),
+      isDirty: isDirty.value,
+      hasValidationResult: Boolean(validationResult.value),
+      validationPassed: Boolean(validationResult.value?.ok)
+    })
+  );
+  const canPublish = computed(() => !publishBlockedReason.value && !publishing.value);
+  const publishReadinessHint = computed(() =>
+    publishBlockedReason.value ? publishBlockedReason.value : '当前草稿已满足发布条件'
   );
 
   /** Loads built-in prompt steps and opens the selected prompt detail. */
@@ -183,7 +193,12 @@ export function usePromptSettingsPage() {
   }
 
   async function publishCurrentDraft() {
-    if (!canPublish.value) {
+    if (publishBlockedReason.value) {
+      message.warning(publishBlockedReason.value);
+      return;
+    }
+
+    if (publishing.value) {
       return;
     }
 
@@ -272,6 +287,7 @@ export function usePromptSettingsPage() {
     canValidate,
     canTest,
     canPublish,
+    publishReadinessHint,
     loadSteps,
     selectPrompt,
     validateCurrentPrompt,

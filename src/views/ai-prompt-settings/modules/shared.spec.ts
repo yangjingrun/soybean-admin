@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   buildPromptSectionAnchors,
   formatLatestPromptTestRunForCopy,
+  resolvePromptPublishBlockReason,
   resolvePromptValidationSection,
   resolvePromptLineStartOffset,
   summarizePromptValidation,
@@ -178,6 +179,58 @@ searchExecutionRules
         createdAt: ''
       }),
       ['测试结果：失败', '错误信息：模型输出未通过提示词规则校验', '校验问题：', '- 顶层字段完整：缺少 buyerSegments', '', '{', '  "ok": true', '}'].join('\n')
+    );
+  });
+
+  it('resolves publish blocker message by priority', () => {
+    assert.equal(
+      resolvePromptPublishBlockReason({
+        hasDraft: true,
+        isDirty: true,
+        hasValidationResult: true,
+        validationPassed: true
+      }),
+      '请先保存草稿'
+    );
+
+    assert.equal(
+      resolvePromptPublishBlockReason({
+        hasDraft: false,
+        isDirty: false,
+        hasValidationResult: true,
+        validationPassed: true
+      }),
+      '请先保存草稿后再发布'
+    );
+
+    assert.equal(
+      resolvePromptPublishBlockReason({
+        hasDraft: true,
+        isDirty: false,
+        hasValidationResult: false,
+        validationPassed: false
+      }),
+      '请先重新校验或运行测试'
+    );
+
+    assert.equal(
+      resolvePromptPublishBlockReason({
+        hasDraft: true,
+        isDirty: false,
+        hasValidationResult: true,
+        validationPassed: false
+      }),
+      '请先修复校验问题后再发布'
+    );
+
+    assert.equal(
+      resolvePromptPublishBlockReason({
+        hasDraft: true,
+        isDirty: false,
+        hasValidationResult: true,
+        validationPassed: true
+      }),
+      ''
     );
   });
 });

@@ -12,6 +12,7 @@ const props = defineProps<{
   canValidate?: boolean;
   canTest?: boolean;
   canPublish?: boolean;
+  publishReadinessHint?: string;
   savingDraft?: boolean;
   validating?: boolean;
   testing?: boolean;
@@ -206,10 +207,17 @@ async function copyLatestTestRun() {
         <NInput v-model:value="changeNote" placeholder="变更说明，例如：收紧 Maps q 规则" />
         <NSpace :size="8" justify="end">
           <NButton :loading="savingDraft" :disabled="!canSaveDraft" @click="emit('saveDraft')">保存草稿</NButton>
-          <NButton type="primary" :loading="publishing" :disabled="!canPublish" @click="emit('publish')">
+          <NButton type="primary" :loading="publishing" :disabled="publishing" @click="emit('publish')">
             发布全局版本
           </NButton>
         </NSpace>
+        <NText
+          depth="3"
+          class="publish-panel__publish-hint"
+          :type="canPublish ? 'success' : 'warning'"
+        >
+          {{ publishReadinessHint }}
+        </NText>
       </section>
     </div>
   </NCard>
@@ -240,6 +248,11 @@ async function copyLatestTestRun() {
   margin: 4px 0 0;
   color: var(--prompt-workbench-subtle);
   font-size: 13px;
+}
+
+.publish-panel__publish-hint {
+  display: block;
+  margin-top: 8px;
 }
 
 .publish-panel__stats {

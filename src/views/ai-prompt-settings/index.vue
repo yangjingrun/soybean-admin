@@ -60,6 +60,7 @@ watch(
         :can-validate="page.canValidate.value"
         :can-test="page.canTest.value"
         :can-publish="page.canPublish.value"
+        :publish-readiness-hint="page.publishReadinessHint.value"
         :saving-draft="page.savingDraft.value"
         :validating="page.validating.value"
         :testing="page.testing.value"
