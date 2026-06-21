@@ -87,16 +87,31 @@ export function formatUserDateTime(value: string | null) {
 
 /** Format nullable backend ISO date for compact table display. */
 export function formatUserDate(value: string | null) {
-  return value ? dayjs(value).format('YYYY-MM-DD') : '长期有效';
+  return value ? dayjs(value).format('YYYY-MM-DD') : '';
 }
 
 /** Read the row's expiration display state from backend flags. */
 export function getUserExpirationState(row: Api.SystemUser.UserListItem) {
-  const status: Api.SystemUser.UserExpirationStatus = row.expired ? 'expired' : 'active';
+  if (row.expired) {
+    return {
+      label: '已过期',
+      description: formatUserDate(row.expireAt),
+      type: 'error' as const
+    };
+  }
+
+  if (!row.expireAt) {
+    return {
+      label: '长期有效',
+      description: '',
+      type: 'success' as const
+    };
+  }
 
   return {
-    label: userExpirationLabelMap[status],
-    type: userExpirationTagTypeMap[status]
+    label: '有效至',
+    description: formatUserDate(row.expireAt),
+    type: 'success' as const
   };
 }
 
@@ -104,11 +119,13 @@ export function getUserExpirationState(row: Api.SystemUser.UserListItem) {
 export function getUserLockedState(row: Api.SystemUser.UserListItem) {
   return row.locked
     ? {
-        label: '已锁定',
+        label: '锁定至',
+        description: formatUserDateTime(row.lockedUntil),
         type: 'error' as const
       }
     : {
         label: '正常',
+        description: '',
         type: 'success' as const
       };
 }

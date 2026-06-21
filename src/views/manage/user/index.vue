@@ -16,7 +16,6 @@ import UserSearch from './modules/UserSearch.vue';
 import {
   buildSystemUserSearchParams,
   createDefaultUserFilterModel,
-  formatUserDate,
   formatUserDateTime,
   getUserExpirationState,
   getUserLockedState,
@@ -101,7 +100,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
     },
     {
       key: 'expireAt',
-      title: '过期状态',
+      title: '有效期',
       minWidth: 140,
       render: row => {
         const state = getUserExpirationState(row);
@@ -111,7 +110,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
             <NTag type={state.type} bordered={false}>
               {state.label}
             </NTag>
-            <NText depth={3}>{formatUserDate(row.expireAt)}</NText>
+            {state.description ? <NText depth={3}>{state.description}</NText> : null}
           </div>
         );
       }
@@ -128,7 +127,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
             <NTag type={state.type} bordered={false}>
               {state.label}
             </NTag>
-            <NText depth={3}>{formatUserDateTime(row.lockedUntil)}</NText>
+            {state.description ? <NText depth={3}>{state.description}</NText> : null}
           </div>
         );
       }
