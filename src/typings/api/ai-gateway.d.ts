@@ -43,6 +43,7 @@ declare namespace Api {
       configKey: string;
       title: string;
       apiBase: string;
+      apiKey?: string;
       hasApiKey: boolean;
       maskedApiKey: string;
       updatedAt: string;
@@ -52,6 +53,7 @@ declare namespace Api {
       configKey: string;
       title: string;
       apiBase: string;
+      apiKey?: string;
       hasApiKey: boolean;
       maskedApiKey: string;
       updatedAt: string;

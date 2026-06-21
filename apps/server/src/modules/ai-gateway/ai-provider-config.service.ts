@@ -227,6 +227,7 @@ function toSerperConfigView(record: SerperConfigRecord): SerperConfigViewRecord 
 
   return {
     ...view,
+    apiKey,
     ...toSecretView(apiKey)
   };
 }
@@ -236,6 +237,7 @@ function toHunterConfigView(record: HunterConfigRecord): HunterConfigViewRecord 
 
   return {
     ...view,
+    apiKey,
     ...toSecretView(apiKey)
   };
 }

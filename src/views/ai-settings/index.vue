@@ -258,6 +258,7 @@ async function handleSaveModelConfig() {
       hasApiKey: record.hasApiKey,
       maskedApiKey: record.maskedApiKey
     });
+    modelForm.apiKey = record.apiKey ?? modelForm.apiKey;
     modelTestResult.value = null;
     message.success(t('page.aiSettings.messages.saved'));
   } finally {
@@ -280,7 +281,7 @@ async function handleLoadSerperConfig(showMessage = true) {
       configKey: record.configKey,
       title: record.title,
       apiBase: record.apiBase,
-      apiKey: ''
+      apiKey: record.apiKey ?? ''
     });
     serperUpdatedAt.value = record.updatedAt;
     serperTestResult.value = null;
@@ -311,7 +312,7 @@ async function handleSaveSerperConfig() {
 
     serperUpdatedAt.value = record.updatedAt;
     serperTestResult.value = null;
-    serperForm.apiKey = '';
+    serperForm.apiKey = record.apiKey ?? serperForm.apiKey;
     message.success(t('page.aiSettings.serper.saved'));
   } finally {
     isSerperSaving.value = false;
@@ -333,7 +334,7 @@ async function handleLoadHunterConfig(showMessage = true) {
       configKey: record.configKey,
       title: record.title,
       apiBase: record.apiBase,
-      apiKey: ''
+      apiKey: record.apiKey ?? ''
     });
     hunterUpdatedAt.value = record.updatedAt;
     hunterTestResult.value = null;
@@ -364,7 +365,7 @@ async function handleSaveHunterConfig() {
 
     hunterUpdatedAt.value = record.updatedAt;
     hunterTestResult.value = null;
-    hunterForm.apiKey = '';
+    hunterForm.apiKey = record.apiKey ?? hunterForm.apiKey;
     message.success(t('page.aiSettings.hunter.saved'));
   } finally {
     isHunterSaving.value = false;

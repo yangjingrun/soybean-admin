@@ -182,7 +182,7 @@ describe('AiGatewayService', () => {
     assert.equal(record.maxOutputTokens, undefined);
     assert.equal(record.hasApiKey, true);
     assert.equal(record.maskedApiKey, '****');
-    assert.equal('apiKey' in record, false);
+    assert.equal(record.apiKey, 'sk-test');
   });
 
   it('returns model config drafts with the saved API key for settings echo', async () => {
@@ -390,7 +390,79 @@ describe('AiGatewayService', () => {
     });
   });
 
-  it('saves and tests Hunter config without logging the API key', async () => {
+  it('saves and returns Serper config API key without logging it', async () => {
+    const logRecorder = createMemoryLogRecorder();
+    const providerConfigService = new AiProviderConfigService(
+      createMemorySerperConfigStore(),
+      {
+        async search(config, request) {
+          assert.equal(config.apiKey, 'serper-key');
+          assert.deepEqual(request, { q: 'test', gl: 'us', hl: 'en', num: 1, page: 1 });
+
+          return {
+            organic: [{ title: 'Example', link: 'https://example.com' }]
+          };
+        }
+      },
+      createMemoryHunterConfigStore(),
+      {
+        async domainSearch() {
+          return { data: { emails: [] } };
+        }
+      },
+      logRecorder
+    );
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      logRecorder,
+      providerConfigService
+    );
+
+    const saved = await service.saveSerperConfig(
+      {
+        configKey: ' default ',
+        title: ' Serper ',
+        apiBase: ' https://google.serper.dev ',
+        apiKey: ' serper-key '
+      },
+      {
+        user: {
+          userId: 'u-1',
+          userName: 'Super',
+          roles: ['R_SUPER'],
+          organizationId: 'org-1',
+          organizationRole: 'admin'
+        }
+      }
+    );
+    const draft = await service.getSerperConfigDraft('default');
+    const testResult = await service.testSerperConfig({
+      configKey: 'default',
+      title: 'Serper',
+      apiBase: 'https://google.serper.dev',
+      apiKey: 'serper-key'
+    });
+
+    assert.equal(saved.apiBase, 'https://google.serper.dev');
+    assert.equal(saved.hasApiKey, true);
+    assert.equal(saved.maskedApiKey, 'serp****-key');
+    assert.equal(saved.apiKey, 'serper-key');
+    assert.equal(draft.hasApiKey, true);
+    assert.equal(draft.maskedApiKey, 'serp****-key');
+    assert.equal(draft.apiKey, 'serper-key');
+    assert.deepEqual(testResult, {
+      ok: true,
+      result: {
+        organic: [{ title: 'Example', link: 'https://example.com' }]
+      }
+    });
+    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('serper-key')), false);
+    assert.deepEqual(logRecorder.records.map(record => record.action), ['save-serper-config', 'test-serper-config']);
+  });
+
+  it('saves and returns Hunter config API key without logging it', async () => {
     const logRecorder = createMemoryLogRecorder();
     const providerConfigService = new AiProviderConfigService(
       createMemorySerperConfigStore(),
@@ -450,10 +522,10 @@ describe('AiGatewayService', () => {
     assert.equal(saved.apiBase, 'https://api.hunter.io/v2/');
     assert.equal(saved.hasApiKey, true);
     assert.equal(saved.maskedApiKey, 'hunt****-key');
+    assert.equal(saved.apiKey, 'hunter-key');
     assert.equal(draft.hasApiKey, true);
     assert.equal(draft.maskedApiKey, 'hunt****-key');
-    assert.equal('apiKey' in saved, false);
-    assert.equal('apiKey' in draft, false);
+    assert.equal(draft.apiKey, 'hunter-key');
     assert.deepEqual(testResult, {
       ok: true,
       resultEmailCount: 1

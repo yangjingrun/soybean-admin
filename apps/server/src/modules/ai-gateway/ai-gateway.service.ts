@@ -74,7 +74,7 @@ export class AiGatewayService {
       updatedAt: new Date().toISOString()
     });
 
-    return toModelConfigView(record);
+    return toModelConfigView(record, { exposeApiKey: true });
   }
 
   /** Reads one saved backend model channel by key. */

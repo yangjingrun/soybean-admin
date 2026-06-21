@@ -67,7 +67,9 @@ export interface SerperConfigRecord {
   updatedAt: string;
 }
 
-export type SerperConfigViewRecord = Omit<SerperConfigRecord, 'apiKey'> & SecretViewFields;
+export type SerperConfigViewRecord = Omit<SerperConfigRecord, 'apiKey'> &
+  Partial<Pick<SerperConfigRecord, 'apiKey'>> &
+  SecretViewFields;
 
 export interface SerperConfigStore {
   getSerperConfig(configKey: string): Promise<SerperConfigRecord | null>;
@@ -82,7 +84,9 @@ export interface HunterConfigRecord {
   updatedAt: string;
 }
 
-export type HunterConfigViewRecord = Omit<HunterConfigRecord, 'apiKey'> & SecretViewFields;
+export type HunterConfigViewRecord = Omit<HunterConfigRecord, 'apiKey'> &
+  Partial<Pick<HunterConfigRecord, 'apiKey'>> &
+  SecretViewFields;
 
 export interface HunterConfigStore {
   getHunterConfig(configKey: string): Promise<HunterConfigRecord | null>;
