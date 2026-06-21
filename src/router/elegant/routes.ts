@@ -138,7 +138,18 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'crm_settings',
           i18nKey: 'route.crm_settings',
           icon: 'mdi:cog-outline',
-          order: 4
+          order: 4,
+          permissions: [
+            'crm:settings:assets:read',
+            'crm:settings:assets:write',
+            'crm:settings:rules:read',
+            'crm:settings:rules:write',
+            'crm:settings:safety:read',
+            'crm:settings:safety:write',
+            'crm:settings:global:write',
+            'crm:settings:ai-draft-queue:write',
+            'crm:settings:operations:write'
+          ]
         }
       }
     ]

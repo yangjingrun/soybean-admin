@@ -22,6 +22,12 @@ declare module 'vue-router' {
      * It only works when the route mode is "static", if the route mode is "dynamic", it will be ignored
      */
     roles?: string[];
+    /**
+     * Product permission codes of the route
+     *
+     * Route can be accessed if the current user has at least one listed permission.
+     */
+    permissions?: import('@soybean/shared').PermissionCode[];
     /** Whether to cache the route */
     keepAlive?: boolean | null;
     /**

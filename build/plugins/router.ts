@@ -81,6 +81,17 @@ export function setupElegantRouter() {
       if (key === 'crm_settings') {
         meta.icon = 'mdi:cog-outline';
         meta.order = 4;
+        meta.permissions = [
+          'crm:settings:assets:read',
+          'crm:settings:assets:write',
+          'crm:settings:rules:read',
+          'crm:settings:rules:write',
+          'crm:settings:safety:read',
+          'crm:settings:safety:write',
+          'crm:settings:global:write',
+          'crm:settings:ai-draft-queue:write',
+          'crm:settings:operations:write'
+        ];
       }
 
       if (key === 'crm_gmail-oauth-callback') {

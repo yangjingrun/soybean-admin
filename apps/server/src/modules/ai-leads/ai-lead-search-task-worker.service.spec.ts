@@ -327,9 +327,11 @@ describe('AiLeadSearchTaskWorkerService', () => {
     assert.deepEqual(notifications[0].metadata, { taskId: task.id });
   });
 
-  it('imports completed AI lead candidates into CRM with task organization context', async () => {
-    const imports: Array<{ input: { name: string; websiteUrl?: string | null }; context: { organizationId: string } }> =
-      [];
+  it('imports completed AI lead candidates into CRM with explicit background owner context', async () => {
+    const imports: Array<{
+      input: { name: string; websiteUrl?: string | null };
+      context: { organizationId: string; userId: string; roles: string[]; buttons: string[]; source: string };
+    }> = [];
     const task = createTask({ status: 'queued', organizationId: 'org-1', organizationRole: 'member' });
     const store = createTaskStore({ task, queries: [] });
     const orchestrator = {
@@ -346,7 +348,7 @@ describe('AiLeadSearchTaskWorkerService', () => {
     const crmService = {
       async importAccountFromLead(
         input: { name: string; websiteUrl?: string | null },
-        context: { organizationId: string }
+        context: { organizationId: string; userId: string; roles: string[]; buttons: string[]; source: string }
       ) {
         imports.push({ input, context });
       }
@@ -365,6 +367,10 @@ describe('AiLeadSearchTaskWorkerService', () => {
     assert.equal(imports[0].input.name, 'ABC Bearing');
     assert.equal(imports[0].input.websiteUrl, 'https://abc.example');
     assert.equal(imports[0].context.organizationId, 'org-1');
+    assert.equal(imports[0].context.userId, 'u-1');
+    assert.deepEqual(imports[0].context.roles, []);
+    assert.deepEqual(imports[0].context.buttons, []);
+    assert.equal(imports[0].context.source, 'ai-lead-search-task-worker');
   });
 
   it('passes Hunter enriched contact to CRM import before importing completed candidates', async () => {

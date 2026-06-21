@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type { OrganizationRole } from '@soybean/shared';
 import { createTaskNotificationMetadata, createTaskStateChangeEvent, isStaleRunVersion } from '../../shared/task-state';
 import { CrmAccountService } from '../crm/accounts/crm-account.service';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
@@ -18,6 +19,16 @@ import type {
   AiLeadSearchTaskRecord,
   AiLeadSearchTaskStore
 } from './ai-lead-search-task.types';
+
+interface AiLeadCrmBackgroundOwnerContext {
+  userId: string;
+  userName: string;
+  roles: [];
+  buttons: [];
+  organizationId: string;
+  organizationRole: OrganizationRole;
+  source: 'ai-lead-search-task-worker';
+}
 
 class AiLeadSearchTaskInterruptedError extends Error {
   constructor() {
@@ -228,7 +239,7 @@ export class AiLeadSearchTaskWorkerService {
       return;
     }
 
-    const context = this.toCrmUserContext(task);
+    const context = this.toCrmBackgroundOwnerContext(task);
     const inputsToImport = await this.enrichCrmInputsWithHunterSafely(task.id, inputs, context);
     let successCount = 0;
     let failureCount = 0;
@@ -261,7 +272,7 @@ export class AiLeadSearchTaskWorkerService {
   private async enrichCrmInputsWithHunterSafely(
     taskId: string,
     inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>,
-    context: ReturnType<AiLeadSearchTaskWorkerService['toCrmUserContext']>
+    context: AiLeadCrmBackgroundOwnerContext
   ) {
     if (!this.hunterEnrichmentService) {
       return inputs;
@@ -320,7 +331,7 @@ export class AiLeadSearchTaskWorkerService {
 
   private async recordHunterEnrichmentHistoriesSafely(
     inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>,
-    context: ReturnType<AiLeadSearchTaskWorkerService['toCrmUserContext']>,
+    context: AiLeadCrmBackgroundOwnerContext,
     result: AiLeadHunterEnrichmentResult
   ) {
     if (!this.crmAccountService || result.attemptedCount === 0) {
@@ -340,7 +351,7 @@ export class AiLeadSearchTaskWorkerService {
 
   private async recordHunterEnrichmentFailedHistoriesSafely(
     inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>,
-    context: ReturnType<AiLeadSearchTaskWorkerService['toCrmUserContext']>,
+    context: AiLeadCrmBackgroundOwnerContext,
     firstErrorMessage: string
   ) {
     if (!this.crmAccountService) {
@@ -453,13 +464,20 @@ export class AiLeadSearchTaskWorkerService {
     };
   }
 
-  private toCrmUserContext(task: AiLeadSearchTaskRecord) {
+  /**
+   * Build a background owner context for CRM import-only flows.
+   *
+   * Keep roles/buttons empty so permission-gated CRM operations are not accidentally granted to worker jobs.
+   */
+  private toCrmBackgroundOwnerContext(task: AiLeadSearchTaskRecord): AiLeadCrmBackgroundOwnerContext {
     return {
       userId: task.userId,
       userName: task.userName || '',
       roles: [],
+      buttons: [],
       organizationId: task.organizationId,
-      organizationRole: task.organizationRole
+      organizationRole: task.organizationRole as OrganizationRole,
+      source: 'ai-lead-search-task-worker'
     };
   }
 }

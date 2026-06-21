@@ -11,8 +11,8 @@ import { ROOT_ROUTE } from '@/router/routes/builtin';
 import { getRouteName, getRoutePath } from '@/router/elegant/transform';
 import { useAuthStore } from '../auth';
 import { useTabStore } from '../tab';
+import { filterAuthRoutesByUser } from './access';
 import {
-  filterAuthRoutesByRoles,
   filterRoutesByDev,
   getBreadcrumbsByRoute,
   getCacheRouteNames,
@@ -198,7 +198,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     if (authStore.isStaticSuper) {
       addAuthRoutes(staticAuthRoutes);
     } else {
-      const filteredAuthRoutes = filterAuthRoutesByRoles(staticAuthRoutes, authStore.userInfo.roles);
+      const filteredAuthRoutes = filterAuthRoutesByUser(staticAuthRoutes, authStore.userInfo);
 
       addAuthRoutes(filteredAuthRoutes);
     }
