@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { defaultAiModelConfigKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { buildCrmAiReplyDraftPrompt, parseCrmAiReplyDraftOutput } from './crm-ai-reply-draft-prompt';
@@ -6,7 +6,7 @@ import type { CrmAiReplyDraftGenerateResult, CrmAiReplyDraftPromptInput } from '
 
 @Injectable()
 export class CrmAiReplyDraftService {
-  constructor(private readonly aiGatewayService: Pick<AiGatewayService, 'generateText'>) {}
+  constructor(@Inject(AiGatewayService) private readonly aiGatewayService: Pick<AiGatewayService, 'generateText'>) {}
 
   /** Polishes a user-provided reply topic into a local draft for human confirmation only. */
   async polishReplyDraft(input: CrmAiReplyDraftPromptInput): Promise<CrmAiReplyDraftGenerateResult> {

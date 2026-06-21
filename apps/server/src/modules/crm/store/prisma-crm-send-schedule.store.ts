@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type {
   CrmDispatchedMessageCountInput,
@@ -28,7 +29,7 @@ import {
 } from './prisma-crm-store.helpers';
 
 export class PrismaCrmSendScheduleStore {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   countOwnerQueuedMessages(args: { organizationId: string; ownerUserId: string }) {
     return this.prisma.crmMessage.count({

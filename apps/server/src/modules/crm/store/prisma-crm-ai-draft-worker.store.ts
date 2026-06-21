@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmAiDraftWorkerRepository } from '../crm-ai-draft-worker.repository';
 import { PrismaCrmAiDraftTaskStore } from './prisma-crm-ai-draft-task.store';
@@ -15,7 +15,7 @@ export class PrismaCrmAiDraftWorkerStore implements CrmAiDraftWorkerRepository {
   private readonly sequenceStore: PrismaCrmSequenceStore;
   private readonly suppressionStore: PrismaCrmSuppressionStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.aiDraftTaskStore = new PrismaCrmAiDraftTaskStore(prisma);
     this.settingsStore = new PrismaCrmSettingsStore(prisma);
     this.sequenceReviewStore = new PrismaCrmSequenceReviewStore(prisma);

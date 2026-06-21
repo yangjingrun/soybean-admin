@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
 import { PrismaService } from '../../database/prisma.service';
@@ -26,7 +27,7 @@ import {
 } from './prisma-crm-store.helpers';
 
 export class PrismaCrmSequenceSendStateStore {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async startFirstMessageSend(input: CrmSendStartInput): Promise<CrmSendStartRecord | null> {
     return this.prisma.$transaction(async tx => {

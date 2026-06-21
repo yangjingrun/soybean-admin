@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import type { CrmEmailTemplateGroupModel } from '../../../generated/prisma/models/CrmEmailTemplateGroup';
 import type { CrmEmailTemplateStepModel } from '../../../generated/prisma/models/CrmEmailTemplateStep';
 import { PrismaService } from '../../database/prisma.service';
@@ -23,7 +24,7 @@ const emailTemplateGroupInclude = {
 };
 
 export class PrismaCrmEmailTemplateStore {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async listEmailTemplateGroups(input: CrmEmailTemplateGroupListInput) {
     const where = toEmailTemplateGroupListWhere(input);

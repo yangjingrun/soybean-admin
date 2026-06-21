@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmSendSchedulerRepository } from '../crm-send-scheduler.repository';
 import { PrismaCrmMessageDraftStore } from './prisma-crm-message-draft.store';
@@ -11,7 +11,7 @@ export class PrismaCrmSendSchedulerStore implements CrmSendSchedulerRepository {
   private readonly sendScheduleStore: PrismaCrmSendScheduleStore;
   private readonly messageDraftStore: PrismaCrmMessageDraftStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.settingsStore = new PrismaCrmSettingsStore(prisma);
     this.sendScheduleStore = new PrismaCrmSendScheduleStore(prisma);
     this.messageDraftStore = new PrismaCrmMessageDraftStore(prisma);

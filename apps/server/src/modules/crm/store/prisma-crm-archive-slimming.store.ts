@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmArchiveSlimmingRepository } from '../crm-archive-slimming.repository';
 import { PrismaCrmAccountStore } from './prisma-crm-account.store';
@@ -7,7 +7,7 @@ import { PrismaCrmAccountStore } from './prisma-crm-account.store';
 export class PrismaCrmArchiveSlimmingStore implements CrmArchiveSlimmingRepository {
   private readonly accountStore: PrismaCrmAccountStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.accountStore = new PrismaCrmAccountStore(prisma);
   }
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { PrismaCrmConfigStore } from './prisma-crm-config.store';
 import { PrismaCrmEmailTemplateStore } from './prisma-crm-email-template.store';
@@ -15,7 +15,7 @@ export class PrismaCrmSettingsStore implements CrmSettingsRepository {
   private readonly emailTemplateStore: PrismaCrmEmailTemplateStore;
   private readonly sequencePolicyStore: PrismaCrmSequencePolicyStore;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
     this.configStore = new PrismaCrmConfigStore(prisma);
     this.productLineStore = new PrismaCrmProductLineStore(prisma);
     this.personaStore = new PrismaCrmPersonaStore(prisma);

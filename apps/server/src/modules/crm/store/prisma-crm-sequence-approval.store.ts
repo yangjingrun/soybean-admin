@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmBatchDraftApprovalRepository } from '../sequence/crm-batch-draft-approval.repository';
 import type { CrmDraftApprovalRepository } from '../sequence/crm-draft-approval.repository';
@@ -13,7 +13,7 @@ export class PrismaCrmSequenceApprovalStore
   private readonly messageDraftStore: PrismaCrmMessageDraftStore;
   private readonly reviewStore: PrismaCrmSequenceReviewStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.messageDraftStore = new PrismaCrmMessageDraftStore(prisma);
     this.reviewStore = new PrismaCrmSequenceReviewStore(prisma);
   }

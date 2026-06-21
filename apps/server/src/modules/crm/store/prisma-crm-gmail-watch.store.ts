@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmGmailWatchRepository } from '../crm-gmail-watch.repository';
 import { PrismaCrmMailboxStore } from './prisma-crm-mailbox.store';
@@ -7,7 +7,7 @@ import { PrismaCrmMailboxStore } from './prisma-crm-mailbox.store';
 export class PrismaCrmGmailWatchStore implements CrmGmailWatchRepository {
   private readonly mailboxStore: PrismaCrmMailboxStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.mailboxStore = new PrismaCrmMailboxStore(prisma);
   }
 

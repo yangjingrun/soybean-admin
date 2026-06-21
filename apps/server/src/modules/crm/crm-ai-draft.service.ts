@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { defaultAiModelConfigKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { buildCrmAiDraftPrompt, parseCrmAiDraftOutput } from './crm-ai-draft-prompt';
@@ -6,7 +6,7 @@ import type { CrmAiDraftGenerateResult, CrmAiDraftPromptInput } from './crm-ai-d
 
 @Injectable()
 export class CrmAiDraftService {
-  constructor(private readonly aiGatewayService: Pick<AiGatewayService, 'generateText'>) {}
+  constructor(@Inject(AiGatewayService) private readonly aiGatewayService: Pick<AiGatewayService, 'generateText'>) {}
 
   /** Generates a review-only CRM draft from product-line AI writing configuration. */
   async generateDraft(input: CrmAiDraftPromptInput): Promise<CrmAiDraftGenerateResult> {

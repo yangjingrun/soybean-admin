@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
   createDefaultAiDraftQueueConfig,
@@ -34,7 +35,7 @@ import type {
 const crmAiDraftQueueConfigKey = 'crm-ai-draft';
 
 export class PrismaCrmConfigStore {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async getGlobalConfig() {
     const record = await this.prisma.crmGlobalConfig.findUnique({

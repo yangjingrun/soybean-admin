@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import 'reflect-metadata';
 import {
   CRM_ACCOUNT_REPOSITORY,
   CRM_AI_DRAFT_TASK_REPOSITORY,
@@ -52,6 +53,7 @@ import { PrismaCrmSequencePolicyStore } from './store/prisma-crm-sequence-policy
 import { PrismaCrmSequenceStore } from './store/prisma-crm-sequence.store';
 import { PrismaCrmSettingsStore } from './store/prisma-crm-settings.store';
 import { PrismaCrmSuppressionStore } from './store/prisma-crm-suppression.store';
+import { PrismaService } from '../database/prisma.service';
 import { CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY } from './template-groups/crm-email-template-group.repository';
 
 const domainRepositoryTokens = [
@@ -127,6 +129,46 @@ describe('crmRepositoryProviders', () => {
       assert.equal('useClass' in provider, true);
       const classProvider = provider as { useClass: unknown };
       assert.equal(classProvider.useClass, repositoryClass);
+    }
+  });
+
+  it('uses explicit PrismaService injection for Prisma repository adapters', () => {
+    const prismaRepositoryClasses = [
+      PrismaCrmAccountStore,
+      PrismaCrmSettingsStore,
+      PrismaCrmProductLineStore,
+      PrismaCrmPersonaStore,
+      PrismaCrmSuppressionStore,
+      PrismaCrmMailboxStore,
+      PrismaCrmSequenceStore,
+      PrismaCrmSequenceApprovalStore,
+      PrismaCrmSequenceControlStore,
+      PrismaCrmSequenceDraftStore,
+      PrismaCrmSequenceNextDraftStore,
+      PrismaCrmSendQueueReconcileStore,
+      PrismaCrmSendSchedulerStore,
+      PrismaCrmSendWorkerStore,
+      PrismaCrmAiDraftTaskStore,
+      PrismaCrmAiDraftTaskSourceStore,
+      PrismaCrmAiDraftWorkerStore,
+      PrismaCrmSequencePolicyStore,
+      PrismaCrmEmailTemplateGroupStore,
+      PrismaCrmInboxStore,
+      PrismaCrmGmailHistorySyncStore,
+      PrismaCrmGmailWatchStore,
+      PrismaCrmArchiveSlimmingStore,
+      PrismaCrmDashboardStore
+    ];
+
+    for (const repositoryClass of prismaRepositoryClasses) {
+      const injectedParams = Reflect.getMetadata('self:paramtypes', repositoryClass) as
+        | Array<{ index: number; param: unknown }>
+        | undefined;
+
+      assert.ok(
+        injectedParams?.some(item => item.index === 0 && item.param === PrismaService),
+        `${repositoryClass.name} should explicitly inject PrismaService`
+      );
     }
   });
 });

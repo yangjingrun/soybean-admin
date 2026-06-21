@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmBatchSequenceStopRepository } from '../sequence/crm-batch-sequence-stop.repository';
 import type { CrmSequenceControlRepository } from '../sequence/crm-sequence-control.repository';
@@ -12,7 +12,7 @@ export class PrismaCrmSequenceControlStore implements CrmSequenceControlReposito
   private readonly sendStateStore: PrismaCrmSequenceSendStateStore;
   private readonly suppressionStore: PrismaCrmSuppressionStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.reviewStore = new PrismaCrmSequenceReviewStore(prisma);
     this.sendStateStore = new PrismaCrmSequenceSendStateStore(prisma);
     this.suppressionStore = new PrismaCrmSuppressionStore(prisma);

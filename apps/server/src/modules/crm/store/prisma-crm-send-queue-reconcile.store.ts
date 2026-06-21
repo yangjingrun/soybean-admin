@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmSendQueueReconcileRepository } from '../sequence/crm-send-queue-reconcile.repository';
 import { PrismaCrmAccountStore } from './prisma-crm-account.store';
@@ -11,7 +11,7 @@ export class PrismaCrmSendQueueReconcileStore implements CrmSendQueueReconcileRe
   private readonly messageDraftStore: PrismaCrmMessageDraftStore;
   private readonly sendScheduleStore: PrismaCrmSendScheduleStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.accountStore = new PrismaCrmAccountStore(prisma);
     this.messageDraftStore = new PrismaCrmMessageDraftStore(prisma);
     this.sendScheduleStore = new PrismaCrmSendScheduleStore(prisma);

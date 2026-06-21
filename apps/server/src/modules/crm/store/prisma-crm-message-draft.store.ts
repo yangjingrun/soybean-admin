@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Inject } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import type {
@@ -21,7 +22,7 @@ import {
 } from './prisma-crm-store.helpers';
 
 export class PrismaCrmMessageDraftStore {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async createMessage(input: CrmMessageCreateInput) {
     const record = await this.prisma.crmMessage.create({

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
   toPersonaProfileCreateInput,
@@ -15,7 +15,7 @@ import type { CrmPersonaProfileRepository } from '../persona-profiles/crm-person
 
 @Injectable()
 export class PrismaCrmPersonaStore implements CrmPersonaProfileRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async listPersonaProfiles(input: CrmPersonaProfileListInput) {
     const where = toPersonaProfileListWhere(input);

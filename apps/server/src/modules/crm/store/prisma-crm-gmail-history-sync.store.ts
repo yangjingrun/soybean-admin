@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmGmailHistorySyncRepository } from '../crm-gmail-history-sync.repository';
 import { PrismaCrmAccountStore } from './prisma-crm-account.store';
@@ -13,7 +13,7 @@ export class PrismaCrmGmailHistorySyncStore implements CrmGmailHistorySyncReposi
   private readonly mailboxStore: PrismaCrmMailboxStore;
   private readonly messageDraftStore: PrismaCrmMessageDraftStore;
 
-  constructor(prisma: PrismaService) {
+  constructor(@Inject(PrismaService) prisma: PrismaService) {
     this.accountStore = new PrismaCrmAccountStore(prisma);
     this.inboxStore = new PrismaCrmInboxStore(prisma);
     this.mailboxStore = new PrismaCrmMailboxStore(prisma);

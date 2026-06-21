@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import type {
@@ -25,7 +26,7 @@ import {
 } from './prisma-crm-store.helpers';
 
 export class PrismaCrmSequenceReviewStore {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   findActiveEnrollmentByContact(args: {
     organizationId: string;

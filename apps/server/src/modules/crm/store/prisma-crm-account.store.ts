@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -30,7 +30,7 @@ import type { CrmAccountRepository } from '../accounts/crm-account.repository';
 
 @Injectable()
 export class PrismaCrmAccountStore implements CrmAccountRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string) {
     return this.prisma.crmAccount

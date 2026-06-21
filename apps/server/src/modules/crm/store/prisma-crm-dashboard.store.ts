@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -28,7 +28,7 @@ import type { CrmDashboardRepository } from '../dashboard/crm-dashboard.reposito
 
 @Injectable()
 export class PrismaCrmDashboardStore implements CrmDashboardRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async getWorkbenchOverview(args: {
     organizationId: string;
