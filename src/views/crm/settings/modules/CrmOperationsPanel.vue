@@ -707,7 +707,7 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
       </NSpace>
     </NSpace>
 
-    <NDrawer v-model:show="detailVisible" :width="420" placement="right">
+    <NDrawer v-model:show="detailVisible" :width="560" placement="right">
       <NDrawerContent :title="detailTitle" closable>
         <NDescriptions :column="1" bordered size="small" label-placement="left">
           <NDescriptionsItem v-for="item in detailItems" :key="item.label" :label="item.label">

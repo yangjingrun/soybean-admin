@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProductLineFormModal from './ProductLineFormModal.vue';
+import ProductLineFormDrawer from './ProductLineFormDrawer.vue';
 import ProductLinePromptVersionDrawer from './ProductLinePromptVersionDrawer.vue';
 import ProductLineTable from './ProductLineTable.vue';
 import ProductLineToolbar from './ProductLineToolbar.vue';
@@ -64,7 +64,7 @@ const {
     </NSpace>
   </NCard>
 
-  <ProductLineFormModal
+  <ProductLineFormDrawer
     v-model:visible="formVisible"
     v-model="formModel"
     :mode="editingProductLineId ? 'edit' : 'create'"
