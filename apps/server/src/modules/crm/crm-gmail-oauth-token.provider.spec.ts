@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { ServiceUnavailableException } from '@nestjs/common';
 import {
   CrmGmailOAuthTokenProvider,
   decryptGmailSecret,
@@ -25,6 +26,13 @@ describe('Gmail OAuth token encryption', () => {
     const encrypted = encryptGmailSecret('refresh-token-1', secretKey);
 
     assert.throws(() => decryptGmailSecret(`${encrypted.slice(0, -2)}aa`, secretKey));
+  });
+
+  it('returns a handled service error when the token encryption key length is invalid', () => {
+    assert.throws(
+      () => encryptGmailSecret('refresh-token-1', 'short-key'),
+      (error: unknown) => error instanceof ServiceUnavailableException && /32 字节/.test(error.message)
+    );
   });
 });
 

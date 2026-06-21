@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { ServiceUnavailableException } from '@nestjs/common';
 import type { AppConfigService } from '../app-config/app-config.service';
 import { encryptAiConfigApiKey, resolveAiConfigApiKey } from './ai-config-secret-crypto';
 
@@ -21,8 +22,20 @@ describe('ai-config-secret-crypto', () => {
     assert.equal(apiKey, 'legacy-provider-key');
   });
 
-  it('requires an encryption key before saving encrypted provider keys', () => {
-    assert.throws(() => encryptAiConfigApiKey('provider-key-1', createAppConfigService()), /AI_CONFIG_SECRET_ENCRYPTION_KEY/);
+  it('returns a handled service error when the encryption key is missing', () => {
+    assert.throws(
+      () => encryptAiConfigApiKey('provider-key-1', createAppConfigService()),
+      (error: unknown) =>
+        error instanceof ServiceUnavailableException &&
+        /AI_CONFIG_SECRET_ENCRYPTION_KEY/.test(error.message)
+    );
+  });
+
+  it('returns a handled service error when the encryption key length is invalid', () => {
+    assert.throws(
+      () => encryptAiConfigApiKey('provider-key-1', createAppConfigService('short-key')),
+      (error: unknown) => error instanceof ServiceUnavailableException && /32 字节/.test(error.message)
+    );
   });
 });
 

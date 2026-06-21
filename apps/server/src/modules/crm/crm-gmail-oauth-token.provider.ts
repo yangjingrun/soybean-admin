@@ -1,4 +1,5 @@
-import { decryptSecret, encryptSecret } from '../../shared/secret-crypto';
+import { ServiceUnavailableException } from '@nestjs/common';
+import { assertSecretEncryptionKey, decryptSecret, encryptSecret } from '../../shared/secret-crypto';
 import { CrmGmailAuthorizationExpiredError } from './crm-gmail-watch.gateway';
 import type { CrmGmailAccessTokenProvider } from './crm-gmail-history.gateway';
 import type { CrmMailboxRecord } from './crm.types';
@@ -100,12 +101,24 @@ export class CrmGmailOAuthTokenProvider implements CrmGmailAccessTokenProvider {
 
 /** Encrypts a provider secret before persistence. */
 export function encryptGmailSecret(plainText: string, secretKey: string): string {
-  return encryptSecret(plainText, secretKey, gmailSecretCryptoOptions);
+  return encryptSecret(plainText, requireGmailSecretEncryptionKey(secretKey), gmailSecretCryptoOptions);
 }
 
 /** Decrypts a provider secret stored by encryptGmailSecret. */
 export function decryptGmailSecret(encryptedValue: string, secretKey: string): string {
-  return decryptSecret(encryptedValue, secretKey, gmailSecretCryptoOptions);
+  return decryptSecret(encryptedValue, requireGmailSecretEncryptionKey(secretKey), gmailSecretCryptoOptions);
+}
+
+function requireGmailSecretEncryptionKey(secretKey: string) {
+  try {
+    assertSecretEncryptionKey(secretKey, gmailSecretCryptoOptions);
+  } catch {
+    throw new ServiceUnavailableException(
+      'Gmail token 加密密钥必须为 32 字节，请检查 CRM_GMAIL_TOKEN_ENCRYPTION_KEY'
+    );
+  }
+
+  return secretKey;
 }
 
 function isAuthorizationExpiredResponse(response: CrmGmailOAuthHttpResponse) {

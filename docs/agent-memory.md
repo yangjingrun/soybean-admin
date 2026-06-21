@@ -359,6 +359,14 @@
 - 相关文件：`prisma/migrations/20260621010000_add_status_enums/migration.sql`、`prisma/migrations/20260619103000_create_crm_sequence_drafts/migration.sql`。
 - 验证方式：运行 `pnpm prisma migrate deploy`，确认不再出现 P3009，且 `CrmSequenceEnrollment_active_contact_unique_idx` 的 WHERE 条件使用 `"CrmSequenceEnrollmentStatus"` enum cast。
 
+### 2026-06-21 AI/Gmail 加密密钥错误要转成可处理 HTTP 异常
+
+- 场景：保存 AI 模型/Serper/Hunter 配置或完成 Gmail OAuth 时，需要用 AES-256-GCM 加密 API key、refresh token。
+- 坑点：共享加密工具 `encryptSecret()` / `decryptSecret()` 会对缺失、格式错误或非 32 字节密钥抛普通 `Error`；如果这类错误穿过 Controller，会被 `ApiExceptionFilter` 隐藏成 `Internal server error`，前端只看到 500。
+- 正确做法：模块级密钥包装函数要先校验密钥并把配置错误转换成 Nest `ServiceUnavailableException`，消息里指出要检查对应 env，例如 `AI_CONFIG_SECRET_ENCRYPTION_KEY` 或 `CRM_GMAIL_TOKEN_ENCRYPTION_KEY`；不要为了绕过错误使用默认密钥或明文回退。
+- 相关文件：`apps/server/src/modules/ai-gateway/ai-config-secret-crypto.ts`、`apps/server/src/modules/crm/crm-gmail-oauth-token.provider.ts`、`apps/server/src/shared/secret-crypto.ts`、`apps/server/src/shared/api-exception.filter.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-gateway/ai-config-secret-crypto.spec.ts apps/server/src/modules/crm/crm-gmail-oauth-token.provider.spec.ts`，确认缺失或非法长度密钥返回可处理的 `ServiceUnavailableException`。
+
 ### 记录模板
 
 ```md
