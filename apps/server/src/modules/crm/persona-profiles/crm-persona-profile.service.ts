@@ -1,6 +1,6 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createPageResult } from '../../../shared/pagination';
-import { isOrganizationAdmin as hasOrganizationAdminRole } from '../../../shared/permission-policy';
+import { requirePermission } from '../../../shared/permission-policy';
 import type { CrmPersonaProfileRecord, CrmPersonaProfileStatus, CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
@@ -18,6 +18,7 @@ const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
 const defaultPersonaProfileStatus: CrmPersonaProfileStatus = 'active';
+const personaProfileWritePermission = 'crm:settings:assets:write';
 
 @Injectable()
 export class CrmPersonaProfileService {
@@ -200,9 +201,7 @@ export class CrmPersonaProfileService {
   }
 
   private requireOrganizationConfigManager(context: CrmUserContext) {
-    if (!hasOrganizationAdminRole(context)) {
-      throw new ForbiddenException('只有组织管理员可以维护 CRM 配置');
-    }
+    requirePermission(context, personaProfileWritePermission, '无权维护 CRM 写信资料');
   }
 
   private async assertPersonaProfileNameAvailable(organizationId: string, name: string, ignoredId?: string) {

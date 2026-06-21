@@ -37,8 +37,8 @@ import { useCrmOperationsPanel } from './useCrmOperationsPanel';
 const {
   activeAiDraftTaskCount,
   aiDraftTasks,
+  canManageOperations,
   handleReconcileSendQueue,
-  isSuperAdmin,
   loadOperations,
   loading,
   logRows,
@@ -590,7 +590,7 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
     <template #header-extra>
       <NSpace :size="8">
         <NButton
-          v-if="isSuperAdmin"
+          v-if="canManageOperations"
           size="small"
           type="warning"
           secondary
@@ -693,7 +693,7 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
         </NGi>
       </NGrid>
 
-      <NSpace v-if="isSuperAdmin" vertical :size="8">
+      <NSpace v-if="canManageOperations" vertical :size="8">
         <NText strong>最近 CRM 日志</NText>
         <NDataTable
           size="small"

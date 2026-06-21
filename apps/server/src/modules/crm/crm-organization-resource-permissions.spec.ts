@@ -12,7 +12,7 @@ import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import type { CrmSuppressionRepository } from './suppression/crm-suppression.repository';
 
 describe('CRM organization resource permissions', () => {
-  it('rejects ordinary members when writing organization product lines', async () => {
+  it('rejects users without assigned permission when writing organization product lines', async () => {
     const service = new CrmProductLineService(createProductLineRepository());
     const context = createContext();
 
@@ -21,7 +21,15 @@ describe('CRM organization resource permissions', () => {
     await assert.rejects(() => service.archiveProductLine('product-1', context), ForbiddenException);
   });
 
-  it('rejects ordinary members when writing organization email templates', async () => {
+  it('allows users with asset write permission to reach product line write repositories', async () => {
+    const service = new CrmProductLineService(createProductLineRepository());
+    const context = createContext({ buttons: ['crm:settings:assets:write'] });
+
+    await assert.rejects(() => service.createProductLine({ name: 'Bearings' }, context), /findProductLineByName/);
+    await assert.rejects(() => service.archiveProductLine('product-1', context), /findProductLineById/);
+  });
+
+  it('rejects users without assigned permission when writing organization email templates', async () => {
     const service = new CrmEmailTemplateGroupService(createEmailTemplateRepository());
     const context = createContext();
 
@@ -37,7 +45,18 @@ describe('CRM organization resource permissions', () => {
     await assert.rejects(() => service.setDefaultEmailTemplateGroup('template-1', context), ForbiddenException);
   });
 
-  it('rejects ordinary members when writing organization sequence policies', async () => {
+  it('allows users with asset write permission to reach email template write repositories', async () => {
+    const service = new CrmEmailTemplateGroupService(createEmailTemplateRepository());
+    const context = createContext({ buttons: ['crm:settings:assets:write'] });
+
+    await assert.rejects(
+      () => service.createEmailTemplateGroup({ name: 'Default', steps: createEmailTemplateSteps() }, context),
+      /findEmailTemplateGroupByName/
+    );
+    await assert.rejects(() => service.setDefaultEmailTemplateGroup('template-1', context), /findEmailTemplateGroupById/);
+  });
+
+  it('rejects users without assigned permission when writing organization sequence policies', async () => {
     const service = new CrmSequencePolicyService(createSequencePolicyRepository());
     const context = createContext();
 
@@ -50,7 +69,15 @@ describe('CRM organization resource permissions', () => {
     await assert.rejects(() => service.setDefaultSequencePolicy('policy-1', context), ForbiddenException);
   });
 
-  it('rejects ordinary members when reading or changing organization blacklist settings', async () => {
+  it('allows users with rules write permission to reach sequence policy write repositories', async () => {
+    const service = new CrmSequencePolicyService(createSequencePolicyRepository());
+    const context = createContext({ buttons: ['crm:settings:rules:write'] });
+
+    await assert.rejects(() => service.createSequencePolicy({ name: 'Default' }, context), /createSequencePolicy/);
+    await assert.rejects(() => service.setDefaultSequencePolicy('policy-1', context), /findSequencePolicyById/);
+  });
+
+  it('rejects users without assigned permission when reading or changing organization blacklist settings', async () => {
     const service = new CrmSuppressionService(createSuppressionRepository());
     const context = createContext();
 
@@ -60,6 +87,24 @@ describe('CRM organization resource permissions', () => {
       ForbiddenException
     );
   });
+
+  it('allows users with safety permissions to reach blacklist repositories', async () => {
+    const service = new CrmSuppressionService(createSuppressionRepository());
+
+    await assert.rejects(
+      () => service.listBlacklistEntries(createContext({ buttons: ['crm:settings:safety:read'] })),
+      /listBlacklistEntries/
+    );
+    await assert.rejects(
+      () =>
+        service.removeBlacklistEntry(
+          'blacklist-1',
+          { reason: 'manual review' },
+          createContext({ buttons: ['crm:settings:safety:write'] })
+        ),
+      /deleteBlacklistEntry/
+    );
+  });
 });
 
 function createContext(input: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -67,6 +112,7 @@ function createContext(input: Partial<CrmUserContext> = {}): CrmUserContext {
     userId: input.userId ?? 'user-1',
     userName: input.userName ?? 'Alice',
     roles: input.roles ?? ['R_USER'],
+    buttons: input.buttons ?? [],
     organizationId: input.organizationId ?? 'org-1',
     organizationRole: input.organizationRole ?? 'member'
   };

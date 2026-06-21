@@ -1,6 +1,8 @@
+import { hasPermission } from '@soybean/shared';
+
 export interface CrmSettingsAccessInput {
-  organizationRole: Api.Auth.UserInfo['organizationRole'];
   roles: string[];
+  buttons: string[];
 }
 
 export interface CrmSettingsTabVisibility {
@@ -11,16 +13,20 @@ export interface CrmSettingsTabVisibility {
   start: boolean;
 }
 
-/** Build role-aware CRM settings tab visibility to keep member setup focused. */
+/** Build permission-aware CRM settings tab visibility to keep member setup focused. */
 export function buildCrmSettingsTabVisibility(input: CrmSettingsAccessInput): CrmSettingsTabVisibility {
-  const isSuperAdmin = input.roles.includes('R_SUPER');
-  const canManageOrganization = isSuperAdmin || input.organizationRole === 'admin';
+  const hasPlatformRulePermission =
+    hasPermission(input, 'crm:settings:global:write') || hasPermission(input, 'crm:settings:ai-draft-queue:write');
 
   return {
-    assets: canManageOrganization,
-    operations: isSuperAdmin,
-    rules: canManageOrganization,
-    safety: canManageOrganization,
+    assets:
+      hasPermission(input, 'crm:settings:assets:read') || hasPermission(input, 'crm:settings:assets:write'),
+    operations: hasPermission(input, 'crm:settings:operations:write'),
+    rules:
+      hasPlatformRulePermission ||
+      hasPermission(input, 'crm:settings:rules:read') ||
+      hasPermission(input, 'crm:settings:rules:write'),
+    safety: hasPermission(input, 'crm:settings:safety:read') || hasPermission(input, 'crm:settings:safety:write'),
     start: true
   };
 }

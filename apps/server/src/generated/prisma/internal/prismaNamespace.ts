@@ -3392,6 +3392,7 @@ export const SystemUserScalarFieldEnum = {
   phone: 'phone',
   email: 'email',
   roles: 'roles',
+  permissions: 'permissions',
   status: 'status',
   organizationId: 'organizationId',
   organizationRole: 'organizationRole',

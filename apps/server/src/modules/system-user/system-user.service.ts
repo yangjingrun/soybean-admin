@@ -6,7 +6,14 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import { DEFAULT_ORGANIZATION_ID, type OrganizationRole } from '@soybean/shared';
+import {
+  DEFAULT_ORGANIZATION_ID,
+  getDefaultPermissionCodesByRoles,
+  getInvalidPermissionCodes,
+  normalizePermissionCodes,
+  type OrganizationRole,
+  type PermissionCode
+} from '@soybean/shared';
 import type { Organization, Prisma, SystemUser } from '../../generated/prisma/client';
 import { createPageResult } from '../../shared/pagination';
 import { hashPassword, generateTemporaryPassword } from '../auth/password';
@@ -66,6 +73,8 @@ export class SystemUserService {
     const userName = input.userName.trim();
     assertUserName(userName);
     this.assertRoles(input.roles);
+    const permissions =
+      input.permissions === undefined ? getDefaultPermissionCodesByRoles(input.roles) : normalizeUserPermissions(input.permissions);
     await this.assertUniqueUserName(userName);
 
     const temporaryPassword = generateTemporaryPassword();
@@ -77,6 +86,7 @@ export class SystemUserService {
         phone: normalizeNullableString(input.phone),
         email: normalizeNullableString(input.email),
         roles: input.roles,
+        permissions,
         status: input.status || 'enabled',
         organizationId: DEFAULT_ORGANIZATION_ID,
         organizationRole: resolveOrganizationRole(input.roles),
@@ -110,6 +120,7 @@ export class SystemUserService {
     const nextRoles = input.roles ?? (user.roles as SystemUserRole[]);
     const nextStatus = input.status ?? (user.status as SystemUserStatus);
     const nextExpireAt = input.expireAt !== undefined ? toNullableDate(input.expireAt) : user.expireAt;
+    const nextPermissions = input.permissions === undefined ? undefined : normalizeUserPermissions(input.permissions);
 
     if (input.roles) {
       this.assertRoles(input.roles);
@@ -139,6 +150,7 @@ export class SystemUserService {
         ...(input.phone !== undefined ? { phone: normalizeNullableString(input.phone) } : {}),
         ...(input.email !== undefined ? { email: normalizeNullableString(input.email) } : {}),
         ...(input.roles ? { roles: input.roles, organizationRole: resolveOrganizationRole(input.roles) } : {}),
+        ...(nextPermissions !== undefined ? { permissions: nextPermissions } : {}),
         ...(input.status ? { status: input.status } : {}),
         ...(input.companyName !== undefined ? { companyName: normalizeNullableString(input.companyName) } : {}),
         ...(input.expireAt !== undefined ? { expireAt: toNullableDate(input.expireAt) } : {}),
@@ -366,6 +378,7 @@ export class SystemUserService {
       phone: user.phone,
       email: user.email,
       roles: user.roles as SystemUserRole[],
+      permissions: normalizePermissionCodes(user.permissions) as PermissionCode[],
       status: user.status as SystemUserStatus,
       organizationId: user.organizationId,
       organizationName: user.organization.name,
@@ -435,6 +448,16 @@ function assertUserName(value: string) {
 
 function toNullableDate(value: string | null | undefined) {
   return value ? new Date(value) : null;
+}
+
+function normalizeUserPermissions(values: readonly string[]) {
+  const invalidCodes = getInvalidPermissionCodes(values);
+
+  if (invalidCodes.length) {
+    throw new BadRequestException(`权限不存在：${invalidCodes.join('、')}`);
+  }
+
+  return normalizePermissionCodes(values);
 }
 
 /** Map platform roles to the first-version organization role. */

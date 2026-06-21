@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ok } from '../../../shared/api-response';
-import { CurrentContext, SuperOnly } from '../../auth/auth.decorators';
+import { requirePermission } from '../../../shared/permission-policy';
+import { CurrentContext } from '../../auth/auth.decorators';
 import { CrmAiDraftTaskService } from '../ai-draft-task/crm-ai-draft-task.service';
 import { CrmControllerBase } from '../crm-controller.helpers';
 import { CrmDashboardService } from '../dashboard/crm-dashboard.service';
@@ -49,40 +50,48 @@ export class CrmSettingsController extends CrmControllerBase {
   }
 
   @Get('global-config')
-  @SuperOnly('无权维护 CRM 全局配置')
   async getGlobalConfig(@CurrentContext() context: CrmUserContext | null = null) {
-    this.requireSuperUserContext(context);
+    requirePermission(this.requireUserContext(context), 'crm:settings:global:write', '无权维护 CRM 全局配置');
 
     return ok(await this.settingsService.getGlobalConfig());
   }
 
   @Post('global-config')
-  @SuperOnly('无权维护 CRM 全局配置')
   async saveGlobalConfig(@CurrentContext() context: CrmUserContext | null = null, @Body() dto: SaveCrmGlobalConfigDto) {
-    return ok(await this.settingsService.saveGlobalConfig(dto, this.requireSuperUserContext(context)));
+    const userContext = this.requireUserContext(context);
+    requirePermission(userContext, 'crm:settings:global:write', '无权维护 CRM 全局配置');
+
+    return ok(await this.settingsService.saveGlobalConfig(dto, userContext));
   }
 
   @Get('ai-draft-queue-config')
-  @SuperOnly('无权维护 CRM 全局配置')
   async getAiDraftQueueConfig(@CurrentContext() context: CrmUserContext | null = null) {
-    this.requireSuperUserContext(context);
+    requirePermission(
+      this.requireUserContext(context),
+      'crm:settings:ai-draft-queue:write',
+      '无权维护 CRM AI 草稿队列'
+    );
 
     return ok(await this.aiDraftTaskService.getAiDraftQueueConfig());
   }
 
   @Patch('ai-draft-queue-config')
-  @SuperOnly('无权维护 CRM 全局配置')
   async saveAiDraftQueueConfig(
     @CurrentContext() context: CrmUserContext | null = null,
     @Body() dto: UpdateCrmAiDraftQueueConfigDto
   ) {
-    return ok(await this.aiDraftTaskService.saveAiDraftQueueConfig(dto, this.requireSuperUserContext(context)));
+    const userContext = this.requireUserContext(context);
+    requirePermission(userContext, 'crm:settings:ai-draft-queue:write', '无权维护 CRM AI 草稿队列');
+
+    return ok(await this.aiDraftTaskService.saveAiDraftQueueConfig(dto, userContext));
   }
 
   @Post('operations/send-queue/reconcile')
-  @SuperOnly('无权维护 CRM 全局配置')
   async reconcileSendQueue(@CurrentContext() context: CrmUserContext | null = null) {
-    return ok(await this.sendQueueReconcileService.reconcileSendQueue({}, this.requireSuperUserContext(context)));
+    const userContext = this.requireUserContext(context);
+    requirePermission(userContext, 'crm:settings:operations:write', '无权执行 CRM 运维诊断');
+
+    return ok(await this.sendQueueReconcileService.reconcileSendQueue({}, userContext));
   }
 
   @Get('send-preference')

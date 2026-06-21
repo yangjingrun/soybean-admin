@@ -1,13 +1,12 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
   Optional
 } from '@nestjs/common';
 import { createPageResult } from '../../../shared/pagination';
-import { isOrganizationAdmin as hasOrganizationAdminRole } from '../../../shared/permission-policy';
+import { requirePermission } from '../../../shared/permission-policy';
 import type {
   CrmProductLineAiWritingConfig,
   CrmProductLineRecord,
@@ -16,7 +15,6 @@ import type {
 } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
-import { requireCrmOrganizationAdminScope } from '../shared/crm-scope';
 import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import { CRM_PRODUCT_LINE_REPOSITORY, type CrmProductLineRepository } from './crm-product-line.repository';
 import {
@@ -34,6 +32,7 @@ const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
 const defaultProductLineStatus: CrmProductLineStatus = 'active';
+const productLineWritePermission = 'crm:settings:assets:write';
 
 @Injectable()
 export class CrmProductLineService {
@@ -75,7 +74,7 @@ export class CrmProductLineService {
 
   /** Creates an organization-level product line after checking name uniqueness. */
   async createProductLine(input: ProductLineCreateInput, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, productLineWritePermission, '无权维护 CRM 写信资料');
     const data = normalizeProductLineCreateInput(input);
     this.assertCanWriteProductLineAiConfig(input, data.aiWritingConfig, context);
     await this.assertProductLineNameAvailable(context.organizationId, data.name);
@@ -104,7 +103,7 @@ export class CrmProductLineService {
 
   /** Updates an organization-level product line through organization scoped reads and writes. */
   async updateProductLine(id: string, input: ProductLineUpdateInput, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, productLineWritePermission, '无权维护 CRM 写信资料');
     const currentProductLine = await this.requireScopedProductLine(id, context);
     const fromStatus = currentProductLine.status;
     const previousAiWritingConfigKey = toStableAiWritingConfigKey(currentProductLine.aiWritingConfig);
@@ -156,9 +155,7 @@ export class CrmProductLineService {
 
   /** Restores a saved AI prompt version to the current product-line config. */
   async restoreProductLineAiPromptVersion(id: string, versionId: string, context: CrmUserContext) {
-    if (!hasOrganizationAdminRole(context)) {
-      throw new ForbiddenException('只有组织管理员可以恢复 AI 写信配置版本');
-    }
+    requirePermission(context, productLineWritePermission, '无权维护 CRM 写信资料');
 
     const productLine = await this.requireScopedProductLine(id, context);
     const restored = await this.productLineRepository.restoreProductLineAiPromptVersion({
@@ -190,7 +187,7 @@ export class CrmProductLineService {
 
   /** Archives an organization-level product line through organization scoped reads and writes. */
   async archiveProductLine(id: string, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, productLineWritePermission, '无权维护 CRM 写信资料');
     const currentProductLine = await this.requireScopedProductLine(id, context);
     const fromStatus = currentProductLine.status;
     const productLine = await this.productLineRepository.updateProductLine(
@@ -302,8 +299,8 @@ export class CrmProductLineService {
         config?.steps.some(step => step.prompt)
     );
 
-    if (hasInstruction && !hasOrganizationAdminRole(context)) {
-      throw new ForbiddenException('只有组织管理员可以编辑 AI 写信配置');
+    if (hasInstruction) {
+      requirePermission(context, productLineWritePermission, '无权维护 CRM 写信资料');
     }
   }
 

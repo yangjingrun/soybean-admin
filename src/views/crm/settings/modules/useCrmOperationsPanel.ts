@@ -1,5 +1,6 @@
 import { computed, onMounted, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import {
   fetchCrmAiDraftTasks,
   fetchCrmMailboxes,
@@ -32,7 +33,7 @@ export function useCrmOperationsPanel() {
   const aiDraftTasks = shallowRef<Api.Crm.AiDraftTaskRecord[]>([]);
   let latestRequestId = 0;
 
-  const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
+  const canManageOperations = computed(() => hasPermission(authStore.userInfo, 'crm:settings:operations:write'));
   const logRows = computed(() => collectRecentCrmOperationLogs(operationLogs.value));
   const queueRows = computed(() => collectOperationQueueRows(sequenceItems.value));
   const activeAiDraftTaskCount = computed(() => aiDraftTasks.value.filter(isActiveAiDraftTask).length);
@@ -61,7 +62,7 @@ export function useCrmOperationsPanel() {
         fetchCrmMailboxes({ current: 1, size: OPERATIONS_PAGE_SIZE }),
         fetchCrmSequenceReviewItems({ current: 1, size: OPERATIONS_PAGE_SIZE }),
         fetchCrmAiDraftTasks({ current: 1, size: OPERATIONS_PAGE_SIZE }),
-        isSuperAdmin.value
+        canManageOperations.value
           ? fetchSystemLogs({ current: 1, size: OPERATION_LOG_PAGE_SIZE, module: 'crm' })
           : Promise.resolve(null)
       ]);
@@ -89,7 +90,7 @@ export function useCrmOperationsPanel() {
 
   /** Repair queued messages whose BullMQ job has already disappeared. */
   async function handleReconcileSendQueue() {
-    if (!isSuperAdmin.value || sendQueueReconciling.value) {
+    if (!canManageOperations.value || sendQueueReconciling.value) {
       return;
     }
 
@@ -113,7 +114,7 @@ export function useCrmOperationsPanel() {
     activeAiDraftTaskCount,
     aiDraftTasks,
     handleReconcileSendQueue,
-    isSuperAdmin,
+    canManageOperations,
     loadOperations,
     logRows,
     loading,

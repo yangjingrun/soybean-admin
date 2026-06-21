@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { crmPermissionCodes } from '@soybean/shared';
 import type { PrismaService } from '../database/prisma.service';
 import type { RedisService } from '../redis/redis.service';
 import { AuthService } from './auth.service';
@@ -18,7 +19,7 @@ describe('AuthService', () => {
       userId: '1',
       userName: 'Super',
       roles: ['R_SUPER'],
-      buttons: ['B_CODE1', 'B_CODE2', 'B_CODE3'],
+      buttons: [...crmPermissionCodes],
       organizationId: 'org-default',
       organizationName: '默认组织',
       organizationRole: 'admin'
@@ -44,7 +45,7 @@ describe('AuthService', () => {
       userId: '1',
       userName: 'Super',
       roles: ['R_SUPER'],
-      buttons: ['B_CODE1', 'B_CODE2', 'B_CODE3'],
+      buttons: [...crmPermissionCodes],
       organizationId: 'org-default',
       organizationName: '默认组织',
       organizationRole: 'admin'
@@ -64,6 +65,22 @@ describe('AuthService', () => {
     assert.equal(await service.refresh(firstToken!.refreshToken), null);
     assert.equal(await service.getUserByAccessToken(firstToken!.token), null);
     assert.equal(Boolean(await service.getUserByAccessToken(rotatedToken!.token)), true);
+  });
+
+  it('returns persisted dynamic permissions for non-super users', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({
+      userName: 'Operator',
+      roles: ['R_USER'],
+      permissions: ['crm:settings:assets:write'],
+      passwordHash: password.hash,
+      passwordSalt: password.salt
+    });
+    const service = createService([user]);
+
+    const token = await service.login('Operator', '123456');
+
+    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, ['crm:settings:assets:write']);
   });
 
   it('rejects disabled, expired and locked users', async () => {
@@ -201,6 +218,7 @@ function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
     phone: input.phone ?? null,
     email: input.email ?? null,
     roles: input.roles || ['R_SUPER'],
+    permissions: input.permissions || [],
     status: input.status || 'enabled',
     organizationId: input.organizationId || 'org-default',
     organizationRole: input.organizationRole || 'admin',
@@ -233,6 +251,7 @@ interface TestSystemUser {
   phone: string | null;
   email: string | null;
   roles: string[];
+  permissions: string[];
   status: string;
   organizationId: string;
   organizationRole: string;

@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import { fetchCrmAiDraftQueueConfig, saveCrmAiDraftQueueConfig } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import {
@@ -20,8 +21,10 @@ const saving = shallowRef(false);
 const updatedAt = shallowRef<string | null>(null);
 const updatedByName = shallowRef<string | null>(null);
 
-const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
-const canSave = computed(() => isSuperAdmin.value && !validateAiDraftQueueConfigForm(formModel));
+const canManageAiDraftQueue = computed(() =>
+  hasPermission(authStore.userInfo, 'crm:settings:ai-draft-queue:write')
+);
+const canSave = computed(() => canManageAiDraftQueue.value && !validateAiDraftQueueConfigForm(formModel));
 const formattedUpdatedAt = computed(() => {
   if (!updatedAt.value || dayjs(updatedAt.value).valueOf() <= 0) {
     return '尚未加载';
@@ -32,14 +35,14 @@ const formattedUpdatedAt = computed(() => {
 const updatedByText = computed(() => updatedByName.value || '系统默认');
 
 onMounted(() => {
-  if (isSuperAdmin.value) {
+  if (canManageAiDraftQueue.value) {
     void loadConfig(false);
   }
 });
 
 /** Load the platform-level AI draft queue config for super administrators. */
 async function loadConfig(showMessage = true) {
-  if (!isSuperAdmin.value || loading.value) {
+  if (!canManageAiDraftQueue.value || loading.value) {
     return;
   }
 
@@ -66,6 +69,10 @@ async function loadConfig(showMessage = true) {
 
 /** Save the platform-level AI draft queue config. */
 async function saveConfig() {
+  if (!canManageAiDraftQueue.value) {
+    return;
+  }
+
   const validationMessage = validateAiDraftQueueConfigForm(formModel);
 
   if (validationMessage) {
@@ -99,8 +106,8 @@ async function saveConfig() {
         这里控制批量生成开发信草稿时的 AI 并发和失败重试，不会触发 Gmail 真实发送。
       </NAlert>
 
-      <NAlert v-if="!isSuperAdmin" type="warning" :bordered="false">
-        仅平台超级管理员可调整 AI 草稿队列参数；普通用户只使用平台默认限制。
+      <NAlert v-if="!canManageAiDraftQueue" type="warning" :bordered="false">
+        当前账号没有 AI 草稿队列配置权限；普通用户只使用平台默认限制。
       </NAlert>
 
       <template v-else>

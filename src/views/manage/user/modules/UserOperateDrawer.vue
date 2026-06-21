@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import type { FormRules } from 'naive-ui';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
-import { userRoleOptions, userStatusOptions } from './shared';
+import { getDefaultUserPermissionsByRoles, userPermissionGroups, userRoleOptions, userStatusOptions } from './shared';
 
 type OperateType = 'add' | 'edit';
 
@@ -12,6 +12,7 @@ interface UserOperateFormModel {
   phone: string;
   email: string;
   roles: Api.SystemUser.UserRole[];
+  permissions: Api.SystemUser.PermissionCode[];
   status: Api.SystemUser.UserStatus;
   companyName: string;
   expireAt: number | null;
@@ -34,6 +35,7 @@ const { formRef, validate, restoreValidation } = useNaiveForm();
 const { createRequiredRule, patternRules } = useFormRules();
 
 const formModel = reactive<UserOperateFormModel>(createDefaultFormModel());
+const permissionTouched = ref(false);
 
 const drawerTitle = computed(() => (props.operateType === 'add' ? '新增用户' : '编辑用户'));
 
@@ -64,7 +66,19 @@ watch(
       formModel,
       props.operateType === 'add' ? createDefaultFormModel() : createFormModelFromRow(props.row)
     );
+    permissionTouched.value = false;
     void nextTick(restoreValidation);
+  }
+);
+
+watch(
+  () => [...formModel.roles],
+  roles => {
+    if (props.operateType !== 'add' || permissionTouched.value) {
+      return;
+    }
+
+    formModel.permissions = getDefaultUserPermissionsByRoles(roles);
   }
 );
 
@@ -76,6 +90,7 @@ function createDefaultFormModel(): UserOperateFormModel {
     phone: '',
     email: '',
     roles: ['R_USER'],
+    permissions: getDefaultUserPermissionsByRoles(['R_USER']),
     status: 'enabled',
     companyName: '',
     expireAt: null,
@@ -95,6 +110,7 @@ function createFormModelFromRow(row: Api.SystemUser.UserListItem | null): UserOp
     phone: row.phone || '',
     email: row.email || '',
     roles: [...row.roles],
+    permissions: [...row.permissions],
     status: row.status,
     companyName: row.companyName || '',
     expireAt: row.expireAt ? new Date(row.expireAt).getTime() : null,
@@ -117,6 +133,7 @@ function createPayload(): Api.SystemUser.UserCreatePayload {
     phone: normalizeOptionalText(formModel.phone),
     email: normalizeOptionalText(formModel.email),
     roles: [...formModel.roles],
+    permissions: [...formModel.permissions],
     status: formModel.status,
     companyName: normalizeOptionalText(formModel.companyName),
     expireAt: formModel.expireAt ? new Date(formModel.expireAt).toISOString() : null,
@@ -127,6 +144,11 @@ function createPayload(): Api.SystemUser.UserCreatePayload {
 async function handleSubmit() {
   await validate();
   emit('submit', createPayload());
+}
+
+function handlePermissionUpdate(value: Array<string | number>) {
+  permissionTouched.value = true;
+  formModel.permissions = value.filter((item): item is Api.SystemUser.PermissionCode => typeof item === 'string');
 }
 </script>
 
@@ -164,6 +186,22 @@ async function handleSubmit() {
                 clearable
                 placeholder="请选择角色"
               />
+            </NFormItem>
+          </NGi>
+          <NGi span="24">
+            <NFormItem label="权限" path="permissions">
+              <NCheckboxGroup :value="formModel.permissions" @update:value="handlePermissionUpdate">
+                <NSpace vertical :size="10" class="permission-groups">
+                  <div v-for="group in userPermissionGroups" :key="group.key" class="permission-group">
+                    <div class="permission-group__title">{{ group.label }}</div>
+                    <NSpace :size="[16, 8]" wrap>
+                      <NCheckbox v-for="option in group.options" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </NCheckbox>
+                    </NSpace>
+                  </div>
+                </NSpace>
+              </NCheckboxGroup>
             </NFormItem>
           </NGi>
           <NGi span="24 m:12">
@@ -208,5 +246,26 @@ async function handleSubmit() {
 <style scoped>
 .full-input {
   width: 100%;
+}
+
+.permission-groups {
+  width: 100%;
+}
+
+.permission-group {
+  border-bottom: 1px solid var(--n-border-color);
+  padding-bottom: 10px;
+}
+
+.permission-group:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.permission-group__title {
+  margin-bottom: 8px;
+  color: var(--n-text-color-2);
+  font-size: 13px;
+  line-height: 20px;
 }
 </style>

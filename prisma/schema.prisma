@@ -89,6 +89,7 @@ model SystemUser {
   phone            String?
   email            String?
   roles            String[]
+  permissions      String[]  @default([])
   status           String    @default("enabled")
   organizationId   String    @default("org-default")
   organizationRole String    @default("member")

@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
+import { resolveEffectivePermissions } from '@soybean/shared';
 import * as svgCaptcha from 'svg-captcha';
 import type { Organization, SystemUser } from '../../generated/prisma/client';
 import { AppConfigService } from '../app-config/app-config.service';
@@ -288,7 +289,7 @@ export class AuthService {
       userId: user.id,
       userName: user.userName,
       roles: user.roles,
-      buttons: getButtonsByRoles(user.roles),
+      buttons: resolveEffectivePermissions({ roles: user.roles, permissions: user.permissions }),
       organizationId: user.organizationId,
       organizationName: user.organization.name,
       organizationRole: user.organizationRole as UserInfo['organizationRole'],
@@ -338,18 +339,6 @@ export class AuthService {
 type AuthSystemUser = SystemUser & {
   organization: Pick<Organization, 'id' | 'name'>;
 };
-
-function getButtonsByRoles(roles: string[]) {
-  if (roles.includes('R_SUPER')) {
-    return ['B_CODE1', 'B_CODE2', 'B_CODE3'];
-  }
-
-  if (roles.includes('R_ADMIN')) {
-    return ['B_CODE1', 'B_CODE2'];
-  }
-
-  return ['B_CODE1'];
-}
 
 interface UserInfoWithSession extends UserInfo {
   status: string;

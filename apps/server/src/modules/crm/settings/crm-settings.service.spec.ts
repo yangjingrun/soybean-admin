@@ -105,7 +105,10 @@ describe('CrmSettingsService', () => {
     const repository = createRepository();
     const logs = createLogRecorder();
     const service = createService(repository, logs.service);
-    const adminContext = createContext({ organizationRole: 'admin' });
+    const adminContext = createContext({
+      buttons: ['crm:settings:rules:write'],
+      organizationRole: 'admin'
+    });
 
     const current = await service.getOrganizationConfig(createContext());
     const saved = await service.saveOrganizationConfig({ allowAdminViewMemberEmailBody: true }, adminContext);

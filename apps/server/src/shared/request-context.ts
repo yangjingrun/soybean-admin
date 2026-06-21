@@ -5,6 +5,7 @@ export interface RequestUserContext {
   userId: string;
   userName: string;
   roles: string[];
+  buttons?: string[];
   organizationId: string;
   organizationRole: OrganizationRole;
 }
@@ -15,6 +16,7 @@ export function toRequestUserContext(user: UserInfo): RequestUserContext {
     userId: user.userId,
     userName: user.userName,
     roles: user.roles,
+    buttons: user.buttons,
     organizationId: user.organizationId,
     organizationRole: user.organizationRole
   };

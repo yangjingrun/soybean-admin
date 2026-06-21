@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import { fetchCrmGlobalConfig, saveCrmGlobalConfig } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import {
@@ -20,10 +21,10 @@ const loading = shallowRef(false);
 const saving = shallowRef(false);
 const updatedAt = shallowRef<string | null>(null);
 
-const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
+const canManageGlobalConfig = computed(() => hasPermission(authStore.userInfo, 'crm:settings:global:write'));
 const canSave = computed(
   () =>
-    isSuperAdmin.value &&
+    canManageGlobalConfig.value &&
     isValidEmailVerificationCooldownDays(formModel.emailVerificationCooldownDays) &&
     isValidOwnerConcurrentSendLimit(formModel.ownerConcurrentSendLimit) &&
     isValidOwnerDailySendLimitMax(formModel.ownerDailySendLimitMax) &&
@@ -38,14 +39,14 @@ const formattedUpdatedAt = computed(() => {
 });
 
 onMounted(() => {
-  if (isSuperAdmin.value) {
+  if (canManageGlobalConfig.value) {
     void loadGlobalConfig(false);
   }
 });
 
 /** Load the platform-wide CRM global config for super administrators. */
 async function loadGlobalConfig(showMessage = true) {
-  if (!isSuperAdmin.value || loading.value) {
+  if (!canManageGlobalConfig.value || loading.value) {
     return;
   }
 
@@ -74,6 +75,10 @@ async function loadGlobalConfig(showMessage = true) {
 
 /** Save the platform-wide email verification cache cooldown. */
 async function saveGlobalConfig() {
+  if (!canManageGlobalConfig.value) {
+    return;
+  }
+
   const emailVerificationCooldownDays = formModel.emailVerificationCooldownDays;
   const ownerConcurrentSendLimit = formModel.ownerConcurrentSendLimit;
   const ownerDailySendLimitMax = formModel.ownerDailySendLimitMax;
@@ -131,8 +136,8 @@ async function saveGlobalConfig() {
         邮箱验证结果是全平台共享缓存。冷却期内同一 email 不会重复做 DNS / MX 等验证，不属于某个组织的私有配置。
       </NAlert>
 
-      <NAlert v-if="!isSuperAdmin" type="warning" :bordered="false">
-        仅平台超级管理员可查看和调整该全局参数；组织用户的线索与邮件数据仍按组织和负责人隔离。
+      <NAlert v-if="!canManageGlobalConfig" type="warning" :bordered="false">
+        当前账号没有 CRM 全局配置权限；组织用户的线索与邮件数据仍按组织和负责人隔离。
       </NAlert>
 
       <template v-else>

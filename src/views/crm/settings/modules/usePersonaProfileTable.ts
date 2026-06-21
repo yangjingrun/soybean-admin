@@ -1,5 +1,6 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import {
   archiveCrmPersonaProfile,
   createCrmPersonaProfile,
@@ -28,9 +29,7 @@ export function usePersonaProfileTable() {
   const editingPersonaProfileId = shallowRef<string | null>(null);
   let latestRequestId = 0;
 
-  const canManage = computed(
-    () => authStore.userInfo.organizationRole === 'admin' || authStore.userInfo.roles.includes('R_SUPER')
-  );
+  const canManage = computed(() => hasPermission(authStore.userInfo, 'crm:settings:assets:write'));
 
   const pagination = reactive({
     current: 1,

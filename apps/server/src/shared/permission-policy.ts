@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { hasPermission as hasSharedPermission, type PermissionCode } from '@soybean/shared';
 import { requireRequestUserContext, type RequestUserContext } from './request-context';
 
 export interface EmailBodyVisibilityConfig {
@@ -34,6 +35,25 @@ export function assertOrganizationAdmin(
   message: string
 ): void {
   if (!isOrganizationAdmin(context)) {
+    throw new ForbiddenException(message);
+  }
+}
+
+/** Check a request context against one dynamic product permission. */
+export function hasPermission(
+  context: Pick<RequestUserContext, 'roles' | 'buttons'>,
+  permission: PermissionCode
+): boolean {
+  return hasSharedPermission(context, permission);
+}
+
+/** Require one dynamic product permission while preserving super-user semantics. */
+export function requirePermission(
+  context: Pick<RequestUserContext, 'roles' | 'buttons'>,
+  permission: PermissionCode,
+  message: string
+): void {
+  if (!hasPermission(context, permission)) {
     throw new ForbiddenException(message);
   }
 }

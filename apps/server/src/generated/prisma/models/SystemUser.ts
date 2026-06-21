@@ -87,6 +87,7 @@ export type SystemUserCountAggregateOutputType = {
   phone: number
   email: number
   roles: number
+  permissions: number
   status: number
   organizationId: number
   organizationRole: number
@@ -167,6 +168,7 @@ export type SystemUserCountAggregateInputType = {
   phone?: true
   email?: true
   roles?: true
+  permissions?: true
   status?: true
   organizationId?: true
   organizationRole?: true
@@ -278,6 +280,7 @@ export type SystemUserGroupByOutputType = {
   phone: string | null
   email: string | null
   roles: string[]
+  permissions: string[]
   status: string
   organizationId: string
   organizationRole: string
@@ -325,6 +328,7 @@ export type SystemUserWhereInput = {
   phone?: Prisma.StringNullableFilter<"SystemUser"> | string | null
   email?: Prisma.StringNullableFilter<"SystemUser"> | string | null
   roles?: Prisma.StringNullableListFilter<"SystemUser">
+  permissions?: Prisma.StringNullableListFilter<"SystemUser">
   status?: Prisma.StringFilter<"SystemUser"> | string
   organizationId?: Prisma.StringFilter<"SystemUser"> | string
   organizationRole?: Prisma.StringFilter<"SystemUser"> | string
@@ -351,6 +355,7 @@ export type SystemUserOrderByWithRelationInput = {
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
   email?: Prisma.SortOrderInput | Prisma.SortOrder
   roles?: Prisma.SortOrder
+  permissions?: Prisma.SortOrder
   status?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   organizationRole?: Prisma.SortOrder
@@ -380,6 +385,7 @@ export type SystemUserWhereUniqueInput = Prisma.AtLeast<{
   phone?: Prisma.StringNullableFilter<"SystemUser"> | string | null
   email?: Prisma.StringNullableFilter<"SystemUser"> | string | null
   roles?: Prisma.StringNullableListFilter<"SystemUser">
+  permissions?: Prisma.StringNullableListFilter<"SystemUser">
   status?: Prisma.StringFilter<"SystemUser"> | string
   organizationId?: Prisma.StringFilter<"SystemUser"> | string
   organizationRole?: Prisma.StringFilter<"SystemUser"> | string
@@ -406,6 +412,7 @@ export type SystemUserOrderByWithAggregationInput = {
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
   email?: Prisma.SortOrderInput | Prisma.SortOrder
   roles?: Prisma.SortOrder
+  permissions?: Prisma.SortOrder
   status?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   organizationRole?: Prisma.SortOrder
@@ -438,6 +445,7 @@ export type SystemUserScalarWhereWithAggregatesInput = {
   phone?: Prisma.StringNullableWithAggregatesFilter<"SystemUser"> | string | null
   email?: Prisma.StringNullableWithAggregatesFilter<"SystemUser"> | string | null
   roles?: Prisma.StringNullableListFilter<"SystemUser">
+  permissions?: Prisma.StringNullableListFilter<"SystemUser">
   status?: Prisma.StringWithAggregatesFilter<"SystemUser"> | string
   organizationId?: Prisma.StringWithAggregatesFilter<"SystemUser"> | string
   organizationRole?: Prisma.StringWithAggregatesFilter<"SystemUser"> | string
@@ -462,6 +470,7 @@ export type SystemUserCreateInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationRole?: string
   companyName?: string | null
@@ -487,6 +496,7 @@ export type SystemUserUncheckedCreateInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationId?: string
   organizationRole?: string
@@ -512,6 +522,7 @@ export type SystemUserUpdateInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -537,6 +548,7 @@ export type SystemUserUncheckedUpdateInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
@@ -562,6 +574,7 @@ export type SystemUserCreateManyInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationId?: string
   organizationRole?: string
@@ -586,6 +599,7 @@ export type SystemUserUpdateManyMutationInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -609,6 +623,7 @@ export type SystemUserUncheckedUpdateManyInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
@@ -641,6 +656,7 @@ export type SystemUserCountOrderByAggregateInput = {
   phone?: Prisma.SortOrder
   email?: Prisma.SortOrder
   roles?: Prisma.SortOrder
+  permissions?: Prisma.SortOrder
   status?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   organizationRole?: Prisma.SortOrder
@@ -731,7 +747,16 @@ export type SystemUserCreaterolesInput = {
   set: string[]
 }
 
+export type SystemUserCreatepermissionsInput = {
+  set: string[]
+}
+
 export type SystemUserUpdaterolesInput = {
+  set?: string[]
+  push?: string | string[]
+}
+
+export type SystemUserUpdatepermissionsInput = {
   set?: string[]
   push?: string | string[]
 }
@@ -811,6 +836,7 @@ export type SystemUserCreateWithoutAuthSessionsInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationRole?: string
   companyName?: string | null
@@ -835,6 +861,7 @@ export type SystemUserUncheckedCreateWithoutAuthSessionsInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationId?: string
   organizationRole?: string
@@ -875,6 +902,7 @@ export type SystemUserUpdateWithoutAuthSessionsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -899,6 +927,7 @@ export type SystemUserUncheckedUpdateWithoutAuthSessionsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
@@ -923,6 +952,7 @@ export type SystemUserCreateWithoutOrganizationInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationRole?: string
   companyName?: string | null
@@ -947,6 +977,7 @@ export type SystemUserUncheckedCreateWithoutOrganizationInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationRole?: string
   companyName?: string | null
@@ -1000,6 +1031,7 @@ export type SystemUserScalarWhereInput = {
   phone?: Prisma.StringNullableFilter<"SystemUser"> | string | null
   email?: Prisma.StringNullableFilter<"SystemUser"> | string | null
   roles?: Prisma.StringNullableListFilter<"SystemUser">
+  permissions?: Prisma.StringNullableListFilter<"SystemUser">
   status?: Prisma.StringFilter<"SystemUser"> | string
   organizationId?: Prisma.StringFilter<"SystemUser"> | string
   organizationRole?: Prisma.StringFilter<"SystemUser"> | string
@@ -1024,6 +1056,7 @@ export type SystemUserCreateManyOrganizationInput = {
   phone?: string | null
   email?: string | null
   roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
   status?: string
   organizationRole?: string
   companyName?: string | null
@@ -1047,6 +1080,7 @@ export type SystemUserUpdateWithoutOrganizationInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1071,6 +1105,7 @@ export type SystemUserUncheckedUpdateWithoutOrganizationInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1095,6 +1130,7 @@ export type SystemUserUncheckedUpdateManyWithoutOrganizationInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
   status?: Prisma.StringFieldUpdateOperationsInput | string
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1149,6 +1185,7 @@ export type SystemUserSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   phone?: boolean
   email?: boolean
   roles?: boolean
+  permissions?: boolean
   status?: boolean
   organizationId?: boolean
   organizationRole?: boolean
@@ -1176,6 +1213,7 @@ export type SystemUserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   phone?: boolean
   email?: boolean
   roles?: boolean
+  permissions?: boolean
   status?: boolean
   organizationId?: boolean
   organizationRole?: boolean
@@ -1201,6 +1239,7 @@ export type SystemUserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   phone?: boolean
   email?: boolean
   roles?: boolean
+  permissions?: boolean
   status?: boolean
   organizationId?: boolean
   organizationRole?: boolean
@@ -1226,6 +1265,7 @@ export type SystemUserSelectScalar = {
   phone?: boolean
   email?: boolean
   roles?: boolean
+  permissions?: boolean
   status?: boolean
   organizationId?: boolean
   organizationRole?: boolean
@@ -1243,7 +1283,7 @@ export type SystemUserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type SystemUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userName" | "nickName" | "phone" | "email" | "roles" | "status" | "organizationId" | "organizationRole" | "companyName" | "expireAt" | "remark" | "passwordHash" | "passwordSalt" | "lastLoginAt" | "lastLoginIp" | "failedLoginCount" | "lockedUntil" | "passwordResetAt" | "createdAt" | "updatedAt", ExtArgs["result"]["systemUser"]>
+export type SystemUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userName" | "nickName" | "phone" | "email" | "roles" | "permissions" | "status" | "organizationId" | "organizationRole" | "companyName" | "expireAt" | "remark" | "passwordHash" | "passwordSalt" | "lastLoginAt" | "lastLoginIp" | "failedLoginCount" | "lockedUntil" | "passwordResetAt" | "createdAt" | "updatedAt", ExtArgs["result"]["systemUser"]>
 export type SystemUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   authSessions?: boolean | Prisma.SystemUser$authSessionsArgs<ExtArgs>
@@ -1269,6 +1309,7 @@ export type $SystemUserPayload<ExtArgs extends runtime.Types.Extensions.Internal
     phone: string | null
     email: string | null
     roles: string[]
+    permissions: string[]
     status: string
     organizationId: string
     organizationRole: string
@@ -1715,6 +1756,7 @@ export interface SystemUserFieldRefs {
   readonly phone: Prisma.FieldRef<"SystemUser", 'String'>
   readonly email: Prisma.FieldRef<"SystemUser", 'String'>
   readonly roles: Prisma.FieldRef<"SystemUser", 'String[]'>
+  readonly permissions: Prisma.FieldRef<"SystemUser", 'String[]'>
   readonly status: Prisma.FieldRef<"SystemUser", 'String'>
   readonly organizationId: Prisma.FieldRef<"SystemUser", 'String'>
   readonly organizationRole: Prisma.FieldRef<"SystemUser", 'String'>

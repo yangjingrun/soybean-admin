@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import AiDraftQueueConfigCard from './AiDraftQueueConfigCard.vue';
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
@@ -47,8 +48,11 @@ const {
 
 const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults } = useTemplateDefaults();
 
-const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
-const canManageOrganization = computed(() => isSuperAdmin.value || authStore.userInfo.organizationRole === 'admin');
+const canManageOrganization = computed(() => hasPermission(authStore.userInfo, 'crm:settings:rules:write'));
+const canManageAiDraftQueue = computed(() =>
+  hasPermission(authStore.userInfo, 'crm:settings:ai-draft-queue:write')
+);
+const canManageGlobalConfig = computed(() => hasPermission(authStore.userInfo, 'crm:settings:global:write'));
 const tabVisibility = computed(() => buildCrmSettingsTabVisibility(authStore.userInfo));
 const overviewItems = computed(() =>
   buildCrmSettingsOverview({
@@ -119,8 +123,8 @@ const overviewItems = computed(() =>
         <NSpace vertical :size="12">
           <SequencePolicyManager />
           <OrganizationPermissionCard v-if="canManageOrganization" />
-          <AiDraftQueueConfigCard v-if="isSuperAdmin" />
-          <GlobalConfigCard v-if="isSuperAdmin" />
+          <AiDraftQueueConfigCard v-if="canManageAiDraftQueue" />
+          <GlobalConfigCard v-if="canManageGlobalConfig" />
         </NSpace>
       </NTabPane>
 

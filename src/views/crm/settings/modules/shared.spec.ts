@@ -59,7 +59,7 @@ describe('crm settings shared helpers', () => {
   it('keeps ordinary CRM members focused on personal setup tabs only', () => {
     assert.deepEqual(
       buildCrmSettingsTabVisibility({
-        organizationRole: 'member',
+        buttons: [],
         roles: []
       }),
       {
@@ -72,15 +72,20 @@ describe('crm settings shared helpers', () => {
     );
   });
 
-  it('shows organization managers shared assets and safety tabs without platform operations', () => {
+  it('shows assigned CRM settings tabs without relying on organization role', () => {
     assert.deepEqual(
       buildCrmSettingsTabVisibility({
-        organizationRole: 'admin',
-        roles: []
+        buttons: [
+          'crm:settings:assets:write',
+          'crm:settings:rules:write',
+          'crm:settings:safety:read',
+          'crm:settings:operations:write'
+        ],
+        roles: ['R_USER']
       }),
       {
         assets: true,
-        operations: false,
+        operations: true,
         rules: true,
         safety: true,
         start: true
@@ -91,7 +96,7 @@ describe('crm settings shared helpers', () => {
   it('shows platform super administrators all CRM settings tabs', () => {
     assert.deepEqual(
       buildCrmSettingsTabVisibility({
-        organizationRole: 'member',
+        buttons: [],
         roles: ['R_SUPER']
       }),
       {
@@ -99,6 +104,22 @@ describe('crm settings shared helpers', () => {
         operations: true,
         rules: true,
         safety: true,
+        start: true
+      }
+    );
+  });
+
+  it('keeps platform config permissions on the rules tab instead of operations diagnostics', () => {
+    assert.deepEqual(
+      buildCrmSettingsTabVisibility({
+        buttons: ['crm:settings:global:write', 'crm:settings:ai-draft-queue:write'],
+        roles: ['R_USER']
+      }),
+      {
+        assets: false,
+        operations: false,
+        rules: true,
+        safety: false,
         start: true
       }
     );

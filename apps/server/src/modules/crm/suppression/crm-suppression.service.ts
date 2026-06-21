@@ -1,16 +1,18 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createPageResult } from '../../../shared/pagination';
+import { requirePermission } from '../../../shared/permission-policy';
 import { CRM_SUPPRESSION_REPOSITORY } from '../crm.tokens';
 import type { CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
-import { requireCrmOrganizationAdminScope } from '../shared/crm-scope';
 import { toBlacklistView } from '../shared/crm-view-mappers';
 import type { CrmSuppressionRepository } from './crm-suppression.repository';
 
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
+const blacklistReadPermission = 'crm:settings:safety:read';
+const blacklistWritePermission = 'crm:settings:safety:write';
 
 @Injectable()
 export class CrmSuppressionService {
@@ -30,7 +32,7 @@ export class CrmSuppressionService {
       keyword?: string;
     } = {}
   ) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, blacklistReadPermission, '无权查看 CRM 安全拦截');
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
@@ -51,7 +53,7 @@ export class CrmSuppressionService {
 
   /** Remove one organization blacklist entry after recording an audit reason. */
   async removeBlacklistEntry(id: string, input: { reason?: string | null }, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, blacklistWritePermission, '无权维护 CRM 安全拦截');
     const reason = normalizeNullableString(input.reason);
     if (!reason) {
       throw new BadRequestException('解除黑名单必须填写解除原因');

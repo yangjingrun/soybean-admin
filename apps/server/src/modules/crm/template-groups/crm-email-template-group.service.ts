@@ -1,9 +1,9 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createPageResult } from '../../../shared/pagination';
+import { requirePermission } from '../../../shared/permission-policy';
 import type { CrmEmailTemplateGroupRecord, CrmEmailTemplateStatus, CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
-import { requireCrmOrganizationAdminScope } from '../shared/crm-scope';
 import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import {
   CRM_EMAIL_TEMPLATE_GROUP_REPOSITORY,
@@ -22,6 +22,7 @@ import {
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
+const emailTemplateWritePermission = 'crm:settings:assets:write';
 
 @Injectable()
 export class CrmEmailTemplateGroupService {
@@ -64,7 +65,7 @@ export class CrmEmailTemplateGroupService {
 
   /** Creates one organization-level email template group with exactly five sequence steps. */
   async createEmailTemplateGroup(input: EmailTemplateGroupCreateInput, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, emailTemplateWritePermission, '无权维护 CRM 写信资料');
     const data = normalizeEmailTemplateGroupCreateInput(input);
     await this.assertEmailTemplateNameAvailable(context.organizationId, data.name);
     const templateGroup = await this.runEmailTemplateWrite(() =>
@@ -92,7 +93,7 @@ export class CrmEmailTemplateGroupService {
 
   /** Updates one organization-level email template group and replaces steps only when provided. */
   async updateEmailTemplateGroup(id: string, input: EmailTemplateGroupUpdateInput, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, emailTemplateWritePermission, '无权维护 CRM 写信资料');
     const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
     const fromStatus = currentTemplate.status;
     const data = normalizeEmailTemplateGroupUpdateInput(input);
@@ -123,7 +124,7 @@ export class CrmEmailTemplateGroupService {
 
   /** Archives one organization-level email template group instead of deleting it. */
   async archiveEmailTemplateGroup(id: string, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, emailTemplateWritePermission, '无权维护 CRM 写信资料');
     const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
     const fromStatus = currentTemplate.status;
     const templateGroup = await this.templateGroupRepository.updateEmailTemplateGroup(
@@ -153,7 +154,7 @@ export class CrmEmailTemplateGroupService {
 
   /** Marks one active organization-level email template group as the default drafting template. */
   async setDefaultEmailTemplateGroup(id: string, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, emailTemplateWritePermission, '无权维护 CRM 写信资料');
     const currentTemplate = await this.requireScopedEmailTemplateGroup(id, context);
 
     if (currentTemplate.status !== 'active') {

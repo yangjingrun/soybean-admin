@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { crmPermissionDefinitions, getDefaultPermissionCodesByRoles } from '@soybean/shared';
 
 export const userRoleOptions = [
   { label: '超级管理员', value: 'R_SUPER' },
@@ -37,6 +38,31 @@ export const userExpirationTagTypeMap: Record<Api.SystemUser.UserExpirationStatu
   active: 'success',
   expired: 'error'
 };
+
+export const userPermissionGroups = Array.from(
+  crmPermissionDefinitions
+    .reduce((groups, permission) => {
+      const group = groups.get(permission.group) || {
+        key: permission.group,
+        label: permission.groupLabel,
+        options: [] as Array<{ label: string; value: Api.SystemUser.PermissionCode }>
+      };
+
+      group.options.push({
+        label: permission.label,
+        value: permission.code
+      });
+      groups.set(permission.group, group);
+
+      return groups;
+    }, new Map<string, { key: string; label: string; options: Array<{ label: string; value: Api.SystemUser.PermissionCode }> }>())
+    .values()
+);
+
+/** Resolve the default permission checkbox value for a role selection. */
+export function getDefaultUserPermissionsByRoles(roles: Api.SystemUser.UserRole[]) {
+  return getDefaultPermissionCodesByRoles(roles);
+}
 
 /** Create the default filter object for initial load and reset. */
 export function createDefaultUserFilterModel(): Api.SystemUser.UserFilterModel {

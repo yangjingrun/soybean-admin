@@ -1,5 +1,6 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import { archiveCrmProductLine, createCrmProductLine, fetchCrmProductLines, updateCrmProductLine } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import {
@@ -32,9 +33,7 @@ export function useProductLineTable() {
 
   const filterModel = reactive<Api.Crm.ProductLineFilterModel>(createDefaultProductLineFilterModel());
   const formModel = reactive<Api.Crm.ProductLineFormModel>(createDefaultProductLineForm());
-  const canManageAiWritingConfig = computed(
-    () => authStore.userInfo.organizationRole === 'admin' || authStore.userInfo.roles.includes('R_SUPER')
-  );
+  const canManageAiWritingConfig = computed(() => hasPermission(authStore.userInfo, 'crm:settings:assets:write'));
 
   onMounted(() => {
     void loadProductLines();

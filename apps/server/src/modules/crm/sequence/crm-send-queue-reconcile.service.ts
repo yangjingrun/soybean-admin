@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, Optional } from '@nestjs/common';
-import { assertSuper } from '../../../shared/permission-policy';
+import { requirePermission } from '../../../shared/permission-policy';
 import { CRM_SEND_QUEUE, CRM_SEND_QUEUE_RECONCILE_REPOSITORY } from '../crm.tokens';
 import type { CrmSendQueuePort, CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
@@ -24,7 +24,7 @@ export class CrmSendQueueReconcileService {
     input: { now?: Date; staleMinutes?: number; take?: number } = {},
     context: CrmUserContext
   ) {
-    assertSuper(context, '无权维护 CRM 发送队列');
+    requirePermission(context, 'crm:settings:operations:write', '无权执行 CRM 运维诊断');
 
     if (!this.sendQueue) {
       throw new BadRequestException('CRM 邮件发送队列未启用');

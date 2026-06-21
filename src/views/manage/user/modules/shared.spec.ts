@@ -3,9 +3,11 @@ import { describe, it } from 'node:test';
 import {
   buildSystemUserSearchParams,
   createDefaultUserFilterModel,
+  getDefaultUserPermissionsByRoles,
   formatUserDateTime,
   getUserExpirationState,
   getUserLockedState,
+  userPermissionGroups,
   userExpirationLabelMap,
   userStatusLabelMap
 } from './shared';
@@ -62,6 +64,16 @@ describe('system user shared helpers', () => {
     assert.equal(userStatusLabelMap.disabled, '禁用');
     assert.equal(userExpirationLabelMap.active, '有效');
     assert.equal(userExpirationLabelMap.expired, '已过期');
+  });
+
+  it('exposes CRM permission groups for user assignment', () => {
+    assert.equal(userPermissionGroups.length > 0, true);
+    assert.equal(
+      userPermissionGroups.some(group => group.options.some(option => option.value === 'crm:settings:assets:write')),
+      true
+    );
+    assert.deepEqual(getDefaultUserPermissionsByRoles(['R_USER']), []);
+    assert.equal(getDefaultUserPermissionsByRoles(['R_ADMIN']).includes('crm:settings:assets:write'), true);
   });
 
   it('reads expiration and lock display state from row flags', () => {

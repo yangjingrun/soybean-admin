@@ -2,6 +2,7 @@
 import { computed, onMounted, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import { fetchCrmOrganizationConfig, saveCrmOrganizationConfig } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 
@@ -13,9 +14,7 @@ const loading = shallowRef(false);
 const saving = shallowRef(false);
 const updatedAt = shallowRef<string | null>(null);
 
-const canManage = computed(
-  () => authStore.userInfo.organizationRole === 'admin' || authStore.userInfo.roles.includes('R_SUPER')
-);
+const canManage = computed(() => hasPermission(authStore.userInfo, 'crm:settings:rules:write'));
 const formattedUpdatedAt = computed(() => {
   if (!updatedAt.value || dayjs(updatedAt.value).valueOf() <= 0) {
     return '尚未保存';

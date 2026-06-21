@@ -1,10 +1,10 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createPageResult } from '../../../shared/pagination';
+import { requirePermission } from '../../../shared/permission-policy';
 import { normalizeSequencePolicyStatus } from '../crm-sequence-policy';
 import type { CrmSequencePolicyRecord, CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
-import { requireCrmOrganizationAdminScope } from '../shared/crm-scope';
 import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import { CRM_SEQUENCE_POLICY_REPOSITORY, type CrmSequencePolicyRepository } from './crm-sequence-policy.repository';
 import {
@@ -17,6 +17,7 @@ import {
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
+const sequencePolicyWritePermission = 'crm:settings:rules:write';
 
 @Injectable()
 export class CrmSequencePolicyService {
@@ -60,7 +61,7 @@ export class CrmSequencePolicyService {
 
   /** Creates one organization sequence policy. */
   async createSequencePolicy(input: SequencePolicyWriteInput, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, sequencePolicyWritePermission, '无权维护 CRM 发送规则');
     const data = normalizeSequencePolicyCreateInput(input, context);
     const policy = await this.runSequencePolicyWrite(() => this.sequencePolicyRepository.createSequencePolicy(data));
 
@@ -78,7 +79,7 @@ export class CrmSequencePolicyService {
 
   /** Updates one organization sequence policy. */
   async updateSequencePolicy(id: string, input: SequencePolicyWriteInput, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, sequencePolicyWritePermission, '无权维护 CRM 发送规则');
     const currentPolicy = await this.requireScopedSequencePolicy(id, context);
     const data = normalizeSequencePolicyUpdateInput(input);
     const nextStatus = data.status ?? currentPolicy.status;
@@ -113,7 +114,7 @@ export class CrmSequencePolicyService {
 
   /** Archives one sequence policy instead of deleting it. */
   async archiveSequencePolicy(id: string, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, sequencePolicyWritePermission, '无权维护 CRM 发送规则');
     const currentPolicy = await this.requireScopedSequencePolicy(id, context);
     const policy = await this.sequencePolicyRepository.updateSequencePolicy(
       currentPolicy.id,
@@ -142,7 +143,7 @@ export class CrmSequencePolicyService {
 
   /** Marks one active organization sequence policy as default. */
   async setDefaultSequencePolicy(id: string, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, sequencePolicyWritePermission, '无权维护 CRM 发送规则');
     const currentPolicy = await this.requireScopedSequencePolicy(id, context);
 
     if (currentPolicy.status !== 'active') {

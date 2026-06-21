@@ -6,6 +6,7 @@ import {
   normalizeOwnerDailySendLimit,
   normalizeOwnerDailySendLimitMax
 } from '../crm-global-config';
+import { requirePermission } from '../../../shared/permission-policy';
 import { CRM_AI_DRAFT_TASK_QUEUE, CRM_SETTINGS_REPOSITORY } from '../crm.tokens';
 import type {
   CrmAiDraftQueueConfigInput,
@@ -16,7 +17,6 @@ import type {
   CrmUserContext
 } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
-import { requireCrmOrganizationAdminScope } from '../shared/crm-scope';
 import type { CrmSettingsRepository } from './crm-settings.repository';
 
 @Injectable()
@@ -46,6 +46,8 @@ export class CrmSettingsService {
     },
     context: CrmUserContext
   ) {
+    requirePermission(context, 'crm:settings:global:write', '无权维护 CRM 全局配置');
+
     const record = await this.settingsRepository.saveGlobalConfig({
       emailVerificationCooldownDays: input.emailVerificationCooldownDays,
       ownerConcurrentSendLimit: input.ownerConcurrentSendLimit,
@@ -129,7 +131,7 @@ export class CrmSettingsService {
 
   /** Save organization-level CRM permission settings for organization administrators. */
   async saveOrganizationConfig(input: { allowAdminViewMemberEmailBody: boolean }, context: CrmUserContext) {
-    requireCrmOrganizationAdminScope(context);
+    requirePermission(context, 'crm:settings:rules:write', '无权维护 CRM 发送规则');
 
     const record = await this.settingsRepository.saveOrganizationConfig({
       organizationId: context.organizationId,
@@ -153,6 +155,8 @@ export class CrmSettingsService {
 
   /** Save CRM AI draft queue configuration and apply runtime concurrency. */
   async saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput, context: CrmUserContext) {
+    requirePermission(context, 'crm:settings:ai-draft-queue:write', '无权维护 CRM AI 草稿队列');
+
     const config = await this.settingsRepository.saveAiDraftQueueConfig({
       ...input,
       updatedById: context.userId,

@@ -1,4 +1,4 @@
-import type { OrganizationRole } from '@soybean/shared';
+import type { OrganizationRole, PermissionCode } from '@soybean/shared';
 
 export type SystemUserRole = 'R_SUPER' | 'R_ADMIN' | 'R_USER';
 
@@ -22,6 +22,7 @@ export interface SystemUserListItem {
   phone: string | null;
   email: string | null;
   roles: SystemUserRole[];
+  permissions: PermissionCode[];
   status: SystemUserStatus;
   organizationId: string;
   organizationName: string;
@@ -51,6 +52,7 @@ export interface SystemUserOperateInput {
   phone?: string | null;
   email?: string | null;
   roles: SystemUserRole[];
+  permissions?: PermissionCode[];
   status?: SystemUserStatus;
   companyName?: string | null;
   expireAt?: string | null;

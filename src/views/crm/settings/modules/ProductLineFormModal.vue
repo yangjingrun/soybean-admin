@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useMessage, type FormInst, type FormRules } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { normalizeProductLinePayload, validateProductLineAiWritingConfig } from './shared';
 
@@ -27,7 +28,7 @@ const modalTitle = computed(() => (props.mode === 'edit' ? '编辑产品线' : '
 const canManageAiWritingConfig = computed(() => {
   if (typeof props.canManageAiWritingConfig === 'boolean') return props.canManageAiWritingConfig;
 
-  return authStore.userInfo.organizationRole === 'admin' || authStore.userInfo.roles.includes('R_SUPER');
+  return hasPermission(authStore.userInfo, 'crm:settings:assets:write');
 });
 const isAiWritingConfigReadonly = computed(() => !canManageAiWritingConfig.value);
 
