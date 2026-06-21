@@ -14,6 +14,7 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
           address: 'Riyadh',
           phoneNumber: '+966 11 000 0000',
           sourceType: 'places',
+          country: 'SA',
           score: 82,
           reason: 'Matches bearing supplier intent',
           sourceUrl: 'https://google.serper.dev/places'
@@ -27,6 +28,7 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
       {
         name: 'ABC Bearing',
         websiteUrl: 'https://abc.example',
+        country: 'SA',
         sourceTaskId: 'task-1',
         contact: null,
         sourceSnapshot: {
@@ -34,6 +36,7 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
           address: 'Riyadh',
           phoneNumber: '+966 11 000 0000',
           sourceType: 'places',
+          country: 'SA',
           score: 82,
           reason: 'Matches bearing supplier intent',
           sourceUrl: 'https://google.serper.dev/places',

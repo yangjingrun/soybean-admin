@@ -7,6 +7,7 @@ interface AiLeadCandidateLike {
   snippet?: unknown;
   address?: unknown;
   phoneNumber?: unknown;
+  country?: unknown;
   sourceType?: unknown;
   score?: unknown;
   reason?: unknown;
@@ -28,6 +29,7 @@ export function mapAiLeadTaskResultToCrmImportInputs(taskId: string, result: unk
       {
         name,
         websiteUrl: normalizeString(candidate.website) || normalizeString(candidate.url),
+        ...readCandidateCountry(candidate),
         sourceTaskId: taskId,
         contact: null,
         sourceSnapshot: buildCandidateSourceSnapshot(candidate)
@@ -56,12 +58,19 @@ function normalizeNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function readCandidateCountry(candidate: AiLeadCandidateLike) {
+  const country = normalizeString(candidate.country);
+
+  return country ? { country } : {};
+}
+
 function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
   const snapshot: Record<string, string | number> = {};
   const stringFields = [
     'snippet',
     'address',
     'phoneNumber',
+    'country',
     'sourceType',
     'reason',
     'sourceUrl',

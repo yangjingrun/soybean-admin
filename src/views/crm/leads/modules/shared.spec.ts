@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   buildLeadQueueStats,
   formatArchivedFingerprintTypeLabel,
+  formatLeadWebsiteDisplay,
   getLeadNextAction,
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
@@ -173,6 +174,25 @@ describe('crm lead shared helpers', () => {
       description: '从开发队列移出',
       type: 'error'
     });
+  });
+
+  it('formats lead website display with readable domain text', () => {
+    assert.equal(
+      formatLeadWebsiteDisplay({
+        websiteUrl:
+          'https://m.pump-shop.kr/product/%ED%8E%8C%ED%94%84%EC%83%B5-kbc-6203/category/266/display/1/',
+        domain: 'm.pump-shop.kr'
+      }),
+      'm.pump-shop.kr'
+    );
+    assert.equal(
+      formatLeadWebsiteDisplay({
+        websiteUrl: 'https://kr.misumi-ec.com/vona2/detail/221000058301/',
+        domain: null
+      }),
+      'kr.misumi-ec.com'
+    );
+    assert.equal(formatLeadWebsiteDisplay({ websiteUrl: null, domain: null }), '-');
   });
 });
 

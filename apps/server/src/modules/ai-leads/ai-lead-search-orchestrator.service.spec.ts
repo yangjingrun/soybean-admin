@@ -76,6 +76,7 @@ describe('AiLeadSearchOrchestrator', () => {
     );
     assert.deepEqual(executedKeys, ['search|6204 bearing importer Saudi Arabia|sa|en|Saudi Arabia|10|1|']);
     assert.equal(result.serperRequests.length, 1);
+    assert.equal(result.candidates[0].country, 'SA');
   });
 
   it('keeps checkpoint keys distinct for the same query with different time ranges', async () => {

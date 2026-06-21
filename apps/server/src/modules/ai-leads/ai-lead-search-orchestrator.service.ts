@@ -101,6 +101,7 @@ export interface AiLeadSearchCandidate {
   website?: string;
   address?: string;
   phoneNumber?: string;
+  country?: string;
 }
 
 export interface LeadSearchQueryExecutionInput {
@@ -294,7 +295,7 @@ export class AiLeadSearchOrchestrator {
           result: serperResult
         });
 
-        const rawCandidates = extractCandidates(serperResult);
+        const rawCandidates = withRequestCountry(extractCandidates(serperResult), currentRequest);
         const precheckResult = await this.precheckCandidates(rawCandidates, context);
 
         this.addCandidates(precheckResult.acceptedCandidates, candidates, candidateKeys);
@@ -750,6 +751,30 @@ function extractCandidates(result: unknown): AiLeadSearchCandidate[] {
     ...extractPlaceCandidates(record.places, 'place'),
     ...extractPlaceCandidates(record.localResults, 'local')
   ];
+}
+
+/** Attach the Serper request country to candidates before CRM import. */
+function withRequestCountry(candidates: AiLeadSearchCandidate[], request: SearchRequestTrace) {
+  const country = readRequestCountry(request.requestBody);
+
+  if (!country) {
+    return candidates;
+  }
+
+  return candidates.map(candidate => ({
+    ...candidate,
+    country
+  }));
+}
+
+function readRequestCountry(requestBody: SerperRequestBody) {
+  const gl = requestBody.gl?.trim();
+
+  if (gl && /^[a-z]{2}$/i.test(gl)) {
+    return gl.toUpperCase();
+  }
+
+  return requestBody.location?.trim();
 }
 
 function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {

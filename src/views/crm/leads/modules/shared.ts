@@ -369,3 +369,11 @@ export function getLeadTimelineItemType(event: Api.Crm.LeadTimelineEvent) {
 export function getWebsiteHref(value: string) {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
+
+/** Format lead website text for compact table display. */
+export function formatLeadWebsiteDisplay(input: Pick<Api.Crm.LeadRecord, 'websiteUrl' | 'domain'>) {
+  if (input.domain) return input.domain;
+  if (!input.websiteUrl) return '-';
+
+  return new URL(getWebsiteHref(input.websiteUrl)).hostname;
+}

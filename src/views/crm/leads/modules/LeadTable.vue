@@ -2,7 +2,14 @@
 import { computed, h } from 'vue';
 import { NButton, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { formatLeadDate, getLeadNextAction, getWebsiteHref, leadStatusLabelMap, leadStatusTagTypeMap } from './shared';
+import {
+  formatLeadDate,
+  formatLeadWebsiteDisplay,
+  getLeadNextAction,
+  getWebsiteHref,
+  leadStatusLabelMap,
+  leadStatusTagTypeMap
+} from './shared';
 
 const props = defineProps<{
   records: Api.Crm.LeadRecord[];
@@ -30,21 +37,23 @@ function renderCompany(row: Api.Crm.LeadRecord) {
 }
 
 function renderWebsite(row: Api.Crm.LeadRecord) {
-  return h('div', { class: 'lead-stack-cell' }, [
-    row.websiteUrl
+  const displayText = formatLeadWebsiteDisplay(row);
+  const websiteNode =
+    row.websiteUrl && displayText !== '-'
       ? h(
           'a',
           {
             class: 'lead-website-link',
             href: getWebsiteHref(row.websiteUrl),
             target: '_blank',
-            rel: 'noreferrer'
+            rel: 'noreferrer',
+            title: row.websiteUrl
           },
-          row.websiteUrl
+          displayText
         )
-      : h('span', { class: 'lead-empty-text' }, '-'),
-    h('span', { class: 'lead-secondary-text' }, row.domain || '-')
-  ]);
+      : h('span', { class: displayText === '-' ? 'lead-empty-text' : 'lead-primary-text' }, displayText);
+
+  return h('div', { class: 'lead-stack-cell' }, [websiteNode]);
 }
 
 function renderRegion(row: Api.Crm.LeadRecord) {
@@ -80,7 +89,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
   },
   {
     key: 'website',
-    title: '官网 / 域名',
+    title: '官网',
     minWidth: 260,
     render: row => renderWebsite(row)
   },
