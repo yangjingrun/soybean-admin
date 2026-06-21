@@ -4,6 +4,7 @@ import { CRM_SUPPRESSION_REPOSITORY } from '../crm.tokens';
 import type { CrmUserContext } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
+import { requireCrmOrganizationAdminScope } from '../shared/crm-scope';
 import { toBlacklistView } from '../shared/crm-view-mappers';
 import type { CrmSuppressionRepository } from './crm-suppression.repository';
 
@@ -29,6 +30,7 @@ export class CrmSuppressionService {
       keyword?: string;
     } = {}
   ) {
+    requireCrmOrganizationAdminScope(context);
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
@@ -49,6 +51,7 @@ export class CrmSuppressionService {
 
   /** Remove one organization blacklist entry after recording an audit reason. */
   async removeBlacklistEntry(id: string, input: { reason?: string | null }, context: CrmUserContext) {
+    requireCrmOrganizationAdminScope(context);
     const reason = normalizeNullableString(input.reason);
     if (!reason) {
       throw new BadRequestException('解除黑名单必须填写解除原因');
