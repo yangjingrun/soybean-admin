@@ -34,6 +34,11 @@ export function canTestModelConfig(form: ModelConfigFormModel, savedSecret: Save
   );
 }
 
+/** Clear the visible API key after a successful save so the plaintext key is not copyable from the form. */
+export function clearSavedModelApiKey(form: ModelConfigFormModel) {
+  form.apiKey = '';
+}
+
 /** Build the lightweight model test payload without sending an empty inline API key. */
 export function buildModelTestPayload(
   form: ModelConfigFormModel,

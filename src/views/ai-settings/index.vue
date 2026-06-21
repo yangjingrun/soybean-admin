@@ -22,6 +22,7 @@ import {
   buildModelTestPayload,
   canSaveModelConfig,
   canTestModelConfig,
+  clearSavedModelApiKey,
   type SavedSecretState
 } from './modules/model-settings';
 
@@ -258,6 +259,7 @@ async function handleSaveModelConfig() {
       hasApiKey: record.hasApiKey,
       maskedApiKey: record.maskedApiKey
     });
+    clearSavedModelApiKey(modelForm);
     modelTestResult.value = null;
     message.success(t('page.aiSettings.messages.saved'));
   } finally {
