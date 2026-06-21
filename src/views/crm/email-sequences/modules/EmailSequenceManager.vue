@@ -76,13 +76,7 @@ const {
 </script>
 
 <template>
-  <NSpace vertical :size="16">
-    <NPageHeader title="邮件序列" subtitle="审核首封与后续跟进草稿，控制序列发送状态">
-      <template #extra>
-        <NTag type="info" :bordered="false">序列审核</NTag>
-      </template>
-    </NPageHeader>
-
+  <NSpace vertical :size="12">
     <EmailSequenceToolbar
       v-model:filter-model="filterModel"
       :loading="loading"

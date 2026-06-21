@@ -64,12 +64,10 @@ const overviewItems = computed(() =>
 </script>
 
 <template>
-  <NSpace vertical :size="16">
-    <NPageHeader title="CRM 配置中心" subtitle="先接通邮箱，再配置写信资料、发送规则和安全边界" />
-
+  <NSpace vertical :size="12">
     <CrmSettingsOverview :items="overviewItems" :loading="loading || templateDefaultsLoading" />
 
-    <NTabs type="segment" animated>
+    <NTabs type="line" size="small" animated class="crm-settings-tabs">
       <NTabPane name="start" tab="开始使用">
         <NSpace vertical :size="12">
           <SendPreferenceCard />
@@ -151,3 +149,14 @@ const overviewItems = computed(() =>
     />
   </NSpace>
 </template>
+
+<style scoped>
+.crm-settings-tabs :deep(.n-tabs-nav) {
+  margin-bottom: 12px;
+}
+
+.crm-settings-tabs :deep(.n-tabs-tab) {
+  padding-inline: 12px;
+  font-weight: 500;
+}
+</style>

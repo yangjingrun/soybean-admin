@@ -161,30 +161,6 @@ watch(
 <template>
   <NSpace vertical :size="12" class="ai-leads-page">
     <NCard :bordered="false" size="small" class="card-wrapper task-card">
-      <template #header>
-        <div class="section-header">
-          <div class="section-heading">
-            <span class="section-title">AI 获客任务</span>
-            <NTag size="small" type="info" :bordered="false">{{ currentWorkflowStepLabel }}</NTag>
-            <NTag v-if="currentSearchTask" size="small" :type="currentSearchTaskStatusType" :bordered="false">
-              {{ currentSearchTaskStatusLabel }}
-            </NTag>
-          </div>
-          <NButton
-            size="small"
-            secondary
-            :loading="isHistoryLoading"
-            :disabled="isSearchTaskBlockingForm"
-            @click="isHistoryDrawerVisible = true"
-          >
-            <template #icon>
-              <SvgIcon icon="material-symbols:history" />
-            </template>
-            历史
-          </NButton>
-        </div>
-      </template>
-
       <NForm :model="form" label-placement="top" size="small" class="lead-form">
         <NFormItem label="获客需求">
           <NInput
@@ -217,11 +193,30 @@ watch(
                 {{ targetLeadCountFeedback }}
               </NText>
             </div>
+            <NTag size="small" type="info" :bordered="false">{{ currentWorkflowStepLabel }}</NTag>
+            <NTag v-if="currentSearchTask" size="small" :type="currentSearchTaskStatusType" :bordered="false">
+              {{ currentSearchTaskStatusLabel }}
+            </NTag>
           </div>
 
           <NSpace :size="8" class="task-toolbar-actions">
-            <NButton :loading="isGenerating" :disabled="isGenerateDisabled" @click="handleGenerate">优化关键词</NButton>
             <NButton
+              size="small"
+              secondary
+              :loading="isHistoryLoading"
+              :disabled="isSearchTaskBlockingForm"
+              @click="isHistoryDrawerVisible = true"
+            >
+              <template #icon>
+                <SvgIcon icon="material-symbols:history" />
+              </template>
+              历史
+            </NButton>
+            <NButton size="small" :loading="isGenerating" :disabled="isGenerateDisabled" @click="handleGenerate">
+              优化关键词
+            </NButton>
+            <NButton
+              size="small"
               type="primary"
               :loading="isSearchTaskSubmitting"
               :disabled="!canSearchCustomers || isHistorySaving || isHistoryDeleting"
@@ -229,7 +224,7 @@ watch(
             >
               开始搜索采集
             </NButton>
-            <NButton :disabled="isClearDisabled" @click="handleClear">清空</NButton>
+            <NButton size="small" :disabled="isClearDisabled" @click="handleClear">清空</NButton>
             <NButton
               v-for="item in taskActionButtons"
               :key="item.key"
@@ -447,7 +442,6 @@ watch(
   font-weight: 600;
 }
 
-.task-card :deep(.n-card-header),
 .result-card :deep(.n-card-header) {
   padding: 14px 16px;
   border-bottom: 1px solid #edf1f7;
