@@ -30,4 +30,11 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /继续采集更多/);
     assert.match(pageSource, /开始新任务/);
   });
+
+  it('does not expose keyword plan as a primary result tab', () => {
+    assert.equal(pageSource.includes('<NTabs'), false);
+    assert.equal(pageSource.includes('tab="关键词方案"'), false);
+    assert.equal(pageSource.includes('tab="采集结果"'), false);
+    assert.match(pageSource, /搜索策略已准备好/);
+  });
 });

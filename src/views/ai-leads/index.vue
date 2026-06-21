@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue';
+import { computed } from 'vue';
 import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
 import SearchProgressPanel from './modules/SearchProgressPanel.vue';
@@ -57,7 +57,6 @@ const {
   targetLeadCountFeedback
 } = useAiLeadPage();
 
-type ResultTab = 'keyword' | 'search';
 type WorkflowStepState = 'wait' | 'active' | 'completed' | 'warning' | 'error';
 type TaskActionButton = {
   key: 'interrupt' | 'resume' | 'retry';
@@ -65,8 +64,6 @@ type TaskActionButton = {
   type: 'primary' | 'warning';
   visible: boolean;
 };
-
-const activeResultTab = shallowRef<ResultTab>('keyword');
 
 const isGenerateDisabled = computed(
   () =>
@@ -111,8 +108,8 @@ const workflowSteps = computed(() => {
     },
     {
       key: 'keyword',
-      title: '确认关键词',
-      description: hasKeywordPlan ? '已生成可执行查询' : '先让 AI 归纳搜索方向',
+      title: 'AI 准备',
+      description: hasKeywordPlan ? '搜索策略已准备好' : '先让 AI 归纳搜索方向',
       state: hasKeywordPlan ? 'completed' : hasRequirement ? 'active' : 'wait'
     },
     {
@@ -150,14 +147,6 @@ const taskActionButtons = computed(
       { key: 'resume', label: '继续', type: 'primary', visible: searchTaskActionState.value.canResume },
       { key: 'retry', label: '重试', type: 'primary', visible: searchTaskActionState.value.canRetry }
     ].filter(item => item.visible) as TaskActionButton[]
-);
-
-watch(
-  hasSearchProgress,
-  value => {
-    activeResultTab.value = value ? 'search' : 'keyword';
-  },
-  { immediate: true }
 );
 </script>
 
@@ -291,9 +280,9 @@ watch(
               <template #icon>
                 <SvgIcon icon="material-symbols:keyboard-return" />
               </template>
-              返回关键词
+              调整需求
             </NButton>
-            <template v-if="!hasSearchProgress && aiResult && (isSuperAdmin || keywordOptimizationViewModel)">
+            <template v-if="!hasSearchProgress && aiResult && isSuperAdmin">
               <NButton v-if="!isEditingResult" size="small" @click="handleStartEdit">
                 <template #icon>
                   <SvgIcon icon="material-symbols:edit-outline" />
@@ -346,12 +335,27 @@ watch(
         </div>
       </template>
 
-      <NTabs v-if="aiResult || hasSearchProgress" v-model:value="activeResultTab" size="small" animated>
-        <NTabPane name="keyword" tab="关键词方案">
-          <div v-if="aiResult" class="result-panel">
-            <NAlert v-if="keywordQualityWarnings.length" type="warning" :bordered="false">
-              {{ keywordQualityWarnings.join('；') }}
-            </NAlert>
+      <div v-if="hasSearchProgress" class="result-panel">
+        <SearchProgressPanel
+          :state="searchProgress"
+          :importing-candidate-key="importingCandidateKey"
+          :loading="isSearchTaskPending"
+          :show-serper-details="isSuperAdmin"
+          @import-candidate="handleImportCandidate"
+        />
+      </div>
+      <div v-else-if="aiResult" class="result-panel">
+        <NAlert v-if="keywordQualityWarnings.length" type="warning" :bordered="false">
+          {{ keywordQualityWarnings.join('；') }}
+        </NAlert>
+        <NResult
+          status="success"
+          title="搜索策略已准备好"
+          description="点击开始搜索采集，系统会直接返回候选客户。"
+          class="keyword-ready-result"
+        />
+        <NCollapse v-if="isSuperAdmin" class="debug-collapse">
+          <NCollapseItem title="调试信息" name="debug">
             <KeywordOptimizationResult
               v-if="keywordOptimizationViewModel"
               v-model:keyword-plan="editableKeywordPlan"
@@ -359,36 +363,17 @@ watch(
               :editable="isEditingResult"
             />
             <template v-else>
-              <NAlert type="warning" :bordered="false">关键词优化结果不是合法 JSON，请重新生成。</NAlert>
-              <NInput
-                v-if="isSuperAdmin"
-                :value="aiResult.text"
-                type="textarea"
-                readonly
-                :autosize="{ minRows: 16, maxRows: 28 }"
-              />
+              <NAlert type="warning" :bordered="false">AI 搜索策略不是合法 JSON，请重新生成。</NAlert>
+              <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 16, maxRows: 28 }" />
             </template>
             <NText depth="3" class="token-summary">
               Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} /
               总计 {{ aiResult.usage.totalTokens ?? '-' }}
             </NText>
-          </div>
-          <NEmpty v-else description="先优化关键词，系统会在这里展示可执行查询" class="result-empty" />
-        </NTabPane>
-
-        <NTabPane v-if="hasSearchProgress" name="search" tab="采集结果">
-          <div class="result-panel">
-            <SearchProgressPanel
-              :state="searchProgress"
-              :importing-candidate-key="importingCandidateKey"
-              :loading="isSearchTaskPending"
-              :show-serper-details="isSuperAdmin"
-              @import-candidate="handleImportCandidate"
-            />
-          </div>
-        </NTabPane>
-      </NTabs>
-      <NEmpty v-else description="填写需求后先优化关键词" class="result-empty" />
+          </NCollapseItem>
+        </NCollapse>
+      </div>
+      <NEmpty v-else description="填写需求后开始获客" class="result-empty" />
     </NCard>
 
     <KeywordHistoryDrawer
@@ -513,10 +498,6 @@ watch(
   flex-direction: column;
   padding: 0 16px 16px;
   background: #ffffff;
-}
-
-.result-card :deep(.n-tabs-nav) {
-  padding-top: 4px;
 }
 
 .workflow-strip {
