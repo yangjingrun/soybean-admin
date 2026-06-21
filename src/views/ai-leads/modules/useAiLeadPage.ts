@@ -47,6 +47,8 @@ import {
     type AiLeadCandidateImportRow
   } from './shared';
 
+type KeywordResultOrigin = 'none' | 'history' | 'generated' | 'task';
+
 export function useAiLeadPage() {
     const message = useMessage();
   const authStore = useAuthStore();
@@ -101,6 +103,7 @@ export function useAiLeadPage() {
   const editingKeywordPlanSnapshot = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
   const selectedHistoryId = shallowRef('');
   const isTargetLeadCountTouched = shallowRef(false);
+  const keywordResultOrigin = shallowRef<KeywordResultOrigin>('none');
 
   const canGenerate = computed(() => Boolean(form.requirement.trim()));
   const isTargetLeadCountValid = computed(() => isValidTargetLeadCount(form.targetLeadCount));
@@ -166,6 +169,9 @@ export function useAiLeadPage() {
       searchProgress.value.status !== 'idle' ||
       Boolean(searchProgress.value.result)
   );
+  const isRestoredKeywordHistory = computed(
+    () => keywordResultOrigin.value === 'history' && Boolean(currentHistoryRecord.value) && !hasSearchProgress.value
+  );
   const canReturnToKeywordStep = computed(
     () =>
       canReturnToKeywordOptimizationStep(searchProgress.value, isSearching.value) &&
@@ -174,7 +180,9 @@ export function useAiLeadPage() {
         currentSearchTask.value.status === 'discarded' ||
         Boolean(currentSearchTask.value.readAt))
   );
-  const currentWorkflowStepLabel = computed(() => (hasSearchProgress.value ? '搜索采集' : '关键词优化'));
+  const currentWorkflowStepLabel = computed(() =>
+    hasSearchProgress.value ? '搜索采集' : isRestoredKeywordHistory.value ? '历史记录' : '关键词优化'
+  );
   const searchTaskActionState = computed(() =>
     getLeadSearchTaskActionState(currentSearchTask.value?.status, currentSearchTask.value?.readAt)
   );
@@ -226,7 +234,7 @@ export function useAiLeadPage() {
       aiResult.value = result;
       keywordQualityWarnings.value = result.qualityWarnings ?? [];
       upsertHistoryRecord(result.historyRecord);
-      applyKeywordHistoryRecord(result.historyRecord, { syncTargetLeadCount: false });
+      applyKeywordHistoryRecord(result.historyRecord, { syncTargetLeadCount: false, origin: 'generated' });
       form.targetLeadCount = resolveTargetLeadCountAfterOptimization({
         currentValue: targetLeadCount,
         resolvedValue: result.historyRecord.keywordPlan.resolvedTargetLeadCount,
@@ -346,6 +354,7 @@ export function useAiLeadPage() {
     editableKeywordPlan.value = null;
     editingKeywordPlanSnapshot.value = null;
     selectedHistoryId.value = '';
+    keywordResultOrigin.value = 'none';
     isEditingResult.value = false;
   }
 
@@ -494,7 +503,7 @@ export function useAiLeadPage() {
       }
 
       upsertHistoryRecord(record);
-      applyKeywordHistoryRecord(record);
+      applyKeywordHistoryRecord(record, { origin: keywordResultOrigin.value === 'generated' ? 'generated' : 'history' });
       message.success('保存完成');
     } finally {
       isHistorySaving.value = false;
@@ -503,9 +512,10 @@ export function useAiLeadPage() {
 
   function applyKeywordHistoryRecord(
     record: Api.AiLeads.KeywordHistoryRecord,
-    options: { syncTargetLeadCount?: boolean } = {}
+    options: { syncTargetLeadCount?: boolean; origin?: Extract<KeywordResultOrigin, 'history' | 'generated'> } = {}
   ) {
     selectedHistoryId.value = record.id;
+    keywordResultOrigin.value = options.origin ?? 'history';
     form.requirement = record.requirement;
     if (options.syncTargetLeadCount !== false) {
       form.targetLeadCount = resolveTargetLeadCountAfterOptimization({
@@ -536,6 +546,7 @@ export function useAiLeadPage() {
     editableKeywordPlan.value = cloneKeywordPlan(task.keywordPlan);
     editingKeywordPlanSnapshot.value = null;
     searchProgress.value = createLeadSearchProgressStateFromTask(task);
+    keywordResultOrigin.value = 'task';
     isEditingResult.value = false;
 
     if (isLeadSearchTaskPending(task.status)) {
@@ -556,6 +567,7 @@ export function useAiLeadPage() {
     keywordQualityWarnings.value = [];
     editableKeywordPlan.value = null;
     editingKeywordPlanSnapshot.value = null;
+    keywordResultOrigin.value = 'none';
     resetSearchProgress();
     isEditingResult.value = false;
   }
@@ -661,6 +673,7 @@ export function useAiLeadPage() {
     editableKeywordPlan.value = null;
     editingKeywordPlanSnapshot.value = null;
     selectedHistoryId.value = '';
+    keywordResultOrigin.value = 'none';
     isEditingResult.value = false;
   }
 
@@ -758,6 +771,7 @@ export function useAiLeadPage() {
     isHistoryDrawerVisible,
     isHistoryLoading,
     isHistorySaving,
+    isRestoredKeywordHistory,
     isSearchTaskActionLoading,
     isSearchTaskBlockingForm,
     isSearchTaskPending,

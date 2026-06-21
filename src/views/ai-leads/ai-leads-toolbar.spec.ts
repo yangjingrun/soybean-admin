@@ -21,7 +21,7 @@ function getButtonSizeByMarker(marker: string) {
 
 describe('AI leads toolbar', () => {
   it('keeps primary workflow action buttons at the same size', () => {
-    const buttonSizes = ['handleGenerate', 'handlePrimarySearchAction', 'handleClear'].map(getButtonSizeByMarker);
+    const buttonSizes = ['data-action="generate"', 'handlePrimarySearchAction', 'handleClear'].map(getButtonSizeByMarker);
 
     assert.deepEqual(buttonSizes, ['small', 'small', 'small']);
   });
@@ -50,6 +50,15 @@ describe('AI leads toolbar', () => {
     assert.equal(pageSource.includes("title: '导入 CRM'"), false);
     assert.equal(pageSource.includes('采集完成后处理候选客户'), false);
     assert.match(pageSource, /title: '搜索采集'/);
+  });
+
+  it('makes restored keyword history visible before re-optimizing', () => {
+    assert.match(pageComposableSource, /isRestoredKeywordHistory/);
+    assert.match(pageSource, /已选中关键词历史/);
+    assert.match(pageSource, /历史搜索策略已选中/);
+    assert.match(pageSource, /重新优化/);
+    assert.match(pageSource, /@positive-click="handleGenerate"/);
+    assert.match(pageSource, /data-action="generate"/);
   });
 
   it('keeps debug details in the bottom-left result area', () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
+import dayjs from 'dayjs';
 import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
 import SearchProgressPanel from './modules/SearchProgressPanel.vue';
@@ -44,6 +45,7 @@ const {
   isHistoryDrawerVisible,
   isHistoryLoading,
   isHistorySaving,
+  isRestoredKeywordHistory,
   isSearchTaskActionLoading,
   isSearchTaskBlockingForm,
   isSearchTaskPending,
@@ -104,6 +106,17 @@ const isSearchPrimaryButtonDisabled = computed(() =>
     : !canSearchCustomers.value || isHistorySaving.value || isHistoryDeleting.value
 );
 const clearButtonLabel = computed(() => (hasCompletedSearchTask.value ? '开始新任务' : '清空'));
+const selectedHistoryUpdatedAtLabel = computed(() =>
+  currentHistoryRecord.value ? dayjs(currentHistoryRecord.value.updatedAt).format('YYYY-MM-DD HH:mm') : ''
+);
+const keywordReadyResultTitle = computed(() =>
+  isRestoredKeywordHistory.value ? '历史搜索策略已选中' : '搜索策略已准备好'
+);
+const keywordReadyResultDescription = computed(() =>
+  isRestoredKeywordHistory.value
+    ? '可以直接开始获客；如需按当前需求生成新策略，请点击重新优化。'
+    : '点击开始获客，系统会直接返回候选客户。'
+);
 
 function handlePrimarySearchAction() {
   if (isPrimarySearchInterruptAction.value) {
@@ -144,7 +157,11 @@ const workflowSteps = computed(() => {
     {
       key: 'keyword',
       title: 'AI 准备',
-      description: hasKeywordPlan ? '搜索策略已准备好' : '先让 AI 归纳搜索方向',
+      description: isRestoredKeywordHistory.value
+        ? '已选中历史搜索策略'
+        : hasKeywordPlan
+          ? '搜索策略已准备好'
+          : '先让 AI 归纳搜索方向',
       state: hasKeywordPlan ? 'completed' : hasRequirement ? 'active' : 'wait'
     },
     {
@@ -232,7 +249,27 @@ const taskActionButtons = computed(
               </template>
               历史
             </NButton>
-            <NButton size="small" :loading="isGenerating" :disabled="isGenerateDisabled" @click="handleGenerate">
+            <NPopconfirm v-if="isRestoredKeywordHistory" @positive-click="handleGenerate">
+              <template #trigger>
+                <NButton
+                  size="small"
+                  :loading="isGenerating"
+                  :disabled="isGenerateDisabled"
+                  data-action="generate"
+                >
+                  重新优化
+                </NButton>
+              </template>
+              当前选中的是历史记录。重新优化会按上方需求生成新的搜索策略，并切换到新历史，确认继续？
+            </NPopconfirm>
+            <NButton
+              v-else
+              size="small"
+              :loading="isGenerating"
+              :disabled="isGenerateDisabled"
+              data-action="generate"
+              @click="handleGenerate"
+            >
               优化关键词
             </NButton>
             <NButton
@@ -273,6 +310,10 @@ const taskActionButtons = computed(
             </NPopconfirm>
           </NSpace>
         </div>
+        <NAlert v-if="isRestoredKeywordHistory" type="info" :bordered="false" class="history-context-alert">
+          <template #header>已选中关键词历史</template>
+          当前展示的是 {{ selectedHistoryUpdatedAtLabel }} 保存的搜索策略。可以直接开始获客；重新优化会生成一条新的历史。
+        </NAlert>
       </NForm>
     </NCard>
 
@@ -379,8 +420,8 @@ const taskActionButtons = computed(
           </NAlert>
           <NResult
             status="success"
-            title="搜索策略已准备好"
-            description="点击开始获客，系统会直接返回候选客户。"
+            :title="keywordReadyResultTitle"
+            :description="keywordReadyResultDescription"
             class="keyword-ready-result"
           />
         </div>
@@ -525,6 +566,10 @@ const taskActionButtons = computed(
 .task-toolbar-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.history-context-alert {
+  margin-top: 10px;
 }
 
 .result-card :deep(.result-card-content) {
