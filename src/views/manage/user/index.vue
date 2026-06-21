@@ -68,7 +68,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
       render: row => (
         <div class="user-identity">
           <NText strong>{row.userName}</NText>
-          <NText depth={3}>{row.id}</NText>
+          <NText depth={3}>{`ID: ${row.id}`}</NText>
         </div>
       )
     },
