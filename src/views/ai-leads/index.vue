@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
 import SearchProgressPanel from './modules/SearchProgressPanel.vue';
@@ -65,6 +65,9 @@ type TaskActionButton = {
   visible: boolean;
 };
 
+const debugFooterRef = useTemplateRef<HTMLElement>('debugFooter');
+const debugExpandedNames = shallowRef<Array<string | number>>([]);
+
 const isGenerateDisabled = computed(
   () =>
     !canGenerate.value ||
@@ -94,6 +97,7 @@ const searchPrimaryButtonType = computed(() => (isPrimarySearchInterruptAction.v
 const searchPrimaryButtonLoading = computed(() =>
   isPrimarySearchInterruptAction.value ? isSearchTaskActionLoading.value : isSearchTaskSubmitting.value
 );
+const debugFooterClass = computed(() => ({ 'is-editing-focus': isEditingResult.value }));
 const isSearchPrimaryButtonDisabled = computed(() =>
   isPrimarySearchInterruptAction.value
     ? isHistorySaving.value || isHistoryDeleting.value
@@ -107,6 +111,17 @@ function handlePrimarySearchAction() {
   }
 
   return handleSearchCustomers();
+}
+
+/**
+ * Enters keyword plan edit mode and guides the user to the editable debug panel.
+ */
+async function handleStartKeywordResultEdit() {
+  handleStartEdit();
+  debugExpandedNames.value = ['debug'];
+
+  await nextTick();
+  debugFooterRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 const workflowSteps = computed(() => {
@@ -296,7 +311,7 @@ const taskActionButtons = computed(
               调整需求
             </NButton>
             <template v-if="!hasSearchProgress && aiResult && isSuperAdmin">
-              <NButton v-if="!isEditingResult" size="small" @click="handleStartEdit">
+              <NButton v-if="!isEditingResult" size="small" @click="handleStartKeywordResultEdit">
                 <template #icon>
                   <SvgIcon icon="material-symbols:edit-outline" />
                 </template>
@@ -369,8 +384,11 @@ const taskActionButtons = computed(
             class="keyword-ready-result"
           />
         </div>
-        <div v-if="isSuperAdmin" class="result-debug-footer">
-          <NCollapse class="debug-collapse">
+        <div v-if="isSuperAdmin" ref="debugFooter" class="result-debug-footer" :class="debugFooterClass">
+          <NAlert v-if="isEditingResult" type="info" :bordered="false" class="debug-edit-hint">
+            正在编辑搜索策略调试信息，修改关键词、查询包或展示字段后点击保存会更新当前历史记录。
+          </NAlert>
+          <NCollapse v-model:expanded-names="debugExpandedNames" class="debug-collapse">
             <NCollapseItem title="调试信息" name="debug">
               <KeywordOptimizationResult
                 v-if="keywordOptimizationViewModel"
@@ -637,6 +655,25 @@ const taskActionButtons = computed(
 .result-debug-footer {
   width: 100%;
   align-self: stretch;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    padding 0.2s ease;
+}
+
+.result-debug-footer.is-editing-focus {
+  padding: 10px 12px 12px;
+  border-color: var(--ai-leads-primary);
+  background: #f8fbff;
+  box-shadow: 0 0 0 3px rgb(var(--primary-100-color));
+}
+
+.debug-edit-hint {
+  margin-bottom: 8px;
 }
 
 .debug-collapse {

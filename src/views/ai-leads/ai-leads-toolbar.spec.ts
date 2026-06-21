@@ -57,6 +57,14 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /\.result-debug-footer\s*\{[^}]*width: 100%;/);
   });
 
+  it('opens and highlights debug details when editing keyword result', () => {
+    assert.match(pageSource, /function handleStartKeywordResultEdit\(\)/);
+    assert.match(pageSource, /v-model:expanded-names="debugExpandedNames"/);
+    assert.match(pageSource, /:class="debugFooterClass"/);
+    assert.match(pageSource, /is-editing-focus/);
+    assert.match(pageSource, /正在编辑搜索策略调试信息/);
+  });
+
   it('keeps result content padded below the card header', () => {
     assert.match(pageSource, /\.result-card\s+:deep\(\.result-card-content\)\s*\{[^}]*padding: 16px;/);
   });
