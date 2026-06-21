@@ -63,7 +63,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
     },
     {
       key: 'userName',
-      title: '用户名',
+      title: '用户名/ID',
       minWidth: 150,
       render: row => (
         <div class="user-identity">
@@ -73,12 +73,6 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
           <NText depth={3}>{`ID: ${row.id}`}</NText>
         </div>
       )
-    },
-    {
-      key: 'nickName',
-      title: '昵称',
-      minWidth: 120,
-      render: row => row.nickName || '-'
     },
     {
       key: 'roles',
@@ -334,7 +328,7 @@ async function handleCopyUserName(userName: string) {
         :data="data"
         size="small"
         :flex-height="!appStore.isMobile"
-        :scroll-x="1450"
+        :scroll-x="1330"
         :loading="loading"
         remote
         :row-key="row => row.id"
