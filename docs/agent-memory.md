@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-21 系统通知“查看”动作必须标记通知已读
+
+- 场景：全局布局轮询 `/system-notifications/pending` 弹出 AI 获客任务完成通知，用户点击通知里的“查看”进入 `/ai-leads`。
+- 坑点：后端按约定会持续返回 `pending` 和 `shown` 状态；前端弹出后只调用 `markShown` 会让通知继续被轮询捞出，表现为关闭或查看后反复弹窗。
+- 正确做法：`shown` 只代表已经展示过；用户点击通知 action 时应调用 `markRead` 再跳转目标路由。任务页的“确认结果”仍继续调用任务 read，并由后端同步标记关联通知 read。
+- 相关文件：`src/layouts/base-layout/index.vue`、`src/layouts/base-layout/system-notification-action.ts`、`src/store/modules/ai-leads-task/index.ts`、`apps/server/src/modules/system-notification/system-notification.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --test src/layouts/base-layout/system-notification-action.spec.ts`，确认通知 action 调用顺序为销毁弹窗、标记已读、跳转路由。
+
 ### 2026-06-21 长任务页面切走保留状态要配置路由 keepAlive
 
 - 场景：AI 获客页面点击“优化关键词”或“开始搜索采集”后切换到其他页面，再返回时页面本地加载态、表单和结果状态丢失。

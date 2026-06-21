@@ -14,6 +14,7 @@ import GlobalContent from '../modules/global-content/index.vue';
 import GlobalFooter from '../modules/global-footer/index.vue';
 import ThemeDrawer from '../modules/theme-drawer/index.vue';
 import { provideMixMenuContext } from '../modules/global-menu/context';
+import { handleSystemNotificationRouteAction } from './system-notification-action';
 
 defineOptions({
   name: 'BaseLayout'
@@ -146,6 +147,7 @@ function showSystemNotification(item: Api.SystemNotification.SystemNotification)
   activeNotificationIds.add(item.id);
 
   let destroyNotice: (() => void) | null = null;
+  const routePath = item.routePath;
   const options = {
     title: item.title,
     content: item.content,
@@ -155,7 +157,7 @@ function showSystemNotification(item: Api.SystemNotification.SystemNotification)
     onAfterLeave: () => {
       activeNotificationIds.delete(item.id);
     },
-    action: item.routePath
+    action: routePath
       ? () =>
           h(
             NButton,
@@ -163,9 +165,15 @@ function showSystemNotification(item: Api.SystemNotification.SystemNotification)
               size: 'small',
               type: 'primary',
               onClick: async () => {
-                destroyNotice?.();
-                // 查看只跳转；任务结果确认才会标记已读。
-                await router.push(item.routePath || '/ai-leads');
+                if (!destroyNotice) return;
+
+                await handleSystemNotificationRouteAction({
+                  id: item.id,
+                  routePath,
+                  destroyNotice,
+                  markRead: taskNotificationStore.markRead,
+                  pushRoute: path => router.push(path)
+                });
               }
             },
             { default: () => '查看' }
