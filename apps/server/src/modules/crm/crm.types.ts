@@ -84,6 +84,9 @@ export const crmInboxMessageTypes = [
 
 export type CrmMailboxProvider = 'gmail';
 export type CrmArchivedFingerprintType = 'domain' | 'email_hash';
+export type CrmLeadEnrichmentProvider = 'hunter' | 'snovio';
+export type CrmLeadEnrichmentIdentityType = 'domain';
+export type CrmLeadEnrichmentStatus = 'success' | 'failed';
 export type CrmMailboxStatus = (typeof crmMailboxStatuses)[number];
 export type CrmMailboxWarmupStage = (typeof crmMailboxWarmupStages)[number];
 export type CrmMailboxSyncIssueType = (typeof crmMailboxSyncIssueTypes)[number];
@@ -314,6 +317,58 @@ export interface CrmArchivedFingerprintUpsertInput {
   sourceTaskId?: string | null;
   archiveReason?: string | null;
   archivedAt: Date;
+}
+
+export interface CrmLeadImportPrecheckInput {
+  domains: string[];
+  normalizedNames: string[];
+}
+
+export interface CrmLeadEnrichmentHistoryRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  accountId: string | null;
+  contactId: string | null;
+  provider: CrmLeadEnrichmentProvider;
+  identityType: CrmLeadEnrichmentIdentityType;
+  identityValue: string;
+  status: CrmLeadEnrichmentStatus;
+  lastAttemptedAt: Date;
+  lastSucceededAt: Date | null;
+  maskedEmail: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CrmLeadEnrichmentHistoryUpsertInput {
+  organizationId: string;
+  ownerUserId: string;
+  accountId?: string | null;
+  contactId?: string | null;
+  provider: CrmLeadEnrichmentProvider;
+  identityType: CrmLeadEnrichmentIdentityType;
+  identityValue: string;
+  status: CrmLeadEnrichmentStatus;
+  lastAttemptedAt: Date;
+  lastSucceededAt?: Date | null;
+  maskedEmail?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface CrmLeadEnrichmentHistoryLookupInput {
+  organizationId: string;
+  ownerUserId: string;
+  provider: CrmLeadEnrichmentProvider;
+  identityType: CrmLeadEnrichmentIdentityType;
+  identityValues: string[];
+}
+
+export interface CrmLeadAutoEnrichmentFilterResult {
+  inputsToEnrich: ImportCrmLeadInput[];
+  skippedNoDomainCount: number;
+  skippedExistingHistoryCount: number;
 }
 
 export interface CrmTimelineEventRecord {
@@ -639,6 +694,7 @@ export interface CrmInboxThreadDetailRecord extends CrmInboxThreadListRecord {
 export interface CrmAccountDetailRecord {
   account: CrmAccountRecord;
   contacts: CrmContactRecord[];
+  enrichmentHistories: CrmLeadEnrichmentHistoryRecord[];
   timelineEvents: CrmTimelineEventRecord[];
 }
 

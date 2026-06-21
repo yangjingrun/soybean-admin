@@ -7,6 +7,7 @@ import {
   fetchCrmAccountDetail,
   fetchCrmAccounts,
   importCrmLead,
+  refreshCrmAccountEnrichment,
   restoreCrmAccount,
   updateCrmAccountStatus,
   verifyCrmContactEmail
@@ -31,6 +32,7 @@ export function useLeadTable() {
   const statusSubmitting = shallowRef(false);
   const archiveOperatingId = shallowRef<string | null>(null);
   const verifyingContactIds = shallowRef<string[]>([]);
+  const refreshingEnrichmentProvider = shallowRef<Api.Crm.LeadEnrichmentProvider | null>(null);
   let latestRequestId = 0;
   let latestDetailRequestId = 0;
 
@@ -221,6 +223,34 @@ export function useLeadTable() {
     }
   }
 
+  /** Manually refresh provider contacts from the open detail drawer. */
+  async function handleRefreshAccountEnrichment(provider: Api.Crm.LeadEnrichmentProvider) {
+    const id = selectedLeadId.value;
+
+    if (!id || provider !== 'hunter' || refreshingEnrichmentProvider.value) {
+      return;
+    }
+
+    refreshingEnrichmentProvider.value = provider;
+
+    try {
+      const { error } = await refreshCrmAccountEnrichment(id, { provider });
+
+      if (error) {
+        return;
+      }
+
+      message.success('联系人获取已完成');
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === id) {
+        await loadLeadDetail(id);
+      }
+    } finally {
+      refreshingEnrichmentProvider.value = null;
+    }
+  }
+
   /** Continue from a lead contact into the sequence review creation flow with the contact preselected. */
   async function handleCreateSequenceFromContact(contact: Api.Crm.LeadContact) {
     await router.push({
@@ -386,6 +416,7 @@ export function useLeadTable() {
     handlePageUpdate,
     handleReset,
     handleRestoreLead,
+    handleRefreshAccountEnrichment,
     handleSearch,
     handleUpdateStatus,
     handleVerifyContactEmail,
@@ -398,6 +429,7 @@ export function useLeadTable() {
     loading,
     noteSubmitting,
     pagination,
+    refreshingEnrichmentProvider,
     records,
     openLeadDetail,
     openImportModal,

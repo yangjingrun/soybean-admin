@@ -166,6 +166,7 @@ model Organization {
   crmTimelineEvents CrmTimelineEvent[]
   crmBlacklists     CrmBlacklist[]
   crmArchivedFingerprints CrmArchivedFingerprint[]
+  crmLeadEnrichmentHistories CrmLeadEnrichmentHistory[]
   crmOrganizationConfig CrmOrganizationConfig?
   crmMailboxes      CrmMailbox[]
   crmMailboxSendUsages CrmMailboxSendUsage[]
@@ -208,6 +209,7 @@ model CrmAccount {
   organization Organization       @relation(fields: [organizationId], references: [id])
   contacts     CrmContact[]
   events       CrmTimelineEvent[]
+  enrichmentHistories CrmLeadEnrichmentHistory[]
   enrollments  CrmSequenceEnrollment[]
   messages     CrmMessage[]
   messageDraftVersions CrmMessageDraftVersion[]
@@ -216,6 +218,7 @@ model CrmAccount {
 
   @@unique([organizationId, ownerUserId, domain])
   @@index([organizationId, ownerUserId, updatedAt])
+  @@index([organizationId, ownerUserId, normalizedName])
   @@index([organizationId, ownerUserId, status, updatedAt])
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, status, archivedAt])
@@ -241,6 +244,7 @@ model CrmContact {
   organization Organization       @relation(fields: [organizationId], references: [id])
   account      CrmAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   events       CrmTimelineEvent[]
+  enrichmentHistories CrmLeadEnrichmentHistory[]
   enrollments  CrmSequenceEnrollment[]
   messages     CrmMessage[]
   messageDraftVersions CrmMessageDraftVersion[]
@@ -363,6 +367,33 @@ model CrmArchivedFingerprint {
   @@index([organizationId, archivedAt])
   @@index([sourceAccountId])
   @@index([sourceContactId])
+}
+
+model CrmLeadEnrichmentHistory {
+  id               String   @id @default(uuid())
+  organizationId   String
+  ownerUserId      String
+  accountId        String?
+  contactId        String?
+  provider         String
+  identityType     String
+  identityValue    String
+  status           String
+  lastAttemptedAt  DateTime
+  lastSucceededAt  DateTime?
+  maskedEmail      String?
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  account      CrmAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contact      CrmContact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, ownerUserId, provider, identityType, identityValue])
+  @@index([organizationId, ownerUserId, identityType, identityValue])
+  @@index([accountId])
+  @@index([contactId])
 }
 
 model CrmTimelineEvent {

@@ -10,6 +10,7 @@ import {
   toContactIdentityWhere,
   toContactRecord,
   toEmailVerificationCacheRecord,
+  toLeadEnrichmentHistoryRecord,
   toTimelineEventRecord
 } from './prisma-crm-store.helpers';
 import type {
@@ -24,6 +25,9 @@ import type {
   CrmContactUpdateInput,
   CrmEmailStatus,
   CrmEmailVerificationCacheUpsertInput,
+  CrmLeadEnrichmentHistoryLookupInput,
+  CrmLeadEnrichmentHistoryUpsertInput,
+  CrmLeadImportPrecheckInput,
   CrmTimelineEventCreateInput
 } from '../crm.types';
 import type { CrmAccountRepository } from '../accounts/crm-account.repository';
@@ -44,6 +48,31 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
         }
       })
       .then(record => (record ? toAccountRecord(record) : null));
+  }
+
+  async findAccountsForLeadImportPrecheck(
+    input: CrmLeadImportPrecheckInput & { organizationId: string; ownerUserId: string }
+  ) {
+    const domains = toUniqueValues(input.domains);
+    const normalizedNames = toUniqueValues(input.normalizedNames);
+    const filters: Prisma.CrmAccountWhereInput[] = [
+      ...(domains.length ? [{ domain: { in: domains } }] : []),
+      ...(normalizedNames.length ? [{ normalizedName: { in: normalizedNames } }] : [])
+    ];
+
+    if (filters.length === 0) {
+      return [];
+    }
+
+    const records = await this.prisma.crmAccount.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        OR: filters
+      }
+    });
+
+    return records.map(toAccountRecord);
   }
 
   async createAccount(input: CrmAccountCreateInput) {
@@ -254,6 +283,67 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
     return toArchivedFingerprintRecord(record);
   }
 
+  async findLeadEnrichmentHistories(input: CrmLeadEnrichmentHistoryLookupInput) {
+    const identityValues = toUniqueValues(input.identityValues);
+
+    if (identityValues.length === 0) {
+      return [];
+    }
+
+    const records = await this.prisma.crmLeadEnrichmentHistory.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        provider: input.provider,
+        identityType: input.identityType,
+        identityValue: {
+          in: identityValues
+        }
+      }
+    });
+
+    return records.map(toLeadEnrichmentHistoryRecord);
+  }
+
+  async upsertLeadEnrichmentHistory(input: CrmLeadEnrichmentHistoryUpsertInput) {
+    const record = await this.prisma.crmLeadEnrichmentHistory.upsert({
+      where: {
+        organizationId_ownerUserId_provider_identityType_identityValue: {
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          provider: input.provider,
+          identityType: input.identityType,
+          identityValue: input.identityValue
+        }
+      },
+      create: {
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        accountId: input.accountId ?? null,
+        contactId: input.contactId ?? null,
+        provider: input.provider,
+        identityType: input.identityType,
+        identityValue: input.identityValue,
+        status: input.status,
+        lastAttemptedAt: input.lastAttemptedAt,
+        lastSucceededAt: input.lastSucceededAt ?? null,
+        maskedEmail: input.maskedEmail ?? null,
+        errorMessage: input.errorMessage ?? null
+      },
+      update: {
+        accountId: input.accountId ?? null,
+        contactId: input.contactId ?? null,
+        status: input.status,
+        lastAttemptedAt: input.lastAttemptedAt,
+        lastSucceededAt: input.lastSucceededAt ?? null,
+        maskedEmail: input.maskedEmail ?? null,
+        errorMessage: input.errorMessage ?? null
+      }
+    });
+
+    return toLeadEnrichmentHistoryRecord(record);
+  }
+
   async listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;
@@ -286,7 +376,7 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
 
     if (!account) return null;
 
-    const [contacts, timelineEvents] = await Promise.all([
+    const [contacts, timelineEvents, enrichmentHistories] = await Promise.all([
       this.prisma.crmContact.findMany({
         where: {
           organizationId: args.organizationId,
@@ -304,12 +394,26 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
         orderBy: {
           createdAt: 'desc'
         }
+      }),
+      this.prisma.crmLeadEnrichmentHistory.findMany({
+        where: {
+          organizationId: args.organizationId,
+          ownerUserId: account.ownerUserId,
+          OR: [
+            { accountId: account.id },
+            ...(account.domain ? [{ identityType: 'domain', identityValue: account.domain }] : [])
+          ]
+        },
+        orderBy: {
+          lastAttemptedAt: 'desc'
+        }
       })
     ]);
 
     return {
       account: toAccountRecord(account),
       contacts: contacts.map(toContactRecord),
+      enrichmentHistories: enrichmentHistories.map(toLeadEnrichmentHistoryRecord),
       timelineEvents: timelineEvents.map(toTimelineEventRecord)
     };
   }
@@ -330,4 +434,8 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
 
     return toTimelineEventRecord(record);
   }
+}
+
+function toUniqueValues(values: string[]) {
+  return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)));
 }

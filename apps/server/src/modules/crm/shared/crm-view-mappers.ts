@@ -4,6 +4,7 @@ import type {
   CrmAiDraftMetadata,
   CrmBlacklistRecord,
   CrmContactRecord,
+  CrmLeadEnrichmentHistoryRecord,
   CrmMailboxRecord,
   CrmMessageDraftVersionRecord,
   CrmMessageRecord,
@@ -46,11 +47,23 @@ export function toTimelineEventView(record: CrmTimelineEventRecord) {
   };
 }
 
+/** Convert provider enrichment history dates to transport-safe ISO strings. */
+export function toLeadEnrichmentHistoryView(record: CrmLeadEnrichmentHistoryRecord) {
+  return {
+    ...record,
+    lastAttemptedAt: record.lastAttemptedAt.toISOString(),
+    lastSucceededAt: record.lastSucceededAt?.toISOString() ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
 /** Convert an account aggregate detail to API view shape. */
 export function toAccountDetailView(detail: CrmAccountDetailRecord) {
   return {
     account: toAccountView(detail.account),
     contacts: detail.contacts.map(toContactView),
+    enrichmentHistories: detail.enrichmentHistories.map(toLeadEnrichmentHistoryView),
     timelineEvents: detail.timelineEvents.map(toTimelineEventView)
   };
 }

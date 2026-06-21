@@ -3,6 +3,7 @@ import type { CrmArchivedFingerprintModel } from '../../../generated/prisma/mode
 import type { CrmBlacklistModel } from '../../../generated/prisma/models/CrmBlacklist';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
 import type { CrmEmailVerificationCacheModel } from '../../../generated/prisma/models/CrmEmailVerificationCache';
+import type { CrmLeadEnrichmentHistoryModel } from '../../../generated/prisma/models/CrmLeadEnrichmentHistory';
 import type { CrmTimelineEventModel } from '../../../generated/prisma/models/CrmTimelineEvent';
 import type {
   CrmAccountRecord,
@@ -10,6 +11,7 @@ import type {
   CrmBlacklistRecord,
   CrmContactRecord,
   CrmEmailVerificationCacheRecord,
+  CrmLeadEnrichmentHistoryRecord,
   CrmTimelineEventRecord
 } from '../crm.types';
 
@@ -51,6 +53,18 @@ export function toEmailVerificationCacheRecord(record: CrmEmailVerificationCache
     ...record,
     status: record.status as CrmEmailVerificationCacheRecord['status'],
     reason: record.reason as CrmEmailVerificationCacheRecord['reason']
+  };
+}
+
+/** Maps provider enrichment history into the CRM domain record. */
+export function toLeadEnrichmentHistoryRecord(
+  record: CrmLeadEnrichmentHistoryModel
+): CrmLeadEnrichmentHistoryRecord {
+  return {
+    ...record,
+    provider: record.provider as CrmLeadEnrichmentHistoryRecord['provider'],
+    identityType: record.identityType as CrmLeadEnrichmentHistoryRecord['identityType'],
+    status: record.status as CrmLeadEnrichmentHistoryRecord['status']
   };
 }
 

@@ -20,6 +20,7 @@ const {
   handlePageSizeUpdate,
   handlePageUpdate,
   handleReset,
+  handleRefreshAccountEnrichment,
   handleRestoreLead,
   handleSearch,
   handleUpdateStatus,
@@ -34,6 +35,7 @@ const {
   openImportModal,
   openLeadDetail,
   pagination,
+  refreshingEnrichmentProvider,
   records,
   statusSubmitting,
   verifyingContactIds
@@ -72,8 +74,10 @@ const {
       :note-submitting="noteSubmitting"
       :status-submitting="statusSubmitting"
       :verifying-contact-ids="verifyingContactIds"
+      :refreshing-enrichment-provider="refreshingEnrichmentProvider"
       @update:show="handleDetailVisibleUpdate"
       @create-sequence="handleCreateSequenceFromContact"
+      @refresh-enrichment="handleRefreshAccountEnrichment"
       @reload="loadLeadDetail()"
       @submit-note="handleCreateNote"
       @submit-status="handleUpdateStatus"

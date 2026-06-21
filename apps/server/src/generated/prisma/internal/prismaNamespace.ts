@@ -397,6 +397,7 @@ export const ModelName = {
   CrmOrganizationConfig: 'CrmOrganizationConfig',
   CrmBlacklist: 'CrmBlacklist',
   CrmArchivedFingerprint: 'CrmArchivedFingerprint',
+  CrmLeadEnrichmentHistory: 'CrmLeadEnrichmentHistory',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
@@ -439,7 +440,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmLeadEnrichmentHistory" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1402,6 +1403,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CrmArchivedFingerprintCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CrmArchivedFingerprintCountAggregateOutputType> | number
+        }
+      }
+    }
+    CrmLeadEnrichmentHistory: {
+      payload: Prisma.$CrmLeadEnrichmentHistoryPayload<ExtArgs>
+      fields: Prisma.CrmLeadEnrichmentHistoryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CrmLeadEnrichmentHistoryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CrmLeadEnrichmentHistoryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>
+        }
+        findFirst: {
+          args: Prisma.CrmLeadEnrichmentHistoryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CrmLeadEnrichmentHistoryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>
+        }
+        findMany: {
+          args: Prisma.CrmLeadEnrichmentHistoryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>[]
+        }
+        create: {
+          args: Prisma.CrmLeadEnrichmentHistoryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>
+        }
+        createMany: {
+          args: Prisma.CrmLeadEnrichmentHistoryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CrmLeadEnrichmentHistoryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>[]
+        }
+        delete: {
+          args: Prisma.CrmLeadEnrichmentHistoryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>
+        }
+        update: {
+          args: Prisma.CrmLeadEnrichmentHistoryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>
+        }
+        deleteMany: {
+          args: Prisma.CrmLeadEnrichmentHistoryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CrmLeadEnrichmentHistoryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CrmLeadEnrichmentHistoryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>[]
+        }
+        upsert: {
+          args: Prisma.CrmLeadEnrichmentHistoryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmLeadEnrichmentHistoryPayload>
+        }
+        aggregate: {
+          args: Prisma.CrmLeadEnrichmentHistoryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmLeadEnrichmentHistory>
+        }
+        groupBy: {
+          args: Prisma.CrmLeadEnrichmentHistoryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmLeadEnrichmentHistoryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CrmLeadEnrichmentHistoryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CrmLeadEnrichmentHistoryCountAggregateOutputType> | number
         }
       }
     }
@@ -3676,6 +3751,27 @@ export const CrmArchivedFingerprintScalarFieldEnum = {
 export type CrmArchivedFingerprintScalarFieldEnum = (typeof CrmArchivedFingerprintScalarFieldEnum)[keyof typeof CrmArchivedFingerprintScalarFieldEnum]
 
 
+export const CrmLeadEnrichmentHistoryScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  provider: 'provider',
+  identityType: 'identityType',
+  identityValue: 'identityValue',
+  status: 'status',
+  lastAttemptedAt: 'lastAttemptedAt',
+  lastSucceededAt: 'lastSucceededAt',
+  maskedEmail: 'maskedEmail',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmLeadEnrichmentHistoryScalarFieldEnum = (typeof CrmLeadEnrichmentHistoryScalarFieldEnum)[keyof typeof CrmLeadEnrichmentHistoryScalarFieldEnum]
+
+
 export const CrmTimelineEventScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -4557,6 +4653,7 @@ export type GlobalOmitConfig = {
   crmOrganizationConfig?: Prisma.CrmOrganizationConfigOmit
   crmBlacklist?: Prisma.CrmBlacklistOmit
   crmArchivedFingerprint?: Prisma.CrmArchivedFingerprintOmit
+  crmLeadEnrichmentHistory?: Prisma.CrmLeadEnrichmentHistoryOmit
   crmTimelineEvent?: Prisma.CrmTimelineEventOmit
   crmMailbox?: Prisma.CrmMailboxOmit
   crmMailboxSendUsage?: Prisma.CrmMailboxSendUsageOmit

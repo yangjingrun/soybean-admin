@@ -309,6 +309,117 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.equal(result.stopReason, '已达到候选池目标数量');
   });
 
+  it('counts only CRM-accepted candidates before asking AI whether to paginate', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'paginate',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 2
+            }
+          },
+          tbs: null
+        })
+      },
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      { organic: createOrganicCandidates('first', 10) },
+      { organic: createOrganicCandidates('second', 10) }
+    ]);
+    const precheckSummaries: Array<{ rawCandidateCount: number; existingSkippedCount: number }> = [];
+    const crmPrecheck = {
+      async precheckCandidates(input: { candidates: Array<{ title?: string }>; crmPrecheckSummary?: unknown }) {
+        const isFirstPage = input.candidates[0]?.title?.startsWith('first');
+        const acceptedCandidates = isFirstPage ? input.candidates.slice(0, 1) : input.candidates.slice(0, 1);
+        const summary = {
+          rawCandidateCount: input.candidates.length,
+          acceptedCandidateCount: acceptedCandidates.length,
+          existingSkippedCount: isFirstPage ? 9 : 0,
+          activeSkippedCount: 0,
+          cooldownSkippedCount: 0,
+          reactivatedCandidateCount: 0,
+          domainlessCandidateCount: 0
+        };
+        precheckSummaries.push(summary);
+
+        return { acceptedCandidates, summary };
+      }
+    };
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder(),
+      crmPrecheck as never
+    );
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '找轴承进口商',
+        targetLeadCount: 2,
+        keywordPlan: {
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 2,
+          serperSearchQueries: [
+            {
+              q: '6204 bearing importer Saudi Arabia',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        }
+      },
+      { user: createUser() }
+    );
+
+    assert.deepEqual(
+      serper.calls.map(call => call.request.page),
+      [1, 2]
+    );
+    assert.equal(result.candidates.length, 2);
+    assert.deepEqual(precheckSummaries[0], {
+      rawCandidateCount: 10,
+      acceptedCandidateCount: 1,
+      existingSkippedCount: 9,
+      activeSkippedCount: 0,
+      cooldownSkippedCount: 0,
+      reactivatedCandidateCount: 0,
+      domainlessCandidateCount: 0
+    });
+    assert.equal(JSON.parse(aiGateway.calls[0].prompt).collectedLeadCount, 1);
+    assert.equal(JSON.parse(aiGateway.calls[0].prompt).crmPrecheckSummary.existingSkippedCount, 9);
+  });
+
   it('collects a buffered candidate pool without shrinking the last Serper page', async () => {
     const aiGateway = createAiGateway([
       {

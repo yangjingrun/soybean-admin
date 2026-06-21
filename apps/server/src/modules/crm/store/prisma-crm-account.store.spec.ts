@@ -346,6 +346,7 @@ function createPrisma(
     account?: ReturnType<typeof createPrismaAccount> | null;
     archivedFingerprintResults?: ReturnType<typeof createPrismaArchivedFingerprint>[];
     contact?: ReturnType<typeof createPrismaContact> | null;
+    enrichmentHistories?: ReturnType<typeof createPrismaLeadEnrichmentHistory>[];
     timelineEvents?: ReturnType<typeof createPrismaTimelineEvent>[];
   } = {}
 ) {
@@ -353,6 +354,7 @@ function createPrisma(
   const contact = options.contact ?? createPrismaContact();
   const emailVerificationCache = createPrismaEmailVerificationCache();
   const archivedFingerprint = createPrismaArchivedFingerprint();
+  const enrichmentHistories = options.enrichmentHistories ?? [];
   const timelineEvents = options.timelineEvents ?? [
     createPrismaTimelineEvent({
       id: 'timeline-new',
@@ -471,6 +473,26 @@ function createPrisma(
         return { ...archivedFingerprint, ...args.create, ...args.update };
       }
     },
+    crmLeadEnrichmentHistory: {
+      findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy?: Record<string, unknown> }>,
+      upsertCalls: [] as Array<{
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }>,
+      async findMany(args: { where: Record<string, unknown>; orderBy?: Record<string, unknown> }) {
+        this.findManyCalls.push(args);
+        return enrichmentHistories;
+      },
+      async upsert(args: {
+        where: Record<string, unknown>;
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) {
+        this.upsertCalls.push(args);
+        return { ...createPrismaLeadEnrichmentHistory(), ...args.create, ...args.update };
+      }
+    },
     crmTimelineEvent: {
       findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
       async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
@@ -478,6 +500,27 @@ function createPrisma(
         return timelineEvents;
       }
     }
+  };
+}
+
+function createPrismaLeadEnrichmentHistory(input: Record<string, unknown> = {}) {
+  return {
+    id: 'history-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    accountId: 'account-1',
+    contactId: 'contact-1',
+    provider: 'hunter',
+    identityType: 'domain',
+    identityValue: 'abc.example',
+    status: 'success',
+    lastAttemptedAt: new Date('2026-06-18T09:00:00.000Z'),
+    lastSucceededAt: new Date('2026-06-18T09:00:00.000Z'),
+    maskedEmail: 'a***@example.com',
+    errorMessage: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
   };
 }
 

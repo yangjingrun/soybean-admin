@@ -69,6 +69,21 @@ export const leadEmailStatusTagTypeMap: Record<Api.Crm.CrmEmailStatus, NaiveUI.T
   unsubscribed: 'error'
 };
 
+export const leadEnrichmentProviderLabelMap: Record<Api.Crm.LeadEnrichmentProvider, string> = {
+  hunter: 'Hunter',
+  snovio: 'Snovio'
+};
+
+export const leadEnrichmentStatusLabelMap: Record<Api.Crm.LeadEnrichmentStatus, string> = {
+  success: '成功',
+  failed: '失败'
+};
+
+export const leadEnrichmentStatusTagTypeMap: Record<Api.Crm.LeadEnrichmentStatus, NaiveUI.ThemeColor> = {
+  success: 'success',
+  failed: 'error'
+};
+
 export const leadTimelineEventLabelMap: Record<string, string> = {
   account_imported: '账户导入',
   contact_imported: '联系人导入',
@@ -76,6 +91,8 @@ export const leadTimelineEventLabelMap: Record<string, string> = {
   note_added: '备注',
   account_archived: '归档',
   archived_fingerprint_matched: '历史触达提醒',
+  lead_enrichment_refreshed: '重新获取联系人',
+  lead_enrichment_refresh_failed: '重新获取联系人失败',
   customer_unsubscribed: '客户退订',
   email_bounced: '邮件退信'
 };

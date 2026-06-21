@@ -52,6 +52,18 @@ export function verifyCrmContactEmail(contactId: string) {
   });
 }
 
+/** Manually refresh provider contacts for one CRM account. */
+export function refreshCrmAccountEnrichment(
+  id: string,
+  data: Api.Crm.LeadEnrichmentRefreshPayload = { provider: 'hunter' }
+) {
+  return request<Api.Crm.LeadEnrichmentRefreshResult>({
+    url: `/crm/accounts/${id}/enrichment/refresh`,
+    method: 'post',
+    data
+  });
+}
+
 /** Archive one CRM account with an optional reason. */
 export function archiveCrmAccount(id: string, data: Api.Crm.LeadArchivePayload = {}) {
   return request<Api.Crm.LeadArchiveResult>({

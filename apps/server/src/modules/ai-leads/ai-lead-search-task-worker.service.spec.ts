@@ -437,6 +437,114 @@ describe('AiLeadSearchTaskWorkerService', () => {
     });
   });
 
+  it('skips automatic Hunter enrichment when CRM already has provider history for the domain', async () => {
+    let hunterCalls = 0;
+    const importedNames: string[] = [];
+    const task = createTask({ status: 'queued', organizationId: 'org-1', organizationRole: 'member' });
+    const store = createTaskStore({ task, queries: [] });
+    const orchestrator = {
+      async searchWithKeywordPlan() {
+        return {
+          ...createSearchResult(),
+          candidates: [{ title: 'ABC Bearing', website: 'https://abc.example' }]
+        };
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const notificationService = {
+      async create() {}
+    };
+    const crmService = {
+      async filterLeadInputsForAutoEnrichment(inputs: Array<{ name: string }>) {
+        return {
+          inputsToEnrich: [],
+          skippedExistingHistoryCount: inputs.length,
+          skippedNoDomainCount: 0
+        };
+      },
+      async importAccountFromLead(input: { name: string }) {
+        importedNames.push(input.name);
+      }
+    };
+    const hunterEnrichmentService = {
+      async enrichCrmImportInputs() {
+        hunterCalls += 1;
+
+        return {
+          inputs: [],
+          attemptedCount: 1,
+          enrichedCount: 0,
+          failedCount: 0,
+          firstErrorMessage: null
+        };
+      }
+    };
+    const worker = new AiLeadSearchTaskWorkerService(
+      store,
+      orchestrator,
+      notificationService as never,
+      crmService as never,
+      hunterEnrichmentService as never
+    );
+
+    await worker.processTaskJob({ taskId: task.id, runVersion: task.runVersion, priority: 0 });
+
+    assert.equal(task.status, 'completed');
+    assert.equal(hunterCalls, 0);
+    assert.deepEqual(importedNames, ['ABC Bearing']);
+  });
+
+  it('imports domainless candidates without automatic Hunter enrichment', async () => {
+    let hunterCalls = 0;
+    const importedNames: string[] = [];
+    const task = createTask({ status: 'queued', organizationId: 'org-1', organizationRole: 'member' });
+    const store = createTaskStore({ task, queries: [] });
+    const orchestrator = {
+      async searchWithKeywordPlan() {
+        return {
+          ...createSearchResult(),
+          candidates: [{ title: 'Local Bearing Shop', address: 'Riyadh' }]
+        };
+      }
+    } as unknown as AiLeadSearchOrchestrator;
+    const crmService = {
+      async filterLeadInputsForAutoEnrichment(inputs: Array<{ name: string }>) {
+        return {
+          inputsToEnrich: [],
+          skippedExistingHistoryCount: 0,
+          skippedNoDomainCount: inputs.length
+        };
+      },
+      async importAccountFromLead(input: { name: string }) {
+        importedNames.push(input.name);
+      }
+    };
+    const hunterEnrichmentService = {
+      async enrichCrmImportInputs() {
+        hunterCalls += 1;
+
+        return {
+          inputs: [],
+          attemptedCount: 1,
+          enrichedCount: 0,
+          failedCount: 0,
+          firstErrorMessage: null
+        };
+      }
+    };
+    const worker = new AiLeadSearchTaskWorkerService(
+      store,
+      orchestrator,
+      undefined,
+      crmService as never,
+      hunterEnrichmentService as never
+    );
+
+    await worker.processTaskJob({ taskId: task.id, runVersion: task.runVersion, priority: 0 });
+
+    assert.equal(hunterCalls, 0);
+    assert.deepEqual(importedNames, ['Local Bearing Shop']);
+  });
+
   it('continues CRM import with original inputs and records an event when Hunter enrichment fails', async () => {
     const importedContacts: Array<{ email?: string | null } | null | undefined> = [];
     const events: AiLeadSearchTaskEventInput[] = [];

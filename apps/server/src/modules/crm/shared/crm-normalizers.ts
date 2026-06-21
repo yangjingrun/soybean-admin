@@ -8,6 +8,28 @@ export function normalizeNullableString(value?: string | null) {
   return normalized || null;
 }
 
+/** Normalize a website URL or raw host to the CRM domain identity. */
+export function normalizeCrmDomain(value?: string | null) {
+  const rawValue = value?.trim();
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`);
+
+    return url.hostname.toLowerCase().replace(/^www\./, '') || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Normalize lead/account names for owner-scoped CRM duplicate checks. */
+export function normalizeCrmName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 /** Normalize pagination-like integer inputs with bounded fallback semantics. */
 export function normalizePositiveInteger(
   value: number | string | undefined,

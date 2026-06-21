@@ -83,6 +83,11 @@ export type CrmBlacklist = Prisma.CrmBlacklistModel
  */
 export type CrmArchivedFingerprint = Prisma.CrmArchivedFingerprintModel
 /**
+ * Model CrmLeadEnrichmentHistory
+ * 
+ */
+export type CrmLeadEnrichmentHistory = Prisma.CrmLeadEnrichmentHistoryModel
+/**
  * Model CrmTimelineEvent
  * 
  */

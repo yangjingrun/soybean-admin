@@ -228,20 +228,15 @@ export class AiLeadSearchTaskWorkerService {
       return;
     }
 
-    const inputsToImport = await this.enrichCrmInputsWithHunterSafely(task.id, inputs);
+    const context = this.toCrmUserContext(task);
+    const inputsToImport = await this.enrichCrmInputsWithHunterSafely(task.id, inputs, context);
     let successCount = 0;
     let failureCount = 0;
     let firstErrorMessage: string | null = null;
 
     for (const input of inputsToImport) {
       try {
-        await this.crmAccountService.importAccountFromLead(input, {
-          userId: task.userId,
-          userName: task.userName || '',
-          roles: [],
-          organizationId: task.organizationId,
-          organizationRole: task.organizationRole
-        });
+        await this.crmAccountService.importAccountFromLead(input, context);
         successCount += 1;
       } catch (error) {
         failureCount += 1;
@@ -265,16 +260,33 @@ export class AiLeadSearchTaskWorkerService {
 
   private async enrichCrmInputsWithHunterSafely(
     taskId: string,
-    inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>
+    inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>,
+    context: ReturnType<AiLeadSearchTaskWorkerService['toCrmUserContext']>
   ) {
     if (!this.hunterEnrichmentService) {
       return inputs;
     }
 
+    const filterResult =
+      this.crmAccountService && typeof this.crmAccountService.filterLeadInputsForAutoEnrichment === 'function'
+      ? await this.crmAccountService.filterLeadInputsForAutoEnrichment(inputs, context, 'hunter')
+      : {
+          inputsToEnrich: inputs,
+          skippedExistingHistoryCount: 0,
+          skippedNoDomainCount: 0
+        };
+
+    if (filterResult.inputsToEnrich.length === 0) {
+      return inputs;
+    }
+
     try {
-      const result = await this.hunterEnrichmentService.enrichCrmImportInputs(inputs);
+      const result = await this.hunterEnrichmentService.enrichCrmImportInputs(filterResult.inputsToEnrich);
+
+      mergeHunterEnrichedInputs(filterResult.inputsToEnrich, result.inputs);
 
       if (result.attemptedCount > 0 || result.enrichedCount > 0 || result.failedCount > 0) {
+        await this.recordHunterEnrichmentHistoriesSafely(filterResult.inputsToEnrich, context, result);
         await this.createTaskEventSafely(createTaskStateChangeEvent({
           taskId,
           eventType: 'crm_hunter_enrichment_completed',
@@ -284,10 +296,11 @@ export class AiLeadSearchTaskWorkerService {
         }));
       }
 
-      return result.inputs;
+      return inputs;
     } catch (error) {
       const firstErrorMessage = error instanceof Error ? error.message : String(error);
 
+      await this.recordHunterEnrichmentFailedHistoriesSafely(filterResult.inputsToEnrich, context, firstErrorMessage);
       await this.createTaskEventSafely(createTaskStateChangeEvent({
         taskId,
         eventType: 'crm_hunter_enrichment_failed',
@@ -302,6 +315,46 @@ export class AiLeadSearchTaskWorkerService {
       }));
 
       return inputs;
+    }
+  }
+
+  private async recordHunterEnrichmentHistoriesSafely(
+    inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>,
+    context: ReturnType<AiLeadSearchTaskWorkerService['toCrmUserContext']>,
+    result: AiLeadHunterEnrichmentResult
+  ) {
+    if (!this.crmAccountService || result.attemptedCount === 0) {
+      return;
+    }
+
+    try {
+      await this.crmAccountService.recordLeadEnrichmentHistories(inputs, context, {
+        provider: 'hunter',
+        status: result.failedCount >= result.attemptedCount ? 'failed' : 'success',
+        errorMessage: result.firstErrorMessage
+      });
+    } catch {
+      // 补全历史只服务后续去重，不能反向阻塞 CRM 导入。
+    }
+  }
+
+  private async recordHunterEnrichmentFailedHistoriesSafely(
+    inputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>,
+    context: ReturnType<AiLeadSearchTaskWorkerService['toCrmUserContext']>,
+    firstErrorMessage: string
+  ) {
+    if (!this.crmAccountService) {
+      return;
+    }
+
+    try {
+      await this.crmAccountService.recordLeadEnrichmentHistories(inputs, context, {
+        provider: 'hunter',
+        status: 'failed',
+        errorMessage: firstErrorMessage
+      });
+    } catch {
+      // 补全历史失败不影响原始线索导入。
     }
   }
 
@@ -399,6 +452,16 @@ export class AiLeadSearchTaskWorkerService {
       runVersion: task.runVersion
     };
   }
+
+  private toCrmUserContext(task: AiLeadSearchTaskRecord) {
+    return {
+      userId: task.userId,
+      userName: task.userName || '',
+      roles: [],
+      organizationId: task.organizationId,
+      organizationRole: task.organizationRole
+    };
+  }
 }
 
 function toHunterEnrichmentEventMetadata(result: AiLeadHunterEnrichmentResult) {
@@ -408,4 +471,15 @@ function toHunterEnrichmentEventMetadata(result: AiLeadHunterEnrichmentResult) {
     failedCount: result.failedCount,
     firstErrorMessage: result.firstErrorMessage
   };
+}
+
+function mergeHunterEnrichedInputs(
+  originalInputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>,
+  enrichedInputs: ReturnType<typeof mapAiLeadTaskResultToCrmImportInputs>
+) {
+  enrichedInputs.forEach((input, index) => {
+    if (originalInputs[index]) {
+      Object.assign(originalInputs[index], input);
+    }
+  });
 }

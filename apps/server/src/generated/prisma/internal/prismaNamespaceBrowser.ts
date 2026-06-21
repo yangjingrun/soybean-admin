@@ -64,6 +64,7 @@ export const ModelName = {
   CrmOrganizationConfig: 'CrmOrganizationConfig',
   CrmBlacklist: 'CrmBlacklist',
   CrmArchivedFingerprint: 'CrmArchivedFingerprint',
+  CrmLeadEnrichmentHistory: 'CrmLeadEnrichmentHistory',
   CrmTimelineEvent: 'CrmTimelineEvent',
   CrmMailbox: 'CrmMailbox',
   CrmMailboxSendUsage: 'CrmMailboxSendUsage',
@@ -341,6 +342,27 @@ export const CrmArchivedFingerprintScalarFieldEnum = {
 } as const
 
 export type CrmArchivedFingerprintScalarFieldEnum = (typeof CrmArchivedFingerprintScalarFieldEnum)[keyof typeof CrmArchivedFingerprintScalarFieldEnum]
+
+
+export const CrmLeadEnrichmentHistoryScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  provider: 'provider',
+  identityType: 'identityType',
+  identityValue: 'identityValue',
+  status: 'status',
+  lastAttemptedAt: 'lastAttemptedAt',
+  lastSucceededAt: 'lastSucceededAt',
+  maskedEmail: 'maskedEmail',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CrmLeadEnrichmentHistoryScalarFieldEnum = (typeof CrmLeadEnrichmentHistoryScalarFieldEnum)[keyof typeof CrmLeadEnrichmentHistoryScalarFieldEnum]
 
 
 export const CrmTimelineEventScalarFieldEnum = {

@@ -18,6 +18,10 @@ declare namespace Api {
 
     type CrmEmailStatus = 'unchecked' | 'valid' | 'invalid' | 'risky' | 'unreachable' | 'unsubscribed';
 
+    type LeadEnrichmentProvider = 'hunter' | 'snovio';
+
+    type LeadEnrichmentStatus = 'success' | 'failed';
+
     type MailboxProvider = 'gmail';
 
     type MailboxStatus = 'active' | 'paused' | 'auth_expired';
@@ -113,9 +117,28 @@ declare namespace Api {
       createdAt: string;
     }
 
+    interface LeadEnrichmentHistory {
+      id: string;
+      organizationId: string;
+      ownerUserId: string;
+      accountId: string | null;
+      contactId: string | null;
+      provider: LeadEnrichmentProvider;
+      identityType: 'domain';
+      identityValue: string;
+      status: LeadEnrichmentStatus;
+      lastAttemptedAt: string;
+      lastSucceededAt: string | null;
+      maskedEmail: string | null;
+      errorMessage: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
     interface LeadDetail {
       account: LeadRecord;
       contacts: LeadContact[];
+      enrichmentHistories: LeadEnrichmentHistory[];
       timelineEvents: LeadTimelineEvent[];
     }
 
@@ -168,6 +191,10 @@ declare namespace Api {
       reason?: string;
     }
 
+    interface LeadEnrichmentRefreshPayload {
+      provider: 'hunter';
+    }
+
     interface LeadStatusResult {
       account: LeadRecord;
       event: LeadTimelineEvent;
@@ -180,6 +207,11 @@ declare namespace Api {
     interface LeadContactEmailVerifyResult {
       contact: LeadContact;
       event: LeadTimelineEvent;
+    }
+
+    interface LeadEnrichmentRefreshResult {
+      contact: LeadContact | null;
+      enrichmentHistory: LeadEnrichmentHistory;
     }
 
     interface GlobalConfig {

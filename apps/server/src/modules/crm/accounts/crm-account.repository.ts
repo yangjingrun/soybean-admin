@@ -15,12 +15,19 @@ import type {
   CrmEmailStatus,
   CrmEmailVerificationCacheRecord,
   CrmEmailVerificationCacheUpsertInput,
+  CrmLeadEnrichmentHistoryLookupInput,
+  CrmLeadEnrichmentHistoryRecord,
+  CrmLeadEnrichmentHistoryUpsertInput,
+  CrmLeadImportPrecheckInput,
   CrmTimelineEventCreateInput,
   CrmTimelineEventRecord
 } from '../crm.types';
 
 export interface CrmAccountRepository {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
+  findAccountsForLeadImportPrecheck(
+    input: CrmLeadImportPrecheckInput & { organizationId: string; ownerUserId: string }
+  ): Promise<CrmAccountRecord[]>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
   updateAccount(id: string, input: CrmAccountUpdateInput): Promise<CrmAccountRecord | null>;
   listAccountsForArchiveSlimming(input: CrmArchiveSlimmingListInput): Promise<CrmAccountRecord[]>;
@@ -38,6 +45,12 @@ export interface CrmAccountRepository {
   upsertEmailVerificationCache(input: CrmEmailVerificationCacheUpsertInput): Promise<CrmEmailVerificationCacheRecord>;
   findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput): Promise<CrmArchivedFingerprintRecord[]>;
   upsertArchivedFingerprint(input: CrmArchivedFingerprintUpsertInput): Promise<CrmArchivedFingerprintRecord>;
+  findLeadEnrichmentHistories(
+    input: CrmLeadEnrichmentHistoryLookupInput
+  ): Promise<CrmLeadEnrichmentHistoryRecord[]>;
+  upsertLeadEnrichmentHistory(
+    input: CrmLeadEnrichmentHistoryUpsertInput
+  ): Promise<CrmLeadEnrichmentHistoryRecord>;
   listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;

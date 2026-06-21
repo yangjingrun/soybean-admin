@@ -12,6 +12,9 @@ import {
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
   getWebsiteHref,
+  leadEnrichmentProviderLabelMap,
+  leadEnrichmentStatusLabelMap,
+  leadEnrichmentStatusTagTypeMap,
   leadEmailStatusLabelMap,
   leadEmailStatusTagTypeMap,
   leadStatusLabelMap,
@@ -28,10 +31,12 @@ const props = defineProps<{
   noteSubmitting?: boolean;
   statusSubmitting?: boolean;
   verifyingContactIds?: string[];
+  refreshingEnrichmentProvider?: Api.Crm.LeadEnrichmentProvider | null;
 }>();
 
 const emit = defineEmits<{
   createSequence: [contact: Api.Crm.LeadContact];
+  refreshEnrichment: [provider: Api.Crm.LeadEnrichmentProvider];
   'update:show': [show: boolean];
   reload: [];
   submitNote: [payload: Api.Crm.LeadNotePayload];
@@ -51,8 +56,13 @@ const statusForm = reactive(createDefaultLeadStatusForm());
 
 const account = computed(() => props.detail?.account ?? null);
 const contacts = computed(() => props.detail?.contacts ?? []);
+const enrichmentHistories = computed(() => props.detail?.enrichmentHistories ?? []);
 const timelineEvents = computed(() => props.detail?.timelineEvents ?? []);
 const websiteHref = computed(() => (account.value?.websiteUrl ? getWebsiteHref(account.value.websiteUrl) : ''));
+const latestHunterHistory = computed(
+  () => enrichmentHistories.value.find(history => history.provider === 'hunter') ?? null
+);
+const canRefreshHunter = computed(() => Boolean(account.value?.domain || account.value?.websiteUrl));
 const archivedMatchGroups = computed(() =>
   getArchivedFingerprintMatchEvents(timelineEvents.value).map(event => ({
     event,
@@ -66,6 +76,11 @@ const archivedMatchCount = computed(() =>
 /** Check whether the current contact already has an email verification request in flight. */
 function isContactVerifying(contactId: string) {
   return props.verifyingContactIds?.includes(contactId) ?? false;
+}
+
+/** Check whether a provider refresh request is currently running. */
+function isEnrichmentRefreshing(provider: Api.Crm.LeadEnrichmentProvider) {
+  return props.refreshingEnrichmentProvider === provider;
 }
 
 /** Contacts that explicitly opted out or failed verification should not start new outreach from the drawer. */
@@ -263,6 +278,40 @@ function handleSubmitStatus() {
           </div>
 
           <div class="drawer-section">
+            <div class="section-title-row">
+              <div class="section-title">联系人获取</div>
+              <NButton
+                size="small"
+                type="primary"
+                secondary
+                :loading="isEnrichmentRefreshing('hunter')"
+                :disabled="!canRefreshHunter || isEnrichmentRefreshing('hunter')"
+                @click="emit('refreshEnrichment', 'hunter')"
+              >
+                重新获取联系人
+              </NButton>
+            </div>
+            <NDescriptions :column="1" label-placement="left" bordered size="small">
+              <NDescriptionsItem :label="leadEnrichmentProviderLabelMap.hunter">
+                <NSpace v-if="latestHunterHistory" align="center" :size="8" wrap>
+                  <NTag
+                    size="small"
+                    :bordered="false"
+                    :type="leadEnrichmentStatusTagTypeMap[latestHunterHistory.status]"
+                  >
+                    {{ leadEnrichmentStatusLabelMap[latestHunterHistory.status] }}
+                  </NTag>
+                  <span>{{ formatLeadDate(latestHunterHistory.lastAttemptedAt) }}</span>
+                  <span v-if="latestHunterHistory.maskedEmail" class="lead-secondary-text">
+                    {{ latestHunterHistory.maskedEmail }}
+                  </span>
+                </NSpace>
+                <span v-else class="lead-secondary-text">暂无记录</span>
+              </NDescriptionsItem>
+            </NDescriptions>
+          </div>
+
+          <div class="drawer-section">
             <div class="section-title">状态变更</div>
             <NForm :model="statusForm" label-placement="top" size="small">
               <NFormItem label="状态">
@@ -405,6 +454,13 @@ function handleSubmitStatus() {
   color: var(--n-text-color);
   font-size: 14px;
   font-weight: 600;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .lead-contact-cell {

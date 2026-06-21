@@ -1,4 +1,4 @@
-import { BadGatewayException, Inject, Injectable } from '@nestjs/common';
+import { BadGatewayException, Inject, Injectable, Optional } from '@nestjs/common';
 import type { RequestUserContext } from '../../shared/request-context';
 import {
   defaultAiModelConfigKey,
@@ -18,6 +18,7 @@ import {
 } from './keyword-local-language-rules';
 import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 import { toLeadSearchPublicResult } from './ai-lead-search-progress';
+import { AiLeadCrmPrecheckService, type AiLeadCrmPrecheckSummary } from './ai-lead-crm-precheck.service';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -91,7 +92,7 @@ interface SearchDecision {
   [key: string]: unknown;
 }
 
-interface CandidateSummary {
+export interface AiLeadSearchCandidate {
   dedupeKey: string;
   sourceType: 'organic' | 'place' | 'local';
   title?: string;
@@ -123,7 +124,10 @@ export class AiLeadSearchOrchestrator {
   constructor(
     @Inject(AiGatewayService) private readonly aiGatewayService: AiGatewayService,
     @Inject(SerperClient) private readonly serperClient: SerperClient,
-    @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder
+    @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder,
+    @Optional()
+    @Inject(AiLeadCrmPrecheckService)
+    private readonly crmPrecheckService?: AiLeadCrmPrecheckService
   ) {}
 
   /** Runs keyword optimization, Serper search, and search-result decisions as one backend workflow. */
@@ -205,7 +209,7 @@ export class AiLeadSearchOrchestrator {
     const serperRequests: SearchRequestTrace[] = [];
     const serperResults: SerperResultTrace[] = [];
     const decisions: Array<{ request: SearchRequestTrace; decision: SearchDecision }> = [];
-    const candidates: CandidateSummary[] = [];
+    const candidates: AiLeadSearchCandidate[] = [];
     const candidateKeys = new Set<string>();
     const serperConfig = await this.aiGatewayService.getSerperConfig(defaultSerperConfigKey);
 
@@ -290,13 +294,17 @@ export class AiLeadSearchOrchestrator {
           result: serperResult
         });
 
-        this.addCandidates(serperResult, candidates, candidateKeys);
+        const rawCandidates = extractCandidates(serperResult);
+        const precheckResult = await this.precheckCandidates(rawCandidates, context);
+
+        this.addCandidates(precheckResult.acceptedCandidates, candidates, candidateKeys);
         await this.recordLog('processing', 'Serper 搜索完成', context, {
           endpoint: currentRequest.endpoint,
           q: currentRequest.requestBody.q,
           page: currentRequest.requestBody.page,
           num: currentRequest.requestBody.num,
-          collectedLeadCount: candidates.length
+          collectedLeadCount: candidates.length,
+          crmPrecheckSummary: precheckResult.summary
         });
         await reporter?.emit({
           type: 'step_progress',
@@ -320,6 +328,7 @@ export class AiLeadSearchOrchestrator {
           serperResult,
           serperRequests,
           collectedLeadCount: candidates.length,
+          crmPrecheckSummary: precheckResult.summary,
           targetLeadCount,
           maxRepeatRounds,
           context
@@ -502,6 +511,28 @@ export class AiLeadSearchOrchestrator {
       : runDefault();
   }
 
+  private async precheckCandidates(candidates: AiLeadSearchCandidate[], context: AiLeadSearchContext) {
+    if (!this.crmPrecheckService) {
+      return {
+        acceptedCandidates: candidates,
+        summary: {
+          rawCandidateCount: candidates.length,
+          acceptedCandidateCount: candidates.length,
+          existingSkippedCount: 0,
+          activeSkippedCount: 0,
+          cooldownSkippedCount: 0,
+          reactivatedCandidateCount: 0,
+          domainlessCandidateCount: candidates.filter(candidate => !candidate.website && !candidate.url).length
+        }
+      };
+    }
+
+    return this.crmPrecheckService.precheckCandidates({
+      candidates,
+      context: context.user
+    });
+  }
+
   private async decideNextStep(input: {
     keywordOptimization: OptimizedKeywordPlan;
     currentQuery: SerperRequestBody;
@@ -509,6 +540,7 @@ export class AiLeadSearchOrchestrator {
     serperResult: unknown;
     serperRequests: SearchRequestTrace[];
     collectedLeadCount: number;
+    crmPrecheckSummary: AiLeadCrmPrecheckSummary;
     targetLeadCount: number;
     maxRepeatRounds: number;
     context: AiLeadSearchContext;
@@ -528,6 +560,7 @@ export class AiLeadSearchOrchestrator {
           currentPage: input.currentRequest.requestBody.page ?? 1,
           executedQueries: input.serperRequests,
           collectedLeadCount: input.collectedLeadCount,
+          crmPrecheckSummary: input.crmPrecheckSummary,
           serperResult: input.serperResult
         }),
         maxOutputTokens: searchDecisionMaxOutputTokens
@@ -584,8 +617,12 @@ export class AiLeadSearchOrchestrator {
     return request.endpoint === 'places' ? page <= maxPlacesPages : page <= maxSearchPages;
   }
 
-  private addCandidates(result: unknown, candidates: CandidateSummary[], candidateKeys: Set<string>) {
-    for (const candidate of extractCandidates(result)) {
+  private addCandidates(
+    newCandidates: AiLeadSearchCandidate[],
+    candidates: AiLeadSearchCandidate[],
+    candidateKeys: Set<string>
+  ) {
+    for (const candidate of newCandidates) {
       if (candidateKeys.has(candidate.dedupeKey)) {
         continue;
       }
@@ -701,7 +738,7 @@ function toRequestKey(request: SearchRequestTrace) {
   ].join('|');
 }
 
-function extractCandidates(result: unknown): CandidateSummary[] {
+function extractCandidates(result: unknown): AiLeadSearchCandidate[] {
   if (!result || typeof result !== 'object') {
     return [];
   }
@@ -715,13 +752,13 @@ function extractCandidates(result: unknown): CandidateSummary[] {
   ];
 }
 
-function extractOrganicCandidates(value: unknown): CandidateSummary[] {
+function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value
-    .map((item): CandidateSummary | null => {
+    .map((item): AiLeadSearchCandidate | null => {
       const record = item as Record<string, unknown>;
       const url = stringValue(record.link);
       const title = stringValue(record.title);
@@ -742,13 +779,13 @@ function extractOrganicCandidates(value: unknown): CandidateSummary[] {
     .filter(isCandidateSummary);
 }
 
-function extractPlaceCandidates(value: unknown, sourceType: 'place' | 'local'): CandidateSummary[] {
+function extractPlaceCandidates(value: unknown, sourceType: 'place' | 'local'): AiLeadSearchCandidate[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value
-    .map((item): CandidateSummary | null => {
+    .map((item): AiLeadSearchCandidate | null => {
       const record = item as Record<string, unknown>;
       const website = stringValue(record.website);
       const title = stringValue(record.title);
@@ -772,7 +809,7 @@ function extractPlaceCandidates(value: unknown, sourceType: 'place' | 'local'): 
     .filter(isCandidateSummary);
 }
 
-function isCandidateSummary(value: CandidateSummary | null): value is CandidateSummary {
+function isCandidateSummary(value: AiLeadSearchCandidate | null): value is AiLeadSearchCandidate {
   return Boolean(value);
 }
 

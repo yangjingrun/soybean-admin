@@ -6,6 +6,7 @@ import { DatabaseModule } from '../database/database.module';
 import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
 import { AiLeadHunterEnrichmentService } from './ai-lead-hunter-enrichment.service';
+import { AiLeadCrmPrecheckService } from './ai-lead-crm-precheck.service';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 import { AiLeadSearchTaskQueueService } from './ai-lead-search-task-queue.service';
 import { AiLeadSearchTaskService } from './ai-lead-search-task.service';
@@ -28,6 +29,7 @@ import { PrismaAiLeadSearchTaskStore } from './prisma-ai-lead-search-task.store'
   controllers: [AiLeadsController],
   providers: [
     AiLeadsService,
+    AiLeadCrmPrecheckService,
     AiLeadSearchOrchestrator,
     AiLeadHunterEnrichmentService,
     AiLeadSearchTaskService,

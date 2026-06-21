@@ -8,6 +8,7 @@ import { ArchiveCrmAccountDto } from '../dto/archive-crm-account.dto';
 import { CreateCrmAccountNoteDto } from '../dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from '../dto/crm-account-query.dto';
 import { ImportCrmLeadDto } from '../dto/import-crm-lead.dto';
+import { RefreshCrmAccountEnrichmentDto } from '../dto/refresh-crm-account-enrichment.dto';
 import { UpdateCrmAccountStatusDto } from '../dto/update-crm-account-status.dto';
 
 /** Handles CRM accounts, lead imports, account notes, archive/restore, and contact email verify endpoints. */
@@ -64,6 +65,15 @@ export class CrmAccountController extends CrmControllerBase {
   @Post('accounts/:id/restore')
   async restoreAccount(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
     return ok(await this.accountService.restoreAccount(id, this.requireUserContext(context)));
+  }
+
+  @Post('accounts/:id/enrichment/refresh')
+  async refreshAccountEnrichment(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Param('id') id: string,
+    @Body() dto: RefreshCrmAccountEnrichmentDto
+  ) {
+    return ok(await this.accountService.refreshAccountEnrichment(id, dto, this.requireUserContext(context)));
   }
 
   @Post('contacts/:id/verify-email')

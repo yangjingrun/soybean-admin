@@ -1,6 +1,8 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { resolveMx } from 'node:dns/promises';
 import { createPageResult } from '../../../shared/pagination';
+import { AiGatewayService } from '../../ai-gateway/ai-gateway.service';
+import { HunterClient } from '../../ai-gateway/hunter-client.service';
 import { normalizeEmailVerificationCooldownDays } from '../crm-global-config';
 import { CRM_ACCOUNT_REPOSITORY, CRM_EMAIL_DNS_RESOLVER, CRM_SETTINGS_REPOSITORY } from '../crm.tokens';
 import type {
@@ -12,6 +14,7 @@ import type {
   CrmContactRecord,
   CrmEmailStatus,
   CrmEmailVerificationReason,
+  CrmLeadEnrichmentProvider,
   CrmUserContext,
   ImportCrmLeadInput
 } from '../crm.types';
@@ -24,10 +27,23 @@ import {
   parseEmailAddress,
   type CrmEmailDnsResolver
 } from '../shared/crm-email-utils';
+import { selectBestHunterContact } from '../shared/crm-hunter-contact-picker';
 import { CrmLoggerService } from '../shared/crm-logger.service';
-import { normalizeLimitedContent, normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
+import {
+  normalizeCrmDomain,
+  normalizeCrmName,
+  normalizeLimitedContent,
+  normalizeNullableString,
+  normalizePositiveInteger
+} from '../shared/crm-normalizers';
 import { createCrmOwnerFilter } from '../shared/crm-scope';
-import { toAccountDetailView, toAccountView, toContactView, toTimelineEventView } from '../shared/crm-view-mappers';
+import {
+  toAccountDetailView,
+  toAccountView,
+  toContactView,
+  toLeadEnrichmentHistoryView,
+  toTimelineEventView
+} from '../shared/crm-view-mappers';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
 import type { CrmAccountRepository } from './crm-account.repository';
 
@@ -58,7 +74,13 @@ export class CrmAccountService {
     dnsResolver?: CrmEmailDnsResolver,
     @Optional()
     @Inject(CrmLoggerService)
-    private readonly crmLogger?: CrmLoggerService
+    private readonly crmLogger?: CrmLoggerService,
+    @Optional()
+    @Inject(AiGatewayService)
+    private readonly aiGatewayService?: Pick<AiGatewayService, 'getHunterConfig'>,
+    @Optional()
+    @Inject(HunterClient)
+    private readonly hunterClient?: Pick<HunterClient, 'domainSearch'>
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -71,7 +93,7 @@ export class CrmAccountService {
       throw new BadRequestException('客户名称不能为空');
     }
 
-    const domain = normalizeDomain(input.websiteUrl);
+    const domain = normalizeCrmDomain(input.websiteUrl);
     const archivedMatches = await this.findArchivedImportMatches(domain, input, context);
     const existingAccount = domain
       ? await this.accountRepository.findAccountByDomain(context.organizationId, context.userId, domain)
@@ -82,7 +104,7 @@ export class CrmAccountService {
         organizationId: context.organizationId,
         ownerUserId: context.userId,
         name,
-        normalizedName: normalizeName(name),
+        normalizedName: normalizeCrmName(name),
         websiteUrl: normalizeNullableString(input.websiteUrl),
         domain,
         country: normalizeNullableString(input.country),
@@ -115,6 +137,94 @@ export class CrmAccountService {
       account: updatedAccount,
       contact
     };
+  }
+
+  /** Batch match one Serper page against owner-scoped CRM identities before provider enrichment. */
+  findLeadImportPrecheckMatches(
+    input: {
+      domains: string[];
+      normalizedNames: string[];
+    },
+    context: CrmUserContext
+  ) {
+    return this.accountRepository.findAccountsForLeadImportPrecheck({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      domains: normalizeUniqueDomains(input.domains),
+      normalizedNames: normalizeUniqueNames(input.normalizedNames)
+    });
+  }
+
+  /** Keep only inputs whose provider/domain history has not been queried automatically before. */
+  async filterLeadInputsForAutoEnrichment(
+    inputs: ImportCrmLeadInput[],
+    context: CrmUserContext,
+    provider: CrmLeadEnrichmentProvider
+  ) {
+    const domainInputs = inputs.flatMap(input => {
+      const domain = normalizeCrmDomain(input.websiteUrl);
+
+      return domain ? [{ input, domain }] : [];
+    });
+    const uniqueDomains = normalizeUniqueDomains(domainInputs.map(item => item.domain));
+    const histories = await this.accountRepository.findLeadEnrichmentHistories({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId,
+      provider,
+      identityType: 'domain',
+      identityValues: uniqueDomains
+    });
+    const queriedDomains = new Set(histories.map(history => history.identityValue));
+
+    return {
+      inputsToEnrich: domainInputs.filter(item => !queriedDomains.has(item.domain)).map(item => item.input),
+      skippedNoDomainCount: inputs.length - domainInputs.length,
+      skippedExistingHistoryCount: domainInputs.filter(item => queriedDomains.has(item.domain)).length
+    };
+  }
+
+  /** Record minimal provider enrichment history by domain, without storing external raw responses. */
+  async recordLeadEnrichmentHistories(
+    inputs: ImportCrmLeadInput[],
+    context: CrmUserContext,
+    options: {
+      provider: CrmLeadEnrichmentProvider;
+      status: 'success' | 'failed';
+      attemptedAt?: Date;
+      errorMessage?: string | null;
+    }
+  ) {
+    const attemptedAt = options.attemptedAt ?? new Date();
+    const domains = new Set<string>();
+    const records = [];
+
+    for (const input of inputs) {
+      const domain = normalizeCrmDomain(input.websiteUrl);
+
+      if (!domain || domains.has(domain)) {
+        continue;
+      }
+
+      domains.add(domain);
+      const email = normalizeEmail(input.contact?.email);
+
+      records.push(
+        await this.accountRepository.upsertLeadEnrichmentHistory({
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          provider: options.provider,
+          identityType: 'domain',
+          identityValue: domain,
+          status: options.status,
+          lastAttemptedAt: attemptedAt,
+          lastSucceededAt: options.status === 'success' ? attemptedAt : null,
+          maskedEmail: email ? maskEmail(email) : null,
+          errorMessage: normalizeNullableString(options.errorMessage)
+        })
+      );
+    }
+
+    return records;
   }
 
   /** List accounts within the current organization and apply member ownership isolation. */
@@ -152,6 +262,115 @@ export class CrmAccountService {
     const detail = await this.requireScopedAccountDetail(id, context);
 
     return toAccountDetailView(detail);
+  }
+
+  /** Manually refresh contacts for one scoped CRM account through a provider. */
+  async refreshAccountEnrichment(
+    id: string,
+    input: { provider: CrmLeadEnrichmentProvider },
+    context: CrmUserContext
+  ) {
+    if (input.provider !== 'hunter') {
+      throw new BadRequestException('暂不支持该联系人获取渠道');
+    }
+
+    if (!this.aiGatewayService || !this.hunterClient) {
+      throw new BadGatewayException('Hunter 联系人获取服务不可用');
+    }
+
+    const detail = await this.requireScopedAccountDetail(id, context);
+    const domain = detail.account.domain ?? normalizeCrmDomain(detail.account.websiteUrl);
+
+    if (!domain) {
+      throw new BadRequestException('当前线索没有可用于 Hunter 查询的官网域名');
+    }
+
+    const attemptedAt = new Date();
+
+    try {
+      const config = await this.aiGatewayService.getHunterConfig();
+      const hunterResult = await this.hunterClient.domainSearch(config, { domain, limit: 10, offset: 0 });
+      const contact = selectBestHunterContact(hunterResult);
+      const importResult = contact
+        ? await this.importAccountFromLead(
+            {
+              name: detail.account.name,
+              websiteUrl: detail.account.websiteUrl ?? domain,
+              country: detail.account.country,
+              customerType: detail.account.customerType,
+              sourceTaskId: detail.account.sourceTaskId,
+              contact
+            },
+            context
+          )
+        : { account: detail.account, contact: null };
+      const history = await this.accountRepository.upsertLeadEnrichmentHistory({
+        organizationId: context.organizationId,
+        ownerUserId: context.userId,
+        accountId: importResult.account.id,
+        contactId: importResult.contact?.id ?? null,
+        provider: 'hunter',
+        identityType: 'domain',
+        identityValue: domain,
+        status: 'success',
+        lastAttemptedAt: attemptedAt,
+        lastSucceededAt: attemptedAt,
+        maskedEmail: importResult.contact?.maskedEmail ?? null,
+        errorMessage: null
+      });
+
+      await this.accountRepository.createTimelineEvent({
+        organizationId: importResult.account.organizationId,
+        accountId: importResult.account.id,
+        contactId: importResult.contact?.id ?? null,
+        ownerUserId: context.userId,
+        eventType: 'lead_enrichment_refreshed',
+        title: '重新获取联系人',
+        content: contact ? 'Hunter 联系人获取已完成。' : 'Hunter 未找到符合自动导入规则的联系人。',
+        metadata: {
+          provider: 'hunter',
+          domain,
+          status: 'success',
+          maskedEmail: importResult.contact?.maskedEmail ?? null
+        }
+      });
+
+      return {
+        contact: importResult.contact ? toContactView(importResult.contact) : null,
+        enrichmentHistory: toLeadEnrichmentHistoryView(history)
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const history = await this.accountRepository.upsertLeadEnrichmentHistory({
+        organizationId: context.organizationId,
+        ownerUserId: context.userId,
+        accountId: detail.account.id,
+        provider: 'hunter',
+        identityType: 'domain',
+        identityValue: domain,
+        status: 'failed',
+        lastAttemptedAt: attemptedAt,
+        lastSucceededAt: null,
+        maskedEmail: null,
+        errorMessage
+      });
+
+      await this.accountRepository.createTimelineEvent({
+        organizationId: detail.account.organizationId,
+        accountId: detail.account.id,
+        ownerUserId: context.userId,
+        eventType: 'lead_enrichment_refresh_failed',
+        title: '重新获取联系人失败',
+        content: errorMessage,
+        metadata: {
+          provider: 'hunter',
+          domain,
+          historyId: history.id
+        }
+      });
+
+      throw error;
+    }
   }
 
   /** Change the scoped account status and record a timeline event. */
@@ -661,25 +880,6 @@ function toArchivedFingerprintMatchMetadata(record: CrmArchivedFingerprintRecord
   };
 }
 
-function normalizeDomain(value?: string | null) {
-  const rawValue = value?.trim();
-
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`);
-    return url.hostname.toLowerCase().replace(/^www\./, '') || null;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeName(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
 function normalizeLeadSourceSnapshot(value: ImportCrmLeadInput['sourceSnapshot']) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
@@ -748,4 +948,16 @@ function toEmailStatusText(status: CrmEmailStatus) {
 
 function isPastArchiveRecoveryWindow(archivedAt: Date, now = new Date()) {
   return now.getTime() - archivedAt.getTime() > accountArchiveRecoveryDays * 24 * 60 * 60 * 1000;
+}
+
+function normalizeUniqueDomains(values: string[]) {
+  return Array.from(new Set(values.flatMap(value => {
+    const domain = normalizeCrmDomain(value);
+
+    return domain ? [domain] : [];
+  })));
+}
+
+function normalizeUniqueNames(values: string[]) {
+  return Array.from(new Set(values.map(value => normalizeCrmName(value)).filter(Boolean)));
 }
