@@ -299,10 +299,11 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
 <style scoped>
 .search-progress-panel {
   min-width: 0;
-  --progress-primary: #5b75ff;
-  --progress-success: #18a058;
-  --progress-warning: #f0a020;
-  --progress-danger: #d03050;
+  --progress-primary: rgb(var(--primary-color));
+  --progress-primary-soft: rgb(var(--primary-50-color));
+  --progress-success: rgb(var(--success-color));
+  --progress-warning: rgb(var(--warning-color));
+  --progress-danger: rgb(var(--error-color));
   --progress-border: #e4ebf7;
   --progress-surface: #fbfcff;
 }
@@ -323,17 +324,17 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
 }
 
 .workflow-panel {
-  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  background: #ffffff;
 }
 
 .workflow-panel.is-completed {
   border-color: #c9ecd6;
-  background: linear-gradient(180deg, #ffffff 0%, #f3fbf6 100%);
+  background: #f8fdf9;
 }
 
 .workflow-panel.is-failed {
   border-color: #f2c9d1;
-  background: linear-gradient(180deg, #ffffff 0%, #fff6f8 100%);
+  background: #fff8fa;
 }
 
 .workflow-header {
@@ -425,7 +426,7 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
 .progress-step.is-active .step-marker {
   border-color: var(--progress-primary);
   color: var(--progress-primary);
-  background: #f2f5ff;
+  background: var(--progress-primary-soft);
 }
 
 .progress-step.is-completed .step-marker {
@@ -468,19 +469,8 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
 }
 
 .section-title {
-  display: inline-flex;
-  align-items: center;
   color: #24324b;
   font-weight: 600;
-}
-
-.section-title::before {
-  width: 3px;
-  height: 14px;
-  margin-right: 8px;
-  border-radius: 999px;
-  background: var(--progress-primary);
-  content: '';
 }
 
 :deep(.candidate-link) {

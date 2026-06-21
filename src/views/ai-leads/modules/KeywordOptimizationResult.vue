@@ -200,10 +200,10 @@ function updateSegmentList(
 <style scoped>
 .keyword-result {
   min-width: 0;
-  --keyword-primary: #5b75ff;
-  --keyword-primary-deep: #7c5cff;
-  --keyword-soft: #f3f6ff;
-  --keyword-border: #dbe5ff;
+  --keyword-primary: rgb(var(--primary-color));
+  --keyword-soft: rgb(var(--primary-50-color));
+  --keyword-border: #e5eaf3;
+  --keyword-muted: #f7f9fc;
 }
 
 .keyword-section {
@@ -214,7 +214,7 @@ function updateSegmentList(
   padding: 12px;
   border: 1px solid #e6ecf7;
   border-radius: 8px;
-  background: #fbfcff;
+  background: var(--keyword-muted);
 }
 
 .keyword-editor {
@@ -228,7 +228,7 @@ function updateSegmentList(
   padding: 12px;
   border: 1px solid #e6ecf7;
   border-radius: 8px;
-  background: linear-gradient(180deg, #ffffff 0%, var(--keyword-soft) 100%);
+  background: #ffffff;
 }
 
 .summary-editor-grid :deep(.n-form-item-label) {
@@ -240,19 +240,8 @@ function updateSegmentList(
 }
 
 .section-title {
-  display: inline-flex;
-  align-items: center;
   color: #24324b;
   font-weight: 600;
-}
-
-.section-title::before {
-  width: 3px;
-  height: 14px;
-  margin-right: 8px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--keyword-primary), var(--keyword-primary-deep));
-  content: '';
 }
 
 .section-heading {
@@ -271,23 +260,13 @@ function updateSegmentList(
   padding: 12px;
   overflow: hidden;
   border: 1px solid var(--keyword-border);
-  border-left: 4px solid var(--keyword-primary);
   border-radius: 8px;
-  background: linear-gradient(90deg, rgb(91 117 255 / 10%) 0%, rgb(124 92 255 / 5%) 34%, #ffffff 72%), #ffffff;
-  box-shadow: 0 6px 18px rgb(15 23 42 / 4%);
-}
-
-.buyer-segment::before {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, var(--keyword-primary), var(--keyword-primary-deep));
-  content: '';
+  background: #ffffff;
 }
 
 .buyer-segment.editor {
   min-height: auto;
-  background: linear-gradient(90deg, rgb(91 117 255 / 12%) 0%, rgb(124 92 255 / 5%) 30%, #ffffff 68%), #ffffff;
+  background: #ffffff;
 }
 
 .buyer-segment-header {
@@ -314,6 +293,6 @@ function updateSegmentList(
 }
 
 .query-section :deep(.n-data-table-th) {
-  background: #f4f7ff;
+  background: var(--keyword-muted);
 }
 </style>
