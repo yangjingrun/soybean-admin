@@ -103,48 +103,42 @@ async function saveSendPreference() {
   <NCard :bordered="false" size="small" class="card-wrapper" title="我的发送偏好">
     <NSpace vertical :size="12">
       <NForm :model="formModel" label-placement="top" size="small">
-        <NGrid responsive="screen" :x-gap="12" :y-gap="4" cols="1 s:3">
-          <NGi>
-            <NFormItem label="每日最多进入发送队列">
-              <NInputNumber
-                v-model:value="formModel.dailySendLimit"
-                :min="1"
-                :max="formModel.ownerDailySendLimitMax"
-                :precision="0"
-                class="send-preference-number-input"
-              >
-                <template #suffix>封</template>
-              </NInputNumber>
-            </NFormItem>
-          </NGi>
+        <div class="send-preference-fields">
+          <NFormItem label="每日最多进入发送队列" class="send-preference-field send-preference-field--limit">
+            <NInputNumber
+              v-model:value="formModel.dailySendLimit"
+              :min="1"
+              :max="formModel.ownerDailySendLimitMax"
+              :precision="0"
+              class="send-preference-number-input"
+            >
+              <template #suffix>封</template>
+            </NInputNumber>
+          </NFormItem>
 
-          <NGi>
-            <NFormItem label="后续开发信占比">
-              <NInputNumber
-                v-model:value="formModel.followUpSharePercent"
-                :min="0"
-                :max="100"
-                :precision="0"
-                class="send-preference-number-input"
-              >
-                <template #suffix>%</template>
-              </NInputNumber>
-            </NFormItem>
-          </NGi>
+          <NFormItem label="后续开发信占比" class="send-preference-field">
+            <NInputNumber
+              v-model:value="formModel.followUpSharePercent"
+              :min="0"
+              :max="100"
+              :precision="0"
+              class="send-preference-number-input"
+            >
+              <template #suffix>%</template>
+            </NInputNumber>
+          </NFormItem>
 
-          <NGi>
-            <NFormItem label="首封开发信占比">
-              <NInputNumber
-                :value="firstTouchSharePercent"
-                :show-button="false"
-                disabled
-                class="send-preference-number-input"
-              >
-                <template #suffix>%</template>
-              </NInputNumber>
-            </NFormItem>
-          </NGi>
-        </NGrid>
+          <NFormItem label="首封开发信占比" class="send-preference-field">
+            <NInputNumber
+              :value="firstTouchSharePercent"
+              :show-button="false"
+              disabled
+              class="send-preference-number-input"
+            >
+              <template #suffix>%</template>
+            </NInputNumber>
+          </NFormItem>
+        </div>
       </NForm>
 
       <div class="send-preference-footer">
@@ -163,6 +157,20 @@ async function saveSendPreference() {
 </template>
 
 <style scoped>
+.send-preference-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.send-preference-field {
+  flex: 0 1 180px;
+}
+
+.send-preference-field--limit {
+  flex-basis: 220px;
+}
+
 .send-preference-number-input {
   width: 100%;
 }
@@ -179,6 +187,11 @@ async function saveSendPreference() {
 }
 
 @media (max-width: 640px) {
+  .send-preference-field,
+  .send-preference-field--limit {
+    flex-basis: 100%;
+  }
+
   .send-preference-footer {
     align-items: flex-start;
     flex-direction: column;
