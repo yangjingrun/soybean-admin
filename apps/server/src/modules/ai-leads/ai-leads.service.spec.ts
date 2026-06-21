@@ -4,7 +4,11 @@ import { UnauthorizedException } from '@nestjs/common';
 import type { UserInfo } from '../auth/auth.types';
 import type { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { GenerateAiTextDto } from '../ai-gateway/dto/generate-ai-text.dto';
-import { defaultAiModelConfigKey, leadKeywordOptimizePromptKey } from '../ai-gateway/ai-gateway.constants';
+import {
+  defaultAiModelConfigKey,
+  leadKeywordOptimizePromptKey,
+  leadMapsKeywordOptimizePromptKey
+} from '../ai-gateway/ai-gateway.constants';
 import type { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 import { AiLeadsService } from './ai-leads.service';
@@ -303,6 +307,53 @@ describe('AiLeadsService', () => {
     assert.equal(result.text, JSON.stringify(keywordPlan));
     assert.equal(result.historyRecord.id, 'history-1');
     assert.deepEqual(result.keywordPlan, keywordPlan);
+  });
+
+  it('uses the Maps keyword prompt when the lead source mode is maps', async () => {
+    let capturedDto: GenerateAiTextDto | null = null;
+    const mapsKeywordPlan = {
+      ...keywordPlan,
+      serperSearchQueries: [],
+      serperPlacesQueries: [],
+      serperMapsQueries: [
+        {
+          endpoint: 'maps',
+          requestBody: {
+            q: 'bearing distributor',
+            hl: 'en',
+            ll: '@41.6469296,-73.2681778,8z',
+            page: 1
+          },
+          meta: { priority: '高' }
+        }
+      ]
+    };
+    const aiGatewayService = {
+      async generateText(dto: GenerateAiTextDto) {
+        capturedDto = dto;
+
+        return {
+          text: JSON.stringify(mapsKeywordPlan),
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 12,
+            outputTokens: 8,
+            totalTokens: 20
+          }
+        };
+      }
+    } as unknown as AiGatewayService;
+    const historyStore = createHistoryStore();
+    const service = new AiLeadsService(aiGatewayService, historyStore);
+
+    const result = await service.optimizeKeywords(
+      { requirement: '用地图找美国轴承经销商', leadSourceMode: 'maps' },
+      { user }
+    );
+
+    assert.equal(capturedDto?.promptKey, leadMapsKeywordOptimizePromptKey);
+    assert.deepEqual(result.qualityWarnings, []);
+    assert.equal(result.keywordPlan.serperMapsQueries?.[0]?.requestBody.q, 'bearing distributor');
   });
 
   it('adds generic local-language query requirements when optimizing non-English markets', async () => {

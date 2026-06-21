@@ -8,7 +8,11 @@ import {
 } from '@nestjs/common';
 import { isSuper } from '../../shared/permission-policy';
 import type { RequestUserContext } from '../../shared/request-context';
-import { defaultAiModelConfigKey, leadKeywordOptimizePromptKey } from '../ai-gateway/ai-gateway.constants';
+import {
+  defaultAiModelConfigKey,
+  leadKeywordOptimizePromptKey,
+  leadMapsKeywordOptimizePromptKey
+} from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemLogService } from '../system-log/system-log.service';
@@ -20,6 +24,7 @@ import { toLeadSearchPublicResult, type LeadSearchProgressReporter } from './ai-
 import { AI_LEAD_KEYWORD_HISTORY_STORE } from './ai-leads.tokens';
 import type { AiLeadKeywordHistoryRecord, AiLeadKeywordHistoryStore } from './ai-leads.types';
 import {
+  buildMapsKeywordOptimizePrompt,
   buildKeywordOptimizePrompt,
   buildKeywordOptimizeRepairPrompt,
   validateKeywordPlanLocalLanguages
@@ -45,7 +50,11 @@ export class AiLeadsService {
   async optimizeKeywords(dto: KeywordOptimizeDto, context: AiLeadsContext = {}) {
     const user = this.requireUser(context);
     const requirement = dto.requirement.trim();
-    const { result, keywordPlan, qualityWarnings } = await this.generateKeywordPlanWithRepair(requirement, context);
+    const { result, keywordPlan, qualityWarnings } = await this.generateKeywordPlanWithRepair(
+      requirement,
+      dto.leadSourceMode ?? 'search',
+      context
+    );
     const historyRecord = await this.keywordHistoryStore.create({
       userId: user.userId,
       userName: user.userName,
@@ -61,7 +70,9 @@ export class AiLeadsService {
     await this.recordLog('keyword-history-create', '关键词优化历史已保存', context, {
       historyId: historyRecord.id,
       searchQueryCount: readArrayLength(keywordPlan, 'serperSearchQueries'),
-      placesQueryCount: readArrayLength(keywordPlan, 'serperPlacesQueries')
+      placesQueryCount: readArrayLength(keywordPlan, 'serperPlacesQueries'),
+      mapsQueryCount: readArrayLength(keywordPlan, 'serperMapsQueries'),
+      leadSourceMode: dto.leadSourceMode ?? 'search'
     });
 
     return {
@@ -73,7 +84,25 @@ export class AiLeadsService {
   }
 
   /** Generates a keyword plan and asks the model to repair it once if quality gates fail. */
-  private async generateKeywordPlanWithRepair(requirement: string, context: AiLeadsContext) {
+  private async generateKeywordPlanWithRepair(
+    requirement: string,
+    leadSourceMode: NonNullable<KeywordOptimizeDto['leadSourceMode']>,
+    context: AiLeadsContext
+  ) {
+    if (leadSourceMode === 'maps') {
+      const result = await this.aiGatewayService.generateText(
+        {
+          modelConfigKey: defaultAiModelConfigKey,
+          promptKey: leadMapsKeywordOptimizePromptKey,
+          prompt: buildMapsKeywordOptimizePrompt(requirement),
+          maxOutputTokens: keywordOptimizeMaxOutputTokens
+        },
+        context
+      );
+
+      return { result, keywordPlan: parseKeywordPlan(result.text), qualityWarnings: [] };
+    }
+
     const result = await this.aiGatewayService.generateText(
       {
         modelConfigKey: defaultAiModelConfigKey,

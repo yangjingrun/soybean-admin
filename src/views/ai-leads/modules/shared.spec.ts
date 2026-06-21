@@ -66,6 +66,24 @@ const keywordPlan: Api.AiLeads.OptimizedKeywordPlan = {
       }
     }
   ],
+  serperMapsQueries: [
+    {
+      endpoint: 'maps',
+      requestBody: {
+        q: 'bearing distributor',
+        hl: 'en',
+        ll: '@41.6469296,-73.2681778,8z',
+        page: 1
+      },
+      meta: {
+        buyerType: 'Local bearing distributor',
+        intent: 'local_distributor',
+        city: 'New York metro',
+        priority: '高',
+        reason: 'Use Maps to find physical bearing distributors'
+      }
+    }
+  ],
   searchExecutionRules: {
     keep: ['importer'],
     exclude: ['school'],
@@ -91,9 +109,10 @@ describe('ai leads keyword optimization helpers', () => {
     assert.equal(viewModel.showQueryDetails, false);
     assert.deepEqual(viewModel.searchQueries, []);
     assert.deepEqual(viewModel.placesQueries, []);
+    assert.deepEqual(viewModel.mapsQueries, []);
   });
 
-  it('shows Search and Places query details for super administrators', () => {
+  it('shows Search, Places and Maps query details for super administrators', () => {
     const viewModel = createKeywordOptimizationViewModel(keywordPlan, true);
 
     assert.equal(viewModel.showQueryDetails, true);
@@ -102,6 +121,9 @@ describe('ai leads keyword optimization helpers', () => {
     assert.equal(viewModel.placesQueries[0].q, 'bearing supplier Riyadh');
     assert.equal(viewModel.placesQueries[0].buyerType, 'Industrial supplier（工业用品供应商）');
     assert.equal(viewModel.placesQueries[0].intent, 'industrial_supplier（工业用品供应商）');
+    assert.equal(viewModel.mapsQueries[0].q, 'bearing distributor');
+    assert.equal(viewModel.mapsQueries[0].buyerType, 'Local bearing distributor（经销商）');
+    assert.equal(viewModel.mapsQueries[0].city, 'New York metro');
   });
 
   it('formats only visible fields when regular users copy the result', () => {
@@ -112,6 +134,15 @@ describe('ai leads keyword optimization helpers', () => {
     assert.match(text, /买家类型：Importer（进口商）/);
     assert.doesNotMatch(text, /6204 bearing importer Saudi Arabia/);
     assert.doesNotMatch(text, /bearing supplier Riyadh/);
+    assert.doesNotMatch(text, /bearing distributor/);
+  });
+
+  it('includes Maps query details when super administrators copy the result', () => {
+    const viewModel = createKeywordOptimizationViewModel(keywordPlan, true);
+    const text = formatKeywordOptimizationVisibleText(viewModel);
+
+    assert.match(text, /Maps 查询词：/);
+    assert.match(text, /Local bearing distributor（经销商）｜local_distributor（本地经销商）｜bearing distributor/);
   });
 
   it('restores ai result from a keyword history record', () => {

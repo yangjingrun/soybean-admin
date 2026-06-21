@@ -8,6 +8,7 @@ export interface KeywordOptimizationQueryRow {
   intent: string;
   q: string;
   location: string;
+  ll?: string;
   city?: string;
   priority: string;
 }
@@ -17,6 +18,7 @@ export interface KeywordOptimizationViewModel {
   buyerSegments: Api.AiLeads.BuyerSegment[];
   searchQueries: KeywordOptimizationQueryRow[];
   placesQueries: KeywordOptimizationQueryRow[];
+  mapsQueries: KeywordOptimizationQueryRow[];
   showQueryDetails: boolean;
 }
 
@@ -35,8 +37,11 @@ export interface AiLeadCandidateImportRow {
 const businessGlossary = [
   ['auto_parts_wholesaler', '汽配批发商'],
   ['industrial_supplier', '工业用品供应商'],
+  ['local_distributor', '本地经销商'],
+  ['local_wholesaler', '本地批发商'],
   ['local_supplier', '本地供应商'],
   ['local_dealer', '本地经销商'],
+  ['mro_supplier', '维护维修耗材供应商'],
   ['repair_service', '维修服务商'],
   ['trading_company', '贸易公司'],
   ['trade_show', '展会'],
@@ -189,6 +194,7 @@ export function createKeywordOptimizationViewModel(
     buyerSegments: plan.buyerSegments.map(normalizeBuyerSegment),
     searchQueries: isSuperAdmin ? (plan.serperSearchQueries ?? []).map(normalizeQueryRow) : [],
     placesQueries: isSuperAdmin ? getPlacesQueries(plan).map(normalizeQueryRow) : [],
+    mapsQueries: isSuperAdmin ? (plan.serperMapsQueries ?? []).map(normalizeQueryRow) : [],
     showQueryDetails: isSuperAdmin
   };
 }
@@ -218,8 +224,9 @@ export function formatKeywordOptimizationVisibleText(viewModel: KeywordOptimizat
   const placesQueryText = viewModel.placesQueries
     .map(query => `${query.buyerType}｜${query.intent}｜${query.q}`)
     .join('\n');
+  const mapsQueryText = viewModel.mapsQueries.map(query => `${query.buyerType}｜${query.intent}｜${query.q}`).join('\n');
 
-  return `${summaryText}\n\n${buyerSegmentText}\n\nSearch 查询词：\n${searchQueryText}\n\nPlaces 查询词：\n${placesQueryText}`;
+  return `${summaryText}\n\n${buyerSegmentText}\n\nSearch 查询词：\n${searchQueryText}\n\nPlaces 查询词：\n${placesQueryText}\n\nMaps 查询词：\n${mapsQueryText}`;
 }
 
 /** Build candidate rows with import eligibility derived before any backend submit. */
@@ -302,20 +309,21 @@ function normalizeBuyerSegment(segment: Api.AiLeads.BuyerSegment): Api.AiLeads.B
 }
 
 function normalizeQueryRow(
-  query: Api.AiLeads.SerperSearchQuery | Api.AiLeads.SerperPlacesQuery
+  query: Api.AiLeads.SerperSearchQuery | Api.AiLeads.SerperPlacesQuery | Api.AiLeads.SerperMapsQuery
 ): KeywordOptimizationQueryRow {
   return {
     buyerType: annotateBusinessTerms(readQueryMetaValue(query, 'buyerType')),
     intent: annotateBusinessTerms(readQueryMetaValue(query, 'intent')),
     q: query.requestBody?.q || query.q || '',
-    location: query.requestBody?.location || query.location || '',
+    location: 'location' in query ? query.requestBody?.location || query.location || '' : '',
+    ll: query.requestBody?.ll || ('ll' in query ? query.ll : undefined),
     city: query.meta?.city || ('city' in query ? query.city : undefined),
     priority: readQueryMetaValue(query, 'priority')
   };
 }
 
 function readQueryMetaValue(
-  query: Api.AiLeads.SerperSearchQuery | Api.AiLeads.SerperPlacesQuery,
+  query: Api.AiLeads.SerperSearchQuery | Api.AiLeads.SerperPlacesQuery | Api.AiLeads.SerperMapsQuery,
   key: 'buyerType' | 'intent' | 'priority'
 ) {
   return query.meta?.[key] || query[key] || '';
@@ -388,7 +396,7 @@ function compactSourceSnapshot(record: Record<string, unknown>) {
 }
 
 function getPlacesQueries(plan: Api.AiLeads.OptimizedKeywordPlan) {
-  return plan.serperPlacesQueries ?? plan.serperMapsQueries ?? [];
+  return plan.serperPlacesQueries ?? [];
 }
 
 function escapeRegExp(value: string) {

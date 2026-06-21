@@ -1147,6 +1147,90 @@ describe('AiLeadSearchOrchestrator', () => {
     });
   });
 
+  it('executes Serper Maps queries as maps requests and extracts map place candidates', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'maps',
+            requestBody: {
+              q: '',
+              hl: 'en',
+              ll: '@41.6469296,-73.2681778,8z',
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      {
+        places: [
+          {
+            title: 'Bearing Depot & Supply Inc',
+            website: 'https://bearingdepot.com',
+            address: '420 Saw Mill River Rd, Yonkers, NY',
+            phoneNumber: '+1 914-555-0199',
+            placeId: 'places/abc',
+            cid: '12345'
+          }
+        ]
+      }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '用地图找美国轴承经销商',
+        targetLeadCount: 20,
+        keywordPlan: {
+          resolvedProductKeywords: 'bearing',
+          resolvedTargetRegions: 'United States',
+          resolvedTargetCustomerProfile: 'local bearing distributors',
+          resolvedTargetLeadCount: 20,
+          serperSearchQueries: [],
+          serperPlacesQueries: [],
+          serperMapsQueries: [
+            {
+              endpoint: 'maps',
+              requestBody: {
+                q: 'bearing distributor',
+                hl: 'en',
+                ll: '@41.6469296,-73.2681778,8z',
+                page: 1
+              },
+              meta: {
+                priority: '高'
+              }
+            }
+          ]
+        }
+      },
+      { user: createUser() }
+    );
+
+    assert.deepEqual(
+      serper.calls.map(call => call.endpoint),
+      ['maps']
+    );
+    assert.deepEqual(serper.calls[0].request, {
+      q: 'bearing distributor',
+      hl: 'en',
+      ll: '@41.6469296,-73.2681778,8z',
+      page: 1
+    });
+    assert.equal(result.serperRequests[0].endpoint, 'maps');
+    assert.equal(result.candidates[0].sourceType, 'maps');
+    assert.equal(result.candidates[0].title, 'Bearing Depot & Supply Inc');
+  });
+
   it('stops the current query when the next request repeats an executed request', async () => {
     const aiGateway = createAiGateway([
       {
@@ -1237,7 +1321,7 @@ function createAiGateway(results: Array<{ text: string }>) {
 }
 
 function createSerperClient(results: unknown[]) {
-  const calls: Array<{ endpoint: 'search' | 'places'; request: Record<string, unknown> }> = [];
+  const calls: Array<{ endpoint: 'search' | 'places' | 'maps'; request: Record<string, unknown> }> = [];
 
   return {
     calls,
@@ -1248,6 +1332,11 @@ function createSerperClient(results: unknown[]) {
     },
     async places(_config: unknown, request: Record<string, unknown>) {
       calls.push({ endpoint: 'places', request });
+
+      return results.shift() || {};
+    },
+    async maps(_config: unknown, request: Record<string, unknown>) {
+      calls.push({ endpoint: 'maps', request });
 
       return results.shift() || {};
     }

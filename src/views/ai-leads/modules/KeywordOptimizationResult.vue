@@ -25,6 +25,15 @@ const placesQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
   { title: '优先级', key: 'priority', width: 90 }
 ];
 
+const mapsQueryColumns: DataTableColumns<KeywordOptimizationQueryRow> = [
+  { title: '客户类型', key: 'buyerType', width: 160 },
+  { title: '意图', key: 'intent', width: 160 },
+  { title: 'Maps 查询词', key: 'q', minWidth: 240, ellipsis: { tooltip: true } },
+  { title: '城市/区域', key: 'city', width: 130 },
+  { title: '地图中心', key: 'll', width: 190, ellipsis: { tooltip: true } },
+  { title: '优先级', key: 'priority', width: 90 }
+];
+
 /** Adds one editable buyer segment to the current keyword plan. */
 function addBuyerSegment() {
   keywordPlan.value?.buyerSegments.push({
@@ -189,6 +198,17 @@ function updateSegmentList(
           size="small"
           :columns="placesQueryColumns"
           :data="viewModel.placesQueries"
+          :bordered="false"
+          :pagination="{ pageSize: 6 }"
+        />
+      </section>
+
+      <section class="keyword-section query-section">
+        <div class="section-title">Maps 查询词</div>
+        <NDataTable
+          size="small"
+          :columns="mapsQueryColumns"
+          :data="viewModel.mapsQueries"
           :bordered="false"
           :pagination="{ pageSize: 6 }"
         />

@@ -58,4 +58,22 @@ describe('AI leads request DTOs', () => {
 
     assert.equal(dto.size, 10);
   });
+
+  it('accepts only search and maps lead source modes for keyword optimization', async () => {
+    const mapsDto = plainToInstance(KeywordOptimizeDto, {
+      requirement: '用地图找美国轴承经销商',
+      leadSourceMode: 'maps'
+    });
+    const mixedDto = plainToInstance(KeywordOptimizeDto, {
+      requirement: '找美国轴承经销商',
+      leadSourceMode: 'mixed'
+    });
+
+    assert.equal(mapsDto.leadSourceMode, 'maps');
+    assert.equal((await validate(mapsDto)).length, 0);
+    assert.equal(
+      (await validate(mixedDto)).some(error => error.property === 'leadSourceMode'),
+      true
+    );
+  });
 });

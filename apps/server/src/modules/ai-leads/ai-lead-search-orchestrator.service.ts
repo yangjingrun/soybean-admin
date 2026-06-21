@@ -26,6 +26,7 @@ const defaultMaxSearchRequests = 20;
 const maxRepeatRounds = 2;
 const maxSearchPages = 3;
 const maxPlacesPages = 2;
+const maxMapsPages = 2;
 const candidatePoolMultiplier = 1.5;
 
 export interface AiLeadSearchContext {
@@ -65,6 +66,9 @@ interface SerperQueryRequestBody extends Record<string, unknown> {
   num?: number;
   page?: number;
   tbs?: string | null;
+  ll?: string;
+  placeId?: string;
+  cid?: string;
 }
 
 interface SerperQueryMeta extends Record<string, unknown> {
@@ -83,7 +87,7 @@ interface SerperResultTrace extends SearchRequestTrace {
 
 interface SearchDecision {
   pageQuality?: string;
-  nextAction?: 'paginate' | 'requery' | 'switch_to_places' | 'switch_to_search' | 'stop';
+  nextAction?: 'paginate' | 'requery' | 'switch_to_places' | 'switch_to_search' | 'switch_to_maps' | 'stop';
   nextRequest?: {
     endpoint?: SerperEndpoint;
     requestBody?: SerperRequestBody;
@@ -94,7 +98,7 @@ interface SearchDecision {
 
 export interface AiLeadSearchCandidate {
   dedupeKey: string;
-  sourceType: 'organic' | 'place' | 'local';
+  sourceType: 'organic' | 'place' | 'local' | 'maps';
   title?: string;
   url?: string;
   snippet?: string;
@@ -297,7 +301,10 @@ export class AiLeadSearchOrchestrator {
           result: serperResult
         });
 
-        const rawCandidates = applySerperRequestCountry(extractCandidates(serperResult), currentRequest.requestBody);
+        const rawCandidates = applySerperRequestCountry(
+          extractCandidates(serperResult, currentRequest.endpoint),
+          currentRequest.requestBody
+        );
         const precheckResult = await this.precheckCandidates(rawCandidates, context);
 
         this.addCandidates(precheckResult.acceptedCandidates, candidates, candidateKeys);
@@ -457,15 +464,17 @@ export class AiLeadSearchOrchestrator {
   private toInitialRequests(keywordOptimization: OptimizedKeywordPlan): SearchRequestTrace[] {
     const searchQueries = sortQueries(keywordOptimization.serperSearchQueries ?? []);
     const placesQueries = sortQueries(this.getPlacesQueries(keywordOptimization));
+    const mapsQueries = sortQueries(keywordOptimization.serperMapsQueries ?? []);
 
     return [
       ...searchQueries.map(query => this.toRequest('search', query)),
-      ...placesQueries.map(query => this.toRequest('places', query))
+      ...placesQueries.map(query => this.toRequest('places', query)),
+      ...mapsQueries.map(query => this.toRequest('maps', query))
     ].filter((request): request is SearchRequestTrace => Boolean(request));
   }
 
   private getPlacesQueries(keywordOptimization: OptimizedKeywordPlan) {
-    return keywordOptimization.serperPlacesQueries ?? keywordOptimization.serperMapsQueries ?? [];
+    return keywordOptimization.serperPlacesQueries ?? [];
   }
 
   private toRequest(endpoint: SerperEndpoint, query: SerperQuery): SearchRequestTrace | null {
@@ -476,31 +485,50 @@ export class AiLeadSearchOrchestrator {
       return null;
     }
 
+    const resolvedEndpoint = this.toQueryEndpoint(endpoint, query.endpoint);
+    const resolvedRequestBody =
+      resolvedEndpoint === 'maps'
+        ? {
+            q,
+            hl: trimOptional(requestBody?.hl || query.hl),
+            ll: trimOptional(requestBody?.ll),
+            page: readPositiveNumber(requestBody?.page) || 1,
+            placeId: trimOptional(requestBody?.placeId),
+            cid: trimOptional(requestBody?.cid)
+          }
+        : {
+            q,
+            gl: trimOptional(requestBody?.gl || query.gl),
+            hl: trimOptional(requestBody?.hl || query.hl),
+            location: trimOptional(requestBody?.location || query.location || query.city),
+            num: readPositiveNumber(requestBody?.num) || 10,
+            page: readPositiveNumber(requestBody?.page) || 1,
+            ...readTbs(requestBody?.tbs || query.meta?.tbs)
+          };
+
     return {
-      endpoint: this.toQueryEndpoint(endpoint, query.endpoint),
-      requestBody: {
-        q,
-        gl: trimOptional(requestBody?.gl || query.gl),
-        hl: trimOptional(requestBody?.hl || query.hl),
-        location: trimOptional(requestBody?.location || query.location || query.city),
-        num: readPositiveNumber(requestBody?.num) || 10,
-        page: readPositiveNumber(requestBody?.page) || 1,
-        ...readTbs(requestBody?.tbs || query.meta?.tbs)
-      }
+      endpoint: resolvedEndpoint,
+      requestBody: compactSerperRequestBody(resolvedRequestBody)
     };
   }
 
   private toQueryEndpoint(defaultEndpoint: SerperEndpoint, endpoint: SerperEndpoint | undefined) {
-    return endpoint === 'search' || endpoint === 'places' ? endpoint : defaultEndpoint;
+    return endpoint === 'search' || endpoint === 'places' || endpoint === 'maps' ? endpoint : defaultEndpoint;
   }
 
   private callSerper(
     config: Awaited<ReturnType<AiGatewayService['getRequiredUserSerperConfig']>>,
     request: SearchRequestTrace
   ) {
-    return request.endpoint === 'places'
-      ? this.serperClient.places(config, request.requestBody)
-      : this.serperClient.search(config, request.requestBody);
+    if (request.endpoint === 'places') {
+      return this.serperClient.places(config, request.requestBody);
+    }
+
+    if (request.endpoint === 'maps') {
+      return this.serperClient.maps(config, request.requestBody);
+    }
+
+    return this.serperClient.search(config, request.requestBody);
   }
 
   private executeSerperRequest(
@@ -591,9 +619,23 @@ export class AiLeadSearchOrchestrator {
       return null;
     }
 
+    if (endpoint === 'maps') {
+      return {
+        endpoint,
+        requestBody: compactSerperRequestBody({
+          q,
+          hl: trimOptional(requestBody.hl),
+          ll: trimOptional(requestBody.ll),
+          placeId: trimOptional(requestBody.placeId),
+          cid: trimOptional(requestBody.cid),
+          page: requestBody.page || 1
+        })
+      };
+    }
+
     return {
       endpoint,
-      requestBody: {
+      requestBody: compactSerperRequestBody({
         q,
         gl: trimOptional(requestBody.gl),
         hl: trimOptional(requestBody.hl),
@@ -601,7 +643,7 @@ export class AiLeadSearchOrchestrator {
         num: requestBody.num || 10,
         page: requestBody.page || 1,
         ...(decision.tbs ? { tbs: decision.tbs } : {})
-      }
+      })
     };
   }
 
@@ -612,6 +654,7 @@ export class AiLeadSearchOrchestrator {
   ): SerperEndpoint | null {
     if (action === 'switch_to_places') return 'places';
     if (action === 'switch_to_search') return 'search';
+    if (action === 'switch_to_maps') return 'maps';
     if (action === 'paginate' || action === 'requery') return requestedEndpoint || currentEndpoint;
 
     return null;
@@ -620,7 +663,15 @@ export class AiLeadSearchOrchestrator {
   private isWithinPageLimit(request: SearchRequestTrace) {
     const page = request.requestBody.page || 1;
 
-    return request.endpoint === 'places' ? page <= maxPlacesPages : page <= maxSearchPages;
+    if (request.endpoint === 'places') {
+      return page <= maxPlacesPages;
+    }
+
+    if (request.endpoint === 'maps') {
+      return page <= maxMapsPages && (page <= 1 || Boolean(request.requestBody.ll));
+    }
+
+    return page <= maxSearchPages;
   }
 
   private addCandidates(
@@ -732,6 +783,18 @@ function toProgressPercent(done: number, total: number) {
 function toRequestKey(request: SearchRequestTrace) {
   const body = request.requestBody;
 
+  if (request.endpoint === 'maps') {
+    return [
+      request.endpoint,
+      body.q,
+      body.hl || '',
+      body.ll || '',
+      body.placeId || '',
+      body.cid || '',
+      body.page || 1
+    ].join('|');
+  }
+
   return [
     request.endpoint,
     body.q,
@@ -744,16 +807,23 @@ function toRequestKey(request: SearchRequestTrace) {
   ].join('|');
 }
 
-function extractCandidates(result: unknown): AiLeadSearchCandidate[] {
+function compactSerperRequestBody(body: SerperRequestBody): SerperRequestBody {
+  return Object.fromEntries(
+    Object.entries(body).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  ) as SerperRequestBody;
+}
+
+function extractCandidates(result: unknown, endpoint: SerperEndpoint): AiLeadSearchCandidate[] {
   if (!result || typeof result !== 'object') {
     return [];
   }
 
   const record = result as Record<string, unknown>;
+  const placeSourceType = endpoint === 'maps' ? 'maps' : 'place';
 
   return [
     ...extractOrganicCandidates(record.organic),
-    ...extractPlaceCandidates(record.places, 'place'),
+    ...extractPlaceCandidates(record.places, placeSourceType),
     ...extractPlaceCandidates(record.localResults, 'local')
   ];
 }
@@ -785,7 +855,7 @@ function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
     .filter(isCandidateSummary);
 }
 
-function extractPlaceCandidates(value: unknown, sourceType: 'place' | 'local'): AiLeadSearchCandidate[] {
+function extractPlaceCandidates(value: unknown, sourceType: 'place' | 'local' | 'maps'): AiLeadSearchCandidate[] {
   if (!Array.isArray(value)) {
     return [];
   }

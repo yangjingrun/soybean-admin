@@ -211,6 +211,18 @@ const taskActionButtons = computed(
 
         <div class="task-toolbar">
           <div class="task-toolbar-left">
+            <div class="lead-source-mode">
+              <span class="lead-count-label">获客模式</span>
+              <NRadioGroup
+                v-model:value="form.leadSourceMode"
+                size="small"
+                :disabled="isSearchTaskBlockingForm"
+                name="lead-source-mode"
+              >
+                <NRadioButton value="search">官网获客</NRadioButton>
+                <NRadioButton value="maps">地图获客</NRadioButton>
+              </NRadioGroup>
+            </div>
             <div class="lead-count-compact">
               <span class="lead-count-label">
                 采集数量
@@ -541,6 +553,13 @@ const taskActionButtons = computed(
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lead-source-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 

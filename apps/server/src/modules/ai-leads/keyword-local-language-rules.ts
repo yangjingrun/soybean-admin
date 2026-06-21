@@ -177,6 +177,30 @@ export function buildKeywordOptimizePrompt(requirement: string) {
 - 如果查询数量冲突，优先替换低优先级的英文 supplier / general supplier 查询，而不是删除 importer、distributor、dealer、stockist 主线索。`;
 }
 
+/** Adds Maps-only keyword requirements inspired by AI_Find_Customer's Google Maps strategy. */
+export function buildMapsKeywordOptimizePrompt(requirement: string) {
+  return `${requirement.trim()}
+
+【Google Maps 获客强约束】
+本次是地图获客模式，只生成 Serper Maps 查询计划，不生成 Search 或 Places 查询。
+- serperSearchQueries 必须为空数组。
+- serperPlacesQueries 必须为空数组。
+- serperMapsQueries 必须包含 5-8 条 Google Maps 搜索词。
+- 每条 Maps 关键词必须是 2-5 个词的自然商家搜索短语，像真实用户在 Google Maps 搜框里输入的词。
+- 必须覆盖不同维度：本地买家角色 + 城市/区域、商家类别 + 城市/区域、产品 + wholesale/trade、细分应用 + service、本地竞品/市场表达。
+- 同一批 serperMapsQueries 内不要重复关键词，也不要只生成同一种维度的关键词。
+- 重点找实体商家：distributors、wholesalers、importers、dealers、stockists、industrial suppliers、MRO suppliers、showrooms、retailers、repair services、installers。
+- 不要使用 site:、inurl:、复杂 Boolean、引号堆叠或长句。
+- 如果用户指定了国家/城市/区域，所有关键词必须围绕这些地区；不要生成未被用户要求的地区。
+- 如果目标市场主要商业语言不是英语，必须生成一部分当地语言 Maps 短词，其余可用英语；requestBody.q 不能带中文解释或括号备注。
+- requestBody 只允许使用 q、hl、ll、page、placeId、cid；区域扫点优先用 q、hl、ll、page。
+- 如果无法确定 ll，经纬度缩放可留空，但 meta.city / meta.reason 必须说明需要用户或后续配置补地图中心点。
+- page 默认 1。
+- searchExecutionRules.channelPriority 必须为 ["maps"]。
+- 不要生成真实客户、邮箱、联系人、电话、地址或示例 lead。
+`;
+}
+
 /** Builds one repair prompt from validation errors and the previous model output. */
 export function buildKeywordOptimizeRepairPrompt(requirement: string, issues: string[], keywordPlan: unknown) {
   return `${requirement.trim()}
@@ -213,7 +237,7 @@ export function validateKeywordPlanLocalLanguages(requirement: string, plan: unk
   }
 
   const searchQueries = keywordPlan.serperSearchQueries ?? [];
-  const placesQueries = keywordPlan.serperPlacesQueries ?? keywordPlan.serperMapsQueries ?? [];
+  const placesQueries = keywordPlan.serperPlacesQueries ?? [];
 
   return detectedRules.flatMap(rule => {
     const issues: string[] = [];

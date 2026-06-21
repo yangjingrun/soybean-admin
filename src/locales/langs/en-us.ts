@@ -374,9 +374,13 @@ const local: App.I18n.Schema = {
           title: 'Keyword Optimization',
           usage: 'Optimize natural-language lead requirements into a Serper Search / Places query package.'
         },
+        leadMapsKeywordOptimize: {
+          title: 'Maps Keyword Optimization',
+          usage: 'Optimize natural-language lead requirements into a Serper Maps query package.'
+        },
         leadSearchResultDecide: {
           title: 'Search Result Decision',
-          usage: 'Decide whether Serper Search / Places results should paginate, requery, switch channel, or stop.'
+          usage: 'Decide whether Serper Search / Places / Maps results should paginate, requery, switch channel, or stop.'
         },
         leadMatchAnalyze: {
           title: 'Match Analysis',

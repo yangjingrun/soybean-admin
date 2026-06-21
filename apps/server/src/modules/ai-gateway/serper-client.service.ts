@@ -1,7 +1,7 @@
 import { BadGatewayException } from '@nestjs/common';
 import type { SerperConfigRecord } from './ai-gateway.types';
 
-export type SerperEndpoint = 'search' | 'places';
+export type SerperEndpoint = 'search' | 'places' | 'maps';
 
 export interface SerperRequestBody {
   q: string;
@@ -11,6 +11,9 @@ export interface SerperRequestBody {
   num?: number;
   page?: number;
   tbs?: string;
+  ll?: string;
+  placeId?: string;
+  cid?: string;
 }
 
 export type SerperFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -26,6 +29,11 @@ export class SerperClient {
   /** Calls Serper Places with the configured API key. */
   places(config: SerperConfigRecord, request: SerperRequestBody) {
     return this.request('places', config, request);
+  }
+
+  /** Calls Serper Maps with the configured API key. */
+  maps(config: SerperConfigRecord, request: SerperRequestBody) {
+    return this.request('maps', config, request);
   }
 
   private async request(endpoint: SerperEndpoint, config: SerperConfigRecord, request: SerperRequestBody) {

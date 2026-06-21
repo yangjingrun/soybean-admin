@@ -21,6 +21,10 @@ const promptI18nMap: Record<AiPromptKey, { title: string; usage: string }> = {
     title: 'page.aiPromptSettings.prompts.leadKeywordOptimize.title',
     usage: 'page.aiPromptSettings.prompts.leadKeywordOptimize.usage'
   },
+  lead_maps_keyword_optimize: {
+    title: 'page.aiPromptSettings.prompts.leadMapsKeywordOptimize.title',
+    usage: 'page.aiPromptSettings.prompts.leadMapsKeywordOptimize.usage'
+  },
   lead_search_result_decide: {
     title: 'page.aiPromptSettings.prompts.leadSearchResultDecide.title',
     usage: 'page.aiPromptSettings.prompts.leadSearchResultDecide.usage'

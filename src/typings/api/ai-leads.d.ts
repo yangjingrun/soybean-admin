@@ -1,7 +1,10 @@
 declare namespace Api {
   namespace AiLeads {
+    type LeadSourceMode = 'search' | 'maps';
+
     interface KeywordOptimizePayload {
       requirement: string;
+      leadSourceMode?: LeadSourceMode;
     }
 
     interface BuyerSegment {
@@ -21,6 +24,9 @@ declare namespace Api {
       num?: number;
       page?: number;
       tbs?: string | null;
+      ll?: string;
+      placeId?: string;
+      cid?: string;
     }
 
     interface SerperQueryMeta {
@@ -62,12 +68,25 @@ declare namespace Api {
       expectedPlaceTypes?: string[];
     }
 
-    type SerperMapsQuery = SerperPlacesQuery;
+    interface SerperMapsQuery {
+      endpoint?: 'maps';
+      requestBody?: Pick<SerperQueryRequestBody, 'q' | 'hl' | 'll' | 'page' | 'placeId' | 'cid'>;
+      meta?: SerperQueryMeta;
+      buyerType?: string;
+      intent?: string;
+      q?: string;
+      hl?: string;
+      ll?: string;
+      city?: string;
+      priority?: string;
+      expectedPlaceTypes?: string[];
+    }
 
     interface SearchExecutionRules {
-      channelPriority?: Array<'search' | 'places'>;
+      channelPriority?: Array<'search' | 'places' | 'maps'>;
       searchUsage?: string;
       placesUsage?: string;
+      mapsUsage?: string;
       defaultDateRange?: string;
       tbsRules?: Record<string, string | null>;
       keep: string[];

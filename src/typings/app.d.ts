@@ -591,6 +591,10 @@ declare namespace App {
               title: string;
               usage: string;
             };
+            leadMapsKeywordOptimize: {
+              title: string;
+              usage: string;
+            };
             leadSearchResultDecide: {
               title: string;
               usage: string;

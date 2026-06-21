@@ -224,7 +224,8 @@ export function useAiLeadPage() {
 
     try {
       const { data: result, error } = await optimizeLeadKeywords({
-        requirement: form.requirement.trim()
+        requirement: form.requirement.trim(),
+        leadSourceMode: form.leadSourceMode
       });
 
       if (error) {
@@ -348,6 +349,7 @@ export function useAiLeadPage() {
     resetSearchProgress();
     form.requirement = '';
     form.targetLeadCount = defaultTargetLeadCount;
+    form.leadSourceMode = 'search';
     isTargetLeadCountTouched.value = false;
     aiResult.value = null;
     keywordQualityWarnings.value = [];
@@ -517,6 +519,7 @@ export function useAiLeadPage() {
     selectedHistoryId.value = record.id;
     keywordResultOrigin.value = options.origin ?? 'history';
     form.requirement = record.requirement;
+    form.leadSourceMode = resolveLeadSourceMode(record.keywordPlan);
     if (options.syncTargetLeadCount !== false) {
       form.targetLeadCount = resolveTargetLeadCountAfterOptimization({
         currentValue: defaultTargetLeadCount,
@@ -540,6 +543,7 @@ export function useAiLeadPage() {
     currentSearchTask.value = task;
     form.requirement = task.requirement;
     form.targetLeadCount = task.targetLeadCount;
+    form.leadSourceMode = resolveLeadSourceMode(task.keywordPlan);
     isTargetLeadCountTouched.value = false;
     aiResult.value = createAiResultFromSearchTask(task);
     keywordQualityWarnings.value = [];
@@ -786,4 +790,12 @@ export function useAiLeadPage() {
     targetLeadCountFeedback,
     targetLeadCountValidationStatus
   };
+}
+
+function resolveLeadSourceMode(plan: Api.AiLeads.OptimizedKeywordPlan): Api.AiLeads.LeadSourceMode {
+  const mapsCount = plan.serperMapsQueries?.length ?? 0;
+  const searchCount = plan.serperSearchQueries?.length ?? 0;
+  const placesCount = plan.serperPlacesQueries?.length ?? 0;
+
+  return mapsCount > 0 && searchCount === 0 && placesCount === 0 ? 'maps' : 'search';
 }

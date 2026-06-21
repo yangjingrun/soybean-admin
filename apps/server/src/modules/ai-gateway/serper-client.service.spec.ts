@@ -96,4 +96,42 @@ describe('SerperClient', () => {
       tbs: 'qdr:y'
     });
   });
+
+  it('posts Maps requests to the Serper maps endpoint with Maps-specific params', async () => {
+    const calls: unknown[] = [];
+    const client = new SerperClient(async (url, init) => {
+      calls.push({ url, init });
+
+      return new Response(JSON.stringify({ places: [{ title: 'Bearing Depot' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    });
+
+    const result = await client.maps(
+      {
+        configKey: 'default',
+        title: 'Serper 搜索',
+        apiBase: 'https://google.serper.dev',
+        apiKey: 'serper-key',
+        updatedAt: ''
+      },
+      {
+        q: 'bearing distributor',
+        hl: 'en',
+        ll: '@41.6469296,-73.2681778,8z',
+        page: 1
+      }
+    );
+
+    assert.deepEqual(result, { places: [{ title: 'Bearing Depot' }] });
+    assert.equal(calls.length, 1);
+    assert.equal((calls[0] as { url: string }).url, 'https://google.serper.dev/maps');
+    assert.deepEqual(JSON.parse((calls[0] as { init: { body: string } }).init.body), {
+      q: 'bearing distributor',
+      hl: 'en',
+      ll: '@41.6469296,-73.2681778,8z',
+      page: 1
+    });
+  });
 });

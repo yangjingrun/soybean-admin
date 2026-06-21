@@ -133,6 +133,10 @@ function toCandidateView(candidate: InternalCandidateSummary): LeadSearchCandida
 }
 
 function toSourceLabel(sourceType?: string) {
+  if (sourceType === 'maps') {
+    return '地图商家线索';
+  }
+
   if (sourceType === 'place' || sourceType === 'local') {
     return '本地商家线索';
   }
@@ -150,7 +154,9 @@ function toPublicText(text: string) {
     .replace(/Serper/g, '采集')
     .replace(/Search 查询/g, '公开线索采集方向')
     .replace(/Places 查询/g, '本地商家采集方向')
+    .replace(/Maps 查询/g, '地图商家采集方向')
     .replace(/Search/g, '公开线索采集')
     .replace(/Places/g, '本地商家采集')
+    .replace(/Maps/g, '地图商家采集')
     .replace(/endpoint/gi, '采集通道');
 }

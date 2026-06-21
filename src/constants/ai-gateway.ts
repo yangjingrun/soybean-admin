@@ -5,9 +5,14 @@ export const aiPromptOptions = [
     usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Places 查询包。'
   },
   {
+    label: '地图关键词优化',
+    value: 'lead_maps_keyword_optimize',
+    usage: 'AI获客地图模式，将自然语言获客需求优化成 Serper Maps 查询包。'
+  },
+  {
     label: '搜索结果决策',
     value: 'lead_search_result_decide',
-    usage: 'AI获客搜索中间步骤，根据 Serper Search / Places 结果判断翻页、重搜、切换通道或停止。'
+    usage: 'AI获客搜索中间步骤，根据 Serper Search / Places / Maps 结果判断翻页、重搜、切换通道或停止。'
   },
   {
     label: '匹配分析',
@@ -30,3 +35,4 @@ export const defaultSerperConfigKey = 'default';
 export const defaultHunterConfigKey = 'default';
 
 export const leadKeywordOptimizePromptKey: AiPromptKey = 'lead_keyword_optimize';
+export const leadMapsKeywordOptimizePromptKey: AiPromptKey = 'lead_maps_keyword_optimize';
