@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue';
-import { buildPromptSectionAnchors } from './shared';
+import type { InputInst } from 'naive-ui';
+import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
+import { buildPromptSectionAnchors, resolvePromptLineStartOffset } from './shared';
+import type { PromptSectionAnchor } from './shared';
 
 const props = defineProps<{
   detail: Api.AiGateway.AiPromptWorkbenchDetail | null;
@@ -13,10 +15,28 @@ const emit = defineEmits<{
 
 const systemPrompt = defineModel<string>('systemPrompt', { required: true });
 const activeTab = shallowRef<'prompt' | 'schema' | 'sample' | 'versions'>('prompt');
+const editorInputRef = useTemplateRef<InputInst>('editorInput');
 const anchors = computed(() => buildPromptSectionAnchors(systemPrompt.value));
 const selectedTitle = computed(() => props.detail?.title || '提示词配置');
 const selectedUsage = computed(() => props.detail?.usage || '维护 AI 获客内置业务步骤的系统提示词。');
 const defaultPromptPreview = computed(() => props.detail?.defaultPrompt.systemPrompt || '');
+
+/** Moves the textarea caret to the selected prompt section and lets the browser scroll it into view. */
+async function handleAnchorClick(anchor: PromptSectionAnchor) {
+  await nextTick();
+
+  const inputInst = editorInputRef.value;
+  const textarea = inputInst?.textareaElRef;
+
+  if (!inputInst || !textarea) {
+    return;
+  }
+
+  const offset = resolvePromptLineStartOffset(systemPrompt.value, anchor.line);
+
+  inputInst.focus();
+  textarea.setSelectionRange(offset, offset);
+}
 </script>
 
 <template>
@@ -44,12 +64,14 @@ const defaultPromptPreview = computed(() => props.detail?.defaultPrompt.systemPr
                 size="tiny"
                 quaternary
                 class="prompt-editor__anchor"
+                @click="handleAnchorClick(anchor)"
               >
                 {{ anchor.label }}
                 <span> L{{ anchor.line }}</span>
               </NButton>
             </aside>
             <NInput
+              ref="editorInput"
               v-model:value="systemPrompt"
               type="textarea"
               :autosize="{ minRows: 24, maxRows: 34 }"

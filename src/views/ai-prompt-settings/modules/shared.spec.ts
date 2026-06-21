@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildPromptSectionAnchors, summarizePromptValidation, resolvePromptStepStatus } from './shared';
+import {
+  buildPromptSectionAnchors,
+  resolvePromptLineStartOffset,
+  summarizePromptValidation,
+  resolvePromptStepStatus
+} from './shared';
 
 describe('ai prompt settings shared helpers', () => {
   it('prioritizes draft and failed test states in step status labels', () => {
@@ -101,5 +106,14 @@ searchExecutionRules
         { key: 'output', label: '输出结构', line: 7 }
       ]
     );
+  });
+
+  it('resolves prompt line start offsets for anchor navigation', () => {
+    const prompt = ['第一段', '第二段内容', '第三段'].join('\n');
+
+    assert.equal(resolvePromptLineStartOffset(prompt, 1), 0);
+    assert.equal(resolvePromptLineStartOffset(prompt, 2), '第一段\n'.length);
+    assert.equal(resolvePromptLineStartOffset(prompt, 3), '第一段\n第二段内容\n'.length);
+    assert.equal(resolvePromptLineStartOffset(prompt, 99), prompt.length - '第三段'.length);
   });
 });

@@ -133,3 +133,22 @@ export function buildPromptSectionAnchors(systemPrompt: string): PromptSectionAn
 
   return anchors;
 }
+
+/** Resolves the textarea caret offset for a 1-based prompt line number. */
+export function resolvePromptLineStartOffset(systemPrompt: string, line: number): number {
+  if (line <= 1) {
+    return 0;
+  }
+
+  const lines = systemPrompt.split('\n');
+  const maxLine = Math.max(1, lines.length);
+  const targetLine = Math.min(line, maxLine);
+  let offset = 0;
+
+  for (let index = 0; index < targetLine - 1; index += 1) {
+    offset += lines[index]?.length ?? 0;
+    offset += 1;
+  }
+
+  return offset;
+}
