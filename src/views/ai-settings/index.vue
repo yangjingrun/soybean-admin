@@ -17,9 +17,11 @@ import {
   testHunterConfig,
   testSerperConfig
 } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
 
 const message = useMessage();
 const { t } = useI18n();
+const authStore = useAuthStore();
 
 const providerOptions = computed(() => [
   { label: t('page.aiSettings.providers.openrouter'), value: 'openrouter' },
@@ -42,11 +44,13 @@ interface ConfigStatus {
 }
 
 interface StatusOverviewItem {
-  key: string;
+  key: AiSettingsTabKey;
   label: string;
   status: ConfigStatus;
   updatedAt: string;
 }
+
+type AiSettingsTabKey = 'model' | 'serper' | 'hunter' | 'queue';
 
 const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
   configKey: defaultAiModelConfigKey,
@@ -95,6 +99,16 @@ const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
 
+const canManagePlatformAiSettings = computed(
+  () => authStore.isStaticSuper || authStore.userInfo.roles.includes('R_SUPER')
+);
+const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() => ({
+  model: canManagePlatformAiSettings.value,
+  serper: canManagePlatformAiSettings.value,
+  hunter: canManagePlatformAiSettings.value,
+  queue: canManagePlatformAiSettings.value
+}));
+const canViewAnySettingsTab = computed(() => Object.values(tabVisibility.value).some(Boolean));
 const canSaveModel = computed(() =>
   Boolean(
     modelForm.providerName.trim() && modelForm.apiBase.trim() && modelForm.apiKey.trim() && modelForm.model.trim()
@@ -162,9 +176,13 @@ const statusOverviewItems = computed<StatusOverviewItem[]>(() => [
     status: queueStatus.value,
     updatedAt: formattedQueueConfigUpdatedAt.value
   }
-]);
+].filter(item => tabVisibility.value[item.key]));
 
 onMounted(() => {
+  if (!canManagePlatformAiSettings.value) {
+    return;
+  }
+
   void handleLoadModelConfig(false);
   void handleLoadSerperConfig(false);
   void handleLoadHunterConfig(false);
@@ -501,7 +519,7 @@ async function handleTestHunterConfig() {
           <h2 class="page-title">{{ $t('page.aiSettings.title') }}</h2>
           <p class="panel-desc">{{ $t('page.aiSettings.description') }}</p>
         </div>
-        <div class="status-overview">
+        <div v-if="statusOverviewItems.length" class="status-overview">
           <div v-for="item in statusOverviewItems" :key="item.key" class="status-overview__item">
             <div class="status-overview__topline">
               <span class="status-overview__label">{{ item.label }}</span>
@@ -513,9 +531,9 @@ async function handleTestHunterConfig() {
       </div>
     </NCard>
 
-    <NCard :bordered="false" size="small" class="card-wrapper settings-workspace-card">
+    <NCard v-if="canViewAnySettingsTab" :bordered="false" size="small" class="card-wrapper settings-workspace-card">
       <NTabs type="line" size="small">
-        <NTabPane name="model" tab="模型通道" display-directive="if">
+        <NTabPane v-if="tabVisibility.model" name="model" tab="模型通道" display-directive="if">
           <NSpace vertical :size="12" class="settings-tab-panel">
             <div class="panel-heading">
               <div>
@@ -637,7 +655,7 @@ async function handleTestHunterConfig() {
           </NSpace>
         </NTabPane>
 
-        <NTabPane name="serper" tab="Serper 搜索" display-directive="if">
+        <NTabPane v-if="tabVisibility.serper" name="serper" tab="Serper 搜索" display-directive="if">
           <NSpace vertical :size="12" class="settings-tab-panel">
             <div class="panel-heading">
               <div>
@@ -718,7 +736,7 @@ async function handleTestHunterConfig() {
           </NSpace>
         </NTabPane>
 
-        <NTabPane name="hunter" tab="Hunter 补全" display-directive="if">
+        <NTabPane v-if="tabVisibility.hunter" name="hunter" tab="Hunter 补全" display-directive="if">
           <NSpace vertical :size="12" class="settings-tab-panel">
             <div class="panel-heading">
               <div>
@@ -798,7 +816,7 @@ async function handleTestHunterConfig() {
           </NSpace>
         </NTabPane>
 
-        <NTabPane name="queue" tab="后台任务" display-directive="if">
+        <NTabPane v-if="tabVisibility.queue" name="queue" tab="后台任务" display-directive="if">
           <NSpace vertical :size="12" class="settings-tab-panel settings-tab-panel--narrow">
             <div class="panel-heading">
               <div>
@@ -844,6 +862,10 @@ async function handleTestHunterConfig() {
           </NSpace>
         </NTabPane>
       </NTabs>
+    </NCard>
+
+    <NCard v-else :bordered="false" size="small" class="card-wrapper settings-workspace-card">
+      <NEmpty description="暂无权限维护平台 AI 配置" />
     </NCard>
   </NSpace>
 </template>
