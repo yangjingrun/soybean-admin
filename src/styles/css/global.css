@@ -53,15 +53,18 @@ html {
   gap: 8px;
   width: 100%;
   justify-content: flex-end;
+  min-height: 29px;
   padding-top: 1px;
 }
 
 .app-filter-actions :where(.n-space) {
   row-gap: 8px !important;
+  min-height: 28px;
 }
 
 .app-filter-actions :where(.n-button) {
   flex-shrink: 0;
+  min-width: 72px;
 }
 
 @media (max-width: 767px) {
