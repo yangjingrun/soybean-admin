@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { RequestUserContext } from '../../shared/request-context';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { HunterClient } from '../ai-gateway/hunter-client.service';
 import type { ImportCrmLeadInput } from '../crm/crm.types';
@@ -16,12 +17,16 @@ export interface AiLeadHunterEnrichmentResult {
 @Injectable()
 export class AiLeadHunterEnrichmentService {
   constructor(
-    @Inject(AiGatewayService) private readonly aiGatewayService: Pick<AiGatewayService, 'getHunterConfig'>,
+    @Inject(AiGatewayService)
+    private readonly aiGatewayService: Pick<AiGatewayService, 'getRequiredUserHunterConfig'>,
     @Inject(HunterClient) private readonly hunterClient: Pick<HunterClient, 'domainSearch'>
   ) {}
 
   /** Enriches CRM imports with one best-fit Hunter Domain Search contact per company domain. */
-  async enrichCrmImportInputs(inputs: ImportCrmLeadInput[]): Promise<AiLeadHunterEnrichmentResult> {
+  async enrichCrmImportInputs(
+    inputs: ImportCrmLeadInput[],
+    user: RequestUserContext
+  ): Promise<AiLeadHunterEnrichmentResult> {
     const targets = findHunterEnrichmentTargets(inputs);
     const domainCache = new Map<string, Promise<CrmHunterContact | null>>();
     let attemptedCount = 0;
@@ -39,7 +44,7 @@ export class AiLeadHunterEnrichmentService {
       };
     }
 
-    const config = await this.aiGatewayService.getHunterConfig();
+    const config = await this.aiGatewayService.getRequiredUserHunterConfig(user);
 
     for (const { input, domain } of targets) {
       attemptedCount += domainCache.has(domain) ? 0 : 1;
@@ -81,7 +86,7 @@ export class AiLeadHunterEnrichmentService {
     };
   }
 
-  private async findBestContact(config: Awaited<ReturnType<AiGatewayService['getHunterConfig']>>, domain: string) {
+  private async findBestContact(config: Awaited<ReturnType<AiGatewayService['getRequiredUserHunterConfig']>>, domain: string) {
     const result = await this.hunterClient.domainSearch(config, { domain, limit: 10, offset: 0 });
 
     return selectBestHunterContact(result);

@@ -20,8 +20,6 @@ export interface ModelTestPromptInput {
 export type AiSettingsTabKey = 'model' | 'serper' | 'hunter' | 'queue';
 
 export interface AiSettingsTabPermissionState {
-  canManageSerperConfig: boolean;
-  canManageHunterConfig: boolean;
   canManageAiLeadQueueConfig: boolean;
 }
 
@@ -82,14 +80,14 @@ export function buildModelTestPayload(
   };
 }
 
-/** Resolve AI settings tab visibility while keeping the personal model tab available to every account. */
+/** Resolve AI settings tab visibility while keeping personal provider tabs available to every account. */
 export function resolveAiSettingsTabVisibility(
   permissions: AiSettingsTabPermissionState
 ): Record<AiSettingsTabKey, boolean> {
   return {
     model: true,
-    serper: permissions.canManageSerperConfig,
-    hunter: permissions.canManageHunterConfig,
+    serper: true,
+    hunter: true,
     queue: permissions.canManageAiLeadQueueConfig
   };
 }

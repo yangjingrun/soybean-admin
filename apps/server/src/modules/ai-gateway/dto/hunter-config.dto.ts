@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { trimStringValue } from '../../../shared/dto-transformers';
 
 export class HunterConfigKeyParamDto {
@@ -28,4 +28,24 @@ export class SaveHunterConfigDto extends HunterConfigKeyParamDto {
   @MaxLength(300)
   @Transform(trimStringValue)
   apiKey!: string;
+}
+
+export class SaveMyHunterConfigDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  @Transform(trimStringValue)
+  title = 'Hunter 邮箱补全';
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  @Transform(trimStringValue)
+  apiBase!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  @Transform(trimStringValue)
+  apiKey?: string;
 }

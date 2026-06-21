@@ -292,7 +292,7 @@ export class AiLeadSearchTaskWorkerService {
     }
 
     try {
-      const result = await this.hunterEnrichmentService.enrichCrmImportInputs(filterResult.inputsToEnrich);
+      const result = await this.hunterEnrichmentService.enrichCrmImportInputs(filterResult.inputsToEnrich, context);
 
       mergeHunterEnrichedInputs(filterResult.inputsToEnrich, result.inputs);
 

@@ -5,8 +5,6 @@ import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import {
   aiLeadsQueueConfigManagePermission,
-  aiSettingsHunterManagePermission,
-  aiSettingsSerperManagePermission,
   hasPermission,
   type PermissionCode
 } from '@soybean/shared';
@@ -14,15 +12,15 @@ import { defaultAiModelConfigKey, defaultHunterConfigKey, defaultSerperConfigKey
 import {
   fetchAiLeadQueueConfig,
   generateAiText,
-  getHunterConfig,
   getMyAiModelConfig,
-  getSerperConfig,
+  getMyHunterConfig,
+  getMySerperConfig,
   saveAiLeadQueueConfig,
-  saveHunterConfig,
   saveMyAiModelConfig,
-  saveSerperConfig,
-  testHunterConfig,
-  testSerperConfig
+  saveMyHunterConfig,
+  saveMySerperConfig,
+  testMyHunterConfig,
+  testMySerperConfig
 } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import {
@@ -74,13 +72,13 @@ const modelForm = reactive<ModelConfigFormModel>({
   apiKey: '',
   model: 'openai/gpt-4o-mini'
 });
-const serperForm = reactive<Api.AiGateway.SaveSerperConfigPayload>({
+const serperForm = reactive<Api.AiGateway.SaveMySerperConfigPayload & { configKey: string }>({
   configKey: defaultSerperConfigKey,
   title: 'Serper 搜索',
   apiBase: 'https://google.serper.dev',
   apiKey: ''
 });
-const hunterForm = reactive<Api.AiGateway.SaveHunterConfigPayload>({
+const hunterForm = reactive<Api.AiGateway.SaveMyHunterConfigPayload & { configKey: string }>({
   configKey: defaultHunterConfigKey,
   title: 'Hunter 邮箱补全',
   apiBase: 'https://api.hunter.io/v2',
@@ -109,18 +107,22 @@ const savedModelSecret = reactive<SavedSecretState>({
   hasApiKey: false,
   maskedApiKey: ''
 });
+const savedSerperSecret = reactive<SavedSecretState>({
+  hasApiKey: false,
+  maskedApiKey: ''
+});
+const savedHunterSecret = reactive<SavedSecretState>({
+  hasApiKey: false,
+  maskedApiKey: ''
+});
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
 const activeSettingsTab = shallowRef<AiSettingsTabKey>('model');
 
-const canManageSerperConfig = computed(() => hasAssignedPermission(aiSettingsSerperManagePermission));
-const canManageHunterConfig = computed(() => hasAssignedPermission(aiSettingsHunterManagePermission));
 const canManageAiLeadQueueConfig = computed(() => hasAssignedPermission(aiLeadsQueueConfigManagePermission));
 const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() =>
   resolveAiSettingsTabVisibility({
-    canManageSerperConfig: canManageSerperConfig.value,
-    canManageHunterConfig: canManageHunterConfig.value,
     canManageAiLeadQueueConfig: canManageAiLeadQueueConfig.value
   })
 );
@@ -136,28 +138,22 @@ const modelApiKeyPlaceholder = computed(() =>
 );
 const canSaveModel = computed(() => canSaveModelConfig(modelForm, savedModelSecret));
 const canTestModel = computed(() => canTestModelConfig(modelForm, savedModelSecret));
+const serperApiKeyPlaceholder = computed(() => buildSavedApiKeyPlaceholder(savedSerperSecret));
+const hunterApiKeyPlaceholder = computed(() => buildSavedApiKeyPlaceholder(savedHunterSecret));
 const formattedModelUpdatedAt = computed(() =>
   modelUpdatedAt.value
     ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
-const canSaveSerper = computed(() =>
-  canManageSerperConfig.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
-);
-const canTestSerper = computed(
-  () => canManageSerperConfig.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
-);
+const canSaveSerper = computed(() => canSaveProviderConfig(serperForm, savedSerperSecret));
+const canTestSerper = computed(() => canSaveProviderConfig(serperForm, savedSerperSecret));
 const formattedSerperUpdatedAt = computed(() =>
   serperUpdatedAt.value
     ? dayjs(serperUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
-const canSaveHunter = computed(() =>
-  canManageHunterConfig.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
-);
-const canTestHunter = computed(
-  () => canManageHunterConfig.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
-);
+const canSaveHunter = computed(() => canSaveProviderConfig(hunterForm, savedHunterSecret));
+const canTestHunter = computed(() => canSaveProviderConfig(hunterForm, savedHunterSecret));
 const formattedHunterUpdatedAt = computed(() =>
   hunterUpdatedAt.value
     ? dayjs(hunterUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
@@ -225,14 +221,8 @@ onMounted(() => {
   activeSettingsTab.value = firstVisibleSettingsTab.value;
 
   void handleLoadModelConfig(false);
-
-  if (canManageSerperConfig.value) {
-    void handleLoadSerperConfig(false);
-  }
-
-  if (canManageHunterConfig.value) {
-    void handleLoadHunterConfig(false);
-  }
+  void handleLoadSerperConfig(false);
+  void handleLoadHunterConfig(false);
 
   if (canManageAiLeadQueueConfig.value) {
     void handleLoadQueueConfig(false);
@@ -308,22 +298,26 @@ async function handleSaveModelConfig() {
   }
 }
 
-/** Loads the default Serper config into the settings form. */
+/** Loads the current account Serper config into the settings form. */
 async function handleLoadSerperConfig(showMessage = true) {
   isSerperLoading.value = true;
 
   try {
-    const { data: record, error } = await getSerperConfig(defaultSerperConfigKey);
+    const { data: record, error } = await getMySerperConfig();
 
     if (error) {
       return;
     }
 
     Object.assign(serperForm, {
-      configKey: record.configKey,
+      configKey: defaultSerperConfigKey,
       title: record.title,
       apiBase: record.apiBase,
       apiKey: record.apiKey ?? ''
+    });
+    Object.assign(savedSerperSecret, {
+      hasApiKey: record.hasApiKey,
+      maskedApiKey: record.maskedApiKey
     });
     serperUpdatedAt.value = record.updatedAt;
     serperTestResult.value = null;
@@ -336,16 +330,16 @@ async function handleLoadSerperConfig(showMessage = true) {
   }
 }
 
-/** Saves the Serper config used by AI leads search orchestration. */
+/** Saves the Serper config used by the current account's AI leads search orchestration. */
 async function handleSaveSerperConfig() {
   isSerperSaving.value = true;
 
   try {
-    const { data: record, error } = await saveSerperConfig({
-      configKey: defaultSerperConfigKey,
+    const apiKey = serperForm.apiKey?.trim() || '';
+    const { data: record, error } = await saveMySerperConfig({
       title: serperForm.title.trim(),
       apiBase: serperForm.apiBase.trim(),
-      apiKey: serperForm.apiKey.trim()
+      ...(apiKey ? { apiKey } : {})
     });
 
     if (error) {
@@ -354,6 +348,10 @@ async function handleSaveSerperConfig() {
 
     serperUpdatedAt.value = record.updatedAt;
     serperTestResult.value = null;
+    Object.assign(savedSerperSecret, {
+      hasApiKey: record.hasApiKey,
+      maskedApiKey: record.maskedApiKey
+    });
     serperForm.apiKey = record.apiKey ?? serperForm.apiKey;
     message.success(t('page.aiSettings.serper.saved'));
   } finally {
@@ -361,22 +359,26 @@ async function handleSaveSerperConfig() {
   }
 }
 
-/** Loads the default Hunter config into the settings form. */
+/** Loads the current account Hunter config into the settings form. */
 async function handleLoadHunterConfig(showMessage = true) {
   isHunterLoading.value = true;
 
   try {
-    const { data: record, error } = await getHunterConfig(defaultHunterConfigKey);
+    const { data: record, error } = await getMyHunterConfig();
 
     if (error) {
       return;
     }
 
     Object.assign(hunterForm, {
-      configKey: record.configKey,
+      configKey: defaultHunterConfigKey,
       title: record.title,
       apiBase: record.apiBase,
       apiKey: record.apiKey ?? ''
+    });
+    Object.assign(savedHunterSecret, {
+      hasApiKey: record.hasApiKey,
+      maskedApiKey: record.maskedApiKey
     });
     hunterUpdatedAt.value = record.updatedAt;
     hunterTestResult.value = null;
@@ -389,16 +391,16 @@ async function handleLoadHunterConfig(showMessage = true) {
   }
 }
 
-/** Saves the Hunter config used by CRM Domain Search enrichment. */
+/** Saves the Hunter config used by the current account's CRM Domain Search enrichment. */
 async function handleSaveHunterConfig() {
   isHunterSaving.value = true;
 
   try {
-    const { data: record, error } = await saveHunterConfig({
-      configKey: defaultHunterConfigKey,
+    const apiKey = hunterForm.apiKey?.trim() || '';
+    const { data: record, error } = await saveMyHunterConfig({
       title: hunterForm.title.trim(),
       apiBase: hunterForm.apiBase.trim(),
-      apiKey: hunterForm.apiKey.trim()
+      ...(apiKey ? { apiKey } : {})
     });
 
     if (error) {
@@ -407,6 +409,10 @@ async function handleSaveHunterConfig() {
 
     hunterUpdatedAt.value = record.updatedAt;
     hunterTestResult.value = null;
+    Object.assign(savedHunterSecret, {
+      hasApiKey: record.hasApiKey,
+      maskedApiKey: record.maskedApiKey
+    });
     hunterForm.apiKey = record.apiKey ?? hunterForm.apiKey;
     message.success(t('page.aiSettings.hunter.saved'));
   } finally {
@@ -516,11 +522,11 @@ async function handleTestSerperConfig() {
   serperTestResult.value = null;
 
   try {
-    const { data: result, error } = await testSerperConfig({
-      configKey: defaultSerperConfigKey,
+    const apiKey = serperForm.apiKey?.trim() || '';
+    const { data: result, error } = await testMySerperConfig({
       title: serperForm.title.trim(),
       apiBase: serperForm.apiBase.trim(),
-      apiKey: serperForm.apiKey.trim()
+      ...(apiKey ? { apiKey } : {})
     });
 
     if (error) {
@@ -540,11 +546,11 @@ async function handleTestHunterConfig() {
   hunterTestResult.value = null;
 
   try {
-    const { data: result, error } = await testHunterConfig({
-      configKey: defaultHunterConfigKey,
+    const apiKey = hunterForm.apiKey?.trim() || '';
+    const { data: result, error } = await testMyHunterConfig({
       title: hunterForm.title.trim(),
       apiBase: hunterForm.apiBase.trim(),
-      apiKey: hunterForm.apiKey.trim()
+      ...(apiKey ? { apiKey } : {})
     });
 
     if (error) {
@@ -562,6 +568,19 @@ async function handleTestHunterConfig() {
 async function handleCopyApiKey(apiKey: string) {
   await navigator.clipboard.writeText(apiKey.trim());
   message.success('API Key 已复制');
+}
+
+function canSaveProviderConfig(
+  form: Pick<Api.AiGateway.SaveMySerperConfigPayload, 'title' | 'apiBase' | 'apiKey'>,
+  savedSecret: SavedSecretState
+) {
+  return Boolean(form.title.trim() && form.apiBase.trim() && (form.apiKey?.trim() || savedSecret.hasApiKey));
+}
+
+function buildSavedApiKeyPlaceholder(savedSecret: SavedSecretState) {
+  return savedSecret.hasApiKey && savedSecret.maskedApiKey
+    ? `已保存：${savedSecret.maskedApiKey}，输入新 API Key 可替换`
+    : t('page.aiSettings.placeholders.apiKey');
 }
 </script>
 
@@ -733,15 +752,15 @@ async function handleCopyApiKey(apiKey: string) {
                         v-model:value="serperForm.apiKey"
                         type="password"
                         show-password-on="click"
-                        :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
+                        :placeholder="serperApiKeyPlaceholder"
                         :input-props="noAutocompleteInputProps"
                       />
                       <NTooltip trigger="hover">
                         <template #trigger>
                           <NButton
                             size="small"
-                            :disabled="!serperForm.apiKey.trim()"
-                            @click="handleCopyApiKey(serperForm.apiKey)"
+                            :disabled="!(serperForm.apiKey || '').trim()"
+                            @click="handleCopyApiKey(serperForm.apiKey || '')"
                           >
                             <template #icon>
                               <SvgIcon icon="material-symbols:content-copy-outline" />
@@ -827,15 +846,15 @@ async function handleCopyApiKey(apiKey: string) {
                         v-model:value="hunterForm.apiKey"
                         type="password"
                         show-password-on="click"
-                        :placeholder="$t('page.aiSettings.hunter.apiKeyPlaceholder')"
+                        :placeholder="hunterApiKeyPlaceholder"
                         :input-props="noAutocompleteInputProps"
                       />
                       <NTooltip trigger="hover">
                         <template #trigger>
                           <NButton
                             size="small"
-                            :disabled="!hunterForm.apiKey.trim()"
-                            @click="handleCopyApiKey(hunterForm.apiKey)"
+                            :disabled="!(hunterForm.apiKey || '').trim()"
+                            @click="handleCopyApiKey(hunterForm.apiKey || '')"
                           >
                             <template #icon>
                               <SvgIcon icon="material-symbols:content-copy-outline" />

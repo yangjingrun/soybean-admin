@@ -55,15 +55,13 @@ describe('ai settings model helpers', () => {
 
   it('keeps the personal model tab visible without platform model permission', () => {
     const visibility = resolveAiSettingsTabVisibility({
-      canManageSerperConfig: false,
-      canManageHunterConfig: false,
       canManageAiLeadQueueConfig: false
     });
 
     assert.deepEqual(visibility, {
       model: true,
-      serper: false,
-      hunter: false,
+      serper: true,
+      hunter: true,
       queue: false
     });
   });

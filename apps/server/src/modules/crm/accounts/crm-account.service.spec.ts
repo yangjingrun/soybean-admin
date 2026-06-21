@@ -113,7 +113,9 @@ describe('CrmAccountService', () => {
         return [{ exchange: 'mx.abc.example', priority: 10 }];
       } },
       undefined,
-      { async getHunterConfig() {
+      { async getRequiredUserHunterConfig(user: { userId: string }) {
+        assert.equal(user.userId, 'u-1');
+
         return {
           configKey: 'default',
           title: 'Hunter',

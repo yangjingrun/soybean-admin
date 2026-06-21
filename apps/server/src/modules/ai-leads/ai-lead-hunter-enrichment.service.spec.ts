@@ -9,7 +9,9 @@ describe('AiLeadHunterEnrichmentService', () => {
     const calls: string[] = [];
     const service = new AiLeadHunterEnrichmentService(
       {
-        async getHunterConfig() {
+        async getRequiredUserHunterConfig(user) {
+          assert.equal(user.userId, 'u-1');
+
           return {
             configKey: 'default',
             title: 'Hunter',
@@ -18,7 +20,7 @@ describe('AiLeadHunterEnrichmentService', () => {
             updatedAt: ''
           };
         }
-      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      } as Pick<AiGatewayService, 'getRequiredUserHunterConfig'> as AiGatewayService,
       {
         async domainSearch(_config, request) {
           calls.push(request.domain);
@@ -56,7 +58,7 @@ describe('AiLeadHunterEnrichmentService', () => {
         sourceTaskId: 'task-1',
         contact: null
       }
-    ]);
+    ], createUser());
 
     assert.deepEqual(calls, ['example.com']);
     assert.equal(result.enrichedCount, 1);
@@ -71,7 +73,7 @@ describe('AiLeadHunterEnrichmentService', () => {
   it('keeps original inputs when Hunter fails for a domain', async () => {
     const service = new AiLeadHunterEnrichmentService(
       {
-        async getHunterConfig() {
+        async getRequiredUserHunterConfig() {
           return {
             configKey: 'default',
             title: 'Hunter',
@@ -80,7 +82,7 @@ describe('AiLeadHunterEnrichmentService', () => {
             updatedAt: ''
           };
         }
-      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      } as Pick<AiGatewayService, 'getRequiredUserHunterConfig'> as AiGatewayService,
       {
         async domainSearch() {
           throw new Error('Hunter timeout');
@@ -95,7 +97,7 @@ describe('AiLeadHunterEnrichmentService', () => {
         sourceTaskId: 'task-1',
         contact: null
       }
-    ]);
+    ], createUser());
 
     assert.equal(result.enrichedCount, 0);
     assert.equal(result.failedCount, 1);
@@ -106,10 +108,10 @@ describe('AiLeadHunterEnrichmentService', () => {
   it('does not read Hunter config or call Domain Search when inputs have no website domain', async () => {
     const service = new AiLeadHunterEnrichmentService(
       {
-        async getHunterConfig() {
+        async getRequiredUserHunterConfig() {
           throw new Error('config should not be read');
         }
-      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      } as Pick<AiGatewayService, 'getRequiredUserHunterConfig'> as AiGatewayService,
       {
         async domainSearch() {
           throw new Error('domain search should not be called');
@@ -124,7 +126,7 @@ describe('AiLeadHunterEnrichmentService', () => {
         sourceTaskId: 'task-1',
         contact: null
       }
-    ]);
+    ], createUser());
 
     assert.equal(result.attemptedCount, 0);
     assert.equal(result.enrichedCount, 0);
@@ -135,7 +137,7 @@ describe('AiLeadHunterEnrichmentService', () => {
   it('only fills missing contact fields without overwriting existing name or title', async () => {
     const service = new AiLeadHunterEnrichmentService(
       {
-        async getHunterConfig() {
+        async getRequiredUserHunterConfig() {
           return {
             configKey: 'default',
             title: 'Hunter',
@@ -144,7 +146,7 @@ describe('AiLeadHunterEnrichmentService', () => {
             updatedAt: ''
           };
         }
-      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      } as Pick<AiGatewayService, 'getRequiredUserHunterConfig'> as AiGatewayService,
       {
         async domainSearch() {
           return {
@@ -176,7 +178,7 @@ describe('AiLeadHunterEnrichmentService', () => {
           email: null
         }
       }
-    ]);
+    ], createUser());
 
     assert.equal(result.enrichedCount, 1);
     assert.deepEqual(result.inputs[0].contact, {
@@ -190,7 +192,7 @@ describe('AiLeadHunterEnrichmentService', () => {
     const calls: string[] = [];
     const service = new AiLeadHunterEnrichmentService(
       {
-        async getHunterConfig() {
+        async getRequiredUserHunterConfig() {
           return {
             configKey: 'default',
             title: 'Hunter',
@@ -199,7 +201,7 @@ describe('AiLeadHunterEnrichmentService', () => {
             updatedAt: ''
           };
         }
-      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      } as Pick<AiGatewayService, 'getRequiredUserHunterConfig'> as AiGatewayService,
       {
         async domainSearch(_config, request) {
           calls.push(request.domain);
@@ -233,7 +235,7 @@ describe('AiLeadHunterEnrichmentService', () => {
           email: 'existing@example.com'
         }
       }
-    ]);
+    ], createUser());
 
     assert.deepEqual(calls, ['example.com']);
     assert.equal(result.enrichedCount, 1);
@@ -247,7 +249,7 @@ describe('AiLeadHunterEnrichmentService', () => {
   it('does not enrich with low-confidence personal contacts', async () => {
     const service = new AiLeadHunterEnrichmentService(
       {
-        async getHunterConfig() {
+        async getRequiredUserHunterConfig() {
           return {
             configKey: 'default',
             title: 'Hunter',
@@ -256,7 +258,7 @@ describe('AiLeadHunterEnrichmentService', () => {
             updatedAt: ''
           };
         }
-      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      } as Pick<AiGatewayService, 'getRequiredUserHunterConfig'> as AiGatewayService,
       {
         async domainSearch() {
           return {
@@ -284,7 +286,7 @@ describe('AiLeadHunterEnrichmentService', () => {
         sourceTaskId: 'task-1',
         contact: null
       }
-    ]);
+    ], createUser());
 
     assert.equal(result.enrichedCount, 0);
     assert.equal(result.inputs[0].contact, null);
@@ -293,7 +295,7 @@ describe('AiLeadHunterEnrichmentService', () => {
   it('does not enrich with generic Hunter emails even when confidence is high', async () => {
     const service = new AiLeadHunterEnrichmentService(
       {
-        async getHunterConfig() {
+        async getRequiredUserHunterConfig() {
           return {
             configKey: 'default',
             title: 'Hunter',
@@ -302,7 +304,7 @@ describe('AiLeadHunterEnrichmentService', () => {
             updatedAt: ''
           };
         }
-      } as Pick<AiGatewayService, 'getHunterConfig'> as AiGatewayService,
+      } as Pick<AiGatewayService, 'getRequiredUserHunterConfig'> as AiGatewayService,
       {
         async domainSearch() {
           return {
@@ -330,9 +332,19 @@ describe('AiLeadHunterEnrichmentService', () => {
         sourceTaskId: 'task-1',
         contact: null
       }
-    ]);
+    ], createUser());
 
     assert.equal(result.enrichedCount, 0);
     assert.equal(result.inputs[0].contact, null);
   });
 });
+
+function createUser() {
+  return {
+    userId: 'u-1',
+    userName: 'User',
+    roles: ['R_USER'],
+    organizationId: 'org-1',
+    organizationRole: 'member' as const
+  };
+}

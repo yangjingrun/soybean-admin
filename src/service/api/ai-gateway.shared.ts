@@ -24,6 +24,28 @@ export function buildSaveMyAiModelConfigRequestConfig(
   };
 }
 
+/** Build the request config for saving the current account Serper channel. */
+export function buildSaveMySerperConfigRequestConfig(
+  data: Api.AiGateway.SaveMySerperConfigPayload
+): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-gateway/my-serper-config',
+    method: 'post',
+    data
+  };
+}
+
+/** Build the request config for saving the current account Hunter channel. */
+export function buildSaveMyHunterConfigRequestConfig(
+  data: Api.AiGateway.SaveMyHunterConfigPayload
+): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-gateway/my-hunter-config',
+    method: 'post',
+    data
+  };
+}
+
 /** Build the request config for the long-running AI gateway text generation task. */
 export function buildGenerateAiTextRequestConfig(data: Api.AiGateway.GenerateTextPayload): CustomAxiosRequestConfig {
   return {

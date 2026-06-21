@@ -9,6 +9,10 @@ import type {
   AiModelConfigStore,
   AiUserModelConfigRecord,
   AiUserModelConfigStore,
+  AiUserHunterConfigRecord,
+  AiUserHunterConfigStore,
+  AiUserSerperConfigRecord,
+  AiUserSerperConfigStore,
   HunterConfigRecord,
   HunterConfigStore,
   AiPromptRecord,
@@ -603,6 +607,8 @@ describe('AiGatewayService', () => {
   it('saves and returns Serper config API key without logging it', async () => {
     const logRecorder = createMemoryLogRecorder();
     const providerConfigService = new AiProviderConfigService(
+      createMemoryUserSerperConfigStore(),
+      createMemoryUserHunterConfigStore(),
       createMemorySerperConfigStore(),
       {
         async search(config, request) {
@@ -676,6 +682,8 @@ describe('AiGatewayService', () => {
   it('saves and returns Hunter config API key without logging it', async () => {
     const logRecorder = createMemoryLogRecorder();
     const providerConfigService = new AiProviderConfigService(
+      createMemoryUserSerperConfigStore(),
+      createMemoryUserHunterConfigStore(),
       createMemorySerperConfigStore(),
       {
         async search() {
@@ -745,6 +753,116 @@ describe('AiGatewayService', () => {
     assert.equal(JSON.stringify(testResult).includes('alice@example.com'), false);
     assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('hunter-key')), false);
     assert.deepEqual(logRecorder.records.map(record => record.action), ['save-hunter-config', 'test-hunter-config']);
+  });
+
+  it('saves and tests personal Serper config while preserving an existing API key', async () => {
+    const logRecorder = createMemoryLogRecorder();
+    const providerConfigService = new AiProviderConfigService(
+      createMemoryUserSerperConfigStore([
+        {
+          userId: 'u-1',
+          title: 'Serper 搜索',
+          apiBase: 'https://google.serper.dev',
+          apiKey: 'serper-old',
+          updatedAt: ''
+        }
+      ]),
+      createMemoryUserHunterConfigStore(),
+      createMemorySerperConfigStore(),
+      {
+        async search(config) {
+          assert.equal(config.apiKey, 'serper-old');
+
+          return { organic: [] };
+        }
+      },
+      createMemoryHunterConfigStore(),
+      {
+        async domainSearch() {
+          return { data: { emails: [] } };
+        }
+      },
+      logRecorder
+    );
+    const user = createUserContext('u-1');
+
+    const saved = await providerConfigService.saveMySerperConfig(
+      {
+        title: '我的 Serper',
+        apiBase: 'https://google.serper.dev'
+      },
+      user
+    );
+    const testResult = await providerConfigService.testMySerperConfig(
+      {
+        title: '我的 Serper',
+        apiBase: 'https://google.serper.dev'
+      },
+      user
+    );
+    const runtime = await providerConfigService.getRequiredUserSerperConfig(user);
+
+    assert.equal(saved.hasApiKey, true);
+    assert.equal(saved.apiKey, 'serper-old');
+    assert.deepEqual(testResult, { ok: true, result: { organic: [] } });
+    assert.equal(runtime.configKey, 'user:u-1');
+    assert.equal(runtime.apiKey, 'serper-old');
+    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('serper-old')), false);
+  });
+
+  it('saves and tests personal Hunter config while preserving an existing API key', async () => {
+    const logRecorder = createMemoryLogRecorder();
+    const providerConfigService = new AiProviderConfigService(
+      createMemoryUserSerperConfigStore(),
+      createMemoryUserHunterConfigStore([
+        {
+          userId: 'u-1',
+          title: 'Hunter 邮箱补全',
+          apiBase: 'https://api.hunter.io/v2',
+          apiKey: 'hunter-old',
+          updatedAt: ''
+        }
+      ]),
+      createMemorySerperConfigStore(),
+      {
+        async search() {
+          return {};
+        }
+      },
+      createMemoryHunterConfigStore(),
+      {
+        async domainSearch(config) {
+          assert.equal(config.apiKey, 'hunter-old');
+
+          return { data: { emails: [{ value: 'a@example.com' }] } };
+        }
+      },
+      logRecorder
+    );
+    const user = createUserContext('u-1');
+
+    const saved = await providerConfigService.saveMyHunterConfig(
+      {
+        title: '我的 Hunter',
+        apiBase: 'https://api.hunter.io/v2'
+      },
+      user
+    );
+    const testResult = await providerConfigService.testMyHunterConfig(
+      {
+        title: '我的 Hunter',
+        apiBase: 'https://api.hunter.io/v2'
+      },
+      user
+    );
+    const runtime = await providerConfigService.getRequiredUserHunterConfig(user);
+
+    assert.equal(saved.hasApiKey, true);
+    assert.equal(saved.apiKey, 'hunter-old');
+    assert.deepEqual(testResult, { ok: true, resultEmailCount: 1 });
+    assert.equal(runtime.configKey, 'user:u-1');
+    assert.equal(runtime.apiKey, 'hunter-old');
+    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('hunter-old')), false);
   });
 });
 
@@ -824,6 +942,24 @@ function createMemoryHunterConfigStore(): HunterConfigStore {
   };
 }
 
+function createMemoryUserHunterConfigStore(records: AiUserHunterConfigRecord[] = []): AiUserHunterConfigStore {
+  const configs = new Map<string, AiUserHunterConfigRecord>();
+
+  for (const record of records) {
+    configs.set(record.userId, record);
+  }
+
+  return {
+    async getUserHunterConfig(userId) {
+      return configs.get(userId) ?? null;
+    },
+    async saveUserHunterConfig(record) {
+      configs.set(record.userId, record);
+      return record;
+    }
+  };
+}
+
 function createUserContext(userId: string): RequestUserContext {
   return {
     userId,
@@ -843,6 +979,24 @@ function createMemorySerperConfigStore(): SerperConfigStore {
     },
     async saveSerperConfig(record) {
       configs.set(record.configKey, record);
+      return record;
+    }
+  };
+}
+
+function createMemoryUserSerperConfigStore(records: AiUserSerperConfigRecord[] = []): AiUserSerperConfigStore {
+  const configs = new Map<string, AiUserSerperConfigRecord>();
+
+  for (const record of records) {
+    configs.set(record.userId, record);
+  }
+
+  return {
+    async getUserSerperConfig(userId) {
+      return configs.get(userId) ?? null;
+    },
+    async saveUserSerperConfig(record) {
+      configs.set(record.userId, record);
       return record;
     }
   };

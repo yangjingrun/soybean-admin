@@ -15,8 +15,8 @@ import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR, AI_USER_MODE
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
 import type { SaveAiModelConfigDto, SaveMyAiModelConfigDto } from './dto/ai-model-config.dto';
-import type { SaveSerperConfigDto } from './dto/serper-config.dto';
-import type { SaveHunterConfigDto } from './dto/hunter-config.dto';
+import type { SaveMySerperConfigDto, SaveSerperConfigDto } from './dto/serper-config.dto';
+import type { SaveHunterConfigDto, SaveMyHunterConfigDto } from './dto/hunter-config.dto';
 import { AiProviderConfigService, toSecretView } from './ai-provider-config.service';
 import type {
   AiModelConfigRecord,
@@ -25,7 +25,10 @@ import type {
   AiUserModelConfigRecord,
   AiUserModelConfigStore,
   AiUserModelConfigViewRecord,
+  AiUserHunterConfigViewRecord,
+  AiUserSerperConfigViewRecord,
   HunterConfigViewRecord,
+  HunterConfigRecord,
   AiPromptRecord,
   AiPromptStore,
   AiTextGenerateParams,
@@ -108,6 +111,26 @@ export class AiGatewayService {
     return this.requireProviderConfigService().getSerperConfigDraft(configKey);
   }
 
+  /** Saves the current user's personal Serper channel. */
+  async saveMySerperConfig(dto: SaveMySerperConfigDto, user: RequestUserContext): Promise<AiUserSerperConfigViewRecord> {
+    return this.requireProviderConfigService().saveMySerperConfig(dto, user);
+  }
+
+  /** Reads the current user's personal Serper channel or returns an editable draft. */
+  async getMySerperConfigDraft(user: RequestUserContext): Promise<AiUserSerperConfigViewRecord> {
+    return this.requireProviderConfigService().getMySerperConfigDraft(user);
+  }
+
+  /** Reads the required Serper channel for one user-owned business request. */
+  async getRequiredUserSerperConfig(user: RequestUserContext): Promise<SerperConfigRecord> {
+    return this.requireProviderConfigService().getRequiredUserSerperConfig(user);
+  }
+
+  /** Sends one lightweight Search request with the current user's personal Serper config. */
+  async testMySerperConfig(dto: SaveMySerperConfigDto, user: RequestUserContext) {
+    return this.requireProviderConfigService().testMySerperConfig(dto, user);
+  }
+
   /** Sends one lightweight Search request with a candidate Serper config. */
   async testSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}) {
     return this.requireProviderConfigService().testSerperConfig(dto, context);
@@ -126,6 +149,26 @@ export class AiGatewayService {
   /** Reads a saved Hunter channel or returns an editable default draft for settings. */
   async getHunterConfigDraft(configKey?: string): Promise<HunterConfigViewRecord> {
     return this.requireProviderConfigService().getHunterConfigDraft(configKey);
+  }
+
+  /** Saves the current user's personal Hunter channel. */
+  async saveMyHunterConfig(dto: SaveMyHunterConfigDto, user: RequestUserContext): Promise<AiUserHunterConfigViewRecord> {
+    return this.requireProviderConfigService().saveMyHunterConfig(dto, user);
+  }
+
+  /** Reads the current user's personal Hunter channel or returns an editable draft. */
+  async getMyHunterConfigDraft(user: RequestUserContext): Promise<AiUserHunterConfigViewRecord> {
+    return this.requireProviderConfigService().getMyHunterConfigDraft(user);
+  }
+
+  /** Reads the required Hunter channel for one user-owned business request. */
+  async getRequiredUserHunterConfig(user: RequestUserContext): Promise<HunterConfigRecord> {
+    return this.requireProviderConfigService().getRequiredUserHunterConfig(user);
+  }
+
+  /** Sends one lightweight Domain Search request with the current user's personal Hunter config. */
+  async testMyHunterConfig(dto: SaveMyHunterConfigDto, user: RequestUserContext) {
+    return this.requireProviderConfigService().testMyHunterConfig(dto, user);
   }
 
   /** Sends one lightweight Domain Search request with a candidate Hunter config. */

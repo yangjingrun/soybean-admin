@@ -11,13 +11,17 @@ import {
   AI_MODEL_CONFIG_STORE,
   AI_PROMPT_STORE,
   AI_TEXT_GENERATOR,
+  AI_USER_HUNTER_CONFIG_STORE,
   AI_USER_MODEL_CONFIG_STORE,
+  AI_USER_SERPER_CONFIG_STORE,
   HUNTER_CONFIG_STORE,
   SERPER_CONFIG_STORE
 } from './ai-gateway.tokens';
 import { PrismaAiModelConfigStore } from './prisma-ai-model-config.store';
 import { PrismaAiPromptStore } from './prisma-ai-prompt.store';
+import { PrismaAiUserHunterConfigStore } from './prisma-ai-user-hunter-config.store';
 import { PrismaAiUserModelConfigStore } from './prisma-ai-user-model-config.store';
+import { PrismaAiUserSerperConfigStore } from './prisma-ai-user-serper-config.store';
 import { PrismaHunterConfigStore } from './prisma-hunter-config.store';
 import { PrismaSerperConfigStore } from './prisma-serper-config.store';
 import { HunterClient } from './hunter-client.service';
@@ -44,6 +48,14 @@ import { SerperClient } from './serper-client.service';
     {
       provide: AI_USER_MODEL_CONFIG_STORE,
       useClass: PrismaAiUserModelConfigStore
+    },
+    {
+      provide: AI_USER_SERPER_CONFIG_STORE,
+      useClass: PrismaAiUserSerperConfigStore
+    },
+    {
+      provide: AI_USER_HUNTER_CONFIG_STORE,
+      useClass: PrismaAiUserHunterConfigStore
     },
     {
       provide: SERPER_CONFIG_STORE,

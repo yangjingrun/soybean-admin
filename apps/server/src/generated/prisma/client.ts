@@ -210,6 +210,16 @@ export type AiModelConfig = Prisma.AiModelConfigModel
  */
 export type AiUserModelConfig = Prisma.AiUserModelConfigModel
 /**
+ * Model AiUserSerperConfig
+ *
+ */
+export type AiUserSerperConfig = Prisma.AiUserSerperConfigModel
+/**
+ * Model AiUserHunterConfig
+ *
+ */
+export type AiUserHunterConfig = Prisma.AiUserHunterConfigModel
+/**
  * Model SerperConfig
  *
  */

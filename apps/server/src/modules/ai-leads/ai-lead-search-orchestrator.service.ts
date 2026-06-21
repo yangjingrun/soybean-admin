@@ -1,8 +1,7 @@
 import { BadGatewayException, Inject, Injectable, Optional } from '@nestjs/common';
-import type { RequestUserContext } from '../../shared/request-context';
+import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import {
   defaultAiModelConfigKey,
-  defaultSerperConfigKey,
   leadKeywordOptimizePromptKey,
   leadSearchResultDecidePromptKey
 } from '../ai-gateway/ai-gateway.constants';
@@ -213,7 +212,9 @@ export class AiLeadSearchOrchestrator {
     const decisions: Array<{ request: SearchRequestTrace; decision: SearchDecision }> = [];
     const candidates: AiLeadSearchCandidate[] = [];
     const candidateKeys = new Set<string>();
-    const serperConfig = await this.aiGatewayService.getSerperConfig(defaultSerperConfigKey);
+    const serperConfig = await this.aiGatewayService.getRequiredUserSerperConfig(
+      requireRequestUserContext(context.user ?? null)
+    );
 
     await this.recordLog('processing', 'AI 获客搜索编排开始', context, {
       requirement,
@@ -493,14 +494,17 @@ export class AiLeadSearchOrchestrator {
     return endpoint === 'search' || endpoint === 'places' ? endpoint : defaultEndpoint;
   }
 
-  private callSerper(config: Awaited<ReturnType<AiGatewayService['getSerperConfig']>>, request: SearchRequestTrace) {
+  private callSerper(
+    config: Awaited<ReturnType<AiGatewayService['getRequiredUserSerperConfig']>>,
+    request: SearchRequestTrace
+  ) {
     return request.endpoint === 'places'
       ? this.serperClient.places(config, request.requestBody)
       : this.serperClient.search(config, request.requestBody);
   }
 
   private executeSerperRequest(
-    config: Awaited<ReturnType<AiGatewayService['getSerperConfig']>>,
+    config: Awaited<ReturnType<AiGatewayService['getRequiredUserSerperConfig']>>,
     request: SearchRequestTrace,
     requestKey: string,
     requestIndex: number,

@@ -18,8 +18,6 @@ export const DEFAULT_ORGANIZATION_NAME = '默认组织';
 export const aiLeadsKeywordStrategyManagePermission = 'ai-leads:keyword-strategy:manage';
 export const aiLeadsQueueConfigManagePermission = 'ai-leads:queue-config:manage';
 export const aiSettingsPromptManagePermission = 'ai:settings:prompt:manage';
-export const aiSettingsSerperManagePermission = 'ai:settings:serper:manage';
-export const aiSettingsHunterManagePermission = 'ai:settings:hunter:manage';
 
 export const crmPermissionDefinitions = [
   {
@@ -47,32 +45,6 @@ export const crmPermissionDefinitions = [
     pageLabel: '模型配置',
     functionLabel: 'AI 获客后台任务',
     description: '调整 AI 获客搜索采集 worker 并发。'
-  },
-  {
-    code: aiSettingsSerperManagePermission,
-    label: '配置 Serper 搜索',
-    actionLabel: '配置',
-    group: 'ai_settings_serper',
-    groupLabel: 'Serper 搜索',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: 'Serper 搜索配置',
-    description: '查看、保存并测试 Google Search/Places 的 Base URL 和 API Key。'
-  },
-  {
-    code: aiSettingsHunterManagePermission,
-    label: '配置 Hunter 补全',
-    actionLabel: '配置',
-    group: 'ai_settings_hunter',
-    groupLabel: 'Hunter 补全',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: 'Hunter 邮箱补全',
-    description: '查看、保存并测试 Hunter Domain Search 的 Base URL 和 API Key。'
   },
   {
     code: aiSettingsPromptManagePermission,

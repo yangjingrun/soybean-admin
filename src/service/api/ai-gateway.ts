@@ -2,7 +2,9 @@ import { request } from '../request';
 import {
   buildGenerateAiTextRequestConfig,
   buildSaveAiModelConfigRequestConfig,
-  buildSaveMyAiModelConfigRequestConfig
+  buildSaveMyAiModelConfigRequestConfig,
+  buildSaveMyHunterConfigRequestConfig,
+  buildSaveMySerperConfigRequestConfig
 } from './ai-gateway.shared';
 
 /** Save one fixed system prompt for later model calls. */
@@ -45,6 +47,27 @@ export function getMyAiModelConfig() {
   });
 }
 
+/** Save the current account Serper channel used by personal AI leads workflows. */
+export function saveMySerperConfig(data: Api.AiGateway.SaveMySerperConfigPayload) {
+  return request<Api.AiGateway.MySerperConfigRecord>(buildSaveMySerperConfigRequestConfig(data));
+}
+
+/** Read the current account Serper channel draft. */
+export function getMySerperConfig() {
+  return request<Api.AiGateway.MySerperConfigRecord>({
+    url: '/ai-gateway/my-serper-config'
+  });
+}
+
+/** Test the current account Serper channel before saving it. */
+export function testMySerperConfig(data: Api.AiGateway.SaveMySerperConfigPayload) {
+  return request<Api.AiGateway.SerperTestResult>({
+    url: '/ai-gateway/my-serper-config/test',
+    method: 'post',
+    data
+  });
+}
+
 /** Save the backend Serper config used by AI leads search workflows. */
 export function saveSerperConfig(data: Api.AiGateway.SaveSerperConfigPayload) {
   return request<Api.AiGateway.SerperConfigRecord>({
@@ -65,6 +88,27 @@ export function getSerperConfig(configKey = 'default') {
 export function testSerperConfig(data: Api.AiGateway.SaveSerperConfigPayload) {
   return request<Api.AiGateway.SerperTestResult>({
     url: '/ai-gateway/serper-configs/test',
+    method: 'post',
+    data
+  });
+}
+
+/** Save the current account Hunter channel used by personal CRM enrichment workflows. */
+export function saveMyHunterConfig(data: Api.AiGateway.SaveMyHunterConfigPayload) {
+  return request<Api.AiGateway.MyHunterConfigRecord>(buildSaveMyHunterConfigRequestConfig(data));
+}
+
+/** Read the current account Hunter channel draft. */
+export function getMyHunterConfig() {
+  return request<Api.AiGateway.MyHunterConfigRecord>({
+    url: '/ai-gateway/my-hunter-config'
+  });
+}
+
+/** Test the current account Hunter channel before saving it. */
+export function testMyHunterConfig(data: Api.AiGateway.SaveMyHunterConfigPayload) {
+  return request<Api.AiGateway.HunterTestResult>({
+    url: '/ai-gateway/my-hunter-config/test',
     method: 'post',
     data
   });

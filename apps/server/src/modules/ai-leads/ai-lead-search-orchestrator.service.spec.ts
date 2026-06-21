@@ -1206,9 +1206,11 @@ function createAiGateway(results: Array<{ text: string }>) {
 
   return {
     calls,
-    async getSerperConfig() {
+    async getRequiredUserSerperConfig(user: { userId: string }) {
+      assert.equal(user.userId, 'u-1');
+
       return {
-        configKey: 'default',
+        configKey: 'user:u-1',
         title: 'Serper 搜索',
         apiBase: 'https://google.serper.dev',
         apiKey: 'serper-key',

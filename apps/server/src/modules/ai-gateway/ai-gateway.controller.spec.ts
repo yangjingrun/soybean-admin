@@ -102,6 +102,122 @@ describe('AiGatewayController', () => {
     assert.deepEqual(response.data, { providerName: 'openrouter', model: 'openai/gpt-4o-mini' });
   });
 
+  it('allows logged-in users to manage personal Serper config without platform permissions', async () => {
+    const receivedUsers: RequestUserContext[] = [];
+    const controller = new AiGatewayController({
+      async saveMySerperConfig(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user);
+        return { title: 'Serper 搜索' };
+      },
+      async getMySerperConfigDraft(user: RequestUserContext) {
+        receivedUsers.push(user);
+        return { title: 'Serper 搜索' };
+      },
+      async testMySerperConfig(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user);
+        return { ok: true };
+      }
+    } as never);
+
+    assert.deepEqual((await controller.getMySerperConfig(createUser())).data, { title: 'Serper 搜索' });
+    assert.deepEqual(
+      (
+        await controller.saveMySerperConfig(
+          { title: 'Serper 搜索', apiBase: 'https://google.serper.dev', apiKey: 'serper-key' },
+          createUser()
+        )
+      ).data,
+      { title: 'Serper 搜索' }
+    );
+    assert.deepEqual(
+      (
+        await controller.testMySerperConfig(
+          { title: 'Serper 搜索', apiBase: 'https://google.serper.dev', apiKey: 'serper-key' },
+          createUser()
+        )
+      ).data,
+      { ok: true }
+    );
+    assert.deepEqual(
+      receivedUsers.map(user => user.userId),
+      ['u-1', 'u-1', 'u-1']
+    );
+  });
+
+  it('allows logged-in users to manage personal Hunter config without platform permissions', async () => {
+    const receivedUsers: RequestUserContext[] = [];
+    const controller = new AiGatewayController({
+      async saveMyHunterConfig(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user);
+        return { title: 'Hunter 邮箱补全' };
+      },
+      async getMyHunterConfigDraft(user: RequestUserContext) {
+        receivedUsers.push(user);
+        return { title: 'Hunter 邮箱补全' };
+      },
+      async testMyHunterConfig(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user);
+        return { ok: true };
+      }
+    } as never);
+
+    assert.deepEqual((await controller.getMyHunterConfig(createUser())).data, { title: 'Hunter 邮箱补全' });
+    assert.deepEqual(
+      (
+        await controller.saveMyHunterConfig(
+          { title: 'Hunter 邮箱补全', apiBase: 'https://api.hunter.io/v2', apiKey: 'hunter-key' },
+          createUser()
+        )
+      ).data,
+      { title: 'Hunter 邮箱补全' }
+    );
+    assert.deepEqual(
+      (
+        await controller.testMyHunterConfig(
+          { title: 'Hunter 邮箱补全', apiBase: 'https://api.hunter.io/v2', apiKey: 'hunter-key' },
+          createUser()
+        )
+      ).data,
+      { ok: true }
+    );
+    assert.deepEqual(
+      receivedUsers.map(user => user.userId),
+      ['u-1', 'u-1', 'u-1']
+    );
+  });
+
+  it('keeps legacy platform Serper and Hunter config endpoints super-only', async () => {
+    const controller = new AiGatewayController({
+      async saveSerperConfig() {
+        return {};
+      },
+      async getSerperConfigDraft() {
+        return {};
+      },
+      async testSerperConfig() {
+        return {};
+      },
+      async saveHunterConfig() {
+        return {};
+      },
+      async getHunterConfigDraft() {
+        return {};
+      },
+      async testHunterConfig() {
+        return {};
+      }
+    } as never);
+    const serperDto = { configKey: 'default', title: 'Serper', apiBase: 'https://google.serper.dev', apiKey: 'key' };
+    const hunterDto = { configKey: 'default', title: 'Hunter', apiBase: 'https://api.hunter.io/v2', apiKey: 'key' };
+
+    await assert.rejects(() => controller.saveSerperConfig(serperDto, createUser()), ForbiddenException);
+    await assert.rejects(() => controller.getSerperConfig({ configKey: 'default' }, createUser()), ForbiddenException);
+    await assert.rejects(() => controller.testSerperConfig(serperDto, createUser()), ForbiddenException);
+    await assert.rejects(() => controller.saveHunterConfig(hunterDto, createUser()), ForbiddenException);
+    await assert.rejects(() => controller.getHunterConfig({ configKey: 'default' }, createUser()), ForbiddenException);
+    await assert.rejects(() => controller.testHunterConfig(hunterDto, createUser()), ForbiddenException);
+  });
+
   it('returns unauthorized when reading personal model config without request context', async () => {
     const controller = new AiGatewayController({
       async getMyModelConfigDraft() {

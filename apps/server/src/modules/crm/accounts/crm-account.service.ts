@@ -77,7 +77,7 @@ export class CrmAccountService {
     private readonly crmLogger?: CrmLoggerService,
     @Optional()
     @Inject(AiGatewayService)
-    private readonly aiGatewayService?: Pick<AiGatewayService, 'getHunterConfig'>,
+    private readonly aiGatewayService?: Pick<AiGatewayService, 'getRequiredUserHunterConfig'>,
     @Optional()
     @Inject(HunterClient)
     private readonly hunterClient?: Pick<HunterClient, 'domainSearch'>
@@ -288,7 +288,7 @@ export class CrmAccountService {
     const attemptedAt = new Date();
 
     try {
-      const config = await this.aiGatewayService.getHunterConfig();
+      const config = await this.aiGatewayService.getRequiredUserHunterConfig(context);
       const hunterResult = await this.hunterClient.domainSearch(config, { domain, limit: 10, offset: 0 });
       const contact = selectBestHunterContact(hunterResult);
       const importResult = contact

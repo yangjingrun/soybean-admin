@@ -109,6 +109,8 @@ model SystemUser {
   organization Organization @relation(fields: [organizationId], references: [id])
   authSessions AuthSession[]
   aiUserModelConfig AiUserModelConfig?
+  aiUserSerperConfig AiUserSerperConfig?
+  aiUserHunterConfig AiUserHunterConfig?
 
   @@index([status])
   @@index([organizationId])
@@ -911,6 +913,32 @@ model AiUserModelConfig {
   model           String
   temperature     Float?
   maxOutputTokens Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiUserSerperConfig {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  title           String
+  apiBase         String
+  apiKey          String
+  encryptedApiKey String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiUserHunterConfig {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  title           String
+  apiBase         String
+  apiKey          String
+  encryptedApiKey String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

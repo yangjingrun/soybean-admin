@@ -1,11 +1,6 @@
 import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import {
-  aiSettingsHunterManagePermission,
-  aiSettingsPromptManagePermission,
-  aiSettingsSerperManagePermission,
-  type PermissionCode
-} from '@soybean/shared';
+import { aiSettingsPromptManagePermission, type PermissionCode } from '@soybean/shared';
 import { ok } from '../../shared/api-response';
 import { requirePermission, requireSuperUserContext } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
@@ -14,8 +9,8 @@ import { AiGatewayService } from './ai-gateway.service';
 import { AiModelConfigKeyParamDto, SaveAiModelConfigDto, SaveMyAiModelConfigDto } from './dto/ai-model-config.dto';
 import { AiPromptKeyParamDto, SaveAiPromptDto } from './dto/ai-prompt.dto';
 import { GenerateAiTextDto } from './dto/generate-ai-text.dto';
-import { HunterConfigKeyParamDto, SaveHunterConfigDto } from './dto/hunter-config.dto';
-import { SaveSerperConfigDto, SerperConfigKeyParamDto } from './dto/serper-config.dto';
+import { HunterConfigKeyParamDto, SaveHunterConfigDto, SaveMyHunterConfigDto } from './dto/hunter-config.dto';
+import { SaveMySerperConfigDto, SaveSerperConfigDto, SerperConfigKeyParamDto } from './dto/serper-config.dto';
 
 @Controller('ai-gateway')
 export class AiGatewayController {
@@ -79,7 +74,7 @@ export class AiGatewayController {
     @Body() dto: SaveSerperConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsSerperManagePermission);
+    const user = requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.saveSerperConfig(dto, { user }));
   }
@@ -89,7 +84,7 @@ export class AiGatewayController {
     @Param() params: SerperConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsSerperManagePermission);
+    requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.getSerperConfigDraft(params.configKey));
   }
@@ -100,9 +95,31 @@ export class AiGatewayController {
     @Body() dto: SaveSerperConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsSerperManagePermission);
+    const user = requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.testSerperConfig(dto, { user }));
+  }
+
+  @Get('my-serper-config')
+  async getMySerperConfig(@CurrentContext() currentContext: RequestUserContext | null = null) {
+    return ok(await this.aiGatewayService.getMySerperConfigDraft(requireRequestUserContext(currentContext)));
+  }
+
+  @Post('my-serper-config')
+  async saveMySerperConfig(
+    @Body() dto: SaveMySerperConfigDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    return ok(await this.aiGatewayService.saveMySerperConfig(dto, requireRequestUserContext(currentContext)));
+  }
+
+  @Post('my-serper-config/test')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async testMySerperConfig(
+    @Body() dto: SaveMySerperConfigDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    return ok(await this.aiGatewayService.testMySerperConfig(dto, requireRequestUserContext(currentContext)));
   }
 
   @Post('hunter-configs')
@@ -110,7 +127,7 @@ export class AiGatewayController {
     @Body() dto: SaveHunterConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsHunterManagePermission);
+    const user = requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.saveHunterConfig(dto, { user }));
   }
@@ -120,7 +137,7 @@ export class AiGatewayController {
     @Param() params: HunterConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsHunterManagePermission);
+    requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.getHunterConfigDraft(params.configKey));
   }
@@ -131,9 +148,31 @@ export class AiGatewayController {
     @Body() dto: SaveHunterConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsHunterManagePermission);
+    const user = requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.testHunterConfig(dto, { user }));
+  }
+
+  @Get('my-hunter-config')
+  async getMyHunterConfig(@CurrentContext() currentContext: RequestUserContext | null = null) {
+    return ok(await this.aiGatewayService.getMyHunterConfigDraft(requireRequestUserContext(currentContext)));
+  }
+
+  @Post('my-hunter-config')
+  async saveMyHunterConfig(
+    @Body() dto: SaveMyHunterConfigDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    return ok(await this.aiGatewayService.saveMyHunterConfig(dto, requireRequestUserContext(currentContext)));
+  }
+
+  @Post('my-hunter-config/test')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async testMyHunterConfig(
+    @Body() dto: SaveMyHunterConfigDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    return ok(await this.aiGatewayService.testMyHunterConfig(dto, requireRequestUserContext(currentContext)));
   }
 
   @Post('generate-text')

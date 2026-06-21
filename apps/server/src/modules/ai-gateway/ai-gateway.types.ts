@@ -79,6 +79,40 @@ export interface AiUserModelConfigStore {
   saveUserModelConfig(record: AiUserModelConfigRecord): Promise<AiUserModelConfigRecord>;
 }
 
+export interface AiUserSerperConfigRecord {
+  userId: string;
+  title: string;
+  apiBase: string;
+  apiKey: string;
+  updatedAt: string;
+}
+
+export type AiUserSerperConfigViewRecord = Omit<AiUserSerperConfigRecord, 'userId' | 'apiKey'> &
+  Partial<Pick<AiUserSerperConfigRecord, 'apiKey'>> &
+  SecretViewFields;
+
+export interface AiUserSerperConfigStore {
+  getUserSerperConfig(userId: string): Promise<AiUserSerperConfigRecord | null>;
+  saveUserSerperConfig(record: AiUserSerperConfigRecord): Promise<AiUserSerperConfigRecord>;
+}
+
+export interface AiUserHunterConfigRecord {
+  userId: string;
+  title: string;
+  apiBase: string;
+  apiKey: string;
+  updatedAt: string;
+}
+
+export type AiUserHunterConfigViewRecord = Omit<AiUserHunterConfigRecord, 'userId' | 'apiKey'> &
+  Partial<Pick<AiUserHunterConfigRecord, 'apiKey'>> &
+  SecretViewFields;
+
+export interface AiUserHunterConfigStore {
+  getUserHunterConfig(userId: string): Promise<AiUserHunterConfigRecord | null>;
+  saveUserHunterConfig(record: AiUserHunterConfigRecord): Promise<AiUserHunterConfigRecord>;
+}
+
 export interface SerperConfigRecord {
   configKey: string;
   title: string;

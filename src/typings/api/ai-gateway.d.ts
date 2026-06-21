@@ -73,6 +73,24 @@ declare namespace Api {
       updatedAt: string;
     }
 
+    interface MySerperConfigRecord {
+      title: string;
+      apiBase: string;
+      apiKey?: string;
+      hasApiKey: boolean;
+      maskedApiKey: string;
+      updatedAt: string;
+    }
+
+    interface MyHunterConfigRecord {
+      title: string;
+      apiBase: string;
+      apiKey?: string;
+      hasApiKey: boolean;
+      maskedApiKey: string;
+      updatedAt: string;
+    }
+
     interface SaveModelConfigPayload {
       configKey: string;
       title: string;
@@ -100,11 +118,23 @@ declare namespace Api {
       apiKey: string;
     }
 
+    interface SaveMySerperConfigPayload {
+      title: string;
+      apiBase: string;
+      apiKey?: string;
+    }
+
     interface SaveHunterConfigPayload {
       configKey: string;
       title: string;
       apiBase: string;
       apiKey: string;
+    }
+
+    interface SaveMyHunterConfigPayload {
+      title: string;
+      apiBase: string;
+      apiKey?: string;
     }
 
     interface SerperTestResult {

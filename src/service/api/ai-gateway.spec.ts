@@ -3,7 +3,9 @@ import { describe, it } from 'node:test';
 import {
   aiGatewayGenerateTextTimeout,
   buildGenerateAiTextRequestConfig,
-  buildSaveMyAiModelConfigRequestConfig
+  buildSaveMyAiModelConfigRequestConfig,
+  buildSaveMyHunterConfigRequestConfig,
+  buildSaveMySerperConfigRequestConfig
 } from './ai-gateway.shared';
 
 describe('ai gateway api helpers', () => {
@@ -36,5 +38,27 @@ describe('ai gateway api helpers', () => {
     assert.equal(config.url, '/ai-gateway/my-model-config');
     assert.equal(config.method, 'post');
     assert.deepEqual(config.data, payload);
+  });
+
+  it('uses personal Serper and Hunter endpoints for account provider configs', () => {
+    const serperPayload = {
+      title: 'Serper 搜索',
+      apiBase: 'https://google.serper.dev',
+      apiKey: 'serper-key'
+    };
+    const hunterPayload = {
+      title: 'Hunter 邮箱补全',
+      apiBase: 'https://api.hunter.io/v2',
+      apiKey: 'hunter-key'
+    };
+    const serperConfig = buildSaveMySerperConfigRequestConfig(serperPayload);
+    const hunterConfig = buildSaveMyHunterConfigRequestConfig(hunterPayload);
+
+    assert.equal(serperConfig.url, '/ai-gateway/my-serper-config');
+    assert.equal(serperConfig.method, 'post');
+    assert.deepEqual(serperConfig.data, serperPayload);
+    assert.equal(hunterConfig.url, '/ai-gateway/my-hunter-config');
+    assert.equal(hunterConfig.method, 'post');
+    assert.deepEqual(hunterConfig.data, hunterPayload);
   });
 });
