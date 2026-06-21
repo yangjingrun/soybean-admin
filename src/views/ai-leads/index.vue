@@ -60,9 +60,9 @@ const {
 type ResultTab = 'keyword' | 'search';
 type WorkflowStepState = 'wait' | 'active' | 'completed' | 'warning' | 'error';
 type TaskActionButton = {
-  key: 'interrupt' | 'resume' | 'retry' | 'read';
+  key: 'interrupt' | 'resume' | 'retry';
   label: string;
-  type: 'primary' | 'success' | 'warning';
+  type: 'primary' | 'warning';
   visible: boolean;
 };
 
@@ -87,6 +87,10 @@ const isClearDisabled = computed(
     isHistoryDeleting.value ||
     isSearchTaskBlockingForm.value
 );
+
+const hasCompletedSearchTask = computed(() => currentSearchTask.value?.status === 'completed');
+const searchButtonLabel = computed(() => (hasCompletedSearchTask.value ? '继续采集更多' : '开始搜索采集'));
+const clearButtonLabel = computed(() => (hasCompletedSearchTask.value ? '开始新任务' : '清空'));
 
 const workflowSteps = computed(() => {
   const hasRequirement = Boolean(form.requirement.trim());
@@ -144,8 +148,7 @@ const taskActionButtons = computed(
     [
       { key: 'interrupt', label: '中断', type: 'warning', visible: searchTaskActionState.value.canInterrupt },
       { key: 'resume', label: '继续', type: 'primary', visible: searchTaskActionState.value.canResume },
-      { key: 'retry', label: '重试', type: 'primary', visible: searchTaskActionState.value.canRetry },
-      { key: 'read', label: '确认结果', type: 'success', visible: searchTaskActionState.value.canMarkRead }
+      { key: 'retry', label: '重试', type: 'primary', visible: searchTaskActionState.value.canRetry }
     ].filter(item => item.visible) as TaskActionButton[]
 );
 
@@ -222,9 +225,9 @@ watch(
               :disabled="!canSearchCustomers || isHistorySaving || isHistoryDeleting"
               @click="handleSearchCustomers"
             >
-              开始搜索采集
+              {{ searchButtonLabel }}
             </NButton>
-            <NButton size="small" :disabled="isClearDisabled" @click="handleClear">清空</NButton>
+            <NButton size="small" :disabled="isClearDisabled" @click="handleClear">{{ clearButtonLabel }}</NButton>
             <NButton
               v-for="item in taskActionButtons"
               :key="item.key"

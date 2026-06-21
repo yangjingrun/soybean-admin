@@ -76,7 +76,7 @@ export function useAiLeadPage() {
     resume: '采集任务已继续',
     retry: '采集任务已重试',
     discard: '采集任务已放弃',
-    read: '结果已确认，可以开始新的采集'
+    read: '本次结果已收起，可以开始新的采集'
   };
 
   const form = reactive(createDefaultLeadSearchForm(defaultTargetLeadCount));
@@ -117,7 +117,11 @@ export function useAiLeadPage() {
       return true;
     }
 
-    return currentSearchTask.value.status === 'discarded' || Boolean(currentSearchTask.value.readAt);
+    return (
+      currentSearchTask.value.status === 'completed' ||
+      currentSearchTask.value.status === 'discarded' ||
+      Boolean(currentSearchTask.value.readAt)
+    );
   });
   const isSearchTaskBlockingForm = computed(() => Boolean(currentSearchTask.value) && !canCreateSearchTask.value);
   const parsedAiKeywordPlan = computed(() => {
@@ -163,6 +167,7 @@ export function useAiLeadPage() {
     () =>
       canReturnToKeywordOptimizationStep(searchProgress.value, isSearching.value) &&
       (!currentSearchTask.value ||
+        currentSearchTask.value.status === 'completed' ||
         currentSearchTask.value.status === 'discarded' ||
         Boolean(currentSearchTask.value.readAt))
   );
@@ -194,6 +199,10 @@ export function useAiLeadPage() {
   async function handleGenerate() {
     if (isSearchTaskBlockingForm.value) {
       message.warning('请先处理当前采集任务');
+      return;
+    }
+
+    if (!(await prepareCompletedSearchTaskForNextWorkflow())) {
       return;
     }
 
@@ -256,6 +265,10 @@ export function useAiLeadPage() {
       return;
     }
 
+    if (!(await prepareCompletedSearchTaskForNextWorkflow())) {
+      return;
+    }
+
     isSearchTaskSubmitting.value = true;
     keywordQualityWarnings.value = [];
     searchProgress.value = createStartingSearchProgressState();
@@ -311,9 +324,13 @@ export function useAiLeadPage() {
     }
   }
 
-  function handleClear() {
+  async function handleClear() {
     if (isSearchTaskBlockingForm.value) {
       message.warning('请先处理当前采集任务');
+      return;
+    }
+
+    if (!(await prepareCompletedSearchTaskForNextWorkflow())) {
       return;
     }
 
@@ -558,8 +575,39 @@ export function useAiLeadPage() {
   }
 
   /** Returns to the optimized keyword result while keeping the current keyword plan intact. */
-  function handleReturnToKeywordOptimization() {
+  async function handleReturnToKeywordOptimization() {
+    if (!(await prepareCompletedSearchTaskForNextWorkflow())) {
+      return;
+    }
+
     resetSearchProgress();
+  }
+
+  /** Marks a completed task read before the user leaves its result and starts another workflow. */
+  async function prepareCompletedSearchTaskForNextWorkflow() {
+    const task = currentSearchTask.value;
+
+    if (task?.status !== 'completed') {
+      return true;
+    }
+
+    if (!task.readAt) {
+      isSearchTaskActionLoading.value = true;
+
+      try {
+        const { error } = await markLeadSearchTaskRead(task.id);
+
+        if (error) {
+          await syncCurrentSearchTaskAfterRequestError();
+          return false;
+        }
+      } finally {
+        isSearchTaskActionLoading.value = false;
+      }
+    }
+
+    resetSearchProgress();
+    return true;
   }
 
   /** Clears previous local search progress and stops frontend polling. */
