@@ -194,7 +194,7 @@ const roleDefaultPermissionCodes: Record<string, PermissionCode[]> = {
     'crm:settings:safety:read',
     'crm:settings:safety:write'
   ],
-  R_USER: []
+  R_USER: ['crm:settings:assets:read', 'crm:settings:rules:read']
 };
 
 const permissionImplications: Partial<Record<PermissionCode, PermissionCode[]>> = {
@@ -243,7 +243,7 @@ export function resolveEffectivePermissions(input: { roles: readonly string[]; p
     return [...crmPermissionCodes];
   }
 
-  return normalizePermissionCodes(input.permissions || []);
+  return normalizePermissionCodes([...getDefaultPermissionCodesByRoles(input.roles), ...(input.permissions || [])]);
 }
 
 /** Check a runtime user snapshot against one product permission code. */

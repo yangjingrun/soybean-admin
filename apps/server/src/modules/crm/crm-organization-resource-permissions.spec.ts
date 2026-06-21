@@ -16,19 +16,67 @@ import type { CrmPersonaProfileRepository } from './persona-profiles/crm-persona
 describe('CRM organization resource permissions', () => {
   it('rejects users without assigned read permissions when listing organization settings resources', async () => {
     await assert.rejects(
-      () => new CrmProductLineService(createProductLineRepository()).listProductLines(createContext()),
+      () =>
+        new CrmProductLineService(createProductLineRepository()).listProductLines(
+          createContext({ roles: ['R_CUSTOM'] })
+        ),
       ForbiddenException
+    );
+    await assert.rejects(
+      () =>
+        new CrmPersonaProfileService(createPersonaProfileRepository()).listPersonaProfiles(
+          createContext({ roles: ['R_CUSTOM'] })
+        ),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () =>
+        new CrmEmailTemplateGroupService(createEmailTemplateRepository()).listEmailTemplateGroups(
+          createContext({ roles: ['R_CUSTOM'] })
+        ),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () =>
+        new CrmSequencePolicyService(createSequencePolicyRepository()).listSequencePolicies(
+          createContext({ roles: ['R_CUSTOM'] })
+        ),
+      ForbiddenException
+    );
+  });
+
+  it('allows ordinary users to read email sequence resources without write permissions', async () => {
+    await assert.rejects(
+      () => new CrmProductLineService(createProductLineRepository()).listProductLines(createContext()),
+      /listProductLines/
     );
     await assert.rejects(
       () => new CrmPersonaProfileService(createPersonaProfileRepository()).listPersonaProfiles(createContext()),
-      ForbiddenException
+      /listPersonaProfiles/
     );
     await assert.rejects(
       () => new CrmEmailTemplateGroupService(createEmailTemplateRepository()).listEmailTemplateGroups(createContext()),
-      ForbiddenException
+      /listEmailTemplateGroups/
     );
     await assert.rejects(
       () => new CrmSequencePolicyService(createSequencePolicyRepository()).listSequencePolicies(createContext()),
+      /listSequencePolicies/
+    );
+
+    await assert.rejects(
+      () =>
+        new CrmProductLineService(createProductLineRepository()).createProductLine(
+          { name: 'Bearings' },
+          createContext()
+        ),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () =>
+        new CrmSequencePolicyService(createSequencePolicyRepository()).createSequencePolicy(
+          { name: 'Default' },
+          createContext()
+        ),
       ForbiddenException
     );
   });

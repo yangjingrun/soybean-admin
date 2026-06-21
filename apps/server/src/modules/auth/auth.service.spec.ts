@@ -106,7 +106,8 @@ describe('AuthService', () => {
 
     assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, [
       'crm:settings:assets:read',
-      'crm:settings:assets:write'
+      'crm:settings:assets:write',
+      'crm:settings:rules:read'
     ]);
   });
 
@@ -123,7 +124,28 @@ describe('AuthService', () => {
 
     const token = await service.login('Safety', '123456');
 
-    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, []);
+    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, [
+      'crm:settings:assets:read',
+      'crm:settings:rules:read'
+    ]);
+  });
+
+  it('returns default CRM read permissions for ordinary users with an empty role permission record', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({
+      userName: 'Member',
+      roles: ['R_USER'],
+      passwordHash: password.hash,
+      passwordSalt: password.salt
+    });
+    const service = createService([user], [createRole({ roleCode: 'R_USER', permissions: [] })]);
+
+    const token = await service.login('Member', '123456');
+
+    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, [
+      'crm:settings:assets:read',
+      'crm:settings:rules:read'
+    ]);
   });
 
   it('rejects disabled, expired and locked users', async () => {
@@ -443,7 +465,7 @@ function createDefaultRoles(): TestSystemRole[] {
   return [
     createRole({ roleCode: 'R_SUPER', permissions: [...crmPermissionCodes] }),
     createRole({ roleCode: 'R_ADMIN', permissions: [] }),
-    createRole({ roleCode: 'R_USER', permissions: [] })
+    createRole({ roleCode: 'R_USER', permissions: ['crm:settings:assets:read', 'crm:settings:rules:read'] })
   ];
 }
 

@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import { crmPermissionCodes, normalizePermissionCodes } from '@soybean/shared';
+import { crmPermissionCodes, getDefaultPermissionCodesByRoles, normalizePermissionCodes } from '@soybean/shared';
 import * as svgCaptcha from 'svg-captcha';
 import type { Organization, SystemUser } from '../../generated/prisma/client';
 import { AppConfigService } from '../app-config/app-config.service';
@@ -413,7 +413,10 @@ export class AuthService {
       }
     });
 
-    return normalizePermissionCodes(roleRecords.flatMap(role => role.permissions));
+    return normalizePermissionCodes([
+      ...getDefaultPermissionCodesByRoles(roles),
+      ...roleRecords.flatMap(role => role.permissions)
+    ]);
   }
 
   private isSnapshotExpired(user: UserInfoWithSession) {

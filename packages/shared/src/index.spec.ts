@@ -54,6 +54,17 @@ describe('shared permissions', () => {
     );
   });
 
+  it('grants ordinary users only the CRM read permissions required by email sequences', () => {
+    assert.deepEqual(getDefaultPermissionCodesByRoles(['R_USER']), [
+      'crm:settings:assets:read',
+      'crm:settings:rules:read'
+    ]);
+    assert.equal(hasPermission({ roles: ['R_USER'], buttons: [] }, 'crm:settings:assets:read'), true);
+    assert.equal(hasPermission({ roles: ['R_USER'], buttons: [] }, 'crm:settings:rules:read'), true);
+    assert.equal(hasPermission({ roles: ['R_USER'], buttons: [] }, 'crm:settings:assets:write'), false);
+    assert.equal(hasPermission({ roles: ['R_USER'], buttons: [] }, 'crm:settings:rules:write'), false);
+  });
+
   it('uses one permission for each AI settings function', () => {
     const aiSettingsConfigPermissions = crmPermissionDefinitions.filter(item => item.group.startsWith('ai_settings_'));
 

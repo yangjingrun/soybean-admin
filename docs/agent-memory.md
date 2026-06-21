@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-21 普通 CRM 成员进入邮件序列需要默认读取写信资料和发送规则
+
+- 场景：普通 `R_USER` 用户进入 `/crm/email-sequences` 时，页面会预加载“生成首封草稿”所需的客户、邮箱、产品资料和序列策略资源。
+- 坑点：产品资料接口依赖 `crm:settings:assets:read`，序列策略接口依赖 `crm:settings:rules:read`；如果普通用户默认权限为空，邮件序列主列表能打开，但页面会弹出“无权查看 CRM 写信资料/发送规则”。
+- 正确做法：`R_USER` 默认只授予 `crm:settings:assets:read` 和 `crm:settings:rules:read`，认证解析时合并角色默认权限和角色表权限；不能给普通用户默认写权限。
+- 相关文件：`packages/shared/src/index.ts`、`apps/server/src/modules/auth/auth.service.ts`、`apps/server/src/modules/crm/crm-organization-resource-permissions.spec.ts`、`prisma/migrations/20260621192500_grant_user_crm_sequence_read_permissions/migration.sql`。
+- 验证方式：运行 `pnpm exec tsx --test packages/shared/src/index.spec.ts` 和 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/auth/auth.service.spec.ts apps/server/src/modules/crm/crm-organization-resource-permissions.spec.ts`。
+
 ### 2026-06-21 系统通知“查看”动作必须标记通知已读
 
 - 场景：全局布局轮询 `/system-notifications/pending` 弹出 AI 获客任务完成通知，用户点击通知里的“查看”进入 `/ai-leads`。
