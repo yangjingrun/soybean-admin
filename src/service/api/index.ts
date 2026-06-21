@@ -5,5 +5,6 @@ export * from './crm';
 export * from './route';
 export * from './system-notification';
 export * from './system-log';
+export * from './system-organization';
 export * from './system-role';
 export * from './system-user';

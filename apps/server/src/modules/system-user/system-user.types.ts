@@ -10,6 +10,7 @@ export interface SystemUserSearchParams {
   current?: number;
   size?: number;
   keyword?: string;
+  organizationId?: string;
   role?: SystemUserRole;
   status?: SystemUserStatus;
   expirationStatus?: SystemUserExpirationStatus;
@@ -53,6 +54,7 @@ export interface SystemUserOperateInput {
   email?: string | null;
   roles: SystemUserRole[];
   status?: SystemUserStatus;
+  organizationId?: string;
   companyName?: string | null;
   expireAt?: string | null;
   remark?: string | null;

@@ -43,7 +43,13 @@ export class AuthService {
 
     const user = await this.findUserByUserName(userName);
 
-    if (!user || !this.isUserEnabled(user) || this.isUserExpired(user) || this.isUserLocked(user)) {
+    if (
+      !user ||
+      !this.isUserEnabled(user) ||
+      this.isUserExpired(user) ||
+      this.isUserLocked(user) ||
+      !this.isOrganizationEnabledForUser(user)
+    ) {
       return null;
     }
 
@@ -133,6 +139,10 @@ export class AuthService {
       return null;
     }
 
+    if (!this.isOrganizationEnabledForUser(session.user)) {
+      return null;
+    }
+
     const user = await this.toUserInfo(session.user);
 
     if (!user || this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
@@ -176,6 +186,10 @@ export class AuthService {
     });
 
     if (!session || session.refreshTokenExpiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+
+    if (!this.isOrganizationEnabledForUser(session.user)) {
       return null;
     }
 
@@ -380,6 +394,10 @@ export class AuthService {
     return Boolean(user.lockedUntil && user.lockedUntil.getTime() > Date.now());
   }
 
+  private isOrganizationEnabledForUser(user: AuthSystemUser) {
+    return user.roles.includes('R_SUPER') || user.organization.status === 'enabled';
+  }
+
   private async resolveRolePermissions(roles: readonly string[]) {
     if (roles.includes('R_SUPER')) {
       return [...crmPermissionCodes];
@@ -424,7 +442,7 @@ export class AuthService {
 }
 
 type AuthSystemUser = SystemUser & {
-  organization: Pick<Organization, 'id' | 'name'>;
+  organization: Pick<Organization, 'id' | 'name' | 'status'>;
 };
 
 interface UserInfoWithSession extends UserInfo {

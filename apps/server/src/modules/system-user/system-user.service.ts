@@ -6,10 +6,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import {
-  DEFAULT_ORGANIZATION_ID,
-  type OrganizationRole,
-} from '@soybean/shared';
+import { DEFAULT_ORGANIZATION_ID, type OrganizationRole } from '@soybean/shared';
 import type { Organization, Prisma, SystemUser } from '../../generated/prisma/client';
 import { createPageResult } from '../../shared/pagination';
 import { hashPassword, generateTemporaryPassword } from '../auth/password';
@@ -70,6 +67,7 @@ export class SystemUserService {
     assertUserName(userName);
     await this.assertRoles(input.roles);
     await this.assertUniqueUserName(userName);
+    const organization = await this.findAssignableOrganization(input.organizationId || DEFAULT_ORGANIZATION_ID);
 
     const temporaryPassword = generateTemporaryPassword();
     const password = await hashPassword(temporaryPassword);
@@ -82,7 +80,7 @@ export class SystemUserService {
         roles: input.roles,
         permissions: [],
         status: input.status || 'enabled',
-        organizationId: DEFAULT_ORGANIZATION_ID,
+        organizationId: organization.id,
         organizationRole: resolveOrganizationRole(input.roles),
         companyName: normalizeNullableString(input.companyName),
         expireAt: toNullableDate(input.expireAt),
@@ -114,6 +112,9 @@ export class SystemUserService {
     const nextRoles = input.roles ?? (user.roles as SystemUserRole[]);
     const nextStatus = input.status ?? (user.status as SystemUserStatus);
     const nextExpireAt = input.expireAt !== undefined ? toNullableDate(input.expireAt) : user.expireAt;
+    const organization = input.organizationId
+      ? await this.findAssignableOrganization(input.organizationId)
+      : null;
 
     if (input.roles) {
       await this.assertRoles(input.roles);
@@ -144,6 +145,7 @@ export class SystemUserService {
         ...(input.email !== undefined ? { email: normalizeNullableString(input.email) } : {}),
         ...(input.roles ? { roles: input.roles, organizationRole: resolveOrganizationRole(input.roles) } : {}),
         ...(input.status ? { status: input.status } : {}),
+        ...(organization ? { organizationId: organization.id } : {}),
         ...(input.companyName !== undefined ? { companyName: normalizeNullableString(input.companyName) } : {}),
         ...(input.expireAt !== undefined ? { expireAt: toNullableDate(input.expireAt) } : {}),
         ...(input.remark !== undefined ? { remark: normalizeNullableString(input.remark) } : {})
@@ -255,6 +257,10 @@ export class SystemUserService {
       where.roles = { has: query.role };
     }
 
+    if (query.organizationId) {
+      where.organizationId = query.organizationId;
+    }
+
     if (query.status) {
       where.status = query.status;
     }
@@ -305,6 +311,21 @@ export class SystemUserService {
     if (existing) {
       throw new ConflictException('用户名已存在');
     }
+  }
+
+  private async findAssignableOrganization(organizationId: string) {
+    const organization = await this.prisma.organization.findFirst({
+      where: {
+        id: organizationId,
+        status: 'enabled'
+      }
+    });
+
+    if (!organization) {
+      throw new BadRequestException('组织不存在或已禁用');
+    }
+
+    return organization;
   }
 
   private async assertRoles(roles: SystemUserRole[]) {

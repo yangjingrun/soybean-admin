@@ -42,6 +42,7 @@ export const userExpirationTagTypeMap: Record<Api.SystemUser.UserExpirationStatu
 export function createDefaultUserFilterModel(): Api.SystemUser.UserFilterModel {
   return {
     keyword: '',
+    organizationId: null,
     role: null,
     status: null,
     expirationStatus: null
@@ -63,6 +64,10 @@ export function buildSystemUserSearchParams(options: {
   const keyword = filterModel.keyword.trim();
   if (keyword) {
     params.keyword = keyword;
+  }
+
+  if (filterModel.organizationId) {
+    params.organizationId = filterModel.organizationId;
   }
 
   if (filterModel.role) {

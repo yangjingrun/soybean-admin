@@ -26,6 +26,10 @@ export class SystemUserQueryDto {
 
   @IsOptional()
   @IsString()
+  organizationId?: string;
+
+  @IsOptional()
+  @IsString()
   status?: SystemUserStatus;
 
   @IsOptional()

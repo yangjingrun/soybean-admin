@@ -88,6 +88,15 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
       )
     },
     {
+      key: 'organizationName',
+      title: '所属组织',
+      minWidth: 160,
+      ellipsis: {
+        tooltip: true
+      },
+      render: row => row.organizationName || '-'
+    },
+    {
       key: 'status',
       title: '启用状态',
       align: 'center',
@@ -327,7 +336,7 @@ async function handleCopyUserName(userName: string) {
         :data="data"
         size="small"
         :flex-height="!appStore.isMobile"
-        :scroll-x="1330"
+        :scroll-x="1490"
         :loading="loading"
         remote
         :row-key="row => row.id"

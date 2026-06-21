@@ -192,6 +192,18 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'manage_organization',
+        path: '/manage/organization',
+        component: 'view.manage_organization',
+        meta: {
+          title: 'manage_organization',
+          i18nKey: 'route.manage_organization',
+          icon: 'mdi:office-building-cog-outline',
+          order: 1,
+          roles: ['R_SUPER']
+        }
+      },
+      {
         name: 'manage_permission',
         path: '/manage/permission',
         component: 'view.manage_permission',
@@ -199,7 +211,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'manage_permission',
           i18nKey: 'route.manage_permission',
           icon: 'mdi:shield-key-outline',
-          order: 3,
+          order: 4,
           roles: ['R_SUPER']
         }
       },
@@ -211,7 +223,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'manage_role',
           i18nKey: 'route.manage_role',
           icon: 'mdi:account-key-outline',
-          order: 2,
+          order: 3,
           roles: ['R_SUPER']
         }
       },
@@ -223,7 +235,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'manage_system-log',
           i18nKey: 'route.manage_system-log',
           icon: 'mdi:clipboard-text-clock-outline',
-          order: 4,
+          order: 5,
           roles: ['R_SUPER']
         }
       },
@@ -235,7 +247,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'manage_user',
           i18nKey: 'route.manage_user',
           icon: 'ic:round-manage-accounts',
-          order: 1,
+          order: 2,
           roles: ['R_SUPER']
         }
       }

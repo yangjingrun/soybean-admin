@@ -8,6 +8,8 @@ declare namespace Api {
 
     type UserExpirationStatus = 'expired' | 'active';
 
+    type OrganizationRole = 'admin' | 'member';
+
     interface UserListItem {
       id: string;
       userName: string;
@@ -17,6 +19,9 @@ declare namespace Api {
       roles: UserRole[];
       permissions: PermissionCode[];
       status: UserStatus;
+      organizationId: string;
+      organizationName: string;
+      organizationRole: OrganizationRole;
       companyName: string | null;
       expireAt: string | null;
       remark: string | null;
@@ -31,6 +36,7 @@ declare namespace Api {
 
     interface UserSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
+      organizationId?: string;
       role?: UserRole;
       status?: UserStatus;
       expirationStatus?: UserExpirationStatus;
@@ -38,6 +44,7 @@ declare namespace Api {
 
     interface UserFilterModel {
       keyword: string;
+      organizationId: string | null;
       role: UserRole | null;
       status: UserStatus | null;
       expirationStatus: UserExpirationStatus | null;
@@ -50,6 +57,7 @@ declare namespace Api {
       email?: string | null;
       roles: UserRole[];
       status?: UserStatus;
+      organizationId?: string;
       companyName?: string | null;
       expireAt?: string | null;
       remark?: string | null;

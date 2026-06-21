@@ -91,6 +91,68 @@ describe('SystemUserService', () => {
     assert.equal(logService.records[0].action, 'create');
   });
 
+  it('filters users by organization id', async () => {
+    const users = [
+      createUser({ id: 'u-org-1', organizationId: 'org-1' }),
+      createUser({ id: 'u-org-2', organizationId: 'org-2' })
+    ];
+    const prisma = createPrismaStub(users);
+    const service = createService(prisma);
+
+    await service.list({ current: 1, size: 10, organizationId: 'org-1' });
+
+    assert.equal(prisma.systemUser.lastFindManyArgs.where.organizationId, 'org-1');
+  });
+
+  it('creates and updates users in an enabled organization', async () => {
+    const users: TestSystemUser[] = [];
+    const organizations = [
+      createOrganization({ id: 'org-default', name: '默认组织' }),
+      createOrganization({ id: 'org-sales', name: '销售部' })
+    ];
+    const service = createService(createPrismaStub(users, organizations));
+    const operator = { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] };
+
+    const created = await service.create(
+      {
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-sales'
+      },
+      operator
+    );
+    const updated = await service.update(
+      created.user.id,
+      {
+        organizationId: 'org-default'
+      },
+      operator
+    );
+
+    assert.equal(users[0].organizationId, 'org-default');
+    assert.equal(created.user.organizationName, '销售部');
+    assert.equal(updated.organizationName, '默认组织');
+  });
+
+  it('rejects assigning users to disabled organizations', async () => {
+    const service = createService(
+      createPrismaStub([], [createOrganization({ id: 'org-disabled', name: '停用组织', status: 'disabled' })])
+    );
+
+    await assert.rejects(
+      () =>
+        service.create(
+          {
+            userName: 'DisabledOrgUser',
+            roles: ['R_USER'],
+            organizationId: 'org-disabled'
+          },
+          { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
+        ),
+      /组织不存在或已禁用/
+    );
+  });
+
   it('does not persist user-level permissions from legacy inputs', async () => {
     const users: TestSystemUser[] = [];
     const service = createService(createPrismaStub(users));
@@ -244,7 +306,7 @@ function createService(
   );
 }
 
-function createPrismaStub(users: TestSystemUser[]) {
+function createPrismaStub(users: TestSystemUser[], organizations: TestOrganization[] = [createOrganization()]) {
   const systemUser = {
     lastFindManyArgs: null as any,
     async findMany(args: any) {
@@ -276,6 +338,7 @@ function createPrismaStub(users: TestSystemUser[]) {
     },
     async create(args: any) {
       const user = createUser(args.data);
+      attachOrganization(user, organizations);
       users.push(user);
       return user;
     },
@@ -287,6 +350,7 @@ function createPrismaStub(users: TestSystemUser[]) {
       }
 
       Object.assign(user, args.data, { updatedAt: new Date('2026-06-18T02:00:00.000Z') });
+      attachOrganization(user, organizations);
       return user;
     }
   };
@@ -300,7 +364,16 @@ function createPrismaStub(users: TestSystemUser[]) {
     }
   };
 
-  return { systemUser, systemRole };
+  const organization = {
+    async findFirst(args: any) {
+      const id = args.where.id;
+      const status = args.where.status;
+
+      return organizations.find(item => item.id === id && (!status || item.status === status)) || null;
+    }
+  };
+
+  return { systemUser, systemRole, organization };
 }
 
 function matchesWhere(user: TestSystemUser, where: any) {
@@ -309,6 +382,10 @@ function matchesWhere(user: TestSystemUser, where: any) {
   }
 
   if (where.status && user.status !== where.status) {
+    return false;
+  }
+
+  if (where.organizationId && user.organizationId !== where.organizationId) {
     return false;
   }
 
@@ -331,6 +408,12 @@ function matchesWhere(user: TestSystemUser, where: any) {
   }
 
   return true;
+}
+
+function attachOrganization(user: TestSystemUser, organizations: TestOrganization[]) {
+  const organization = organizations.find(item => item.id === user.organizationId) || organizations[0];
+
+  user.organization = organization;
 }
 
 function createLogServiceStub() {
@@ -389,6 +472,18 @@ function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
   };
 }
 
+function createOrganization(input: Partial<TestOrganization> = {}): TestOrganization {
+  const now = new Date('2026-06-18T01:00:00.000Z');
+
+  return {
+    id: input.id || 'org-default',
+    name: input.name || '默认组织',
+    status: input.status || 'enabled',
+    createdAt: input.createdAt || now,
+    updatedAt: input.updatedAt || now
+  };
+}
+
 interface TestSystemUser {
   id: string;
   userName: string;
@@ -417,6 +512,14 @@ interface TestSystemUser {
   failedLoginCount: number;
   lockedUntil: Date | null;
   passwordResetAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface TestOrganization {
+  id: string;
+  name: string;
+  status: string;
   createdAt: Date;
   updatedAt: Date;
 }

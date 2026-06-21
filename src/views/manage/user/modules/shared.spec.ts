@@ -14,6 +14,7 @@ describe('system user shared helpers', () => {
   it('creates an empty user filter model', () => {
     assert.deepEqual(createDefaultUserFilterModel(), {
       keyword: '',
+      organizationId: null,
       role: null,
       status: null,
       expirationStatus: null
@@ -27,6 +28,7 @@ describe('system user shared helpers', () => {
         size: 20,
         filterModel: {
           keyword: ' Super ',
+          organizationId: 'org-default',
           role: 'R_SUPER',
           status: 'enabled',
           expirationStatus: 'active'
@@ -36,6 +38,7 @@ describe('system user shared helpers', () => {
         current: 2,
         size: 20,
         keyword: 'Super',
+        organizationId: 'org-default',
         role: 'R_SUPER',
         status: 'enabled',
         expirationStatus: 'active'

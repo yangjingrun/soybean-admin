@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue';
+import { fetchEnabledSystemOrganizations } from '@/service/api/system-organization';
 import { fetchEnabledSystemRoles } from '@/service/api/system-role';
 import { userExpirationOptions, userRoleOptions, userStatusOptions } from './shared';
 
@@ -14,12 +15,20 @@ const emit = defineEmits<{
   reset: [];
 }>();
 
+const organizationOptions = shallowRef<Array<{ label: string; value: string }>>([]);
 const roleOptions = shallowRef<Array<{ label: string; value: Api.SystemUser.UserRole }>>(userRoleOptions);
 
 const keywordValue = computed({
   get: () => filterModel.value.keyword,
   set: value => {
     filterModel.value.keyword = value;
+  }
+});
+
+const organizationIdValue = computed({
+  get: () => filterModel.value.organizationId,
+  set: value => {
+    filterModel.value.organizationId = value;
   }
 });
 
@@ -44,6 +53,20 @@ const expirationStatusValue = computed({
   }
 });
 
+/** Load enabled organizations for user filtering. */
+async function loadOrganizationOptions() {
+  const { data, error } = await fetchEnabledSystemOrganizations();
+
+  if (error) {
+    return;
+  }
+
+  organizationOptions.value = data.map(organization => ({
+    label: organization.name,
+    value: organization.id
+  }));
+}
+
 /** Load enabled roles for user filtering. */
 async function loadRoleOptions() {
   const { data, error } = await fetchEnabledSystemRoles();
@@ -58,7 +81,10 @@ async function loadRoleOptions() {
   }));
 }
 
-onMounted(loadRoleOptions);
+onMounted(() => {
+  void loadOrganizationOptions();
+  void loadRoleOptions();
+});
 </script>
 
 <template>
@@ -66,7 +92,7 @@ onMounted(loadRoleOptions);
     <NSpace vertical :size="10">
       <NForm :model="filterModel" label-placement="left" label-width="68" size="small" :show-feedback="false">
         <NGrid class="app-filter-grid" :cols="24" :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
-          <NGi span="24 m:12 l:8">
+          <NGi span="24 m:12 l:7">
             <NFormItem label="关键词">
               <NInput
                 v-model:value="keywordValue"
@@ -76,17 +102,28 @@ onMounted(loadRoleOptions);
               />
             </NFormItem>
           </NGi>
-          <NGi span="24 m:12 l:6">
+          <NGi span="24 m:12 l:5">
+            <NFormItem label="组织">
+              <NSelect
+                v-model:value="organizationIdValue"
+                :options="organizationOptions"
+                clearable
+                filterable
+                placeholder="全部组织"
+              />
+            </NFormItem>
+          </NGi>
+          <NGi span="24 m:12 l:4">
             <NFormItem label="角色">
               <NSelect v-model:value="roleValue" :options="roleOptions" clearable placeholder="全部角色" />
             </NFormItem>
           </NGi>
-          <NGi span="24 m:12 l:5">
+          <NGi span="24 m:12 l:4">
             <NFormItem label="状态">
               <NSelect v-model:value="statusValue" :options="userStatusOptions" clearable placeholder="全部状态" />
             </NFormItem>
           </NGi>
-          <NGi span="24 m:12 l:5">
+          <NGi span="24 m:12 l:4">
             <NFormItem label="有效期">
               <NSelect
                 v-model:value="expirationStatusValue"

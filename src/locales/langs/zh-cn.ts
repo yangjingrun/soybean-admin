@@ -248,6 +248,7 @@ const local: App.I18n.Schema = {
     crm_inbox: '收件箱',
     crm_settings: 'CRM配置',
     manage: '系统管理',
+    manage_organization: '组织管理',
     'manage_system-log': '日志管理',
     manage_permission: '权限管理',
     manage_role: '角色管理',

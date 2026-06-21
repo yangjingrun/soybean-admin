@@ -30,6 +30,10 @@ export class CreateSystemUserDto {
 
   @IsOptional()
   @IsString()
+  organizationId?: string;
+
+  @IsOptional()
+  @IsString()
   companyName?: string | null;
 
   @IsOptional()
@@ -67,6 +71,10 @@ export class UpdateSystemUserDto {
   @IsOptional()
   @IsIn(systemUserStatuses)
   status?: SystemUserStatus;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
 
   @IsOptional()
   @IsString()

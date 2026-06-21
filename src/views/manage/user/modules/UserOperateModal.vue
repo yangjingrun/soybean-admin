@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, shallowRef, watch } from 'vue';
 import type { FormRules } from 'naive-ui';
+import { fetchEnabledSystemOrganizations } from '@/service/api/system-organization';
 import { fetchEnabledSystemRoles } from '@/service/api/system-role';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { userRoleOptions, userStatusOptions } from './shared';
@@ -14,6 +15,7 @@ interface UserOperateFormModel {
   email: string;
   roles: Api.SystemUser.UserRole[];
   status: Api.SystemUser.UserStatus;
+  organizationId: string | null;
   companyName: string;
   expireAt: number | null;
   remark: string;
@@ -35,6 +37,7 @@ const { formRef, validate, restoreValidation } = useNaiveForm();
 const { createRequiredRule, patternRules } = useFormRules();
 
 const formModel = reactive<UserOperateFormModel>(createDefaultFormModel());
+const organizationOptions = shallowRef<Array<{ label: string; value: string }>>([]);
 const roleOptions = shallowRef<Array<{ label: string; value: Api.SystemUser.UserRole }>>(userRoleOptions);
 
 const modalTitle = computed(() => (props.operateType === 'add' ? '新增用户' : '编辑用户'));
@@ -50,6 +53,7 @@ const rules: FormRules = {
       trigger: 'change'
     }
   ],
+  organizationId: [createRequiredRule('请选择所属组织')],
   status: [createRequiredRule('请选择状态')],
   phone: patternRules.phone,
   email: patternRules.email
@@ -62,6 +66,7 @@ watch(
       return;
     }
 
+    void loadOrganizationOptions();
     void loadRoleOptions();
     Object.assign(formModel, props.operateType === 'add' ? createDefaultFormModel() : createFormModelFromRow(props.row));
     void nextTick(restoreValidation);
@@ -77,6 +82,7 @@ function createDefaultFormModel(): UserOperateFormModel {
     email: '',
     roles: ['R_USER'],
     status: 'enabled',
+    organizationId: null,
     companyName: '',
     expireAt: null,
     remark: ''
@@ -96,6 +102,7 @@ function createFormModelFromRow(row: Api.SystemUser.UserListItem | null): UserOp
     email: row.email || '',
     roles: [...row.roles],
     status: row.status,
+    organizationId: row.organizationId,
     companyName: row.companyName || '',
     expireAt: row.expireAt ? new Date(row.expireAt).getTime() : null,
     remark: row.remark || ''
@@ -118,6 +125,7 @@ function createPayload(): Api.SystemUser.UserCreatePayload {
     email: normalizeOptionalText(formModel.email),
     roles: [...formModel.roles],
     status: formModel.status,
+    organizationId: formModel.organizationId || undefined,
     companyName: normalizeOptionalText(formModel.companyName),
     expireAt: formModel.expireAt ? new Date(formModel.expireAt).toISOString() : null,
     remark: normalizeOptionalText(formModel.remark)
@@ -127,6 +135,20 @@ function createPayload(): Api.SystemUser.UserCreatePayload {
 async function handleSubmit() {
   await validate();
   emit('submit', createPayload());
+}
+
+/** Load enabled organizations for assigning a user to an organization. */
+async function loadOrganizationOptions() {
+  const { data, error } = await fetchEnabledSystemOrganizations();
+
+  if (error) {
+    return;
+  }
+
+  organizationOptions.value = data.map(organization => ({
+    label: organization.name,
+    value: organization.id
+  }));
 }
 
 /** Load enabled roles for assigning roles to a user. */
@@ -171,6 +193,16 @@ async function loadRoleOptions() {
         <NGi span="24">
           <NFormItem label="角色" path="roles">
             <NSelect v-model:value="formModel.roles" :options="roleOptions" multiple clearable placeholder="请选择角色" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24">
+          <NFormItem label="所属组织" path="organizationId">
+            <NSelect
+              v-model:value="formModel.organizationId"
+              :options="organizationOptions"
+              filterable
+              placeholder="请选择所属组织"
+            />
           </NFormItem>
         </NGi>
         <NGi span="24 m:12">

@@ -140,6 +140,36 @@ describe('AuthService', () => {
     assert.equal(await service.login('Locked', '123456'), null);
   });
 
+  it('rejects disabled organization members while allowing super maintenance access', async () => {
+    const password = await hashPassword('123456');
+    const member = createUser({
+      id: 'member',
+      userName: 'Member',
+      roles: ['R_USER'],
+      organizationRole: 'member',
+      passwordHash: password.hash,
+      passwordSalt: password.salt
+    });
+    const superUser = createUser({
+      id: 'super',
+      userName: 'Root',
+      roles: ['R_SUPER'],
+      organizationRole: 'admin',
+      organization: createOrganization({ status: 'disabled' }),
+      passwordHash: password.hash,
+      passwordSalt: password.salt
+    });
+    const service = createService([member, superUser]);
+    const memberToken = await service.login('Member', '123456');
+
+    member.organization.status = 'disabled';
+
+    assert.equal(await service.login('Member', '123456'), null);
+    assert.equal(await service.getUserByAccessToken(memberToken!.token), null);
+    assert.equal(await service.refresh(memberToken!.refreshToken), null);
+    assert.equal(Boolean(await service.login('Root', '123456')), true);
+  });
+
   it('locks users for fifteen minutes after five failed password attempts', async () => {
     const password = await hashPassword('123456');
     const user = createUser({ passwordHash: password.hash, passwordSalt: password.salt });
@@ -392,6 +422,18 @@ function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
     failedLoginCount: input.failedLoginCount ?? 0,
     lockedUntil: input.lockedUntil ?? null,
     passwordResetAt: input.passwordResetAt ?? null,
+    createdAt: input.createdAt || now,
+    updatedAt: input.updatedAt || now
+  };
+}
+
+function createOrganization(input: Partial<TestSystemUser['organization']> = {}): TestSystemUser['organization'] {
+  const now = new Date();
+
+  return {
+    id: input.id || 'org-default',
+    name: input.name || '默认组织',
+    status: input.status || 'enabled',
     createdAt: input.createdAt || now,
     updatedAt: input.updatedAt || now
   };

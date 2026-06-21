@@ -94,27 +94,33 @@ export function setupElegantRouter() {
         meta.roles = ['R_SUPER'];
       }
 
+      if (key === 'manage_organization') {
+        meta.icon = 'mdi:office-building-cog-outline';
+        meta.order = 1;
+        meta.roles = ['R_SUPER'];
+      }
+
       if (key === 'manage_user') {
         meta.icon = 'ic:round-manage-accounts';
-        meta.order = 1;
+        meta.order = 2;
         meta.roles = ['R_SUPER'];
       }
 
       if (key === 'manage_role') {
         meta.icon = 'mdi:account-key-outline';
-        meta.order = 2;
+        meta.order = 3;
         meta.roles = ['R_SUPER'];
       }
 
       if (key === 'manage_permission') {
         meta.icon = 'mdi:shield-key-outline';
-        meta.order = 3;
+        meta.order = 4;
         meta.roles = ['R_SUPER'];
       }
 
       if (key === 'manage_system-log') {
         meta.icon = 'mdi:clipboard-text-clock-outline';
-        meta.order = 4;
+        meta.order = 5;
         meta.roles = ['R_SUPER'];
       }
 

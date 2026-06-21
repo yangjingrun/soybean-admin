@@ -7,14 +7,17 @@ import type { SystemUserService } from './system-user.service';
 
 describe('SystemUserController', () => {
   it('allows super administrators to list users', async () => {
-    const controller = new SystemUserController(createSystemUserService());
+    const service = createSystemUserService();
+    const controller = new SystemUserController(service);
 
     const result = await controller.list(createContext(['R_SUPER']), {
       current: 1,
       size: 10,
-      keyword: 'super'
+      keyword: 'super',
+      organizationId: 'org-default'
     });
 
+    assert.equal(service.lastListParams?.organizationId, 'org-default');
     assert.deepEqual(result, {
       code: '0000',
       msg: 'ok',
@@ -30,7 +33,11 @@ describe('SystemUserController', () => {
             phone: null,
             email: null,
             roles: ['R_SUPER'],
+            permissions: [],
             status: 'enabled',
+            organizationId: 'org-default',
+            organizationName: '默认组织',
+            organizationRole: 'admin',
             companyName: null,
             expireAt: null,
             remark: null,
@@ -54,9 +61,17 @@ describe('SystemUserController', () => {
   });
 });
 
-function createSystemUserService(): SystemUserService {
+function createSystemUserService(): SystemUserService & { lastListParams?: { organizationId?: string } } {
+  const state = {
+    lastListParams: undefined as { organizationId?: string } | undefined
+  };
+
   return {
-    async list(params: { current?: number; size?: number; keyword?: string }) {
+    get lastListParams() {
+      return state.lastListParams;
+    },
+    async list(params: { current?: number; size?: number; keyword?: string; organizationId?: string }) {
+      state.lastListParams = params;
       const records = [
         {
           id: '1',
@@ -65,7 +80,11 @@ function createSystemUserService(): SystemUserService {
           phone: null,
           email: null,
           roles: ['R_SUPER'],
+          permissions: [],
           status: 'enabled',
+          organizationId: 'org-default',
+          organizationName: '默认组织',
+          organizationRole: 'admin',
           companyName: null,
           expireAt: null,
           remark: null,
