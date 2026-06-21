@@ -13,6 +13,9 @@ CREATE TYPE "CrmMessageStatus" AS ENUM ('draft_pending_review', 'draft_ready', '
 CREATE TYPE "CrmAiDraftTaskStatus" AS ENUM ('queued', 'running', 'completed', 'failed', 'cancelled');
 CREATE TYPE "CrmAiDraftTaskItemStatus" AS ENUM ('pending', 'running', 'retrying', 'succeeded', 'skipped', 'failed');
 
+-- The partial index compares status with text literals. Recreate it after status becomes an enum.
+DROP INDEX IF EXISTS "CrmSequenceEnrollment_active_contact_unique_idx";
+
 ALTER TABLE "AiLeadSearchTask"
   ALTER COLUMN "status" DROP DEFAULT,
   ALTER COLUMN "status" TYPE "AiLeadSearchTaskStatus" USING "status"::"AiLeadSearchTaskStatus",
@@ -42,3 +45,12 @@ ALTER TABLE "CrmAiDraftTaskItem"
   ALTER COLUMN "status" DROP DEFAULT,
   ALTER COLUMN "status" TYPE "CrmAiDraftTaskItemStatus" USING "status"::"CrmAiDraftTaskItemStatus",
   ALTER COLUMN "status" SET DEFAULT 'pending';
+
+CREATE UNIQUE INDEX "CrmSequenceEnrollment_active_contact_unique_idx"
+  ON "CrmSequenceEnrollment"("organizationId", "ownerUserId", "contactId")
+  WHERE "status" IN (
+    'draft_review_pending'::"CrmSequenceEnrollmentStatus",
+    'ready_to_send'::"CrmSequenceEnrollmentStatus",
+    'sequence_running'::"CrmSequenceEnrollmentStatus",
+    'paused'::"CrmSequenceEnrollmentStatus"
+  );

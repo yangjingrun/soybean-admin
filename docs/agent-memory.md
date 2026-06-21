@@ -343,6 +343,14 @@
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认 `CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE=1.5` 时传给 store 的 `take` 回退为 50。
 
+### 2026-06-21 status 文本列迁 enum 前要处理 partial index
+
+- 场景：Prisma migration 把 PostgreSQL `status` 文本列改成 enum，表上存在依赖 `status IN (...)` 的 partial index，例如 `CrmSequenceEnrollment_active_contact_unique_idx`。
+- 坑点：如果 migration 直接 `ALTER COLUMN "status" TYPE enum USING ...`，PostgreSQL 会重新解析 partial index 的 text 条件，可能报 `operator does not exist: "CrmSequenceEnrollmentStatus" = text`，并让本地库留下 enum type 已创建、部分列已转换、迁移记录 failed 的半执行状态。
+- 正确做法：同一条 migration 里先 `DROP INDEX IF EXISTS` 依赖旧 text status 的 partial index，列转换完成后用 enum 字面量 cast 重建 partial index；本地半执行库恢复时先确认没有非法 status 值，手动补完剩余列转换和索引重建，再用 `pnpm prisma migrate resolve --applied <migration>` 标记后重新跑 `pnpm prisma migrate deploy`。
+- 相关文件：`prisma/migrations/20260621010000_add_status_enums/migration.sql`、`prisma/migrations/20260619103000_create_crm_sequence_drafts/migration.sql`。
+- 验证方式：运行 `pnpm prisma migrate deploy`，确认不再出现 P3009，且 `CrmSequenceEnrollment_active_contact_unique_idx` 的 WHERE 条件使用 `"CrmSequenceEnrollmentStatus"` enum cast。
+
 ### 记录模板
 
 ```md
