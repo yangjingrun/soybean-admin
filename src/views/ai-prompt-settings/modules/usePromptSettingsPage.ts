@@ -10,6 +10,7 @@ import {
   testAiPromptDraft,
   validateAiPromptDraft
 } from '@/service/api';
+import type { PromptFocusSectionRequest, PromptSectionKey } from './shared';
 
 const defaultTestInput = '我是河北卖轴承的，想找纽约周边有门店和电话的轴承经销商';
 
@@ -24,6 +25,7 @@ export function usePromptSettingsPage() {
   const testInput = shallowRef(defaultTestInput);
   const validationResult = shallowRef<Api.AiGateway.AiPromptValidationResult | null>(null);
   const latestTestRun = shallowRef<Api.AiGateway.AiPromptTestRunRecord | null>(null);
+  const focusSectionRequest = shallowRef<PromptFocusSectionRequest | null>(null);
   const loadingSteps = shallowRef(false);
   const loadingDetail = shallowRef(false);
   const savingDraft = shallowRef(false);
@@ -238,6 +240,14 @@ export function usePromptSettingsPage() {
     validationResult.value = null;
   }
 
+  /** Requests the prompt editor to focus one known section. */
+  function focusPromptSection(key: PromptSectionKey) {
+    focusSectionRequest.value = {
+      key,
+      nonce: Date.now()
+    };
+  }
+
   return {
     steps,
     detail,
@@ -248,6 +258,7 @@ export function usePromptSettingsPage() {
     testInput,
     validationResult,
     latestTestRun,
+    focusSectionRequest,
     versions,
     loadingSteps,
     loadingDetail,
@@ -268,6 +279,7 @@ export function usePromptSettingsPage() {
     testCurrentDraft,
     publishCurrentDraft,
     rollbackVersion,
-    useDefaultPrompt
+    useDefaultPrompt,
+    focusPromptSection
   };
 }

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { InputInst } from 'naive-ui';
-import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { buildPromptSectionAnchors, resolvePromptLineStartOffset } from './shared';
-import type { PromptSectionAnchor } from './shared';
+import type { PromptFocusSectionRequest, PromptSectionAnchor } from './shared';
 
 const props = defineProps<{
   detail: Api.AiGateway.AiPromptWorkbenchDetail | null;
+  focusSectionRequest?: PromptFocusSectionRequest | null;
   loading?: boolean;
 }>();
 
@@ -37,6 +38,23 @@ async function handleAnchorClick(anchor: PromptSectionAnchor) {
   inputInst.focus();
   textarea.setSelectionRange(offset, offset);
 }
+
+watch(
+  () => props.focusSectionRequest?.nonce,
+  nonce => {
+    if (!nonce || !props.focusSectionRequest) {
+      return;
+    }
+
+    const anchor = anchors.value.find(item => item.key === props.focusSectionRequest?.key);
+
+    if (!anchor) {
+      return;
+    }
+
+    void handleAnchorClick(anchor);
+  }
+);
 </script>
 
 <template>

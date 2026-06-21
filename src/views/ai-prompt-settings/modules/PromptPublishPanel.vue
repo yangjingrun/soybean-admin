@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { summarizePromptValidation } from './shared';
+import { resolvePromptValidationSection, summarizePromptValidation } from './shared';
+import type { PromptSectionKey } from './shared';
 
 const props = defineProps<{
   validationResult: Api.AiGateway.AiPromptValidationResult | null;
@@ -20,13 +21,43 @@ const emit = defineEmits<{
   validate: [];
   saveDraft: [];
   test: [];
+  focusSection: [key: PromptSectionKey];
   publish: [];
 }>();
 
 const testInput = defineModel<string>('testInput', { required: true });
 const changeNote = defineModel<string>('changeNote', { required: true });
 const validationSummary = computed(() => summarizePromptValidation(props.validationResult));
+const validationItems = computed(() =>
+  props.validationResult?.items.map(item => ({
+    ...item,
+    target: resolvePromptValidationSection(item)
+  })) ?? []
+);
 const latestOutput = computed(() => props.latestTestRun?.outputText || '');
+const latestValidationIssues = computed(() =>
+  props.latestTestRun?.validationResult?.items
+    .filter(item => item.status !== 'pass')
+    .map(item => ({
+      ...item,
+      target: resolvePromptValidationSection(item)
+    })) ?? []
+);
+const latestFailureGuide = computed(() => {
+  if (props.latestTestRun?.success || !props.latestTestRun?.errorMessage) {
+    return '';
+  }
+
+  if (props.latestTestRun.errorMessage === '系统提示词未通过校验') {
+    return '这次测试还没有真正调用模型，先修复系统提示词本身的规则问题，再重新运行测试。';
+  }
+
+  if (props.latestTestRun.errorMessage === '模型输出未通过提示词规则校验') {
+    return '模型已经运行，但输出结果不符合当前步骤规则。请根据下面的问题收紧提示词。';
+  }
+
+  return '最近一次测试没有通过，请先处理下面的问题。';
+});
 </script>
 
 <template>
@@ -51,7 +82,7 @@ const latestOutput = computed(() => props.latestTestRun?.outputText || '');
         </div>
         <NEmpty v-if="!validationResult" description="尚未校验" />
         <NList v-else size="small">
-          <NListItem v-for="item in validationResult.items" :key="item.key">
+          <NListItem v-for="item in validationItems" :key="item.key">
             <NThing>
               <template #header>
                 <NSpace align="center" :size="8">
@@ -66,6 +97,17 @@ const latestOutput = computed(() => props.latestTestRun?.outputText || '');
                 </NSpace>
               </template>
               <template #description>{{ item.message }}</template>
+              <template #action>
+                <NButton
+                  v-if="item.target"
+                  size="tiny"
+                  text
+                  type="primary"
+                  @click="emit('focusSection', item.target.key)"
+                >
+                  定位到{{ item.target.label }}
+                </NButton>
+              </template>
             </NThing>
           </NListItem>
         </NList>
@@ -86,7 +128,38 @@ const latestOutput = computed(() => props.latestTestRun?.outputText || '');
               {{ latestTestRun.success ? '通过' : '失败' }}
             </NTag>
           </NSpace>
+          <NAlert v-if="latestFailureGuide" type="error" :bordered="false">{{ latestFailureGuide }}</NAlert>
           <NText v-if="latestTestRun.errorMessage" type="error">{{ latestTestRun.errorMessage }}</NText>
+          <NList v-if="latestValidationIssues.length > 0" size="small" bordered>
+            <NListItem v-for="item in latestValidationIssues" :key="item.key">
+              <NThing>
+                <template #header>
+                  <NSpace align="center" :size="8">
+                    <NTag
+                      size="small"
+                      :type="item.status === 'warn' ? 'warning' : 'error'"
+                      :bordered="false"
+                    >
+                      {{ item.status }}
+                    </NTag>
+                    <NText>{{ item.label }}</NText>
+                  </NSpace>
+                </template>
+                <template #description>{{ item.message }}</template>
+                <template #action>
+                  <NButton
+                    v-if="item.target"
+                    size="tiny"
+                    text
+                    type="primary"
+                    @click="emit('focusSection', item.target.key)"
+                  >
+                    去看{{ item.target.label }}
+                  </NButton>
+                </template>
+              </NThing>
+            </NListItem>
+          </NList>
           <pre v-if="latestOutput" class="publish-panel__output">{{ latestOutput }}</pre>
         </div>
       </section>

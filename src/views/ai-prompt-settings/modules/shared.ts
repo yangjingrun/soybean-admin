@@ -3,6 +3,8 @@ export interface PromptStepStatusView {
   type: 'default' | 'info' | 'success' | 'warning' | 'error';
 }
 
+export type PromptSectionKey = 'role' | 'channel' | 'keyword' | 'hard-rules' | 'output';
+
 export interface PromptValidationSummary {
   ok: boolean;
   passCount: number;
@@ -12,13 +14,18 @@ export interface PromptValidationSummary {
 }
 
 export interface PromptSectionAnchor {
-  key: string;
+  key: PromptSectionKey;
   label: string;
   line: number;
 }
 
+export interface PromptFocusSectionRequest {
+  key: PromptSectionKey;
+  nonce: number;
+}
+
 const promptSectionMatchers: Array<{
-  key: string;
+  key: PromptSectionKey;
   label: string;
   patterns: RegExp[];
 }> = [
@@ -48,6 +55,17 @@ const promptSectionMatchers: Array<{
     patterns: [/输出 JSON/u, /输出结构/u]
   }
 ];
+
+const validationItemSectionMap: Partial<Record<Api.AiGateway.AiPromptValidationItem['key'], PromptSectionKey>> = {
+  'prompt-non-empty': 'role',
+  'prompt-required-rules': 'hard-rules',
+  'json-object': 'output',
+  'top-level-fields': 'output',
+  'search-empty': 'hard-rules',
+  'places-empty': 'hard-rules',
+  'maps-query-count': 'hard-rules',
+  'maps-query-syntax': 'channel'
+};
 
 /** Resolves the compact status badge shown in the built-in prompt step list. */
 export function resolvePromptStepStatus(step: Api.AiGateway.AiPromptStepSummary): PromptStepStatusView {
@@ -151,4 +169,27 @@ export function resolvePromptLineStartOffset(systemPrompt: string, line: number)
   }
 
   return offset;
+}
+
+/** Maps one validation item to the most relevant prompt section for quick repair. */
+export function resolvePromptValidationSection(
+  item: Api.AiGateway.AiPromptValidationItem
+): PromptSectionAnchor | null {
+  const key = validationItemSectionMap[item.key];
+
+  if (!key) {
+    return null;
+  }
+
+  const section = promptSectionMatchers.find(matcher => matcher.key === key);
+
+  if (!section) {
+    return null;
+  }
+
+  return {
+    key: section.key,
+    label: section.label,
+    line: 0
+  };
 }

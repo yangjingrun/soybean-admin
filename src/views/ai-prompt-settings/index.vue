@@ -39,6 +39,7 @@ watch(
     <PromptEditor
       v-model:system-prompt="page.systemPrompt.value"
       :detail="page.detail.value"
+      :focus-section-request="page.focusSectionRequest.value"
       :loading="page.loadingDetail.value"
       @use-default="page.useDefaultPrompt"
     />
@@ -61,6 +62,7 @@ watch(
         @validate="page.validateCurrentPrompt"
         @save-draft="page.saveCurrentDraft"
         @test="page.testCurrentDraft"
+        @focus-section="page.focusPromptSection"
         @publish="page.publishCurrentDraft"
       />
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildPromptSectionAnchors,
+  resolvePromptValidationSection,
   resolvePromptLineStartOffset,
   summarizePromptValidation,
   resolvePromptStepStatus
@@ -115,5 +116,45 @@ searchExecutionRules
     assert.equal(resolvePromptLineStartOffset(prompt, 2), '第一段\n'.length);
     assert.equal(resolvePromptLineStartOffset(prompt, 3), '第一段\n第二段内容\n'.length);
     assert.equal(resolvePromptLineStartOffset(prompt, 99), prompt.length - '第三段'.length);
+  });
+
+  it('maps validation items to prompt sections for repair shortcuts', () => {
+    assert.deepEqual(
+      resolvePromptValidationSection({
+        key: 'top-level-fields',
+        label: '顶层字段完整',
+        status: 'fail',
+        message: '缺少字段'
+      }),
+      {
+        key: 'output',
+        label: '输出结构',
+        line: 0
+      }
+    );
+
+    assert.deepEqual(
+      resolvePromptValidationSection({
+        key: 'maps-query-syntax',
+        label: 'Maps 查询语法',
+        status: 'fail',
+        message: '语法错误'
+      }),
+      {
+        key: 'channel',
+        label: '渠道规则',
+        line: 0
+      }
+    );
+
+    assert.equal(
+      resolvePromptValidationSection({
+        key: 'legacy',
+        label: '旧规则',
+        status: 'warn',
+        message: '待人工确认'
+      }),
+      null
+    );
   });
 });
