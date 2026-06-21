@@ -48,7 +48,7 @@ export function setupElegantRouter() {
 
       if (key === 'ai-settings') {
         meta.icon = 'mdi:server-network-outline';
-        meta.order = 3;
+        meta.order = 7;
       }
 
       if (key === 'ai-prompt-settings') {
