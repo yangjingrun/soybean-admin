@@ -43,6 +43,7 @@ export function setupElegantRouter() {
       if (key === 'ai-leads') {
         meta.icon = 'mdi:account-search-outline';
         meta.order = 2;
+        meta.keepAlive = true;
       }
 
       if (key === 'ai-settings') {

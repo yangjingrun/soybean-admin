@@ -47,7 +47,8 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'ai-leads',
       i18nKey: 'route.ai-leads',
       icon: 'mdi:account-search-outline',
-      order: 2
+      order: 2,
+      keepAlive: true
     }
   },
   {

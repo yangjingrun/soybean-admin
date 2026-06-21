@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-21 长任务页面切走保留状态要配置路由 keepAlive
+
+- 场景：AI 获客页面点击“优化关键词”或“开始搜索采集”后切换到其他页面，再返回时页面本地加载态、表单和结果状态丢失。
+- 坑点：本项目内容区虽然使用 `<KeepAlive :include="routeStore.cacheRoutes">`，但缓存名单只从叶子路由 `meta.keepAlive` 收集；只在页面 composable 里维护 `ref/shallowRef`，切页卸载后本地状态会重建，长请求返回也只会写入旧组件实例。
+- 正确做法：对需要保留页面级长任务状态的路由，在 `build/plugins/router.ts` 的 `onRouteMetaGen` 中设置 `meta.keepAlive = true`，并同步生成的 `src/router/elegant/routes.ts`；不需要为纯页面局部状态提前迁移到全局 Pinia。
+- 相关文件：`build/plugins/router.ts`、`src/router/elegant/routes.ts`、`src/layouts/modules/global-content/index.vue`、`src/store/modules/route/shared.ts`、`src/views/ai-leads/modules/useAiLeadPage.ts`。
+- 验证方式：用 `pnpm exec tsx -e "import { generatedRoutes } from './src/router/elegant/routes.ts'; const route = generatedRoutes.find(item => item.name === 'ai-leads'); console.log(route?.meta)"` 确认 `keepAlive: true`；运行 `git diff --check -- build/plugins/router.ts src/router/elegant/routes.ts`。
+
 ### 2026-06-21 本项目 RTK 使用全量安装模板
 
 - 场景：在本项目内使用 RTK（Rust Token Killer）压缩低价值命令输出。
