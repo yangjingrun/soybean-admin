@@ -125,12 +125,6 @@ const workflowSteps = computed(() => {
             : hasStartedSearch
               ? 'active'
               : 'wait'
-    },
-    {
-      key: 'crm',
-      title: '导入 CRM',
-      description: hasCompletedSearch ? '筛选候选客户并导入客户管理' : '采集完成后处理候选客户',
-      state: hasCompletedSearch ? 'active' : 'wait'
     }
   ] satisfies Array<{
     key: string;
@@ -344,34 +338,38 @@ const taskActionButtons = computed(
           @import-candidate="handleImportCandidate"
         />
       </div>
-      <div v-else-if="aiResult" class="result-panel">
-        <NAlert v-if="keywordQualityWarnings.length" type="warning" :bordered="false">
-          {{ keywordQualityWarnings.join('；') }}
-        </NAlert>
-        <NResult
-          status="success"
-          title="搜索策略已准备好"
-          description="点击开始搜索采集，系统会直接返回候选客户。"
-          class="keyword-ready-result"
-        />
-        <NCollapse v-if="isSuperAdmin" class="debug-collapse">
-          <NCollapseItem title="调试信息" name="debug">
-            <KeywordOptimizationResult
-              v-if="keywordOptimizationViewModel"
-              v-model:keyword-plan="editableKeywordPlan"
-              :view-model="keywordOptimizationViewModel"
-              :editable="isEditingResult"
-            />
-            <template v-else>
-              <NAlert type="warning" :bordered="false">AI 搜索策略不是合法 JSON，请重新生成。</NAlert>
-              <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 16, maxRows: 28 }" />
-            </template>
-            <NText depth="3" class="token-summary">
-              Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} /
-              总计 {{ aiResult.usage.totalTokens ?? '-' }}
-            </NText>
-          </NCollapseItem>
-        </NCollapse>
+      <div v-else-if="aiResult" class="result-panel keyword-ready-panel">
+        <div class="keyword-ready-main">
+          <NAlert v-if="keywordQualityWarnings.length" type="warning" :bordered="false" class="keyword-ready-warning">
+            {{ keywordQualityWarnings.join('；') }}
+          </NAlert>
+          <NResult
+            status="success"
+            title="搜索策略已准备好"
+            description="点击开始搜索采集，系统会直接返回候选客户。"
+            class="keyword-ready-result"
+          />
+        </div>
+        <div v-if="isSuperAdmin" class="result-debug-footer">
+          <NCollapse class="debug-collapse">
+            <NCollapseItem title="调试信息" name="debug">
+              <KeywordOptimizationResult
+                v-if="keywordOptimizationViewModel"
+                v-model:keyword-plan="editableKeywordPlan"
+                :view-model="keywordOptimizationViewModel"
+                :editable="isEditingResult"
+              />
+              <template v-else>
+                <NAlert type="warning" :bordered="false">AI 搜索策略不是合法 JSON，请重新生成。</NAlert>
+                <NInput :value="aiResult.text" type="textarea" readonly :autosize="{ minRows: 16, maxRows: 28 }" />
+              </template>
+              <NText depth="3" class="token-summary">
+                Tokens：输入 {{ aiResult.usage.inputTokens ?? '-' }} / 输出 {{ aiResult.usage.outputTokens ?? '-' }} /
+                总计 {{ aiResult.usage.totalTokens ?? '-' }}
+              </NText>
+            </NCollapseItem>
+          </NCollapse>
+        </div>
       </div>
       <NEmpty v-else description="填写需求后开始获客" class="result-empty" />
     </NCard>
@@ -592,6 +590,47 @@ const taskActionButtons = computed(
   flex: 1;
   flex-direction: column;
   gap: 14px;
+}
+
+.keyword-ready-panel {
+  min-height: 320px;
+  justify-content: space-between;
+}
+
+.keyword-ready-main {
+  display: flex;
+  flex: 1;
+  min-height: 240px;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.keyword-ready-warning {
+  width: min(720px, 100%);
+}
+
+.keyword-ready-result {
+  width: 100%;
+}
+
+.result-debug-footer {
+  width: 100%;
+  align-self: stretch;
+}
+
+.debug-collapse {
+  width: 100%;
+}
+
+.debug-collapse :deep(.n-collapse-item__header-main) {
+  flex: 0 0 auto;
+}
+
+.debug-collapse :deep(.n-collapse-item__content-inner) {
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .result-actions {

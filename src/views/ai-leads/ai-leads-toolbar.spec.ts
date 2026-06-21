@@ -37,4 +37,16 @@ describe('AI leads toolbar', () => {
     assert.equal(pageSource.includes('tab="采集结果"'), false);
     assert.match(pageSource, /搜索策略已准备好/);
   });
+
+  it('keeps search collection as the final visible workflow step', () => {
+    assert.equal(pageSource.includes("title: '导入 CRM'"), false);
+    assert.equal(pageSource.includes('采集完成后处理候选客户'), false);
+    assert.match(pageSource, /title: '搜索采集'/);
+  });
+
+  it('keeps debug details in the bottom-left result area', () => {
+    assert.match(pageSource, /result-debug-footer/);
+    assert.match(pageSource, /debug-collapse/);
+    assert.match(pageSource, /\.result-debug-footer\s*\{[^}]*width: 100%;/);
+  });
 });
