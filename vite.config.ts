@@ -14,6 +14,8 @@ export default defineConfig(configEnv => {
   return {
     base: viteEnv.VITE_BASE_URL,
     resolve: {
+      // Prefer source TS files when historical JS outputs coexist in the workspace.
+      extensions: ['.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],
       alias: {
         '~': fileURLToPath(new URL('./', import.meta.url)),
         '@': fileURLToPath(new URL('./src', import.meta.url))

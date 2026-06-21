@@ -207,6 +207,14 @@
 - 相关文件：`apps/server/src/generated/prisma/*`、`src/views/crm/*`、`src/views/ai-leads/index.vue`。
 - 验证方式：提交前后都运行 `git status --short`，确认没有 generated 或无关 UI 文件残留。
 
+### 2026-06-21 未跟踪 JS 产物会遮住 TS 源路由
+
+- 场景：新增 `src/views` 页面并运行 `pnpm gen-route` 后，`src/router/elegant/routes.ts`、`imports.ts` 已包含新路由，但前端菜单仍显示旧入口，例如新增 `manage_role` 后系统管理里看不到角色管理。
+- 坑点：工作区可能存在未跟踪的同名 JS 产物（如 `src/router/elegant/routes.js`、`imports.js`、`transform.js`、`src/service/api/index.js`）；Vite 无后缀导入默认可能优先解析 `.js`，导致运行时吃到旧 JS，而不是新 TS 源文件。
+- 正确做法：不要把这些历史 JS 产物提交为源码；在 `vite.config.ts` 的 `resolve.extensions` 中让 `.ts/.tsx` 优先于 `.js/.jsx`，保证开发运行使用 TS 源文件。排查菜单缺失时同时检查 `routes.ts` 和可能遮蔽它的同名 `.js`。
+- 相关文件：`vite.config.ts`、`src/router/routes/index.ts`、`src/router/elegant/routes.ts`、`src/router/elegant/imports.ts`、`src/router/elegant/transform.ts`。
+- 验证方式：用 Vite resolver 检查 `../elegant/routes`、`../elegant/imports`、`../elegant/transform` 解析到 `.ts`；再用 Vite 加载 `src/router/elegant/routes.ts`，确认 `manage.children` 包含目标路由。
+
 ### 2026-06-19 Gmail 403 不能全部当授权失效
 
 - 场景：CRM Gmail watch/history 接入真实 Gmail API，网关需要把 Gmail 错误转换成业务状态。
