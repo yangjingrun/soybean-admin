@@ -97,6 +97,11 @@ export interface SequencePolicyReviewHint {
   tagType: NaiveUI.ThemeColor;
 }
 
+export interface SequenceReviewFilterTag {
+  key: keyof Api.Crm.SequenceReviewFilterModel;
+  label: string;
+}
+
 export interface SequenceMessageTimelineItem {
   id: string;
   metaText: string;
@@ -235,6 +240,37 @@ export function buildSequenceReviewSearchParams(options: {
   }
 
   return params;
+}
+
+/** Build compact active-filter tags so workbench jumps explain why this queue is shown. */
+export function buildSequenceReviewFilterTags(
+  filterModel: Api.Crm.SequenceReviewFilterModel
+): SequenceReviewFilterTag[] {
+  const tags: SequenceReviewFilterTag[] = [];
+  const keyword = filterModel.keyword.trim();
+
+  if (keyword) {
+    tags.push({ key: 'keyword', label: `关键词：${keyword}` });
+  }
+
+  if (filterModel.status) {
+    tags.push({ key: 'status', label: `状态：${sequenceStatusLabelMap[filterModel.status]}` });
+  }
+
+  if (filterModel.todoType) {
+    const option = sequenceTodoTypeOptions.find(item => item.value === filterModel.todoType);
+    tags.push({ key: 'todoType', label: `待办：${option?.label ?? filterModel.todoType}` });
+  }
+
+  if (filterModel.messageStatus) {
+    tags.push({ key: 'messageStatus', label: `邮件：${messageStatusLabelMap[filterModel.messageStatus]}` });
+  }
+
+  if (filterModel.dateScope === 'today') {
+    tags.push({ key: 'dateScope', label: '时间：今天' });
+  }
+
+  return tags;
 }
 
 /** Convert nullable create form values into backend payload after local validation. */

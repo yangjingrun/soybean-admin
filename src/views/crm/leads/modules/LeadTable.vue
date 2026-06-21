@@ -2,7 +2,7 @@
 import { computed, h } from 'vue';
 import { NButton, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { formatLeadDate, getWebsiteHref, leadStatusLabelMap, leadStatusTagTypeMap } from './shared';
+import { formatLeadDate, getLeadNextAction, getWebsiteHref, leadStatusLabelMap, leadStatusTagTypeMap } from './shared';
 
 const props = defineProps<{
   records: Api.Crm.LeadRecord[];
@@ -54,6 +54,23 @@ function renderRegion(row: Api.Crm.LeadRecord) {
   ]);
 }
 
+function renderNextAction(row: Api.Crm.LeadRecord) {
+  const action = getLeadNextAction(row.status);
+
+  return h('div', { class: 'lead-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: action.type
+      },
+      { default: () => action.label }
+    ),
+    h('span', { class: 'lead-secondary-text' }, action.description)
+  ]);
+}
+
 const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
   {
     key: 'name',
@@ -87,6 +104,12 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
         },
         { default: () => leadStatusLabelMap[row.status] }
       )
+  },
+  {
+    key: 'nextAction',
+    title: '下一步',
+    minWidth: 190,
+    render: row => renderNextAction(row)
   },
   {
     key: 'sourceTaskId',
@@ -135,7 +158,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
                 type: 'warning',
                 onClick: () => emit('changeStatus', row)
               },
-              { default: () => '状态' }
+              { default: () => '跟进状态' }
             ),
             h(
               NButton,
@@ -163,7 +186,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
         :data="records"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1350"
+        :scroll-x="1540"
         size="small"
         remote
       >

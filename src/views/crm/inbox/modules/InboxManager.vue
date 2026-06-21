@@ -19,6 +19,7 @@ const {
   handlePolishReplyDraft,
   handleReset,
   handleSaveReplyDraft,
+  handleSendReply,
   handleSearch,
   handleUpdateStatus,
   loadThreadDetail,
@@ -30,6 +31,7 @@ const {
   pendingTotal,
   records,
   replyBody,
+  replySending,
   replyTopic,
   statusOperating,
   statusSubmitting,
@@ -69,6 +71,7 @@ const {
       :draft-polishing="draftPolishing"
       :draft-saving="draftSaving"
       :loading="detailLoading"
+      :reply-sending="replySending"
       :status-operating="statusOperating"
       :status-submitting="statusSubmitting"
       :unsubscribe-confirming="unsubscribeConfirming"
@@ -77,6 +80,7 @@ const {
       @reload="loadThreadDetail()"
       @polish-reply-draft="handlePolishReplyDraft"
       @save-reply-draft="handleSaveReplyDraft"
+      @send-reply="handleSendReply"
       @submit-status="handleUpdateStatus"
     />
   </NSpace>

@@ -922,27 +922,70 @@ describe('crm settings shared helpers', () => {
     );
   });
 
-  it('builds CRM settings overview from current mailbox list and template defaults', () => {
+  it('builds CRM settings overview as an enablement checklist', () => {
     assert.deepEqual(
       buildCrmSettingsOverview({
         mailboxes: [
-          createMailbox({ id: 'mailbox-active', status: 'active' }),
+          createMailbox({
+            id: 'mailbox-active',
+            lastHistoryId: 'history-1',
+            watchExpiration: '2026-06-21T12:00:00.000Z'
+          }),
           createMailbox({ id: 'mailbox-paused', status: 'paused' }),
-          createMailbox({ id: 'mailbox-expired', status: 'auth_expired' })
+          createMailbox({
+            id: 'mailbox-expired',
+            lastSyncIssue: {
+              type: 'history_expired',
+              message: 'Gmail History checkpoint 已过期，需要人工处理',
+              happenedAt: '2026-06-19T08:00:00.000Z'
+            },
+            status: 'auth_expired'
+          })
         ],
         mailboxTotal: 12,
         templateDefaults: createTemplateDefaults(),
         now: dayjs('2026-06-19T12:00:00.000Z')
       }).map(item => ({
+        description: item.description,
         key: item.key,
+        label: item.label,
+        statusLabel: item.statusLabel,
         value: item.value,
         tagType: item.tagType
       })),
       [
-        { key: 'mailbox', value: '1 / 12', tagType: 'success' },
-        { key: 'template', value: '默认模板', tagType: 'success' },
-        { key: 'sendRule', value: '5 步序列', tagType: 'info' },
-        { key: 'attention', value: '1 项', tagType: 'warning' }
+        {
+          description: '缺少可用 Gmail 授权时，开发信无法进入发送队列',
+          key: 'mailboxConnection',
+          label: '邮箱连接',
+          statusLabel: '已连接',
+          value: '1 / 12 可用',
+          tagType: 'success'
+        },
+        {
+          description: '默认模板会给新建开发信提供首封和跟进内容',
+          key: 'writingProfile',
+          label: '写信资料',
+          statusLabel: '已配置',
+          value: '默认模板',
+          tagType: 'success'
+        },
+        {
+          description: '当前默认模板包含 5 封，按配置节奏推进跟进',
+          key: 'sendPace',
+          label: '发送节奏',
+          statusLabel: '已配置',
+          value: '5 步序列',
+          tagType: 'success'
+        },
+        {
+          description: '1 个 Gmail 授权过期，1 个同步异常；会影响回信入库和停发闭环',
+          key: 'syncHealth',
+          label: '同步健康',
+          statusLabel: '待处理',
+          value: '2 项待处理',
+          tagType: 'warning'
+        }
       ]
     );
   });

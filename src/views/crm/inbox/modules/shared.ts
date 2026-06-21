@@ -8,6 +8,16 @@ export interface InboxReplyDraftMetadataItem {
   value: string;
 }
 
+export type InboxReplySubmitPayloadResult =
+  | {
+      ok: true;
+      payload: Api.Crm.InboxReplyPayload;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
 export const inboxThreadStatusOptions = [
   { label: '待处理', value: 'pending' },
   { label: '已处理', value: 'handled' },
@@ -102,6 +112,33 @@ export function buildInboxPendingCountParams(
   }
 
   return params;
+}
+
+/** Validate a real inbox reply send request and build the backend payload. */
+export function buildInboxReplySubmitPayload(options: {
+  bodyText: string;
+  canOperate: boolean;
+  topic: string;
+}): InboxReplySubmitPayloadResult {
+  const topic = options.topic.trim();
+  const bodyText = options.bodyText.trim();
+
+  if (!options.canOperate) {
+    return { ok: false, message: '当前账号不可发送该回复' };
+  }
+
+  if (!topic) {
+    return { ok: false, message: '请先填写回复主题或要点' };
+  }
+
+  if (!bodyText) {
+    return { ok: false, message: '回复正文不能为空' };
+  }
+
+  return {
+    ok: true,
+    payload: { bodyText }
+  };
 }
 
 /** Format backend ISO datetime for inbox surfaces. */

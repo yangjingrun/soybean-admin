@@ -21,6 +21,7 @@ import {
   getSequenceSendAuditSummary,
   buildSequenceBatchResultDisplayItems,
   buildSequenceBatchResultDisplayMap,
+  buildSequenceReviewFilterTags,
   formatSequenceBatchResultText,
   canGenerateNextSequenceDraft,
   canApproveSequenceDraftInBatch,
@@ -218,6 +219,21 @@ describe('email sequence review shared helpers', () => {
     );
     assert.equal(createDefaultSequenceFilterModel().todoType, null);
     assert.equal(createDefaultSequenceFilterModel().messageStatus, null);
+  });
+
+  it('builds user-facing filter tags for workbench route context', () => {
+    const filterModel = createDefaultSequenceFilterModel();
+    filterModel.keyword = ' ABC ';
+    filterModel.todoType = 'draft_review_pending';
+    filterModel.messageStatus = 'sent';
+    filterModel.dateScope = 'today';
+
+    assert.deepEqual(buildSequenceReviewFilterTags(filterModel), [
+      { key: 'keyword', label: '关键词：ABC' },
+      { key: 'todoType', label: '待办：草稿待审' },
+      { key: 'messageStatus', label: '邮件：已发送' },
+      { key: 'dateScope', label: '时间：今天' }
+    ]);
   });
 
   it('builds draft operation payload with the selected message id', () => {

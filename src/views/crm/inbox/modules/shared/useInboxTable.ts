@@ -7,10 +7,16 @@ import {
   fetchCrmInboxThreads,
   fetchCrmMailboxes,
   polishCrmInboxReplyDraft,
+  replyCrmInboxThread,
   saveCrmInboxReplyDraft,
   updateCrmInboxThreadStatus
 } from '@/service/api';
-import { buildInboxPendingCountParams, buildInboxThreadSearchParams, createDefaultInboxFilterModel } from '../shared';
+import {
+  buildInboxPendingCountParams,
+  buildInboxReplySubmitPayload,
+  buildInboxThreadSearchParams,
+  createDefaultInboxFilterModel
+} from '../shared';
 
 /** Manage CRM inbox thread list, stats, mailbox filters and drawer operations. */
 export function useInboxTable() {
@@ -27,6 +33,7 @@ export function useInboxTable() {
   const replyBody = shallowRef('');
   const draftPolishing = shallowRef(false);
   const draftSaving = shallowRef(false);
+  const replySending = shallowRef(false);
   const statusSubmitting = shallowRef(false);
   const statusOperating = shallowRef<Api.Crm.InboxThreadStatus | null>(null);
   const unsubscribeConfirming = shallowRef(false);
@@ -309,6 +316,43 @@ export function useInboxTable() {
     }
   }
 
+  /** Send the current reply body through the bound mailbox, then refresh detail and list. */
+  async function handleSendReply() {
+    const threadId = selectedThreadId.value;
+
+    if (!threadId || replySending.value) {
+      return;
+    }
+
+    const replyPayloadResult = buildInboxReplySubmitPayload({
+      canOperate: Boolean(currentDetail.value?.canOperate),
+      topic: replyTopic.value,
+      bodyText: replyBody.value
+    });
+
+    if (!replyPayloadResult.ok) {
+      message.warning(replyPayloadResult.message);
+      return;
+    }
+
+    replySending.value = true;
+    try {
+      const { data, error } = await replyCrmInboxThread(threadId, replyPayloadResult.payload);
+
+      if (error || selectedThreadId.value !== threadId) {
+        return;
+      }
+
+      message.success('回复已发送');
+      currentDetail.value = data;
+      syncReplyDraftFromDetail(data);
+      // 发送会改变线程消息、状态和列表统计，两个视图都重新拉取。
+      await Promise.all([loadThreadDetail(threadId), loadThreads()]);
+    } finally {
+      replySending.value = false;
+    }
+  }
+
   /** Confirm a weak unsubscribe signal before applying blacklist side effects. */
   async function handleConfirmUnsubscribe(messageId: string) {
     const threadId = selectedThreadId.value;
@@ -375,6 +419,7 @@ export function useInboxTable() {
     handleConfirmUnsubscribe,
     handleReset,
     handleSaveReplyDraft,
+    handleSendReply,
     handleSearch,
     handleUpdateStatus,
     loadThreadDetail,
@@ -387,6 +432,7 @@ export function useInboxTable() {
     pendingTotal,
     records,
     replyBody,
+    replySending,
     replyTopic,
     statusOperating,
     statusSubmitting,

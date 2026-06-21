@@ -1,15 +1,30 @@
 import type { Dayjs } from 'dayjs';
-import { summarizeMailboxSyncHealth } from './mailbox-settings';
+import { getMailboxWatchStatus, summarizeMailboxSyncHealth } from './mailbox-settings';
 
-export type CrmSettingsOverviewKey = 'mailbox' | 'template' | 'sendRule' | 'attention';
+export type CrmSettingsOverviewKey = 'mailboxConnection' | 'writingProfile' | 'sendPace' | 'syncHealth';
 
 export interface CrmSettingsOverviewItem {
   key: CrmSettingsOverviewKey;
   label: string;
+  statusLabel: string;
   value: string;
   description: string;
   tagType: NaiveUI.ThemeColor;
 }
+
+/** Format the sync-health checklist hint from concrete attention items. */
+function formatAttentionDescription(parts: string[]) {
+  return parts.length > 0 ? `${parts.join('，')}；会影响回信入库和停发闭环` : 'Gmail 授权、watch 和 History 同步均正常';
+}
+
+/** Count active full-sync mailboxes whose Gmail watch cannot support the reply loop. */
+function countActiveWatchIssues(records: Api.Crm.MailboxRecord[], now?: Dayjs) {
+  return records.filter(
+    record =>
+      record.status === 'active' && record.syncMode === 'full_sync' && getMailboxWatchStatus(record.watchExpiration, now) !== 'normal'
+  ).length;
+}
+
 /** Build the user-facing overview cards for the CRM settings entry page. */
 export function buildCrmSettingsOverview(options: {
   mailboxes: Api.Crm.MailboxRecord[];
@@ -20,37 +35,52 @@ export function buildCrmSettingsOverview(options: {
   const activeMailboxCount = options.mailboxes.filter(record => record.status === 'active').length;
   const mailboxTotal = Math.max(options.mailboxTotal, options.mailboxes.length);
   const health = summarizeMailboxSyncHealth(options.mailboxes, options.now);
-  const attentionCount = health.authExpired + health.syncIssues;
   const templateStepCount = options.templateDefaults?.templateGroup.steps.length ?? 0;
+  const activeWatchIssues = countActiveWatchIssues(options.mailboxes, options.now);
+  const syncAttentionParts = [
+    health.authExpired > 0 ? `${health.authExpired} 个 Gmail 授权过期` : '',
+    activeWatchIssues > 0 ? `${activeWatchIssues} 个 Gmail watch 异常` : '',
+    health.syncIssues > 0 ? `${health.syncIssues} 个同步异常` : ''
+  ].filter(Boolean);
+  const syncAttentionCount = health.authExpired + activeWatchIssues + health.syncIssues;
 
   return [
     {
-      key: 'mailbox',
-      label: '可发送邮箱',
-      value: `${activeMailboxCount} / ${mailboxTotal}`,
-      description: '当前列表中的启用邮箱 / 当前筛选总数',
+      key: 'mailboxConnection',
+      label: '邮箱连接',
+      statusLabel: activeMailboxCount > 0 ? '已连接' : '缺邮箱',
+      value: activeMailboxCount > 0 ? `${activeMailboxCount} / ${mailboxTotal} 可用` : '未连接',
+      description: '缺少可用 Gmail 授权时，开发信无法进入发送队列',
       tagType: activeMailboxCount > 0 ? 'success' : 'warning'
     },
     {
-      key: 'template',
-      label: '默认模板',
+      key: 'writingProfile',
+      label: '写信资料',
+      statusLabel: options.templateDefaults ? '已配置' : '缺模板',
       value: options.templateDefaults?.templateGroup.name ?? '未配置',
-      description: options.templateDefaults ? '新建开发信会优先使用该模板' : '需要先配置默认邮件模板',
+      description: options.templateDefaults
+        ? '默认模板会给新建开发信提供首封和跟进内容'
+        : '缺少默认模板时，新建开发信没有可用写信资料',
       tagType: options.templateDefaults ? 'success' : 'warning'
     },
     {
-      key: 'sendRule',
-      label: '发送序列',
+      key: 'sendPace',
+      label: '发送节奏',
+      statusLabel: templateStepCount > 0 ? '已配置' : '缺节奏',
       value: templateStepCount > 0 ? `${templateStepCount} 步序列` : '未配置',
-      description: '首封和后续跟进信的默认节奏',
-      tagType: templateStepCount > 0 ? 'info' : 'warning'
+      description:
+        templateStepCount > 0
+          ? `当前默认模板包含 ${templateStepCount} 封，按配置节奏推进跟进`
+          : '缺少发送节奏时，首封后的跟进链路无法自动推进',
+      tagType: templateStepCount > 0 ? 'success' : 'warning'
     },
     {
-      key: 'attention',
-      label: '需要处理',
-      value: `${attentionCount} 项`,
-      description: '授权过期和同步异常会影响发信闭环',
-      tagType: attentionCount > 0 ? 'warning' : 'success'
+      key: 'syncHealth',
+      label: '同步健康',
+      statusLabel: syncAttentionCount > 0 ? '待处理' : '正常',
+      value: syncAttentionCount > 0 ? `${syncAttentionCount} 项待处理` : '正常',
+      description: formatAttentionDescription(syncAttentionParts),
+      tagType: syncAttentionCount > 0 ? 'warning' : 'success'
     }
   ];
 }

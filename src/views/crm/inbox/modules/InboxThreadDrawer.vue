@@ -20,6 +20,7 @@ const props = defineProps<{
   draftSaving?: boolean;
   loading?: boolean;
   replyBody: string;
+  replySending?: boolean;
   replyTopic: string;
   show: boolean;
   statusOperating?: Api.Crm.InboxThreadStatus | null;
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   reload: [];
   polishReplyDraft: [];
   saveReplyDraft: [];
+  sendReply: [];
   submitStatus: [status: Api.Crm.InboxThreadStatus];
   'update:replyBody': [body: string];
   'update:replyTopic': [topic: string];
@@ -63,7 +65,9 @@ const replyBodyModel = computed({
   set: value => emit('update:replyBody', value)
 });
 const polishDisabled = computed(() =>
-  Boolean(!canEditDraft.value || !props.replyTopic.trim() || props.draftPolishing || props.draftSaving)
+  Boolean(
+    !canEditDraft.value || !props.replyTopic.trim() || props.draftPolishing || props.draftSaving || props.replySending
+  )
 );
 const saveDisabled = computed(() =>
   Boolean(
@@ -71,8 +75,12 @@ const saveDisabled = computed(() =>
     !props.replyTopic.trim() ||
     !props.replyBody.trim() ||
     props.draftPolishing ||
-    props.draftSaving
+    props.draftSaving ||
+    props.replySending
   )
+);
+const sendDisabled = computed(() =>
+  Boolean(!canEditDraft.value || !props.replyTopic.trim() || !props.replyBody.trim() || props.loading || props.replySending)
 );
 const statusActions = [
   { label: '标记待处理', value: 'pending' },
@@ -187,7 +195,7 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
                 :autosize="{ minRows: 2, maxRows: 5 }"
                 :maxlength="2000"
                 show-count
-                :disabled="!canEditDraft || draftPolishing || draftSaving"
+                :disabled="!canEditDraft || draftPolishing || draftSaving || replySending"
                 placeholder="填写回复主题、要点或希望表达的信息，AI 会润色成回复草稿"
               />
               <NInput
@@ -196,7 +204,7 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
                 :autosize="{ minRows: 5, maxRows: 10 }"
                 :maxlength="10000"
                 show-count
-                :disabled="!canEditDraft || draftPolishing || draftSaving"
+                :disabled="!canEditDraft || draftPolishing || draftSaving || replySending"
                 placeholder="AI 润色后的回复草稿会显示在这里，也可以人工修改后保存"
               />
 
@@ -231,13 +239,12 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
               @positive-click="emit('polishReplyDraft')"
             >
               <template #trigger>
-                <NButton type="primary" :disabled="polishDisabled" :loading="draftPolishing">AI 润色回复</NButton>
+                <NButton :disabled="polishDisabled" :loading="draftPolishing">AI 润色回复</NButton>
               </template>
               当前正文草稿会被 AI 润色结果覆盖，是否继续？
             </NPopconfirm>
             <NButton
               v-else-if="canEditDraft"
-              type="primary"
               :disabled="polishDisabled"
               :loading="draftPolishing"
               @click="emit('polishReplyDraft')"
@@ -253,6 +260,15 @@ function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
               @click="emit('saveReplyDraft')"
             >
               保存草稿
+            </NButton>
+            <NButton
+              v-if="canEditDraft"
+              type="primary"
+              :disabled="sendDisabled"
+              :loading="replySending"
+              @click="emit('sendReply')"
+            >
+              发送回复
             </NButton>
             <NButton
               v-for="item in statusActions"

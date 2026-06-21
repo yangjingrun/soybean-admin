@@ -7,10 +7,10 @@ defineProps<{
 }>();
 
 const iconMap: Record<CrmSettingsOverviewKey, string> = {
-  attention: 'material-symbols:warning-outline-rounded',
-  mailbox: 'material-symbols:alternate-email-rounded',
-  sendRule: 'material-symbols:send-outline-rounded',
-  template: 'material-symbols:contract-edit-outline-rounded'
+  mailboxConnection: 'material-symbols:alternate-email-rounded',
+  sendPace: 'material-symbols:send-outline-rounded',
+  syncHealth: 'material-symbols:sync-problem-rounded',
+  writingProfile: 'material-symbols:contract-edit-outline-rounded'
 };
 </script>
 
@@ -20,10 +20,13 @@ const iconMap: Record<CrmSettingsOverviewKey, string> = {
       <NGi v-for="item in items" :key="item.key">
         <NCard :bordered="false" size="small" class="card-wrapper overview-card">
           <div class="overview-card-header">
-            <div class="overview-icon">
-              <SvgIcon :icon="iconMap[item.key]" />
+            <div class="overview-title">
+              <div class="overview-icon">
+                <SvgIcon :icon="iconMap[item.key]" />
+              </div>
+              <NText strong class="overview-label">{{ item.label }}</NText>
             </div>
-            <NTag :bordered="false" size="small" :type="item.tagType">{{ item.label }}</NTag>
+            <NTag :bordered="false" size="small" :type="item.tagType">{{ item.statusLabel }}</NTag>
           </div>
 
           <div class="overview-value">{{ item.value }}</div>
@@ -36,7 +39,7 @@ const iconMap: Record<CrmSettingsOverviewKey, string> = {
 
 <style scoped>
 .overview-card {
-  min-height: 132px;
+  min-height: 128px;
 }
 
 .overview-card-header {
@@ -46,22 +49,36 @@ const iconMap: Record<CrmSettingsOverviewKey, string> = {
   gap: 12px;
 }
 
+.overview-title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .overview-icon {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   color: var(--n-primary-color);
   background: color-mix(in srgb, var(--n-primary-color) 10%, transparent);
-  font-size: 18px;
+  font-size: 16px;
+}
+
+.overview-label {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.3;
 }
 
 .overview-value {
-  margin-top: 18px;
+  margin-top: 16px;
   color: var(--n-text-color);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
 }

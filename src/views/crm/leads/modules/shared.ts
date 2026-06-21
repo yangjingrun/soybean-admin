@@ -51,6 +51,108 @@ export const leadStatusTagTypeMap: Record<Api.Crm.CrmAccountStatus, NaiveUI.Them
   archived: 'default'
 };
 
+export interface LeadQueueStat {
+  key: 'matched' | 'pending' | 'developable' | 'active';
+  label: string;
+  value: number;
+}
+
+export interface LeadNextAction {
+  label: string;
+  description: string;
+  type: NaiveUI.ThemeColor;
+}
+
+const leadPendingStatuses = new Set<Api.Crm.CrmAccountStatus>([
+  'candidate',
+  'missing_contact',
+  'email_verification_pending',
+  'manual_review_pending',
+  'replied_pending'
+]);
+
+const leadDevelopableStatuses = new Set<Api.Crm.CrmAccountStatus>(['ready']);
+
+const leadActiveStatuses = new Set<Api.Crm.CrmAccountStatus>([
+  'sequence_running',
+  'followed_up',
+  'opportunity',
+  'customer'
+]);
+
+const leadNextActionMap: Record<Api.Crm.CrmAccountStatus, LeadNextAction> = {
+  candidate: {
+    label: '人工复核',
+    description: '确认公司信息和开发优先级',
+    type: 'warning'
+  },
+  missing_contact: {
+    label: '缺联系人',
+    description: '补齐联系人或重新获取线索',
+    type: 'warning'
+  },
+  email_verification_pending: {
+    label: '验证邮箱',
+    description: '先确认邮箱可达性',
+    type: 'warning'
+  },
+  manual_review_pending: {
+    label: '人工复核',
+    description: '处理复核结论后再推进',
+    type: 'warning'
+  },
+  ready: {
+    label: '创建开发信',
+    description: '进入邮件序列审核',
+    type: 'success'
+  },
+  sequence_running: {
+    label: '查看序列',
+    description: '跟踪当前开发节奏',
+    type: 'primary'
+  },
+  replied_pending: {
+    label: '处理回信',
+    description: '优先进入收件箱跟进',
+    type: 'info'
+  },
+  followed_up: {
+    label: '继续跟进',
+    description: '按沟通结果推进下一步',
+    type: 'success'
+  },
+  opportunity: {
+    label: '维护商机',
+    description: '推进需求和成交机会',
+    type: 'success'
+  },
+  customer: {
+    label: '维护客户',
+    description: '沉淀客户关系和后续机会',
+    type: 'success'
+  },
+  invalid: {
+    label: '归档',
+    description: '从开发队列移出',
+    type: 'error'
+  },
+  paused: {
+    label: '恢复跟进',
+    description: '确认原因后重新推进',
+    type: 'default'
+  },
+  blocked: {
+    label: '归档',
+    description: '保留记录并停止开发',
+    type: 'error'
+  },
+  archived: {
+    label: '查看归档',
+    description: '需要时恢复到队列',
+    type: 'default'
+  }
+};
+
 export const leadEmailStatusLabelMap: Record<Api.Crm.CrmEmailStatus, string> = {
   unchecked: '未检查',
   valid: '有效',
@@ -189,6 +291,37 @@ export function buildLeadSearchParams(options: {
   }
 
   return params;
+}
+
+/** Build queue-oriented stats from the currently loaded leads and backend matched total. */
+export function buildLeadQueueStats(records: Api.Crm.LeadRecord[], total: number): LeadQueueStat[] {
+  return [
+    {
+      key: 'matched',
+      label: '匹配线索',
+      value: total
+    },
+    {
+      key: 'pending',
+      label: '待处理',
+      value: records.filter(record => leadPendingStatuses.has(record.status)).length
+    },
+    {
+      key: 'developable',
+      label: '可开发',
+      value: records.filter(record => leadDevelopableStatuses.has(record.status)).length
+    },
+    {
+      key: 'active',
+      label: '跟进中',
+      value: records.filter(record => leadActiveStatuses.has(record.status)).length
+    }
+  ];
+}
+
+/** Describe the next human action for one lead status. */
+export function getLeadNextAction(status: Api.Crm.CrmAccountStatus) {
+  return leadNextActionMap[status];
 }
 
 /** Format backend ISO datetime for the lead table. */
