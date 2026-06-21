@@ -67,7 +67,9 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
       minWidth: 150,
       render: row => (
         <div class="user-identity">
-          <NText strong>{row.userName}</NText>
+          <button class="user-name-copy" type="button" title="点击复制用户名" onClick={() => handleCopyUserName(row.userName)}>
+            <NText strong>{row.userName}</NText>
+          </button>
           <NText depth={3}>{`ID: ${row.id}`}</NText>
         </div>
       )
@@ -308,6 +310,12 @@ function showTemporaryPassword(result: Api.SystemUser.UserWithTemporaryPassword)
 function clearTemporaryPassword() {
   temporaryPasswordInfo.value = null;
 }
+
+/** Copy the login user name from the user list. */
+async function handleCopyUserName(userName: string) {
+  await navigator.clipboard.writeText(userName);
+  window.$message?.success('用户名已复制');
+}
 </script>
 
 <template>
@@ -358,6 +366,18 @@ function clearTemporaryPassword() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.user-name-copy {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.user-name-copy:hover :deep(.n-text) {
+  color: var(--primary-color);
 }
 
 .role-tags {
