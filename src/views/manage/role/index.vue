@@ -24,10 +24,11 @@ const operateType = shallowRef<OperateType>('add');
 const draftPermissions = shallowRef<Api.SystemRole.PermissionCode[]>([]);
 const loading = shallowRef(false);
 const submitting = shallowRef(false);
-const savingPermissions = shallowRef(false);
+const savingRoleId = shallowRef<string | null>(null);
 let requestId = 0;
 
 const selectedRole = computed(() => records.value.find(role => role.id === selectedRoleId.value) || null);
+const savingPermissions = computed(() => Boolean(savingRoleId.value));
 
 const pagination = reactive<PaginationProps>({
   page: 1,
@@ -110,6 +111,7 @@ async function handleSubmit(payload: Api.SystemRole.RoleCreatePayload | Api.Syst
       }
 
       window.$message?.success('角色创建成功');
+      pagination.page = 1;
       selectedRoleId.value = data.id;
     } else if (editingRole.value) {
       const { data, error } = await updateSystemRole(editingRole.value.id, payload as Api.SystemRole.RoleUpdatePayload);
@@ -130,7 +132,7 @@ async function handleSubmit(payload: Api.SystemRole.RoleCreatePayload | Api.Syst
 }
 
 async function handleSavePermissions(role: Api.SystemRole.RoleListItem, permissions: Api.SystemRole.PermissionCode[]) {
-  savingPermissions.value = true;
+  savingRoleId.value = role.id;
 
   try {
     const { data, error } = await updateSystemRolePermissions(role.id, { permissions });
@@ -140,10 +142,17 @@ async function handleSavePermissions(role: Api.SystemRole.RoleListItem, permissi
     }
 
     records.value = records.value.map(item => (item.id === data.id ? data : item));
-    draftPermissions.value = [...data.permissions];
+
+    // The save response may arrive after the operator has selected another role.
+    if (selectedRoleId.value === data.id) {
+      draftPermissions.value = [...data.permissions];
+    }
+
     window.$message?.success('角色权限已保存');
   } finally {
-    savingPermissions.value = false;
+    if (savingRoleId.value === role.id) {
+      savingRoleId.value = null;
+    }
   }
 }
 
