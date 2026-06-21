@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CRM_DASHBOARD_REPOSITORY } from '../crm.tokens';
 import type { CrmUserContext } from '../crm.types';
-import { createCrmReadScope } from '../shared/crm-scope';
+import { createCrmOwnerFilter } from '../shared/crm-scope';
 import type { CrmDashboardRepository } from './crm-dashboard.repository';
 
 @Injectable()
@@ -12,7 +12,7 @@ export class CrmDashboardService {
   listStrategyStats(context: CrmUserContext) {
     return this.dashboardRepository.listStrategyStats({
       organizationId: context.organizationId,
-      ...toOwnerScope(context)
+      ...createCrmOwnerFilter(context)
     });
   }
 
@@ -24,9 +24,4 @@ export class CrmDashboardService {
       now
     });
   }
-}
-
-function toOwnerScope(context: CrmUserContext) {
-  const scope = createCrmReadScope(context);
-  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
 }

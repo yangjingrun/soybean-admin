@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CRM_SEQUENCE_CONTROL_REPOSITORY } from '../crm.tokens';
 import type { CrmContactRecord, CrmMessageStatus, CrmUserContext } from '../crm.types';
-import { createCrmReadScope } from '../shared/crm-scope';
+import { createCrmOwnerFilter } from '../shared/crm-scope';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import {
   toAccountView,
@@ -137,7 +137,7 @@ export class CrmSequenceControlService {
     const item = await this.sequenceRepository.getSequenceReviewItem({
       id,
       organizationId: context.organizationId,
-      ...toOwnerScope(context)
+      ...createCrmOwnerFilter(context)
     });
 
     if (!item) {
@@ -157,9 +157,4 @@ export class CrmSequenceControlService {
       throw new BadRequestException('该邮箱已在组织黑名单中，不能继续开发');
     }
   }
-}
-
-function toOwnerScope(context: CrmUserContext) {
-  const scope = createCrmReadScope(context);
-  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
 }

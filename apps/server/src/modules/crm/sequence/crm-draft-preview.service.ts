@@ -15,7 +15,7 @@ import type {
   CrmSequenceReviewRecord,
   CrmUserContext
 } from '../crm.types';
-import { createCrmReadScope } from '../shared/crm-scope';
+import { createCrmOwnerFilter } from '../shared/crm-scope';
 import type {
   CrmDraftPreviewAccountRepository,
   CrmDraftPreviewSequenceRepository,
@@ -107,7 +107,7 @@ export class CrmDraftPreviewService {
     const detail = await this.accountRepository.getAccountDetail({
       id: accountId,
       organizationId: context.organizationId,
-      ...toOwnerScope(context)
+      ...createCrmOwnerFilter(context)
     });
     const contact = detail?.contacts.find(item => item.id === contactId) ?? null;
 
@@ -270,11 +270,6 @@ export class CrmDraftPreviewService {
       aiDraft: draft.metadata
     };
   }
-}
-
-function toOwnerScope(context: CrmUserContext) {
-  const scope = createCrmReadScope(context);
-  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
 }
 
 function toAiWritingStepIndex(stepIndex: number): CrmAiWritingStepIndex {

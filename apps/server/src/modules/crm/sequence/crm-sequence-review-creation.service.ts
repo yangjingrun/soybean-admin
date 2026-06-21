@@ -20,7 +20,7 @@ import type {
   CrmUserContext
 } from '../crm.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
-import { createCrmReadScope } from '../shared/crm-scope';
+import { createCrmOwnerFilter } from '../shared/crm-scope';
 import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import type { CrmAccountRepository } from '../accounts/crm-account.repository';
 import type { CrmMailboxRepository } from '../mailbox/crm-mailbox.repository';
@@ -188,7 +188,7 @@ export class CrmSequenceReviewCreationService {
     const detail = await this.accountRepository.getAccountDetail({
       id: accountId,
       organizationId: context.organizationId,
-      ...toOwnerScope(context)
+      ...createCrmOwnerFilter(context)
     });
     const contact = detail?.contacts.find(item => item.id === contactId) ?? null;
 
@@ -345,11 +345,6 @@ export class CrmSequenceReviewCreationService {
       throw error;
     }
   }
-}
-
-function toOwnerScope(context: CrmUserContext) {
-  const scope = createCrmReadScope(context);
-  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
 }
 
 function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {

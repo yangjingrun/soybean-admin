@@ -6,6 +6,16 @@ export interface EmailBodyVisibilityConfig {
   allowAdminViewMemberEmailBody?: boolean | null;
 }
 
+export interface OrganizationReadScope {
+  organizationId: string;
+  ownerUserId?: string;
+}
+
+export interface OrganizationOwnerWriteScope {
+  organizationId: string;
+  ownerUserId: string;
+}
+
 export function isSuper(context: Pick<RequestUserContext, 'roles'>) {
   return context.roles.includes('R_SUPER');
 }
@@ -56,6 +66,34 @@ export function requirePermission(
   if (!hasPermission(context, permission)) {
     throw new ForbiddenException(message);
   }
+}
+
+/** Create org-wide read scope for admins and owner scope for ordinary members. */
+export function createOrganizationReadScope(
+  context: Pick<RequestUserContext, 'organizationId' | 'organizationRole' | 'roles' | 'userId'>
+): OrganizationReadScope {
+  return isOrganizationAdmin(context)
+    ? { organizationId: context.organizationId }
+    : { organizationId: context.organizationId, ownerUserId: context.userId };
+}
+
+/** Create an optional owner filter for repository calls that already receive organizationId. */
+export function createOrganizationOwnerFilter(
+  context: Pick<RequestUserContext, 'organizationId' | 'organizationRole' | 'roles' | 'userId'>
+): { ownerUserId?: string } {
+  const scope = createOrganizationReadScope(context);
+
+  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
+}
+
+/** Create owner-only scope for writes that must be performed by the current member. */
+export function createOrganizationOwnerWriteScope(
+  context: Pick<RequestUserContext, 'organizationId' | 'userId'>
+): OrganizationOwnerWriteScope {
+  return {
+    organizationId: context.organizationId,
+    ownerUserId: context.userId
+  };
 }
 
 /** Decide whether the current user can inspect an email body owned by another CRM member. */

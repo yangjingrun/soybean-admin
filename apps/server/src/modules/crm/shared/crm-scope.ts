@@ -1,5 +1,10 @@
 import { ForbiddenException } from '@nestjs/common';
-import { isOrganizationAdmin } from '../../../shared/permission-policy';
+import {
+  createOrganizationOwnerFilter,
+  createOrganizationOwnerWriteScope,
+  createOrganizationReadScope,
+  isOrganizationAdmin
+} from '../../../shared/permission-policy';
 import type { CrmUserContext } from './crm-context';
 
 export interface CrmReadScope {
@@ -18,20 +23,17 @@ export interface CrmOrganizationAdminScope {
 
 /** Create org-wide read scope for admins and owner scope for ordinary members. */
 export function createCrmReadScope(context: CrmUserContext): CrmReadScope {
-  return isOrganizationAdmin(context)
-    ? { organizationId: context.organizationId }
-    : { organizationId: context.organizationId, ownerUserId: context.userId };
+  return createOrganizationReadScope(context);
 }
 
 /** Create an optional owner filter for repository methods that already receive organizationId. */
 export function createCrmOwnerFilter(context: CrmUserContext): { ownerUserId?: string } {
-  const scope = createCrmReadScope(context);
-  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
+  return createOrganizationOwnerFilter(context);
 }
 
 /** Create owner-only scope for private CRM writes. */
 export function createCrmOwnerWriteScope(context: CrmUserContext): CrmOwnerWriteScope {
-  return { organizationId: context.organizationId, ownerUserId: context.userId };
+  return createOrganizationOwnerWriteScope(context);
 }
 
 /** Require CRM organization configuration privileges. */

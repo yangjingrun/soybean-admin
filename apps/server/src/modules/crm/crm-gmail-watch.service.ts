@@ -1,11 +1,11 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { isOrganizationAdmin } from '../../shared/permission-policy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CRM_GMAIL_HISTORY_SYNC_QUEUE, CRM_GMAIL_WATCH_GATEWAY, CRM_GMAIL_WATCH_REPOSITORY } from './crm.tokens';
 import type { CrmGmailWatchRepository } from './crm-gmail-watch.repository';
 import { CrmGmailAuthorizationExpiredError, type CrmGmailWatchGateway } from './crm-gmail-watch.gateway';
+import { createCrmOwnerFilter } from './shared/crm-scope';
 import { toMailboxView } from './shared/crm-view-mappers';
 import type { CrmGmailHistorySyncQueuePort, CrmMailboxRecord, CrmUserContext } from './crm.types';
 
@@ -30,7 +30,7 @@ export class CrmGmailWatchService {
     const mailbox = await this.store.findMailboxById({
       id,
       organizationId: context.organizationId,
-      ...toOwnerScope(context)
+      ...createCrmOwnerFilter(context)
     });
 
     if (!mailbox) {
@@ -137,7 +137,7 @@ export class CrmGmailWatchService {
     const mailbox = await this.store.findMailboxById({
       id,
       organizationId: context.organizationId,
-      ...toOwnerScope(context)
+      ...createCrmOwnerFilter(context)
     });
 
     if (!mailbox) {
@@ -255,10 +255,6 @@ export class CrmGmailWatchService {
       }
     });
   }
-}
-
-function toOwnerScope(context: CrmUserContext) {
-  return isOrganizationAdmin(context) ? {} : { ownerUserId: context.userId };
 }
 
 function isHistoryIdAtOrBefore(historyId: string, lastHistoryId: string) {

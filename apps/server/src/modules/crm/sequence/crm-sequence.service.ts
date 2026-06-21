@@ -11,7 +11,7 @@ import type {
   CrmUserContext
 } from '../crm.types';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
-import { createCrmReadScope } from '../shared/crm-scope';
+import { createCrmOwnerFilter } from '../shared/crm-scope';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
 import type { CrmSequenceRepository } from './crm-sequence.repository';
 import {
@@ -59,7 +59,7 @@ export class CrmSequenceService {
     const keyword = normalizeNullableString(query.keyword);
     const result = await this.sequenceRepository.listSequenceReviewItems({
       organizationId: context.organizationId,
-      ...toOwnerScope(context),
+      ...createCrmOwnerFilter(context),
       ...(keyword ? { keyword } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.todoType ? { todoType: query.todoType } : {}),
@@ -100,7 +100,7 @@ export class CrmSequenceService {
     const item = await this.sequenceRepository.getSequenceReviewItem({
       id,
       organizationId: context.organizationId,
-      ...toOwnerScope(context)
+      ...createCrmOwnerFilter(context)
     });
 
     if (!item) {
@@ -118,9 +118,4 @@ export class CrmSequenceService {
     const organizationProfiles = await this.settingsRepository.listActivePersonaProfiles(context.organizationId);
     return buildPersonaMatch(organizationProfiles, account, contact);
   }
-}
-
-function toOwnerScope(context: CrmUserContext) {
-  const scope = createCrmReadScope(context);
-  return scope.ownerUserId ? { ownerUserId: scope.ownerUserId } : {};
 }
