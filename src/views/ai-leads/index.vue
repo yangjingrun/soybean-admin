@@ -229,7 +229,7 @@ watch(
             >
               开始搜索采集
             </NButton>
-            <NButton size="small" :disabled="isClearDisabled" @click="handleClear">清空</NButton>
+            <NButton :disabled="isClearDisabled" @click="handleClear">清空</NButton>
             <NButton
               v-for="item in taskActionButtons"
               :key="item.key"
