@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { resolvePromptValidationSection, summarizePromptValidation } from './shared';
+import { useMessage } from 'naive-ui';
+import { formatLatestPromptTestRunForCopy, resolvePromptValidationSection, summarizePromptValidation } from './shared';
 import type { PromptSectionKey } from './shared';
 
 const props = defineProps<{
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 
 const testInput = defineModel<string>('testInput', { required: true });
 const changeNote = defineModel<string>('changeNote', { required: true });
+const message = useMessage();
 const statusLabelMap: Record<Api.AiGateway.AiPromptValidationStatus, string> = {
   pass: '通过',
   warn: '预警',
@@ -45,6 +47,7 @@ const validationItems = computed(() =>
   })) ?? []
 );
 const latestOutput = computed(() => props.latestTestRun?.outputText || '');
+const latestTestRunCopyText = computed(() => formatLatestPromptTestRunForCopy(props.latestTestRun));
 const latestValidationIssues = computed(() =>
   props.latestTestRun?.validationResult?.items
     .filter(item => item.status !== 'pass')
@@ -68,6 +71,16 @@ const latestFailureGuide = computed(() => {
 
   return '最近一次测试没有通过，请先处理下面的问题。';
 });
+
+/** Copies the latest visible test result block for quick reuse. */
+async function copyLatestTestRun() {
+  if (!latestTestRunCopyText.value) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(latestTestRunCopyText.value);
+  message.success('最近测试结果已复制');
+}
 </script>
 
 <template>
@@ -150,9 +163,12 @@ const latestFailureGuide = computed(() => {
         <div v-if="latestTestRun" class="publish-panel__test-result">
           <NSpace align="center" justify="space-between">
             <NText strong>最近测试</NText>
-            <NTag size="small" :type="latestTestRun.success ? 'success' : 'error'" :bordered="false">
-              {{ latestTestRun.success ? '通过' : '失败' }}
-            </NTag>
+            <NSpace align="center" :size="8">
+              <NButton size="tiny" tertiary :disabled="!latestTestRunCopyText" @click="copyLatestTestRun">复制</NButton>
+              <NTag size="small" :type="latestTestRun.success ? 'success' : 'error'" :bordered="false">
+                {{ latestTestRun.success ? '通过' : '失败' }}
+              </NTag>
+            </NSpace>
           </NSpace>
           <NAlert v-if="latestFailureGuide" type="error" :bordered="false">{{ latestFailureGuide }}</NAlert>
           <NText v-if="latestTestRun.errorMessage" type="error">{{ latestTestRun.errorMessage }}</NText>

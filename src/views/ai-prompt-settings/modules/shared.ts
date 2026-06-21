@@ -193,3 +193,33 @@ export function resolvePromptValidationSection(
     line: 0
   };
 }
+
+/** Formats the latest prompt test result into one clipboard-friendly block. */
+export function formatLatestPromptTestRunForCopy(run: Api.AiGateway.AiPromptTestRunRecord | null): string {
+  if (!run) {
+    return '';
+  }
+
+  const lines: string[] = [`测试结果：${run.success ? '通过' : '失败'}`];
+
+  if (run.errorMessage) {
+    lines.push(`错误信息：${run.errorMessage}`);
+  }
+
+  const issues = run.validationResult?.items.filter(item => item.status !== 'pass') ?? [];
+
+  if (issues.length > 0) {
+    lines.push('校验问题：');
+    lines.push(...issues.map(item => `- ${item.label}：${item.message}`));
+  }
+
+  if (run.outputText) {
+    if (lines.length > 0) {
+      lines.push('');
+    }
+
+    lines.push(run.outputText);
+  }
+
+  return lines.join('\n').trim();
+}

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildPromptSectionAnchors,
+  formatLatestPromptTestRunForCopy,
   resolvePromptValidationSection,
   resolvePromptLineStartOffset,
   summarizePromptValidation,
@@ -155,6 +156,28 @@ searchExecutionRules
         message: '待人工确认'
       }),
       null
+    );
+  });
+
+  it('formats latest test result for clipboard copy', () => {
+    assert.equal(
+      formatLatestPromptTestRunForCopy({
+        id: 'test-1',
+        promptKey: 'lead_keyword_optimize',
+        inputPrompt: '轴承经销商',
+        outputText: '{\n  "ok": true\n}',
+        validationResult: {
+          ok: false,
+          items: [{ key: 'top-level-fields', label: '顶层字段完整', status: 'fail', message: '缺少 buyerSegments' }]
+        },
+        success: false,
+        durationMs: 123,
+        errorMessage: '模型输出未通过提示词规则校验',
+        createdById: null,
+        createdByName: null,
+        createdAt: ''
+      }),
+      ['测试结果：失败', '错误信息：模型输出未通过提示词规则校验', '校验问题：', '- 顶层字段完整：缺少 buyerSegments', '', '{', '  "ok": true', '}'].join('\n')
     );
   });
 });
