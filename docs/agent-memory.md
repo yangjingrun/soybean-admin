@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-21 本项目 RTK 使用全量安装模板
+
+- 场景：在本项目内使用 RTK（Rust Token Killer）压缩低价值命令输出。
+- 坑点：只依赖全局 `/Users/yjr/.codex/RTK.md` 时，`rtk init --show --codex` 会显示本地 AGENTS 未配置，后续会话不一定按项目本地规则识别为已安装。
+- 正确做法：本项目已经执行 `rtk init --codex`，根目录存在 `RTK.md`，`AGENTS.md` 末尾引用 `@RTK.md`；全局也已执行 `rtk init --global --codex`。后续 RTK 规则以本地 `RTK.md` 和全局 `/Users/yjr/.codex/RTK.md` 为准。
+- 相关文件：`RTK.md`、`AGENTS.md`、`/Users/yjr/.codex/RTK.md`、`/Users/yjr/.codex/AGENTS.md`。
+- 验证方式：运行 `rtk init --show --codex`，确认 Global/Local RTK.md 和 AGENTS.md reference 都显示 `[ok]`。
+
 ### 2026-06-18 Nest Controller 调用不存在的服务方法导致页面 500
 
 - 场景：前端页面进入即提示 `Internal server error`，但页面组件本身能正常渲染空表格，例如用户管理进入后 GET `/system-users` 报 500。
