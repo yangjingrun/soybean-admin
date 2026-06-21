@@ -34,6 +34,10 @@ html {
   width: 100%;
 }
 
+.n-modal {
+  width: min(50vw, calc(100vw - 32px));
+}
+
 .app-filter-grid > .app-filter-actions-cell {
   display: flex;
   align-items: flex-start;
