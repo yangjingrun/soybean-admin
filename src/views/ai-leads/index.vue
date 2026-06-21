@@ -86,7 +86,7 @@ const isClearDisabled = computed(
 );
 
 const hasCompletedSearchTask = computed(() => currentSearchTask.value?.status === 'completed');
-const searchButtonLabel = computed(() => (hasCompletedSearchTask.value ? '继续采集更多' : '开始搜索采集'));
+const searchButtonLabel = computed(() => (hasCompletedSearchTask.value ? '继续采集更多' : '开始获客'));
 const clearButtonLabel = computed(() => (hasCompletedSearchTask.value ? '开始新任务' : '清空'));
 
 const workflowSteps = computed(() => {
@@ -346,7 +346,7 @@ const taskActionButtons = computed(
           <NResult
             status="success"
             title="搜索策略已准备好"
-            description="点击开始搜索采集，系统会直接返回候选客户。"
+            description="点击开始获客，系统会直接返回候选客户。"
             class="keyword-ready-result"
           />
         </div>
