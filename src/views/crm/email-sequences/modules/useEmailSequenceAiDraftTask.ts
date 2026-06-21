@@ -1,5 +1,6 @@
 import { onBeforeUnmount, shallowRef, watch, type ComputedRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   cancelCrmAiDraftTask,
   createCrmAiDraftTask,
@@ -122,6 +123,7 @@ export function useEmailSequenceAiDraftTask(options: UseEmailSequenceAiDraftTask
       aiDraftTaskDrawerVisible.value = true;
       options.clearSelection();
       message.success(data.task.pendingCount > 0 ? '批量 AI 草稿任务已创建' : '批量 AI 草稿任务已完成');
+      notifyCrmWorkbenchChanged();
       await options.loadSequences();
     } finally {
       aiDraftTaskCreating.value = false;
@@ -146,6 +148,7 @@ export function useEmailSequenceAiDraftTask(options: UseEmailSequenceAiDraftTask
 
       aiDraftTaskDetail.value = data;
       message.success('已重新排队可重试失败项');
+      notifyCrmWorkbenchChanged();
     } finally {
       aiDraftTaskRetrying.value = false;
     }
@@ -169,6 +172,7 @@ export function useEmailSequenceAiDraftTask(options: UseEmailSequenceAiDraftTask
 
       aiDraftTaskDetail.value = data;
       message.success('批量 AI 草稿任务已取消');
+      notifyCrmWorkbenchChanged();
       await options.loadSequences();
     } finally {
       aiDraftTaskCancelling.value = false;
@@ -194,6 +198,7 @@ export function useEmailSequenceAiDraftTask(options: UseEmailSequenceAiDraftTask
 
       aiDraftTaskDrawerVisible.value = false;
       aiDraftTaskDetail.value = null;
+      notifyCrmWorkbenchChanged();
       await options.loadSequences();
     } finally {
       aiDraftTaskReading.value = false;

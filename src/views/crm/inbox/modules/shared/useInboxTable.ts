@@ -1,6 +1,7 @@
 import { computed, onMounted, reactive, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   confirmCrmInboxMessageUnsubscribe,
   fetchCrmInboxThreadDetail,
@@ -215,6 +216,7 @@ export function useInboxTable() {
       }
 
       message.success('收件箱状态已更新');
+      notifyCrmWorkbenchChanged();
       currentDetail.value = currentDetail.value
         ? {
             ...currentDetail.value,
@@ -344,6 +346,7 @@ export function useInboxTable() {
       }
 
       message.success('回复已发送');
+      notifyCrmWorkbenchChanged();
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);
       // 发送会改变线程消息、状态和列表统计，两个视图都重新拉取。
@@ -375,6 +378,7 @@ export function useInboxTable() {
       }
 
       message.success('已确认退订并加入黑名单');
+      notifyCrmWorkbenchChanged();
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);
       await loadThreads();

@@ -1,5 +1,6 @@
 import { onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   createCrmGmailOAuthUrl,
   fetchCrmMailboxes,
@@ -135,6 +136,7 @@ export function useMailboxTable() {
       }
 
       message.success(record.status === 'active' ? '邮箱已暂停' : '邮箱已恢复');
+      notifyCrmWorkbenchChanged();
       await loadMailboxes();
     } finally {
       operatingMailboxId.value = null;
@@ -157,6 +159,7 @@ export function useMailboxTable() {
       }
 
       message.success('Gmail watch 已续订');
+      notifyCrmWorkbenchChanged();
       await loadMailboxes();
     } finally {
       operatingMailboxId.value = null;
@@ -179,6 +182,7 @@ export function useMailboxTable() {
       }
 
       message.success(formatMailboxSyncResultMessage(data.sync));
+      notifyCrmWorkbenchChanged();
       await loadMailboxes();
     } finally {
       operatingMailboxId.value = null;

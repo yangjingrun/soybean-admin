@@ -1,5 +1,6 @@
 import { computed, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   createCrmSequenceReviewItem,
   fetchCrmAccountDetail,
@@ -181,6 +182,7 @@ export function useSequenceCreateFlow(options: UseSequenceCreateFlowOptions) {
       }
 
       message.success('首封草稿已生成');
+      notifyCrmWorkbenchChanged();
       createVisible.value = false;
       await options.onCreated(data.item);
     } finally {

@@ -1,6 +1,7 @@
 import { onMounted, reactive, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDialog, useMessage } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   archiveCrmAccount,
   createCrmAccountNote,
@@ -175,6 +176,7 @@ export function useLeadTable() {
       }
 
       message.success(data.contact ? '线索和联系人已导入' : '线索已导入');
+      notifyCrmWorkbenchChanged();
       importVisible.value = false;
       pagination.current = 1;
       await loadLeads();
@@ -213,6 +215,7 @@ export function useLeadTable() {
       }
 
       message.success('邮箱验证已完成');
+      notifyCrmWorkbenchChanged();
 
       // Only refresh the drawer if the user is still viewing this contact's account.
       if (detailVisible.value && selectedLeadId.value === accountId) {
@@ -241,6 +244,7 @@ export function useLeadTable() {
       }
 
       message.success('联系人获取已完成');
+      notifyCrmWorkbenchChanged();
       await loadLeads();
 
       if (detailVisible.value && selectedLeadId.value === id) {
@@ -304,6 +308,7 @@ export function useLeadTable() {
       }
 
       message.success('状态已更新');
+      notifyCrmWorkbenchChanged();
       await loadLeads();
 
       if (detailVisible.value && selectedLeadId.value === id) {
@@ -346,6 +351,7 @@ export function useLeadTable() {
       }
 
       message.success('线索已归档');
+      notifyCrmWorkbenchChanged();
 
       if (selectedLeadId.value === record.id) {
         handleDetailVisibleUpdate(false);
@@ -369,6 +375,7 @@ export function useLeadTable() {
       }
 
       message.success('线索已恢复');
+      notifyCrmWorkbenchChanged();
       await loadLeads();
 
       if (detailVisible.value && selectedLeadId.value === record.id) {

@@ -1,5 +1,6 @@
-import { computed, onMounted, onUnmounted, shallowRef } from 'vue';
+import { computed, onActivated, onMounted, onUnmounted, shallowRef } from 'vue';
 import { useRouter } from 'vue-router';
+import { listenCrmWorkbenchRefresh } from '@/hooks/business/crm-workbench-refresh';
 import { fetchCrmWorkbenchOverview } from '@/service/api';
 import {
   buildWorkbenchMetricCards,
@@ -23,6 +24,7 @@ export function useHomeWorkbench() {
   const errorMessage = shallowRef('');
   let latestRequestId = 0;
   let pollingTimer: number | null = null;
+  let cleanupWorkbenchRefreshListener: (() => void) | null = null;
 
   const recommendation = computed(() => buildWorkbenchRecommendation(overview.value));
   const metricCards = computed(() => buildWorkbenchMetricCards(overview.value));
@@ -31,10 +33,21 @@ export function useHomeWorkbench() {
   const lastUpdatedText = computed(() => formatWorkbenchUpdatedAt(overview.value?.generatedAt));
 
   onMounted(() => {
+    cleanupWorkbenchRefreshListener = listenCrmWorkbenchRefresh(() => {
+      void refreshOverview();
+    });
     void loadOverview();
   });
 
+  onActivated(() => {
+    if (!overview.value) return;
+
+    void refreshOverview();
+  });
+
   onUnmounted(() => {
+    cleanupWorkbenchRefreshListener?.();
+    cleanupWorkbenchRefreshListener = null;
     stopPolling();
   });
 

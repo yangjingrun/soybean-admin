@@ -1,6 +1,7 @@
 import { computed, onMounted, provide, reactive, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   batchApproveCrmMessageDrafts,
   batchGenerateCrmNextSequenceDrafts,
@@ -185,6 +186,7 @@ export function useEmailSequenceTable() {
       } else {
         message.success(resultText);
       }
+      notifyCrmWorkbenchChanged();
       checkedRowKeys.value = [];
       await loadSequences();
     } finally {
@@ -217,6 +219,7 @@ export function useEmailSequenceTable() {
       } else {
         message.success(resultText);
       }
+      notifyCrmWorkbenchChanged();
       checkedRowKeys.value = [];
       await loadSequences();
     } finally {
@@ -248,6 +251,7 @@ export function useEmailSequenceTable() {
       } else {
         message.success(resultText);
       }
+      notifyCrmWorkbenchChanged();
       checkedRowKeys.value = [];
       await loadSequences();
     } finally {

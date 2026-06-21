@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   approveCrmMessageDraft,
   fetchCrmMessageDraftVersions,
@@ -245,6 +246,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
       }
 
       message.success(data.message.status === 'queued' ? '后续草稿已确认并进入发送队列' : '草稿已确认，等待启动发送');
+      notifyCrmWorkbenchChanged();
       currentItem.value = replaceReviewMessage(
         {
           ...currentItem.value,
@@ -285,6 +287,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
       }
 
       message.success(`第 ${data.message.stepIndex} 封草稿已生成`);
+      notifyCrmWorkbenchChanged();
       currentItem.value = replaceReviewMessage(
         {
           ...currentItem.value,
@@ -324,6 +327,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
       }
 
       message.success('首封开发信已进入发送队列');
+      notifyCrmWorkbenchChanged();
       currentItem.value = replaceReviewMessage(
         {
           ...currentItem.value,
@@ -377,6 +381,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
       }
 
       message.success('开发信序列已停止');
+      notifyCrmWorkbenchChanged();
       currentItem.value = data.message
         ? replaceReviewMessage(
             {
