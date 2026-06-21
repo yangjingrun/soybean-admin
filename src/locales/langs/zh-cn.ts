@@ -264,7 +264,7 @@ const local: App.I18n.Schema = {
         dashscope: '通义千问'
       },
       actions: {
-        reload: '重新加载',
+        reload: '读取已保存',
         test: '测试连接',
         save: '保存模型'
       },

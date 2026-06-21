@@ -269,7 +269,7 @@ const local: App.I18n.Schema = {
         dashscope: 'Qwen DashScope'
       },
       actions: {
-        reload: 'Reload',
+        reload: 'Load Saved',
         test: 'Test Connection',
         save: 'Save Model'
       },

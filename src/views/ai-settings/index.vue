@@ -28,9 +28,24 @@ const providerOptions = computed(() => [
   { label: t('page.aiSettings.providers.deepseek'), value: 'deepseek' },
   { label: t('page.aiSettings.providers.dashscope'), value: 'dashscope' }
 ]);
+const noAutocompleteInputProps = {
+  autocomplete: 'off'
+};
 
 interface QueueConfigForm {
   workerConcurrency: number | null;
+}
+
+interface ConfigStatus {
+  label: string;
+  type: NaiveUI.ThemeColor;
+}
+
+interface StatusOverviewItem {
+  key: string;
+  label: string;
+  status: ConfigStatus;
+  updatedAt: string;
 }
 
 const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
@@ -114,6 +129,40 @@ const formattedQueueConfigUpdatedAt = computed(() => {
     ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved');
 });
+const modelStatus = computed(() => getConnectionStatus(Boolean(modelTestResult.value), modelUpdatedAt.value));
+const serperStatus = computed(() => getConnectionStatus(Boolean(serperTestResult.value), serperUpdatedAt.value));
+const hunterStatus = computed(() => getConnectionStatus(Boolean(hunterTestResult.value), hunterUpdatedAt.value));
+const queueStatus = computed<ConfigStatus>(() =>
+  isSavedUpdatedAt(queueConfigUpdatedAt.value)
+    ? { label: '已保存', type: 'info' }
+    : { label: t('page.aiSettings.status.pending'), type: 'default' }
+);
+const statusOverviewItems = computed<StatusOverviewItem[]>(() => [
+  {
+    key: 'model',
+    label: '模型',
+    status: modelStatus.value,
+    updatedAt: formattedModelUpdatedAt.value
+  },
+  {
+    key: 'serper',
+    label: 'Serper',
+    status: serperStatus.value,
+    updatedAt: formattedSerperUpdatedAt.value
+  },
+  {
+    key: 'hunter',
+    label: 'Hunter',
+    status: hunterStatus.value,
+    updatedAt: formattedHunterUpdatedAt.value
+  },
+  {
+    key: 'queue',
+    label: '后台任务',
+    status: queueStatus.value,
+    updatedAt: formattedQueueConfigUpdatedAt.value
+  }
+]);
 
 onMounted(() => {
   void handleLoadModelConfig(false);
@@ -349,6 +398,19 @@ function isValidWorkerConcurrency(value: number | null): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10;
 }
 
+/** Maps saved and tested states to the compact tags used by the config cards. */
+function getConnectionStatus(isConnected: boolean, updatedAt: string | null): ConfigStatus {
+  if (isConnected) {
+    return { label: t('page.aiSettings.status.connected'), type: 'success' };
+  }
+
+  if (isSavedUpdatedAt(updatedAt)) {
+    return { label: t('page.aiSettings.status.savedUntested'), type: 'warning' };
+  }
+
+  return { label: t('page.aiSettings.status.pending'), type: 'default' };
+}
+
 /** Checks whether a saved timestamp should be displayed to users. */
 function isSavedUpdatedAt(value: string | null): value is string {
   return Boolean(value && dayjs(value).valueOf() > 0);
@@ -432,317 +494,511 @@ async function handleTestHunterConfig() {
 </script>
 
 <template>
-  <NSpace vertical :size="12">
-    <NCard :bordered="false" class="card-wrapper">
-      <NSpace vertical :size="14">
-        <div class="page-heading">
-          <div>
-            <h2 class="page-title">{{ $t('page.aiSettings.title') }}</h2>
-            <p class="panel-desc">{{ $t('page.aiSettings.description') }}</p>
+  <NSpace vertical :size="12" class="ai-settings-page">
+    <NCard :bordered="false" size="small" class="card-wrapper settings-overview-card">
+      <div class="settings-overview">
+        <div class="settings-overview__copy">
+          <h2 class="page-title">{{ $t('page.aiSettings.title') }}</h2>
+          <p class="panel-desc">{{ $t('page.aiSettings.description') }}</p>
+        </div>
+        <div class="status-overview">
+          <div v-for="item in statusOverviewItems" :key="item.key" class="status-overview__item">
+            <div class="status-overview__topline">
+              <span class="status-overview__label">{{ item.label }}</span>
+              <NTag size="small" :type="item.status.type" :bordered="false">{{ item.status.label }}</NTag>
+            </div>
+            <NText depth="3" class="updated-time">{{ item.updatedAt }}</NText>
           </div>
-          <NTag v-if="modelTestResult" type="success" :bordered="false">
-            {{ $t('page.aiSettings.status.connected') }}
-          </NTag>
-          <NTag v-else-if="modelUpdatedAt" type="warning" :bordered="false">
-            {{ $t('page.aiSettings.status.savedUntested') }}
-          </NTag>
-          <NTag v-else :bordered="false">{{ $t('page.aiSettings.status.pending') }}</NTag>
         </div>
-
-        <NForm :model="modelForm" label-placement="top" size="small">
-          <NFormItem :label="$t('page.aiSettings.form.title')">
-            <NInput v-model:value="modelForm.title" :placeholder="$t('page.aiSettings.placeholders.title')" />
-          </NFormItem>
-          <NGrid :x-gap="12" responsive="screen" item-responsive>
-            <NGi span="24 m:12">
-              <NFormItem :label="$t('page.aiSettings.form.provider')">
-                <NSelect v-model:value="modelForm.providerName" :options="providerOptions" />
-              </NFormItem>
-            </NGi>
-            <NGi span="24 m:12">
-              <NFormItem :label="$t('page.aiSettings.form.model')">
-                <NInput v-model:value="modelForm.model" :placeholder="$t('page.aiSettings.placeholders.model')" />
-              </NFormItem>
-            </NGi>
-          </NGrid>
-          <NFormItem :label="$t('page.aiSettings.form.apiBase')">
-            <NInput v-model:value="modelForm.apiBase" :placeholder="$t('page.aiSettings.placeholders.apiBase')" />
-          </NFormItem>
-          <NGrid :x-gap="12" responsive="screen" item-responsive>
-            <NGi span="24 m:12">
-              <NFormItem :label="$t('page.aiSettings.form.temperature')">
-                <NInputNumber v-model:value="modelForm.temperature" :min="0" :max="2" :step="0.1" />
-              </NFormItem>
-            </NGi>
-            <NGi span="24 m:12">
-              <NFormItem :label="$t('page.aiSettings.form.maxOutputTokens')">
-                <NInputNumber v-model:value="modelForm.maxOutputTokens" :min="1" :max="8000" :precision="0" clearable />
-              </NFormItem>
-            </NGi>
-          </NGrid>
-          <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-            <NInput
-              v-model:value="modelForm.apiKey"
-              type="password"
-              show-password-on="click"
-              :placeholder="$t('page.aiSettings.placeholders.apiKey')"
-            />
-            <NText v-if="modelMaskedApiKey" depth="3" class="api-key-mask">
-              {{ $t('page.aiSettings.status.savedApiKey') }}：{{ modelMaskedApiKey }}
-            </NText>
-          </NFormItem>
-        </NForm>
-
-        <NAlert v-if="modelTestResult" type="success" :bordered="false">
-          <NSpace vertical :size="4">
-            <NText strong>{{ $t('page.aiSettings.status.testResult') }}：{{ modelTestResult.text }}</NText>
-            <NText depth="3">
-              {{ $t('page.aiSettings.status.tokens') }}：{{ $t('page.aiSettings.status.input') }}
-              {{ modelTestResult.usage.inputTokens ?? '-' }} / {{ $t('page.aiSettings.status.output') }}
-              {{ modelTestResult.usage.outputTokens ?? '-' }}
-            </NText>
-          </NSpace>
-        </NAlert>
-
-        <div class="form-footer">
-          <NText depth="3" class="updated-time">
-            {{ $t('page.aiSettings.status.title') }}：{{ formattedModelUpdatedAt }}
-          </NText>
-          <NSpace :size="8">
-            <NButton size="small" :loading="isModelLoading" @click="handleLoadModelConfig()">
-              {{ $t('page.aiSettings.actions.reload') }}
-            </NButton>
-            <NButton size="small" :loading="isModelTesting" :disabled="!canSaveModel" @click="handleTestModelConfig">
-              {{ $t('page.aiSettings.actions.test') }}
-            </NButton>
-            <NButton
-              size="small"
-              type="primary"
-              :loading="isModelSaving"
-              :disabled="!canSaveModel"
-              @click="handleSaveModelConfig"
-            >
-              {{ $t('page.aiSettings.actions.save') }}
-            </NButton>
-          </NSpace>
-        </div>
-      </NSpace>
+      </div>
     </NCard>
 
-    <NCard :bordered="false" class="card-wrapper">
-      <NSpace vertical :size="14">
-        <div class="page-heading">
-          <div>
-            <h2 class="page-title">{{ $t('page.aiSettings.serper.title') }}</h2>
-            <p class="panel-desc">{{ $t('page.aiSettings.serper.description') }}</p>
-          </div>
-          <NTag v-if="serperTestResult" type="success" :bordered="false">
-            {{ $t('page.aiSettings.status.connected') }}
-          </NTag>
-          <NTag v-else-if="serperUpdatedAt" type="warning" :bordered="false">
-            {{ $t('page.aiSettings.status.savedUntested') }}
-          </NTag>
-          <NTag v-else :bordered="false">{{ $t('page.aiSettings.status.pending') }}</NTag>
-        </div>
+    <NCard :bordered="false" size="small" class="card-wrapper settings-workspace-card">
+      <NTabs type="line" size="small">
+        <NTabPane name="model" tab="模型通道" display-directive="if">
+          <NSpace vertical :size="12" class="settings-tab-panel">
+            <div class="panel-heading">
+              <div>
+                <h3 class="panel-title">默认模型通道</h3>
+                <p class="panel-desc">{{ $t('page.aiSettings.description') }}</p>
+              </div>
+              <NTag size="small" :type="modelStatus.type" :bordered="false">{{ modelStatus.label }}</NTag>
+            </div>
 
-        <NForm :model="serperForm" label-placement="top" size="small">
-          <NFormItem :label="$t('page.aiSettings.form.title')">
-            <NInput v-model:value="serperForm.title" :placeholder="$t('page.aiSettings.serper.title')" />
-          </NFormItem>
-          <NFormItem :label="$t('page.aiSettings.form.apiBase')">
-            <NInput v-model:value="serperForm.apiBase" placeholder="https://google.serper.dev" />
-          </NFormItem>
-          <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-            <NInput
-              v-model:value="serperForm.apiKey"
-              type="password"
-              show-password-on="click"
-              :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
-            />
-            <NText v-if="serperMaskedApiKey" depth="3" class="api-key-mask">
-              {{ $t('page.aiSettings.status.savedApiKey') }}：{{ serperMaskedApiKey }}
-            </NText>
-          </NFormItem>
-        </NForm>
+            <NForm :model="modelForm" label-placement="top" size="small" :show-feedback="false">
+              <NGrid :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
+                <NGi span="24 m:8">
+                  <NFormItem :label="$t('page.aiSettings.form.title')">
+                    <NInput
+                      v-model:value="modelForm.title"
+                      :placeholder="$t('page.aiSettings.placeholders.title')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24 m:8">
+                  <NFormItem :label="$t('page.aiSettings.form.provider')">
+                    <NSelect v-model:value="modelForm.providerName" :options="providerOptions" />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24 m:8">
+                  <NFormItem :label="$t('page.aiSettings.form.model')">
+                    <NInput
+                      v-model:value="modelForm.model"
+                      :placeholder="$t('page.aiSettings.placeholders.model')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24 m:14">
+                  <NFormItem :label="$t('page.aiSettings.form.apiBase')">
+                    <NInput
+                      v-model:value="modelForm.apiBase"
+                      :placeholder="$t('page.aiSettings.placeholders.apiBase')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24 m:5">
+                  <NFormItem :label="$t('page.aiSettings.form.temperature')">
+                    <NInputNumber
+                      v-model:value="modelForm.temperature"
+                      :min="0"
+                      :max="2"
+                      :step="0.1"
+                      :input-props="noAutocompleteInputProps"
+                      class="full-width-control"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24 m:5">
+                  <NFormItem :label="$t('page.aiSettings.form.maxOutputTokens')">
+                    <NInputNumber
+                      v-model:value="modelForm.maxOutputTokens"
+                      :min="1"
+                      :max="8000"
+                      :precision="0"
+                      clearable
+                      :input-props="noAutocompleteInputProps"
+                      class="full-width-control"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24">
+                  <NFormItem :label="$t('page.aiSettings.form.apiKey')">
+                    <NInput
+                      v-model:value="modelForm.apiKey"
+                      type="password"
+                      show-password-on="click"
+                      :placeholder="$t('page.aiSettings.placeholders.apiKey')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                    <NText v-if="modelMaskedApiKey" depth="3" class="api-key-mask">
+                      {{ $t('page.aiSettings.status.savedApiKey') }}：{{ modelMaskedApiKey }}
+                    </NText>
+                  </NFormItem>
+                </NGi>
+              </NGrid>
+            </NForm>
 
-        <NAlert v-if="serperTestResult" type="success" :bordered="false">
-          <NText strong>{{ $t('page.aiSettings.serper.testResult') }}：OK</NText>
-        </NAlert>
+            <NAlert v-if="modelTestResult" type="success" :bordered="false">
+              <NSpace vertical :size="4">
+                <NText strong>{{ $t('page.aiSettings.status.testResult') }}：{{ modelTestResult.text }}</NText>
+                <NText depth="3">
+                  {{ $t('page.aiSettings.status.tokens') }}：{{ $t('page.aiSettings.status.input') }}
+                  {{ modelTestResult.usage.inputTokens ?? '-' }} / {{ $t('page.aiSettings.status.output') }}
+                  {{ modelTestResult.usage.outputTokens ?? '-' }}
+                </NText>
+              </NSpace>
+            </NAlert>
 
-        <div class="form-footer">
-          <NText depth="3" class="updated-time">
-            {{ $t('page.aiSettings.status.title') }}：{{ formattedSerperUpdatedAt }}
-          </NText>
-          <NSpace :size="8">
-            <NButton size="small" :loading="isSerperLoading" @click="handleLoadSerperConfig()">
-              {{ $t('page.aiSettings.actions.reload') }}
-            </NButton>
-            <NButton size="small" :loading="isSerperTesting" :disabled="!canSaveSerper" @click="handleTestSerperConfig">
-              {{ $t('page.aiSettings.actions.test') }}
-            </NButton>
-            <NButton
-              size="small"
-              type="primary"
-              :loading="isSerperSaving"
-              :disabled="!canSaveSerper"
-              @click="handleSaveSerperConfig"
-            >
-              {{ $t('page.aiSettings.serper.save') }}
-            </NButton>
+            <div class="form-footer">
+              <NText depth="3" class="updated-time">
+                {{ $t('page.aiSettings.status.title') }}：{{ formattedModelUpdatedAt }}
+              </NText>
+              <NSpace :size="8">
+                <NButton size="small" :loading="isModelLoading" @click="handleLoadModelConfig()">
+                  {{ $t('page.aiSettings.actions.reload') }}
+                </NButton>
+                <NButton size="small" :loading="isModelTesting" :disabled="!canSaveModel" @click="handleTestModelConfig">
+                  {{ $t('page.aiSettings.actions.test') }}
+                </NButton>
+                <NButton
+                  size="small"
+                  type="primary"
+                  :loading="isModelSaving"
+                  :disabled="!canSaveModel"
+                  @click="handleSaveModelConfig"
+                >
+                  {{ $t('page.aiSettings.actions.save') }}
+                </NButton>
+              </NSpace>
+            </div>
           </NSpace>
-        </div>
-      </NSpace>
-    </NCard>
+        </NTabPane>
 
-    <NCard :bordered="false" class="card-wrapper">
-      <NSpace vertical :size="14">
-        <div class="page-heading">
-          <div>
-            <h2 class="page-title">{{ $t('page.aiSettings.hunter.title') }}</h2>
-            <p class="panel-desc">{{ $t('page.aiSettings.hunter.description') }}</p>
-          </div>
-          <NTag v-if="hunterTestResult" type="success" :bordered="false">
-            {{ $t('page.aiSettings.status.connected') }}
-          </NTag>
-          <NTag v-else-if="hunterUpdatedAt" type="warning" :bordered="false">
-            {{ $t('page.aiSettings.status.savedUntested') }}
-          </NTag>
-          <NTag v-else :bordered="false">{{ $t('page.aiSettings.status.pending') }}</NTag>
-        </div>
+        <NTabPane name="serper" tab="Serper 搜索" display-directive="if">
+          <NSpace vertical :size="12" class="settings-tab-panel">
+            <div class="panel-heading">
+              <div>
+                <h3 class="panel-title">{{ $t('page.aiSettings.serper.title') }}</h3>
+                <p class="panel-desc">{{ $t('page.aiSettings.serper.description') }}</p>
+              </div>
+              <NTag size="small" :type="serperStatus.type" :bordered="false">{{ serperStatus.label }}</NTag>
+            </div>
 
-        <NForm :model="hunterForm" label-placement="top" size="small">
-          <NFormItem :label="$t('page.aiSettings.form.title')">
-            <NInput v-model:value="hunterForm.title" :placeholder="$t('page.aiSettings.hunter.title')" />
-          </NFormItem>
-          <NFormItem :label="$t('page.aiSettings.form.apiBase')">
-            <NInput v-model:value="hunterForm.apiBase" placeholder="https://api.hunter.io/v2" />
-          </NFormItem>
-          <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-            <NInput
-              v-model:value="hunterForm.apiKey"
-              type="password"
-              :placeholder="$t('page.aiSettings.hunter.apiKeyPlaceholder')"
-            />
-            <NText v-if="hunterMaskedApiKey" depth="3" class="api-key-mask">
-              {{ $t('page.aiSettings.status.savedApiKey') }}：{{ hunterMaskedApiKey }}
-            </NText>
-          </NFormItem>
-        </NForm>
+            <NForm :model="serperForm" label-placement="top" size="small" :show-feedback="false">
+              <NGrid :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
+                <NGi span="24 m:12">
+                  <NFormItem :label="$t('page.aiSettings.form.title')">
+                    <NInput
+                      v-model:value="serperForm.title"
+                      :placeholder="$t('page.aiSettings.serper.title')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24 m:12">
+                  <NFormItem :label="$t('page.aiSettings.form.apiBase')">
+                    <NInput
+                      v-model:value="serperForm.apiBase"
+                      placeholder="https://google.serper.dev"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24">
+                  <NFormItem :label="$t('page.aiSettings.form.apiKey')">
+                    <NInput
+                      v-model:value="serperForm.apiKey"
+                      type="password"
+                      show-password-on="click"
+                      :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                    <NText v-if="serperMaskedApiKey" depth="3" class="api-key-mask">
+                      {{ $t('page.aiSettings.status.savedApiKey') }}：{{ serperMaskedApiKey }}
+                    </NText>
+                  </NFormItem>
+                </NGi>
+              </NGrid>
+            </NForm>
 
-        <NAlert v-if="hunterTestResult" type="success" :bordered="false">
-          <NText strong>{{ $t('page.aiSettings.hunter.testResult') }}：OK</NText>
-        </NAlert>
+            <NAlert v-if="serperTestResult" type="success" :bordered="false">
+              <NText strong>{{ $t('page.aiSettings.serper.testResult') }}：OK</NText>
+            </NAlert>
 
-        <div class="form-footer">
-          <NText depth="3" class="updated-time">
-            {{ $t('page.aiSettings.status.title') }}：{{ formattedHunterUpdatedAt }}
-          </NText>
-          <NSpace :size="8">
-            <NButton size="small" :loading="isHunterLoading" @click="handleLoadHunterConfig()">
-              {{ $t('page.aiSettings.actions.reload') }}
-            </NButton>
-            <NButton size="small" :loading="isHunterTesting" :disabled="!canSaveHunter" @click="handleTestHunterConfig">
-              {{ $t('page.aiSettings.actions.test') }}
-            </NButton>
-            <NButton
-              size="small"
-              type="primary"
-              :loading="isHunterSaving"
-              :disabled="!canSaveHunter"
-              @click="handleSaveHunterConfig"
-            >
-              {{ $t('page.aiSettings.hunter.save') }}
-            </NButton>
+            <div class="form-footer">
+              <NText depth="3" class="updated-time">
+                {{ $t('page.aiSettings.status.title') }}：{{ formattedSerperUpdatedAt }}
+              </NText>
+              <NSpace :size="8">
+                <NButton size="small" :loading="isSerperLoading" @click="handleLoadSerperConfig()">
+                  {{ $t('page.aiSettings.actions.reload') }}
+                </NButton>
+                <NButton
+                  size="small"
+                  :loading="isSerperTesting"
+                  :disabled="!canSaveSerper"
+                  @click="handleTestSerperConfig"
+                >
+                  {{ $t('page.aiSettings.actions.test') }}
+                </NButton>
+                <NButton
+                  size="small"
+                  type="primary"
+                  :loading="isSerperSaving"
+                  :disabled="!canSaveSerper"
+                  @click="handleSaveSerperConfig"
+                >
+                  {{ $t('page.aiSettings.serper.save') }}
+                </NButton>
+              </NSpace>
+            </div>
           </NSpace>
-        </div>
-      </NSpace>
-    </NCard>
+        </NTabPane>
 
-    <NCard :bordered="false" class="card-wrapper">
-      <NSpace vertical :size="14">
-        <div class="page-heading">
-          <div>
-            <h2 class="page-title">AI 获客后台任务</h2>
-            <p class="panel-desc">配置全局 BullMQ worker 并发，默认 2。</p>
-          </div>
-          <NTag type="info" :bordered="false">BullMQ</NTag>
-        </div>
+        <NTabPane name="hunter" tab="Hunter 补全" display-directive="if">
+          <NSpace vertical :size="12" class="settings-tab-panel">
+            <div class="panel-heading">
+              <div>
+                <h3 class="panel-title">{{ $t('page.aiSettings.hunter.title') }}</h3>
+                <p class="panel-desc">{{ $t('page.aiSettings.hunter.description') }}</p>
+              </div>
+              <NTag size="small" :type="hunterStatus.type" :bordered="false">{{ hunterStatus.label }}</NTag>
+            </div>
 
-        <NForm :model="queueConfigForm" label-placement="top" size="small">
-          <NFormItem label="Worker 并发数">
-            <NInputNumber
-              v-model:value="queueConfigForm.workerConcurrency"
-              :min="1"
-              :max="10"
-              :precision="0"
-              class="queue-concurrency-input"
-            />
-          </NFormItem>
-        </NForm>
+            <NForm :model="hunterForm" label-placement="top" size="small" :show-feedback="false">
+              <NGrid :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
+                <NGi span="24 m:12">
+                  <NFormItem :label="$t('page.aiSettings.form.title')">
+                    <NInput
+                      v-model:value="hunterForm.title"
+                      :placeholder="$t('page.aiSettings.hunter.title')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24 m:12">
+                  <NFormItem :label="$t('page.aiSettings.form.apiBase')">
+                    <NInput
+                      v-model:value="hunterForm.apiBase"
+                      placeholder="https://api.hunter.io/v2"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                  </NFormItem>
+                </NGi>
+                <NGi span="24">
+                  <NFormItem :label="$t('page.aiSettings.form.apiKey')">
+                    <NInput
+                      v-model:value="hunterForm.apiKey"
+                      type="password"
+                      :placeholder="$t('page.aiSettings.hunter.apiKeyPlaceholder')"
+                      :input-props="noAutocompleteInputProps"
+                    />
+                    <NText v-if="hunterMaskedApiKey" depth="3" class="api-key-mask">
+                      {{ $t('page.aiSettings.status.savedApiKey') }}：{{ hunterMaskedApiKey }}
+                    </NText>
+                  </NFormItem>
+                </NGi>
+              </NGrid>
+            </NForm>
 
-        <div class="form-footer">
-          <NText depth="3" class="updated-time">配置时间：{{ formattedQueueConfigUpdatedAt }}</NText>
-          <NSpace :size="8">
-            <NButton size="small" :loading="isQueueConfigLoading" @click="handleLoadQueueConfig()">
-              {{ $t('page.aiSettings.actions.reload') }}
-            </NButton>
-            <NButton
-              size="small"
-              type="primary"
-              :loading="isQueueConfigSaving"
-              :disabled="!canSaveQueueConfig"
-              @click="handleSaveQueueConfig"
-            >
-              {{ $t('page.aiSettings.actions.save') }}
-            </NButton>
+            <NAlert v-if="hunterTestResult" type="success" :bordered="false">
+              <NText strong>{{ $t('page.aiSettings.hunter.testResult') }}：OK</NText>
+            </NAlert>
+
+            <div class="form-footer">
+              <NText depth="3" class="updated-time">
+                {{ $t('page.aiSettings.status.title') }}：{{ formattedHunterUpdatedAt }}
+              </NText>
+              <NSpace :size="8">
+                <NButton size="small" :loading="isHunterLoading" @click="handleLoadHunterConfig()">
+                  {{ $t('page.aiSettings.actions.reload') }}
+                </NButton>
+                <NButton
+                  size="small"
+                  :loading="isHunterTesting"
+                  :disabled="!canSaveHunter"
+                  @click="handleTestHunterConfig"
+                >
+                  {{ $t('page.aiSettings.actions.test') }}
+                </NButton>
+                <NButton
+                  size="small"
+                  type="primary"
+                  :loading="isHunterSaving"
+                  :disabled="!canSaveHunter"
+                  @click="handleSaveHunterConfig"
+                >
+                  {{ $t('page.aiSettings.hunter.save') }}
+                </NButton>
+              </NSpace>
+            </div>
           </NSpace>
-        </div>
-      </NSpace>
+        </NTabPane>
+
+        <NTabPane name="queue" tab="后台任务" display-directive="if">
+          <NSpace vertical :size="12" class="settings-tab-panel settings-tab-panel--narrow">
+            <div class="panel-heading">
+              <div>
+                <h3 class="panel-title">AI 获客后台任务</h3>
+                <p class="panel-desc">配置全局 BullMQ worker 并发，默认 2。</p>
+              </div>
+              <NTag size="small" type="info" :bordered="false">BullMQ</NTag>
+            </div>
+
+            <div class="queue-panel">
+              <NForm :model="queueConfigForm" label-placement="top" size="small" :show-feedback="false">
+                <NFormItem label="Worker 并发数">
+                  <NInputNumber
+                    v-model:value="queueConfigForm.workerConcurrency"
+                    :min="1"
+                    :max="10"
+                    :precision="0"
+                    :input-props="noAutocompleteInputProps"
+                    class="queue-concurrency-input"
+                  />
+                </NFormItem>
+              </NForm>
+              <NText depth="3" class="queue-hint">数值越高，并发采集越快，也会更集中消耗外部服务额度。</NText>
+            </div>
+
+            <div class="form-footer form-footer--stacked">
+              <NText depth="3" class="updated-time">配置时间：{{ formattedQueueConfigUpdatedAt }}</NText>
+              <NSpace :size="8">
+                <NButton size="small" :loading="isQueueConfigLoading" @click="handleLoadQueueConfig()">
+                  {{ $t('page.aiSettings.actions.reload') }}
+                </NButton>
+                <NButton
+                  size="small"
+                  type="primary"
+                  :loading="isQueueConfigSaving"
+                  :disabled="!canSaveQueueConfig"
+                  @click="handleSaveQueueConfig"
+                >
+                  {{ $t('page.aiSettings.actions.save') }}
+                </NButton>
+              </NSpace>
+            </div>
+          </NSpace>
+        </NTabPane>
+      </NTabs>
     </NCard>
   </NSpace>
 </template>
 
 <style scoped>
-.page-heading,
+.ai-settings-page {
+  --settings-panel-gap: 12px;
+}
+
+.settings-overview {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(520px, 1.35fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.settings-overview__copy {
+  min-width: 0;
+}
+
+.status-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.status-overview__item {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--n-color-embedded);
+}
+
+.status-overview__topline,
+.panel-heading,
 .form-footer {
   display: flex;
-  align-items: center;
+  gap: 12px;
+}
+
+.status-overview__topline {
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.panel-heading {
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+}
+
+.status-overview__label {
+  overflow: hidden;
+  color: var(--n-text-color-2);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-workspace-card :deep(.n-tabs-nav) {
+  margin-bottom: 12px;
+}
+
+.settings-tab-panel {
+  max-width: 920px;
+}
+
+.settings-tab-panel--narrow {
+  max-width: 520px;
+}
+
+.panel-heading {
+  min-height: 48px;
+}
+
+.page-title,
+.panel-title {
+  margin: 0;
+  color: var(--n-text-color);
+  font-weight: 700;
+  line-height: 1.35;
+  text-wrap: balance;
 }
 
 .page-title {
-  margin: 0;
   font-size: 20px;
-  font-weight: 700;
-  line-height: 1.35;
+}
+
+.panel-title {
+  font-size: 16px;
 }
 
 .panel-desc {
-  margin: 6px 0 0;
+  max-width: 72ch;
+  margin: 4px 0 0;
   color: var(--n-text-color-3);
+  font-size: 13px;
+  line-height: 1.55;
+  text-wrap: pretty;
 }
 
-.panel-desc {
-  font-size: 13px;
+.form-footer {
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+
+.form-footer--stacked {
+  align-items: flex-start;
+  flex-direction: column;
 }
 
 .api-key-mask {
   display: block;
-  margin-top: 6px;
+  margin-top: 5px;
   font-size: 12px;
+}
+
+.full-width-control,
+.queue-concurrency-input {
+  width: 100%;
+}
+
+.queue-panel {
+  display: grid;
+  gap: 8px;
 }
 
 .queue-concurrency-input {
-  width: 180px;
+  max-width: 180px;
 }
 
+.queue-hint,
 .updated-time {
   font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1024px) {
+  .settings-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .status-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
-  .page-heading,
+  .status-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-heading,
   .form-footer {
     align-items: flex-start;
     flex-direction: column;
