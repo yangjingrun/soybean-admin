@@ -14,7 +14,7 @@ describe('SystemUserService', () => {
         roles: ['R_SUPER'],
         permissions: ['crm:settings:assets:write'],
         status: 'enabled',
-        companyName: 'Soybean',
+        companyName: 'AI外贸管理系统',
         expireAt: new Date(Date.now() + 86_400_000)
       })
     ];
@@ -48,7 +48,7 @@ describe('SystemUserService', () => {
       organizationId: 'org-default',
       organizationName: '默认组织',
       organizationRole: 'admin',
-      companyName: 'Soybean',
+      companyName: 'AI外贸管理系统',
       expireAt: users[0].expireAt!.toISOString(),
       remark: null,
       lastLoginAt: null,
@@ -72,14 +72,14 @@ describe('SystemUserService', () => {
         userName: 'Operator',
         roles: ['R_ADMIN'],
         status: 'enabled',
-        companyName: ' Soybean '
+        companyName: ' AI外贸管理系统 '
       },
       { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
     );
 
     assert.equal(users.length, 1);
     assert.equal(users[0].userName, 'Operator');
-    assert.equal(users[0].companyName, 'Soybean');
+    assert.equal(users[0].companyName, 'AI外贸管理系统');
     assert.equal(users[0].organizationId, 'org-default');
     assert.equal(users[0].organizationRole, 'admin');
     assert.deepEqual(users[0].permissions, []);

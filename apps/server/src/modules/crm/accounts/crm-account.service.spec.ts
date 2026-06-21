@@ -70,7 +70,7 @@ describe('CrmAccountService', () => {
           verifiedAt: new Date('2026-06-21T00:00:00Z'),
           expiresAt: new Date('2026-07-21T00:00:00Z'),
           checkedById: 'u-1',
-          checkedByName: 'Soybean',
+          checkedByName: 'AI外贸管理系统',
           createdAt: new Date('2026-06-21T00:00:00Z'),
           updatedAt: new Date('2026-06-21T00:00:00Z')
         };
@@ -149,7 +149,7 @@ describe('CrmAccountService', () => {
       { provider: 'hunter' },
       {
         userId: 'u-1',
-        userName: 'Soybean',
+        userName: 'AI外贸管理系统',
         roles: [],
         organizationId: 'org-1',
         organizationRole: 'member'

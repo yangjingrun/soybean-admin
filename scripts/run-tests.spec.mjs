@@ -7,7 +7,7 @@ import { buildTsxTestArgs, findSpecFiles } from './run-tests.mjs';
 
 describe('run-tests script helpers', () => {
   it('finds spec files recursively in stable sorted order', () => {
-    const root = mkdtempSync(join(tmpdir(), 'soybean-test-files-'));
+    const root = mkdtempSync(join(tmpdir(), 'ai-foreign-trade-test-files-'));
 
     try {
       mkdirSync(join(root, 'b'), { recursive: true });

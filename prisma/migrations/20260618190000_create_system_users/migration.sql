@@ -73,8 +73,8 @@ INSERT INTO "SystemUser" (
   ),
   (
     '4',
-    'Soybean',
-    'Soybean',
+    'AI外贸管理系统',
+    'AI外贸管理系统',
     ARRAY['R_SUPER'],
     'enabled',
     '7a42d0bba6acfa9f7c286bdfe2a1e9ddcfb73e202d629a1069ec11548ad48a1d9b0610f934c2ef69880b73767b7511e194216edcb35edb00c73d35a039c24980',

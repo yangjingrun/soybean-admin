@@ -3,7 +3,7 @@ import { AppConfigService } from '../app-config/app-config.service';
 import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
-const serviceName = 'soybean-nest-server';
+const serviceName = 'AI外贸管理系统-nest-server';
 const dependencyTimeoutMs = 1500;
 
 export type HealthDependencyStatus = 'up' | 'down';

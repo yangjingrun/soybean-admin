@@ -8,7 +8,7 @@ describe('HealthController', () => {
     const controller = new HealthController({
       getLiveness: () => ({
         status: 'up',
-        service: 'soybean-nest-server',
+        service: 'AI外贸管理系统-nest-server',
         role: 'all',
         time: '2026-06-20T00:00:00.000Z'
       }),
@@ -20,7 +20,7 @@ describe('HealthController', () => {
       msg: 'ok',
       data: {
         status: 'up',
-        service: 'soybean-nest-server',
+        service: 'AI外贸管理系统-nest-server',
         role: 'all',
         time: '2026-06-20T00:00:00.000Z'
       }
@@ -62,7 +62,7 @@ describe('HealthController', () => {
 function createReadiness(status: 'up' | 'down'): HealthReadinessResult {
   return {
     status,
-    service: 'soybean-nest-server',
+    service: 'AI外贸管理系统-nest-server',
     role: 'all',
     time: '2026-06-20T00:00:00.000Z',
     dependencies: {

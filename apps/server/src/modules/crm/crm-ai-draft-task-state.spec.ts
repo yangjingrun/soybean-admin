@@ -90,7 +90,7 @@ function createTask(overrides: Partial<CrmAiDraftTaskRecord>): CrmAiDraftTaskRec
     organizationId: 'org-1',
     organizationRole: 'admin',
     ownerUserId: 'user-1',
-    ownerUserName: 'Soybean',
+    ownerUserName: 'AI外贸管理系统',
     status: 'queued',
     runVersion: 1,
     bullJobId: null,

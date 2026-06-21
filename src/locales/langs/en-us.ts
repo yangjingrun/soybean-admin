@@ -14,7 +14,7 @@ const aiSettingsHunterLocale = {
 
 const local: App.I18n.Schema = {
   system: {
-    title: 'SoybeanAdmin',
+    title: 'AI外贸管理系统',
     updateTitle: 'System Version Update Notification',
     updateContent: 'A new version of the system has been detected. Do you want to refresh the page immediately?',
     updateConfirm: 'Refresh immediately',
@@ -455,11 +455,11 @@ const local: App.I18n.Schema = {
       projectNews: {
         title: 'Project News',
         moreNews: 'More News',
-        desc1: 'Soybean created the open source project soybean-admin on May 28, 2021!',
-        desc2: 'Yanbowe submitted a bug to soybean-admin, the multi-tab bar will not adapt.',
-        desc3: 'Soybean is ready to do sufficient preparation for the release of soybean-admin!',
-        desc4: 'Soybean is busy writing project documentation for soybean-admin!',
-        desc5: 'Soybean just wrote some of the workbench pages casually, and it was enough to see!'
+        desc1: 'AI外贸管理系统 created the open source project AI外贸管理系统 on May 28, 2021!',
+        desc2: 'Yanbowe submitted a bug to AI外贸管理系统, the multi-tab bar will not adapt.',
+        desc3: 'AI外贸管理系统 is ready to do sufficient preparation for the release of AI外贸管理系统!',
+        desc4: 'AI外贸管理系统 is busy writing project documentation for AI外贸管理系统!',
+        desc5: 'AI外贸管理系统 just wrote some of the workbench pages casually, and it was enough to see!'
       },
       creativity: 'Creativity'
     }

@@ -56,12 +56,12 @@ describe('SystemOrganizationService', () => {
     const service = createService(prisma, logService);
     const operator = { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] };
 
-    const created = await service.create({ name: ' Soybean ', status: 'enabled' }, operator);
-    const updated = await service.update(created.id, { name: 'Soybean Inc.' }, operator);
+    const created = await service.create({ name: ' AI外贸管理系统 ', status: 'enabled' }, operator);
+    const updated = await service.update(created.id, { name: 'AI外贸管理系统 Inc.' }, operator);
     const disabled = await service.updateStatus(created.id, 'disabled', operator);
 
-    assert.equal(organizations[0].name, 'Soybean Inc.');
-    assert.equal(updated.name, 'Soybean Inc.');
+    assert.equal(organizations[0].name, 'AI外贸管理系统 Inc.');
+    assert.equal(updated.name, 'AI外贸管理系统 Inc.');
     assert.equal(disabled.status, 'disabled');
     assert.deepEqual(logService.records.map(record => record.action), ['create', 'update', 'disable']);
   });

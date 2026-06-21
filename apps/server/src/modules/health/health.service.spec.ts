@@ -21,7 +21,7 @@ describe('HealthService', () => {
     const result = service.getLiveness();
 
     assert.equal(result.status, 'up');
-    assert.equal(result.service, 'soybean-nest-server');
+    assert.equal(result.service, 'AI外贸管理系统-nest-server');
     assert.equal(result.role, 'api');
   });
 

@@ -21,7 +21,7 @@ interface FormModel {
 }
 
 const model: FormModel = reactive({
-  userName: 'Soybean',
+  userName: 'AI外贸管理系统',
   password: '123456',
   captchaCode: ''
 });

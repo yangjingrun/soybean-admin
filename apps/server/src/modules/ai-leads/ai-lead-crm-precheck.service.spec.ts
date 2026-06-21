@@ -183,7 +183,7 @@ function createAccount(overrides: Partial<CrmAccountRecord>): CrmAccountRecord {
 function createUser() {
   return {
     userId: 'u-1',
-    userName: 'Soybean',
+    userName: 'AI外贸管理系统',
     roles: [],
     organizationId: 'org-1',
     organizationRole: 'member' as const

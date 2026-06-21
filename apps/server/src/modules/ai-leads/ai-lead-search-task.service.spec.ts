@@ -15,7 +15,7 @@ import type {
 
 const user: UserInfo = {
   userId: 'u-1',
-  userName: 'Soybean',
+  userName: 'AI外贸管理系统',
   roles: ['R_SUPER'],
   buttons: [],
   organizationId: 'org-1',
@@ -661,7 +661,7 @@ describe('AiLeadSearchTaskService', () => {
       action: 'save-queue-config',
       message: 'AI 获客任务配置已保存',
       userId: 'u-1',
-      userName: 'Soybean',
+      userName: 'AI外贸管理系统',
       metadata: {
         workerConcurrency: 4
       }
@@ -825,7 +825,7 @@ function createTask(overrides: Partial<AiLeadSearchTaskRecord>): AiLeadSearchTas
   return {
     id: 'task-1',
     userId: 'u-1',
-    userName: 'Soybean',
+    userName: 'AI外贸管理系统',
     organizationId: 'org-1',
     organizationRole: 'admin',
     requirement: '找沙特轴承进口商',
