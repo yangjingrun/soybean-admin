@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { aiLeadsKeywordStrategyManagePermission } from '@soybean/shared';
 import type { FastifyReply } from 'fastify';
 import type { RequestUserContext } from '../../shared/request-context';
 import { AiLeadsController } from './ai-leads.controller';
@@ -131,13 +132,70 @@ describe('AiLeadsController', () => {
     assert.equal(event.sequence, 1);
     assert.match(event.runId, /^[0-9a-f-]+$/i);
   });
+
+  it('requires keyword strategy permission before updating keyword history', async () => {
+    let called = false;
+    const controller = new AiLeadsController(
+      {
+        async updateKeywordHistory() {
+          called = true;
+        }
+      } as unknown as AiLeadsService,
+      {} as unknown as AiLeadSearchTaskService
+    );
+
+    await assert.rejects(
+      () =>
+        controller.updateKeywordHistory(
+          'history-1',
+          {
+            requirement: '找韩国轴承经销商',
+            keywordPlan: {} as Api.AiLeads.OptimizedKeywordPlan
+          },
+          createUser(['R_USER'])
+        ),
+      ForbiddenException
+    );
+    assert.equal(called, false);
+  });
+
+  it('allows users with keyword strategy permission to update and delete keyword history', async () => {
+    const calls: string[] = [];
+    const controller = new AiLeadsController(
+      {
+        async updateKeywordHistory() {
+          calls.push('update');
+          return { id: 'history-1' };
+        },
+        async deleteKeywordHistory() {
+          calls.push('delete');
+          return { id: 'history-1' };
+        }
+      } as unknown as AiLeadsService,
+      {} as unknown as AiLeadSearchTaskService
+    );
+    const user = createUser(['R_USER'], [aiLeadsKeywordStrategyManagePermission]);
+
+    await controller.updateKeywordHistory(
+      'history-1',
+      {
+        requirement: '找韩国轴承经销商',
+        keywordPlan: {} as Api.AiLeads.OptimizedKeywordPlan
+      },
+      user
+    );
+    await controller.deleteKeywordHistory('history-1', user);
+
+    assert.deepEqual(calls, ['update', 'delete']);
+  });
 });
 
-function createUser(roles = ['R_ADMIN']): RequestUserContext {
+function createUser(roles = ['R_ADMIN'], buttons: string[] = []): RequestUserContext {
   return {
     userId: 'u-1',
     userName: 'Super',
     roles,
+    buttons,
     organizationId: 'org-1',
     organizationRole: 'admin'
   };

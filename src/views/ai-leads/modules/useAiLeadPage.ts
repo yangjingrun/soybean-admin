@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { aiLeadsKeywordStrategyManagePermission, hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import {
     createLeadSearchTask,
@@ -109,7 +110,9 @@ export function useAiLeadPage() {
     Boolean(selectedHistoryId.value && editableKeywordPlan.value && form.requirement.trim())
   );
   const isHistoryDeleting = computed(() => Boolean(deletingKeywordHistoryId.value));
-  const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
+  const canManageKeywordStrategy = computed(() =>
+    hasPermission(authStore.userInfo, aiLeadsKeywordStrategyManagePermission)
+  );
   const isSearchTaskPending = computed(() => isLeadSearchTaskPending(currentSearchTask.value?.status));
   const isSearching = computed(() => isSearchTaskSubmitting.value || isSearchTaskPending.value);
   const canCreateSearchTask = computed(() => {
@@ -149,7 +152,7 @@ export function useAiLeadPage() {
   );
   const keywordOptimizationViewModel = computed(() =>
     keywordOptimizationPlan.value
-      ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, isSuperAdmin.value)
+      ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, canManageKeywordStrategy.value)
       : null
   );
   const aiFinishReasonLabel = computed(() => formatAiFinishReason(aiResult.value?.finishReason));
@@ -352,7 +355,7 @@ export function useAiLeadPage() {
     }
 
     const copyText =
-      isSuperAdmin.value || !keywordOptimizationViewModel.value
+      canManageKeywordStrategy.value || !keywordOptimizationViewModel.value
         ? aiResult.value.text
         : formatKeywordOptimizationVisibleText(keywordOptimizationViewModel.value);
 
@@ -720,6 +723,7 @@ export function useAiLeadPage() {
     aiFinishReasonLabel,
     aiResult,
     canGenerate,
+    canManageKeywordStrategy,
     canReturnToKeywordStep,
     canSaveHistory,
     canSearchCustomers,
@@ -759,7 +763,6 @@ export function useAiLeadPage() {
     isSearchTaskPending,
     isSearchTaskSubmitting,
     isSearching,
-    isSuperAdmin,
     keywordOptimizationViewModel,
     keywordQualityWarnings,
     maxLeadSearchRepeatRounds,

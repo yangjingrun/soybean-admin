@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
 const pageSource = readFileSync(new URL('./index.vue', import.meta.url), 'utf8');
+const pageComposableSource = readFileSync(new URL('./modules/useAiLeadPage.ts', import.meta.url), 'utf8');
 
 /** Reads the explicit Naive UI button size for a toolbar button by one stable source marker. */
 function getButtonSizeByMarker(marker: string) {
@@ -63,6 +64,15 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /:class="debugFooterClass"/);
     assert.match(pageSource, /is-editing-focus/);
     assert.match(pageSource, /正在编辑搜索策略调试信息/);
+  });
+
+  it('uses configurable keyword strategy permission for edit and debug controls', () => {
+    assert.match(pageSource, /canManageKeywordStrategy/);
+    assert.match(pageComposableSource, /aiLeadsKeywordStrategyManagePermission/);
+    assert.match(pageComposableSource, /hasPermission\(authStore\.userInfo,\s*aiLeadsKeywordStrategyManagePermission\)/);
+    assert.match(pageSource, /!hasSearchProgress && aiResult && canManageKeywordStrategy/);
+    assert.match(pageSource, /v-if="canManageKeywordStrategy"/);
+    assert.match(pageSource, /:show-serper-details="canManageKeywordStrategy"/);
   });
 
   it('keeps result content padded below the card header', () => {

@@ -12,10 +12,11 @@ import {
   Res,
   UnauthorizedException
 } from '@nestjs/common';
+import { aiLeadsKeywordStrategyManagePermission } from '@soybean/shared';
 import { Throttle } from '@nestjs/throttler';
 import type { FastifyReply } from 'fastify';
 import { ok } from '../../shared/api-response';
-import { assertSuper as assertSuperRole } from '../../shared/permission-policy';
+import { assertSuper as assertSuperRole, requirePermission } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import { CurrentContext, SuperOnly } from '../auth/auth.decorators';
 import { AiLeadsService } from './ai-leads.service';
@@ -205,6 +206,7 @@ export class AiLeadsController {
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
     const user = requireRequestUserContext(currentContext);
+    this.requireKeywordStrategyPermission(user);
 
     return ok(await this.aiLeadsService.updateKeywordHistory(id, dto, { user }));
   }
@@ -215,6 +217,7 @@ export class AiLeadsController {
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
     const user = requireRequestUserContext(currentContext);
+    this.requireKeywordStrategyPermission(user);
 
     return ok(await this.aiLeadsService.deleteKeywordHistory(id, { user }));
   }
@@ -227,4 +230,7 @@ export class AiLeadsController {
     assertSuperRole(currentContext, '无权维护 AI 获客任务配置');
   }
 
+  private requireKeywordStrategyPermission(user: RequestUserContext) {
+    requirePermission(user, aiLeadsKeywordStrategyManagePermission, '无权维护 AI 获客搜索策略');
+  }
 }

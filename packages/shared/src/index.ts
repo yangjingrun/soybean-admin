@@ -15,7 +15,15 @@ export const DEFAULT_ORGANIZATION_ID = 'org-default';
 
 export const DEFAULT_ORGANIZATION_NAME = '默认组织';
 
+export const aiLeadsKeywordStrategyManagePermission = 'ai-leads:keyword-strategy:manage';
+
 export const crmPermissionDefinitions = [
+  {
+    code: aiLeadsKeywordStrategyManagePermission,
+    label: '维护 AI 获客搜索策略',
+    group: 'ai_leads',
+    groupLabel: 'AI 获客'
+  },
   {
     code: 'crm:settings:assets:read',
     label: '查看写信资料',

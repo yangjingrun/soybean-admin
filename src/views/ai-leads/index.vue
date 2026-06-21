@@ -9,6 +9,7 @@ const {
   aiFinishReasonLabel,
   aiResult,
   canGenerate,
+  canManageKeywordStrategy,
   canReturnToKeywordStep,
   canSaveHistory,
   canSearchCustomers,
@@ -48,7 +49,6 @@ const {
   isSearchTaskPending,
   isSearchTaskSubmitting,
   isSearching,
-  isSuperAdmin,
   keywordOptimizationViewModel,
   keywordQualityWarnings,
   searchProgress,
@@ -310,7 +310,7 @@ const taskActionButtons = computed(
               </template>
               调整需求
             </NButton>
-            <template v-if="!hasSearchProgress && aiResult && isSuperAdmin">
+            <template v-if="!hasSearchProgress && aiResult && canManageKeywordStrategy">
               <NButton v-if="!isEditingResult" size="small" @click="handleStartKeywordResultEdit">
                 <template #icon>
                   <SvgIcon icon="material-symbols:edit-outline" />
@@ -368,7 +368,7 @@ const taskActionButtons = computed(
           :state="searchProgress"
           :importing-candidate-key="importingCandidateKey"
           :loading="isSearchTaskPending"
-          :show-serper-details="isSuperAdmin"
+          :show-serper-details="canManageKeywordStrategy"
           @import-candidate="handleImportCandidate"
         />
       </div>
@@ -384,7 +384,7 @@ const taskActionButtons = computed(
             class="keyword-ready-result"
           />
         </div>
-        <div v-if="isSuperAdmin" ref="debugFooter" class="result-debug-footer" :class="debugFooterClass">
+        <div v-if="canManageKeywordStrategy" ref="debugFooter" class="result-debug-footer" :class="debugFooterClass">
           <NAlert v-if="isEditingResult" type="info" :bordered="false" class="debug-edit-hint">
             正在编辑搜索策略调试信息，修改关键词、查询包或展示字段后点击保存会更新当前历史记录。
           </NAlert>
