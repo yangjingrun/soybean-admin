@@ -33,6 +33,7 @@ declare module "@elegant-router/types" {
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "manage": "/manage";
+    "manage_permission": "/manage/permission";
     "manage_role": "/manage/role";
     "manage_system-log": "/manage/system-log";
     "manage_user": "/manage/user";
@@ -108,6 +109,7 @@ declare module "@elegant-router/types" {
     | "crm_leads"
     | "crm_settings"
     | "home"
+    | "manage_permission"
     | "manage_role"
     | "manage_system-log"
     | "manage_user"

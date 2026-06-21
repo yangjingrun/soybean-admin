@@ -6,6 +6,7 @@ import { roleStatusLabelMap, roleStatusTagTypeMap } from './shared';
 
 const props = defineProps<{
   loading?: boolean;
+  manageable?: boolean;
   pagination: PaginationProps;
   records: Api.SystemRole.RoleListItem[];
   selectedRoleId: string | null;
@@ -59,15 +60,17 @@ const columns = computed<NaiveUI.TableColumn<Api.SystemRole.RoleListItem>[]>(() 
     key: 'operate',
     title: '操作',
     align: 'center',
-    width: 150,
+    width: props.manageable === false ? 90 : 150,
     render: row => (
       <div class="role-actions">
         <NButton size="small" quaternary type={row.id === props.selectedRoleId ? 'primary' : 'default'} onClick={() => emit('select', row)}>
           权限
         </NButton>
-        <NButton size="small" quaternary type="primary" onClick={() => emit('edit', row)}>
-          编辑
-        </NButton>
+        {props.manageable !== false ? (
+          <NButton size="small" quaternary type="primary" onClick={() => emit('edit', row)}>
+            编辑
+          </NButton>
+        ) : null}
       </div>
     )
   }
@@ -88,7 +91,7 @@ function getRowProps(row: Api.SystemRole.RoleListItem) {
   <NCard :bordered="false" size="small" class="card-wrapper role-table-card" title="角色列表">
     <template #header-extra>
       <NSpace :size="8">
-        <NButton size="small" type="primary" @click="emit('add')">新增角色</NButton>
+        <NButton v-if="manageable !== false" size="small" type="primary" @click="emit('add')">新增角色</NButton>
         <NButton size="small" :loading="loading" @click="emit('refresh')">刷新</NButton>
       </NSpace>
     </template>

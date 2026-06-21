@@ -254,6 +254,7 @@ const local: App.I18n.Schema = {
     crm_settings: 'CRM Settings',
     manage: 'System Manage',
     'manage_system-log': 'System Logs',
+    manage_permission: 'Permission Manage',
     manage_role: 'Role Manage',
     manage_user: 'User Manage',
     home: 'Home'

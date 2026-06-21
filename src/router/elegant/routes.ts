@@ -191,6 +191,18 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'manage_permission',
+        path: '/manage/permission',
+        component: 'view.manage_permission',
+        meta: {
+          title: 'manage_permission',
+          i18nKey: 'route.manage_permission',
+          icon: 'mdi:shield-key-outline',
+          order: 3,
+          roles: ['R_SUPER']
+        }
+      },
+      {
         name: 'manage_role',
         path: '/manage/role',
         component: 'view.manage_role',
@@ -210,7 +222,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'manage_system-log',
           i18nKey: 'route.manage_system-log',
           icon: 'mdi:clipboard-text-clock-outline',
-          order: 3,
+          order: 4,
           roles: ['R_SUPER']
         }
       },
