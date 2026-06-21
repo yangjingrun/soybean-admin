@@ -44,11 +44,13 @@ const {
 
 <template>
   <NSpace vertical :size="12">
-    <div class="lead-page-actions">
-      <NButton type="primary" @click="openImportModal">新增线索</NButton>
-    </div>
-
-    <FilterPanel v-model="filterModel" :loading="loading" @search="handleSearch" @reset="handleReset" />
+    <FilterPanel
+      v-model="filterModel"
+      :loading="loading"
+      @add="openImportModal"
+      @search="handleSearch"
+      @reset="handleReset"
+    />
 
     <LeadStats :records="records" :total="pagination.total" />
 
@@ -93,10 +95,3 @@ const {
     />
   </NSpace>
 </template>
-
-<style scoped>
-.lead-page-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-</style>
