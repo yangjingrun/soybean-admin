@@ -5,7 +5,7 @@ import RolePermissionGroup from './RolePermissionGroup.vue';
 import {
   buildRolePermissionChangePreview,
   normalizeRolePermissionSelection,
-  rolePermissionGroups,
+  rolePermissionModules,
   roleStatusLabelMap,
   type PermissionGroup
 } from './shared';
@@ -96,17 +96,29 @@ function handleSave() {
         超级管理员角色默认拥有全部权限，系统不允许裁剪该角色权限。
       </NAlert>
 
-      <NSpace vertical :size="12">
-        <RolePermissionGroup
-          v-for="group in rolePermissionGroups"
-          :key="group.key"
-          :group="group"
-          :selected="displayPermissions"
-          :disabled="isSuperRole || saving"
-          @toggle="handleToggle"
-          @select-group="handleSelectGroup"
-          @clear-group="handleClearGroup"
-        />
+      <NSpace vertical :size="14" class="permission-modules">
+        <section v-for="module in rolePermissionModules" :key="module.key" class="permission-module">
+          <div class="permission-module__title">
+            <NText strong>{{ module.label }}</NText>
+          </div>
+          <div v-for="page in module.pages" :key="page.key" class="permission-page">
+            <div class="permission-page__header">
+              <NTag size="small" type="info" :bordered="false">{{ page.label }}</NTag>
+            </div>
+            <NSpace vertical :size="10">
+              <RolePermissionGroup
+                v-for="group in page.groups"
+                :key="group.key"
+                :group="group"
+                :selected="displayPermissions"
+                :disabled="isSuperRole || saving"
+                @toggle="handleToggle"
+                @select-group="handleSelectGroup"
+                @clear-group="handleClearGroup"
+              />
+            </NSpace>
+          </div>
+        </section>
       </NSpace>
 
       <NAlert v-if="!isSuperRole && !preview.changed" type="success" :bordered="false" title="权限未变更">
@@ -182,5 +194,30 @@ function handleSave() {
 .permission-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.permission-modules {
+  min-width: 0;
+}
+
+.permission-module {
+  padding: 12px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background: var(--n-color);
+}
+
+.permission-module__title {
+  margin-bottom: 10px;
+}
+
+.permission-page {
+  padding: 10px 0;
+  border-top: 1px dashed var(--n-border-color);
+}
+
+.permission-page__header {
+  display: flex;
+  margin-bottom: 10px;
 }
 </style>

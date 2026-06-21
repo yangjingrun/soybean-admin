@@ -17,7 +17,7 @@ describe('platform super route policy', () => {
     assertSuperOnly(SystemLogController, '无权访问后端日志');
   });
 
-  it('declares AI config and queue config endpoints as platform-super-only', () => {
+  it('lets AI config and queue config endpoints use dynamic product permissions', () => {
     const aiConfigMethods = [
       'savePrompt',
       'getPrompt',
@@ -32,14 +32,14 @@ describe('platform super route policy', () => {
     ];
 
     for (const method of aiConfigMethods) {
-      assertSuperOnly(getMethod(AiGatewayController, method), '无权维护 AI 配置');
+      assertNotSuperOnly(getMethod(AiGatewayController, method));
     }
 
-    assertSuperOnly(getMethod(AiLeadsController, 'getQueueConfig'), '无权维护 AI 获客任务配置');
-    assertSuperOnly(getMethod(AiLeadsController, 'saveQueueConfig'), '无权维护 AI 获客任务配置');
+    assertNotSuperOnly(getMethod(AiLeadsController, 'getQueueConfig'));
+    assertNotSuperOnly(getMethod(AiLeadsController, 'saveQueueConfig'));
   });
 
-  it('declares CRM platform maintenance endpoints as platform-super-only without touching resource routes', () => {
+  it('lets CRM platform maintenance endpoints use dynamic product permissions without touching resource routes', () => {
     for (const method of [
       'getGlobalConfig',
       'saveGlobalConfig',
@@ -47,7 +47,7 @@ describe('platform super route policy', () => {
       'saveAiDraftQueueConfig',
       'reconcileSendQueue'
     ]) {
-      assertSuperOnly(getMethod(CrmSettingsController, method), '无权维护 CRM 全局配置');
+      assertNotSuperOnly(getMethod(CrmSettingsController, method));
     }
 
     assertSuperOnly(getMethod(CrmMailboxController, 'mockAuthorizeMailbox'), '无权使用 CRM mock 接口');
@@ -73,6 +73,11 @@ function assertSuperOnly(target: object, message: string) {
   assert.deepEqual(Reflect.getMetadata(AUTH_POLICY_KEY, target), { anyRoles: ['R_SUPER'], deniedMessage: message });
   assert.deepEqual(Reflect.getMetadata(ROLES_KEY, target), ['R_SUPER']);
   assert.equal(Reflect.getMetadata(ROLE_DENIED_MESSAGE_KEY, target), message);
+}
+
+function assertNotSuperOnly(target: object) {
+  assert.equal(Reflect.getMetadata(AUTH_POLICY_KEY, target), undefined);
+  assert.equal(Reflect.getMetadata(ROLES_KEY, target), undefined);
 }
 
 function getMethod(controller: { prototype: object }, method: string) {

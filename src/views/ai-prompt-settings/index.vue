@@ -3,12 +3,20 @@ import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
+import {
+  aiSettingsPromptReadPermission,
+  aiSettingsPromptTestPermission,
+  aiSettingsPromptWritePermission,
+  hasPermission
+} from '@soybean/shared';
 import { aiPromptOptions, defaultAiPromptKey, type AiPromptKey } from '@/constants/ai-gateway';
 import { getAiPrompt, saveAiPrompt } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
 import PromptTestModal from './modules/PromptTestModal.vue';
 
 const message = useMessage();
 const { t } = useI18n();
+const authStore = useAuthStore();
 
 const promptI18nMap: Record<AiPromptKey, { title: string; usage: string }> = {
   lead_keyword_optimize: {
@@ -59,10 +67,19 @@ const selectedPromptUpdatedAt = computed(() => {
 
   return updatedAt ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss') : t('page.aiPromptSettings.status.notSaved');
 });
-const canSavePrompt = computed(() => Boolean(promptForm.systemPrompt.trim()));
-const canTestPrompt = computed(() => Boolean(promptForm.systemPrompt.trim()));
+const canReadPrompt = computed(() => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptReadPermission));
+const canWritePrompt = computed(() => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptWritePermission));
+const canTestPromptPermission = computed(
+  () => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptTestPermission)
+);
+const canSavePrompt = computed(() => canWritePrompt.value && Boolean(promptForm.systemPrompt.trim()));
+const canTestPrompt = computed(() => canTestPromptPermission.value && Boolean(promptForm.systemPrompt.trim()));
 
 onMounted(() => {
+  if (!canReadPrompt.value) {
+    return;
+  }
+
   void handleLoadFixedPrompts(false);
 });
 
@@ -173,7 +190,7 @@ function getPromptFormKey() {
 </script>
 
 <template>
-  <NSpace vertical :size="12">
+  <NSpace v-if="canReadPrompt" vertical :size="12">
     <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 l:7">
         <NCard :bordered="false" class="card-wrapper">
@@ -254,6 +271,9 @@ function getPromptFormKey() {
       :system-prompt="promptForm.systemPrompt"
     />
   </NSpace>
+  <NCard v-else :bordered="false" class="card-wrapper">
+    <NEmpty description="暂无权限查看提示词配置" />
+  </NCard>
 </template>
 
 <style scoped>

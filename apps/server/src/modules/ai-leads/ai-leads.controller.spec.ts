@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { aiLeadsKeywordStrategyManagePermission } from '@soybean/shared';
+import { aiLeadsKeywordStrategyManagePermission, aiLeadsQueueConfigManagePermission } from '@soybean/shared';
 import type { FastifyReply } from 'fastify';
 import type { RequestUserContext } from '../../shared/request-context';
 import { AiLeadsController } from './ai-leads.controller';
@@ -10,6 +10,7 @@ import type { AiLeadsService } from './ai-leads.service';
 import type { AiLeadSearchTaskService } from './ai-lead-search-task.service';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
+import type { OptimizedKeywordPlan } from './ai-lead-search-orchestrator.service';
 
 describe('AiLeadsController', () => {
   it('rejects anonymous synchronous search orchestration before calling the service', async () => {
@@ -150,7 +151,7 @@ describe('AiLeadsController', () => {
           'history-1',
           {
             requirement: '找韩国轴承经销商',
-            keywordPlan: {} as Api.AiLeads.OptimizedKeywordPlan
+            keywordPlan: {} as OptimizedKeywordPlan
           },
           createUser(['R_USER'])
         ),
@@ -180,13 +181,47 @@ describe('AiLeadsController', () => {
       'history-1',
       {
         requirement: '找韩国轴承经销商',
-        keywordPlan: {} as Api.AiLeads.OptimizedKeywordPlan
+        keywordPlan: {} as OptimizedKeywordPlan
       },
       user
     );
     await controller.deleteKeywordHistory('history-1', user);
 
     assert.deepEqual(calls, ['update', 'delete']);
+  });
+
+  it('requires queue config permission before loading AI leads queue config', async () => {
+    let called = false;
+    const controller = new AiLeadsController({} as unknown as AiLeadsService, {
+      async getQueueConfig() {
+        called = true;
+      }
+    } as unknown as AiLeadSearchTaskService);
+
+    await assert.rejects(() => controller.getQueueConfig(createUser(['R_USER'])), ForbiddenException);
+    assert.equal(called, false);
+  });
+
+  it('allows assigned roles to manage AI leads queue config', async () => {
+    const calls: string[] = [];
+    const controller = new AiLeadsController({} as unknown as AiLeadsService, {
+      async getQueueConfig() {
+        calls.push('get');
+        return { workerConcurrency: 2 };
+      },
+      async saveQueueConfig(_workerConcurrency: number) {
+        calls.push('save');
+        return { workerConcurrency: 3 };
+      }
+    } as unknown as AiLeadSearchTaskService);
+    const user = createUser(['R_USER'], [aiLeadsQueueConfigManagePermission]);
+
+    const loaded = await controller.getQueueConfig(user);
+    const saved = await controller.saveQueueConfig({ workerConcurrency: 3 }, user);
+
+    assert.deepEqual(calls, ['get', 'save']);
+    assert.equal(loaded.data.workerConcurrency, 2);
+    assert.equal(saved.data.workerConcurrency, 3);
   });
 });
 

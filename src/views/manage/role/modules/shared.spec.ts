@@ -5,6 +5,7 @@ import {
   buildSystemRoleSearchParams,
   createDefaultRoleFilterModel,
   getPermissionLabel,
+  rolePermissionModules,
   rolePermissionGroups,
   roleStatusLabelMap
 } from './shared';
@@ -46,6 +47,16 @@ describe('system role shared helpers', () => {
     assert.equal(roleStatusLabelMap.disabled, '禁用');
     assert.equal(getPermissionLabel('crm:settings:assets:write'), '维护写信资料');
     assert.equal(rolePermissionGroups.some(group => group.key === 'crm_settings_assets'), true);
+  });
+
+  it('groups permissions by module and page for readable role authorization', () => {
+    const aiModule = rolePermissionModules.find(module => module.key === 'ai_platform');
+    const modelPage = aiModule?.pages.find(page => page.key === 'ai_platform_model_config');
+
+    assert.equal(aiModule?.label, 'AI 平台配置');
+    assert.equal(modelPage?.label, '模型配置');
+    assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_serper'), true);
+    assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_hunter'), true);
   });
 
   it('builds normalized role permission change previews', () => {

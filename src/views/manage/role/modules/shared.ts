@@ -1,6 +1,8 @@
 import { crmPermissionDefinitions, normalizePermissionCodes } from '@soybean/shared';
 
 export interface PermissionGroupOption {
+  actionLabel: string;
+  description: string;
   label: string;
   value: Api.SystemRole.PermissionCode;
 }
@@ -8,7 +10,20 @@ export interface PermissionGroupOption {
 export interface PermissionGroup {
   key: string;
   label: string;
+  description: string;
   options: PermissionGroupOption[];
+}
+
+export interface PermissionPage {
+  key: string;
+  label: string;
+  groups: PermissionGroup[];
+}
+
+export interface PermissionModule {
+  key: string;
+  label: string;
+  pages: PermissionPage[];
 }
 
 export interface RolePermissionChangePreview {
@@ -42,10 +57,13 @@ export const rolePermissionGroups: PermissionGroup[] = Array.from(
       const group = groups.get(permission.group) || {
         key: permission.group,
         label: permission.groupLabel,
+        description: permission.functionLabel,
         options: [] as PermissionGroupOption[]
       };
 
       group.options.push({
+        actionLabel: permission.actionLabel,
+        description: permission.description,
         label: permission.label,
         value: permission.code
       });
@@ -55,6 +73,83 @@ export const rolePermissionGroups: PermissionGroup[] = Array.from(
     }, new Map<string, PermissionGroup>())
     .values()
 );
+
+export const rolePermissionModules: PermissionModule[] = buildRolePermissionModules();
+
+/** Build nested module/page/function groups from the shared permission dictionary. */
+function buildRolePermissionModules() {
+  const modules = new Map<string, PermissionModule>();
+
+  for (const permission of crmPermissionDefinitions) {
+    const module = getOrCreateModule(modules, permission.module, permission.moduleLabel);
+    const page = getOrCreatePage(module, permission.page, permission.pageLabel);
+    const group = getOrCreateGroup(page, permission.group, permission.groupLabel, permission.functionLabel);
+
+    group.options.push({
+      actionLabel: permission.actionLabel,
+      description: permission.description,
+      label: permission.label,
+      value: permission.code
+    });
+  }
+
+  return Array.from(modules.values());
+}
+
+function getOrCreateModule(modules: Map<string, PermissionModule>, key: string, label: string) {
+  const existing = modules.get(key);
+
+  if (existing) {
+    return existing;
+  }
+
+  const module: PermissionModule = {
+    key,
+    label,
+    pages: []
+  };
+
+  modules.set(key, module);
+
+  return module;
+}
+
+function getOrCreatePage(module: PermissionModule, key: string, label: string) {
+  const existing = module.pages.find(page => page.key === key);
+
+  if (existing) {
+    return existing;
+  }
+
+  const page: PermissionPage = {
+    key,
+    label,
+    groups: []
+  };
+
+  module.pages.push(page);
+
+  return page;
+}
+
+function getOrCreateGroup(page: PermissionPage, key: string, label: string, description: string) {
+  const existing = page.groups.find(group => group.key === key);
+
+  if (existing) {
+    return existing;
+  }
+
+  const group: PermissionGroup = {
+    key,
+    label,
+    description,
+    options: []
+  };
+
+  page.groups.push(group);
+
+  return group;
+}
 
 /** Create the default filter object for role management. */
 export function createDefaultRoleFilterModel(): Api.SystemRole.RoleFilterModel {

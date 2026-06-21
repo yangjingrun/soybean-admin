@@ -17,23 +17,33 @@ const emit = defineEmits<{
 <template>
   <div class="permission-group">
     <div class="permission-group__header">
-      <NText strong>{{ group.label }}</NText>
+      <div class="permission-group__title">
+        <NText strong>{{ group.label }}</NText>
+        <NText depth="3" class="permission-group__desc">{{ group.description }}</NText>
+      </div>
       <NSpace :size="6">
         <NButton size="tiny" quaternary :disabled="disabled" @click="emit('selectGroup', group)">全选</NButton>
         <NButton size="tiny" quaternary :disabled="disabled" @click="emit('clearGroup', group)">清空</NButton>
       </NSpace>
     </div>
-    <NSpace :size="[16, 8]" wrap>
+    <div class="permission-options">
       <NCheckbox
         v-for="option in group.options"
         :key="option.value"
         :checked="selected.includes(option.value)"
         :disabled="disabled"
+        class="permission-option"
         @update:checked="checked => emit('toggle', option.value, checked)"
       >
-        {{ option.label }}
+        <span class="permission-option__content">
+          <span class="permission-option__main">
+            <span>{{ option.actionLabel }}</span>
+            <NTag size="tiny" :bordered="false">{{ option.value }}</NTag>
+          </span>
+          <NText depth="3" class="permission-option__desc">{{ option.description }}</NText>
+        </span>
       </NCheckbox>
-    </NSpace>
+    </div>
   </div>
 </template>
 
@@ -54,5 +64,42 @@ const emit = defineEmits<{
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+}
+
+.permission-group__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.permission-group__desc,
+.permission-option__desc {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.permission-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 12px;
+}
+
+.permission-option {
+  align-items: flex-start;
+}
+
+.permission-option__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.permission-option__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 </style>

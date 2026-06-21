@@ -60,7 +60,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       i18nKey: 'route.ai-prompt-settings',
       icon: 'mdi:file-document-edit-outline',
       order: 4,
-      roles: ['R_SUPER']
+      permissions: ['ai:settings:prompt:read', 'ai:settings:prompt:write', 'ai:settings:prompt:test']
     }
   },
   {
@@ -72,7 +72,18 @@ export const generatedRoutes: GeneratedRoute[] = [
       i18nKey: 'route.ai-settings',
       icon: 'mdi:server-network-outline',
       order: 3,
-      roles: ['R_SUPER']
+      permissions: [
+        'ai:settings:model:read',
+        'ai:settings:model:write',
+        'ai:settings:model:test',
+        'ai:settings:serper:read',
+        'ai:settings:serper:write',
+        'ai:settings:serper:test',
+        'ai:settings:hunter:read',
+        'ai:settings:hunter:write',
+        'ai:settings:hunter:test',
+        'ai-leads:queue-config:manage'
+      ]
     }
   },
   {

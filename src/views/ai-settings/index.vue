@@ -3,6 +3,20 @@ import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
+import {
+  aiLeadsQueueConfigManagePermission,
+  aiSettingsHunterReadPermission,
+  aiSettingsHunterTestPermission,
+  aiSettingsHunterWritePermission,
+  aiSettingsModelReadPermission,
+  aiSettingsModelTestPermission,
+  aiSettingsModelWritePermission,
+  aiSettingsSerperReadPermission,
+  aiSettingsSerperTestPermission,
+  aiSettingsSerperWritePermission,
+  hasPermission,
+  type PermissionCode
+} from '@soybean/shared';
 import { defaultAiModelConfigKey, defaultHunterConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
 import {
   fetchAiLeadQueueConfig,
@@ -106,30 +120,44 @@ const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null)
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
 const activeSettingsTab = shallowRef<AiSettingsTabKey>('model');
 
-const canManagePlatformAiSettings = computed(
-  () => authStore.isStaticSuper || authStore.userInfo.roles.includes('R_SUPER')
-);
+const canReadModelConfig = computed(() => hasAssignedPermission(aiSettingsModelReadPermission));
+const canWriteModelConfig = computed(() => hasAssignedPermission(aiSettingsModelWritePermission));
+const canTestModelConfigPermission = computed(() => hasAssignedPermission(aiSettingsModelTestPermission));
+const canReadSerperConfig = computed(() => hasAssignedPermission(aiSettingsSerperReadPermission));
+const canWriteSerperConfig = computed(() => hasAssignedPermission(aiSettingsSerperWritePermission));
+const canTestSerperConfigPermission = computed(() => hasAssignedPermission(aiSettingsSerperTestPermission));
+const canReadHunterConfig = computed(() => hasAssignedPermission(aiSettingsHunterReadPermission));
+const canWriteHunterConfig = computed(() => hasAssignedPermission(aiSettingsHunterWritePermission));
+const canTestHunterConfigPermission = computed(() => hasAssignedPermission(aiSettingsHunterTestPermission));
+const canManageAiLeadQueueConfig = computed(() => hasAssignedPermission(aiLeadsQueueConfigManagePermission));
 const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() => ({
-  model: canManagePlatformAiSettings.value,
-  serper: canManagePlatformAiSettings.value,
-  hunter: canManagePlatformAiSettings.value,
-  queue: canManagePlatformAiSettings.value
+  model: canReadModelConfig.value,
+  serper: canReadSerperConfig.value,
+  hunter: canReadHunterConfig.value,
+  queue: canManageAiLeadQueueConfig.value
 }));
 const canViewAnySettingsTab = computed(() => Object.values(tabVisibility.value).some(Boolean));
+const firstVisibleSettingsTab = computed(
+  () =>
+    (Object.keys(tabVisibility.value) as AiSettingsTabKey[]).find(tabKey => tabVisibility.value[tabKey]) || 'model'
+);
 const modelApiKeyPlaceholder = computed(() =>
   savedModelSecret.hasApiKey && savedModelSecret.maskedApiKey
     ? `已保存：${savedModelSecret.maskedApiKey}，输入新 API Key 可替换`
     : t('page.aiSettings.placeholders.apiKey')
 );
-const canSaveModel = computed(() => canSaveModelConfig(modelForm));
-const canTestModel = computed(() => canTestModelConfig(modelForm, savedModelSecret));
+const canSaveModel = computed(() => canWriteModelConfig.value && canSaveModelConfig(modelForm));
+const canTestModel = computed(() => canTestModelConfigPermission.value && canTestModelConfig(modelForm, savedModelSecret));
 const formattedModelUpdatedAt = computed(() =>
   modelUpdatedAt.value
     ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
 const canSaveSerper = computed(() =>
-  Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
+  canWriteSerperConfig.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
+);
+const canTestSerper = computed(
+  () => canTestSerperConfigPermission.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
 );
 const formattedSerperUpdatedAt = computed(() =>
   serperUpdatedAt.value
@@ -137,14 +165,19 @@ const formattedSerperUpdatedAt = computed(() =>
     : t('page.aiSettings.status.notSaved')
 );
 const canSaveHunter = computed(() =>
-  Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
+  canWriteHunterConfig.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
+);
+const canTestHunter = computed(
+  () => canTestHunterConfigPermission.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
 );
 const formattedHunterUpdatedAt = computed(() =>
   hunterUpdatedAt.value
     ? dayjs(hunterUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
-const canSaveQueueConfig = computed(() => isValidWorkerConcurrency(queueConfigForm.workerConcurrency));
+const canSaveQueueConfig = computed(
+  () => canManageAiLeadQueueConfig.value && isValidWorkerConcurrency(queueConfigForm.workerConcurrency)
+);
 const formattedQueueConfigUpdatedAt = computed(() => {
   const updatedAt = queueConfigUpdatedAt.value;
 
@@ -197,15 +230,33 @@ function handleSelectSettingsTab(tabKey: AiSettingsTabKey) {
 }
 
 onMounted(() => {
-  if (!canManagePlatformAiSettings.value) {
+  if (!canViewAnySettingsTab.value) {
     return;
   }
 
-  void handleLoadModelConfig(false);
-  void handleLoadSerperConfig(false);
-  void handleLoadHunterConfig(false);
-  void handleLoadQueueConfig(false);
+  activeSettingsTab.value = firstVisibleSettingsTab.value;
+
+  if (canReadModelConfig.value) {
+    void handleLoadModelConfig(false);
+  }
+
+  if (canReadSerperConfig.value) {
+    void handleLoadSerperConfig(false);
+  }
+
+  if (canReadHunterConfig.value) {
+    void handleLoadHunterConfig(false);
+  }
+
+  if (canManageAiLeadQueueConfig.value) {
+    void handleLoadQueueConfig(false);
+  }
 });
+
+/** Check current user buttons against one platform AI setting permission. */
+function hasAssignedPermission(permission: PermissionCode) {
+  return authStore.isStaticSuper || hasPermission(authStore.userInfo, permission);
+}
 
 /** Loads the default backend model config into the settings form. */
 async function handleLoadModelConfig(showMessage = true) {
@@ -744,7 +795,7 @@ async function handleCopyApiKey(apiKey: string) {
                 <NButton
                   size="small"
                   :loading="isSerperTesting"
-                  :disabled="!canSaveSerper"
+                  :disabled="!canTestSerper"
                   @click="handleTestSerperConfig"
                 >
                   {{ $t('page.aiSettings.actions.test') }}
@@ -838,7 +889,7 @@ async function handleCopyApiKey(apiKey: string) {
                 <NButton
                   size="small"
                   :loading="isHunterTesting"
-                  :disabled="!canSaveHunter"
+                  :disabled="!canTestHunter"
                   @click="handleTestHunterConfig"
                 >
                   {{ $t('page.aiSettings.actions.test') }}

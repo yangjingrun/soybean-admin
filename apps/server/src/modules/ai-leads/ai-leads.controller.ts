@@ -9,16 +9,15 @@ import {
   Patch,
   Post,
   Query,
-  Res,
-  UnauthorizedException
+  Res
 } from '@nestjs/common';
-import { aiLeadsKeywordStrategyManagePermission } from '@soybean/shared';
+import { aiLeadsKeywordStrategyManagePermission, aiLeadsQueueConfigManagePermission } from '@soybean/shared';
 import { Throttle } from '@nestjs/throttler';
 import type { FastifyReply } from 'fastify';
 import { ok } from '../../shared/api-response';
-import { assertSuper as assertSuperRole, requirePermission } from '../../shared/permission-policy';
+import { requirePermission } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
-import { CurrentContext, SuperOnly } from '../auth/auth.decorators';
+import { CurrentContext } from '../auth/auth.decorators';
 import { AiLeadsService } from './ai-leads.service';
 import { KeywordHistoryQueryDto, UpdateKeywordHistoryDto } from './dto/keyword-history.dto';
 import { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
@@ -170,21 +169,19 @@ export class AiLeadsController {
   }
 
   @Get('queue-config')
-  @SuperOnly('无权维护 AI 获客任务配置')
   async getQueueConfig(@CurrentContext() currentContext: RequestUserContext | null = null) {
-    this.assertSuper(currentContext);
+    this.requireQueueConfigPermission(requireRequestUserContext(currentContext));
 
     return ok(await this.searchTaskService.getQueueConfig());
   }
 
   @Post('queue-config')
-  @SuperOnly('无权维护 AI 获客任务配置')
   async saveQueueConfig(
     @Body() dto: SaveAiLeadQueueConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.assertSuper(currentContext);
     const user = requireRequestUserContext(currentContext);
+    this.requireQueueConfigPermission(user);
 
     return ok(await this.searchTaskService.saveQueueConfig(dto.workerConcurrency, { user }));
   }
@@ -222,15 +219,11 @@ export class AiLeadsController {
     return ok(await this.aiLeadsService.deleteKeywordHistory(id, { user }));
   }
 
-  private assertSuper(currentContext: RequestUserContext | null) {
-    if (!currentContext) {
-      throw new UnauthorizedException('请先登录');
-    }
-
-    assertSuperRole(currentContext, '无权维护 AI 获客任务配置');
-  }
-
   private requireKeywordStrategyPermission(user: RequestUserContext) {
     requirePermission(user, aiLeadsKeywordStrategyManagePermission, '无权维护 AI 获客搜索策略');
+  }
+
+  private requireQueueConfigPermission(user: RequestUserContext) {
+    requirePermission(user, aiLeadsQueueConfigManagePermission, '无权维护 AI 获客任务配置');
   }
 }
