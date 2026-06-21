@@ -17,6 +17,8 @@ import type {
   HunterConfigStore,
   AiPromptRecord,
   AiPromptStore,
+  AiPromptTestRunRecord,
+  AiPromptVersionRecord,
   AiTextGenerateParams,
   AiTextGenerator,
   SerperConfigRecord,
@@ -276,6 +278,184 @@ describe('AiGatewayService', () => {
     assert.notEqual(draft.systemPrompt, saved.systemPrompt);
     assert.match(draft.systemPrompt, /Search \/ Places \/ Maps/);
     assert.equal(draft.updatedAt, '');
+  });
+
+  it('saves prompt drafts without changing the published prompt used by generation', async () => {
+    const promptStore = createMemoryPromptStore();
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      promptStore,
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await service.savePrompt({
+      promptKey: 'lead_maps_keyword_optimize',
+      title: '地图关键词优化',
+      systemPrompt: 'published prompt'
+    });
+    const draft = await service.savePromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        title: '地图关键词优化',
+        systemPrompt: createValidMapsPromptText(),
+        changeNote: '调整地图规则'
+      },
+      createUserContext('u-1')
+    );
+    const published = await service.getPrompt('lead_maps_keyword_optimize');
+    const detail = await service.getPromptWorkbenchDetail('lead_maps_keyword_optimize');
+
+    assert.equal(draft.lifecycle, 'draft');
+    assert.equal(draft.validationResult?.ok, true);
+    assert.equal(published.systemPrompt, 'published prompt');
+    assert.equal(detail.draft?.systemPrompt, createValidMapsPromptText());
+    assert.equal(detail.published?.systemPrompt, 'published prompt');
+  });
+
+  it('publishes the current draft as the prompt used by generation', async () => {
+    const promptStore = createMemoryPromptStore();
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      promptStore,
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await service.savePromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        title: '地图关键词优化',
+        systemPrompt: createValidMapsPromptText(),
+        changeNote: '准备发布'
+      },
+      createUserContext('u-1')
+    );
+    const version = await service.publishPromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        changeNote: '发布地图规则'
+      },
+      createUserContext('u-1')
+    );
+    const published = await service.getPrompt('lead_maps_keyword_optimize');
+
+    assert.equal(version.version, 1);
+    assert.equal(version.lifecycle, 'published');
+    assert.equal(published.systemPrompt, createValidMapsPromptText());
+  });
+
+  it('tests prompt drafts through the current user model config and records validation', async () => {
+    let captured: AiTextGenerateParams | null = null;
+    const generator: AiTextGenerator = {
+      async generateText(params) {
+        captured = params;
+
+        return {
+          text: createValidMapsOutputText(),
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 20,
+            outputTokens: 30,
+            totalTokens: 50
+          }
+        };
+      }
+    };
+    const promptStore = createMemoryPromptStore();
+    const userModelConfigStore = createMemoryUserModelConfigStore([
+      {
+        userId: 'u-1',
+        providerName: 'openai',
+        apiBase: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        model: 'gpt-4o-mini',
+        temperature: 0.2,
+        updatedAt: ''
+      }
+    ]);
+    const service = new AiGatewayService(
+      generator,
+      promptStore,
+      createMemoryModelConfigStore(),
+      userModelConfigStore,
+      createMemoryLogRecorder()
+    );
+
+    const result = await service.testPromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        systemPrompt: createValidMapsPromptText(),
+        inputPrompt: '找纽约轴承经销商'
+      },
+      createUserContext('u-1')
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(result.validationResult?.ok, true);
+    assert.equal(result.outputText, createValidMapsOutputText());
+    assert.equal(captured?.systemPrompt, createValidMapsPromptText());
+    assert.equal(captured?.prompt, '找纽约轴承经销商');
+    assert.equal((await promptStore.getLatestPromptTestRun('lead_maps_keyword_optimize'))?.success, true);
+  });
+
+  it('rolls back by publishing a new version copied from a historical version', async () => {
+    const promptStore = createMemoryPromptStore();
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      promptStore,
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await service.savePromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        title: '地图关键词优化',
+        systemPrompt: createValidMapsPromptText('旧版本'),
+        changeNote: '旧版本'
+      },
+      createUserContext('u-1')
+    );
+    const oldVersion = await service.publishPromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        changeNote: '发布旧版本'
+      },
+      createUserContext('u-1')
+    );
+    await service.savePromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        title: '地图关键词优化',
+        systemPrompt: createValidMapsPromptText('新版本'),
+        changeNote: '新版本'
+      },
+      createUserContext('u-1')
+    );
+    await service.publishPromptDraft(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        changeNote: '发布新版本'
+      },
+      createUserContext('u-1')
+    );
+
+    const rollbackVersion = await service.rollbackPromptVersion(
+      {
+        promptKey: 'lead_maps_keyword_optimize',
+        versionId: oldVersion.id,
+        changeNote: '回滚到旧版本'
+      },
+      createUserContext('u-1')
+    );
+    const published = await service.getPrompt('lead_maps_keyword_optimize');
+
+    assert.equal(rollbackVersion.version, 3);
+    assert.match(published.systemPrompt, /旧版本/);
   });
 
   it('uses stable temperature and no output limit for saved model config by default', async () => {
@@ -909,6 +1089,8 @@ function createMemoryTextGenerator(): AiTextGenerator {
 
 function createMemoryPromptStore(): AiPromptStore {
   const prompts = new Map<string, AiPromptRecord>();
+  const versions = new Map<string, AiPromptVersionRecord>();
+  const testRuns: AiPromptTestRunRecord[] = [];
 
   return {
     async getPrompt(promptKey) {
@@ -917,8 +1099,104 @@ function createMemoryPromptStore(): AiPromptStore {
     async savePrompt(record) {
       prompts.set(record.promptKey, record);
       return record;
+    },
+    async getDraftPromptVersion(promptKey) {
+      return versions.get(toVersionKey(promptKey, 0)) ?? null;
+    },
+    async saveDraftPromptVersion(input) {
+      const now = new Date().toISOString();
+      const record: AiPromptVersionRecord = {
+        id: `${input.promptKey}-draft`,
+        promptKey: input.promptKey,
+        title: input.title,
+        version: 0,
+        lifecycle: 'draft',
+        systemPrompt: input.systemPrompt,
+        validationResult: input.validationResult,
+        changeNote: input.changeNote ?? null,
+        createdById: input.userId ?? null,
+        createdByName: input.userName ?? null,
+        publishedAt: null,
+        createdAt: versions.get(toVersionKey(input.promptKey, 0))?.createdAt ?? now,
+        updatedAt: now
+      };
+
+      versions.set(toVersionKey(input.promptKey, 0), record);
+
+      return record;
+    },
+    async publishDraftPromptVersion(input) {
+      const draft = versions.get(toVersionKey(input.promptKey, 0));
+
+      if (!draft) {
+        throw new Error('提示词草稿不存在');
+      }
+
+      const nextVersion =
+        [...versions.values()]
+          .filter(record => record.promptKey === input.promptKey && record.version > 0)
+          .reduce((maxVersion, record) => Math.max(maxVersion, record.version), 0) + 1;
+      const now = new Date().toISOString();
+      const published: AiPromptVersionRecord = {
+        ...draft,
+        id: `${input.promptKey}-v${nextVersion}`,
+        version: nextVersion,
+        lifecycle: 'published',
+        changeNote: input.changeNote ?? draft.changeNote,
+        createdById: input.userId ?? draft.createdById,
+        createdByName: input.userName ?? draft.createdByName,
+        publishedAt: now,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      versions.set(toVersionKey(input.promptKey, nextVersion), published);
+      versions.delete(toVersionKey(input.promptKey, 0));
+      prompts.set(input.promptKey, {
+        promptKey: input.promptKey,
+        title: draft.title,
+        systemPrompt: draft.systemPrompt,
+        updatedAt: now
+      });
+
+      return published;
+    },
+    async getPromptVersionById(id) {
+      return [...versions.values()].find(record => record.id === id) ?? null;
+    },
+    async listPromptVersions(promptKey, limit) {
+      return [...versions.values()]
+        .filter(record => record.promptKey === promptKey && record.version > 0)
+        .sort((left, right) => right.version - left.version)
+        .slice(0, limit);
+    },
+    async recordPromptTestRun(input) {
+      const record: AiPromptTestRunRecord = {
+        id: `test-run-${testRuns.length + 1}`,
+        promptKey: input.promptKey,
+        inputPrompt: input.inputPrompt,
+        outputText: input.outputText ?? null,
+        validationResult: input.validationResult,
+        success: input.success,
+        durationMs: input.durationMs ?? null,
+        errorMessage: input.errorMessage ?? null,
+        createdById: input.userId ?? null,
+        createdByName: input.userName ?? null,
+        createdAt: new Date().toISOString()
+      };
+
+      testRuns.push(record);
+
+      return record;
+    },
+    async getLatestPromptTestRun(promptKey) {
+      return testRuns.filter(record => record.promptKey === promptKey).at(-1) ?? null;
     }
   };
+}
+
+function toVersionKey(promptKey: string, version: number) {
+  return `${promptKey}:${version}`;
 }
 
 function createMemoryModelConfigStore(): AiModelConfigStore {
@@ -992,6 +1270,81 @@ function createUserContext(userId: string): RequestUserContext {
     roles: ['R_USER'],
     organizationId: 'org-1',
     organizationRole: 'member'
+  };
+}
+
+function createValidMapsPromptText(marker = '') {
+  return [
+    `你是 Maps Agent。${marker}`,
+    '只输出一个合法 JSON 对象。',
+    'serperMapsQueries 输出 5-8 条。',
+    'serperSearchQueries 必须是空数组。',
+    'serperPlacesQueries 必须是空数组。',
+    '不要新增 JSON 顶层字段。'
+  ].join('\n');
+}
+
+function createValidMapsOutputText() {
+  return JSON.stringify({
+    resolvedProductKeywords: '轴承 bearing',
+    resolvedTargetRegions: '美国纽约州',
+    resolvedTargetCustomerProfile: '本地工业用品经销商和维修服务商',
+    resolvedTargetLeadCount: null,
+    structuredRequirement: '寻找美国纽约州有门店或地址电话的轴承相关 B2B 商家。',
+    buyerSegments: [
+      createBuyerSegment('bearing distributor'),
+      createBuyerSegment('industrial supplier'),
+      createBuyerSegment('bearing repair service')
+    ],
+    serperSearchQueries: [],
+    serperPlacesQueries: [],
+    serperMapsQueries: [
+      createMapsQuery('bearing distributor', 'local_distributor'),
+      createMapsQuery('bearing wholesale', 'local_wholesaler'),
+      createMapsQuery('industrial supplier', 'industrial_supplier'),
+      createMapsQuery('bearing repair service', 'repair_service'),
+      createMapsQuery('power transmission supplier', 'mro_supplier')
+    ],
+    searchExecutionRules: {
+      channelPriority: ['maps'],
+      mapsUsage: 'Maps 用于查找本地经销商、工业用品供应商、维修服务商、门店型批发商等有地址电话的实体商家。',
+      defaultDateRange: 'any_time',
+      keep: ['distributor', 'industrial supplier'],
+      exclude: ['school', 'blog'],
+      websiteCheckPages: ['Products', 'Brands', 'Contact'],
+      dedupeKeys: ['cid', 'placeId', 'website']
+    }
+  });
+}
+
+function createBuyerSegment(buyerType: string) {
+  return {
+    buyerType,
+    purchaseReason: '可能采购轴承产品',
+    websiteSignals: ['Products', 'Brands'],
+    priorityContacts: ['Purchasing Manager'],
+    priorityLevel: '高',
+    preferredSerperChannel: 'maps'
+  };
+}
+
+function createMapsQuery(q: string, intent: string) {
+  return {
+    endpoint: 'maps',
+    requestBody: {
+      q,
+      hl: 'en',
+      ll: '@41.6469296,-73.2681778,8z',
+      page: 1
+    },
+    meta: {
+      buyerType: 'bearing buyer',
+      intent,
+      city: 'New York',
+      priority: '高',
+      expectedPlaceTypes: ['Industrial equipment supplier'],
+      reason: '这条适合用 Maps 找有地址电话的本地实体商家'
+    }
   };
 }
 

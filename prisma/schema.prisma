@@ -888,6 +888,43 @@ model AiPromptConfig {
   updatedAt    DateTime @updatedAt
 }
 
+model AiPromptVersion {
+  id               String   @id @default(uuid())
+  promptKey        String
+  title            String
+  version          Int
+  lifecycle        String   @default("draft")
+  systemPrompt     String
+  validationResult Json?
+  changeNote       String?
+  createdById      String?
+  createdByName    String?
+  publishedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([promptKey, version])
+  @@index([promptKey, lifecycle, updatedAt])
+  @@index([promptKey, version])
+}
+
+model AiPromptTestRun {
+  id               String   @id @default(uuid())
+  promptKey        String
+  inputPrompt      String
+  outputText       String?
+  validationResult Json?
+  success          Boolean  @default(false)
+  durationMs       Int?
+  errorMessage     String?
+  createdById      String?
+  createdByName    String?
+  createdAt        DateTime @default(now())
+
+  @@index([promptKey, createdAt])
+  @@index([success, createdAt])
+}
+
 model AiModelConfig {
   id              String   @id @default(uuid())
   configKey       String   @unique

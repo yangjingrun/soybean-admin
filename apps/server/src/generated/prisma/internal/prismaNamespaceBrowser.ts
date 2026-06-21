@@ -83,6 +83,8 @@ export const ModelName = {
   CrmAiDraftTaskItem: 'CrmAiDraftTaskItem',
   CrmAiDraftQueueConfig: 'CrmAiDraftQueueConfig',
   AiPromptConfig: 'AiPromptConfig',
+  AiPromptVersion: 'AiPromptVersion',
+  AiPromptTestRun: 'AiPromptTestRun',
   AiModelConfig: 'AiModelConfig',
   AiUserModelConfig: 'AiUserModelConfig',
   AiUserSerperConfig: 'AiUserSerperConfig',
@@ -751,6 +753,42 @@ export const AiPromptConfigScalarFieldEnum = {
 } as const
 
 export type AiPromptConfigScalarFieldEnum = (typeof AiPromptConfigScalarFieldEnum)[keyof typeof AiPromptConfigScalarFieldEnum]
+
+
+export const AiPromptVersionScalarFieldEnum = {
+  id: 'id',
+  promptKey: 'promptKey',
+  title: 'title',
+  version: 'version',
+  lifecycle: 'lifecycle',
+  systemPrompt: 'systemPrompt',
+  validationResult: 'validationResult',
+  changeNote: 'changeNote',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  publishedAt: 'publishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AiPromptVersionScalarFieldEnum = (typeof AiPromptVersionScalarFieldEnum)[keyof typeof AiPromptVersionScalarFieldEnum]
+
+
+export const AiPromptTestRunScalarFieldEnum = {
+  id: 'id',
+  promptKey: 'promptKey',
+  inputPrompt: 'inputPrompt',
+  outputText: 'outputText',
+  validationResult: 'validationResult',
+  success: 'success',
+  durationMs: 'durationMs',
+  errorMessage: 'errorMessage',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt'
+} as const
+
+export type AiPromptTestRunScalarFieldEnum = (typeof AiPromptTestRunScalarFieldEnum)[keyof typeof AiPromptTestRunScalarFieldEnum]
 
 
 export const AiModelConfigScalarFieldEnum = {

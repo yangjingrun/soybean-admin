@@ -1,0 +1,135 @@
+export interface PromptStepStatusView {
+  label: string;
+  type: 'default' | 'info' | 'success' | 'warning' | 'error';
+}
+
+export interface PromptValidationSummary {
+  ok: boolean;
+  passCount: number;
+  warnCount: number;
+  failCount: number;
+  label: string;
+}
+
+export interface PromptSectionAnchor {
+  key: string;
+  label: string;
+  line: number;
+}
+
+const promptSectionMatchers: Array<{
+  key: string;
+  label: string;
+  patterns: RegExp[];
+}> = [
+  {
+    key: 'role',
+    label: '角色定义',
+    patterns: [/^你是/u]
+  },
+  {
+    key: 'channel',
+    label: '渠道规则',
+    patterns: [/渠道规则/u, /Serper Maps/u]
+  },
+  {
+    key: 'keyword',
+    label: '关键词维度',
+    patterns: [/关键词维度/u, /关键词扩展/u]
+  },
+  {
+    key: 'hard-rules',
+    label: '硬性规则',
+    patterns: [/硬性规则/u]
+  },
+  {
+    key: 'output',
+    label: '输出结构',
+    patterns: [/输出 JSON/u, /输出结构/u]
+  }
+];
+
+/** Resolves the compact status badge shown in the built-in prompt step list. */
+export function resolvePromptStepStatus(step: Api.AiGateway.AiPromptStepSummary): PromptStepStatusView {
+  if (step.draft) {
+    return {
+      label: '有草稿',
+      type: step.draft.validationResult?.ok === false ? 'warning' : 'info'
+    };
+  }
+
+  if (step.latestTestRun && !step.latestTestRun.success) {
+    return {
+      label: '测试失败',
+      type: 'error'
+    };
+  }
+
+  if (step.published) {
+    return {
+      label: '已发布',
+      type: 'success'
+    };
+  }
+
+  return {
+    label: '未发布',
+    type: 'default'
+  };
+}
+
+/** Counts prompt validation items for the publish checklist header. */
+export function summarizePromptValidation(result: Api.AiGateway.AiPromptValidationResult | null): PromptValidationSummary {
+  if (!result) {
+    return {
+      ok: false,
+      passCount: 0,
+      warnCount: 0,
+      failCount: 0,
+      label: '未校验'
+    };
+  }
+
+  const passCount = result.items.filter(item => item.status === 'pass').length;
+  const warnCount = result.items.filter(item => item.status === 'warn').length;
+  const failCount = result.items.filter(item => item.status === 'fail').length;
+
+  return {
+    ok: result.ok,
+    passCount,
+    warnCount,
+    failCount,
+    label: failCount > 0 ? `${failCount} 项需修复` : warnCount > 0 ? `${warnCount} 项需确认` : '校验通过'
+  };
+}
+
+/** Builds stable editor anchors from known prompt section headings. */
+export function buildPromptSectionAnchors(systemPrompt: string): PromptSectionAnchor[] {
+  const matchedKeys = new Set<string>();
+  const anchors: PromptSectionAnchor[] = [];
+
+  systemPrompt.split('\n').forEach((line, index) => {
+    const normalizedLine = line.trim();
+
+    if (!normalizedLine) {
+      return;
+    }
+
+    const matcher = promptSectionMatchers.find(
+      item => !matchedKeys.has(item.key) && item.patterns.some(pattern => pattern.test(normalizedLine))
+    );
+
+    if (!matcher) {
+      return;
+    }
+
+    matchedKeys.add(matcher.key);
+    anchors.push({
+      key: matcher.key,
+      label: matcher.label,
+      line: index + 1
+    });
+  });
+
+  return anchors;
+}

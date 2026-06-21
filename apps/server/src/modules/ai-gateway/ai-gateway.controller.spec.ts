@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { aiSettingsPromptManagePermission } from '@soybean/shared';
 import type { RequestUserContext } from '../../shared/request-context';
 import { AiGatewayController } from './ai-gateway.controller';
 
@@ -257,6 +258,131 @@ describe('AiGatewayController', () => {
     } as never);
 
     await assert.rejects(() => controller.getMyModelConfig(null), UnauthorizedException);
+  });
+
+  it('requires prompt permission before saving a prompt draft', async () => {
+    let called = false;
+    const controller = new AiGatewayController({
+      async savePromptDraft() {
+        called = true;
+        return {};
+      }
+    } as never);
+
+    await assert.rejects(
+      () =>
+        controller.savePromptDraft(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            title: '地图关键词优化',
+            systemPrompt: 'prompt'
+          },
+          createUser()
+        ),
+      ForbiddenException
+    );
+    assert.equal(called, false);
+  });
+
+  it('passes the current user context through prompt workbench actions', async () => {
+    const receivedUsers: string[] = [];
+    const controller = new AiGatewayController({
+      async listPromptWorkbenchSteps() {
+        return [{ promptKey: 'lead_maps_keyword_optimize' }];
+      },
+      async getPromptWorkbenchDetail(promptKey: string) {
+        return { promptKey };
+      },
+      validatePromptDraft(promptKey: string) {
+        return { ok: true, items: [{ key: promptKey }] };
+      },
+      async savePromptDraft(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { lifecycle: 'draft' };
+      },
+      async testPromptDraft(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { success: true };
+      },
+      async publishPromptDraft(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { version: 1 };
+      },
+      async rollbackPromptVersion(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { version: 2 };
+      }
+    } as never);
+    const user = createUser([aiSettingsPromptManagePermission]);
+
+    assert.deepEqual((await controller.listPromptWorkbenchSteps(user)).data, [
+      { promptKey: 'lead_maps_keyword_optimize' }
+    ]);
+    assert.deepEqual(
+      (await controller.getPromptWorkbenchDetail({ promptKey: 'lead_maps_keyword_optimize' }, user)).data,
+      { promptKey: 'lead_maps_keyword_optimize' }
+    );
+    assert.deepEqual(
+      (
+        await controller.validatePromptDraft({
+          promptKey: 'lead_maps_keyword_optimize',
+          systemPrompt: 'prompt'
+        }, user)
+      ).data,
+      { ok: true, items: [{ key: 'lead_maps_keyword_optimize' }] }
+    );
+    assert.deepEqual(
+      (
+        await controller.savePromptDraft(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            title: '地图关键词优化',
+            systemPrompt: 'prompt'
+          },
+          user
+        )
+      ).data,
+      { lifecycle: 'draft' }
+    );
+    assert.deepEqual(
+      (
+        await controller.testPromptDraft(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            systemPrompt: 'prompt',
+            inputPrompt: '找纽约轴承经销商'
+          },
+          user
+        )
+      ).data,
+      { success: true }
+    );
+    assert.deepEqual(
+      (
+        await controller.publishPromptDraft(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            changeNote: '发布'
+          },
+          user
+        )
+      ).data,
+      { version: 1 }
+    );
+    assert.deepEqual(
+      (
+        await controller.rollbackPromptVersion(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            versionId: 'version-1',
+            changeNote: '回滚'
+          },
+          user
+        )
+      ).data,
+      { version: 2 }
+    );
+    assert.deepEqual(receivedUsers, ['u-1', 'u-1', 'u-1', 'u-1']);
   });
 });
 

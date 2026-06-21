@@ -7,6 +7,65 @@ declare namespace Api {
       updatedAt: string;
     }
 
+    type AiPromptValidationStatus = 'pass' | 'warn' | 'fail';
+
+    interface AiPromptValidationItem {
+      key: string;
+      label: string;
+      status: AiPromptValidationStatus;
+      message: string;
+    }
+
+    interface AiPromptValidationResult {
+      ok: boolean;
+      items: AiPromptValidationItem[];
+    }
+
+    interface AiPromptVersionRecord {
+      id: string;
+      promptKey: string;
+      title: string;
+      version: number;
+      lifecycle: 'draft' | 'published';
+      systemPrompt: string;
+      validationResult: AiPromptValidationResult | null;
+      changeNote: string | null;
+      createdById: string | null;
+      createdByName: string | null;
+      publishedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    interface AiPromptTestRunRecord {
+      id: string;
+      promptKey: string;
+      inputPrompt: string;
+      outputText: string | null;
+      validationResult: AiPromptValidationResult | null;
+      success: boolean;
+      durationMs: number | null;
+      errorMessage: string | null;
+      createdById: string | null;
+      createdByName: string | null;
+      createdAt: string;
+    }
+
+    interface AiPromptStepSummary {
+      promptKey: string;
+      title: string;
+      usage: string;
+      channel: 'search_places' | 'maps' | 'analysis' | 'email';
+      published: AiPromptRecord | null;
+      draft: AiPromptVersionRecord | null;
+      latestTestRun: AiPromptTestRunRecord | null;
+    }
+
+    interface AiPromptWorkbenchDetail extends AiPromptStepSummary {
+      versions: AiPromptVersionRecord[];
+      defaultPrompt: AiPromptRecord;
+    }
+
     interface AiUsage {
       inputTokens: number | null;
       outputTokens: number | null;
@@ -23,6 +82,28 @@ declare namespace Api {
       promptKey: string;
       title: string;
       systemPrompt: string;
+    }
+
+    interface SavePromptDraftPayload extends SavePromptPayload {
+      changeNote?: string | null;
+    }
+
+    interface ValidatePromptDraftPayload {
+      promptKey: string;
+      systemPrompt: string;
+    }
+
+    interface TestPromptDraftPayload extends ValidatePromptDraftPayload {
+      inputPrompt: string;
+    }
+
+    interface PublishPromptDraftPayload {
+      promptKey: string;
+      changeNote?: string | null;
+    }
+
+    interface RollbackPromptVersionPayload extends PublishPromptDraftPayload {
+      versionId: string;
     }
 
     interface AiModelConfigRecord {

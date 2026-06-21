@@ -178,6 +178,16 @@ export type CrmAiDraftQueueConfig = Prisma.CrmAiDraftQueueConfigModel
  */
 export type AiPromptConfig = Prisma.AiPromptConfigModel
 /**
+ * Model AiPromptVersion
+ *
+ */
+export type AiPromptVersion = Prisma.AiPromptVersionModel
+/**
+ * Model AiPromptTestRun
+ *
+ */
+export type AiPromptTestRun = Prisma.AiPromptTestRunModel
+/**
  * Model AiModelConfig
  *
  */

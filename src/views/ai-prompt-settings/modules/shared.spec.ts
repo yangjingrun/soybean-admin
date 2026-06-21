@@ -1,0 +1,105 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { buildPromptSectionAnchors, summarizePromptValidation, resolvePromptStepStatus } from './shared';
+
+describe('ai prompt settings shared helpers', () => {
+  it('prioritizes draft and failed test states in step status labels', () => {
+    assert.deepEqual(
+      resolvePromptStepStatus({
+        promptKey: 'lead_maps_keyword_optimize',
+        title: '地图关键词优化',
+        usage: '',
+        channel: 'maps',
+        published: null,
+        draft: {
+          id: 'draft',
+          promptKey: 'lead_maps_keyword_optimize',
+          title: '地图关键词优化',
+          version: 0,
+          lifecycle: 'draft',
+          systemPrompt: 'prompt',
+          validationResult: null,
+          changeNote: null,
+          createdById: null,
+          createdByName: null,
+          publishedAt: null,
+          createdAt: '',
+          updatedAt: ''
+        },
+        latestTestRun: null
+      }).label,
+      '有草稿'
+    );
+
+    assert.deepEqual(
+      resolvePromptStepStatus({
+        promptKey: 'lead_maps_keyword_optimize',
+        title: '地图关键词优化',
+        usage: '',
+        channel: 'maps',
+        published: {
+          promptKey: 'lead_maps_keyword_optimize',
+          title: '地图关键词优化',
+          systemPrompt: 'prompt',
+          updatedAt: ''
+        },
+        draft: null,
+        latestTestRun: {
+          id: 'test',
+          promptKey: 'lead_maps_keyword_optimize',
+          inputPrompt: 'test',
+          outputText: null,
+          validationResult: null,
+          success: false,
+          durationMs: 200,
+          errorMessage: 'failed',
+          createdById: null,
+          createdByName: null,
+          createdAt: ''
+        }
+      }).label,
+      '测试失败'
+    );
+  });
+
+  it('summarizes validation checklist counts', () => {
+    assert.deepEqual(
+      summarizePromptValidation({
+        ok: false,
+        items: [
+          { key: 'json-object', label: 'JSON', status: 'pass', message: 'ok' },
+          { key: 'top-level-fields', label: '字段', status: 'fail', message: 'missing' },
+          { key: 'legacy', label: '旧规则', status: 'warn', message: 'warn' }
+        ]
+      }),
+      {
+        ok: false,
+        passCount: 1,
+        warnCount: 1,
+        failCount: 1,
+        label: '1 项需修复'
+      }
+    );
+  });
+
+  it('builds prompt editor anchors from known section headings', () => {
+    assert.deepEqual(
+      buildPromptSectionAnchors(`
+你是 Maps Agent
+Serper Maps 渠道规则：
+- Maps 是唯一渠道
+关键词维度覆盖要求：
+硬性规则：
+输出 JSON 结构必须严格如下：
+searchExecutionRules
+`),
+      [
+        { key: 'role', label: '角色定义', line: 2 },
+        { key: 'channel', label: '渠道规则', line: 3 },
+        { key: 'keyword', label: '关键词维度', line: 5 },
+        { key: 'hard-rules', label: '硬性规则', line: 6 },
+        { key: 'output', label: '输出结构', line: 7 }
+      ]
+    );
+  });
+});

@@ -1,0 +1,273 @@
+import { computed, shallowRef } from 'vue';
+import { useMessage } from 'naive-ui';
+import { defaultAiPromptKey, type AiPromptKey } from '@/constants/ai-gateway';
+import {
+  fetchAiPromptWorkbenchDetail,
+  fetchAiPromptWorkbenchSteps,
+  publishAiPromptDraft,
+  rollbackAiPromptVersion,
+  saveAiPromptDraft,
+  testAiPromptDraft,
+  validateAiPromptDraft
+} from '@/service/api';
+
+const defaultTestInput = '我是河北卖轴承的，想找纽约周边有门店和电话的轴承经销商';
+
+/** Owns prompt workbench state and backend actions for the route view. */
+export function usePromptSettingsPage() {
+  const message = useMessage();
+  const steps = shallowRef<Api.AiGateway.AiPromptStepSummary[]>([]);
+  const detail = shallowRef<Api.AiGateway.AiPromptWorkbenchDetail | null>(null);
+  const selectedPromptKey = shallowRef<AiPromptKey>(defaultAiPromptKey);
+  const systemPrompt = shallowRef('');
+  const changeNote = shallowRef('');
+  const testInput = shallowRef(defaultTestInput);
+  const validationResult = shallowRef<Api.AiGateway.AiPromptValidationResult | null>(null);
+  const latestTestRun = shallowRef<Api.AiGateway.AiPromptTestRunRecord | null>(null);
+  const loadingSteps = shallowRef(false);
+  const loadingDetail = shallowRef(false);
+  const savingDraft = shallowRef(false);
+  const validating = shallowRef(false);
+  const testing = shallowRef(false);
+  const publishing = shallowRef(false);
+  const rollingBackVersionId = shallowRef<string | null>(null);
+  let detailRequestId = 0;
+
+  const selectedStep = computed(
+    () => steps.value.find(step => step.promptKey === selectedPromptKey.value) ?? detail.value ?? null
+  );
+  const versions = computed(() => detail.value?.versions ?? []);
+  const basePrompt = computed(
+    () =>
+      detail.value?.draft?.systemPrompt ||
+      detail.value?.published?.systemPrompt ||
+      detail.value?.defaultPrompt.systemPrompt ||
+      ''
+  );
+  const isDirty = computed(() => systemPrompt.value.trim() !== basePrompt.value.trim());
+  const canSaveDraft = computed(() => Boolean(systemPrompt.value.trim()) && !savingDraft.value);
+  const canValidate = computed(() => Boolean(systemPrompt.value.trim()) && !validating.value);
+  const canTest = computed(() => Boolean(systemPrompt.value.trim() && testInput.value.trim()) && !testing.value);
+  const canPublish = computed(
+    () => Boolean(detail.value?.draft && !isDirty.value && validationResult.value?.ok) && !publishing.value
+  );
+
+  /** Loads built-in prompt steps and opens the selected prompt detail. */
+  async function loadSteps(preferredPromptKey: string = selectedPromptKey.value) {
+    loadingSteps.value = true;
+
+    try {
+      const { data, error } = await fetchAiPromptWorkbenchSteps();
+
+      if (error || !data) {
+        return;
+      }
+
+      steps.value = data;
+      selectedPromptKey.value = (data.some(step => step.promptKey === preferredPromptKey)
+        ? preferredPromptKey
+        : data[0]?.promptKey || defaultAiPromptKey) as AiPromptKey;
+      await loadDetail(selectedPromptKey.value);
+    } finally {
+      loadingSteps.value = false;
+    }
+  }
+
+  /** Switches the selected prompt and loads detail with stale request protection. */
+  async function selectPrompt(promptKey: string) {
+    selectedPromptKey.value = promptKey as AiPromptKey;
+    await loadDetail(promptKey);
+  }
+
+  async function loadDetail(promptKey: string = selectedPromptKey.value) {
+    const requestId = detailRequestId + 1;
+    detailRequestId = requestId;
+    loadingDetail.value = true;
+
+    try {
+      const { data, error } = await fetchAiPromptWorkbenchDetail(promptKey);
+
+      if (error || !data || requestId !== detailRequestId) {
+        return;
+      }
+
+      detail.value = data;
+      systemPrompt.value = data.draft?.systemPrompt || data.published?.systemPrompt || data.defaultPrompt.systemPrompt;
+      validationResult.value = data.draft?.validationResult ?? null;
+      latestTestRun.value = data.latestTestRun;
+      changeNote.value = '';
+    } finally {
+      if (requestId === detailRequestId) {
+        loadingDetail.value = false;
+      }
+    }
+  }
+
+  async function validateCurrentPrompt() {
+    if (!canValidate.value) {
+      return;
+    }
+
+    validating.value = true;
+
+    try {
+      const { data, error } = await validateAiPromptDraft({
+        promptKey: selectedPromptKey.value,
+        systemPrompt: systemPrompt.value
+      });
+
+      if (error || !data) {
+        return;
+      }
+
+      validationResult.value = data;
+      message[data.ok ? 'success' : 'warning'](data.ok ? '校验通过' : '校验发现需要修复的规则');
+    } finally {
+      validating.value = false;
+    }
+  }
+
+  async function saveCurrentDraft() {
+    if (!canSaveDraft.value || !selectedStep.value) {
+      return;
+    }
+
+    savingDraft.value = true;
+
+    try {
+      const { data, error } = await saveAiPromptDraft({
+        promptKey: selectedPromptKey.value,
+        title: selectedStep.value.title,
+        systemPrompt: systemPrompt.value,
+        changeNote: changeNote.value
+      });
+
+      if (error || !data) {
+        return;
+      }
+
+      message.success('草稿已保存');
+      await Promise.all([loadSteps(selectedPromptKey.value), loadDetail(selectedPromptKey.value)]);
+    } finally {
+      savingDraft.value = false;
+    }
+  }
+
+  async function testCurrentDraft() {
+    if (!canTest.value) {
+      return;
+    }
+
+    testing.value = true;
+
+    try {
+      const { data, error } = await testAiPromptDraft({
+        promptKey: selectedPromptKey.value,
+        systemPrompt: systemPrompt.value,
+        inputPrompt: testInput.value
+      });
+
+      if (error || !data) {
+        return;
+      }
+
+      latestTestRun.value = data;
+      validationResult.value = data.validationResult;
+      message[data.success ? 'success' : 'warning'](data.success ? '测试通过' : '测试输出未通过校验');
+      await loadSteps(selectedPromptKey.value);
+    } finally {
+      testing.value = false;
+    }
+  }
+
+  async function publishCurrentDraft() {
+    if (!canPublish.value) {
+      return;
+    }
+
+    publishing.value = true;
+
+    try {
+      const { error } = await publishAiPromptDraft({
+        promptKey: selectedPromptKey.value,
+        changeNote: changeNote.value
+      });
+
+      if (error) {
+        return;
+      }
+
+      message.success('全局版本已发布');
+      await Promise.all([loadSteps(selectedPromptKey.value), loadDetail(selectedPromptKey.value)]);
+    } finally {
+      publishing.value = false;
+    }
+  }
+
+  async function rollbackVersion(version: Api.AiGateway.AiPromptVersionRecord) {
+    if (rollingBackVersionId.value) {
+      return;
+    }
+
+    rollingBackVersionId.value = version.id;
+
+    try {
+      const { error } = await rollbackAiPromptVersion({
+        promptKey: selectedPromptKey.value,
+        versionId: version.id,
+        changeNote: `回滚到 v${version.version}`
+      });
+
+      if (error) {
+        return;
+      }
+
+      message.success(`已回滚到 v${version.version}`);
+      await Promise.all([loadSteps(selectedPromptKey.value), loadDetail(selectedPromptKey.value)]);
+    } finally {
+      rollingBackVersionId.value = null;
+    }
+  }
+
+  function useDefaultPrompt() {
+    if (!detail.value) {
+      return;
+    }
+
+    systemPrompt.value = detail.value.defaultPrompt.systemPrompt;
+    validationResult.value = null;
+  }
+
+  return {
+    steps,
+    detail,
+    selectedPromptKey,
+    selectedStep,
+    systemPrompt,
+    changeNote,
+    testInput,
+    validationResult,
+    latestTestRun,
+    versions,
+    loadingSteps,
+    loadingDetail,
+    savingDraft,
+    validating,
+    testing,
+    publishing,
+    rollingBackVersionId,
+    isDirty,
+    canSaveDraft,
+    canValidate,
+    canTest,
+    canPublish,
+    loadSteps,
+    selectPrompt,
+    validateCurrentPrompt,
+    saveCurrentDraft,
+    testCurrentDraft,
+    publishCurrentDraft,
+    rollbackVersion,
+    useDefaultPrompt
+  };
+}

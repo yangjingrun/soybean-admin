@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { trimStringValue } from '../../../shared/dto-transformers';
 import { aiPromptKeys } from '../ai-gateway.constants';
 
@@ -23,4 +23,44 @@ export class SaveAiPromptDto extends AiPromptKeyParamDto {
   @MaxLength(12000)
   @Transform(trimStringValue)
   systemPrompt!: string;
+}
+
+export class SaveAiPromptDraftDto extends SaveAiPromptDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  @Transform(trimStringValue)
+  changeNote?: string;
+}
+
+export class ValidateAiPromptDraftDto extends AiPromptKeyParamDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(12000)
+  @Transform(trimStringValue)
+  systemPrompt!: string;
+}
+
+export class TestAiPromptDraftDto extends ValidateAiPromptDraftDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
+  @Transform(trimStringValue)
+  inputPrompt!: string;
+}
+
+export class PublishAiPromptDraftDto extends AiPromptKeyParamDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  @Transform(trimStringValue)
+  changeNote?: string;
+}
+
+export class RollbackAiPromptVersionDto extends PublishAiPromptDraftDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  @Transform(trimStringValue)
+  versionId!: string;
 }

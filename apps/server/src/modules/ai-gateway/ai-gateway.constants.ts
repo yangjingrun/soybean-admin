@@ -30,6 +30,57 @@ export type AiPromptKey = (typeof aiPromptDefinitions)[number]['promptKey'];
 
 export const aiPromptKeys = aiPromptDefinitions.map(item => item.promptKey);
 
+export const aiPromptChannels: Record<AiPromptKey, 'search_places' | 'maps' | 'analysis' | 'email'> = {
+  lead_keyword_optimize: 'search_places',
+  lead_maps_keyword_optimize: 'maps',
+  lead_search_result_decide: 'analysis',
+  lead_match_analyze: 'analysis',
+  lead_email_generate: 'email'
+};
+
+export const aiPromptOutputTopLevelFields: Record<AiPromptKey, string[]> = {
+  lead_keyword_optimize: [
+    'resolvedProductKeywords',
+    'resolvedTargetRegions',
+    'resolvedTargetCustomerProfile',
+    'resolvedTargetLeadCount',
+    'structuredRequirement',
+    'buyerSegments',
+    'serperSearchQueries',
+    'serperPlacesQueries',
+    'searchExecutionRules'
+  ],
+  lead_maps_keyword_optimize: [
+    'resolvedProductKeywords',
+    'resolvedTargetRegions',
+    'resolvedTargetCustomerProfile',
+    'resolvedTargetLeadCount',
+    'structuredRequirement',
+    'buyerSegments',
+    'serperSearchQueries',
+    'serperPlacesQueries',
+    'serperMapsQueries',
+    'searchExecutionRules'
+  ],
+  lead_search_result_decide: [],
+  lead_match_analyze: [],
+  lead_email_generate: []
+};
+
+export const aiPromptRequiredTextRules: Record<AiPromptKey, string[]> = {
+  lead_keyword_optimize: ['只输出一个合法 JSON 对象', 'serperSearchQueries', 'serperPlacesQueries', '不要新增 JSON 顶层字段'],
+  lead_maps_keyword_optimize: [
+    '只输出一个合法 JSON 对象',
+    'serperMapsQueries',
+    'serperSearchQueries 必须是空数组',
+    'serperPlacesQueries 必须是空数组',
+    '不要新增 JSON 顶层字段'
+  ],
+  lead_search_result_decide: ['只输出一个合法 JSON 对象'],
+  lead_match_analyze: ['只输出一个合法 JSON 对象'],
+  lead_email_generate: ['开发信']
+};
+
 /** Built-in prompt drafts used before a super admin saves an override. */
 export const defaultAiPromptSystemPrompts: Partial<Record<AiPromptKey, string>> = {
   lead_keyword_optimize: `

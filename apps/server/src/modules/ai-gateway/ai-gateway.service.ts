@@ -5,12 +5,14 @@ import { createSystemLogErrorMetadata } from '../system-log/system-log-error-tax
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import {
+  aiPromptChannels,
   aiPromptDefinitions,
   aiPromptKeys,
   defaultAiPromptSystemPrompts,
   defaultAiModelConfigKey,
   defaultAiTemperature
 } from './ai-gateway.constants';
+import { validateAiPromptOutput, validateAiPromptText } from './ai-prompt-validator';
 import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR, AI_USER_MODEL_CONFIG_STORE } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
@@ -22,6 +24,11 @@ import type {
   AiModelConfigRecord,
   AiModelConfigViewRecord,
   AiModelConfigStore,
+  AiPromptStepSummary,
+  AiPromptTestRunRecord,
+  AiPromptValidationResult,
+  AiPromptVersionRecord,
+  AiPromptWorkbenchDetail,
   AiUserModelConfigRecord,
   AiUserModelConfigStore,
   AiUserModelConfigViewRecord,
@@ -33,8 +40,12 @@ import type {
   AiPromptStore,
   AiTextGenerateParams,
   AiTextGenerator,
+  PublishAiPromptDraftPayload,
+  RollbackAiPromptVersionPayload,
+  SaveAiPromptDraftPayload,
   SerperConfigRecord,
-  SerperConfigViewRecord
+  SerperConfigViewRecord,
+  TestAiPromptDraftPayload
 } from './ai-gateway.types';
 
 @Injectable()
@@ -191,6 +202,207 @@ export class AiGatewayService {
   /** Reads the code-level built-in prompt draft, ignoring any saved global override. */
   async getDefaultPromptDraft(promptKey: string): Promise<AiPromptRecord> {
     return createPromptDraft(normalizePromptKey(promptKey));
+  }
+
+  /** Lists fixed prompt steps with current draft, published, and latest test states. */
+  async listPromptWorkbenchSteps(): Promise<AiPromptStepSummary[]> {
+    return Promise.all(aiPromptDefinitions.map(definition => this.createPromptStepSummary(definition.promptKey)));
+  }
+
+  /** Reads one prompt workbench detail for the editor page. */
+  async getPromptWorkbenchDetail(promptKey: string): Promise<AiPromptWorkbenchDetail> {
+    const normalizedKey = normalizePromptKey(promptKey);
+    const [summary, versions] = await Promise.all([
+      this.createPromptStepSummary(normalizedKey),
+      this.promptStore.listPromptVersions(normalizedKey, 10)
+    ]);
+
+    return {
+      ...summary,
+      versions,
+      defaultPrompt: createPromptDraft(normalizedKey)
+    };
+  }
+
+  /** Saves an editable prompt draft without affecting the published prompt used by generation. */
+  async savePromptDraft(dto: SaveAiPromptDraftPayload, user: RequestUserContext): Promise<AiPromptVersionRecord> {
+    const promptKey = normalizePromptKey(dto.promptKey);
+    const systemPrompt = dto.systemPrompt.trim();
+
+    if (!systemPrompt) {
+      throw new BadRequestException('系统提示词不能为空');
+    }
+
+    const validationResult = validateAiPromptText(promptKey, systemPrompt);
+    const record = await this.promptStore.saveDraftPromptVersion({
+      promptKey,
+      title: dto.title.trim() || this.getPromptDefinition(promptKey).title,
+      systemPrompt,
+      validationResult,
+      changeNote: dto.changeNote?.trim() || null,
+      userId: user.userId,
+      userName: user.userName
+    });
+
+    await this.recordPromptWorkbenchLog('prompt-draft-save', '提示词草稿已保存', user, {
+      promptKey,
+      validationOk: validationResult.ok
+    });
+
+    return record;
+  }
+
+  /** Validates prompt text without calling the model. */
+  validatePromptDraft(promptKey: string, systemPrompt: string): AiPromptValidationResult {
+    return validateAiPromptText(normalizePromptKey(promptKey), systemPrompt);
+  }
+
+  /** Tests a prompt draft with the current user's model config and stores the result. */
+  async testPromptDraft(dto: TestAiPromptDraftPayload, user: RequestUserContext): Promise<AiPromptTestRunRecord> {
+    const promptKey = normalizePromptKey(dto.promptKey);
+    const systemPrompt = dto.systemPrompt.trim();
+    const inputPrompt = dto.inputPrompt.trim();
+
+    if (!systemPrompt) {
+      throw new BadRequestException('系统提示词不能为空');
+    }
+
+    if (!inputPrompt) {
+      throw new BadRequestException('测试需求不能为空');
+    }
+
+    const startedAt = Date.now();
+    const textValidation = validateAiPromptText(promptKey, systemPrompt);
+
+    if (!textValidation.ok) {
+      return this.promptStore.recordPromptTestRun({
+        promptKey,
+        inputPrompt,
+        outputText: null,
+        validationResult: textValidation,
+        success: false,
+        durationMs: Date.now() - startedAt,
+        errorMessage: '系统提示词未通过校验',
+        userId: user.userId,
+        userName: user.userName
+      });
+    }
+
+    try {
+      const modelConfig = await this.resolveModelConfig({ prompt: inputPrompt }, { user });
+      const result = await this.textGenerator.generateText({
+        providerName: modelConfig.providerName,
+        apiBase: modelConfig.apiBase,
+        apiKey: modelConfig.apiKey,
+        model: modelConfig.model,
+        prompt: inputPrompt,
+        systemPrompt,
+        promptKey,
+        temperature: modelConfig.temperature,
+        maxOutputTokens: modelConfig.maxOutputTokens
+      });
+      const validationResult = validateAiPromptOutput(promptKey, result.text);
+      const record = await this.promptStore.recordPromptTestRun({
+        promptKey,
+        inputPrompt,
+        outputText: result.text,
+        validationResult,
+        success: validationResult.ok,
+        durationMs: Date.now() - startedAt,
+        errorMessage: validationResult.ok ? null : '模型输出未通过提示词规则校验',
+        userId: user.userId,
+        userName: user.userName
+      });
+
+      await this.recordPromptWorkbenchLog('prompt-test', '提示词测试完成', user, {
+        promptKey,
+        success: record.success,
+        durationMs: record.durationMs
+      });
+
+      return record;
+    } catch (error) {
+      await this.promptStore.recordPromptTestRun({
+        promptKey,
+        inputPrompt,
+        outputText: null,
+        validationResult: textValidation,
+        success: false,
+        durationMs: Date.now() - startedAt,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        userId: user.userId,
+        userName: user.userName
+      });
+
+      throw error;
+    }
+  }
+
+  /** Publishes the current draft so business workflows start using it. */
+  async publishPromptDraft(dto: PublishAiPromptDraftPayload, user: RequestUserContext): Promise<AiPromptVersionRecord> {
+    const promptKey = normalizePromptKey(dto.promptKey);
+    const draft = await this.promptStore.getDraftPromptVersion(promptKey);
+
+    if (!draft) {
+      throw new BadRequestException('请先保存提示词草稿');
+    }
+
+    const validationResult = validateAiPromptText(promptKey, draft.systemPrompt);
+
+    if (!validationResult.ok) {
+      throw new BadRequestException('提示词草稿未通过校验，不能发布');
+    }
+
+    const record = await this.promptStore.publishDraftPromptVersion({
+      promptKey,
+      changeNote: dto.changeNote?.trim() || null,
+      userId: user.userId,
+      userName: user.userName
+    });
+
+    await this.recordPromptWorkbenchLog('prompt-publish', '提示词全局版本已发布', user, {
+      promptKey,
+      version: record.version
+    });
+
+    return record;
+  }
+
+  /** Rolls back by copying a historical version into a new published version. */
+  async rollbackPromptVersion(
+    dto: RollbackAiPromptVersionPayload,
+    user: RequestUserContext
+  ): Promise<AiPromptVersionRecord> {
+    const promptKey = normalizePromptKey(dto.promptKey);
+    const version = await this.promptStore.getPromptVersionById(dto.versionId);
+
+    if (!version || version.promptKey !== promptKey || version.version <= 0) {
+      throw new NotFoundException('未找到可回滚的提示词版本');
+    }
+
+    await this.promptStore.saveDraftPromptVersion({
+      promptKey,
+      title: version.title,
+      systemPrompt: version.systemPrompt,
+      validationResult: validateAiPromptText(promptKey, version.systemPrompt),
+      changeNote: dto.changeNote?.trim() || `回滚到 v${version.version}`,
+      userId: user.userId,
+      userName: user.userName
+    });
+    const record = await this.promptStore.publishDraftPromptVersion({
+      promptKey,
+      changeNote: dto.changeNote?.trim() || `回滚到 v${version.version}`,
+      userId: user.userId,
+      userName: user.userName
+    });
+
+    await this.recordPromptWorkbenchLog('prompt-rollback', '提示词版本已回滚', user, {
+      promptKey,
+      fromVersion: version.version,
+      version: record.version
+    });
+
+    return record;
   }
 
   /** Reads one saved backend model channel or returns an editable default draft for settings. */
@@ -361,6 +573,54 @@ export class AiGatewayService {
     }
 
     return record;
+  }
+
+  private async createPromptStepSummary(promptKey: string): Promise<AiPromptStepSummary> {
+    const normalizedKey = normalizePromptKey(promptKey);
+    const definition = this.getPromptDefinition(normalizedKey);
+    const [published, draft, latestTestRun] = await Promise.all([
+      this.promptStore.getPrompt(normalizedKey),
+      this.promptStore.getDraftPromptVersion(normalizedKey),
+      this.promptStore.getLatestPromptTestRun(normalizedKey)
+    ]);
+
+    return {
+      promptKey: normalizedKey,
+      title: definition.title,
+      usage: definition.usage,
+      channel: aiPromptChannels[normalizedKey as keyof typeof aiPromptChannels],
+      published,
+      draft,
+      latestTestRun
+    };
+  }
+
+  private getPromptDefinition(promptKey: string) {
+    const definition = aiPromptDefinitions.find(item => item.promptKey === promptKey);
+
+    if (!definition) {
+      throw new BadRequestException('promptKey 不在固定提示词列表中');
+    }
+
+    return definition;
+  }
+
+  private recordPromptWorkbenchLog(
+    action: string,
+    message: string,
+    user: RequestUserContext,
+    metadata: Record<string, unknown>
+  ) {
+    return this.systemLogService.record({
+      level: 'info',
+      status: 'success',
+      module: 'ai-gateway',
+      action,
+      message,
+      userId: user.userId,
+      userName: user.userName,
+      metadata
+    });
   }
 
   /** Record a visible processing stage for long-running AI requests. */

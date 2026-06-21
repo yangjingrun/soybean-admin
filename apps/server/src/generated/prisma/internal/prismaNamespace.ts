@@ -416,6 +416,8 @@ export const ModelName = {
   CrmAiDraftTaskItem: 'CrmAiDraftTaskItem',
   CrmAiDraftQueueConfig: 'CrmAiDraftQueueConfig',
   AiPromptConfig: 'AiPromptConfig',
+  AiPromptVersion: 'AiPromptVersion',
+  AiPromptTestRun: 'AiPromptTestRun',
   AiModelConfig: 'AiModelConfig',
   AiUserModelConfig: 'AiUserModelConfig',
   AiUserSerperConfig: 'AiUserSerperConfig',
@@ -443,7 +445,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmLeadEnrichmentHistory" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiModelConfig" | "aiUserModelConfig" | "aiUserSerperConfig" | "aiUserHunterConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmLeadEnrichmentHistory" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiPromptVersion" | "aiPromptTestRun" | "aiModelConfig" | "aiUserModelConfig" | "aiUserSerperConfig" | "aiUserHunterConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2815,6 +2817,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AiPromptVersion: {
+      payload: Prisma.$AiPromptVersionPayload<ExtArgs>
+      fields: Prisma.AiPromptVersionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AiPromptVersionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AiPromptVersionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>
+        }
+        findFirst: {
+          args: Prisma.AiPromptVersionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AiPromptVersionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>
+        }
+        findMany: {
+          args: Prisma.AiPromptVersionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>[]
+        }
+        create: {
+          args: Prisma.AiPromptVersionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>
+        }
+        createMany: {
+          args: Prisma.AiPromptVersionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AiPromptVersionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>[]
+        }
+        delete: {
+          args: Prisma.AiPromptVersionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>
+        }
+        update: {
+          args: Prisma.AiPromptVersionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>
+        }
+        deleteMany: {
+          args: Prisma.AiPromptVersionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AiPromptVersionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AiPromptVersionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>[]
+        }
+        upsert: {
+          args: Prisma.AiPromptVersionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptVersionPayload>
+        }
+        aggregate: {
+          args: Prisma.AiPromptVersionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAiPromptVersion>
+        }
+        groupBy: {
+          args: Prisma.AiPromptVersionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiPromptVersionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AiPromptVersionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiPromptVersionCountAggregateOutputType> | number
+        }
+      }
+    }
+    AiPromptTestRun: {
+      payload: Prisma.$AiPromptTestRunPayload<ExtArgs>
+      fields: Prisma.AiPromptTestRunFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AiPromptTestRunFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AiPromptTestRunFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>
+        }
+        findFirst: {
+          args: Prisma.AiPromptTestRunFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AiPromptTestRunFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>
+        }
+        findMany: {
+          args: Prisma.AiPromptTestRunFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>[]
+        }
+        create: {
+          args: Prisma.AiPromptTestRunCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>
+        }
+        createMany: {
+          args: Prisma.AiPromptTestRunCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AiPromptTestRunCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>[]
+        }
+        delete: {
+          args: Prisma.AiPromptTestRunDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>
+        }
+        update: {
+          args: Prisma.AiPromptTestRunUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>
+        }
+        deleteMany: {
+          args: Prisma.AiPromptTestRunDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AiPromptTestRunUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AiPromptTestRunUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>[]
+        }
+        upsert: {
+          args: Prisma.AiPromptTestRunUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiPromptTestRunPayload>
+        }
+        aggregate: {
+          args: Prisma.AiPromptTestRunAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAiPromptTestRun>
+        }
+        groupBy: {
+          args: Prisma.AiPromptTestRunGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiPromptTestRunGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AiPromptTestRunCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiPromptTestRunCountAggregateOutputType> | number
+        }
+      }
+    }
     AiModelConfig: {
       payload: Prisma.$AiModelConfigPayload<ExtArgs>
       fields: Prisma.AiModelConfigFieldRefs
@@ -4382,6 +4532,42 @@ export const AiPromptConfigScalarFieldEnum = {
 export type AiPromptConfigScalarFieldEnum = (typeof AiPromptConfigScalarFieldEnum)[keyof typeof AiPromptConfigScalarFieldEnum]
 
 
+export const AiPromptVersionScalarFieldEnum = {
+  id: 'id',
+  promptKey: 'promptKey',
+  title: 'title',
+  version: 'version',
+  lifecycle: 'lifecycle',
+  systemPrompt: 'systemPrompt',
+  validationResult: 'validationResult',
+  changeNote: 'changeNote',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  publishedAt: 'publishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AiPromptVersionScalarFieldEnum = (typeof AiPromptVersionScalarFieldEnum)[keyof typeof AiPromptVersionScalarFieldEnum]
+
+
+export const AiPromptTestRunScalarFieldEnum = {
+  id: 'id',
+  promptKey: 'promptKey',
+  inputPrompt: 'inputPrompt',
+  outputText: 'outputText',
+  validationResult: 'validationResult',
+  success: 'success',
+  durationMs: 'durationMs',
+  errorMessage: 'errorMessage',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  createdAt: 'createdAt'
+} as const
+
+export type AiPromptTestRunScalarFieldEnum = (typeof AiPromptTestRunScalarFieldEnum)[keyof typeof AiPromptTestRunScalarFieldEnum]
+
+
 export const AiModelConfigScalarFieldEnum = {
   id: 'id',
   configKey: 'configKey',
@@ -4942,6 +5128,8 @@ export type GlobalOmitConfig = {
   crmAiDraftTaskItem?: Prisma.CrmAiDraftTaskItemOmit
   crmAiDraftQueueConfig?: Prisma.CrmAiDraftQueueConfigOmit
   aiPromptConfig?: Prisma.AiPromptConfigOmit
+  aiPromptVersion?: Prisma.AiPromptVersionOmit
+  aiPromptTestRun?: Prisma.AiPromptTestRunOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
   aiUserModelConfig?: Prisma.AiUserModelConfigOmit
   aiUserSerperConfig?: Prisma.AiUserSerperConfigOmit

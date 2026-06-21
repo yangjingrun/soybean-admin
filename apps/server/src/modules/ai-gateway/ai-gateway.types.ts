@@ -33,9 +33,128 @@ export interface AiPromptRecord {
   updatedAt: string;
 }
 
+export type AiPromptValidationStatus = 'pass' | 'warn' | 'fail';
+
+export interface AiPromptValidationItem {
+  key: string;
+  label: string;
+  status: AiPromptValidationStatus;
+  message: string;
+}
+
+export interface AiPromptValidationResult {
+  ok: boolean;
+  items: AiPromptValidationItem[];
+}
+
+export interface AiPromptVersionRecord {
+  id: string;
+  promptKey: string;
+  title: string;
+  version: number;
+  lifecycle: 'draft' | 'published';
+  systemPrompt: string;
+  validationResult: AiPromptValidationResult | null;
+  changeNote: string | null;
+  createdById: string | null;
+  createdByName: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveAiPromptDraftInput {
+  promptKey: string;
+  title: string;
+  systemPrompt: string;
+  validationResult: AiPromptValidationResult;
+  changeNote?: string | null;
+  userId?: string | null;
+  userName?: string | null;
+}
+
+export interface PublishAiPromptDraftInput {
+  promptKey: string;
+  changeNote?: string | null;
+  userId?: string | null;
+  userName?: string | null;
+}
+
+export interface AiPromptTestRunRecord {
+  id: string;
+  promptKey: string;
+  inputPrompt: string;
+  outputText: string | null;
+  validationResult: AiPromptValidationResult | null;
+  success: boolean;
+  durationMs: number | null;
+  errorMessage: string | null;
+  createdById: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface AiPromptStepSummary {
+  promptKey: string;
+  title: string;
+  usage: string;
+  channel: 'search_places' | 'maps' | 'analysis' | 'email';
+  published: AiPromptRecord | null;
+  draft: AiPromptVersionRecord | null;
+  latestTestRun: AiPromptTestRunRecord | null;
+}
+
+export interface AiPromptWorkbenchDetail extends AiPromptStepSummary {
+  versions: AiPromptVersionRecord[];
+  defaultPrompt: AiPromptRecord;
+}
+
+export interface SaveAiPromptDraftPayload {
+  promptKey: string;
+  title: string;
+  systemPrompt: string;
+  changeNote?: string | null;
+}
+
+export interface PublishAiPromptDraftPayload {
+  promptKey: string;
+  changeNote?: string | null;
+}
+
+export interface TestAiPromptDraftPayload {
+  promptKey: string;
+  systemPrompt: string;
+  inputPrompt: string;
+}
+
+export interface RollbackAiPromptVersionPayload {
+  promptKey: string;
+  versionId: string;
+  changeNote?: string | null;
+}
+
+export interface SaveAiPromptTestRunInput {
+  promptKey: string;
+  inputPrompt: string;
+  outputText?: string | null;
+  validationResult: AiPromptValidationResult | null;
+  success: boolean;
+  durationMs?: number | null;
+  errorMessage?: string | null;
+  userId?: string | null;
+  userName?: string | null;
+}
+
 export interface AiPromptStore {
   getPrompt(promptKey: string): Promise<AiPromptRecord | null>;
   savePrompt(record: AiPromptRecord): Promise<AiPromptRecord>;
+  getDraftPromptVersion(promptKey: string): Promise<AiPromptVersionRecord | null>;
+  saveDraftPromptVersion(input: SaveAiPromptDraftInput): Promise<AiPromptVersionRecord>;
+  publishDraftPromptVersion(input: PublishAiPromptDraftInput): Promise<AiPromptVersionRecord>;
+  getPromptVersionById(id: string): Promise<AiPromptVersionRecord | null>;
+  listPromptVersions(promptKey: string, limit: number): Promise<AiPromptVersionRecord[]>;
+  recordPromptTestRun(input: SaveAiPromptTestRunInput): Promise<AiPromptTestRunRecord>;
+  getLatestPromptTestRun(promptKey: string): Promise<AiPromptTestRunRecord | null>;
 }
 
 export interface AiModelConfigRecord {

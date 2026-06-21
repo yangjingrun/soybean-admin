@@ -7,7 +7,15 @@ import { requireRequestUserContext, type RequestUserContext } from '../../shared
 import { CurrentContext } from '../auth/auth.decorators';
 import { AiGatewayService } from './ai-gateway.service';
 import { AiModelConfigKeyParamDto, SaveAiModelConfigDto, SaveMyAiModelConfigDto } from './dto/ai-model-config.dto';
-import { AiPromptKeyParamDto, SaveAiPromptDto } from './dto/ai-prompt.dto';
+import {
+  AiPromptKeyParamDto,
+  PublishAiPromptDraftDto,
+  RollbackAiPromptVersionDto,
+  SaveAiPromptDraftDto,
+  SaveAiPromptDto,
+  TestAiPromptDraftDto,
+  ValidateAiPromptDraftDto
+} from './dto/ai-prompt.dto';
 import { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import { HunterConfigKeyParamDto, SaveHunterConfigDto, SaveMyHunterConfigDto } from './dto/hunter-config.dto';
 import { SaveMySerperConfigDto, SaveSerperConfigDto, SerperConfigKeyParamDto } from './dto/serper-config.dto';
@@ -15,6 +23,74 @@ import { SaveMySerperConfigDto, SaveSerperConfigDto, SerperConfigKeyParamDto } f
 @Controller('ai-gateway')
 export class AiGatewayController {
   constructor(@Inject(AiGatewayService) private readonly aiGatewayService: AiGatewayService) {}
+
+  @Get('prompt-workbench/steps')
+  async listPromptWorkbenchSteps(@CurrentContext() currentContext: RequestUserContext | null = null) {
+    this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(await this.aiGatewayService.listPromptWorkbenchSteps());
+  }
+
+  @Get('prompt-workbench/steps/:promptKey')
+  async getPromptWorkbenchDetail(
+    @Param() params: AiPromptKeyParamDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(await this.aiGatewayService.getPromptWorkbenchDetail(params.promptKey));
+  }
+
+  @Post('prompt-workbench/drafts/validate')
+  async validatePromptDraft(
+    @Body() dto: ValidateAiPromptDraftDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(this.aiGatewayService.validatePromptDraft(dto.promptKey, dto.systemPrompt));
+  }
+
+  @Post('prompt-workbench/drafts')
+  async savePromptDraft(
+    @Body() dto: SaveAiPromptDraftDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(await this.aiGatewayService.savePromptDraft(dto, user));
+  }
+
+  @Post('prompt-workbench/drafts/test')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async testPromptDraft(
+    @Body() dto: TestAiPromptDraftDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(await this.aiGatewayService.testPromptDraft(dto, user));
+  }
+
+  @Post('prompt-workbench/drafts/publish')
+  async publishPromptDraft(
+    @Body() dto: PublishAiPromptDraftDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(await this.aiGatewayService.publishPromptDraft(dto, user));
+  }
+
+  @Post('prompt-workbench/versions/rollback')
+  async rollbackPromptVersion(
+    @Body() dto: RollbackAiPromptVersionDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(await this.aiGatewayService.rollbackPromptVersion(dto, user));
+  }
 
   @Post('prompts')
   async savePrompt(

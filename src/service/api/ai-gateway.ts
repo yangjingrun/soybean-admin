@@ -29,6 +29,65 @@ export function getDefaultAiPrompt(promptKey: string) {
   return request<Api.AiGateway.AiPromptRecord>(buildGetDefaultAiPromptRequestConfig(promptKey));
 }
 
+/** List built-in prompt workbench steps with publish, draft, and latest test states. */
+export function fetchAiPromptWorkbenchSteps() {
+  return request<Api.AiGateway.AiPromptStepSummary[]>({
+    url: '/ai-gateway/prompt-workbench/steps'
+  });
+}
+
+/** Read one prompt workbench detail. */
+export function fetchAiPromptWorkbenchDetail(promptKey: string) {
+  return request<Api.AiGateway.AiPromptWorkbenchDetail>({
+    url: `/ai-gateway/prompt-workbench/steps/${promptKey}`
+  });
+}
+
+/** Validate prompt draft text without calling the model. */
+export function validateAiPromptDraft(data: Api.AiGateway.ValidatePromptDraftPayload) {
+  return request<Api.AiGateway.AiPromptValidationResult>({
+    url: '/ai-gateway/prompt-workbench/drafts/validate',
+    method: 'post',
+    data
+  });
+}
+
+/** Save one prompt draft without publishing it. */
+export function saveAiPromptDraft(data: Api.AiGateway.SavePromptDraftPayload) {
+  return request<Api.AiGateway.AiPromptVersionRecord>({
+    url: '/ai-gateway/prompt-workbench/drafts',
+    method: 'post',
+    data
+  });
+}
+
+/** Test one prompt draft through the current user's model config. */
+export function testAiPromptDraft(data: Api.AiGateway.TestPromptDraftPayload) {
+  return request<Api.AiGateway.AiPromptTestRunRecord>({
+    url: '/ai-gateway/prompt-workbench/drafts/test',
+    method: 'post',
+    data
+  });
+}
+
+/** Publish the current prompt draft as the global version. */
+export function publishAiPromptDraft(data: Api.AiGateway.PublishPromptDraftPayload) {
+  return request<Api.AiGateway.AiPromptVersionRecord>({
+    url: '/ai-gateway/prompt-workbench/drafts/publish',
+    method: 'post',
+    data
+  });
+}
+
+/** Roll back to a historical prompt version by publishing a new copied version. */
+export function rollbackAiPromptVersion(data: Api.AiGateway.RollbackPromptVersionPayload) {
+  return request<Api.AiGateway.AiPromptVersionRecord>({
+    url: '/ai-gateway/prompt-workbench/versions/rollback',
+    method: 'post',
+    data
+  });
+}
+
 /** Save the backend model config used by AI workflows. */
 export function saveAiModelConfig(data: Api.AiGateway.SaveModelConfigPayload) {
   return request<Api.AiGateway.AiModelConfigRecord>(buildSaveAiModelConfigRequestConfig(data));
