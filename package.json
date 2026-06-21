@@ -43,6 +43,9 @@
     "release": "sa release",
     "server:dev": "pnpm --filter @soybean/server dev",
     "server:start": "pnpm --filter @soybean/server start",
+    "test": "pnpm test:front && pnpm test:server",
+    "test:front": "tsx --test $(find src -name '*.spec.ts' -type f | sort)",
+    "test:server": "tsx --tsconfig apps/server/tsconfig.json --test $(find apps/server/src -name '*.spec.ts' -type f | sort)",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
     "update-pkg": "sa update-pkg"
   },

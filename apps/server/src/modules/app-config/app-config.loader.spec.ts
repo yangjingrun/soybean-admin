@@ -53,6 +53,18 @@ describe('loadAppConfig', () => {
     assert.equal(config.authDevFixedTokenEnabled, false);
   });
 
+  it('forces CRM mock endpoints off in production', () => {
+    const config = loadAppConfig({
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://example/db',
+      REDIS_URL: 'redis://example:6379',
+      CRM_ENABLE_MOCK_ENDPOINTS: 'true'
+    });
+
+    assert.equal(config.isProduction, true);
+    assert.equal(config.crmEnableMockEndpoints, false);
+  });
+
   it('uses auth TTL values from env', () => {
     const config = loadAppConfig({
       AUTH_ACCESS_TOKEN_TTL_SECONDS: '3600',

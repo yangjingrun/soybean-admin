@@ -1,43 +1,37 @@
 # Product
 
-## Register
+## 产品定位
 
-product
+本项目是面向外贸销售团队的 AI 获客与轻量 CRM 工作台。它基于 SoybeanAdmin、Vue 3、Naive UI、NestJS、PostgreSQL、Redis、BullMQ 构建，但产品目标已经不是通用后台模板，而是帮助用户从“描述目标客户”走到“沉淀线索、审核开发信、发送跟进、处理客户回信”的完整业务闭环。
 
-## Users
+## 目标用户
 
-SoybeanAdmin serves developers and product teams who need to build authenticated admin systems, dashboards, settings panels, and operational tools on Vue 3. The day-to-day user of a built screen is usually an operator, admin, or business teammate trying to read data, filter records, complete forms, and move work forward without visual noise.
+- 外贸业务员：需要快速找到目标市场客户、维护自己的线索、审核 AI 草稿、处理客户回信。
+- 组织管理员：需要配置组织级写信资料、发送规则、成员权限和安全拦截策略。
+- 平台超级管理员：需要维护 AI 服务、Serper/Hunter/Gmail 等外部服务配置、全局发送限制、任务队列和运维诊断。
 
-## Product Purpose
+## 核心闭环
 
-This project is a Naive UI based Vue admin template. It exists to provide a stable, themeable, and extensible middle-office foundation with routing, permissions, i18n, layout modes, tabs, theme settings, and reusable UI conventions already in place.
+1. 用户在 AI 获客页输入产品、市场、客户类型和数量要求。
+2. 系统优化搜索关键词，通过 Serper/Hunter 等服务采集候选客户。
+3. 采集结果导入 CRM 线索库，并按组织和负责人隔离数据。
+4. 用户选择联系人创建邮件序列，AI 生成首封或后续开发信草稿。
+5. 用户审核草稿后进入发送队列，系统按邮箱额度、黑名单、退订、任务版本等规则发送。
+6. Gmail 回信同步进入收件箱，客户回信会停止同公司活跃序列，并支持回复草稿和退订确认。
+7. 首页工作台汇总当天待处理事项、运行中任务和关键指标，推动用户继续处理下一步。
 
-Success means new screens feel native to the existing shell: clear hierarchy, predictable controls, fast scanning, reliable feedback, and no separate custom UI language competing with the project design system.
+## 成功标准
 
-## Brand Personality
+- 用户能从自然语言获客需求开始，在不理解搜索语法的情况下得到可执行查询和线索结果。
+- CRM 主流程必须清楚区分“草稿待审、准备发送、发送中、已回复、已停止、已归档”等状态。
+- 邮箱配置必须明确真实同步、仅发信、模拟 watch 的差异，不能让用户误以为不完整链路已经可闭环。
+- 权限边界必须同时在前端入口和后端接口生效；普通成员只能操作自己的私有线索和邮件正文。
+- 后台任务、Gmail 同步、AI 草稿、发送队列必须可追踪、可恢复、可诊断。
 
-Clear, professional, restrained.
+## 产品原则
 
-The interface should feel fresh and orderly, but still practical. It should make complex admin tasks feel manageable through consistent structure, not through decoration.
-
-## Anti-references
-
-- Custom UI controls that duplicate Naive UI components.
-- Marketing landing-page composition inside authenticated product screens.
-- Decorative motion, glass effects, gradient text, side-stripe card accents, and oversized hero-metric layouts.
-- Inconsistent button, form, card, table, drawer, modal, or notification patterns across pages.
-- Dense dashboards that only show metrics but do not make the user's next action obvious.
-
-## Design Principles
-
-1. Naive UI first. Use Naive UI and existing project components as the default surface for buttons, forms, tables, cards, grids, drawers, modals, notifications, tooltips, tabs, menus, and feedback.
-2. Theme tokens own the look. Colors, radius, shadows, layout heights, dark mode, grayscale mode, and color-weakness mode come from the theme store and `src/theme/settings.ts`.
-3. Product work beats page decoration. Each screen should make the primary task, filters, records, actions, and feedback easy to find.
-4. Keep patterns shared. Extract reusable methods, composables, and business components when a pattern appears in more than one place, but do not abstract before there is real duplication.
-5. Preserve the shell contract. Header, sider, tab, content padding, route cache, i18n, loading, and feedback should follow the existing app shell instead of local one-off implementations.
-
-## Accessibility & Inclusion
-
-Target WCAG AA for product UI. Body text must meet 4.5:1 contrast, interactive controls need keyboard focus states, destructive actions need clear confirmation, and status changes should be visible through Naive UI messages, notifications, dialogs, tags, or alerts.
-
-Respect the project's built-in dark mode, grayscale mode, and color-weakness mode. Page motion should remain short and state-driven, with reduced-motion alternatives when new animation is introduced.
+- Naive UI 优先，保持中后台产品的克制、清晰和可扫描。
+- 业务状态优先于装饰表达，页面要让用户知道下一步该处理什么。
+- 不用多层兜底掩盖真实状态，按接口、任务状态和权限约定展示。
+- 关键外部服务能力要有明确配置状态和降级文案，尤其是 Gmail OAuth、Pub/Sub watch、Serper 和 Hunter。
+- 测试优先覆盖状态流转、权限边界、任务并发、外部服务失败和用户主路径。

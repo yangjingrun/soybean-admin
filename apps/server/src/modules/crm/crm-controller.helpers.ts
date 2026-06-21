@@ -9,8 +9,9 @@ export abstract class CrmControllerBase {
   protected constructor(protected readonly appConfigService?: AppConfigService) {}
 
   protected requireMockEndpointsEnabled(context: CrmUserContext) {
+    const appConfig = this.appConfigService?.config;
     const mockEndpointsEnabled =
-      this.appConfigService?.config.crmEnableMockEndpoints ??
+      (appConfig ? !appConfig.isProduction && appConfig.crmEnableMockEndpoints : undefined) ??
       (process.env.NODE_ENV !== 'production' && process.env.CRM_ENABLE_MOCK_ENDPOINTS === 'true');
 
     if (!mockEndpointsEnabled) {

@@ -62,7 +62,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ),
     // Dev fixed tokens are never available in production, even if env is misconfigured.
     authDevFixedTokenEnabled: isProduction ? false : readBoolean(env.AUTH_DEV_FIXED_TOKEN_ENABLED, true),
-    crmEnableMockEndpoints: readBoolean(env.CRM_ENABLE_MOCK_ENDPOINTS, false),
+    crmEnableMockEndpoints: isProduction ? false : readBoolean(env.CRM_ENABLE_MOCK_ENDPOINTS, false),
     crmGmailIntegrationEnv: {
       NODE_ENV: nodeEnv,
       CRM_GMAIL_OAUTH_CLIENT_ID: env.CRM_GMAIL_OAUTH_CLIENT_ID,

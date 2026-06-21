@@ -488,6 +488,22 @@ describe('CRM split controllers', () => {
     );
   });
 
+  it('rejects CRM mock endpoints in production when app config is injected', async () => {
+    const controller = createMailboxController(
+      {},
+      undefined,
+      createCrmAppConfigService({
+        crmEnableMockEndpoints: true,
+        isProduction: true
+      })
+    );
+
+    await assert.rejects(
+      () => controller.mockAuthorizeMailbox(createContext({ roles: ['R_SUPER'] }), { emailAddress: 'alice@gmail.com' }),
+      ForbiddenException
+    );
+  });
+
   it('creates a Gmail OAuth URL with the current user context', async () => {
     const calls: CrmUserContext[] = [];
     const controller = createMailboxController({
@@ -1829,6 +1845,14 @@ function createMailboxController(
     gmailWatchService as ConstructorParameters<typeof CrmMailboxController>[1],
     appConfigService as ConstructorParameters<typeof CrmMailboxController>[2]
   );
+}
+
+/** Creates the minimal app config collaborator used by controller feature gates. */
+function createCrmAppConfigService(config: {
+  crmEnableMockEndpoints: boolean;
+  isProduction: boolean;
+}): ConstructorParameters<typeof CrmMailboxController>[2] {
+  return { config } as unknown as ConstructorParameters<typeof CrmMailboxController>[2];
 }
 
 /** Creates the real settings controller with the shared service stub. */
