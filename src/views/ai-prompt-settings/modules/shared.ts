@@ -16,7 +16,7 @@ export interface PromptValidationSummary {
 export interface PromptPublishGuardState {
   hasDraft: boolean;
   isDirty: boolean;
-  hasValidationResult: boolean;
+  hasFreshValidationResult: boolean;
   validationPassed: boolean;
 }
 
@@ -233,15 +233,7 @@ export function formatLatestPromptTestRunForCopy(run: Api.AiGateway.AiPromptTest
 
 /** Resolves the clearest next step before a draft can be published. */
 export function resolvePromptPublishBlockReason(state: PromptPublishGuardState): string {
-  if (state.isDirty) {
-    return '请先保存草稿';
-  }
-
-  if (!state.hasDraft) {
-    return '请先保存草稿后再发布';
-  }
-
-  if (!state.hasValidationResult) {
+  if (!state.hasFreshValidationResult) {
     return '请先重新校验或运行测试';
   }
 

@@ -26,6 +26,7 @@ export function usePromptSettingsPage() {
   const testInput = shallowRef(defaultTestInput);
   const validationResult = shallowRef<Api.AiGateway.AiPromptValidationResult | null>(null);
   const latestTestRun = shallowRef<Api.AiGateway.AiPromptTestRunRecord | null>(null);
+  const validatedPromptText = shallowRef('');
   const focusSectionRequest = shallowRef<PromptFocusSectionRequest | null>(null);
   const loadingSteps = shallowRef(false);
   const loadingDetail = shallowRef(false);
@@ -51,18 +52,29 @@ export function usePromptSettingsPage() {
   const canSaveDraft = computed(() => Boolean(systemPrompt.value.trim()) && !savingDraft.value);
   const canValidate = computed(() => Boolean(systemPrompt.value.trim()) && !validating.value);
   const canTest = computed(() => Boolean(systemPrompt.value.trim() && testInput.value.trim()) && !testing.value);
+  const hasFreshValidationResult = computed(
+    () => Boolean(validationResult.value) && validatedPromptText.value === systemPrompt.value.trim()
+  );
   const publishBlockedReason = computed(() =>
     resolvePromptPublishBlockReason({
       hasDraft: Boolean(detail.value?.draft),
       isDirty: isDirty.value,
-      hasValidationResult: Boolean(validationResult.value),
+      hasFreshValidationResult: hasFreshValidationResult.value,
       validationPassed: Boolean(validationResult.value?.ok)
     })
   );
   const canPublish = computed(() => !publishBlockedReason.value && !publishing.value);
-  const publishReadinessHint = computed(() =>
-    publishBlockedReason.value ? publishBlockedReason.value : '当前草稿已满足发布条件'
-  );
+  const publishReadinessHint = computed(() => {
+    if (publishBlockedReason.value) {
+      return publishBlockedReason.value;
+    }
+
+    if (isDirty.value || !detail.value?.draft) {
+      return '测试通过后可直接发布，发布时会自动保存当前修改';
+    }
+
+    return '当前草稿已满足发布条件';
+  });
 
   /** Loads built-in prompt steps and opens the selected prompt detail. */
   async function loadSteps(preferredPromptKey: string = selectedPromptKey.value) {
@@ -106,6 +118,7 @@ export function usePromptSettingsPage() {
       detail.value = data;
       systemPrompt.value = data.draft?.systemPrompt || data.published?.systemPrompt || data.defaultPrompt.systemPrompt;
       validationResult.value = data.draft?.validationResult ?? null;
+      validatedPromptText.value = data.draft?.validationResult ? systemPrompt.value.trim() : '';
       latestTestRun.value = data.latestTestRun;
       changeNote.value = '';
     } finally {
@@ -133,15 +146,16 @@ export function usePromptSettingsPage() {
       }
 
       validationResult.value = data;
+      validatedPromptText.value = systemPrompt.value.trim();
       message[data.ok ? 'success' : 'warning'](data.ok ? '校验通过' : '校验发现需要修复的规则');
     } finally {
       validating.value = false;
     }
   }
 
-  async function saveCurrentDraft() {
+  async function saveCurrentDraft(options?: { silent?: boolean; skipReload?: boolean }) {
     if (!canSaveDraft.value || !selectedStep.value) {
-      return;
+      return false;
     }
 
     savingDraft.value = true;
@@ -155,11 +169,19 @@ export function usePromptSettingsPage() {
       });
 
       if (error || !data) {
-        return;
+        return false;
       }
 
-      message.success('草稿已保存');
+      if (!options?.silent) {
+        message.success('草稿已保存');
+      }
+
+      if (options?.skipReload) {
+        return true;
+      }
+
       await Promise.all([loadSteps(selectedPromptKey.value), loadDetail(selectedPromptKey.value)]);
+      return true;
     } finally {
       savingDraft.value = false;
     }
@@ -185,6 +207,7 @@ export function usePromptSettingsPage() {
 
       latestTestRun.value = data;
       validationResult.value = data.validationResult;
+      validatedPromptText.value = systemPrompt.value.trim();
       message[data.success ? 'success' : 'warning'](data.success ? '测试通过' : '测试输出未通过校验');
       await loadSteps(selectedPromptKey.value);
     } finally {
@@ -205,6 +228,16 @@ export function usePromptSettingsPage() {
     publishing.value = true;
 
     try {
+      const shouldAutoSave = isDirty.value || !detail.value?.draft;
+
+      if (shouldAutoSave) {
+        const saved = await saveCurrentDraft({ silent: true, skipReload: true });
+
+        if (!saved) {
+          return;
+        }
+      }
+
       const { error } = await publishAiPromptDraft({
         promptKey: selectedPromptKey.value,
         changeNote: changeNote.value
@@ -214,7 +247,7 @@ export function usePromptSettingsPage() {
         return;
       }
 
-      message.success('全局版本已发布');
+      message.success(shouldAutoSave ? '当前内容已自动保存并发布' : '全局版本已发布');
       await Promise.all([loadSteps(selectedPromptKey.value), loadDetail(selectedPromptKey.value)]);
     } finally {
       publishing.value = false;
@@ -253,6 +286,7 @@ export function usePromptSettingsPage() {
 
     systemPrompt.value = detail.value.defaultPrompt.systemPrompt;
     validationResult.value = null;
+    validatedPromptText.value = '';
   }
 
   /** Requests the prompt editor to focus one known section. */

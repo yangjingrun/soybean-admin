@@ -187,27 +187,17 @@ searchExecutionRules
       resolvePromptPublishBlockReason({
         hasDraft: true,
         isDirty: true,
-        hasValidationResult: true,
+        hasFreshValidationResult: true,
         validationPassed: true
       }),
-      '请先保存草稿'
-    );
-
-    assert.equal(
-      resolvePromptPublishBlockReason({
-        hasDraft: false,
-        isDirty: false,
-        hasValidationResult: true,
-        validationPassed: true
-      }),
-      '请先保存草稿后再发布'
+      ''
     );
 
     assert.equal(
       resolvePromptPublishBlockReason({
         hasDraft: true,
         isDirty: false,
-        hasValidationResult: false,
+        hasFreshValidationResult: false,
         validationPassed: false
       }),
       '请先重新校验或运行测试'
@@ -217,7 +207,7 @@ searchExecutionRules
       resolvePromptPublishBlockReason({
         hasDraft: true,
         isDirty: false,
-        hasValidationResult: true,
+        hasFreshValidationResult: true,
         validationPassed: false
       }),
       '请先修复校验问题后再发布'
@@ -227,7 +217,7 @@ searchExecutionRules
       resolvePromptPublishBlockReason({
         hasDraft: true,
         isDirty: false,
-        hasValidationResult: true,
+        hasFreshValidationResult: true,
         validationPassed: true
       }),
       ''
