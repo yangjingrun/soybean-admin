@@ -502,8 +502,6 @@ declare namespace App {
             model: string;
             apiBase: string;
             apiKey: string;
-            temperature: string;
-            maxOutputTokens: string;
           };
           placeholders: {
             title: string;
@@ -518,7 +516,6 @@ declare namespace App {
             pending: string;
             notSaved: string;
             testResult: string;
-            savedApiKey: string;
             tokens: string;
             input: string;
             output: string;

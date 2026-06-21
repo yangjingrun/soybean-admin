@@ -280,9 +280,7 @@ const local: App.I18n.Schema = {
         provider: 'Model Provider',
         model: 'Model Name',
         apiBase: 'API Base',
-        apiKey: 'API Key',
-        temperature: 'Temperature',
-        maxOutputTokens: 'Output Limit'
+        apiKey: 'API Key'
       },
       placeholders: {
         title: 'Default model',
@@ -297,7 +295,6 @@ const local: App.I18n.Schema = {
         pending: 'Pending setup',
         notSaved: 'Not saved yet',
         testResult: 'Test result',
-        savedApiKey: 'Saved key',
         tokens: 'Tokens',
         input: 'Input',
         output: 'Output'

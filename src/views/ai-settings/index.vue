@@ -58,8 +58,7 @@ const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
   providerName: 'openrouter',
   apiBase: 'https://openrouter.ai/api/v1',
   apiKey: '',
-  model: 'openai/gpt-4o-mini',
-  temperature: 0.2
+  model: 'openai/gpt-4o-mini'
 });
 const serperForm = reactive<Api.AiGateway.SaveSerperConfigPayload>({
   configKey: defaultSerperConfigKey,
@@ -91,9 +90,6 @@ const isQueueConfigSaving = shallowRef(false);
 const modelUpdatedAt = shallowRef('');
 const serperUpdatedAt = shallowRef('');
 const hunterUpdatedAt = shallowRef('');
-const modelMaskedApiKey = shallowRef('');
-const serperMaskedApiKey = shallowRef('');
-const hunterMaskedApiKey = shallowRef('');
 const queueConfigUpdatedAt = shallowRef<string | null>(null);
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
@@ -206,12 +202,9 @@ async function handleLoadModelConfig(showMessage = true) {
       providerName: record.providerName,
       apiBase: record.apiBase,
       apiKey: '',
-      model: record.model,
-      temperature: record.temperature,
-      maxOutputTokens: record.maxOutputTokens
+      model: record.model
     });
     modelUpdatedAt.value = record.updatedAt;
-    modelMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     modelTestResult.value = null;
 
     if (showMessage) {
@@ -233,9 +226,7 @@ async function handleSaveModelConfig() {
       providerName: modelForm.providerName.trim(),
       apiBase: modelForm.apiBase.trim(),
       apiKey: modelForm.apiKey.trim(),
-      model: modelForm.model.trim(),
-      temperature: modelForm.temperature,
-      maxOutputTokens: modelForm.maxOutputTokens
+      model: modelForm.model.trim()
     });
 
     if (error) {
@@ -243,7 +234,6 @@ async function handleSaveModelConfig() {
     }
 
     modelUpdatedAt.value = record.updatedAt;
-    modelMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     modelTestResult.value = null;
     modelForm.apiKey = '';
     message.success(t('page.aiSettings.messages.saved'));
@@ -270,7 +260,6 @@ async function handleLoadSerperConfig(showMessage = true) {
       apiKey: ''
     });
     serperUpdatedAt.value = record.updatedAt;
-    serperMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     serperTestResult.value = null;
 
     if (showMessage) {
@@ -298,7 +287,6 @@ async function handleSaveSerperConfig() {
     }
 
     serperUpdatedAt.value = record.updatedAt;
-    serperMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     serperTestResult.value = null;
     serperForm.apiKey = '';
     message.success(t('page.aiSettings.serper.saved'));
@@ -325,7 +313,6 @@ async function handleLoadHunterConfig(showMessage = true) {
       apiKey: ''
     });
     hunterUpdatedAt.value = record.updatedAt;
-    hunterMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     hunterTestResult.value = null;
 
     if (showMessage) {
@@ -353,7 +340,6 @@ async function handleSaveHunterConfig() {
     }
 
     hunterUpdatedAt.value = record.updatedAt;
-    hunterMaskedApiKey.value = record.hasApiKey ? record.maskedApiKey : '';
     hunterTestResult.value = null;
     hunterForm.apiKey = '';
     message.success(t('page.aiSettings.hunter.saved'));
@@ -446,9 +432,7 @@ async function handleTestModelConfig() {
       apiKey: modelForm.apiKey.trim(),
       model: modelForm.model.trim(),
       systemPrompt: t('page.aiSettings.test.systemPrompt'),
-      prompt: t('page.aiSettings.test.prompt'),
-      temperature: 0,
-      maxOutputTokens: 20
+      prompt: t('page.aiSettings.test.prompt')
     });
 
     if (error) {
@@ -508,6 +492,12 @@ async function handleTestHunterConfig() {
   } finally {
     isHunterTesting.value = false;
   }
+}
+
+/** Copies the API key currently entered in a settings form. */
+async function handleCopyApiKey(apiKey: string) {
+  await navigator.clipboard.writeText(apiKey.trim());
+  message.success('API Key 已复制');
 }
 </script>
 
@@ -577,43 +567,31 @@ async function handleTestHunterConfig() {
                     />
                   </NFormItem>
                 </NGi>
-                <NGi span="24 m:5">
-                  <NFormItem :label="$t('page.aiSettings.form.temperature')">
-                    <NInputNumber
-                      v-model:value="modelForm.temperature"
-                      :min="0"
-                      :max="2"
-                      :step="0.1"
-                      :input-props="noAutocompleteInputProps"
-                      class="full-width-control"
-                    />
-                  </NFormItem>
-                </NGi>
-                <NGi span="24 m:5">
-                  <NFormItem :label="$t('page.aiSettings.form.maxOutputTokens')">
-                    <NInputNumber
-                      v-model:value="modelForm.maxOutputTokens"
-                      :min="1"
-                      :max="8000"
-                      :precision="0"
-                      clearable
-                      :input-props="noAutocompleteInputProps"
-                      class="full-width-control"
-                    />
-                  </NFormItem>
-                </NGi>
                 <NGi span="24">
                   <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-                    <NInput
-                      v-model:value="modelForm.apiKey"
-                      type="password"
-                      show-password-on="click"
-                      :placeholder="$t('page.aiSettings.placeholders.apiKey')"
-                      :input-props="noAutocompleteInputProps"
-                    />
-                    <NText v-if="modelMaskedApiKey" depth="3" class="api-key-mask">
-                      {{ $t('page.aiSettings.status.savedApiKey') }}：{{ modelMaskedApiKey }}
-                    </NText>
+                    <NInputGroup>
+                      <NInput
+                        v-model:value="modelForm.apiKey"
+                        type="password"
+                        show-password-on="click"
+                        :placeholder="$t('page.aiSettings.placeholders.apiKey')"
+                        :input-props="noAutocompleteInputProps"
+                      />
+                      <NTooltip trigger="hover">
+                        <template #trigger>
+                          <NButton
+                            size="small"
+                            :disabled="!modelForm.apiKey.trim()"
+                            @click="handleCopyApiKey(modelForm.apiKey)"
+                          >
+                            <template #icon>
+                              <SvgIcon icon="material-symbols:content-copy-outline" />
+                            </template>
+                          </NButton>
+                        </template>
+                        复制 API Key
+                      </NTooltip>
+                    </NInputGroup>
                   </NFormItem>
                 </NGi>
               </NGrid>
@@ -687,16 +665,29 @@ async function handleTestHunterConfig() {
                 </NGi>
                 <NGi span="24">
                   <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-                    <NInput
-                      v-model:value="serperForm.apiKey"
-                      type="password"
-                      show-password-on="click"
-                      :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
-                      :input-props="noAutocompleteInputProps"
-                    />
-                    <NText v-if="serperMaskedApiKey" depth="3" class="api-key-mask">
-                      {{ $t('page.aiSettings.status.savedApiKey') }}：{{ serperMaskedApiKey }}
-                    </NText>
+                    <NInputGroup>
+                      <NInput
+                        v-model:value="serperForm.apiKey"
+                        type="password"
+                        show-password-on="click"
+                        :placeholder="$t('page.aiSettings.serper.apiKeyPlaceholder')"
+                        :input-props="noAutocompleteInputProps"
+                      />
+                      <NTooltip trigger="hover">
+                        <template #trigger>
+                          <NButton
+                            size="small"
+                            :disabled="!serperForm.apiKey.trim()"
+                            @click="handleCopyApiKey(serperForm.apiKey)"
+                          >
+                            <template #icon>
+                              <SvgIcon icon="material-symbols:content-copy-outline" />
+                            </template>
+                          </NButton>
+                        </template>
+                        复制 API Key
+                      </NTooltip>
+                    </NInputGroup>
                   </NFormItem>
                 </NGi>
               </NGrid>
@@ -768,15 +759,29 @@ async function handleTestHunterConfig() {
                 </NGi>
                 <NGi span="24">
                   <NFormItem :label="$t('page.aiSettings.form.apiKey')">
-                    <NInput
-                      v-model:value="hunterForm.apiKey"
-                      type="password"
-                      :placeholder="$t('page.aiSettings.hunter.apiKeyPlaceholder')"
-                      :input-props="noAutocompleteInputProps"
-                    />
-                    <NText v-if="hunterMaskedApiKey" depth="3" class="api-key-mask">
-                      {{ $t('page.aiSettings.status.savedApiKey') }}：{{ hunterMaskedApiKey }}
-                    </NText>
+                    <NInputGroup>
+                      <NInput
+                        v-model:value="hunterForm.apiKey"
+                        type="password"
+                        show-password-on="click"
+                        :placeholder="$t('page.aiSettings.hunter.apiKeyPlaceholder')"
+                        :input-props="noAutocompleteInputProps"
+                      />
+                      <NTooltip trigger="hover">
+                        <template #trigger>
+                          <NButton
+                            size="small"
+                            :disabled="!hunterForm.apiKey.trim()"
+                            @click="handleCopyApiKey(hunterForm.apiKey)"
+                          >
+                            <template #icon>
+                              <SvgIcon icon="material-symbols:content-copy-outline" />
+                            </template>
+                          </NButton>
+                        </template>
+                        复制 API Key
+                      </NTooltip>
+                    </NInputGroup>
                   </NFormItem>
                 </NGi>
               </NGrid>
@@ -977,12 +982,6 @@ async function handleTestHunterConfig() {
 .form-footer--stacked {
   align-items: flex-start;
   flex-direction: column;
-}
-
-.api-key-mask {
-  display: block;
-  margin-top: 5px;
-  font-size: 12px;
 }
 
 .full-width-control,

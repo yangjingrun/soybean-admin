@@ -275,9 +275,7 @@ const local: App.I18n.Schema = {
         provider: '模型服务',
         model: '模型名称',
         apiBase: 'API Base',
-        apiKey: 'API Key',
-        temperature: 'Temperature',
-        maxOutputTokens: '输出上限'
+        apiKey: 'API Key'
       },
       placeholders: {
         title: '默认模型',
@@ -292,7 +290,6 @@ const local: App.I18n.Schema = {
         pending: '待配置',
         notSaved: '暂未保存',
         testResult: '测试返回',
-        savedApiKey: '已保存密钥',
         tokens: 'Tokens',
         input: '输入',
         output: '输出'
