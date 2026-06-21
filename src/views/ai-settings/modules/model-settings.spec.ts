@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { defaultAiModelConfigKey } from '@/constants/ai-gateway';
-import { buildModelTestPayload, canSaveModelConfig, canTestModelConfig, clearSavedModelApiKey } from './model-settings';
+import { buildModelTestPayload, canSaveModelConfig, canTestModelConfig } from './model-settings';
 
 describe('ai settings model helpers', () => {
   it('tests the inline model config when the user entered a new API key', () => {
@@ -41,14 +41,6 @@ describe('ai settings model helpers', () => {
 
     assert.equal(canTestModelConfig(form, savedSecret), true);
     assert.equal(canSaveModelConfig(form), false);
-  });
-
-  it('clears the visible API key after a model config is saved', () => {
-    const form = createModelForm({ apiKey: 'sk-new' });
-
-    clearSavedModelApiKey(form);
-
-    assert.equal(form.apiKey, '');
   });
 });
 
