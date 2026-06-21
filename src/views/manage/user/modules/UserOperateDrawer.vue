@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, shallowRef, watch } from 'vue';
 import type { FormRules } from 'naive-ui';
-import { fetchEnabledSystemRoles } from '@/service/api';
+import { fetchEnabledSystemRoles } from '@/service/api/system-role';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { userRoleOptions, userStatusOptions } from './shared';
 

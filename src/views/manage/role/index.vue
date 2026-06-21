@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, shallowRef } from 'vue';
 import type { PaginationProps } from 'naive-ui';
-import { createSystemRole, fetchSystemRoles, updateSystemRole, updateSystemRolePermissions } from '@/service/api';
+import {
+  createSystemRole,
+  fetchSystemRoles,
+  updateSystemRole,
+  updateSystemRolePermissions
+} from '@/service/api/system-role';
 import RoleOperateDrawer from './modules/RoleOperateDrawer.vue';
 import RolePermissionPanel from './modules/RolePermissionPanel.vue';
 import RoleSearch from './modules/RoleSearch.vue';

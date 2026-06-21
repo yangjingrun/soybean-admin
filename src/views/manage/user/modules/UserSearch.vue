@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue';
-import { fetchEnabledSystemRoles } from '@/service/api';
+import { fetchEnabledSystemRoles } from '@/service/api/system-role';
 import {
   userExpirationLabelMap,
   userExpirationOptions,
