@@ -18,6 +18,12 @@ import {
   testSerperConfig
 } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
+import {
+  buildModelTestPayload,
+  canSaveModelConfig,
+  canTestModelConfig,
+  type SavedSecretState
+} from './modules/model-settings';
 
 const message = useMessage();
 const { t } = useI18n();
@@ -91,6 +97,10 @@ const modelUpdatedAt = shallowRef('');
 const serperUpdatedAt = shallowRef('');
 const hunterUpdatedAt = shallowRef('');
 const queueConfigUpdatedAt = shallowRef<string | null>(null);
+const savedModelSecret = reactive<SavedSecretState>({
+  hasApiKey: false,
+  maskedApiKey: ''
+});
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
@@ -105,11 +115,13 @@ const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() => ({
   queue: canManagePlatformAiSettings.value
 }));
 const canViewAnySettingsTab = computed(() => Object.values(tabVisibility.value).some(Boolean));
-const canSaveModel = computed(() =>
-  Boolean(
-    modelForm.providerName.trim() && modelForm.apiBase.trim() && modelForm.apiKey.trim() && modelForm.model.trim()
-  )
+const modelApiKeyPlaceholder = computed(() =>
+  savedModelSecret.hasApiKey && savedModelSecret.maskedApiKey
+    ? `已保存：${savedModelSecret.maskedApiKey}，输入新 API Key 可替换`
+    : t('page.aiSettings.placeholders.apiKey')
 );
+const canSaveModel = computed(() => canSaveModelConfig(modelForm));
+const canTestModel = computed(() => canTestModelConfig(modelForm, savedModelSecret));
 const formattedModelUpdatedAt = computed(() =>
   modelUpdatedAt.value
     ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
@@ -147,32 +159,36 @@ const queueStatus = computed<ConfigStatus>(() =>
     ? { label: '已保存', type: 'info' }
     : { label: t('page.aiSettings.status.pending'), type: 'default' }
 );
-const statusOverviewItems = computed<StatusOverviewItem[]>(() => [
-  {
-    key: 'model',
-    label: '模型',
-    status: modelStatus.value,
-    updatedAt: formattedModelUpdatedAt.value
-  },
-  {
-    key: 'serper',
-    label: 'Serper',
-    status: serperStatus.value,
-    updatedAt: formattedSerperUpdatedAt.value
-  },
-  {
-    key: 'hunter',
-    label: 'Hunter',
-    status: hunterStatus.value,
-    updatedAt: formattedHunterUpdatedAt.value
-  },
-  {
-    key: 'queue',
-    label: '后台任务',
-    status: queueStatus.value,
-    updatedAt: formattedQueueConfigUpdatedAt.value
-  }
-].filter(item => tabVisibility.value[item.key]));
+const statusOverviewItems = computed<StatusOverviewItem[]>(() => {
+  const items: StatusOverviewItem[] = [
+    {
+      key: 'model',
+      label: '模型',
+      status: modelStatus.value,
+      updatedAt: formattedModelUpdatedAt.value
+    },
+    {
+      key: 'serper',
+      label: 'Serper',
+      status: serperStatus.value,
+      updatedAt: formattedSerperUpdatedAt.value
+    },
+    {
+      key: 'hunter',
+      label: 'Hunter',
+      status: hunterStatus.value,
+      updatedAt: formattedHunterUpdatedAt.value
+    },
+    {
+      key: 'queue',
+      label: '后台任务',
+      status: queueStatus.value,
+      updatedAt: formattedQueueConfigUpdatedAt.value
+    }
+  ];
+
+  return items.filter(item => tabVisibility.value[item.key]);
+});
 
 onMounted(() => {
   if (!canManagePlatformAiSettings.value) {
@@ -204,6 +220,10 @@ async function handleLoadModelConfig(showMessage = true) {
       apiKey: '',
       model: record.model
     });
+    Object.assign(savedModelSecret, {
+      hasApiKey: record.hasApiKey,
+      maskedApiKey: record.maskedApiKey
+    });
     modelUpdatedAt.value = record.updatedAt;
     modelTestResult.value = null;
 
@@ -234,8 +254,11 @@ async function handleSaveModelConfig() {
     }
 
     modelUpdatedAt.value = record.updatedAt;
+    Object.assign(savedModelSecret, {
+      hasApiKey: record.hasApiKey,
+      maskedApiKey: record.maskedApiKey
+    });
     modelTestResult.value = null;
-    modelForm.apiKey = '';
     message.success(t('page.aiSettings.messages.saved'));
   } finally {
     isModelSaving.value = false;
@@ -426,14 +449,12 @@ async function handleTestModelConfig() {
   modelTestResult.value = null;
 
   try {
-    const { data: result, error } = await generateAiText({
-      providerName: modelForm.providerName.trim(),
-      apiBase: modelForm.apiBase.trim(),
-      apiKey: modelForm.apiKey.trim(),
-      model: modelForm.model.trim(),
-      systemPrompt: t('page.aiSettings.test.systemPrompt'),
-      prompt: t('page.aiSettings.test.prompt')
-    });
+    const { data: result, error } = await generateAiText(
+      buildModelTestPayload(modelForm, savedModelSecret, {
+        systemPrompt: t('page.aiSettings.test.systemPrompt'),
+        prompt: t('page.aiSettings.test.prompt')
+      })
+    );
 
     if (error) {
       return;
@@ -574,7 +595,7 @@ async function handleCopyApiKey(apiKey: string) {
                         v-model:value="modelForm.apiKey"
                         type="password"
                         show-password-on="click"
-                        :placeholder="$t('page.aiSettings.placeholders.apiKey')"
+                        :placeholder="modelApiKeyPlaceholder"
                         :input-props="noAutocompleteInputProps"
                       />
                       <NTooltip trigger="hover">
@@ -616,7 +637,7 @@ async function handleCopyApiKey(apiKey: string) {
                 <NButton size="small" :loading="isModelLoading" @click="handleLoadModelConfig()">
                   {{ $t('page.aiSettings.actions.reload') }}
                 </NButton>
-                <NButton size="small" :loading="isModelTesting" :disabled="!canSaveModel" @click="handleTestModelConfig">
+                <NButton size="small" :loading="isModelTesting" :disabled="!canTestModel" @click="handleTestModelConfig">
                   {{ $t('page.aiSettings.actions.test') }}
                 </NButton>
                 <NButton
