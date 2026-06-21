@@ -4,9 +4,7 @@ import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import {
-  aiSettingsPromptReadPermission,
-  aiSettingsPromptTestPermission,
-  aiSettingsPromptWritePermission,
+  aiSettingsPromptManagePermission,
   hasPermission
 } from '@soybean/shared';
 import { aiPromptOptions, defaultAiPromptKey, type AiPromptKey } from '@/constants/ai-gateway';
@@ -67,16 +65,12 @@ const selectedPromptUpdatedAt = computed(() => {
 
   return updatedAt ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss') : t('page.aiPromptSettings.status.notSaved');
 });
-const canReadPrompt = computed(() => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptReadPermission));
-const canWritePrompt = computed(() => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptWritePermission));
-const canTestPromptPermission = computed(
-  () => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptTestPermission)
-);
-const canSavePrompt = computed(() => canWritePrompt.value && Boolean(promptForm.systemPrompt.trim()));
-const canTestPrompt = computed(() => canTestPromptPermission.value && Boolean(promptForm.systemPrompt.trim()));
+const canManagePrompt = computed(() => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptManagePermission));
+const canSavePrompt = computed(() => canManagePrompt.value && Boolean(promptForm.systemPrompt.trim()));
+const canTestPrompt = computed(() => canManagePrompt.value && Boolean(promptForm.systemPrompt.trim()));
 
 onMounted(() => {
-  if (!canReadPrompt.value) {
+  if (!canManagePrompt.value) {
     return;
   }
 
@@ -190,7 +184,7 @@ function getPromptFormKey() {
 </script>
 
 <template>
-  <NSpace v-if="canReadPrompt" vertical :size="12">
+  <NSpace v-if="canManagePrompt" vertical :size="12">
     <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 l:7">
         <NCard :bordered="false" class="card-wrapper">

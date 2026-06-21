@@ -7,7 +7,8 @@ import {
   normalizeRolePermissionSelection,
   rolePermissionModules,
   roleStatusLabelMap,
-  type PermissionGroup
+  type PermissionGroup,
+  type PermissionModule
 } from './shared';
 
 const props = defineProps<{
@@ -73,6 +74,11 @@ function handleSave() {
 
   emit('save', props.role, [...draftPermissions.value]);
 }
+
+/** Summarize visible pages in one module without repeating every function name. */
+function getModulePageSummary(module: PermissionModule) {
+  return module.pages.map(page => page.label).join(' / ');
+}
 </script>
 
 <template>
@@ -98,12 +104,15 @@ function handleSave() {
 
       <NSpace vertical :size="14" class="permission-modules">
         <section v-for="module in rolePermissionModules" :key="module.key" class="permission-module">
-          <div class="permission-module__title">
-            <NText strong>{{ module.label }}</NText>
+          <div class="permission-module__header">
+            <div class="permission-module__title">
+              <NText strong>{{ module.label }}</NText>
+              <NText depth="3" class="permission-module__summary">{{ getModulePageSummary(module) }}</NText>
+            </div>
           </div>
           <div v-for="page in module.pages" :key="page.key" class="permission-page">
             <div class="permission-page__header">
-              <NTag size="small" type="info" :bordered="false">{{ page.label }}</NTag>
+              <NTag size="small" type="info" :bordered="false" round>{{ page.label }}</NTag>
             </div>
             <NSpace vertical :size="10">
               <RolePermissionGroup
@@ -198,26 +207,54 @@ function handleSave() {
 
 .permission-modules {
   min-width: 0;
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .permission-module {
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
   background: var(--n-color);
 }
 
 .permission-module__title {
-  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.permission-module__header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--n-border-color);
+}
+
+.permission-module__summary {
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .permission-page {
-  padding: 10px 0;
+  padding-top: 14px;
+}
+
+.permission-page + .permission-page {
+  margin-top: 14px;
   border-top: 1px dashed var(--n-border-color);
 }
 
 .permission-page__header {
   display: flex;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1024px) {
+  .permission-modules {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
 }
 </style>

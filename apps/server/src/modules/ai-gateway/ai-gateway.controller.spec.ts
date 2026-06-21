@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { aiSettingsModelWritePermission } from '@soybean/shared';
+import { aiSettingsModelManagePermission } from '@soybean/shared';
 import type { RequestUserContext } from '../../shared/request-context';
 import { AiGatewayController } from './ai-gateway.controller';
 
@@ -59,7 +59,7 @@ describe('AiGatewayController', () => {
         apiKey: 'sk-test',
         model: 'openai/gpt-4o-mini'
       },
-      createUser([aiSettingsModelWritePermission])
+      createUser([aiSettingsModelManagePermission])
     );
 
     assert.deepEqual(response.data, { configKey: 'default' });

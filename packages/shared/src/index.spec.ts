@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  aiSettingsHunterWritePermission,
-  aiSettingsModelWritePermission,
-  aiSettingsSerperWritePermission,
+  aiSettingsHunterManagePermission,
+  aiSettingsModelManagePermission,
+  aiSettingsSerperManagePermission,
   aiLeadsKeywordStrategyManagePermission,
   aiLeadsQueueConfigManagePermission,
   crmPermissionDefinitions,
@@ -26,9 +26,10 @@ describe('shared permissions', () => {
   it('defines page-aware AI platform configuration permissions', () => {
     const permissionMap = new Map(crmPermissionDefinitions.map(item => [item.code, item]));
 
-    assert.equal(permissionMap.get(aiSettingsModelWritePermission)?.pageLabel, '模型配置');
-    assert.equal(permissionMap.get(aiSettingsSerperWritePermission)?.functionLabel, 'Serper 搜索配置');
-    assert.equal(permissionMap.get(aiSettingsHunterWritePermission)?.functionLabel, 'Hunter 邮箱补全');
+    assert.equal(permissionMap.get(aiSettingsModelManagePermission)?.pageLabel, '模型配置');
+    assert.equal(permissionMap.get(aiSettingsModelManagePermission)?.label, '配置模型通道');
+    assert.equal(permissionMap.get(aiSettingsSerperManagePermission)?.functionLabel, 'Serper 搜索配置');
+    assert.equal(permissionMap.get(aiSettingsHunterManagePermission)?.functionLabel, 'Hunter 邮箱补全');
     assert.equal(permissionMap.get(aiLeadsQueueConfigManagePermission)?.pageLabel, '模型配置');
   });
 
@@ -47,16 +48,17 @@ describe('shared permissions', () => {
     );
   });
 
-  it('keeps AI settings write permissions normalized with their read permissions', () => {
-    assert.equal(
-      hasPermission(
-        {
-          roles: ['R_USER'],
-          buttons: [aiSettingsSerperWritePermission]
-        },
-        'ai:settings:serper:read'
-      ),
-      true
+  it('uses one permission for each AI settings function', () => {
+    const aiSettingsConfigPermissions = crmPermissionDefinitions.filter(item => item.group.startsWith('ai_settings_'));
+
+    assert.deepEqual(
+      aiSettingsConfigPermissions.map(item => item.code),
+      [
+        'ai:settings:model:manage',
+        'ai:settings:serper:manage',
+        'ai:settings:hunter:manage',
+        'ai:settings:prompt:manage'
+      ]
     );
   });
 });

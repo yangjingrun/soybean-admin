@@ -17,18 +17,10 @@ export const DEFAULT_ORGANIZATION_NAME = '默认组织';
 
 export const aiLeadsKeywordStrategyManagePermission = 'ai-leads:keyword-strategy:manage';
 export const aiLeadsQueueConfigManagePermission = 'ai-leads:queue-config:manage';
-export const aiSettingsModelReadPermission = 'ai:settings:model:read';
-export const aiSettingsModelWritePermission = 'ai:settings:model:write';
-export const aiSettingsModelTestPermission = 'ai:settings:model:test';
-export const aiSettingsPromptReadPermission = 'ai:settings:prompt:read';
-export const aiSettingsPromptWritePermission = 'ai:settings:prompt:write';
-export const aiSettingsPromptTestPermission = 'ai:settings:prompt:test';
-export const aiSettingsSerperReadPermission = 'ai:settings:serper:read';
-export const aiSettingsSerperWritePermission = 'ai:settings:serper:write';
-export const aiSettingsSerperTestPermission = 'ai:settings:serper:test';
-export const aiSettingsHunterReadPermission = 'ai:settings:hunter:read';
-export const aiSettingsHunterWritePermission = 'ai:settings:hunter:write';
-export const aiSettingsHunterTestPermission = 'ai:settings:hunter:test';
+export const aiSettingsModelManagePermission = 'ai:settings:model:manage';
+export const aiSettingsPromptManagePermission = 'ai:settings:prompt:manage';
+export const aiSettingsSerperManagePermission = 'ai:settings:serper:manage';
+export const aiSettingsHunterManagePermission = 'ai:settings:hunter:manage';
 
 export const crmPermissionDefinitions = [
   {
@@ -58,9 +50,9 @@ export const crmPermissionDefinitions = [
     description: '调整 AI 获客搜索采集 worker 并发。'
   },
   {
-    code: aiSettingsModelReadPermission,
-    label: '查看模型配置',
-    actionLabel: '查看',
+    code: aiSettingsModelManagePermission,
+    label: '配置模型通道',
+    actionLabel: '配置',
     group: 'ai_settings_model',
     groupLabel: '模型通道',
     module: 'ai_platform',
@@ -68,38 +60,12 @@ export const crmPermissionDefinitions = [
     page: 'ai_platform_model_config',
     pageLabel: '模型配置',
     functionLabel: '默认模型通道',
-    description: '查看默认模型供应商、Base URL、模型名和密钥状态。'
+    description: '查看、保存并测试默认模型供应商、Base URL、模型名和 API Key。'
   },
   {
-    code: aiSettingsModelWritePermission,
-    label: '维护模型配置',
-    actionLabel: '维护',
-    group: 'ai_settings_model',
-    groupLabel: '模型通道',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: '默认模型通道',
-    description: '保存默认模型供应商、Base URL、模型名和 API Key。'
-  },
-  {
-    code: aiSettingsModelTestPermission,
-    label: '测试模型配置',
-    actionLabel: '测试',
-    group: 'ai_settings_model',
-    groupLabel: '模型通道',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: '默认模型通道',
-    description: '在模型配置页发送轻量测试请求。'
-  },
-  {
-    code: aiSettingsSerperReadPermission,
-    label: '查看 Serper 配置',
-    actionLabel: '查看',
+    code: aiSettingsSerperManagePermission,
+    label: '配置 Serper 搜索',
+    actionLabel: '配置',
     group: 'ai_settings_serper',
     groupLabel: 'Serper 搜索',
     module: 'ai_platform',
@@ -107,38 +73,12 @@ export const crmPermissionDefinitions = [
     page: 'ai_platform_model_config',
     pageLabel: '模型配置',
     functionLabel: 'Serper 搜索配置',
-    description: '查看 Google Search/Places 搜索配置和密钥状态。'
+    description: '查看、保存并测试 Google Search/Places 的 Base URL 和 API Key。'
   },
   {
-    code: aiSettingsSerperWritePermission,
-    label: '维护 Serper 配置',
-    actionLabel: '维护',
-    group: 'ai_settings_serper',
-    groupLabel: 'Serper 搜索',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: 'Serper 搜索配置',
-    description: '保存 Serper Base URL 和 API Key。'
-  },
-  {
-    code: aiSettingsSerperTestPermission,
-    label: '测试 Serper 配置',
-    actionLabel: '测试',
-    group: 'ai_settings_serper',
-    groupLabel: 'Serper 搜索',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: 'Serper 搜索配置',
-    description: '调用 Serper 测试搜索连通性。'
-  },
-  {
-    code: aiSettingsHunterReadPermission,
-    label: '查看 Hunter 配置',
-    actionLabel: '查看',
+    code: aiSettingsHunterManagePermission,
+    label: '配置 Hunter 补全',
+    actionLabel: '配置',
     group: 'ai_settings_hunter',
     groupLabel: 'Hunter 补全',
     module: 'ai_platform',
@@ -146,38 +86,12 @@ export const crmPermissionDefinitions = [
     page: 'ai_platform_model_config',
     pageLabel: '模型配置',
     functionLabel: 'Hunter 邮箱补全',
-    description: '查看 Hunter Domain Search 配置和密钥状态。'
+    description: '查看、保存并测试 Hunter Domain Search 的 Base URL 和 API Key。'
   },
   {
-    code: aiSettingsHunterWritePermission,
-    label: '维护 Hunter 配置',
-    actionLabel: '维护',
-    group: 'ai_settings_hunter',
-    groupLabel: 'Hunter 补全',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: 'Hunter 邮箱补全',
-    description: '保存 Hunter Base URL 和 API Key。'
-  },
-  {
-    code: aiSettingsHunterTestPermission,
-    label: '测试 Hunter 配置',
-    actionLabel: '测试',
-    group: 'ai_settings_hunter',
-    groupLabel: 'Hunter 补全',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: 'Hunter 邮箱补全',
-    description: '调用 Hunter Domain Search 测试连通性。'
-  },
-  {
-    code: aiSettingsPromptReadPermission,
-    label: '查看提示词配置',
-    actionLabel: '查看',
+    code: aiSettingsPromptManagePermission,
+    label: '配置提示词',
+    actionLabel: '配置',
     group: 'ai_settings_prompt',
     groupLabel: '提示词',
     module: 'ai_platform',
@@ -185,33 +99,7 @@ export const crmPermissionDefinitions = [
     page: 'ai_platform_prompt_config',
     pageLabel: '提示词配置',
     functionLabel: 'AI 获客提示词',
-    description: '查看关键词优化、搜索决策、匹配分析和开发信提示词。'
-  },
-  {
-    code: aiSettingsPromptWritePermission,
-    label: '维护提示词配置',
-    actionLabel: '维护',
-    group: 'ai_settings_prompt',
-    groupLabel: '提示词',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_prompt_config',
-    pageLabel: '提示词配置',
-    functionLabel: 'AI 获客提示词',
-    description: '保存 AI 获客固定系统提示词。'
-  },
-  {
-    code: aiSettingsPromptTestPermission,
-    label: '测试提示词配置',
-    actionLabel: '测试',
-    group: 'ai_settings_prompt',
-    groupLabel: '提示词',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_prompt_config',
-    pageLabel: '提示词配置',
-    functionLabel: 'AI 获客提示词',
-    description: '打开提示词测试弹窗并发送测试请求。'
+    description: '查看、保存并测试 AI 获客固定系统提示词。'
   },
   {
     code: 'crm:settings:assets:read',
@@ -352,14 +240,6 @@ const roleDefaultPermissionCodes: Record<string, PermissionCode[]> = {
 };
 
 const permissionImplications: Partial<Record<PermissionCode, PermissionCode[]>> = {
-  [aiSettingsModelWritePermission]: [aiSettingsModelReadPermission],
-  [aiSettingsModelTestPermission]: [aiSettingsModelReadPermission],
-  [aiSettingsPromptWritePermission]: [aiSettingsPromptReadPermission],
-  [aiSettingsPromptTestPermission]: [aiSettingsPromptReadPermission],
-  [aiSettingsSerperWritePermission]: [aiSettingsSerperReadPermission],
-  [aiSettingsSerperTestPermission]: [aiSettingsSerperReadPermission],
-  [aiSettingsHunterWritePermission]: [aiSettingsHunterReadPermission],
-  [aiSettingsHunterTestPermission]: [aiSettingsHunterReadPermission],
   'crm:settings:assets:write': ['crm:settings:assets:read'],
   'crm:settings:rules:write': ['crm:settings:rules:read'],
   'crm:settings:safety:write': ['crm:settings:safety:read']

@@ -1,16 +1,10 @@
 import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
-  aiSettingsHunterReadPermission,
-  aiSettingsHunterTestPermission,
-  aiSettingsHunterWritePermission,
-  aiSettingsModelReadPermission,
-  aiSettingsModelWritePermission,
-  aiSettingsPromptReadPermission,
-  aiSettingsPromptWritePermission,
-  aiSettingsSerperReadPermission,
-  aiSettingsSerperTestPermission,
-  aiSettingsSerperWritePermission,
+  aiSettingsHunterManagePermission,
+  aiSettingsModelManagePermission,
+  aiSettingsPromptManagePermission,
+  aiSettingsSerperManagePermission,
   type PermissionCode
 } from '@soybean/shared';
 import { ok } from '../../shared/api-response';
@@ -33,7 +27,7 @@ export class AiGatewayController {
     @Body() dto: SaveAiPromptDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsPromptWritePermission);
+    this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
 
     return ok(await this.aiGatewayService.savePrompt(dto));
   }
@@ -43,7 +37,7 @@ export class AiGatewayController {
     @Param() params: AiPromptKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsPromptReadPermission);
+    this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
 
     return ok(await this.aiGatewayService.getPrompt(params.promptKey));
   }
@@ -53,7 +47,7 @@ export class AiGatewayController {
     @Body() dto: SaveAiModelConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsModelWritePermission);
+    this.requireAiConfigPermission(currentContext, aiSettingsModelManagePermission);
 
     return ok(await this.aiGatewayService.saveModelConfig(dto));
   }
@@ -63,7 +57,7 @@ export class AiGatewayController {
     @Param() params: AiModelConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsModelReadPermission);
+    this.requireAiConfigPermission(currentContext, aiSettingsModelManagePermission);
 
     return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
   }
@@ -73,7 +67,7 @@ export class AiGatewayController {
     @Body() dto: SaveSerperConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsSerperWritePermission);
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsSerperManagePermission);
 
     return ok(await this.aiGatewayService.saveSerperConfig(dto, { user }));
   }
@@ -83,7 +77,7 @@ export class AiGatewayController {
     @Param() params: SerperConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsSerperReadPermission);
+    this.requireAiConfigPermission(currentContext, aiSettingsSerperManagePermission);
 
     return ok(await this.aiGatewayService.getSerperConfigDraft(params.configKey));
   }
@@ -94,7 +88,7 @@ export class AiGatewayController {
     @Body() dto: SaveSerperConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsSerperTestPermission);
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsSerperManagePermission);
 
     return ok(await this.aiGatewayService.testSerperConfig(dto, { user }));
   }
@@ -104,7 +98,7 @@ export class AiGatewayController {
     @Body() dto: SaveHunterConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsHunterWritePermission);
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsHunterManagePermission);
 
     return ok(await this.aiGatewayService.saveHunterConfig(dto, { user }));
   }
@@ -114,7 +108,7 @@ export class AiGatewayController {
     @Param() params: HunterConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsHunterReadPermission);
+    this.requireAiConfigPermission(currentContext, aiSettingsHunterManagePermission);
 
     return ok(await this.aiGatewayService.getHunterConfigDraft(params.configKey));
   }
@@ -125,7 +119,7 @@ export class AiGatewayController {
     @Body() dto: SaveHunterConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsHunterTestPermission);
+    const user = this.requireAiConfigPermission(currentContext, aiSettingsHunterManagePermission);
 
     return ok(await this.aiGatewayService.testHunterConfig(dto, { user }));
   }

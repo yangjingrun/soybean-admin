@@ -5,15 +5,9 @@ import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import {
   aiLeadsQueueConfigManagePermission,
-  aiSettingsHunterReadPermission,
-  aiSettingsHunterTestPermission,
-  aiSettingsHunterWritePermission,
-  aiSettingsModelReadPermission,
-  aiSettingsModelTestPermission,
-  aiSettingsModelWritePermission,
-  aiSettingsSerperReadPermission,
-  aiSettingsSerperTestPermission,
-  aiSettingsSerperWritePermission,
+  aiSettingsHunterManagePermission,
+  aiSettingsModelManagePermission,
+  aiSettingsSerperManagePermission,
   hasPermission,
   type PermissionCode
 } from '@soybean/shared';
@@ -120,20 +114,14 @@ const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null)
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
 const activeSettingsTab = shallowRef<AiSettingsTabKey>('model');
 
-const canReadModelConfig = computed(() => hasAssignedPermission(aiSettingsModelReadPermission));
-const canWriteModelConfig = computed(() => hasAssignedPermission(aiSettingsModelWritePermission));
-const canTestModelConfigPermission = computed(() => hasAssignedPermission(aiSettingsModelTestPermission));
-const canReadSerperConfig = computed(() => hasAssignedPermission(aiSettingsSerperReadPermission));
-const canWriteSerperConfig = computed(() => hasAssignedPermission(aiSettingsSerperWritePermission));
-const canTestSerperConfigPermission = computed(() => hasAssignedPermission(aiSettingsSerperTestPermission));
-const canReadHunterConfig = computed(() => hasAssignedPermission(aiSettingsHunterReadPermission));
-const canWriteHunterConfig = computed(() => hasAssignedPermission(aiSettingsHunterWritePermission));
-const canTestHunterConfigPermission = computed(() => hasAssignedPermission(aiSettingsHunterTestPermission));
+const canManageModelConfig = computed(() => hasAssignedPermission(aiSettingsModelManagePermission));
+const canManageSerperConfig = computed(() => hasAssignedPermission(aiSettingsSerperManagePermission));
+const canManageHunterConfig = computed(() => hasAssignedPermission(aiSettingsHunterManagePermission));
 const canManageAiLeadQueueConfig = computed(() => hasAssignedPermission(aiLeadsQueueConfigManagePermission));
 const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() => ({
-  model: canReadModelConfig.value,
-  serper: canReadSerperConfig.value,
-  hunter: canReadHunterConfig.value,
+  model: canManageModelConfig.value,
+  serper: canManageSerperConfig.value,
+  hunter: canManageHunterConfig.value,
   queue: canManageAiLeadQueueConfig.value
 }));
 const canViewAnySettingsTab = computed(() => Object.values(tabVisibility.value).some(Boolean));
@@ -146,18 +134,18 @@ const modelApiKeyPlaceholder = computed(() =>
     ? `已保存：${savedModelSecret.maskedApiKey}，输入新 API Key 可替换`
     : t('page.aiSettings.placeholders.apiKey')
 );
-const canSaveModel = computed(() => canWriteModelConfig.value && canSaveModelConfig(modelForm));
-const canTestModel = computed(() => canTestModelConfigPermission.value && canTestModelConfig(modelForm, savedModelSecret));
+const canSaveModel = computed(() => canManageModelConfig.value && canSaveModelConfig(modelForm));
+const canTestModel = computed(() => canManageModelConfig.value && canTestModelConfig(modelForm, savedModelSecret));
 const formattedModelUpdatedAt = computed(() =>
   modelUpdatedAt.value
     ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
     : t('page.aiSettings.status.notSaved')
 );
 const canSaveSerper = computed(() =>
-  canWriteSerperConfig.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
+  canManageSerperConfig.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
 );
 const canTestSerper = computed(
-  () => canTestSerperConfigPermission.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
+  () => canManageSerperConfig.value && Boolean(serperForm.title.trim() && serperForm.apiBase.trim() && serperForm.apiKey.trim())
 );
 const formattedSerperUpdatedAt = computed(() =>
   serperUpdatedAt.value
@@ -165,10 +153,10 @@ const formattedSerperUpdatedAt = computed(() =>
     : t('page.aiSettings.status.notSaved')
 );
 const canSaveHunter = computed(() =>
-  canWriteHunterConfig.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
+  canManageHunterConfig.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
 );
 const canTestHunter = computed(
-  () => canTestHunterConfigPermission.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
+  () => canManageHunterConfig.value && Boolean(hunterForm.title.trim() && hunterForm.apiBase.trim() && hunterForm.apiKey.trim())
 );
 const formattedHunterUpdatedAt = computed(() =>
   hunterUpdatedAt.value
@@ -236,15 +224,15 @@ onMounted(() => {
 
   activeSettingsTab.value = firstVisibleSettingsTab.value;
 
-  if (canReadModelConfig.value) {
+  if (canManageModelConfig.value) {
     void handleLoadModelConfig(false);
   }
 
-  if (canReadSerperConfig.value) {
+  if (canManageSerperConfig.value) {
     void handleLoadSerperConfig(false);
   }
 
-  if (canReadHunterConfig.value) {
+  if (canManageHunterConfig.value) {
     void handleLoadHunterConfig(false);
   }
 
