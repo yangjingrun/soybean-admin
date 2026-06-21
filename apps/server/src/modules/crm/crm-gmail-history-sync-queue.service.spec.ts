@@ -41,7 +41,8 @@ describe('CrmGmailHistorySyncQueueService', () => {
       publishTime: '2026-06-19T09:00:00.000Z'
     });
 
-    assert.equal(result.jobId, 'mailbox-1:12345');
+    assert.equal(result.jobId, 'crm-gmail-history-sync__mailbox-1__12345');
+    assert.equal(result.jobId.includes(':'), false);
     assert.equal(addCall?.name, 'gmail-history-sync');
     assert.deepEqual(addCall?.input, {
       mailboxId: 'mailbox-1',
@@ -54,15 +55,21 @@ describe('CrmGmailHistorySyncQueueService', () => {
       publishTime: '2026-06-19T09:00:00.000Z'
     });
     assert.deepEqual(addCall?.options, {
-      jobId: 'mailbox-1:12345',
+      jobId: 'crm-gmail-history-sync__mailbox-1__12345',
       removeOnComplete: true,
       removeOnFail: { age: 604_800, count: 1000 }
     });
   });
 
   it('deduplicates manual and Pub/Sub sync jobs by mailbox and history id', () => {
-    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345'), 'mailbox-1:12345');
-    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345', 'pubsub-1'), 'mailbox-1:12345');
-    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345', 'pubsub-2'), 'mailbox-1:12345');
+    assert.equal(toCrmGmailHistorySyncJobId('mailbox-1', '12345'), 'crm-gmail-history-sync__mailbox-1__12345');
+    assert.equal(
+      toCrmGmailHistorySyncJobId('mailbox-1', '12345', 'pubsub-1'),
+      'crm-gmail-history-sync__mailbox-1__12345'
+    );
+    assert.equal(
+      toCrmGmailHistorySyncJobId('mailbox-1', '12345', 'pubsub-2'),
+      'crm-gmail-history-sync__mailbox-1__12345'
+    );
   });
 });

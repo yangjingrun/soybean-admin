@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
+import { createBullMqJobId } from '../../shared/bullmq-job-id';
 import { RedisService } from '../redis/redis.service';
 import { aiLeadSearchQueueName } from './ai-lead-search-task.constants';
 import type { AiLeadSearchTaskQueuePort } from './ai-lead-search-task.types';
@@ -82,5 +83,5 @@ export class AiLeadSearchTaskQueueService implements AiLeadSearchTaskQueuePort, 
 }
 
 export function toSearchTaskJobId(taskId: string, runVersion: number) {
-  return `${taskId}:${runVersion}`;
+  return createBullMqJobId('ai-lead-search-task', taskId, runVersion);
 }

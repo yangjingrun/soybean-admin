@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { createBullMqJobId } from '../../shared/bullmq-job-id';
 import { RedisService } from '../redis/redis.service';
 import { crmGmailHistorySyncQueueName, crmSendRemoveOnFail } from './crm-send.constants';
 import type { CrmGmailHistorySyncQueueJob, CrmGmailHistorySyncQueuePort } from './crm.types';
@@ -41,5 +42,5 @@ export class CrmGmailHistorySyncQueueService implements CrmGmailHistorySyncQueue
 }
 
 export function toCrmGmailHistorySyncJobId(mailboxId: string, historyId: string, _pubsubMessageId?: string | null) {
-  return [mailboxId, historyId].join(':');
+  return createBullMqJobId('crm-gmail-history-sync', mailboxId, historyId);
 }

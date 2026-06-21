@@ -68,21 +68,22 @@ describe('CrmAiDraftTaskQueueService', () => {
     };
 
     const result = await service.enqueueTask(job);
-    await service.removeTaskJob('task-1:3');
+    await service.removeTaskJob('crm-ai-draft-task__task-1__3');
     await service.applyGlobalConcurrency(4);
 
-    assert.equal(result.jobId, 'task-1:3');
-    assert.equal(toCrmAiDraftTaskJobId('task-1', 3), 'task-1:3');
+    assert.equal(result.jobId, 'crm-ai-draft-task__task-1__3');
+    assert.equal(toCrmAiDraftTaskJobId('task-1', 3), 'crm-ai-draft-task__task-1__3');
+    assert.equal(result.jobId.includes(':'), false);
     assert.deepEqual(addCalls[0], {
       name: 'crm-ai-draft-task',
       input: job,
       options: {
-        jobId: 'task-1:3',
+        jobId: 'crm-ai-draft-task__task-1__3',
         removeOnComplete: true,
         removeOnFail: { age: 604_800, count: 1000 }
       }
     });
-    assert.deepEqual(removedJobIds, ['task-1:3']);
+    assert.deepEqual(removedJobIds, ['crm-ai-draft-task__task-1__3']);
     assert.deepEqual(globalConcurrencies, [4]);
   });
 });

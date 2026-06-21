@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createAiResultFromSearchTask, createStartingSearchProgressState } from './useAiLeadSearchTask';
+import {
+  createAiResultFromSearchTask,
+  createStartingSearchProgressState,
+  shouldRestoreSearchTaskAfterCreateRequestError
+} from './useAiLeadSearchTask';
 
-function createTask(): Api.AiLeads.TaskRecord {
+function createTask(overrides: Partial<Api.AiLeads.TaskRecord> = {}): Api.AiLeads.TaskRecord {
   return {
     id: 'task-1',
     userId: 'user-1',
@@ -38,7 +42,8 @@ function createTask(): Api.AiLeads.TaskRecord {
     startedAt: null,
     finishedAt: null,
     createdAt: '2026-06-20T01:00:00.000Z',
-    updatedAt: '2026-06-20T01:00:00.000Z'
+    updatedAt: '2026-06-20T01:00:00.000Z',
+    ...overrides
   };
 }
 
@@ -54,5 +59,16 @@ describe('AI lead search task helpers', () => {
     assert.equal(result.finishReason, 'running');
     assert.match(result.text, /resolvedTargetLeadCount/);
     assert.equal(result.usage.totalTokens, null);
+  });
+
+  it('restores only pending tasks after create request errors', () => {
+    assert.equal(shouldRestoreSearchTaskAfterCreateRequestError(createTask({ status: 'queued' })), true);
+    assert.equal(shouldRestoreSearchTaskAfterCreateRequestError(createTask({ status: 'running' })), true);
+    assert.equal(
+      shouldRestoreSearchTaskAfterCreateRequestError(
+        createTask({ status: 'failed', errorMessage: 'Custom Id cannot contain :' })
+      ),
+      false
+    );
   });
 });

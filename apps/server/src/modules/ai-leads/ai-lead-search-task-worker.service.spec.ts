@@ -837,7 +837,7 @@ describe('AiLeadSearchTaskWorkerService', () => {
   });
 
   it('keeps a finite number of failed BullMQ jobs for operations inspection', async () => {
-    let addOptions: { removeOnFail?: unknown } | undefined;
+    let addOptions: { jobId?: string; removeOnFail?: unknown } | undefined;
     const service = new AiLeadSearchTaskQueueService({
       createBullMqConnectionOptions: () => ({})
     } as never);
@@ -846,15 +846,17 @@ describe('AiLeadSearchTaskWorkerService', () => {
 
     (service as never as { queue: unknown }).queue = {
       async waitUntilReady() {},
-      async add(_name: string, _input: unknown, options: { removeOnFail?: unknown }) {
+      async add(_name: string, _input: unknown, options: { jobId?: string; removeOnFail?: unknown }) {
         addOptions = options;
 
-        return { id: 'task-1:1' };
+        return { id: options.jobId };
       }
     };
 
     await service.enqueueSearchTask({ taskId: 'task-1', runVersion: 1, priority: 0 });
 
+    assert.equal(addOptions?.jobId, 'ai-lead-search-task__task-1__1');
+    assert.equal(addOptions?.jobId?.includes(':'), false);
     assert.deepEqual(addOptions?.removeOnFail, { age: 604_800, count: 1000 });
   });
 });

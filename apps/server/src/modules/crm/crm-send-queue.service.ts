@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { createBullMqJobId } from '../../shared/bullmq-job-id';
 import { RedisService } from '../redis/redis.service';
 import { crmSendQueueName, crmSendRemoveOnFail } from './crm-send.constants';
 import type { CrmSendQueueJob, CrmSendQueuePort } from './crm.types';
@@ -47,5 +48,5 @@ export class CrmSendQueueService implements CrmSendQueuePort, OnModuleDestroy {
 }
 
 export function toCrmSendJobId(messageId: string, runVersion: number) {
-  return `${messageId}:${runVersion}`;
+  return createBullMqJobId('crm-send', messageId, runVersion);
 }

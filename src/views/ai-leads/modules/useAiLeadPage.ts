@@ -27,7 +27,11 @@ import {
 import type { LeadSearchProgressState, LeadSearchTaskAction } from './search-progress';
 import { sortKeywordHistoryRecords } from './useAiLeadKeywordHistory';
 import { createDefaultLeadSearchForm } from './useAiLeadKeywordOptimization';
-import { createAiResultFromSearchTask, createStartingSearchProgressState } from './useAiLeadSearchTask';
+import {
+  createAiResultFromSearchTask,
+  createStartingSearchProgressState,
+  shouldRestoreSearchTaskAfterCreateRequestError
+} from './useAiLeadSearchTask';
 import {
     buildAiLeadCandidateImportPayload,
     buildKeywordHistoryUpdatePayload,
@@ -264,7 +268,10 @@ export function useAiLeadPage() {
       });
 
       if (error) {
-        await syncCurrentSearchTaskAfterRequestError({ clearWhenEmpty: true });
+        await syncCurrentSearchTaskAfterRequestError({
+          clearWhenEmpty: true,
+          shouldRestoreTask: shouldRestoreSearchTaskAfterCreateRequestError
+        });
         return;
       }
 
@@ -563,14 +570,24 @@ export function useAiLeadPage() {
   }
 
   /** Refreshes persisted task state after a failed request may have changed backend status. */
-  async function syncCurrentSearchTaskAfterRequestError(options: { clearWhenEmpty?: boolean } = {}) {
+  async function syncCurrentSearchTaskAfterRequestError(
+    options: { clearWhenEmpty?: boolean; shouldRestoreTask?: (task: Api.AiLeads.TaskRecord) => boolean } = {}
+  ) {
     const { data: task, error } = await fetchCurrentLeadSearchTask();
 
     if (error) {
+      if (options.clearWhenEmpty) {
+        resetSearchProgress();
+      }
       return;
     }
 
     if (task) {
+      if (options.shouldRestoreTask && !options.shouldRestoreTask(task)) {
+        resetSearchProgress();
+        return;
+      }
+
       applySearchTaskRecord(task, { notifyStatusChange: false });
       return;
     }

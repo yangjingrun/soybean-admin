@@ -1,4 +1,4 @@
-import { createLeadSearchProgressState } from './search-progress';
+import { createLeadSearchProgressState, isLeadSearchTaskPending } from './search-progress';
 import type { LeadSearchProgressState } from './search-progress';
 
 /** Convert a persisted task keyword plan into the AI result view shape used by the editor. */
@@ -23,4 +23,9 @@ export function createStartingSearchProgressState(): LeadSearchProgressState {
     currentDescription: '正在建立采集任务。',
     progressPercent: 3
   };
+}
+
+/** Restore only tasks that can still make progress after a create request error. */
+export function shouldRestoreSearchTaskAfterCreateRequestError(task: Api.AiLeads.TaskRecord) {
+  return isLeadSearchTaskPending(task.status);
 }

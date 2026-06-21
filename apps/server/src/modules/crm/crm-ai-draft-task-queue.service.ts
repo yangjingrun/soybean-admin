@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { createBullMqJobId } from '../../shared/bullmq-job-id';
 import { RedisService } from '../redis/redis.service';
 import type { CrmAiDraftTaskQueueJob, CrmAiDraftTaskQueuePort } from './crm-ai-draft-task.types';
 
@@ -61,5 +62,5 @@ export class CrmAiDraftTaskQueueService implements CrmAiDraftTaskQueuePort, OnMo
 }
 
 export function toCrmAiDraftTaskJobId(taskId: string, runVersion: number) {
-  return `${taskId}:${runVersion}`;
+  return createBullMqJobId('crm-ai-draft-task', taskId, runVersion);
 }
