@@ -25,9 +25,14 @@ export interface AiSettingsTabPermissionState {
   canManageAiLeadQueueConfig: boolean;
 }
 
-/** Check whether the model config form has enough visible fields to save a new API key. */
-export function canSaveModelConfig(form: ModelConfigFormModel) {
-  return Boolean(form.providerName.trim() && form.apiBase.trim() && form.apiKey.trim() && form.model.trim());
+/** Check whether the model config form can save a fresh key or update fields with an existing saved key. */
+export function canSaveModelConfig(form: ModelConfigFormModel, savedSecret: SavedSecretState) {
+  return Boolean(
+    form.providerName.trim() &&
+      form.apiBase.trim() &&
+      form.model.trim() &&
+      (form.apiKey.trim() || savedSecret.hasApiKey)
+  );
 }
 
 /** Check whether the model config can be tested with either a fresh key or an already saved key. */

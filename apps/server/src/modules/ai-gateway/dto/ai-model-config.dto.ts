@@ -53,3 +53,41 @@ export class SaveAiModelConfigDto extends AiModelConfigKeyParamDto {
   @Max(8000)
   maxOutputTokens?: number;
 }
+
+export class SaveMyAiModelConfigDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  @Transform(trimStringValue)
+  providerName!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  @Transform(trimStringValue)
+  apiBase!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  @Transform(trimStringValue)
+  apiKey?: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  @Transform(trimStringValue)
+  model!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(2)
+  temperature?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(8000)
+  maxOutputTokens?: number;
+}

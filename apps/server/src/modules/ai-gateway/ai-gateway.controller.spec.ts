@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { aiSettingsModelManagePermission } from '@soybean/shared';
 import type { RequestUserContext } from '../../shared/request-context';
 import { AiGatewayController } from './ai-gateway.controller';
 
@@ -16,7 +15,7 @@ describe('AiGatewayController', () => {
     await assert.rejects(() => controller.getPrompt({ promptKey: 'lead-keyword-optimize' }, null), UnauthorizedException);
   });
 
-  it('requires dynamic model config permission before saving model config', async () => {
+  it('requires platform super role before saving platform model config', async () => {
     let called = false;
     const controller = new AiGatewayController({
       async saveModelConfig() {
@@ -43,7 +42,7 @@ describe('AiGatewayController', () => {
     assert.equal(called, false);
   });
 
-  it('allows assigned roles to save model config without platform super role', async () => {
+  it('allows platform super users to save legacy platform model config', async () => {
     const controller = new AiGatewayController({
       async saveModelConfig() {
         return { configKey: 'default' };
@@ -59,7 +58,7 @@ describe('AiGatewayController', () => {
         apiKey: 'sk-test',
         model: 'openai/gpt-4o-mini'
       },
-      createUser([aiSettingsModelManagePermission])
+      createSuperUser()
     );
 
     assert.deepEqual(response.data, { configKey: 'default' });
@@ -91,8 +90,6 @@ describe('AiGatewayController', () => {
 
     const response = await controller.saveMyModelConfig(
       {
-        configKey: 'default',
-        title: '个人模型',
         providerName: 'openrouter',
         apiBase: 'https://openrouter.ai/api/v1',
         apiKey: 'sk-test',
@@ -124,5 +121,13 @@ function createUser(buttons: string[] = []): RequestUserContext {
     buttons,
     organizationId: 'org-1',
     organizationRole: 'member'
+  };
+}
+
+function createSuperUser(): RequestUserContext {
+  return {
+    ...createUser(),
+    roles: ['R_SUPER'],
+    organizationRole: 'admin'
   };
 }

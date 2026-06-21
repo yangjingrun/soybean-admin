@@ -17,7 +17,6 @@ export const DEFAULT_ORGANIZATION_NAME = '默认组织';
 
 export const aiLeadsKeywordStrategyManagePermission = 'ai-leads:keyword-strategy:manage';
 export const aiLeadsQueueConfigManagePermission = 'ai-leads:queue-config:manage';
-export const aiSettingsModelManagePermission = 'ai:settings:model:manage';
 export const aiSettingsPromptManagePermission = 'ai:settings:prompt:manage';
 export const aiSettingsSerperManagePermission = 'ai:settings:serper:manage';
 export const aiSettingsHunterManagePermission = 'ai:settings:hunter:manage';
@@ -48,19 +47,6 @@ export const crmPermissionDefinitions = [
     pageLabel: '模型配置',
     functionLabel: 'AI 获客后台任务',
     description: '调整 AI 获客搜索采集 worker 并发。'
-  },
-  {
-    code: aiSettingsModelManagePermission,
-    label: '配置模型通道',
-    actionLabel: '配置',
-    group: 'ai_settings_model',
-    groupLabel: '模型通道',
-    module: 'ai_platform',
-    moduleLabel: 'AI 平台配置',
-    page: 'ai_platform_model_config',
-    pageLabel: '模型配置',
-    functionLabel: '默认模型通道',
-    description: '查看、保存并测试默认模型供应商、Base URL、模型名和 API Key。'
   },
   {
     code: aiSettingsSerperManagePermission,

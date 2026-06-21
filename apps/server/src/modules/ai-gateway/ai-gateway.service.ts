@@ -14,7 +14,7 @@ import {
 import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR, AI_USER_MODEL_CONFIG_STORE } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
-import type { SaveAiModelConfigDto } from './dto/ai-model-config.dto';
+import type { SaveAiModelConfigDto, SaveMyAiModelConfigDto } from './dto/ai-model-config.dto';
 import type { SaveSerperConfigDto } from './dto/serper-config.dto';
 import type { SaveHunterConfigDto } from './dto/hunter-config.dto';
 import { AiProviderConfigService, toSecretView } from './ai-provider-config.service';
@@ -158,12 +158,13 @@ export class AiGatewayService {
   }
 
   /** Saves the current user's personal model channel. */
-  async saveMyModelConfig(dto: SaveAiModelConfigDto, user: RequestUserContext): Promise<AiUserModelConfigViewRecord> {
+  async saveMyModelConfig(dto: SaveMyAiModelConfigDto, user: RequestUserContext): Promise<AiUserModelConfigViewRecord> {
+    const apiKey = await this.resolvePersonalModelApiKey(dto, user);
     const record = await this.userModelConfigStore.saveUserModelConfig({
       userId: user.userId,
       providerName: dto.providerName.trim(),
       apiBase: dto.apiBase.trim(),
-      apiKey: dto.apiKey.trim(),
+      apiKey,
       model: dto.model.trim(),
       temperature: dto.temperature ?? defaultAiTemperature,
       maxOutputTokens: dto.maxOutputTokens,
@@ -171,6 +172,23 @@ export class AiGatewayService {
     });
 
     return toUserModelConfigView(record, { exposeApiKey: true });
+  }
+
+  private async resolvePersonalModelApiKey(dto: SaveMyAiModelConfigDto, user: RequestUserContext) {
+    const nextApiKey = dto.apiKey?.trim();
+
+    if (nextApiKey) {
+      return nextApiKey;
+    }
+
+    const existing = await this.userModelConfigStore.getUserModelConfig(user.userId);
+
+    if (!existing?.apiKey.trim()) {
+      throw new BadRequestException('请先填写个人模型 API Key');
+    }
+
+    // 允许用户只改模型名、Base URL 等字段，不要求每次重新输入已保存的 Key。
+    return existing.apiKey;
   }
 
   /** Reads the current user's personal model channel or returns an editable draft. */

@@ -2,17 +2,16 @@ import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
   aiSettingsHunterManagePermission,
-  aiSettingsModelManagePermission,
   aiSettingsPromptManagePermission,
   aiSettingsSerperManagePermission,
   type PermissionCode
 } from '@soybean/shared';
 import { ok } from '../../shared/api-response';
-import { requirePermission } from '../../shared/permission-policy';
+import { requirePermission, requireSuperUserContext } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import { CurrentContext } from '../auth/auth.decorators';
 import { AiGatewayService } from './ai-gateway.service';
-import { AiModelConfigKeyParamDto, SaveAiModelConfigDto } from './dto/ai-model-config.dto';
+import { AiModelConfigKeyParamDto, SaveAiModelConfigDto, SaveMyAiModelConfigDto } from './dto/ai-model-config.dto';
 import { AiPromptKeyParamDto, SaveAiPromptDto } from './dto/ai-prompt.dto';
 import { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import { HunterConfigKeyParamDto, SaveHunterConfigDto } from './dto/hunter-config.dto';
@@ -47,7 +46,7 @@ export class AiGatewayController {
     @Body() dto: SaveAiModelConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsModelManagePermission);
+    requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.saveModelConfig(dto));
   }
@@ -57,7 +56,7 @@ export class AiGatewayController {
     @Param() params: AiModelConfigKeyParamDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    this.requireAiConfigPermission(currentContext, aiSettingsModelManagePermission);
+    requireSuperUserContext(currentContext, '无权维护 AI 配置');
 
     return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
   }
@@ -69,7 +68,7 @@ export class AiGatewayController {
 
   @Post('my-model-config')
   async saveMyModelConfig(
-    @Body() dto: SaveAiModelConfigDto,
+    @Body() dto: SaveMyAiModelConfigDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
     return ok(await this.aiGatewayService.saveMyModelConfig(dto, requireRequestUserContext(currentContext)));

@@ -38,12 +38,19 @@ describe('ai settings model helpers', () => {
     });
   });
 
-  it('allows testing saved configs but only saves when a new API key is entered', () => {
+  it('allows saving field changes when the account already has a saved API key', () => {
     const form = createModelForm({ apiKey: '' });
     const savedSecret = { hasApiKey: true, maskedApiKey: 'sk-s****-old' };
 
     assert.equal(canTestModelConfig(form, savedSecret), true);
-    assert.equal(canSaveModelConfig(form), false);
+    assert.equal(canSaveModelConfig(form, savedSecret), true);
+  });
+
+  it('requires a fresh API key before the first personal model config save', () => {
+    const form = createModelForm({ apiKey: '' });
+    const savedSecret = { hasApiKey: false, maskedApiKey: '' };
+
+    assert.equal(canSaveModelConfig(form, savedSecret), false);
   });
 
   it('keeps the personal model tab visible without platform model permission', () => {

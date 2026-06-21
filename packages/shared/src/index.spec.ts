@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   aiSettingsHunterManagePermission,
-  aiSettingsModelManagePermission,
   aiSettingsSerperManagePermission,
   aiLeadsKeywordStrategyManagePermission,
   aiLeadsQueueConfigManagePermission,
+  crmPermissionCodes,
   crmPermissionDefinitions,
   getDefaultPermissionCodesByRoles,
   hasPermission
@@ -26,11 +26,15 @@ describe('shared permissions', () => {
   it('defines page-aware AI platform configuration permissions', () => {
     const permissionMap = new Map(crmPermissionDefinitions.map(item => [item.code, item]));
 
-    assert.equal(permissionMap.get(aiSettingsModelManagePermission)?.pageLabel, '模型配置');
-    assert.equal(permissionMap.get(aiSettingsModelManagePermission)?.label, '配置模型通道');
     assert.equal(permissionMap.get(aiSettingsSerperManagePermission)?.functionLabel, 'Serper 搜索配置');
     assert.equal(permissionMap.get(aiSettingsHunterManagePermission)?.functionLabel, 'Hunter 邮箱补全');
     assert.equal(permissionMap.get(aiLeadsQueueConfigManagePermission)?.pageLabel, '模型配置');
+  });
+
+  it('does not expose the personal model channel as an assignable role permission', () => {
+    assert.equal(crmPermissionCodes.map(String).includes('ai:settings:model:manage'), false);
+    assert.equal(crmPermissionDefinitions.map<string>(item => item.group).includes('ai_settings_model'), false);
+    assert.equal(getDefaultPermissionCodesByRoles(['R_SUPER']).map(String).includes('ai:settings:model:manage'), false);
   });
 
   it('grants AI leads keyword strategy maintenance to super users and configurable roles', () => {
@@ -53,12 +57,7 @@ describe('shared permissions', () => {
 
     assert.deepEqual(
       aiSettingsConfigPermissions.map(item => item.code),
-      [
-        'ai:settings:model:manage',
-        'ai:settings:serper:manage',
-        'ai:settings:hunter:manage',
-        'ai:settings:prompt:manage'
-      ]
+      ['ai:settings:serper:manage', 'ai:settings:hunter:manage', 'ai:settings:prompt:manage']
     );
   });
 });

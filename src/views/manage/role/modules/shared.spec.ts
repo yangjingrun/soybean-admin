@@ -55,6 +55,7 @@ describe('system role shared helpers', () => {
 
     assert.equal(aiModule?.label, 'AI 平台配置');
     assert.equal(modelPage?.label, '模型配置');
+    assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_model'), false);
     assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_serper'), true);
     assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_hunter'), true);
   });

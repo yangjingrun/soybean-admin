@@ -26,7 +26,6 @@ describe('ai gateway api helpers', () => {
     const payload = {
       providerName: 'openrouter',
       apiBase: 'https://openrouter.ai/api/v1',
-      apiKey: 'sk-test',
       model: 'openai/gpt-4o-mini',
       temperature: 0.2,
       maxOutputTokens: 1200

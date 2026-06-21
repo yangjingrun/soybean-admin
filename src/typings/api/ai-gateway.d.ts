@@ -87,7 +87,7 @@ declare namespace Api {
     interface SaveMyModelConfigPayload {
       providerName: string;
       apiBase: string;
-      apiKey: string;
+      apiKey?: string;
       model: string;
       temperature?: number;
       maxOutputTokens?: number;

@@ -134,7 +134,7 @@ const modelApiKeyPlaceholder = computed(() =>
     ? `已保存：${savedModelSecret.maskedApiKey}，输入新 API Key 可替换`
     : t('page.aiSettings.placeholders.apiKey')
 );
-const canSaveModel = computed(() => canSaveModelConfig(modelForm));
+const canSaveModel = computed(() => canSaveModelConfig(modelForm, savedModelSecret));
 const canTestModel = computed(() => canTestModelConfig(modelForm, savedModelSecret));
 const formattedModelUpdatedAt = computed(() =>
   modelUpdatedAt.value
@@ -283,11 +283,12 @@ async function handleSaveModelConfig() {
   isModelSaving.value = true;
 
   try {
+    const apiKey = modelForm.apiKey.trim();
     const { data: record, error } = await saveMyAiModelConfig({
       providerName: modelForm.providerName.trim(),
       apiBase: modelForm.apiBase.trim(),
-      apiKey: modelForm.apiKey.trim(),
-      model: modelForm.model.trim()
+      model: modelForm.model.trim(),
+      ...(apiKey ? { apiKey } : {})
     });
 
     if (error) {

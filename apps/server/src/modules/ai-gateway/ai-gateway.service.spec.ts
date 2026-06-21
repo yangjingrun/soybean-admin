@@ -310,8 +310,6 @@ describe('AiGatewayService', () => {
 
     const saved = await service.saveMyModelConfig(
       {
-        configKey: 'default',
-        title: '个人模型',
         providerName: ' openrouter ',
         apiBase: ' https://openrouter.ai/api/v1 ',
         apiKey: ' sk-user-secret ',
@@ -330,6 +328,64 @@ describe('AiGatewayService', () => {
     assert.equal(saved.maskedApiKey, 'sk-u****cret');
     assert.equal(saved.apiKey, 'sk-user-secret');
     assert.equal(draft.apiKey, 'sk-user-secret');
+  });
+
+  it('preserves the current user personal API key when saving model fields without a new key', async () => {
+    const userModelConfigStore = createMemoryUserModelConfigStore([
+      {
+        userId: 'u-1',
+        providerName: 'openrouter',
+        apiBase: 'https://openrouter.ai/api/v1',
+        apiKey: 'sk-existing-user',
+        model: 'openai/gpt-4o-mini',
+        temperature: 0.2,
+        updatedAt: new Date().toISOString()
+      }
+    ]);
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      userModelConfigStore,
+      createMemoryLogRecorder()
+    );
+
+    const saved = await service.saveMyModelConfig(
+      {
+        providerName: 'openai',
+        apiBase: 'https://api.openai.com/v1',
+        model: 'gpt-4o-mini',
+        apiKey: ''
+      },
+      createUserContext('u-1')
+    );
+
+    assert.equal(saved.providerName, 'openai');
+    assert.equal(saved.apiKey, 'sk-existing-user');
+    assert.equal(saved.hasApiKey, true);
+  });
+
+  it('rejects the first personal model config save without an API key', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await assert.rejects(
+      () =>
+        service.saveMyModelConfig(
+          {
+            providerName: 'openrouter',
+            apiBase: 'https://openrouter.ai/api/v1',
+            model: 'openai/gpt-4o-mini'
+          },
+          createUserContext('u-missing')
+        ),
+      /请先填写个人模型 API Key/
+    );
   });
 
   it('returns an editable personal model draft when the current user has no config', async () => {
