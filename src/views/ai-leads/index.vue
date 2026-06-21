@@ -59,9 +59,9 @@ const {
 
 type WorkflowStepState = 'wait' | 'active' | 'completed' | 'warning' | 'error';
 type TaskActionButton = {
-  key: 'interrupt' | 'resume' | 'retry';
+  key: 'resume' | 'retry';
   label: string;
-  type: 'primary' | 'warning';
+  type: 'primary';
   visible: boolean;
 };
 
@@ -86,8 +86,28 @@ const isClearDisabled = computed(
 );
 
 const hasCompletedSearchTask = computed(() => currentSearchTask.value?.status === 'completed');
-const searchButtonLabel = computed(() => (hasCompletedSearchTask.value ? '继续采集更多' : '开始获客'));
+const isPrimarySearchInterruptAction = computed(() => searchTaskActionState.value.canInterrupt);
+const searchButtonLabel = computed(() =>
+  isPrimarySearchInterruptAction.value ? '中断' : hasCompletedSearchTask.value ? '继续采集更多' : '开始获客'
+);
+const searchPrimaryButtonType = computed(() => (isPrimarySearchInterruptAction.value ? 'error' : 'primary'));
+const searchPrimaryButtonLoading = computed(() =>
+  isPrimarySearchInterruptAction.value ? isSearchTaskActionLoading.value : isSearchTaskSubmitting.value
+);
+const isSearchPrimaryButtonDisabled = computed(() =>
+  isPrimarySearchInterruptAction.value
+    ? isHistorySaving.value || isHistoryDeleting.value
+    : !canSearchCustomers.value || isHistorySaving.value || isHistoryDeleting.value
+);
 const clearButtonLabel = computed(() => (hasCompletedSearchTask.value ? '开始新任务' : '清空'));
+
+function handlePrimarySearchAction() {
+  if (isPrimarySearchInterruptAction.value) {
+    return handleSearchTaskAction('interrupt');
+  }
+
+  return handleSearchCustomers();
+}
 
 const workflowSteps = computed(() => {
   const hasRequirement = Boolean(form.requirement.trim());
@@ -137,7 +157,6 @@ const workflowSteps = computed(() => {
 const taskActionButtons = computed(
   () =>
     [
-      { key: 'interrupt', label: '中断', type: 'warning', visible: searchTaskActionState.value.canInterrupt },
       { key: 'resume', label: '继续', type: 'primary', visible: searchTaskActionState.value.canResume },
       { key: 'retry', label: '重试', type: 'primary', visible: searchTaskActionState.value.canRetry }
     ].filter(item => item.visible) as TaskActionButton[]
@@ -203,10 +222,10 @@ const taskActionButtons = computed(
             </NButton>
             <NButton
               size="small"
-              type="primary"
-              :loading="isSearchTaskSubmitting"
-              :disabled="!canSearchCustomers || isHistorySaving || isHistoryDeleting"
-              @click="handleSearchCustomers"
+              :type="searchPrimaryButtonType"
+              :loading="searchPrimaryButtonLoading"
+              :disabled="isSearchPrimaryButtonDisabled"
+              @click="handlePrimarySearchAction"
             >
               {{ searchButtonLabel }}
             </NButton>
@@ -494,7 +513,7 @@ const taskActionButtons = computed(
   min-height: 430px;
   display: flex;
   flex-direction: column;
-  padding: 0 16px 16px;
+  padding: 16px;
   background: #ffffff;
 }
 

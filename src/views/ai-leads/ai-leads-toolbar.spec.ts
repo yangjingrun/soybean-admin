@@ -20,9 +20,16 @@ function getButtonSizeByMarker(marker: string) {
 
 describe('AI leads toolbar', () => {
   it('keeps primary workflow action buttons at the same size', () => {
-    const buttonSizes = ['handleGenerate', 'handleSearchCustomers', 'handleClear'].map(getButtonSizeByMarker);
+    const buttonSizes = ['handleGenerate', 'handlePrimarySearchAction', 'handleClear'].map(getButtonSizeByMarker);
 
     assert.deepEqual(buttonSizes, ['small', 'small', 'small']);
+  });
+
+  it('uses the primary search button as the interrupt action while collecting', () => {
+    assert.match(pageSource, /const isPrimarySearchInterruptAction = computed/);
+    assert.match(pageSource, /handleSearchTaskAction\('interrupt'\)/);
+    assert.match(pageSource, /const searchPrimaryButtonType = computed\(\(\) => \(isPrimarySearchInterruptAction\.value \? 'error' : 'primary'\)\);/);
+    assert.equal(pageSource.includes("{ key: 'interrupt', label: '中断'"), false);
   });
 
   it('keeps task read action out of the primary toolbar copy', () => {
@@ -48,5 +55,9 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /result-debug-footer/);
     assert.match(pageSource, /debug-collapse/);
     assert.match(pageSource, /\.result-debug-footer\s*\{[^}]*width: 100%;/);
+  });
+
+  it('keeps result content padded below the card header', () => {
+    assert.match(pageSource, /\.result-card\s+:deep\(\.result-card-content\)\s*\{[^}]*padding: 16px;/);
   });
 });
