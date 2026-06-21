@@ -91,6 +91,12 @@ const roleDefaultPermissionCodes: Record<string, PermissionCode[]> = {
   R_USER: []
 };
 
+const permissionImplications: Partial<Record<PermissionCode, PermissionCode[]>> = {
+  'crm:settings:assets:write': ['crm:settings:assets:read'],
+  'crm:settings:rules:write': ['crm:settings:rules:read'],
+  'crm:settings:safety:write': ['crm:settings:safety:read']
+};
+
 /** Check whether a string is one of the product permission codes. */
 export function isPermissionCode(value: string): value is PermissionCode {
   return crmPermissionCodeSet.has(value);
@@ -103,7 +109,17 @@ export function getInvalidPermissionCodes(values: readonly string[] = []) {
 
 /** Keep permission order stable by following the shared definition order. */
 export function normalizePermissionCodes(values: readonly string[] = []) {
-  const selected = new Set(values.filter(isPermissionCode));
+  const selected = new Set<PermissionCode>();
+
+  for (const value of values) {
+    if (isPermissionCode(value)) {
+      selected.add(value);
+
+      for (const impliedPermission of permissionImplications[value] || []) {
+        selected.add(impliedPermission);
+      }
+    }
+  }
 
   return crmPermissionCodes.filter(code => selected.has(code));
 }

@@ -80,7 +80,29 @@ describe('AuthService', () => {
 
     const token = await service.login('Operator', '123456');
 
-    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, ['crm:settings:assets:write']);
+    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, [
+      'crm:settings:assets:read',
+      'crm:settings:assets:write'
+    ]);
+  });
+
+  it('expands write permissions to their matching read permissions', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({
+      userName: 'Safety',
+      roles: ['R_USER'],
+      permissions: ['crm:settings:safety:write'],
+      passwordHash: password.hash,
+      passwordSalt: password.salt
+    });
+    const service = createService([user]);
+
+    const token = await service.login('Safety', '123456');
+
+    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, [
+      'crm:settings:safety:read',
+      'crm:settings:safety:write'
+    ]);
   });
 
   it('rejects disabled, expired and locked users', async () => {

@@ -5,6 +5,7 @@ import EmailTemplateToolbar from './EmailTemplateToolbar.vue';
 import { useEmailTemplateTable } from './useEmailTemplateTable';
 
 const {
+  canManage,
   editingTemplateId,
   filterModel,
   formModel,
@@ -33,6 +34,7 @@ const {
     <NSpace vertical :size="12">
       <EmailTemplateToolbar
         v-model="filterModel"
+        :can-manage="canManage"
         :loading="loading"
         @add="openCreateModal"
         @refresh="loadEmailTemplates"
@@ -42,6 +44,7 @@ const {
 
       <EmailTemplateTable
         :records="records"
+        :can-manage="canManage"
         :loading="loading"
         :operating-template-id="operatingTemplateId"
         :page="pagination.current"

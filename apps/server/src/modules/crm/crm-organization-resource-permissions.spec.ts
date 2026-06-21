@@ -10,8 +10,60 @@ import { CrmSequencePolicyService } from './sequence-policies/crm-sequence-polic
 import type { CrmSequencePolicyRepository } from './sequence-policies/crm-sequence-policy.repository';
 import { CrmSuppressionService } from './suppression/crm-suppression.service';
 import type { CrmSuppressionRepository } from './suppression/crm-suppression.repository';
+import { CrmPersonaProfileService } from './persona-profiles/crm-persona-profile.service';
+import type { CrmPersonaProfileRepository } from './persona-profiles/crm-persona-profile.repository';
 
 describe('CRM organization resource permissions', () => {
+  it('rejects users without assigned read permissions when listing organization settings resources', async () => {
+    await assert.rejects(
+      () => new CrmProductLineService(createProductLineRepository()).listProductLines(createContext()),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () => new CrmPersonaProfileService(createPersonaProfileRepository()).listPersonaProfiles(createContext()),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () => new CrmEmailTemplateGroupService(createEmailTemplateRepository()).listEmailTemplateGroups(createContext()),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () => new CrmSequencePolicyService(createSequencePolicyRepository()).listSequencePolicies(createContext()),
+      ForbiddenException
+    );
+  });
+
+  it('allows users with assigned read permissions to reach organization settings list repositories', async () => {
+    await assert.rejects(
+      () =>
+        new CrmProductLineService(createProductLineRepository()).listProductLines(
+          createContext({ buttons: ['crm:settings:assets:read'] })
+        ),
+      /listProductLines/
+    );
+    await assert.rejects(
+      () =>
+        new CrmPersonaProfileService(createPersonaProfileRepository()).listPersonaProfiles(
+          createContext({ buttons: ['crm:settings:assets:read'] })
+        ),
+      /listPersonaProfiles/
+    );
+    await assert.rejects(
+      () =>
+        new CrmEmailTemplateGroupService(createEmailTemplateRepository()).listEmailTemplateGroups(
+          createContext({ buttons: ['crm:settings:assets:read'] })
+        ),
+      /listEmailTemplateGroups/
+    );
+    await assert.rejects(
+      () =>
+        new CrmSequencePolicyService(createSequencePolicyRepository()).listSequencePolicies(
+          createContext({ buttons: ['crm:settings:rules:read'] })
+        ),
+      /listSequencePolicies/
+    );
+  });
+
   it('rejects users without assigned permission when writing organization product lines', async () => {
     const service = new CrmProductLineService(createProductLineRepository());
     const context = createContext();
@@ -165,6 +217,18 @@ function createSequencePolicyRepository(): CrmSequencePolicyRepository {
     listSequencePolicies: async () => unexpectedRepositoryCall('listSequencePolicies'),
     setDefaultSequencePolicy: async () => unexpectedRepositoryCall('setDefaultSequencePolicy'),
     updateSequencePolicy: async () => unexpectedRepositoryCall('updateSequencePolicy')
+  };
+}
+
+function createPersonaProfileRepository(): CrmPersonaProfileRepository {
+  return {
+    createPersonaProfile: async () => unexpectedRepositoryCall('createPersonaProfile'),
+    findPersonaProfileById: async () => unexpectedRepositoryCall('findPersonaProfileById'),
+    findPersonaProfileByName: async () => unexpectedRepositoryCall('findPersonaProfileByName'),
+    listActivePersonaProfiles: async () => unexpectedRepositoryCall('listActivePersonaProfiles'),
+    listPersonaProfiles: async () => unexpectedRepositoryCall('listPersonaProfiles'),
+    setDefaultPersonaProfile: async () => unexpectedRepositoryCall('setDefaultPersonaProfile'),
+    updatePersonaProfile: async () => unexpectedRepositoryCall('updatePersonaProfile')
   };
 }
 

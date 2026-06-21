@@ -44,7 +44,7 @@ describe('SystemUserService', () => {
       phone: null,
       email: null,
       roles: ['R_SUPER'],
-      permissions: ['crm:settings:assets:write'],
+      permissions: ['crm:settings:assets:read', 'crm:settings:assets:write'],
       status: 'enabled',
       organizationId: 'org-default',
       organizationName: '默认组织',
@@ -105,7 +105,12 @@ describe('SystemUserService', () => {
       { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
     );
 
-    assert.deepEqual(users[0].permissions, ['crm:settings:assets:write', 'crm:settings:rules:write']);
+    assert.deepEqual(users[0].permissions, [
+      'crm:settings:assets:read',
+      'crm:settings:assets:write',
+      'crm:settings:rules:read',
+      'crm:settings:rules:write'
+    ]);
 
     const updated = await service.update(
       users[0].id,

@@ -22,6 +22,7 @@ import {
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
+const emailTemplateReadPermission = 'crm:settings:assets:read';
 const emailTemplateWritePermission = 'crm:settings:assets:write';
 
 @Injectable()
@@ -44,6 +45,7 @@ export class CrmEmailTemplateGroupService {
       status?: CrmEmailTemplateStatus;
     } = {}
   ) {
+    requirePermission(context, emailTemplateReadPermission, '无权查看 CRM 写信资料');
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);

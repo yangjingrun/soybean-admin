@@ -1,5 +1,6 @@
-import { onMounted, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import {
   archiveCrmSequencePolicy,
   createCrmSequencePolicy,
@@ -7,6 +8,7 @@ import {
   setDefaultCrmSequencePolicy,
   updateCrmSequencePolicy
 } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
 import {
   buildSequencePolicySearchParams,
   createDefaultSequencePolicyFilterModel,
@@ -18,6 +20,7 @@ import {
 /** Manage organization sequence policy requests, form modal state and row operations. */
 export function useSequencePolicyTable() {
   const message = useMessage();
+  const authStore = useAuthStore();
   const records = shallowRef<Api.Crm.SequencePolicyRecord[]>([]);
   const loading = shallowRef(false);
   const formVisible = shallowRef(false);
@@ -34,6 +37,7 @@ export function useSequencePolicyTable() {
 
   const filterModel = reactive<Api.Crm.SequencePolicyFilterModel>(createDefaultSequencePolicyFilterModel());
   const formModel = reactive<Api.Crm.SequencePolicyFormModel>(createDefaultSequencePolicyForm());
+  const canManage = computed(() => hasPermission(authStore.userInfo, 'crm:settings:rules:write'));
 
   onMounted(() => {
     void loadSequencePolicies();
@@ -70,12 +74,20 @@ export function useSequencePolicyTable() {
   }
 
   function openCreateModal() {
+    if (!canManage.value) {
+      return;
+    }
+
     editingPolicyId.value = null;
     Object.assign(formModel, createDefaultSequencePolicyForm());
     formVisible.value = true;
   }
 
   function openEditModal(record: Api.Crm.SequencePolicyRecord) {
+    if (!canManage.value) {
+      return;
+    }
+
     editingPolicyId.value = record.id;
     Object.assign(formModel, createSequencePolicyFormFromRecord(record));
     formVisible.value = true;
@@ -92,6 +104,10 @@ export function useSequencePolicyTable() {
 
   /** Create or update the current sequence policy form, then refresh the list. */
   async function handleSubmitSequencePolicy() {
+    if (!canManage.value) {
+      return;
+    }
+
     submitting.value = true;
 
     try {
@@ -122,7 +138,7 @@ export function useSequencePolicyTable() {
 
   /** Archive one active sequence policy and refresh the list. */
   async function handleArchiveSequencePolicy(record: Api.Crm.SequencePolicyRecord) {
-    if (operatingPolicyId.value || record.status === 'archived') {
+    if (!canManage.value || operatingPolicyId.value || record.status === 'archived') {
       return;
     }
 
@@ -144,7 +160,7 @@ export function useSequencePolicyTable() {
 
   /** Mark one active sequence policy as the organization default. */
   async function handleSetDefaultSequencePolicy(record: Api.Crm.SequencePolicyRecord) {
-    if (operatingPolicyId.value || record.status !== 'active' || record.isDefault) {
+    if (!canManage.value || operatingPolicyId.value || record.status !== 'active' || record.isDefault) {
       return;
     }
 
@@ -187,6 +203,7 @@ export function useSequencePolicyTable() {
   }
 
   return {
+    canManage,
     editingPolicyId,
     filterModel,
     formModel,

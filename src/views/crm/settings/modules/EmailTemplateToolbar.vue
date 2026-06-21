@@ -6,6 +6,7 @@ const filterModel = defineModel<Api.Crm.EmailTemplateFilterModel>('modelValue', 
 });
 
 defineProps<{
+  canManage?: boolean;
   loading?: boolean;
 }>();
 
@@ -48,7 +49,7 @@ const emit = defineEmits<{
             <NButton size="small" @click="emit('reset')">重置</NButton>
             <NButton size="small" :loading="loading" @click="emit('refresh')">刷新</NButton>
             <NButton size="small" type="primary" :loading="loading" @click="emit('search')">查询</NButton>
-            <NButton size="small" type="primary" @click="emit('add')">新增模板</NButton>
+            <NButton v-if="canManage" size="small" type="primary" @click="emit('add')">新增模板</NButton>
           </NSpace>
         </div>
       </NGi>

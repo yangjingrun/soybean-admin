@@ -32,6 +32,7 @@ const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
 const defaultProductLineStatus: CrmProductLineStatus = 'active';
+const productLineReadPermission = 'crm:settings:assets:read';
 const productLineWritePermission = 'crm:settings:assets:write';
 
 @Injectable()
@@ -53,6 +54,7 @@ export class CrmProductLineService {
       status?: CrmProductLineStatus;
     } = {}
   ) {
+    requirePermission(context, productLineReadPermission, '无权查看 CRM 写信资料');
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
@@ -142,6 +144,7 @@ export class CrmProductLineService {
 
   /** Lists AI prompt versions for an organization-scoped product line. */
   async listProductLineAiPromptVersions(id: string, context: CrmUserContext) {
+    requirePermission(context, productLineReadPermission, '无权查看 CRM 写信资料');
     const productLine = await this.requireScopedProductLine(id, context);
     const records = await this.productLineRepository.listProductLineAiPromptVersions({
       organizationId: context.organizationId,

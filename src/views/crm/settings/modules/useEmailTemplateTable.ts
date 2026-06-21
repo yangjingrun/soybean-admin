@@ -1,5 +1,6 @@
-import { onMounted, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import {
   archiveCrmEmailTemplateGroup,
   createCrmEmailTemplateGroup,
@@ -7,6 +8,7 @@ import {
   setDefaultCrmEmailTemplateGroup,
   updateCrmEmailTemplateGroup
 } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
 import {
   buildEmailTemplateSearchParams,
   createDefaultEmailTemplateFilterModel,
@@ -18,6 +20,7 @@ import {
 /** Manage organization email template list requests, form modal state and row operations. */
 export function useEmailTemplateTable() {
   const message = useMessage();
+  const authStore = useAuthStore();
   const records = shallowRef<Api.Crm.EmailTemplateGroupRecord[]>([]);
   const loading = shallowRef(false);
   const formVisible = shallowRef(false);
@@ -34,6 +37,7 @@ export function useEmailTemplateTable() {
 
   const filterModel = reactive<Api.Crm.EmailTemplateFilterModel>(createDefaultEmailTemplateFilterModel());
   const formModel = reactive<Api.Crm.EmailTemplateFormModel>(createDefaultEmailTemplateForm());
+  const canManage = computed(() => hasPermission(authStore.userInfo, 'crm:settings:assets:write'));
 
   onMounted(() => {
     void loadEmailTemplates();
@@ -70,12 +74,20 @@ export function useEmailTemplateTable() {
   }
 
   function openCreateModal() {
+    if (!canManage.value) {
+      return;
+    }
+
     editingTemplateId.value = null;
     Object.assign(formModel, createDefaultEmailTemplateForm());
     formVisible.value = true;
   }
 
   function openEditModal(record: Api.Crm.EmailTemplateGroupRecord) {
+    if (!canManage.value) {
+      return;
+    }
+
     editingTemplateId.value = record.id;
     Object.assign(formModel, createEmailTemplateFormFromRecord(record));
     formVisible.value = true;
@@ -92,6 +104,10 @@ export function useEmailTemplateTable() {
 
   /** Create or update the current email template form, then refresh the list. */
   async function handleSubmitEmailTemplate() {
+    if (!canManage.value) {
+      return;
+    }
+
     submitting.value = true;
 
     try {
@@ -122,7 +138,7 @@ export function useEmailTemplateTable() {
 
   /** Archive one active email template group and refresh the list. */
   async function handleArchiveEmailTemplate(record: Api.Crm.EmailTemplateGroupRecord) {
-    if (operatingTemplateId.value || record.status === 'archived') {
+    if (!canManage.value || operatingTemplateId.value || record.status === 'archived') {
       return;
     }
 
@@ -144,7 +160,7 @@ export function useEmailTemplateTable() {
 
   /** Mark one active email template as the organization default drafting template. */
   async function handleSetDefaultEmailTemplate(record: Api.Crm.EmailTemplateGroupRecord) {
-    if (operatingTemplateId.value || record.status !== 'active' || record.isDefault) {
+    if (!canManage.value || operatingTemplateId.value || record.status !== 'active' || record.isDefault) {
       return;
     }
 
@@ -187,6 +203,7 @@ export function useEmailTemplateTable() {
   }
 
   return {
+    canManage,
     editingTemplateId,
     filterModel,
     formModel,

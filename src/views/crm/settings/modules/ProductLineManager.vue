@@ -20,6 +20,7 @@ const {
   handleReset,
   handleSearch,
   handleSubmitProductLine,
+  canManage,
   canManageAiWritingConfig,
   loadProductLines,
   loading,
@@ -39,6 +40,7 @@ const {
     <NSpace vertical :size="12">
       <ProductLineToolbar
         v-model="filterModel"
+        :can-manage="canManage"
         :loading="loading"
         @add="openCreateModal"
         @refresh="loadProductLines"
@@ -48,6 +50,7 @@ const {
 
       <ProductLineTable
         :records="records"
+        :can-manage="canManage"
         :loading="loading"
         :operating-product-line-id="operatingProductLineId"
         :page="pagination.current"

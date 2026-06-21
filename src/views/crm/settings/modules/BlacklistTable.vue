@@ -5,6 +5,7 @@ import type { DataTableColumns } from 'naive-ui';
 import { blacklistReasonLabelMap, formatBlacklistDate } from './shared';
 
 const props = defineProps<{
+  canRemove?: boolean;
   records: Api.Crm.BlacklistRecord[];
   loading?: boolean;
   page: number;
@@ -29,65 +30,75 @@ function renderSource(row: Api.Crm.BlacklistRecord) {
   return h('span', { class: values.length ? 'blacklist-source-text' : 'blacklist-empty-text' }, values.join(' / ') || '-');
 }
 
-const columns = computed<DataTableColumns<Api.Crm.BlacklistRecord>>(() => [
-  {
-    key: 'maskedEmail',
-    title: '邮箱',
-    minWidth: 180,
-    render: row => h('span', { class: 'blacklist-primary-text' }, row.maskedEmail)
-  },
-  {
-    key: 'reason',
-    title: '原因',
-    width: 120,
-    render: row =>
-      h(
-        NTag,
-        {
-          bordered: false,
-          size: 'small',
-          type: 'error'
-        },
-        { default: () => blacklistReasonLabelMap[row.reason] }
-      )
-  },
-  {
-    key: 'source',
-    title: '来源',
-    minWidth: 300,
-    render: row => renderSource(row)
-  },
-  {
-    key: 'createdByName',
-    title: '创建人',
-    minWidth: 140,
-    render: row => row.createdByName || row.createdById || '-'
-  },
-  {
-    key: 'updatedAt',
-    title: '更新时间',
-    minWidth: 180,
-    render: row => formatBlacklistDate(row.updatedAt)
-  },
-  {
-    key: 'operate',
-    title: '操作',
-    width: 100,
-    fixed: 'right',
-    render: row =>
-      h(
-        NButton,
-        {
-          loading: props.removingId === row.id,
-          size: 'small',
-          text: true,
-          type: 'warning',
-          onClick: () => emit('remove', row)
-        },
-        { default: () => '解除' }
-      )
+const columns = computed<DataTableColumns<Api.Crm.BlacklistRecord>>(() => {
+  const baseColumns: DataTableColumns<Api.Crm.BlacklistRecord> = [
+    {
+      key: 'maskedEmail',
+      title: '邮箱',
+      minWidth: 180,
+      render: row => h('span', { class: 'blacklist-primary-text' }, row.maskedEmail)
+    },
+    {
+      key: 'reason',
+      title: '原因',
+      width: 120,
+      render: row =>
+        h(
+          NTag,
+          {
+            bordered: false,
+            size: 'small',
+            type: 'error'
+          },
+          { default: () => blacklistReasonLabelMap[row.reason] }
+        )
+    },
+    {
+      key: 'source',
+      title: '来源',
+      minWidth: 300,
+      render: row => renderSource(row)
+    },
+    {
+      key: 'createdByName',
+      title: '创建人',
+      minWidth: 140,
+      render: row => row.createdByName || row.createdById || '-'
+    },
+    {
+      key: 'updatedAt',
+      title: '更新时间',
+      minWidth: 180,
+      render: row => formatBlacklistDate(row.updatedAt)
+    }
+  ];
+
+  if (!props.canRemove) {
+    return baseColumns;
   }
-]);
+
+  return [
+    ...baseColumns,
+    {
+      key: 'operate',
+      title: '操作',
+      width: 100,
+      fixed: 'right',
+      render: row =>
+        h(
+          NButton,
+          {
+            loading: props.removingId === row.id,
+            size: 'small',
+            text: true,
+            type: 'warning',
+            onClick: () => emit('remove', row)
+          },
+          { default: () => '解除' }
+        )
+    }
+  ];
+});
 </script>
 
 <template>

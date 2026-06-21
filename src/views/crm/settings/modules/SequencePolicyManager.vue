@@ -5,6 +5,7 @@ import SequencePolicyToolbar from './SequencePolicyToolbar.vue';
 import { useSequencePolicyTable } from './useSequencePolicyTable';
 
 const {
+  canManage,
   editingPolicyId,
   filterModel,
   formModel,
@@ -33,6 +34,7 @@ const {
     <NSpace vertical :size="12">
       <SequencePolicyToolbar
         v-model="filterModel"
+        :can-manage="canManage"
         :loading="loading"
         @add="openCreateModal"
         @refresh="loadSequencePolicies"
@@ -42,6 +44,7 @@ const {
 
       <SequencePolicyTable
         :records="records"
+        :can-manage="canManage"
         :loading="loading"
         :operating-policy-id="operatingPolicyId"
         :page="pagination.current"

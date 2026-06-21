@@ -33,7 +33,8 @@ export function useProductLineTable() {
 
   const filterModel = reactive<Api.Crm.ProductLineFilterModel>(createDefaultProductLineFilterModel());
   const formModel = reactive<Api.Crm.ProductLineFormModel>(createDefaultProductLineForm());
-  const canManageAiWritingConfig = computed(() => hasPermission(authStore.userInfo, 'crm:settings:assets:write'));
+  const canManage = computed(() => hasPermission(authStore.userInfo, 'crm:settings:assets:write'));
+  const canManageAiWritingConfig = canManage;
 
   onMounted(() => {
     void loadProductLines();
@@ -74,6 +75,10 @@ export function useProductLineTable() {
   }
 
   function openCreateModal() {
+    if (!canManage.value) {
+      return;
+    }
+
     editingProductLineId.value = null;
     editingProductLineRecord.value = null;
     promptHistoryVisible.value = false;
@@ -82,6 +87,10 @@ export function useProductLineTable() {
   }
 
   function openEditModal(record: Api.Crm.ProductLineRecord) {
+    if (!canManage.value) {
+      return;
+    }
+
     editingProductLineId.value = record.id;
     editingProductLineRecord.value = record;
     Object.assign(formModel, createProductLineFormFromRecord(record));
@@ -124,6 +133,10 @@ export function useProductLineTable() {
 
   /** Create or update the current product line form, then refresh the list. */
   async function handleSubmitProductLine() {
+    if (!canManage.value) {
+      return;
+    }
+
     submitting.value = true;
 
     try {
@@ -159,7 +172,7 @@ export function useProductLineTable() {
 
   /** Archive one active product line, then refresh the current list. */
   async function handleArchiveProductLine(record: Api.Crm.ProductLineRecord) {
-    if (operatingProductLineId.value || record.status === 'archived') {
+    if (!canManage.value || operatingProductLineId.value || record.status === 'archived') {
       return;
     }
 
@@ -217,6 +230,7 @@ export function useProductLineTable() {
     handleSearch,
     handleSubmitProductLine,
     canManageAiWritingConfig,
+    canManage,
     loadProductLines,
     loading,
     openCreateModal,

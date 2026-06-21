@@ -1,11 +1,14 @@
-import { onMounted, reactive, shallowRef } from 'vue';
+import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
+import { hasPermission } from '@soybean/shared';
 import { fetchCrmBlacklistEntries, removeCrmBlacklistEntry } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
 import { buildBlacklistSearchParams, createDefaultBlacklistFilterModel } from './shared';
 
 /** Manage organization unsubscribe blacklist list requests and pagination. */
 export function useBlacklistTable() {
   const message = useMessage();
+  const authStore = useAuthStore();
   const records = shallowRef<Api.Crm.BlacklistRecord[]>([]);
   const loading = shallowRef(false);
   const removeModalVisible = shallowRef(false);
@@ -23,6 +26,7 @@ export function useBlacklistTable() {
   });
 
   const filterModel = reactive<Api.Crm.BlacklistFilterModel>(createDefaultBlacklistFilterModel());
+  const canRemove = computed(() => hasPermission(authStore.userInfo, 'crm:settings:safety:write'));
 
   onMounted(() => {
     void loadBlacklistEntries();
@@ -85,6 +89,10 @@ export function useBlacklistTable() {
   }
 
   function openRemoveModal(record: Api.Crm.BlacklistRecord) {
+    if (!canRemove.value) {
+      return;
+    }
+
     removingRecord.value = record;
     removeFormModel.reason = '';
     removeModalVisible.value = true;
@@ -104,7 +112,7 @@ export function useBlacklistTable() {
     const reason = removeFormModel.reason.trim();
     const record = removingRecord.value;
 
-    if (!record) return;
+    if (!record || !canRemove.value) return;
 
     if (!reason) {
       message.warning('请输入解除原因');
@@ -129,6 +137,7 @@ export function useBlacklistTable() {
   }
 
   return {
+    canRemove,
     filterModel,
     handlePageSizeUpdate,
     handlePageUpdate,

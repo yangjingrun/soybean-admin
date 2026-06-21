@@ -12,6 +12,7 @@ import {
 } from './shared';
 
 const props = defineProps<{
+  canManage?: boolean;
   loading?: boolean;
   operatingPolicyId?: string | null;
   page: number;
@@ -48,128 +49,142 @@ function renderStepSummary(row: Api.Crm.SequencePolicyRecord) {
   ]);
 }
 
-const columns = computed<DataTableColumns<Api.Crm.SequencePolicyRecord>>(() => [
-  {
-    key: 'name',
-    title: '策略',
-    minWidth: 240,
-    render: row => renderPolicyName(row)
-  },
-  {
-    key: 'steps',
-    title: '发送节奏',
-    minWidth: 250,
-    render: row => renderStepSummary(row)
-  },
-  {
-    key: 'rules',
-    title: '规则',
-    minWidth: 260,
-    render: row =>
-      h('div', { class: 'sequence-policy-stack-cell' }, [
-        h('span', { class: 'sequence-policy-primary-text' }, sequencePolicyLinkPolicyLabelMap[row.linkPolicy]),
-        h('span', { class: 'sequence-policy-secondary-text' }, sequencePolicySameCompanyStrategyLabelMap[row.sameCompanyContactStrategy])
-      ])
-  },
-  {
-    key: 'status',
-    title: '状态',
-    width: 150,
-    render: row =>
-      h(
-        NSpace,
-        { size: 6, align: 'center' },
-        {
-          default: () => [
-            h(
-              NTag,
-              {
-                bordered: false,
-                size: 'small',
-                type: sequencePolicyStatusTagTypeMap[row.status]
-              },
-              { default: () => sequencePolicyStatusLabelMap[row.status] }
-            ),
-            row.isDefault ? h(NTag, { bordered: false, size: 'small', type: 'info' }, { default: () => '默认' }) : null
-          ]
-        }
-      )
-  },
-  {
-    key: 'threadMode',
-    title: '首封方式',
-    width: 110,
-    render: row => emailTemplateThreadModeLabelMap[row.steps[0]?.threadMode ?? 'new_subject']
-  },
-  {
-    key: 'updatedAt',
-    title: '更新时间',
-    minWidth: 180,
-    render: row => formatProductLineDate(row.updatedAt)
-  },
-  {
-    key: 'operate',
-    title: '操作',
-    width: 220,
-    fixed: 'right',
-    render: row =>
-      h(
-        NSpace,
-        {
-          size: 10,
-          justify: 'center'
-        },
-        {
-          default: () => [
-            h(
-              NButton,
-              {
-                size: 'small',
-                text: true,
-                type: 'primary',
-                onClick: () => emit('edit', row)
-              },
-              { default: () => '编辑' }
-            ),
-            h(
-              NButton,
-              {
-                disabled: row.status !== 'active' || row.isDefault,
-                loading: props.operatingPolicyId === row.id,
-                size: 'small',
-                text: true,
-                type: 'info',
-                onClick: () => emit('setDefault', row)
-              },
-              { default: () => '设默认' }
-            ),
-            h(
-              NPopconfirm,
-              {
-                disabled: row.status === 'archived',
-                onPositiveClick: () => emit('archive', row)
-              },
-              {
-                default: () => `确认归档“${row.name}”？`,
-                trigger: () =>
-                  h(
-                    NButton,
-                    {
-                      disabled: row.status === 'archived',
-                      loading: props.operatingPolicyId === row.id,
-                      size: 'small',
-                      text: true,
-                      type: 'warning'
-                    },
-                    { default: () => '归档' }
-                  )
-              }
-            )
-          ]
-        }
-      )
+const columns = computed<DataTableColumns<Api.Crm.SequencePolicyRecord>>(() => {
+  const baseColumns: DataTableColumns<Api.Crm.SequencePolicyRecord> = [
+    {
+      key: 'name',
+      title: '策略',
+      minWidth: 240,
+      render: row => renderPolicyName(row)
+    },
+    {
+      key: 'steps',
+      title: '发送节奏',
+      minWidth: 250,
+      render: row => renderStepSummary(row)
+    },
+    {
+      key: 'rules',
+      title: '规则',
+      minWidth: 260,
+      render: row =>
+        h('div', { class: 'sequence-policy-stack-cell' }, [
+          h('span', { class: 'sequence-policy-primary-text' }, sequencePolicyLinkPolicyLabelMap[row.linkPolicy]),
+          h(
+            'span',
+            { class: 'sequence-policy-secondary-text' },
+            sequencePolicySameCompanyStrategyLabelMap[row.sameCompanyContactStrategy]
+          )
+        ])
+    },
+    {
+      key: 'status',
+      title: '状态',
+      width: 150,
+      render: row =>
+        h(
+          NSpace,
+          { size: 6, align: 'center' },
+          {
+            default: () => [
+              h(
+                NTag,
+                {
+                  bordered: false,
+                  size: 'small',
+                  type: sequencePolicyStatusTagTypeMap[row.status]
+                },
+                { default: () => sequencePolicyStatusLabelMap[row.status] }
+              ),
+              row.isDefault ? h(NTag, { bordered: false, size: 'small', type: 'info' }, { default: () => '默认' }) : null
+            ]
+          }
+        )
+    },
+    {
+      key: 'threadMode',
+      title: '首封方式',
+      width: 110,
+      render: row => emailTemplateThreadModeLabelMap[row.steps[0]?.threadMode ?? 'new_subject']
+    },
+    {
+      key: 'updatedAt',
+      title: '更新时间',
+      minWidth: 180,
+      render: row => formatProductLineDate(row.updatedAt)
+    }
+  ];
+
+  if (!props.canManage) {
+    return baseColumns;
   }
-]);
+
+  return [
+    ...baseColumns,
+    {
+      key: 'operate',
+      title: '操作',
+      width: 220,
+      fixed: 'right',
+      render: row =>
+        h(
+          NSpace,
+          {
+            size: 10,
+            justify: 'center'
+          },
+          {
+            default: () => [
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  text: true,
+                  type: 'primary',
+                  onClick: () => emit('edit', row)
+                },
+                { default: () => '编辑' }
+              ),
+              h(
+                NButton,
+                {
+                  disabled: row.status !== 'active' || row.isDefault,
+                  loading: props.operatingPolicyId === row.id,
+                  size: 'small',
+                  text: true,
+                  type: 'info',
+                  onClick: () => emit('setDefault', row)
+                },
+                { default: () => '设默认' }
+              ),
+              h(
+                NPopconfirm,
+                {
+                  disabled: row.status === 'archived',
+                  onPositiveClick: () => emit('archive', row)
+                },
+                {
+                  default: () => `确认归档“${row.name}”？`,
+                  trigger: () =>
+                    h(
+                      NButton,
+                      {
+                        disabled: row.status === 'archived',
+                        loading: props.operatingPolicyId === row.id,
+                        size: 'small',
+                        text: true,
+                        type: 'warning'
+                      },
+                      { default: () => '归档' }
+                    )
+                }
+              )
+            ]
+          }
+        )
+    }
+  ];
+});
 </script>
 
 <template>

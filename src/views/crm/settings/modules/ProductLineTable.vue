@@ -10,6 +10,7 @@ import {
 } from './shared';
 
 const props = defineProps<{
+  canManage?: boolean;
   records: Api.Crm.ProductLineRecord[];
   loading?: boolean;
   operatingProductLineId?: string | null;
@@ -36,109 +37,119 @@ function renderProductLine(row: Api.Crm.ProductLineRecord) {
   ]);
 }
 
-const columns = computed<DataTableColumns<Api.Crm.ProductLineRecord>>(() => [
-  {
-    key: 'name',
-    title: '产品线',
-    minWidth: 220,
-    render: row => renderProductLine(row)
-  },
-  {
-    key: 'targetCustomerType',
-    title: '目标客户',
-    minWidth: 160,
-    render: row => renderText(row.targetCustomerType)
-  },
-  {
-    key: 'coreSellingPoints',
-    title: '核心卖点',
-    minWidth: 240,
-    render: row => renderText(row.coreSellingPoints)
-  },
-  {
-    key: 'supply',
-    title: 'MOQ/交期',
-    minWidth: 150,
-    render: row => formatProductLineSupply(row)
-  },
-  {
-    key: 'certifications',
-    title: '认证',
-    minWidth: 150,
-    render: row => renderText(row.certifications)
-  },
-  {
-    key: 'status',
-    title: '状态',
-    width: 110,
-    render: row =>
-      h(
-        NTag,
-        {
-          bordered: false,
-          size: 'small',
-          type: productLineStatusTagTypeMap[row.status]
-        },
-        { default: () => productLineStatusLabelMap[row.status] }
-      )
-  },
-  {
-    key: 'updatedAt',
-    title: '更新时间',
-    minWidth: 180,
-    render: row => formatProductLineDate(row.updatedAt)
-  },
-  {
-    key: 'operate',
-    title: '操作',
-    width: 150,
-    fixed: 'right',
-    render: row =>
-      h(
-        NSpace,
-        {
-          size: 10,
-          justify: 'center'
-        },
-        {
-          default: () => [
-            h(
-              NButton,
-              {
-                size: 'small',
-                text: true,
-                type: 'primary',
-                onClick: () => emit('edit', row)
-              },
-              { default: () => '编辑' }
-            ),
-            h(
-              NPopconfirm,
-              {
-                disabled: row.status === 'archived',
-                onPositiveClick: () => emit('archive', row)
-              },
-              {
-                default: () => `确认归档“${row.name}”？`,
-                trigger: () =>
-                  h(
-                    NButton,
-                    {
-                      size: 'small',
-                      text: true,
-                      type: 'warning',
-                      disabled: row.status === 'archived',
-                      loading: props.operatingProductLineId === row.id
-                    },
-                    { default: () => '归档' }
-                  )
-              }
-            )
-          ]
-        }
-      )
+const columns = computed<DataTableColumns<Api.Crm.ProductLineRecord>>(() => {
+  const baseColumns: DataTableColumns<Api.Crm.ProductLineRecord> = [
+    {
+      key: 'name',
+      title: '产品线',
+      minWidth: 220,
+      render: row => renderProductLine(row)
+    },
+    {
+      key: 'targetCustomerType',
+      title: '目标客户',
+      minWidth: 160,
+      render: row => renderText(row.targetCustomerType)
+    },
+    {
+      key: 'coreSellingPoints',
+      title: '核心卖点',
+      minWidth: 240,
+      render: row => renderText(row.coreSellingPoints)
+    },
+    {
+      key: 'supply',
+      title: 'MOQ/交期',
+      minWidth: 150,
+      render: row => formatProductLineSupply(row)
+    },
+    {
+      key: 'certifications',
+      title: '认证',
+      minWidth: 150,
+      render: row => renderText(row.certifications)
+    },
+    {
+      key: 'status',
+      title: '状态',
+      width: 110,
+      render: row =>
+        h(
+          NTag,
+          {
+            bordered: false,
+            size: 'small',
+            type: productLineStatusTagTypeMap[row.status]
+          },
+          { default: () => productLineStatusLabelMap[row.status] }
+        )
+    },
+    {
+      key: 'updatedAt',
+      title: '更新时间',
+      minWidth: 180,
+      render: row => formatProductLineDate(row.updatedAt)
+    }
+  ];
+
+  if (!props.canManage) {
+    return baseColumns;
   }
-]);
+
+  return [
+    ...baseColumns,
+    {
+      key: 'operate',
+      title: '操作',
+      width: 150,
+      fixed: 'right',
+      render: row =>
+        h(
+          NSpace,
+          {
+            size: 10,
+            justify: 'center'
+          },
+          {
+            default: () => [
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  text: true,
+                  type: 'primary',
+                  onClick: () => emit('edit', row)
+                },
+                { default: () => '编辑' }
+              ),
+              h(
+                NPopconfirm,
+                {
+                  disabled: row.status === 'archived',
+                  onPositiveClick: () => emit('archive', row)
+                },
+                {
+                  default: () => `确认归档“${row.name}”？`,
+                  trigger: () =>
+                    h(
+                      NButton,
+                      {
+                        size: 'small',
+                        text: true,
+                        type: 'warning',
+                        disabled: row.status === 'archived',
+                        loading: props.operatingProductLineId === row.id
+                      },
+                      { default: () => '归档' }
+                    )
+                }
+              )
+            ]
+          }
+        )
+    }
+  ];
+});
 </script>
 
 <template>

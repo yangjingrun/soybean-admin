@@ -18,6 +18,7 @@ const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
 const defaultPersonaProfileStatus: CrmPersonaProfileStatus = 'active';
+const personaProfileReadPermission = 'crm:settings:assets:read';
 const personaProfileWritePermission = 'crm:settings:assets:write';
 
 @Injectable()
@@ -40,6 +41,7 @@ export class CrmPersonaProfileService {
       status?: CrmPersonaProfileStatus;
     } = {}
   ) {
+    requirePermission(context, personaProfileReadPermission, '无权查看 CRM 写信资料');
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);

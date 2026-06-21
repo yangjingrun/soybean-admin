@@ -4,6 +4,7 @@ import BlacklistToolbar from './BlacklistToolbar.vue';
 import { useBlacklistTable } from './useBlacklistTable';
 
 const {
+  canRemove,
   filterModel,
   handlePageSizeUpdate,
   handlePageUpdate,
@@ -40,6 +41,7 @@ const {
 
       <BlacklistTable
         :records="records"
+        :can-remove="canRemove"
         :loading="loading"
         :page="pagination.current"
         :page-size="pagination.size"

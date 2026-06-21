@@ -17,6 +17,7 @@ import {
 const defaultPage = 1;
 const defaultPageSize = 20;
 const maxPageSize = 100;
+const sequencePolicyReadPermission = 'crm:settings:rules:read';
 const sequencePolicyWritePermission = 'crm:settings:rules:write';
 
 @Injectable()
@@ -39,6 +40,7 @@ export class CrmSequencePolicyService {
       status?: unknown;
     } = {}
   ) {
+    requirePermission(context, sequencePolicyReadPermission, '无权查看 CRM 发送规则');
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
