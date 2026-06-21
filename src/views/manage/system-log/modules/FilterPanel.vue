@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import dayjs from 'dayjs';
-import { logLevelLabelMap, logLevelOptions, logModuleOptions, logStatusLabelMap, logStatusOptions } from './shared';
+import { logLevelOptions, logModuleOptions, logStatusOptions } from './shared';
 
 const filterModel = defineModel<Api.SystemLog.SystemLogFilterModel>('modelValue', { required: true });
 
@@ -21,70 +20,6 @@ const userOptions = computed(() =>
     value: user.userId
   }))
 );
-
-const userLabelMap = computed(() => new Map(userOptions.value.map(item => [item.value, item.label])));
-const moduleLabelMap = computed(() => new Map(logModuleOptions.map(item => [item.value, item.label])));
-
-const activeFilters = computed(() => {
-  const tags: Array<{ key: string; label: string }> = [];
-  const model = filterModel.value;
-
-  if (model.timeRange) {
-    tags.push({
-      key: 'timeRange',
-      label: `${dayjs(model.timeRange[0]).format('MM-DD HH:mm')} 至 ${dayjs(model.timeRange[1]).format('MM-DD HH:mm')}`
-    });
-  }
-
-  if (model.userId) {
-    tags.push({ key: 'userId', label: `用户：${userLabelMap.value.get(model.userId) || model.userId}` });
-  }
-
-  if (model.module) {
-    tags.push({ key: 'module', label: `模块：${moduleLabelMap.value.get(model.module) || model.module}` });
-  }
-
-  if (model.level) {
-    tags.push({ key: 'level', label: `等级：${logLevelLabelMap[model.level]}` });
-  }
-
-  if (model.status) {
-    tags.push({ key: 'status', label: `状态：${logStatusLabelMap[model.status]}` });
-  }
-
-  const keyword = model.keyword.trim();
-  if (keyword) {
-    tags.push({ key: 'keyword', label: `关键词：${keyword}` });
-  }
-
-  return tags;
-});
-
-/** Clear one active filter and refresh the table. */
-function clearFilter(key: string) {
-  switch (key) {
-    case 'timeRange':
-      filterModel.value.timeRange = null;
-      break;
-    case 'userId':
-      filterModel.value.userId = null;
-      break;
-    case 'module':
-      filterModel.value.module = null;
-      break;
-    case 'level':
-      filterModel.value.level = null;
-      break;
-    case 'status':
-      filterModel.value.status = null;
-      break;
-    case 'keyword':
-      filterModel.value.keyword = '';
-      break;
-  }
-
-  emit('search');
-}
 </script>
 
 <template>
@@ -156,13 +91,6 @@ function clearFilter(key: string) {
           </NGi>
         </NGrid>
       </NForm>
-
-      <div v-if="activeFilters.length" class="active-filter-row">
-        <span class="active-filter-label">当前筛选</span>
-        <NTag v-for="item in activeFilters" :key="item.key" size="small" round closable @close="clearFilter(item.key)">
-          {{ item.label }}
-        </NTag>
-      </div>
     </NSpace>
   </NCard>
 </template>
@@ -170,17 +98,5 @@ function clearFilter(key: string) {
 <style scoped>
 .full-input {
   width: 100%;
-}
-
-.active-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.active-filter-label {
-  color: var(--n-text-color-3);
-  font-size: 13px;
 }
 </style>

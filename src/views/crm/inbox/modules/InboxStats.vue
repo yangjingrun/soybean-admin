@@ -19,7 +19,7 @@ const currentPageReplyCount = computed(() => props.records.reduce((sum, record) 
     </NGi>
     <NGi>
       <NCard :bordered="false" size="small" class="card-wrapper">
-        <NStatistic label="当前筛选" :value="total" />
+        <NStatistic label="匹配邮件" :value="total" />
       </NCard>
     </NGi>
     <NGi>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { buildSequenceReviewFilterTags, sequenceStatusOptions, sequenceTodoTypeOptions } from './shared';
+import { sequenceStatusOptions, sequenceTodoTypeOptions } from './shared';
 
 defineProps<{
   loading?: boolean;
@@ -14,33 +13,6 @@ const emit = defineEmits<{
   reset: [];
   search: [];
 }>();
-
-const activeFilters = computed(() => buildSequenceReviewFilterTags(filterModel.value));
-
-/** Clear one route or manual filter and reload the review queue. */
-function clearFilter(key: keyof Api.Crm.SequenceReviewFilterModel) {
-  if (key === 'keyword') {
-    filterModel.value.keyword = '';
-  }
-
-  if (key === 'status') {
-    filterModel.value.status = null;
-  }
-
-  if (key === 'todoType') {
-    filterModel.value.todoType = null;
-  }
-
-  if (key === 'messageStatus') {
-    filterModel.value.messageStatus = null;
-  }
-
-  if (key === 'dateScope') {
-    filterModel.value.dateScope = null;
-  }
-
-  emit('search');
-}
 </script>
 
 <template>
@@ -85,34 +57,6 @@ function clearFilter(key: keyof Api.Crm.SequenceReviewFilterModel) {
           </NGi>
         </NGrid>
       </NForm>
-
-      <div v-if="activeFilters.length" class="active-filter-row">
-        <span class="active-filter-label">当前队列</span>
-        <NTag
-          v-for="item in activeFilters"
-          :key="item.key"
-          size="small"
-          round
-          closable
-          @close="clearFilter(item.key)"
-        >
-          {{ item.label }}
-        </NTag>
-      </div>
     </NSpace>
   </NCard>
 </template>
-
-<style scoped>
-.active-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.active-filter-label {
-  color: var(--n-text-color-3);
-  font-size: 13px;
-}
-</style>

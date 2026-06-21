@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { inboxThreadStatusLabelMap, inboxThreadStatusOptions } from './shared';
+import { inboxThreadStatusOptions } from './shared';
 
 const filterModel = defineModel<Api.Crm.InboxThreadFilterModel>('modelValue', { required: true });
 
-const props = defineProps<{
+defineProps<{
   loading?: boolean;
   mailboxLoading?: boolean;
   mailboxOptions: Array<{ label: string; value: string }>;
@@ -14,51 +13,6 @@ const emit = defineEmits<{
   reset: [];
   search: [];
 }>();
-
-const mailboxLabelMap = computed(() =>
-  props.mailboxOptions.reduce<Record<string, string>>((map, option) => {
-    map[option.value] = option.label;
-    return map;
-  }, {})
-);
-const activeFilters = computed(() => {
-  const tags: Array<{ key: keyof Api.Crm.InboxThreadFilterModel; label: string }> = [];
-  const keyword = filterModel.value.keyword.trim();
-
-  if (keyword) {
-    tags.push({ key: 'keyword', label: `关键词：${keyword}` });
-  }
-
-  if (filterModel.value.status) {
-    tags.push({ key: 'status', label: `状态：${inboxThreadStatusLabelMap[filterModel.value.status]}` });
-  }
-
-  if (filterModel.value.mailboxId) {
-    tags.push({
-      key: 'mailboxId',
-      label: `邮箱：${mailboxLabelMap.value[filterModel.value.mailboxId]}`
-    });
-  }
-
-  return tags;
-});
-
-/** Clear one active filter and reload the inbox list. */
-function clearFilter(key: keyof Api.Crm.InboxThreadFilterModel) {
-  if (key === 'keyword') {
-    filterModel.value.keyword = '';
-  }
-
-  if (key === 'status') {
-    filterModel.value.status = null;
-  }
-
-  if (key === 'mailboxId') {
-    filterModel.value.mailboxId = null;
-  }
-
-  emit('search');
-}
 </script>
 
 <template>
@@ -111,27 +65,6 @@ function clearFilter(key: keyof Api.Crm.InboxThreadFilterModel) {
           </NGi>
         </NGrid>
       </NForm>
-
-      <div v-if="activeFilters.length" class="active-filter-row">
-        <span class="active-filter-label">当前筛选</span>
-        <NTag v-for="item in activeFilters" :key="item.key" size="small" round closable @close="clearFilter(item.key)">
-          {{ item.label }}
-        </NTag>
-      </div>
     </NSpace>
   </NCard>
 </template>
-
-<style scoped>
-.active-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.active-filter-label {
-  color: var(--n-text-color-3);
-  font-size: 13px;
-}
-</style>

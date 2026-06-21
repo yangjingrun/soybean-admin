@@ -1,14 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue';
 import { fetchEnabledSystemRoles } from '@/service/api/system-role';
-import {
-  userExpirationLabelMap,
-  userExpirationOptions,
-  userRoleLabelMap,
-  userRoleOptions,
-  userStatusLabelMap,
-  userStatusOptions
-} from './shared';
+import { userExpirationOptions, userRoleOptions, userStatusOptions } from './shared';
 
 const filterModel = defineModel<Api.SystemUser.UserFilterModel>('modelValue', { required: true });
 
@@ -50,51 +43,6 @@ const expirationStatusValue = computed({
     filterModel.value.expirationStatus = value;
   }
 });
-
-const activeFilters = computed(() => {
-  const tags: Array<{ key: keyof Api.SystemUser.UserFilterModel; label: string }> = [];
-  const model = filterModel.value;
-  const keyword = model.keyword.trim();
-
-  if (keyword) {
-    tags.push({ key: 'keyword', label: `关键词：${keyword}` });
-  }
-
-  if (model.role) {
-    tags.push({ key: 'role', label: `角色：${userRoleLabelMap.get(model.role) || model.role}` });
-  }
-
-  if (model.status) {
-    tags.push({ key: 'status', label: `状态：${userStatusLabelMap[model.status]}` });
-  }
-
-  if (model.expirationStatus) {
-    tags.push({ key: 'expirationStatus', label: `有效期：${userExpirationLabelMap[model.expirationStatus]}` });
-  }
-
-  return tags;
-});
-
-/** Clear one active filter and refresh the table. */
-function clearFilter(key: keyof Api.SystemUser.UserFilterModel) {
-  if (key === 'keyword') {
-    filterModel.value.keyword = '';
-  }
-
-  if (key === 'role') {
-    filterModel.value.role = null;
-  }
-
-  if (key === 'status') {
-    filterModel.value.status = null;
-  }
-
-  if (key === 'expirationStatus') {
-    filterModel.value.expirationStatus = null;
-  }
-
-  emit('search');
-}
 
 /** Load enabled roles for user filtering. */
 async function loadRoleOptions() {
@@ -159,27 +107,6 @@ onMounted(loadRoleOptions);
           </NGi>
         </NGrid>
       </NForm>
-
-      <div v-if="activeFilters.length" class="active-filter-row">
-        <span class="active-filter-label">当前筛选</span>
-        <NTag v-for="item in activeFilters" :key="item.key" size="small" round closable @close="clearFilter(item.key)">
-          {{ item.label }}
-        </NTag>
-      </div>
     </NSpace>
   </NCard>
 </template>
-
-<style scoped>
-.active-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.active-filter-label {
-  color: var(--n-text-color-3);
-  font-size: 13px;
-}
-</style>
