@@ -8,11 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   DEFAULT_ORGANIZATION_ID,
-  getDefaultPermissionCodesByRoles,
-  getInvalidPermissionCodes,
-  normalizePermissionCodes,
   type OrganizationRole,
-  type PermissionCode
 } from '@soybean/shared';
 import type { Organization, Prisma, SystemUser } from '../../generated/prisma/client';
 import { createPageResult } from '../../shared/pagination';
@@ -72,9 +68,7 @@ export class SystemUserService {
   async create(input: SystemUserOperateInput, operator: OperatorContext) {
     const userName = input.userName.trim();
     assertUserName(userName);
-    this.assertRoles(input.roles);
-    const permissions =
-      input.permissions === undefined ? getDefaultPermissionCodesByRoles(input.roles) : normalizeUserPermissions(input.permissions);
+    await this.assertRoles(input.roles);
     await this.assertUniqueUserName(userName);
 
     const temporaryPassword = generateTemporaryPassword();
@@ -86,7 +80,7 @@ export class SystemUserService {
         phone: normalizeNullableString(input.phone),
         email: normalizeNullableString(input.email),
         roles: input.roles,
-        permissions,
+        permissions: [],
         status: input.status || 'enabled',
         organizationId: DEFAULT_ORGANIZATION_ID,
         organizationRole: resolveOrganizationRole(input.roles),
@@ -120,10 +114,9 @@ export class SystemUserService {
     const nextRoles = input.roles ?? (user.roles as SystemUserRole[]);
     const nextStatus = input.status ?? (user.status as SystemUserStatus);
     const nextExpireAt = input.expireAt !== undefined ? toNullableDate(input.expireAt) : user.expireAt;
-    const nextPermissions = input.permissions === undefined ? undefined : normalizeUserPermissions(input.permissions);
 
     if (input.roles) {
-      this.assertRoles(input.roles);
+      await this.assertRoles(input.roles);
     }
 
     if (nextStatus === 'disabled') {
@@ -150,7 +143,6 @@ export class SystemUserService {
         ...(input.phone !== undefined ? { phone: normalizeNullableString(input.phone) } : {}),
         ...(input.email !== undefined ? { email: normalizeNullableString(input.email) } : {}),
         ...(input.roles ? { roles: input.roles, organizationRole: resolveOrganizationRole(input.roles) } : {}),
-        ...(nextPermissions !== undefined ? { permissions: nextPermissions } : {}),
         ...(input.status ? { status: input.status } : {}),
         ...(input.companyName !== undefined ? { companyName: normalizeNullableString(input.companyName) } : {}),
         ...(input.expireAt !== undefined ? { expireAt: toNullableDate(input.expireAt) } : {}),
@@ -315,9 +307,21 @@ export class SystemUserService {
     }
   }
 
-  private assertRoles(roles: SystemUserRole[]) {
+  private async assertRoles(roles: SystemUserRole[]) {
     if (!roles.length) {
       throw new BadRequestException('请至少选择一个角色');
+    }
+
+    const uniqueRoles = Array.from(new Set(roles));
+    const enabledRoleCount = await this.prisma.systemRole.count({
+      where: {
+        roleCode: { in: uniqueRoles },
+        status: 'enabled'
+      }
+    });
+
+    if (enabledRoleCount !== uniqueRoles.length) {
+      throw new BadRequestException('角色不存在或已禁用');
     }
   }
 
@@ -378,7 +382,7 @@ export class SystemUserService {
       phone: user.phone,
       email: user.email,
       roles: user.roles as SystemUserRole[],
-      permissions: normalizePermissionCodes(user.permissions) as PermissionCode[],
+      permissions: [],
       status: user.status as SystemUserStatus,
       organizationId: user.organizationId,
       organizationName: user.organization.name,
@@ -448,16 +452,6 @@ function assertUserName(value: string) {
 
 function toNullableDate(value: string | null | undefined) {
   return value ? new Date(value) : null;
-}
-
-function normalizeUserPermissions(values: readonly string[]) {
-  const invalidCodes = getInvalidPermissionCodes(values);
-
-  if (invalidCodes.length) {
-    throw new BadRequestException(`权限不存在：${invalidCodes.join('、')}`);
-  }
-
-  return normalizePermissionCodes(values);
 }
 
 /** Map platform roles to the first-version organization role. */

@@ -1,6 +1,6 @@
 declare namespace Api {
   namespace SystemUser {
-    type UserRole = 'R_SUPER' | 'R_ADMIN' | 'R_USER';
+    type UserRole = string;
 
     type PermissionCode = import('@soybean/shared').PermissionCode;
 
@@ -49,7 +49,6 @@ declare namespace Api {
       phone?: string | null;
       email?: string | null;
       roles: UserRole[];
-      permissions?: PermissionCode[];
       status?: UserStatus;
       companyName?: string | null;
       expireAt?: string | null;

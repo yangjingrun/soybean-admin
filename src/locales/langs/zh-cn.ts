@@ -249,6 +249,7 @@ const local: App.I18n.Schema = {
     crm_settings: 'CRM配置',
     manage: '系统管理',
     'manage_system-log': '日志管理',
+    manage_role: '角色管理',
     manage_user: '用户管理',
     home: '首页'
   },

@@ -660,10 +660,6 @@ export type CrmContactUncheckedUpdateManyWithoutAccountNestedInput = {
   deleteMany?: Prisma.CrmContactScalarWhereInput | Prisma.CrmContactScalarWhereInput[]
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type CrmContactCreateNestedOneWithoutEventsInput = {
   create?: Prisma.XOR<Prisma.CrmContactCreateWithoutEventsInput, Prisma.CrmContactUncheckedCreateWithoutEventsInput>
   connectOrCreate?: Prisma.CrmContactCreateOrConnectWithoutEventsInput

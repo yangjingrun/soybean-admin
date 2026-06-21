@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { crmPermissionCodes, getDefaultPermissionCodesByRoles } from '@soybean/shared';
 import type { AuthService } from '../auth/auth.service';
 import type { PrismaService } from '../database/prisma.service';
 import type { SystemLogService } from '../system-log/system-log.service';
@@ -44,7 +43,7 @@ describe('SystemUserService', () => {
       phone: null,
       email: null,
       roles: ['R_SUPER'],
-      permissions: ['crm:settings:assets:read', 'crm:settings:assets:write'],
+      permissions: [],
       status: 'enabled',
       organizationId: 'org-default',
       organizationName: '默认组织',
@@ -83,7 +82,7 @@ describe('SystemUserService', () => {
     assert.equal(users[0].companyName, 'Soybean');
     assert.equal(users[0].organizationId, 'org-default');
     assert.equal(users[0].organizationRole, 'admin');
-    assert.deepEqual(users[0].permissions, getDefaultPermissionCodesByRoles(['R_ADMIN']));
+    assert.deepEqual(users[0].permissions, []);
     assert.equal(Boolean(users[0].passwordHash), true);
     assert.equal(Boolean(result.temporaryPassword), true);
     assert.equal(result.user.userName, 'Operator');
@@ -92,7 +91,7 @@ describe('SystemUserService', () => {
     assert.equal(logService.records[0].action, 'create');
   });
 
-  it('creates and updates users with explicit dynamic permissions', async () => {
+  it('does not persist user-level permissions from legacy inputs', async () => {
     const users: TestSystemUser[] = [];
     const service = createService(createPrismaStub(users));
 
@@ -101,44 +100,22 @@ describe('SystemUserService', () => {
         userName: 'Assets',
         roles: ['R_USER'],
         permissions: ['crm:settings:assets:write', 'crm:settings:rules:write']
-      },
+      } as any,
       { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
     );
 
-    assert.deepEqual(users[0].permissions, [
-      'crm:settings:assets:read',
-      'crm:settings:assets:write',
-      'crm:settings:rules:read',
-      'crm:settings:rules:write'
-    ]);
+    assert.deepEqual(users[0].permissions, []);
 
     const updated = await service.update(
       users[0].id,
       {
         permissions: ['crm:settings:safety:read']
-      },
+      } as any,
       { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
     );
 
-    assert.deepEqual(users[0].permissions, ['crm:settings:safety:read']);
-    assert.deepEqual(updated.permissions, ['crm:settings:safety:read']);
-  });
-
-  it('rejects unknown dynamic permissions', async () => {
-    const service = createService(createPrismaStub([]));
-
-    await assert.rejects(
-      () =>
-        service.create(
-          {
-            userName: 'Operator',
-            roles: ['R_USER'],
-            permissions: ['unknown:permission' as (typeof crmPermissionCodes)[number]]
-          },
-          { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
-        ),
-      /权限不存在/
-    );
+    assert.deepEqual(users[0].permissions, []);
+    assert.deepEqual(updated.permissions, []);
   });
 
   it('rejects blank user names after trimming', async () => {
@@ -314,7 +291,16 @@ function createPrismaStub(users: TestSystemUser[]) {
     }
   };
 
-  return { systemUser };
+  const systemRole = {
+    async count(args: any) {
+      const roleCodes: string[] = args.where.roleCode.in;
+      const enabledRoles = new Set(['R_SUPER', 'R_ADMIN', 'R_USER', 'R_CUSTOM']);
+
+      return roleCodes.filter(role => enabledRoles.has(role)).length;
+    }
+  };
+
+  return { systemUser, systemRole };
 }
 
 function matchesWhere(user: TestSystemUser, where: any) {

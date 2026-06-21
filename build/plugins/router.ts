@@ -99,9 +99,15 @@ export function setupElegantRouter() {
         meta.roles = ['R_SUPER'];
       }
 
+      if (key === 'manage_role') {
+        meta.icon = 'mdi:account-key-outline';
+        meta.order = 2;
+        meta.roles = ['R_SUPER'];
+      }
+
       if (key === 'manage_system-log') {
         meta.icon = 'mdi:clipboard-text-clock-outline';
-        meta.order = 2;
+        meta.order = 3;
         meta.roles = ['R_SUPER'];
       }
 

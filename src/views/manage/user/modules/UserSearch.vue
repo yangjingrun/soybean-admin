@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, shallowRef } from 'vue';
+import { fetchEnabledSystemRoles } from '@/service/api';
 import {
   userExpirationLabelMap,
   userExpirationOptions,
@@ -19,6 +20,8 @@ const emit = defineEmits<{
   search: [];
   reset: [];
 }>();
+
+const roleOptions = shallowRef<Array<{ label: string; value: Api.SystemUser.UserRole }>>(userRoleOptions);
 
 const keywordValue = computed({
   get: () => filterModel.value.keyword,
@@ -92,6 +95,22 @@ function clearFilter(key: keyof Api.SystemUser.UserFilterModel) {
 
   emit('search');
 }
+
+/** Load enabled roles for user filtering. */
+async function loadRoleOptions() {
+  const { data, error } = await fetchEnabledSystemRoles();
+
+  if (error) {
+    return;
+  }
+
+  roleOptions.value = data.map(role => ({
+    label: role.roleName,
+    value: role.roleCode
+  }));
+}
+
+onMounted(loadRoleOptions);
 </script>
 
 <template>
@@ -111,7 +130,7 @@ function clearFilter(key: keyof Api.SystemUser.UserFilterModel) {
           </NGi>
           <NGi span="24 m:12 l:6">
             <NFormItem label="角色">
-              <NSelect v-model:value="roleValue" :options="userRoleOptions" clearable placeholder="全部角色" />
+              <NSelect v-model:value="roleValue" :options="roleOptions" clearable placeholder="全部角色" />
             </NFormItem>
           </NGi>
           <NGi span="24 m:12 l:5">

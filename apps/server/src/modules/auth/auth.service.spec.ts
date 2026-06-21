@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { crmPermissionCodes } from '@soybean/shared';
 import type { PrismaService } from '../database/prisma.service';
+import type { AppConfigService } from '../app-config/app-config.service';
 import type { RedisService } from '../redis/redis.service';
 import { AuthService } from './auth.service';
 import { hashPassword } from './password';
@@ -52,6 +53,21 @@ describe('AuthService', () => {
     });
   });
 
+  it('reuses the fixed development session when the dev account logs in repeatedly', async () => {
+    const password = await hashPassword('123456');
+    const user = createUser({ id: '4', passwordHash: password.hash, passwordSalt: password.salt });
+    const store = createPrismaStore([user]);
+    const service = createServiceFromStore(store, createAppConfigService({ authDevFixedTokenEnabled: true }));
+
+    const firstToken = await service.login('Super', '123456');
+    const secondToken = await service.login('Super', '123456');
+
+    assert.deepEqual(secondToken, firstToken);
+    assert.equal(store.sessions.length, 1);
+    assert.equal(store.sessions[0].revokedAt, null);
+    assert.equal(Boolean(await service.getUserByAccessToken(secondToken!.token)), true);
+  });
+
   it('rotates refresh tokens and revokes the old session token', async () => {
     const password = await hashPassword('123456');
     const user = createUser({ passwordHash: password.hash, passwordSalt: password.salt });
@@ -67,16 +83,24 @@ describe('AuthService', () => {
     assert.equal(Boolean(await service.getUserByAccessToken(rotatedToken!.token)), true);
   });
 
-  it('returns persisted dynamic permissions for non-super users', async () => {
+  it('returns permissions from enabled roles for non-super users', async () => {
     const password = await hashPassword('123456');
     const user = createUser({
       userName: 'Operator',
       roles: ['R_USER'],
-      permissions: ['crm:settings:assets:write'],
+      permissions: [],
       passwordHash: password.hash,
       passwordSalt: password.salt
     });
-    const service = createService([user]);
+    const service = createService(
+      [user],
+      [
+        createRole({
+          roleCode: 'R_USER',
+          permissions: ['crm:settings:assets:write']
+        })
+      ]
+    );
 
     const token = await service.login('Operator', '123456');
 
@@ -86,7 +110,7 @@ describe('AuthService', () => {
     ]);
   });
 
-  it('expands write permissions to their matching read permissions', async () => {
+  it('ignores user-level permissions when resolving runtime buttons', async () => {
     const password = await hashPassword('123456');
     const user = createUser({
       userName: 'Safety',
@@ -95,14 +119,11 @@ describe('AuthService', () => {
       passwordHash: password.hash,
       passwordSalt: password.salt
     });
-    const service = createService([user]);
+    const service = createService([user], [createRole({ roleCode: 'R_USER', permissions: [] })]);
 
     const token = await service.login('Safety', '123456');
 
-    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, [
-      'crm:settings:safety:read',
-      'crm:settings:safety:write'
-    ]);
+    assert.deepEqual((await service.getUserByAccessToken(token!.token))?.buttons, []);
   });
 
   it('rejects disabled, expired and locked users', async () => {
@@ -147,15 +168,15 @@ describe('AuthService', () => {
   });
 });
 
-function createService(users: TestSystemUser[]) {
-  return createServiceFromStore(createPrismaStore(users));
+function createService(users: TestSystemUser[], roles?: TestSystemRole[]) {
+  return createServiceFromStore(createPrismaStore(users, roles));
 }
 
-function createServiceFromStore(store: ReturnType<typeof createPrismaStore>) {
-  return new AuthService({} as unknown as RedisService, store.prisma);
+function createServiceFromStore(store: ReturnType<typeof createPrismaStore>, appConfigService?: AppConfigService) {
+  return new AuthService({} as unknown as RedisService, store.prisma, appConfigService);
 }
 
-function createPrismaStore(users: TestSystemUser[]) {
+function createPrismaStore(users: TestSystemUser[], roles: TestSystemRole[] = createDefaultRoles()) {
   const sessions: TestAuthSession[] = [];
   const prisma = {
     systemUser: {
@@ -176,11 +197,41 @@ function createPrismaStore(users: TestSystemUser[]) {
         return Promise.resolve(user);
       }
     },
+    systemRole: {
+      findMany({ where }: { where: { roleCode: { in: string[] }; status: string } }) {
+        return Promise.resolve(
+          roles.filter(role => where.roleCode.in.includes(role.roleCode) && role.status === where.status)
+        );
+      }
+    },
     authSession: {
       create({ data }: { data: TestAuthSession }) {
+        assertUniqueSessionToken(sessions, data);
         sessions.push({ ...data });
 
         return Promise.resolve(data);
+      },
+      upsert({
+        where,
+        update,
+        create
+      }: {
+        where: { accessTokenHash: string };
+        update: TestAuthSession;
+        create: TestAuthSession;
+      }) {
+        const session = sessions.find(item => item.accessTokenHash === where.accessTokenHash);
+
+        if (session) {
+          Object.assign(session, update);
+
+          return Promise.resolve(session);
+        }
+
+        assertUniqueSessionToken(sessions, create);
+        sessions.push({ ...create });
+
+        return Promise.resolve(create);
       },
       findFirst({ where }: { where: { accessTokenHash?: string; refreshTokenHash?: string; revokedAt: null } }) {
         const session =
@@ -207,13 +258,23 @@ function createPrismaStore(users: TestSystemUser[]) {
 
         return Promise.resolve(session);
       },
-      updateMany({ where, data }: { where: { userId?: string; id?: string }; data: Partial<TestAuthSession> }) {
+      updateMany({
+        where,
+        data
+      }: {
+        where: { userId?: string; id?: string; revokedAt?: Date | null };
+        data: Partial<TestAuthSession>;
+      }) {
         const matchedSessions = sessions.filter(session => {
           if (where.userId && session.userId !== where.userId) {
             return false;
           }
 
           if (where.id && session.id !== where.id) {
+            return false;
+          }
+
+          if ('revokedAt' in where && session.revokedAt !== where.revokedAt) {
             return false;
           }
 
@@ -228,6 +289,37 @@ function createPrismaStore(users: TestSystemUser[]) {
   } as unknown as PrismaService;
 
   return { prisma, sessions };
+}
+
+function assertUniqueSessionToken(sessions: TestAuthSession[], data: TestAuthSession) {
+  const duplicated = sessions.some(
+    session => session.accessTokenHash === data.accessTokenHash || session.refreshTokenHash === data.refreshTokenHash
+  );
+
+  if (duplicated) {
+    throw new Error('Unique constraint failed on the fields: accessTokenHash or refreshTokenHash');
+  }
+}
+
+function createAppConfigService(overrides: Partial<AppConfigService['config']>): AppConfigService {
+  return {
+    config: {
+      nodeEnv: 'development',
+      isProduction: false,
+      serverRuntimeRole: 'all',
+      port: 9528,
+      serverCorsOrigins: null,
+      databaseUrl: undefined,
+      redisUrl: 'redis://127.0.0.1:6379',
+      aiConfigSecretEncryptionKey: undefined,
+      authAccessTokenTtlSeconds: 7200,
+      authRefreshTokenTtlSeconds: 1209600,
+      authDevFixedTokenEnabled: false,
+      crmEnableMockEndpoints: false,
+      crmGmailIntegrationEnv: {},
+      ...overrides
+    }
+  } as AppConfigService;
 }
 
 function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
@@ -266,6 +358,30 @@ function createUser(input: Partial<TestSystemUser> = {}): TestSystemUser {
   };
 }
 
+function createDefaultRoles(): TestSystemRole[] {
+  return [
+    createRole({ roleCode: 'R_SUPER', permissions: [...crmPermissionCodes] }),
+    createRole({ roleCode: 'R_ADMIN', permissions: [] }),
+    createRole({ roleCode: 'R_USER', permissions: [] })
+  ];
+}
+
+function createRole(input: Partial<TestSystemRole> = {}): TestSystemRole {
+  const now = new Date();
+
+  return {
+    id: input.id || `role-${input.roleCode || 'R_USER'}`,
+    roleName: input.roleName || input.roleCode || 'R_USER',
+    roleCode: input.roleCode || 'R_USER',
+    roleDesc: input.roleDesc ?? null,
+    permissions: input.permissions || [],
+    status: input.status || 'enabled',
+    builtIn: input.builtIn ?? false,
+    createdAt: input.createdAt || now,
+    updatedAt: input.updatedAt || now
+  };
+}
+
 interface TestSystemUser {
   id: string;
   userName: string;
@@ -294,6 +410,18 @@ interface TestSystemUser {
   failedLoginCount: number;
   lockedUntil: Date | null;
   passwordResetAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface TestSystemRole {
+  id: string;
+  roleName: string;
+  roleCode: string;
+  roleDesc: string | null;
+  permissions: string[];
+  status: string;
+  builtIn: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import { resolveEffectivePermissions } from '@soybean/shared';
+import { crmPermissionCodes, normalizePermissionCodes } from '@soybean/shared';
 import * as svgCaptcha from 'svg-captcha';
 import type { Organization, SystemUser } from '../../generated/prisma/client';
 import { AppConfigService } from '../app-config/app-config.service';
@@ -64,7 +64,7 @@ export class AuthService {
       }
     });
 
-    return this.issueTokens(this.toUserInfo(user), loginIp, userAgent);
+    return this.issueTokens(await this.toUserInfo(user), loginIp, userAgent);
   }
 
   /** Create a short-lived image captcha for password login. */
@@ -133,7 +133,7 @@ export class AuthService {
       return null;
     }
 
-    const user = this.toUserInfo(session.user);
+    const user = await this.toUserInfo(session.user);
 
     if (!user || this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
       return null;
@@ -179,7 +179,7 @@ export class AuthService {
       return null;
     }
 
-    const user = this.toUserInfo(session.user);
+    const user = await this.toUserInfo(session.user);
 
     if (this.isSnapshotExpired(user) || this.isSnapshotLocked(user) || user.status !== 'enabled') {
       return null;
@@ -224,29 +224,53 @@ export class AuthService {
     const token = useDevFixedToken ? devAccessToken : `access_${randomUUID()}`;
     const refreshToken = useDevFixedToken ? devRefreshToken : `refresh_${randomUUID()}`;
     const now = new Date();
+    const accessTokenHash = this.hashToken(token);
+    const refreshTokenHash = this.hashToken(refreshToken);
 
     if (useDevFixedToken) {
       await this.revokeUserTokens(user.userId);
     }
 
-    await this.prisma.authSession.create({
-      data: {
+    await this.persistIssuedSession(
+      {
         userId: user.userId,
-        accessTokenHash: this.hashToken(token),
-        refreshTokenHash: this.hashToken(refreshToken),
+        accessTokenHash,
+        refreshTokenHash,
         accessTokenExpiresAt: new Date(now.getTime() + this.getAccessTokenTtlMs()),
         refreshTokenExpiresAt: new Date(now.getTime() + this.getRefreshTokenTtlMs()),
         revokedAt: null,
         loginIp: loginIp || null,
         userAgent: userAgent || null,
         lastUsedAt: now
-      }
-    });
+      },
+      useDevFixedToken
+    );
 
     return {
       token,
       refreshToken
     };
+  }
+
+  /** Persist a new session, reusing the fixed development token row when dev login repeats. */
+  private async persistIssuedSession(data: AuthSessionWriteData, reuseFixedTokenSession: boolean) {
+    if (reuseFixedTokenSession) {
+      await this.prisma.authSession.upsert({
+        where: {
+          accessTokenHash: data.accessTokenHash
+        },
+        update: data,
+        create: data
+      });
+
+      return;
+    }
+
+    await this.prisma.authSession.create({
+      data: {
+        ...data
+      }
+    });
   }
 
   private async findUserByUserName(userName: string) {
@@ -284,12 +308,12 @@ export class AuthService {
     });
   }
 
-  private toUserInfo(user: AuthSystemUser): UserInfoWithSession {
+  private async toUserInfo(user: AuthSystemUser): Promise<UserInfoWithSession> {
     return {
       userId: user.id,
       userName: user.userName,
       roles: user.roles,
-      buttons: resolveEffectivePermissions({ roles: user.roles, permissions: user.permissions }),
+      buttons: await this.resolveRolePermissions(user.roles),
       organizationId: user.organizationId,
       organizationName: user.organization.name,
       organizationRole: user.organizationRole as UserInfo['organizationRole'],
@@ -309,6 +333,24 @@ export class AuthService {
 
   private isUserLocked(user: SystemUser) {
     return Boolean(user.lockedUntil && user.lockedUntil.getTime() > Date.now());
+  }
+
+  private async resolveRolePermissions(roles: readonly string[]) {
+    if (roles.includes('R_SUPER')) {
+      return [...crmPermissionCodes];
+    }
+
+    const roleRecords = await this.prisma.systemRole.findMany({
+      where: {
+        roleCode: { in: [...roles] },
+        status: 'enabled'
+      },
+      select: {
+        permissions: true
+      }
+    });
+
+    return normalizePermissionCodes(roleRecords.flatMap(role => role.permissions));
   }
 
   private isSnapshotExpired(user: UserInfoWithSession) {
@@ -344,4 +386,16 @@ interface UserInfoWithSession extends UserInfo {
   status: string;
   expireAt: string | null;
   lockedUntil: string | null;
+}
+
+interface AuthSessionWriteData {
+  userId: string;
+  accessTokenHash: string;
+  refreshTokenHash: string;
+  accessTokenExpiresAt: Date;
+  refreshTokenExpiresAt: Date;
+  revokedAt: Date | null;
+  loginIp: string | null;
+  userAgent: string | null;
+  lastUsedAt: Date;
 }

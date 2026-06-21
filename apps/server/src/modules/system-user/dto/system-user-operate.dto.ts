@@ -1,8 +1,6 @@
 import { IsArray, IsIn, IsISO8601, IsOptional, IsString, Length } from 'class-validator';
-import { crmPermissionCodes, type PermissionCode } from '@soybean/shared';
 import type { SystemUserRole, SystemUserStatus } from '../system-user.types';
 
-const systemUserRoles: SystemUserRole[] = ['R_SUPER', 'R_ADMIN', 'R_USER'];
 const systemUserStatuses: SystemUserStatus[] = ['enabled', 'disabled'];
 
 export class CreateSystemUserDto {
@@ -23,13 +21,8 @@ export class CreateSystemUserDto {
   email?: string | null;
 
   @IsArray()
-  @IsIn(systemUserRoles, { each: true })
+  @IsString({ each: true })
   roles!: SystemUserRole[];
-
-  @IsOptional()
-  @IsArray()
-  @IsIn(crmPermissionCodes, { each: true })
-  permissions?: PermissionCode[];
 
   @IsOptional()
   @IsIn(systemUserStatuses)
@@ -68,13 +61,8 @@ export class UpdateSystemUserDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(systemUserRoles, { each: true })
+  @IsString({ each: true })
   roles?: SystemUserRole[];
-
-  @IsOptional()
-  @IsArray()
-  @IsIn(crmPermissionCodes, { each: true })
-  permissions?: PermissionCode[];
 
   @IsOptional()
   @IsIn(systemUserStatuses)

@@ -116,6 +116,21 @@ model SystemUser {
   @@index([lockedUntil])
 }
 
+model SystemRole {
+  id          String   @id @default(uuid())
+  roleName    String
+  roleCode    String   @unique
+  roleDesc    String?
+  permissions String[] @default([])
+  status      String   @default("enabled")
+  builtIn     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([builtIn])
+}
+
 model AuthSession {
   id                    String    @id @default(uuid())
   userId                String
