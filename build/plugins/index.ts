@@ -8,9 +8,11 @@ import { setupUnocss } from './unocss';
 import { setupUnplugin } from './unplugin';
 import { setupHtmlPlugin } from './html';
 import { setupDevtoolsPlugin } from './devtools';
+import { setupPreferTsSourcePlugin } from './prefer-ts-source';
 
 export function setupVitePlugins(viteEnv: Env.ImportMeta, buildTime: string) {
   const plugins: PluginOption = [
+    setupPreferTsSourcePlugin(),
     vue(),
     vueJsx(),
     setupDevtoolsPlugin(viteEnv),

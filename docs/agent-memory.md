@@ -210,10 +210,10 @@
 ### 2026-06-21 未跟踪 JS 产物会遮住 TS 源路由
 
 - 场景：新增 `src/views` 页面并运行 `pnpm gen-route` 后，`src/router/elegant/routes.ts`、`imports.ts` 已包含新路由，但前端菜单仍显示旧入口，例如新增 `manage_role` 后系统管理里看不到角色管理。
-- 坑点：工作区可能存在未跟踪的同名 JS 产物（如 `src/router/elegant/routes.js`、`imports.js`、`transform.js`、`src/service/api/index.js`）；Vite 无后缀导入默认可能优先解析 `.js`，导致运行时吃到旧 JS，而不是新 TS 源文件。
-- 正确做法：不要把这些历史 JS 产物提交为源码；在 `vite.config.ts` 的 `resolve.extensions` 中让 `.ts/.tsx` 优先于 `.js/.jsx`，保证开发运行使用 TS 源文件。排查菜单缺失时同时检查 `routes.ts` 和可能遮蔽它的同名 `.js`。
-- 相关文件：`vite.config.ts`、`src/router/routes/index.ts`、`src/router/elegant/routes.ts`、`src/router/elegant/imports.ts`、`src/router/elegant/transform.ts`。
-- 验证方式：用 Vite resolver 检查 `../elegant/routes`、`../elegant/imports`、`../elegant/transform` 解析到 `.ts`；再用 Vite 加载 `src/router/elegant/routes.ts`，确认 `manage.children` 包含目标路由。
+- 坑点：工作区可能存在未跟踪的同名 JS 产物（如 `src/router/elegant/routes.js`、`imports.js`、`transform.js`、`src/service/api/index.js`）；只配置 `resolve.extensions` 还不够，Vite 会把 TS 里的无后缀导入转换成浏览器模块 URL（例如 `/src/router/elegant/routes.js`），如果磁盘上有同名旧 JS，直接请求这个 URL 仍会命中旧文件。
+- 正确做法：不要把这些历史 JS 产物提交为源码；开发期通过 `setupPreferTsSourcePlugin()` 把 `src/build/packages` 下有同名 `.ts/.tsx` 的 `.js` 模块请求重写回 TS 源文件。排查菜单缺失时同时检查 `routes.ts` 和浏览器实际请求的 `/src/router/elegant/routes.js` 内容。
+- 相关文件：`vite.config.ts`、`build/plugins/prefer-ts-source.ts`、`build/plugins/index.ts`、`src/router/routes/index.ts`、`src/router/elegant/routes.ts`、`src/router/elegant/imports.ts`、`src/router/elegant/transform.ts`。
+- 验证方式：启动 `pnpm dev` 后用 `curl http://localhost:9527/src/router/elegant/routes.js | rg "manage_role|manage_permission"`，确认旧 `.js` URL 返回的是 TS 生成后的新路由；再检查 `imports.js` 和 `transform.js` 也包含目标页面。
 
 ### 2026-06-19 Gmail 403 不能全部当授权失效
 
