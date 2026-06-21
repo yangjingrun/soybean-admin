@@ -102,6 +102,21 @@ function getModulePageSummary(module: PermissionModule) {
         超级管理员角色默认拥有全部权限，系统不允许裁剪该角色权限。
       </NAlert>
 
+      <div v-if="!isSuperRole" class="permission-toolbar">
+        <div class="permission-toolbar__status">
+          <NText strong>{{ preview.changed ? '权限草稿已变更' : '权限未变更' }}</NText>
+          <NText depth="3">
+            新增 {{ preview.addedLabels.length }} 项 / 移除 {{ preview.removedLabels.length }} 项
+          </NText>
+        </div>
+        <NSpace :size="8" class="permission-toolbar__actions">
+          <NButton size="small" :disabled="saving || !preview.changed" @click="handleReset">撤销修改</NButton>
+          <NButton size="small" type="primary" :disabled="!canSave" :loading="saving" @click="handleSave">
+            保存权限
+          </NButton>
+        </NSpace>
+      </div>
+
       <NSpace vertical :size="14" class="permission-modules">
         <section v-for="module in rolePermissionModules" :key="module.key" class="permission-module">
           <div class="permission-module__header">
@@ -200,6 +215,28 @@ function getModulePageSummary(module: PermissionModule) {
   gap: 8px;
 }
 
+.permission-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background: var(--n-color-modal);
+}
+
+.permission-toolbar__status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.permission-toolbar__actions {
+  flex-shrink: 0;
+}
+
 .permission-actions {
   display: flex;
   justify-content: flex-end;
@@ -255,6 +292,17 @@ function getModulePageSummary(module: PermissionModule) {
     max-height: none;
     overflow: visible;
     padding-right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .permission-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .permission-toolbar__actions {
+    justify-content: flex-end;
   }
 }
 </style>
