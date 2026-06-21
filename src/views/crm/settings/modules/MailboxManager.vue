@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, shallowRef } from 'vue';
 import { hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import AiDraftQueueConfigCard from './AiDraftQueueConfigCard.vue';
@@ -19,7 +19,7 @@ import ProductLineManager from './ProductLineManager.vue';
 import SendPreferenceCard from './SendPreferenceCard.vue';
 import SequencePolicyManager from './SequencePolicyManager.vue';
 import StrategyStatsPanel from './StrategyStatsPanel.vue';
-import { buildCrmSettingsOverview, buildCrmSettingsTabVisibility } from './shared';
+import { buildCrmSettingsOverview, buildCrmSettingsTabVisibility, type CrmSettingsOverviewKey } from './shared';
 import { useMailboxTable } from './useMailboxTable';
 import { useTemplateDefaults } from './useTemplateDefaults';
 
@@ -47,6 +47,7 @@ const {
 } = useMailboxTable();
 
 const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults } = useTemplateDefaults();
+const activeSettingsKey = shallowRef<CrmSettingsOverviewKey>('mailboxConnection');
 
 const canManageOrganization = computed(() => hasPermission(authStore.userInfo, 'crm:settings:rules:write'));
 const canManageAiDraftQueue = computed(() =>
@@ -54,92 +55,103 @@ const canManageAiDraftQueue = computed(() =>
 );
 const canManageGlobalConfig = computed(() => hasPermission(authStore.userInfo, 'crm:settings:global:write'));
 const tabVisibility = computed(() => buildCrmSettingsTabVisibility(authStore.userInfo));
+const sectionVisibility = computed<Record<CrmSettingsOverviewKey, boolean>>(() => ({
+  mailboxConnection: tabVisibility.value.start,
+  safetyBlock: tabVisibility.value.safety,
+  sendPace: tabVisibility.value.start || tabVisibility.value.rules,
+  syncHealth: tabVisibility.value.operations,
+  writingProfile: tabVisibility.value.start || tabVisibility.value.assets
+}));
 const overviewItems = computed(() =>
   buildCrmSettingsOverview({
     mailboxes: records.value,
     mailboxTotal: pagination.total,
     templateDefaults: templateDefaults.value
-  })
+  }).filter(item => sectionVisibility.value[item.key])
 );
+
+/** Selects the settings section controlled by the overview cards. */
+function handleSelectSettingsSection(key: CrmSettingsOverviewKey) {
+  activeSettingsKey.value = key;
+}
 </script>
 
 <template>
   <NSpace vertical :size="12">
-    <CrmSettingsOverview :items="overviewItems" :loading="loading || templateDefaultsLoading" />
+    <CrmSettingsOverview
+      :active-key="activeSettingsKey"
+      :items="overviewItems"
+      :loading="loading || templateDefaultsLoading"
+      @select="handleSelectSettingsSection"
+    />
 
-    <NTabs type="line" size="small" animated class="crm-settings-tabs">
-      <NTabPane name="start" tab="开始使用">
+    <section v-show="activeSettingsKey === 'mailboxConnection'" class="settings-section">
+      <NCard :bordered="false" size="small" class="card-wrapper" title="邮箱账号">
         <NSpace vertical :size="12">
-          <SendPreferenceCard />
-
-          <DefaultEmailTemplateCard
-            :loading="templateDefaultsLoading"
-            :template-defaults="templateDefaults"
-            @refresh="loadTemplateDefaults"
+          <MailboxToolbar
+            v-model="filterModel"
+            :authorizing="authorizeSubmitting"
+            :loading="loading"
+            @add="openAuthorizeModal"
+            @refresh="loadMailboxes"
+            @reset="handleReset"
+            @search="handleSearch"
           />
 
-          <NCard :bordered="false" size="small" class="card-wrapper" title="邮箱账号">
-            <NSpace vertical :size="12">
-              <MailboxToolbar
-                v-model="filterModel"
-                :authorizing="authorizeSubmitting"
-                :loading="loading"
-                @add="openAuthorizeModal"
-                @refresh="loadMailboxes"
-                @reset="handleReset"
-                @search="handleSearch"
-              />
-
-              <MailboxTable
-                :records="records"
-                :loading="loading"
-                :operating-mailbox-id="operatingMailboxId"
-                :page="pagination.current"
-                :page-size="pagination.size"
-                :total="pagination.total"
-                @reauthorize="handleReauthorizeMailbox"
-                @renew-watch="handleRenewMailboxWatch"
-                @sync-now="handleSyncMailboxNow"
-                @toggle="handleToggleMailbox"
-                @update-page="handlePageUpdate"
-                @update-page-size="handlePageSizeUpdate"
-              />
-            </NSpace>
-          </NCard>
+          <MailboxTable
+            :records="records"
+            :loading="loading"
+            :operating-mailbox-id="operatingMailboxId"
+            :page="pagination.current"
+            :page-size="pagination.size"
+            :total="pagination.total"
+            @reauthorize="handleReauthorizeMailbox"
+            @renew-watch="handleRenewMailboxWatch"
+            @sync-now="handleSyncMailboxNow"
+            @toggle="handleToggleMailbox"
+            @update-page="handlePageUpdate"
+            @update-page-size="handlePageSizeUpdate"
+          />
         </NSpace>
-      </NTabPane>
+      </NCard>
+    </section>
 
-      <NTabPane v-if="tabVisibility.assets" name="assets" tab="写信资料">
-        <NSpace vertical :size="12">
-          <ProductLineManager />
-          <PersonaProfileManager />
-          <EmailTemplateManager />
-        </NSpace>
-      </NTabPane>
+    <section v-show="activeSettingsKey === 'writingProfile'" class="settings-section">
+      <NSpace vertical :size="12">
+        <DefaultEmailTemplateCard
+          :loading="templateDefaultsLoading"
+          :template-defaults="templateDefaults"
+          @refresh="loadTemplateDefaults"
+        />
+        <ProductLineManager v-if="tabVisibility.assets" />
+        <PersonaProfileManager v-if="tabVisibility.assets" />
+        <EmailTemplateManager v-if="tabVisibility.assets" />
+      </NSpace>
+    </section>
 
-      <NTabPane v-if="tabVisibility.rules" name="rules" tab="发送规则">
-        <NSpace vertical :size="12">
-          <SequencePolicyManager />
-          <OrganizationPermissionCard v-if="canManageOrganization" />
-          <AiDraftQueueConfigCard v-if="canManageAiDraftQueue" />
-          <GlobalConfigCard v-if="canManageGlobalConfig" />
-        </NSpace>
-      </NTabPane>
+    <section v-show="activeSettingsKey === 'sendPace'" class="settings-section">
+      <NSpace vertical :size="12">
+        <SendPreferenceCard />
+        <SequencePolicyManager v-if="tabVisibility.rules" />
+        <OrganizationPermissionCard v-if="canManageOrganization" />
+        <AiDraftQueueConfigCard v-if="canManageAiDraftQueue" />
+        <GlobalConfigCard v-if="canManageGlobalConfig" />
+      </NSpace>
+    </section>
 
-      <NTabPane v-if="tabVisibility.safety" name="safety" tab="安全与拦截">
-        <NSpace vertical :size="12">
-          <BasicRulesCard />
-          <BlacklistManager />
-        </NSpace>
-      </NTabPane>
+    <section v-if="sectionVisibility.safetyBlock" v-show="activeSettingsKey === 'safetyBlock'" class="settings-section">
+      <NSpace vertical :size="12">
+        <BasicRulesCard />
+        <BlacklistManager />
+      </NSpace>
+    </section>
 
-      <NTabPane v-if="tabVisibility.operations" name="operations" tab="运维诊断">
-        <NSpace vertical :size="12">
-          <CrmOperationsPanel />
-          <StrategyStatsPanel />
-        </NSpace>
-      </NTabPane>
-    </NTabs>
+    <section v-if="sectionVisibility.syncHealth" v-show="activeSettingsKey === 'syncHealth'" class="settings-section">
+      <NSpace vertical :size="12">
+        <CrmOperationsPanel />
+        <StrategyStatsPanel />
+      </NSpace>
+    </section>
 
     <AuthorizeMailboxModal
       v-model:visible="authorizeVisible"
@@ -151,12 +163,7 @@ const overviewItems = computed(() =>
 </template>
 
 <style scoped>
-.crm-settings-tabs :deep(.n-tabs-nav) {
-  margin-bottom: 12px;
-}
-
-.crm-settings-tabs :deep(.n-tabs-tab) {
-  padding-inline: 12px;
-  font-weight: 500;
+.settings-section {
+  min-width: 0;
 }
 </style>

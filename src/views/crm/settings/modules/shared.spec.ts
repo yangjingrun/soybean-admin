@@ -979,6 +979,14 @@ describe('crm settings shared helpers', () => {
           tagType: 'success'
         },
         {
+          description: '退订、归档指纹和邮箱验证规则会在发送前参与拦截',
+          key: 'safetyBlock',
+          label: '安全拦截',
+          statusLabel: '已启用',
+          value: '退订黑名单',
+          tagType: 'info'
+        },
+        {
           description: '1 个 Gmail 授权过期，1 个同步异常；会影响回信入库和停发闭环',
           key: 'syncHealth',
           label: '同步健康',

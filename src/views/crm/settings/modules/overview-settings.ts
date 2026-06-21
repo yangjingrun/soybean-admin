@@ -1,7 +1,12 @@
 import type { Dayjs } from 'dayjs';
 import { getMailboxWatchStatus, summarizeMailboxSyncHealth } from './mailbox-settings';
 
-export type CrmSettingsOverviewKey = 'mailboxConnection' | 'writingProfile' | 'sendPace' | 'syncHealth';
+export type CrmSettingsOverviewKey =
+  | 'mailboxConnection'
+  | 'writingProfile'
+  | 'sendPace'
+  | 'safetyBlock'
+  | 'syncHealth';
 
 export interface CrmSettingsOverviewItem {
   key: CrmSettingsOverviewKey;
@@ -73,6 +78,14 @@ export function buildCrmSettingsOverview(options: {
           ? `当前默认模板包含 ${templateStepCount} 封，按配置节奏推进跟进`
           : '缺少发送节奏时，首封后的跟进链路无法自动推进',
       tagType: templateStepCount > 0 ? 'success' : 'warning'
+    },
+    {
+      key: 'safetyBlock',
+      label: '安全拦截',
+      statusLabel: '已启用',
+      value: '退订黑名单',
+      description: '退订、归档指纹和邮箱验证规则会在发送前参与拦截',
+      tagType: 'info'
     },
     {
       key: 'syncHealth',

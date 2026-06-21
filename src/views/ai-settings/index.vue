@@ -104,6 +104,7 @@ const savedModelSecret = reactive<SavedSecretState>({
 const modelTestResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
 const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null);
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
+const activeSettingsTab = shallowRef<AiSettingsTabKey>('model');
 
 const canManagePlatformAiSettings = computed(
   () => authStore.isStaticSuper || authStore.userInfo.roles.includes('R_SUPER')
@@ -189,6 +190,11 @@ const statusOverviewItems = computed<StatusOverviewItem[]>(() => {
 
   return items.filter(item => tabVisibility.value[item.key]);
 });
+
+/** Selects the shared tab used by both overview cards and the settings workspace. */
+function handleSelectSettingsTab(tabKey: AiSettingsTabKey) {
+  activeSettingsTab.value = tabKey;
+}
 
 onMounted(() => {
   if (!canManagePlatformAiSettings.value) {
@@ -532,19 +538,27 @@ async function handleCopyApiKey(apiKey: string) {
           <p class="panel-desc">{{ $t('page.aiSettings.description') }}</p>
         </div>
         <div v-if="statusOverviewItems.length" class="status-overview">
-          <div v-for="item in statusOverviewItems" :key="item.key" class="status-overview__item">
+          <button
+            v-for="item in statusOverviewItems"
+            :key="item.key"
+            type="button"
+            class="status-overview__item"
+            :class="{ 'status-overview__item--active': activeSettingsTab === item.key }"
+            :aria-pressed="activeSettingsTab === item.key"
+            @click="handleSelectSettingsTab(item.key)"
+          >
             <div class="status-overview__topline">
               <span class="status-overview__label">{{ item.label }}</span>
               <NTag size="small" :type="item.status.type" :bordered="false">{{ item.status.label }}</NTag>
             </div>
             <NText depth="3" class="updated-time">{{ item.updatedAt }}</NText>
-          </div>
+          </button>
         </div>
       </div>
     </NCard>
 
     <NCard v-if="canViewAnySettingsTab" :bordered="false" size="small" class="card-wrapper settings-workspace-card">
-      <NTabs type="line" size="small">
+      <NTabs v-model:value="activeSettingsTab" type="line" size="small">
         <NTabPane v-if="tabVisibility.model" name="model" tab="模型通道" display-directive="if">
           <NSpace vertical :size="12" class="settings-tab-panel">
             <div class="panel-heading">
@@ -920,10 +934,43 @@ async function handleCopyApiKey(apiKey: string) {
 }
 
 .status-overview__item {
+  width: 100%;
   min-width: 0;
   padding: 8px 10px;
+  border: 1px solid transparent;
   border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   background: var(--n-color-embedded);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  transition:
+    border-color 0.2s var(--n-bezier),
+    background-color 0.2s var(--n-bezier),
+    box-shadow 0.2s var(--n-bezier);
+}
+
+.status-overview__item:hover {
+  border-color: var(--n-border-color);
+}
+
+.status-overview__item--active {
+  border-color: rgb(var(--primary-color, 100 108 255));
+  background: var(--n-color-embedded);
+  box-shadow:
+    0 0 0 1px rgb(var(--primary-color, 100 108 255)),
+    0 8px 18px rgb(var(--primary-color, 100 108 255) / 0.12);
+}
+
+.status-overview__item--active .status-overview__label {
+  color: rgb(var(--primary-color, 100 108 255));
+}
+
+.status-overview__item:focus-visible {
+  outline: 2px solid rgb(var(--primary-color, 100 108 255));
+  outline-offset: 2px;
 }
 
 .status-overview__topline,
@@ -954,7 +1001,7 @@ async function handleCopyApiKey(apiKey: string) {
 }
 
 .settings-workspace-card :deep(.n-tabs-nav) {
-  margin-bottom: 12px;
+  display: none;
 }
 
 .settings-tab-panel {
