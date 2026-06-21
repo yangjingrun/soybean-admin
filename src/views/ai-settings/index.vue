@@ -6,7 +6,6 @@ import { useI18n } from 'vue-i18n';
 import {
   aiLeadsQueueConfigManagePermission,
   aiSettingsHunterManagePermission,
-  aiSettingsModelManagePermission,
   aiSettingsSerperManagePermission,
   hasPermission,
   type PermissionCode
@@ -15,12 +14,12 @@ import { defaultAiModelConfigKey, defaultHunterConfigKey, defaultSerperConfigKey
 import {
   fetchAiLeadQueueConfig,
   generateAiText,
-  getAiModelConfig,
   getHunterConfig,
+  getMyAiModelConfig,
   getSerperConfig,
   saveAiLeadQueueConfig,
-  saveAiModelConfig,
   saveHunterConfig,
+  saveMyAiModelConfig,
   saveSerperConfig,
   testHunterConfig,
   testSerperConfig
@@ -30,6 +29,9 @@ import {
   buildModelTestPayload,
   canSaveModelConfig,
   canTestModelConfig,
+  resolveAiSettingsTabVisibility,
+  type AiSettingsTabKey,
+  type ModelConfigFormModel,
   type SavedSecretState
 } from './modules/model-settings';
 
@@ -64,11 +66,9 @@ interface StatusOverviewItem {
   updatedAt: string;
 }
 
-type AiSettingsTabKey = 'model' | 'serper' | 'hunter' | 'queue';
-
-const modelForm = reactive<Api.AiGateway.SaveModelConfigPayload>({
+const modelForm = reactive<ModelConfigFormModel>({
   configKey: defaultAiModelConfigKey,
-  title: '默认模型',
+  title: '我的模型通道',
   providerName: 'openrouter',
   apiBase: 'https://openrouter.ai/api/v1',
   apiKey: '',
@@ -114,16 +114,16 @@ const serperTestResult = shallowRef<Api.AiGateway.SerperTestResult | null>(null)
 const hunterTestResult = shallowRef<Api.AiGateway.HunterTestResult | null>(null);
 const activeSettingsTab = shallowRef<AiSettingsTabKey>('model');
 
-const canManageModelConfig = computed(() => hasAssignedPermission(aiSettingsModelManagePermission));
 const canManageSerperConfig = computed(() => hasAssignedPermission(aiSettingsSerperManagePermission));
 const canManageHunterConfig = computed(() => hasAssignedPermission(aiSettingsHunterManagePermission));
 const canManageAiLeadQueueConfig = computed(() => hasAssignedPermission(aiLeadsQueueConfigManagePermission));
-const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() => ({
-  model: canManageModelConfig.value,
-  serper: canManageSerperConfig.value,
-  hunter: canManageHunterConfig.value,
-  queue: canManageAiLeadQueueConfig.value
-}));
+const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() =>
+  resolveAiSettingsTabVisibility({
+    canManageSerperConfig: canManageSerperConfig.value,
+    canManageHunterConfig: canManageHunterConfig.value,
+    canManageAiLeadQueueConfig: canManageAiLeadQueueConfig.value
+  })
+);
 const canViewAnySettingsTab = computed(() => Object.values(tabVisibility.value).some(Boolean));
 const firstVisibleSettingsTab = computed(
   () =>
@@ -134,8 +134,8 @@ const modelApiKeyPlaceholder = computed(() =>
     ? `已保存：${savedModelSecret.maskedApiKey}，输入新 API Key 可替换`
     : t('page.aiSettings.placeholders.apiKey')
 );
-const canSaveModel = computed(() => canManageModelConfig.value && canSaveModelConfig(modelForm));
-const canTestModel = computed(() => canManageModelConfig.value && canTestModelConfig(modelForm, savedModelSecret));
+const canSaveModel = computed(() => canSaveModelConfig(modelForm));
+const canTestModel = computed(() => canTestModelConfig(modelForm, savedModelSecret));
 const formattedModelUpdatedAt = computed(() =>
   modelUpdatedAt.value
     ? dayjs(modelUpdatedAt.value).format('YYYY-MM-DD HH:mm:ss')
@@ -185,7 +185,7 @@ const statusOverviewItems = computed<StatusOverviewItem[]>(() => {
   const items: StatusOverviewItem[] = [
     {
       key: 'model',
-      label: '模型',
+      label: '我的模型',
       status: modelStatus.value,
       updatedAt: formattedModelUpdatedAt.value
     },
@@ -224,9 +224,7 @@ onMounted(() => {
 
   activeSettingsTab.value = firstVisibleSettingsTab.value;
 
-  if (canManageModelConfig.value) {
-    void handleLoadModelConfig(false);
-  }
+  void handleLoadModelConfig(false);
 
   if (canManageSerperConfig.value) {
     void handleLoadSerperConfig(false);
@@ -246,20 +244,20 @@ function hasAssignedPermission(permission: PermissionCode) {
   return authStore.isStaticSuper || hasPermission(authStore.userInfo, permission);
 }
 
-/** Loads the default backend model config into the settings form. */
+/** Loads the current account model config into the settings form. */
 async function handleLoadModelConfig(showMessage = true) {
   isModelLoading.value = true;
 
   try {
-    const { data: record, error } = await getAiModelConfig(defaultAiModelConfigKey);
+    const { data: record, error } = await getMyAiModelConfig();
 
     if (error) {
       return;
     }
 
     Object.assign(modelForm, {
-      configKey: record.configKey,
-      title: record.title,
+      configKey: record.configKey ?? defaultAiModelConfigKey,
+      title: record.title ?? '我的模型通道',
       providerName: record.providerName,
       apiBase: record.apiBase,
       apiKey: record.apiKey ?? '',
@@ -280,14 +278,12 @@ async function handleLoadModelConfig(showMessage = true) {
   }
 }
 
-/** Saves the backend model config used by AI workflows. */
+/** Saves the current account model config used by AI workflows. */
 async function handleSaveModelConfig() {
   isModelSaving.value = true;
 
   try {
-    const { data: record, error } = await saveAiModelConfig({
-      configKey: defaultAiModelConfigKey,
-      title: modelForm.title.trim(),
+    const { data: record, error } = await saveMyAiModelConfig({
       providerName: modelForm.providerName.trim(),
       apiBase: modelForm.apiBase.trim(),
       apiKey: modelForm.apiKey.trim(),
@@ -598,11 +594,11 @@ async function handleCopyApiKey(apiKey: string) {
 
     <NCard v-if="canViewAnySettingsTab" :bordered="false" size="small" class="card-wrapper settings-workspace-card">
       <NTabs v-model:value="activeSettingsTab" type="line" size="small">
-        <NTabPane v-if="tabVisibility.model" name="model" tab="模型通道" display-directive="if">
+        <NTabPane v-if="tabVisibility.model" name="model" tab="我的模型通道" display-directive="if">
           <NSpace vertical :size="12" class="settings-tab-panel">
             <div class="panel-heading">
               <div>
-                <h3 class="panel-title">默认模型通道</h3>
+                <h3 class="panel-title">我的模型通道</h3>
                 <p class="panel-desc">{{ $t('page.aiSettings.description') }}</p>
               </div>
               <NTag size="small" :type="modelStatus.type" :bordered="false">{{ modelStatus.label }}</NTag>
@@ -610,21 +606,12 @@ async function handleCopyApiKey(apiKey: string) {
 
             <NForm :model="modelForm" label-placement="top" size="small" :show-feedback="false">
               <NGrid :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
-                <NGi span="24 m:8">
-                  <NFormItem :label="$t('page.aiSettings.form.title')">
-                    <NInput
-                      v-model:value="modelForm.title"
-                      :placeholder="$t('page.aiSettings.placeholders.title')"
-                      :input-props="noAutocompleteInputProps"
-                    />
-                  </NFormItem>
-                </NGi>
-                <NGi span="24 m:8">
+                <NGi span="24 m:12">
                   <NFormItem :label="$t('page.aiSettings.form.provider')">
                     <NSelect v-model:value="modelForm.providerName" :options="providerOptions" />
                   </NFormItem>
                 </NGi>
-                <NGi span="24 m:8">
+                <NGi span="24 m:12">
                   <NFormItem :label="$t('page.aiSettings.form.model')">
                     <NInput
                       v-model:value="modelForm.model"

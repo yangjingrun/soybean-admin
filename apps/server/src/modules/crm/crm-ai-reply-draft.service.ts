@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { RequestUserContext } from '../../shared/request-context';
 import { defaultAiModelConfigKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { buildCrmAiReplyDraftPrompt, parseCrmAiReplyDraftOutput } from './crm-ai-reply-draft-prompt';
@@ -9,15 +10,21 @@ export class CrmAiReplyDraftService {
   constructor(@Inject(AiGatewayService) private readonly aiGatewayService: Pick<AiGatewayService, 'generateText'>) {}
 
   /** Polishes a user-provided reply topic into a local draft for human confirmation only. */
-  async polishReplyDraft(input: CrmAiReplyDraftPromptInput): Promise<CrmAiReplyDraftGenerateResult> {
+  async polishReplyDraft(
+    input: CrmAiReplyDraftPromptInput,
+    context: RequestUserContext
+  ): Promise<CrmAiReplyDraftGenerateResult> {
     const prompt = buildCrmAiReplyDraftPrompt(input);
-    const result = await this.aiGatewayService.generateText({
-      prompt: prompt.userPrompt,
-      systemPrompt: prompt.systemPrompt,
-      modelConfigKey: defaultAiModelConfigKey,
-      temperature: 0.35,
-      maxOutputTokens: 1000
-    });
+    const result = await this.aiGatewayService.generateText(
+      {
+        prompt: prompt.userPrompt,
+        systemPrompt: prompt.systemPrompt,
+        modelConfigKey: defaultAiModelConfigKey,
+        temperature: 0.35,
+        maxOutputTokens: 1000
+      },
+      { user: context }
+    );
     const output = parseCrmAiReplyDraftOutput(result.text);
     const riskNotes = [...new Set([...prompt.riskNotes, ...output.riskNotes])];
 

@@ -1,5 +1,3 @@
-import { defaultAiModelConfigKey } from '@/constants/ai-gateway';
-
 export interface ModelConfigFormModel {
   configKey: string;
   title: string;
@@ -17,6 +15,14 @@ export interface SavedSecretState {
 export interface ModelTestPromptInput {
   systemPrompt: string;
   prompt: string;
+}
+
+export type AiSettingsTabKey = 'model' | 'serper' | 'hunter' | 'queue';
+
+export interface AiSettingsTabPermissionState {
+  canManageSerperConfig: boolean;
+  canManageHunterConfig: boolean;
+  canManageAiLeadQueueConfig: boolean;
 }
 
 /** Check whether the model config form has enough visible fields to save a new API key. */
@@ -58,7 +64,6 @@ export function buildModelTestPayload(
 
   if (savedSecret.hasApiKey) {
     return {
-      modelConfigKey: form.configKey.trim() || defaultAiModelConfigKey,
       ...basePayload
     };
   }
@@ -69,5 +74,17 @@ export function buildModelTestPayload(
     apiKey,
     model: form.model.trim(),
     ...basePayload
+  };
+}
+
+/** Resolve AI settings tab visibility while keeping the personal model tab available to every account. */
+export function resolveAiSettingsTabVisibility(
+  permissions: AiSettingsTabPermissionState
+): Record<AiSettingsTabKey, boolean> {
+  return {
+    model: true,
+    serper: permissions.canManageSerperConfig,
+    hunter: permissions.canManageHunterConfig,
+    queue: permissions.canManageAiLeadQueueConfig
   };
 }

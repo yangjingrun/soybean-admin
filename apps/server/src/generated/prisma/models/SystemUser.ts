@@ -346,6 +346,7 @@ export type SystemUserWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"SystemUser"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   authSessions?: Prisma.AuthSessionListRelationFilter
+  aiUserModelConfig?: Prisma.XOR<Prisma.AiUserModelConfigNullableScalarRelationFilter, Prisma.AiUserModelConfigWhereInput> | null
 }
 
 export type SystemUserOrderByWithRelationInput = {
@@ -373,6 +374,7 @@ export type SystemUserOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   organization?: Prisma.OrganizationOrderByWithRelationInput
   authSessions?: Prisma.AuthSessionOrderByRelationAggregateInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigOrderByWithRelationInput
 }
 
 export type SystemUserWhereUniqueInput = Prisma.AtLeast<{
@@ -403,6 +405,7 @@ export type SystemUserWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"SystemUser"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   authSessions?: Prisma.AuthSessionListRelationFilter
+  aiUserModelConfig?: Prisma.XOR<Prisma.AiUserModelConfigNullableScalarRelationFilter, Prisma.AiUserModelConfigWhereInput> | null
 }, "id" | "userName">
 
 export type SystemUserOrderByWithAggregationInput = {
@@ -487,6 +490,7 @@ export type SystemUserCreateInput = {
   updatedAt?: Date | string
   organization?: Prisma.OrganizationCreateNestedOneWithoutUsersInput
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigCreateNestedOneWithoutUserInput
 }
 
 export type SystemUserUncheckedCreateInput = {
@@ -513,6 +517,7 @@ export type SystemUserUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigUncheckedCreateNestedOneWithoutUserInput
 }
 
 export type SystemUserUpdateInput = {
@@ -539,6 +544,7 @@ export type SystemUserUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
   authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigUpdateOneWithoutUserNestedInput
 }
 
 export type SystemUserUncheckedUpdateInput = {
@@ -565,6 +571,7 @@ export type SystemUserUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigUncheckedUpdateOneWithoutUserNestedInput
 }
 
 export type SystemUserCreateManyInput = {
@@ -829,6 +836,20 @@ export type SystemUserUncheckedUpdateManyWithoutOrganizationNestedInput = {
   deleteMany?: Prisma.SystemUserScalarWhereInput | Prisma.SystemUserScalarWhereInput[]
 }
 
+export type SystemUserCreateNestedOneWithoutAiUserModelConfigInput = {
+  create?: Prisma.XOR<Prisma.SystemUserCreateWithoutAiUserModelConfigInput, Prisma.SystemUserUncheckedCreateWithoutAiUserModelConfigInput>
+  connectOrCreate?: Prisma.SystemUserCreateOrConnectWithoutAiUserModelConfigInput
+  connect?: Prisma.SystemUserWhereUniqueInput
+}
+
+export type SystemUserUpdateOneRequiredWithoutAiUserModelConfigNestedInput = {
+  create?: Prisma.XOR<Prisma.SystemUserCreateWithoutAiUserModelConfigInput, Prisma.SystemUserUncheckedCreateWithoutAiUserModelConfigInput>
+  connectOrCreate?: Prisma.SystemUserCreateOrConnectWithoutAiUserModelConfigInput
+  upsert?: Prisma.SystemUserUpsertWithoutAiUserModelConfigInput
+  connect?: Prisma.SystemUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SystemUserUpdateToOneWithWhereWithoutAiUserModelConfigInput, Prisma.SystemUserUpdateWithoutAiUserModelConfigInput>, Prisma.SystemUserUncheckedUpdateWithoutAiUserModelConfigInput>
+}
+
 export type SystemUserCreateWithoutAuthSessionsInput = {
   id?: string
   userName: string
@@ -852,6 +873,7 @@ export type SystemUserCreateWithoutAuthSessionsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   organization?: Prisma.OrganizationCreateNestedOneWithoutUsersInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigCreateNestedOneWithoutUserInput
 }
 
 export type SystemUserUncheckedCreateWithoutAuthSessionsInput = {
@@ -877,6 +899,7 @@ export type SystemUserUncheckedCreateWithoutAuthSessionsInput = {
   passwordResetAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  aiUserModelConfig?: Prisma.AiUserModelConfigUncheckedCreateNestedOneWithoutUserInput
 }
 
 export type SystemUserCreateOrConnectWithoutAuthSessionsInput = {
@@ -918,6 +941,7 @@ export type SystemUserUpdateWithoutAuthSessionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigUpdateOneWithoutUserNestedInput
 }
 
 export type SystemUserUncheckedUpdateWithoutAuthSessionsInput = {
@@ -943,6 +967,7 @@ export type SystemUserUncheckedUpdateWithoutAuthSessionsInput = {
   passwordResetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  aiUserModelConfig?: Prisma.AiUserModelConfigUncheckedUpdateOneWithoutUserNestedInput
 }
 
 export type SystemUserCreateWithoutOrganizationInput = {
@@ -968,6 +993,7 @@ export type SystemUserCreateWithoutOrganizationInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigCreateNestedOneWithoutUserInput
 }
 
 export type SystemUserUncheckedCreateWithoutOrganizationInput = {
@@ -993,6 +1019,7 @@ export type SystemUserUncheckedCreateWithoutOrganizationInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigUncheckedCreateNestedOneWithoutUserInput
 }
 
 export type SystemUserCreateOrConnectWithoutOrganizationInput = {
@@ -1049,6 +1076,126 @@ export type SystemUserScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"SystemUser"> | Date | string
 }
 
+export type SystemUserCreateWithoutAiUserModelConfigInput = {
+  id?: string
+  userName: string
+  nickName?: string | null
+  phone?: string | null
+  email?: string | null
+  roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
+  status?: string
+  organizationRole?: string
+  companyName?: string | null
+  expireAt?: Date | string | null
+  remark?: string | null
+  passwordHash: string
+  passwordSalt: string
+  lastLoginAt?: Date | string | null
+  lastLoginIp?: string | null
+  failedLoginCount?: number
+  lockedUntil?: Date | string | null
+  passwordResetAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization?: Prisma.OrganizationCreateNestedOneWithoutUsersInput
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+}
+
+export type SystemUserUncheckedCreateWithoutAiUserModelConfigInput = {
+  id?: string
+  userName: string
+  nickName?: string | null
+  phone?: string | null
+  email?: string | null
+  roles?: Prisma.SystemUserCreaterolesInput | string[]
+  permissions?: Prisma.SystemUserCreatepermissionsInput | string[]
+  status?: string
+  organizationId?: string
+  organizationRole?: string
+  companyName?: string | null
+  expireAt?: Date | string | null
+  remark?: string | null
+  passwordHash: string
+  passwordSalt: string
+  lastLoginAt?: Date | string | null
+  lastLoginIp?: string | null
+  failedLoginCount?: number
+  lockedUntil?: Date | string | null
+  passwordResetAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type SystemUserCreateOrConnectWithoutAiUserModelConfigInput = {
+  where: Prisma.SystemUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.SystemUserCreateWithoutAiUserModelConfigInput, Prisma.SystemUserUncheckedCreateWithoutAiUserModelConfigInput>
+}
+
+export type SystemUserUpsertWithoutAiUserModelConfigInput = {
+  update: Prisma.XOR<Prisma.SystemUserUpdateWithoutAiUserModelConfigInput, Prisma.SystemUserUncheckedUpdateWithoutAiUserModelConfigInput>
+  create: Prisma.XOR<Prisma.SystemUserCreateWithoutAiUserModelConfigInput, Prisma.SystemUserUncheckedCreateWithoutAiUserModelConfigInput>
+  where?: Prisma.SystemUserWhereInput
+}
+
+export type SystemUserUpdateToOneWithWhereWithoutAiUserModelConfigInput = {
+  where?: Prisma.SystemUserWhereInput
+  data: Prisma.XOR<Prisma.SystemUserUpdateWithoutAiUserModelConfigInput, Prisma.SystemUserUncheckedUpdateWithoutAiUserModelConfigInput>
+}
+
+export type SystemUserUpdateWithoutAiUserModelConfigInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userName?: Prisma.StringFieldUpdateOperationsInput | string
+  nickName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordSalt?: Prisma.StringFieldUpdateOperationsInput | string
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginIp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  failedLoginCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  passwordResetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+}
+
+export type SystemUserUncheckedUpdateWithoutAiUserModelConfigInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userName?: Prisma.StringFieldUpdateOperationsInput | string
+  nickName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  roles?: Prisma.SystemUserUpdaterolesInput | string[]
+  permissions?: Prisma.SystemUserUpdatepermissionsInput | string[]
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  organizationRole?: Prisma.StringFieldUpdateOperationsInput | string
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  expireAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  remark?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordSalt?: Prisma.StringFieldUpdateOperationsInput | string
+  lastLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastLoginIp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  failedLoginCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  passwordResetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+}
+
 export type SystemUserCreateManyOrganizationInput = {
   id?: string
   userName: string
@@ -1096,6 +1243,7 @@ export type SystemUserUpdateWithoutOrganizationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigUpdateOneWithoutUserNestedInput
 }
 
 export type SystemUserUncheckedUpdateWithoutOrganizationInput = {
@@ -1121,6 +1269,7 @@ export type SystemUserUncheckedUpdateWithoutOrganizationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  aiUserModelConfig?: Prisma.AiUserModelConfigUncheckedUpdateOneWithoutUserNestedInput
 }
 
 export type SystemUserUncheckedUpdateManyWithoutOrganizationInput = {
@@ -1203,6 +1352,7 @@ export type SystemUserSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   authSessions?: boolean | Prisma.SystemUser$authSessionsArgs<ExtArgs>
+  aiUserModelConfig?: boolean | Prisma.SystemUser$aiUserModelConfigArgs<ExtArgs>
   _count?: boolean | Prisma.SystemUserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["systemUser"]>
 
@@ -1287,6 +1437,7 @@ export type SystemUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs
 export type SystemUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   authSessions?: boolean | Prisma.SystemUser$authSessionsArgs<ExtArgs>
+  aiUserModelConfig?: boolean | Prisma.SystemUser$aiUserModelConfigArgs<ExtArgs>
   _count?: boolean | Prisma.SystemUserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SystemUserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1301,6 +1452,7 @@ export type $SystemUserPayload<ExtArgs extends runtime.Types.Extensions.Internal
   objects: {
     organization: Prisma.$OrganizationPayload<ExtArgs>
     authSessions: Prisma.$AuthSessionPayload<ExtArgs>[]
+    aiUserModelConfig: Prisma.$AiUserModelConfigPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1721,6 +1873,7 @@ export interface Prisma__SystemUserClient<T, Null = never, ExtArgs extends runti
   readonly [Symbol.toStringTag]: "PrismaPromise"
   organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>): Prisma.Prisma__OrganizationClient<runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   authSessions<T extends Prisma.SystemUser$authSessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SystemUser$authSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuthSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  aiUserModelConfig<T extends Prisma.SystemUser$aiUserModelConfigArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SystemUser$aiUserModelConfigArgs<ExtArgs>>): Prisma.Prisma__AiUserModelConfigClient<runtime.Types.Result.GetResult<Prisma.$AiUserModelConfigPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2194,6 +2347,25 @@ export type SystemUser$authSessionsArgs<ExtArgs extends runtime.Types.Extensions
   take?: number
   skip?: number
   distinct?: Prisma.AuthSessionScalarFieldEnum | Prisma.AuthSessionScalarFieldEnum[]
+}
+
+/**
+ * SystemUser.aiUserModelConfig
+ */
+export type SystemUser$aiUserModelConfigArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AiUserModelConfig
+   */
+  select?: Prisma.AiUserModelConfigSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AiUserModelConfig
+   */
+  omit?: Prisma.AiUserModelConfigOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AiUserModelConfigInclude<ExtArgs> | null
+  where?: Prisma.AiUserModelConfigWhereInput
 }
 
 /**

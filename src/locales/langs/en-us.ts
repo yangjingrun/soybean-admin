@@ -262,8 +262,9 @@ const local: App.I18n.Schema = {
   },
   page: {
     aiSettings: {
-      title: 'Model Config',
-      description: 'Configure the model channel used by AI Leads, Match Analysis, and Email Drafting workflows.',
+      title: 'My Model Channel',
+      description:
+        'Configure the model channel used by AI requests from your account. Business AI requests do not fall back to a platform key.',
       providers: {
         openrouter: 'OpenRouter / relay provider',
         custom: 'OpenAI compatible',
@@ -284,7 +285,7 @@ const local: App.I18n.Schema = {
         apiKey: 'API Key'
       },
       placeholders: {
-        title: 'Default model',
+        title: 'My model channel',
         model: 'openai/gpt-4o-mini',
         apiBase: 'https://openrouter.ai/api/v1',
         apiKey: 'Enter the model service key'
@@ -316,8 +317,8 @@ const local: App.I18n.Schema = {
       },
       ...aiSettingsHunterLocale,
       messages: {
-        loaded: 'Model config loaded',
-        saved: 'Model config saved',
+        loaded: 'Personal model channel loaded',
+        saved: 'Personal model channel saved',
         testPassed: 'Model connection is healthy'
       }
     },
@@ -360,7 +361,7 @@ const local: App.I18n.Schema = {
         totalTokens: 'Total',
         empty: 'No test result yet',
         modelConfigMissingTitle: 'Model config is missing',
-        modelConfigMissingDesc: 'configure the default model before testing prompts'
+        modelConfigMissingDesc: 'configure your personal model channel before testing prompts'
       },
       messages: {
         loaded: 'Prompts loaded',

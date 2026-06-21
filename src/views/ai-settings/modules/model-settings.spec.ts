@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { defaultAiModelConfigKey } from '@/constants/ai-gateway';
-import { buildModelTestPayload, canSaveModelConfig, canTestModelConfig } from './model-settings';
+import {
+  buildModelTestPayload,
+  canSaveModelConfig,
+  canTestModelConfig,
+  resolveAiSettingsTabVisibility
+} from './model-settings';
 
 describe('ai settings model helpers', () => {
   it('tests the inline model config when the user entered a new API key', () => {
@@ -21,7 +25,7 @@ describe('ai settings model helpers', () => {
     });
   });
 
-  it('tests the saved model config instead of sending an empty inline API key', () => {
+  it('tests the saved personal model config without falling back to platform config key', () => {
     const payload = buildModelTestPayload(
       createModelForm({ apiKey: '' }),
       { hasApiKey: true, maskedApiKey: 'sk-s****-old' },
@@ -29,7 +33,6 @@ describe('ai settings model helpers', () => {
     );
 
     assert.deepEqual(payload, {
-      modelConfigKey: defaultAiModelConfigKey,
       systemPrompt: 'system',
       prompt: 'ping'
     });
@@ -42,11 +45,26 @@ describe('ai settings model helpers', () => {
     assert.equal(canTestModelConfig(form, savedSecret), true);
     assert.equal(canSaveModelConfig(form), false);
   });
+
+  it('keeps the personal model tab visible without platform model permission', () => {
+    const visibility = resolveAiSettingsTabVisibility({
+      canManageSerperConfig: false,
+      canManageHunterConfig: false,
+      canManageAiLeadQueueConfig: false
+    });
+
+    assert.deepEqual(visibility, {
+      model: true,
+      serper: false,
+      hunter: false,
+      queue: false
+    });
+  });
 });
 
 function createModelForm(overrides: Partial<Parameters<typeof buildModelTestPayload>[0]> = {}) {
   return {
-    configKey: defaultAiModelConfigKey,
+    configKey: 'default',
     title: '默认模型',
     providerName: 'openai',
     apiBase: 'http://localhost:65074/v1',

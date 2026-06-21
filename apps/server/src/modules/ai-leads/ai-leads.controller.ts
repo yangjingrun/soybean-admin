@@ -75,12 +75,14 @@ export class AiLeadsController {
 
     try {
       await this.aiLeadsService.searchOrchestrateStream(dto, { user }, reporter);
-    } catch {
+    } catch (error) {
+      const message = readStreamErrorMessage(error);
+
       await reporter.emit({
         type: 'workflow_failed',
         title: '搜索采集失败',
-        description: '搜索采集失败，请稍后重试',
-        errorMessage: '搜索采集失败，请稍后重试'
+        description: message,
+        errorMessage: message
       });
     } finally {
       reply.raw.end();
@@ -226,4 +228,8 @@ export class AiLeadsController {
   private requireQueueConfigPermission(user: RequestUserContext) {
     requirePermission(user, aiLeadsQueueConfigManagePermission, '无权维护 AI 获客任务配置');
   }
+}
+
+function readStreamErrorMessage(error: unknown) {
+  return error instanceof Error && error.message ? error.message : '搜索采集失败，请稍后重试';
 }

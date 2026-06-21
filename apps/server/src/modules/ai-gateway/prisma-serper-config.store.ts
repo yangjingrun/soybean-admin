@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppConfigService } from '../app-config/app-config.service';
 import { PrismaService } from '../database/prisma.service';
+import { SecretCryptoService } from '../../shared/secret-crypto.service';
 import type { SerperConfigRecord, SerperConfigStore } from './ai-gateway.types';
-import { encryptAiConfigApiKey, resolveAiConfigApiKey } from './ai-config-secret-crypto';
+import { resolveStoredApiKey, toEncryptedApiKeyStorage } from './ai-config-secret-fields';
 
 type SerperConfigModelLike = Pick<SerperConfigRecord, 'configKey' | 'title' | 'apiBase' | 'apiKey'> & {
   encryptedApiKey?: string | null;
@@ -13,7 +13,7 @@ type SerperConfigModelLike = Pick<SerperConfigRecord, 'configKey' | 'title' | 'a
 export class PrismaSerperConfigStore implements SerperConfigStore {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(AppConfigService) private readonly appConfigService: AppConfigService
+    @Inject(SecretCryptoService) private readonly secretCryptoService: SecretCryptoService
   ) {}
 
   /** Reads one saved Serper config by stable config key. */
@@ -22,7 +22,7 @@ export class PrismaSerperConfigStore implements SerperConfigStore {
       where: { configKey }
     });
 
-    return record ? toSerperConfigRecord(record, this.appConfigService) : null;
+    return record ? toSerperConfigRecord(record, this.secretCryptoService) : null;
   }
 
   /** Persists one Serper config for backend search calls. */
@@ -30,7 +30,7 @@ export class PrismaSerperConfigStore implements SerperConfigStore {
     const data = {
       title: record.title,
       apiBase: record.apiBase,
-      ...encryptAiConfigApiKey(record.apiKey, this.appConfigService)
+      ...toEncryptedApiKeyStorage(this.secretCryptoService, record.apiKey)
     };
     const saved = await this.prisma.serperConfig.upsert({
       where: { configKey: record.configKey },
@@ -41,16 +41,16 @@ export class PrismaSerperConfigStore implements SerperConfigStore {
       update: data
     });
 
-    return toSerperConfigRecord(saved, this.appConfigService);
+    return toSerperConfigRecord(saved, this.secretCryptoService);
   }
 }
 
-function toSerperConfigRecord(record: SerperConfigModelLike, appConfigService: AppConfigService): SerperConfigRecord {
+function toSerperConfigRecord(record: SerperConfigModelLike, secretCryptoService: SecretCryptoService): SerperConfigRecord {
   return {
     configKey: record.configKey,
     title: record.title,
     apiBase: record.apiBase,
-    apiKey: resolveAiConfigApiKey(record, appConfigService),
+    apiKey: resolveStoredApiKey(secretCryptoService, record),
     updatedAt: record.updatedAt.toISOString()
   };
 }

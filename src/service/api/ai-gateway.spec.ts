@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import {
   aiGatewayGenerateTextTimeout,
   buildGenerateAiTextRequestConfig,
-  buildSaveAiModelConfigRequestConfig
+  buildSaveMyAiModelConfigRequestConfig
 } from './ai-gateway.shared';
 
 describe('ai gateway api helpers', () => {
@@ -22,10 +22,8 @@ describe('ai gateway api helpers', () => {
     assert.deepEqual(config.data, payload);
   });
 
-  it('keeps model runtime options in the save model config request payload', () => {
+  it('saves my model config through the personal model endpoint', () => {
     const payload = {
-      configKey: 'default',
-      title: '默认模型',
       providerName: 'openrouter',
       apiBase: 'https://openrouter.ai/api/v1',
       apiKey: 'sk-test',
@@ -34,9 +32,9 @@ describe('ai gateway api helpers', () => {
       maxOutputTokens: 1200
     };
 
-    const config = buildSaveAiModelConfigRequestConfig(payload);
+    const config = buildSaveMyAiModelConfigRequestConfig(payload);
 
-    assert.equal(config.url, '/ai-gateway/model-configs');
+    assert.equal(config.url, '/ai-gateway/my-model-config');
     assert.equal(config.method, 'post');
     assert.deepEqual(config.data, payload);
   });

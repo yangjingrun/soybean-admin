@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { aiLeadsKeywordStrategyManagePermission, aiLeadsQueueConfigManagePermission } from '@soybean/shared';
 import type { FastifyReply } from 'fastify';
 import type { RequestUserContext } from '../../shared/request-context';
@@ -132,6 +132,36 @@ describe('AiLeadsController', () => {
     assert.equal(event.title, '开始搜索采集');
     assert.equal(event.sequence, 1);
     assert.match(event.runId, /^[0-9a-f-]+$/i);
+  });
+
+  it('keeps personal model config errors visible in stream failures', async () => {
+    const reply = createReply();
+    const user = createUser(['R_SUPER']);
+    const controller = new AiLeadsController(
+      {
+        async searchOrchestrateStream() {
+          throw new BadRequestException('请先配置个人模型通道');
+        }
+      } as unknown as AiLeadsService,
+      {} as unknown as AiLeadSearchTaskService
+    );
+
+    await controller.searchOrchestrateStream(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20
+      },
+      user,
+      reply.reply
+    );
+
+    assert.equal(reply.statusCode, 200);
+    assert.equal(reply.ended, true);
+    assert.equal(reply.chunks.length, 1);
+    const event = JSON.parse(reply.chunks[0]);
+    assert.equal(event.type, 'workflow_failed');
+    assert.equal(event.description, '请先配置个人模型通道');
+    assert.equal(event.errorMessage, '请先配置个人模型通道');
   });
 
   it('requires keyword strategy permission before updating keyword history', async () => {

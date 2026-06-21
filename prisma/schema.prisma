@@ -108,6 +108,7 @@ model SystemUser {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   authSessions AuthSession[]
+  aiUserModelConfig AiUserModelConfig?
 
   @@index([status])
   @@index([organizationId])
@@ -898,6 +899,22 @@ model AiModelConfig {
   maxOutputTokens Int?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model AiUserModelConfig {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  providerName    String
+  apiBase         String
+  apiKey          String
+  encryptedApiKey String?
+  model           String
+  temperature     Float?
+  maxOutputTokens Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SerperConfig {

@@ -417,6 +417,7 @@ export const ModelName = {
   CrmAiDraftQueueConfig: 'CrmAiDraftQueueConfig',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
+  AiUserModelConfig: 'AiUserModelConfig',
   SerperConfig: 'SerperConfig',
   HunterConfig: 'HunterConfig',
   AiLeadKeywordHistory: 'AiLeadKeywordHistory',
@@ -440,7 +441,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmLeadEnrichmentHistory" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmLeadEnrichmentHistory" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiModelConfig" | "aiUserModelConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2886,6 +2887,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AiUserModelConfig: {
+      payload: Prisma.$AiUserModelConfigPayload<ExtArgs>
+      fields: Prisma.AiUserModelConfigFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AiUserModelConfigFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AiUserModelConfigFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>
+        }
+        findFirst: {
+          args: Prisma.AiUserModelConfigFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AiUserModelConfigFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>
+        }
+        findMany: {
+          args: Prisma.AiUserModelConfigFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>[]
+        }
+        create: {
+          args: Prisma.AiUserModelConfigCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>
+        }
+        createMany: {
+          args: Prisma.AiUserModelConfigCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AiUserModelConfigCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>[]
+        }
+        delete: {
+          args: Prisma.AiUserModelConfigDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>
+        }
+        update: {
+          args: Prisma.AiUserModelConfigUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>
+        }
+        deleteMany: {
+          args: Prisma.AiUserModelConfigDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AiUserModelConfigUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AiUserModelConfigUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>[]
+        }
+        upsert: {
+          args: Prisma.AiUserModelConfigUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiUserModelConfigPayload>
+        }
+        aggregate: {
+          args: Prisma.AiUserModelConfigAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAiUserModelConfig>
+        }
+        groupBy: {
+          args: Prisma.AiUserModelConfigGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiUserModelConfigGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AiUserModelConfigCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiUserModelConfigCountAggregateOutputType> | number
+        }
+      }
+    }
     SerperConfig: {
       payload: Prisma.$SerperConfigPayload<ExtArgs>
       fields: Prisma.SerperConfigFieldRefs
@@ -4175,6 +4250,23 @@ export const AiModelConfigScalarFieldEnum = {
 export type AiModelConfigScalarFieldEnum = (typeof AiModelConfigScalarFieldEnum)[keyof typeof AiModelConfigScalarFieldEnum]
 
 
+export const AiUserModelConfigScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  providerName: 'providerName',
+  apiBase: 'apiBase',
+  apiKey: 'apiKey',
+  encryptedApiKey: 'encryptedApiKey',
+  model: 'model',
+  temperature: 'temperature',
+  maxOutputTokens: 'maxOutputTokens',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AiUserModelConfigScalarFieldEnum = (typeof AiUserModelConfigScalarFieldEnum)[keyof typeof AiUserModelConfigScalarFieldEnum]
+
+
 export const SerperConfigScalarFieldEnum = {
   id: 'id',
   configKey: 'configKey',
@@ -4673,6 +4765,7 @@ export type GlobalOmitConfig = {
   crmAiDraftQueueConfig?: Prisma.CrmAiDraftQueueConfigOmit
   aiPromptConfig?: Prisma.AiPromptConfigOmit
   aiModelConfig?: Prisma.AiModelConfigOmit
+  aiUserModelConfig?: Prisma.AiUserModelConfigOmit
   serperConfig?: Prisma.SerperConfigOmit
   hunterConfig?: Prisma.HunterConfigOmit
   aiLeadKeywordHistory?: Prisma.AiLeadKeywordHistoryOmit

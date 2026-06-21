@@ -5,6 +5,7 @@ import {
   toCrmAiDraftTaskJobId
 } from './crm-ai-draft-task-queue.service';
 import { CrmAiDraftTaskWorkerService } from './crm-ai-draft-task-worker.service';
+import type { CrmUserContext } from './shared/crm-context';
 import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import type {
   CrmAiDraftTaskItemRecord,
@@ -98,7 +99,8 @@ describe('CrmAiDraftTaskWorkerService', () => {
     await worker.processTaskJob(createJob());
 
     assert.equal(aiDraftService.calls.length, 1);
-    assert.equal(aiDraftService.calls[0].stepIndex, 2);
+    assert.equal(aiDraftService.calls[0].input.stepIndex, 2);
+    assert.equal(aiDraftService.calls[0].context.userId, 'user-1');
     assert.equal(store.followUpBundles.length, 1);
     assert.deepEqual(store.followUpBundles[0].taskGuard, {
       taskId: 'task-1',
@@ -121,6 +123,20 @@ describe('CrmAiDraftTaskWorkerService', () => {
     assert.equal(notifications.records[0].targetId, 'task-1');
     assert.equal(store.task.readAt, null);
     assert.equal(store.sendQueueCalls, 0);
+  });
+
+  it('treats legacy tasks without organization role as member context', async () => {
+    const store = createWorkerStore({
+      task: createTask({ organizationRole: null })
+    });
+    const aiDraftService = createAiDraftService();
+    const worker = new CrmAiDraftTaskWorkerService(store as never, aiDraftService as never);
+
+    await worker.processTaskJob(createJob());
+
+    assert.equal(aiDraftService.calls.length, 1);
+    assert.equal(aiDraftService.calls[0].context.organizationRole, 'member');
+    assert.equal(store.task.status, 'completed');
   });
 
   it('business-skips an item after owner-only recheck without calling AI or send queue', async () => {
@@ -400,13 +416,13 @@ function createWorkerStore(
 }
 
 function createAiDraftService(error?: Error | Error[]) {
-  const calls: CrmAiDraftPromptInput[] = [];
+  const calls: Array<{ input: CrmAiDraftPromptInput; context: CrmUserContext }> = [];
   const errors = Array.isArray(error) ? [...error] : error ? [error] : [];
 
   return {
     calls,
-    async generateDraft(input: CrmAiDraftPromptInput) {
-      calls.push(input);
+    async generateDraft(input: CrmAiDraftPromptInput, context: CrmUserContext) {
+      calls.push({ input, context });
       const nextError = errors.shift();
       if (nextError) throw nextError;
 
@@ -465,7 +481,7 @@ function createTask(input: Partial<CrmAiDraftTaskRecord> = {}): CrmAiDraftTaskRe
   return {
     id: input.id ?? 'task-1',
     organizationId: input.organizationId ?? 'org-1',
-    organizationRole: input.organizationRole ?? 'member',
+    organizationRole: input.organizationRole === undefined ? 'member' : input.organizationRole,
     ownerUserId: input.ownerUserId ?? 'user-1',
     ownerUserName: input.ownerUserName ?? 'Alice',
     status: input.status ?? 'queued',

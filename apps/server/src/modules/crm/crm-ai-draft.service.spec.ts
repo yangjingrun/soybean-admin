@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { RequestUserContext } from '../../shared/request-context';
 import { CrmAiDraftService } from './crm-ai-draft.service';
+import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import type { CrmProductLineAiWritingConfig } from './crm.types';
 
 describe('CrmAiDraftService', () => {
   it('generates AI draft and returns metadata snapshot', async () => {
-    const calls: unknown[] = [];
+    const calls: Array<{ input: unknown; context: unknown }> = [];
     const service = new CrmAiDraftService({
-      async generateText(input: unknown) {
-        calls.push(input);
+      async generateText(input: unknown, context: unknown) {
+        calls.push({ input, context });
 
         return {
           text: JSON.stringify({
@@ -23,34 +25,15 @@ describe('CrmAiDraftService', () => {
       }
     } as never);
 
-    const result = await service.generateDraft({
-      account: { name: 'ABC Trading', country: 'AE', domain: 'abc.example', customerType: 'distributor' },
-      contact: { fullName: 'Alex', title: 'Buyer', maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
-      productLine: {
-        id: 'line-1',
-        name: 'Bearing Series',
-        targetCustomerType: 'distributor',
-        coreSellingPoints: 'Stable stock',
-        moq: '100 pcs',
-        leadTime: null,
-        paymentTerms: null,
-        certifications: null,
-        catalogUrl: null,
-        websiteUrl: null,
-        commonModelsText: '6204'
-      },
-      writingConfig: createWritingConfig(),
-      stepIndex: 1,
-      previousMessages: [],
-      senderName: 'Alice'
-    });
+    const result = await service.generateDraft(createPromptInput(), createContext());
 
     assert.equal(result.subject, 'Bearing supply option');
     assert.equal(result.metadata.reason, 'Focused on sourcing angle.');
     assert.equal(result.metadata.snapshot.productLineId, 'line-1');
     assert.equal(result.metadata.snapshot.stepIndex, 1);
     assert.equal(result.metadata.snapshot.writingConfig.steps.length, 5);
-    assert.equal((calls[0] as { modelConfigKey?: string }).modelConfigKey, 'default');
+    assert.equal((calls[0]?.input as { modelConfigKey?: string }).modelConfigKey, 'default');
+    assert.equal((calls[0]?.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
   });
 
   it('rejects invalid AI JSON output', async () => {
@@ -85,11 +68,46 @@ describe('CrmAiDraftService', () => {
         stepIndex: 1,
         previousMessages: [],
         senderName: 'Alice'
-      }),
+      }, createContext()),
       /AI 返回内容不是合法 JSON/
     );
   });
 });
+
+function createPromptInput(): CrmAiDraftPromptInput {
+  return {
+    account: { name: 'ABC Trading', country: 'AE', domain: 'abc.example', customerType: 'distributor' },
+    contact: { fullName: 'Alex', title: 'Buyer', maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
+    productLine: {
+      id: 'line-1',
+      name: 'Bearing Series',
+      targetCustomerType: 'distributor',
+      coreSellingPoints: 'Stable stock',
+      moq: '100 pcs',
+      leadTime: null,
+      paymentTerms: null,
+      certifications: null,
+      catalogUrl: null,
+      websiteUrl: null,
+      commonModelsText: '6204'
+    },
+    writingConfig: createWritingConfig(),
+    stepIndex: 1 as const,
+    previousMessages: [],
+    senderName: 'Alice'
+  };
+}
+
+function createContext(): RequestUserContext {
+  return {
+    userId: 'u-owner',
+    userName: 'Alice',
+    roles: ['R_ADMIN'],
+    buttons: [],
+    organizationId: 'org-1',
+    organizationRole: 'member'
+  };
+}
 
 function createWritingConfig(): CrmProductLineAiWritingConfig {
   return {

@@ -49,24 +49,12 @@ export function setupElegantRouter() {
       if (key === 'ai-settings') {
         meta.icon = 'mdi:server-network-outline';
         meta.order = 3;
-        meta.permissions = [
-          'ai:settings:model:read',
-          'ai:settings:model:write',
-          'ai:settings:model:test',
-          'ai:settings:serper:read',
-          'ai:settings:serper:write',
-          'ai:settings:serper:test',
-          'ai:settings:hunter:read',
-          'ai:settings:hunter:write',
-          'ai:settings:hunter:test',
-          'ai-leads:queue-config:manage'
-        ];
       }
 
       if (key === 'ai-prompt-settings') {
         meta.icon = 'mdi:file-document-edit-outline';
         meta.order = 4;
-        meta.permissions = ['ai:settings:prompt:read', 'ai:settings:prompt:write', 'ai:settings:prompt:test'];
+        meta.permissions = ['ai:settings:prompt:manage'];
       }
 
       if (key === 'crm') {

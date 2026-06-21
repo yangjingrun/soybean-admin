@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { aiLeadsKeywordStrategyManagePermission } from '@soybean/shared';
 import type { ElegantConstRoute } from '@elegant-router/types';
+import { generatedRoutes } from '../../../router/elegant/routes';
 import type { RouteAccessMeta } from './access';
 import { filterAuthRoutesByUser, hasRouteAccess } from './access';
 
@@ -39,6 +40,13 @@ describe('route shared auth helpers', () => {
     const [route] = filterAuthRoutesByUser(routes, createUser());
 
     assert.deepEqual(route.children?.map(child => child.name), ['crm_visible']);
+  });
+
+  it('keeps ai settings reachable for users without platform config permissions', () => {
+    const route = generatedRoutes.find(item => item.name === 'ai-settings');
+
+    assert.ok(route);
+    assert.equal(hasRouteAccess(createUser(), route.meta), true);
   });
 });
 

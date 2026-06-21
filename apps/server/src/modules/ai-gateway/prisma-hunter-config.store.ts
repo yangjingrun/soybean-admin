@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppConfigService } from '../app-config/app-config.service';
 import { PrismaService } from '../database/prisma.service';
+import { SecretCryptoService } from '../../shared/secret-crypto.service';
 import type { HunterConfigRecord, HunterConfigStore } from './ai-gateway.types';
-import { encryptAiConfigApiKey, resolveAiConfigApiKey } from './ai-config-secret-crypto';
+import { resolveStoredApiKey, toEncryptedApiKeyStorage } from './ai-config-secret-fields';
 
 type HunterConfigModelLike = Pick<HunterConfigRecord, 'configKey' | 'title' | 'apiBase' | 'apiKey'> & {
   encryptedApiKey?: string | null;
@@ -13,7 +13,7 @@ type HunterConfigModelLike = Pick<HunterConfigRecord, 'configKey' | 'title' | 'a
 export class PrismaHunterConfigStore implements HunterConfigStore {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(AppConfigService) private readonly appConfigService: AppConfigService
+    @Inject(SecretCryptoService) private readonly secretCryptoService: SecretCryptoService
   ) {}
 
   /** Reads one saved Hunter config by stable config key. */
@@ -22,7 +22,7 @@ export class PrismaHunterConfigStore implements HunterConfigStore {
       where: { configKey }
     });
 
-    return record ? toHunterConfigRecord(record, this.appConfigService) : null;
+    return record ? toHunterConfigRecord(record, this.secretCryptoService) : null;
   }
 
   /** Persists one Hunter config for backend email enrichment calls. */
@@ -30,7 +30,7 @@ export class PrismaHunterConfigStore implements HunterConfigStore {
     const data = {
       title: record.title,
       apiBase: record.apiBase,
-      ...encryptAiConfigApiKey(record.apiKey, this.appConfigService)
+      ...toEncryptedApiKeyStorage(this.secretCryptoService, record.apiKey)
     };
     const saved = await this.prisma.hunterConfig.upsert({
       where: { configKey: record.configKey },
@@ -41,16 +41,16 @@ export class PrismaHunterConfigStore implements HunterConfigStore {
       update: data
     });
 
-    return toHunterConfigRecord(saved, this.appConfigService);
+    return toHunterConfigRecord(saved, this.secretCryptoService);
   }
 }
 
-function toHunterConfigRecord(record: HunterConfigModelLike, appConfigService: AppConfigService): HunterConfigRecord {
+function toHunterConfigRecord(record: HunterConfigModelLike, secretCryptoService: SecretCryptoService): HunterConfigRecord {
   return {
     configKey: record.configKey,
     title: record.title,
     apiBase: record.apiBase,
-    apiKey: resolveAiConfigApiKey(record, appConfigService),
+    apiKey: resolveStoredApiKey(secretCryptoService, record),
     updatedAt: record.updatedAt.toISOString()
   };
 }

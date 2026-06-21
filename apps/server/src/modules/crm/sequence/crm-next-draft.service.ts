@@ -247,41 +247,44 @@ export class CrmNextDraftService {
       throw new BadRequestException('AI 写信服务未初始化');
     }
 
-    const draft = await this.aiDraftService.generateDraft({
-      account: {
-        name: account.name,
-        country: account.country,
-        domain: account.domain,
-        customerType: account.customerType
+    const draft = await this.aiDraftService.generateDraft(
+      {
+        account: {
+          name: account.name,
+          country: account.country,
+          domain: account.domain,
+          customerType: account.customerType
+        },
+        contact: {
+          fullName: contact.fullName,
+          title: contact.title,
+          maskedEmail: contact.maskedEmail,
+          emailStatus: contact.emailStatus
+        },
+        productLine: {
+          id: productLine.id,
+          name: productLine.name,
+          targetCustomerType: productLine.targetCustomerType,
+          coreSellingPoints: productLine.coreSellingPoints,
+          moq: productLine.moq,
+          leadTime: productLine.leadTime,
+          paymentTerms: productLine.paymentTerms,
+          certifications: productLine.certifications,
+          catalogUrl: productLine.catalogUrl,
+          websiteUrl: productLine.websiteUrl,
+          commonModelsText: productLine.commonModelsText
+        },
+        writingConfig: productLine.aiWritingConfig,
+        stepIndex,
+        previousMessages: previousMessages.map(message => ({
+          stepIndex: message.stepIndex,
+          subject: message.subject,
+          bodyText: message.bodyText
+        })),
+        senderName: context.userName
       },
-      contact: {
-        fullName: contact.fullName,
-        title: contact.title,
-        maskedEmail: contact.maskedEmail,
-        emailStatus: contact.emailStatus
-      },
-      productLine: {
-        id: productLine.id,
-        name: productLine.name,
-        targetCustomerType: productLine.targetCustomerType,
-        coreSellingPoints: productLine.coreSellingPoints,
-        moq: productLine.moq,
-        leadTime: productLine.leadTime,
-        paymentTerms: productLine.paymentTerms,
-        certifications: productLine.certifications,
-        catalogUrl: productLine.catalogUrl,
-        websiteUrl: productLine.websiteUrl,
-        commonModelsText: productLine.commonModelsText
-      },
-      writingConfig: productLine.aiWritingConfig,
-      stepIndex,
-      previousMessages: previousMessages.map(message => ({
-        stepIndex: message.stepIndex,
-        subject: message.subject,
-        bodyText: message.bodyText
-      })),
-      senderName: context.userName
-    });
+      context
+    );
 
     return {
       subject: draft.subject || fallbackDraft.subject,

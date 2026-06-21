@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import type { RequestUserContext } from '../../shared/request-context';
+import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import { createSystemLogErrorMetadata } from '../system-log/system-log-error-taxonomy';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
@@ -11,7 +11,7 @@ import {
   defaultAiModelConfigKey,
   defaultAiTemperature
 } from './ai-gateway.constants';
-import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR } from './ai-gateway.tokens';
+import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR, AI_USER_MODEL_CONFIG_STORE } from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
 import type { SaveAiModelConfigDto } from './dto/ai-model-config.dto';
@@ -22,6 +22,9 @@ import type {
   AiModelConfigRecord,
   AiModelConfigViewRecord,
   AiModelConfigStore,
+  AiUserModelConfigRecord,
+  AiUserModelConfigStore,
+  AiUserModelConfigViewRecord,
   HunterConfigViewRecord,
   AiPromptRecord,
   AiPromptStore,
@@ -37,6 +40,7 @@ export class AiGatewayService {
     @Inject(AI_TEXT_GENERATOR) private readonly textGenerator: AiTextGenerator,
     @Inject(AI_PROMPT_STORE) private readonly promptStore: AiPromptStore,
     @Inject(AI_MODEL_CONFIG_STORE) private readonly modelConfigStore: AiModelConfigStore,
+    @Inject(AI_USER_MODEL_CONFIG_STORE) private readonly userModelConfigStore: AiUserModelConfigStore,
     @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder,
     @Optional() @Inject(AiProviderConfigService) private readonly providerConfigService?: AiProviderConfigService
   ) {}
@@ -153,6 +157,29 @@ export class AiGatewayService {
     return toModelConfigView(record, { exposeApiKey: true });
   }
 
+  /** Saves the current user's personal model channel. */
+  async saveMyModelConfig(dto: SaveAiModelConfigDto, user: RequestUserContext): Promise<AiUserModelConfigViewRecord> {
+    const record = await this.userModelConfigStore.saveUserModelConfig({
+      userId: user.userId,
+      providerName: dto.providerName.trim(),
+      apiBase: dto.apiBase.trim(),
+      apiKey: dto.apiKey.trim(),
+      model: dto.model.trim(),
+      temperature: dto.temperature ?? defaultAiTemperature,
+      maxOutputTokens: dto.maxOutputTokens,
+      updatedAt: new Date().toISOString()
+    });
+
+    return toUserModelConfigView(record, { exposeApiKey: true });
+  }
+
+  /** Reads the current user's personal model channel or returns an editable draft. */
+  async getMyModelConfigDraft(user: RequestUserContext): Promise<AiUserModelConfigViewRecord> {
+    const record = await this.userModelConfigStore.getUserModelConfig(user.userId);
+
+    return toUserModelConfigView(record ?? createUserModelConfigDraft(user.userId), { exposeApiKey: true });
+  }
+
   /** Generates text through the configured model and injects saved prompt rules when promptKey is provided. */
   async generateText(dto: GenerateAiTextDto, context: GenerateAiTextContext = {}) {
     const requestId = randomUUID();
@@ -166,7 +193,7 @@ export class AiGatewayService {
     let params: AiTextGenerateParams | null = null;
 
     try {
-      params = await this.toGenerateParams(dto);
+      params = await this.toGenerateParams(dto, context);
 
       await this.recordProgressLog(
         'AI 模型调用中',
@@ -211,7 +238,7 @@ export class AiGatewayService {
     }
   }
 
-  private async toGenerateParams(dto: GenerateAiTextDto): Promise<AiTextGenerateParams> {
+  private async toGenerateParams(dto: GenerateAiTextDto, context: GenerateAiTextContext): Promise<AiTextGenerateParams> {
     const promptKey = dto.promptKey ? normalizePromptKey(dto.promptKey) : undefined;
     const savedPrompt = promptKey ? await this.getPrompt(promptKey) : null;
     const systemPrompt = savedPrompt?.systemPrompt.trim() || dto.systemPrompt?.trim();
@@ -220,7 +247,7 @@ export class AiGatewayService {
       throw new NotFoundException(`提示词未配置：${promptKey}`);
     }
 
-    const modelConfig = await this.resolveModelConfig(dto);
+    const modelConfig = await this.resolveModelConfig(dto, context);
     const params: AiTextGenerateParams = {
       providerName: modelConfig.providerName,
       apiBase: modelConfig.apiBase,
@@ -239,7 +266,10 @@ export class AiGatewayService {
     return params;
   }
 
-  private async resolveModelConfig(dto: GenerateAiTextDto): Promise<AiModelConfigRecord> {
+  private async resolveModelConfig(
+    dto: GenerateAiTextDto,
+    context: GenerateAiTextContext
+  ): Promise<AiModelConfigRecord | AiUserModelConfigRecord> {
     if (dto.apiBase?.trim() && dto.apiKey?.trim() && dto.model?.trim()) {
       return {
         configKey: 'inline',
@@ -254,7 +284,17 @@ export class AiGatewayService {
       };
     }
 
-    return this.getModelConfig(dto.modelConfigKey || defaultAiModelConfigKey);
+    return this.getRequiredUserModelConfig(requireRequestUserContext(context.user ?? null));
+  }
+
+  private async getRequiredUserModelConfig(user: RequestUserContext): Promise<AiUserModelConfigRecord> {
+    const record = await this.userModelConfigStore.getUserModelConfig(user.userId);
+
+    if (!record?.apiKey.trim()) {
+      throw new BadRequestException('请先配置个人模型通道');
+    }
+
+    return record;
   }
 
   /** Record a visible processing stage for long-running AI requests. */
@@ -356,6 +396,18 @@ function createModelConfigDraft(configKey: string): AiModelConfigRecord {
   };
 }
 
+function createUserModelConfigDraft(userId: string): AiUserModelConfigRecord {
+  return {
+    userId,
+    providerName: 'openrouter',
+    apiBase: 'https://openrouter.ai/api/v1',
+    apiKey: '',
+    model: 'openai/gpt-4o-mini',
+    temperature: defaultAiTemperature,
+    updatedAt: ''
+  };
+}
+
 function toModelConfigView(
   record: AiModelConfigRecord,
   options: {
@@ -363,6 +415,21 @@ function toModelConfigView(
   } = {}
 ): AiModelConfigViewRecord {
   const { apiKey, ...view } = record;
+
+  return {
+    ...view,
+    ...(options.exposeApiKey ? { apiKey } : {}),
+    ...toSecretView(apiKey)
+  };
+}
+
+function toUserModelConfigView(
+  record: AiUserModelConfigRecord,
+  options: {
+    exposeApiKey?: boolean;
+  } = {}
+): AiUserModelConfigViewRecord {
+  const { userId: _userId, apiKey, ...view } = record;
 
   return {
     ...view,

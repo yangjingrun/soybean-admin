@@ -1,5 +1,9 @@
 import { request } from '../request';
-import { buildGenerateAiTextRequestConfig, buildSaveAiModelConfigRequestConfig } from './ai-gateway.shared';
+import {
+  buildGenerateAiTextRequestConfig,
+  buildSaveAiModelConfigRequestConfig,
+  buildSaveMyAiModelConfigRequestConfig
+} from './ai-gateway.shared';
 
 /** Save one fixed system prompt for later model calls. */
 export function saveAiPrompt(data: Api.AiGateway.SavePromptPayload) {
@@ -26,6 +30,18 @@ export function saveAiModelConfig(data: Api.AiGateway.SaveModelConfigPayload) {
 export function getAiModelConfig(configKey = 'default') {
   return request<Api.AiGateway.AiModelConfigRecord>({
     url: `/ai-gateway/model-configs/${configKey}`
+  });
+}
+
+/** Save the current account model channel used by personal AI workflows. */
+export function saveMyAiModelConfig(data: Api.AiGateway.SaveMyModelConfigPayload) {
+  return request<Api.AiGateway.MyAiModelConfigRecord>(buildSaveMyAiModelConfigRequestConfig(data));
+}
+
+/** Read the current account model channel draft. */
+export function getMyAiModelConfig() {
+  return request<Api.AiGateway.MyAiModelConfigRecord>({
+    url: '/ai-gateway/my-model-config'
   });
 }
 

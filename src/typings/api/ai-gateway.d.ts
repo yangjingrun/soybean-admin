@@ -39,6 +39,20 @@ declare namespace Api {
       updatedAt: string;
     }
 
+    interface MyAiModelConfigRecord {
+      configKey?: string;
+      title?: string;
+      providerName: string;
+      apiBase: string;
+      apiKey?: string;
+      model: string;
+      temperature?: number;
+      maxOutputTokens?: number;
+      hasApiKey: boolean;
+      maskedApiKey: string;
+      updatedAt: string;
+    }
+
     interface SerperConfigRecord {
       configKey: string;
       title: string;
@@ -62,6 +76,15 @@ declare namespace Api {
     interface SaveModelConfigPayload {
       configKey: string;
       title: string;
+      providerName: string;
+      apiBase: string;
+      apiKey: string;
+      model: string;
+      temperature?: number;
+      maxOutputTokens?: number;
+    }
+
+    interface SaveMyModelConfigPayload {
       providerName: string;
       apiBase: string;
       apiKey: string;

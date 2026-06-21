@@ -59,6 +59,26 @@ export interface AiModelConfigStore {
   saveModelConfig(record: AiModelConfigRecord): Promise<AiModelConfigRecord>;
 }
 
+export interface AiUserModelConfigRecord {
+  userId: string;
+  providerName: string;
+  apiBase: string;
+  apiKey: string;
+  model: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  updatedAt: string;
+}
+
+export type AiUserModelConfigViewRecord = Omit<AiUserModelConfigRecord, 'userId' | 'apiKey'> &
+  Partial<Pick<AiUserModelConfigRecord, 'apiKey'>> &
+  SecretViewFields;
+
+export interface AiUserModelConfigStore {
+  getUserModelConfig(userId: string): Promise<AiUserModelConfigRecord | null>;
+  saveUserModelConfig(record: AiUserModelConfigRecord): Promise<AiUserModelConfigRecord>;
+}
+
 export interface SerperConfigRecord {
   configKey: string;
   title: string;

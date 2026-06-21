@@ -224,41 +224,44 @@ export class CrmDraftPreviewService {
       throw new BadRequestException('产品资料未启用 AI 写信');
     }
 
-    const draft = await this.aiDraftService.generateDraft({
-      account: {
-        name: account.name,
-        country: account.country,
-        domain: account.domain,
-        customerType: account.customerType
+    const draft = await this.aiDraftService.generateDraft(
+      {
+        account: {
+          name: account.name,
+          country: account.country,
+          domain: account.domain,
+          customerType: account.customerType
+        },
+        contact: {
+          fullName: contact.fullName,
+          title: contact.title,
+          maskedEmail: contact.maskedEmail,
+          emailStatus: contact.emailStatus
+        },
+        productLine: {
+          id: productLine.id,
+          name: productLine.name,
+          targetCustomerType: productLine.targetCustomerType,
+          coreSellingPoints: productLine.coreSellingPoints,
+          moq: productLine.moq,
+          leadTime: productLine.leadTime,
+          paymentTerms: productLine.paymentTerms,
+          certifications: productLine.certifications,
+          catalogUrl: productLine.catalogUrl,
+          websiteUrl: productLine.websiteUrl,
+          commonModelsText: productLine.commonModelsText
+        },
+        writingConfig,
+        stepIndex,
+        previousMessages: previousMessages.map(message => ({
+          stepIndex: message.stepIndex,
+          subject: message.subject,
+          bodyText: message.bodyText
+        })),
+        senderName: context.userName
       },
-      contact: {
-        fullName: contact.fullName,
-        title: contact.title,
-        maskedEmail: contact.maskedEmail,
-        emailStatus: contact.emailStatus
-      },
-      productLine: {
-        id: productLine.id,
-        name: productLine.name,
-        targetCustomerType: productLine.targetCustomerType,
-        coreSellingPoints: productLine.coreSellingPoints,
-        moq: productLine.moq,
-        leadTime: productLine.leadTime,
-        paymentTerms: productLine.paymentTerms,
-        certifications: productLine.certifications,
-        catalogUrl: productLine.catalogUrl,
-        websiteUrl: productLine.websiteUrl,
-        commonModelsText: productLine.commonModelsText
-      },
-      writingConfig,
-      stepIndex,
-      previousMessages: previousMessages.map(message => ({
-        stepIndex: message.stepIndex,
-        subject: message.subject,
-        bodyText: message.bodyText
-      })),
-      senderName: context.userName
-    });
+      context
+    );
 
     if (!draft.subject && stepIndex === initialDraftStepIndex) {
       throw new BadRequestException('AI 返回首封主题不能为空');

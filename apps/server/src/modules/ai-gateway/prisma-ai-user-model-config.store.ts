@@ -1,30 +1,29 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AiModelConfigModel } from '../../generated/prisma/models/AiModelConfig';
-import { PrismaService } from '../database/prisma.service';
+import type { AiUserModelConfigModel } from '../../generated/prisma/models/AiUserModelConfig';
 import { SecretCryptoService } from '../../shared/secret-crypto.service';
-import type { AiModelConfigRecord, AiModelConfigStore } from './ai-gateway.types';
+import { PrismaService } from '../database/prisma.service';
 import { resolveStoredApiKey, toEncryptedApiKeyStorage } from './ai-config-secret-fields';
+import type { AiUserModelConfigRecord, AiUserModelConfigStore } from './ai-gateway.types';
 
 @Injectable()
-export class PrismaAiModelConfigStore implements AiModelConfigStore {
+export class PrismaAiUserModelConfigStore implements AiUserModelConfigStore {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(SecretCryptoService) private readonly secretCryptoService: SecretCryptoService
   ) {}
 
-  /** Reads one saved model config by stable config key. */
-  async getModelConfig(configKey: string): Promise<AiModelConfigRecord | null> {
-    const record = await this.prisma.aiModelConfig.findUnique({
-      where: { configKey }
+  /** Reads the personal model channel saved by one user. */
+  async getUserModelConfig(userId: string): Promise<AiUserModelConfigRecord | null> {
+    const record = await this.prisma.aiUserModelConfig.findUnique({
+      where: { userId }
     });
 
-    return record ? toModelConfigRecord(record, this.secretCryptoService) : null;
+    return record ? toUserModelConfigRecord(record, this.secretCryptoService) : null;
   }
 
-  /** Persists one model config for backend AI calls. */
-  async saveModelConfig(record: AiModelConfigRecord): Promise<AiModelConfigRecord> {
+  /** Persists one user's personal model channel with encrypted secret storage. */
+  async saveUserModelConfig(record: AiUserModelConfigRecord): Promise<AiUserModelConfigRecord> {
     const data = {
-      title: record.title,
       providerName: record.providerName,
       apiBase: record.apiBase,
       ...toEncryptedApiKeyStorage(this.secretCryptoService, record.apiKey),
@@ -32,24 +31,23 @@ export class PrismaAiModelConfigStore implements AiModelConfigStore {
       temperature: record.temperature,
       maxOutputTokens: record.maxOutputTokens ?? null
     };
-    const saved = await this.prisma.aiModelConfig.upsert({
-      where: { configKey: record.configKey },
+    const saved = await this.prisma.aiUserModelConfig.upsert({
+      where: { userId: record.userId },
       create: {
-        configKey: record.configKey,
+        userId: record.userId,
         ...data
       },
       update: data
     });
 
-    return toModelConfigRecord(saved, this.secretCryptoService);
+    return toUserModelConfigRecord(saved, this.secretCryptoService);
   }
 }
 
-function toModelConfigRecord(
+function toUserModelConfigRecord(
   record: Pick<
-    AiModelConfigModel,
-    | 'configKey'
-    | 'title'
+    AiUserModelConfigModel,
+    | 'userId'
     | 'providerName'
     | 'apiBase'
     | 'apiKey'
@@ -60,10 +58,9 @@ function toModelConfigRecord(
     | 'updatedAt'
   >,
   secretCryptoService: SecretCryptoService
-) {
+): AiUserModelConfigRecord {
   return {
-    configKey: record.configKey,
-    title: record.title,
+    userId: record.userId,
     providerName: record.providerName,
     apiBase: record.apiBase,
     apiKey: resolveStoredApiKey(secretCryptoService, record),

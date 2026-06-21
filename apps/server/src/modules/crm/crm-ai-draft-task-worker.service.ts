@@ -1,4 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import type { RequestUserContext } from '../../shared/request-context';
 import { createTaskNotificationMetadata, isStaleRunVersion, isTaskInStatus } from '../../shared/task-state';
 import { requireEnabledCrmProductLineAiWritingConfig } from './crm-ai-draft-prompt';
 import { CrmAiDraftService } from './crm-ai-draft.service';
@@ -226,41 +227,44 @@ export class CrmAiDraftTaskWorkerService {
 
     const productLine = reviewItem.productLine as CrmProductLineRecord;
     const writingConfig = requireEnabledCrmProductLineAiWritingConfig(productLine.aiWritingConfig);
-    const draft = await this.aiDraftService.generateDraft({
-      account: {
-        name: reviewItem.account.name,
-        country: reviewItem.account.country,
-        domain: reviewItem.account.domain,
-        customerType: reviewItem.account.customerType
+    const draft = await this.aiDraftService.generateDraft(
+      {
+        account: {
+          name: reviewItem.account.name,
+          country: reviewItem.account.country,
+          domain: reviewItem.account.domain,
+          customerType: reviewItem.account.customerType
+        },
+        contact: {
+          fullName: reviewItem.contact.fullName,
+          title: reviewItem.contact.title,
+          maskedEmail: reviewItem.contact.maskedEmail,
+          emailStatus: reviewItem.contact.emailStatus
+        },
+        productLine: {
+          id: productLine.id,
+          name: productLine.name,
+          targetCustomerType: productLine.targetCustomerType,
+          coreSellingPoints: productLine.coreSellingPoints,
+          moq: productLine.moq,
+          leadTime: productLine.leadTime,
+          paymentTerms: productLine.paymentTerms,
+          certifications: productLine.certifications,
+          catalogUrl: productLine.catalogUrl,
+          websiteUrl: productLine.websiteUrl,
+          commonModelsText: productLine.commonModelsText
+        },
+        writingConfig,
+        stepIndex,
+        previousMessages: reviewItem.messages.map(message => ({
+          stepIndex: message.stepIndex,
+          subject: message.subject,
+          bodyText: message.bodyText
+        })),
+        senderName: task.ownerUserName
       },
-      contact: {
-        fullName: reviewItem.contact.fullName,
-        title: reviewItem.contact.title,
-        maskedEmail: reviewItem.contact.maskedEmail,
-        emailStatus: reviewItem.contact.emailStatus
-      },
-      productLine: {
-        id: productLine.id,
-        name: productLine.name,
-        targetCustomerType: productLine.targetCustomerType,
-        coreSellingPoints: productLine.coreSellingPoints,
-        moq: productLine.moq,
-        leadTime: productLine.leadTime,
-        paymentTerms: productLine.paymentTerms,
-        certifications: productLine.certifications,
-        catalogUrl: productLine.catalogUrl,
-        websiteUrl: productLine.websiteUrl,
-        commonModelsText: productLine.commonModelsText
-      },
-      writingConfig,
-      stepIndex,
-      previousMessages: reviewItem.messages.map(message => ({
-        stepIndex: message.stepIndex,
-        subject: message.subject,
-        bodyText: message.bodyText
-      })),
-      senderName: task.ownerUserName
-    });
+      toTaskOwnerContext(task)
+    );
     const nextMessage = {
       ...baseNextMessage,
       subject: draft.subject || baseNextMessage.subject,
@@ -625,6 +629,24 @@ function toAiWritingStepIndex(value: number): CrmAiWritingStepIndex {
   }
 
   return value as CrmAiWritingStepIndex;
+}
+
+/** Restores the request user snapshot required by the AI gateway from the persisted task owner. */
+function toTaskOwnerContext(task: CrmAiDraftTaskRecord): RequestUserContext {
+  const organizationRole = task.organizationRole ?? 'member';
+
+  if (organizationRole !== 'admin' && organizationRole !== 'member') {
+    throw new Error('CRM AI draft task owner organization role is missing');
+  }
+
+  return {
+    userId: task.ownerUserId,
+    userName: task.ownerUserName ?? '',
+    roles: [],
+    buttons: [],
+    organizationId: task.organizationId,
+    organizationRole
+  };
 }
 
 function sleep(ms: number) {

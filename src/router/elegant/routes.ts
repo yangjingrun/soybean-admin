@@ -71,13 +71,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'ai-settings',
       i18nKey: 'route.ai-settings',
       icon: 'mdi:server-network-outline',
-      order: 3,
-      permissions: [
-        'ai:settings:model:manage',
-        'ai:settings:serper:manage',
-        'ai:settings:hunter:manage',
-        'ai-leads:queue-config:manage'
-      ]
+      order: 3
     }
   },
   {

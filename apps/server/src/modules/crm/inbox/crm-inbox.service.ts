@@ -163,7 +163,8 @@ export class CrmInboxService {
 
     const productLine = await this.resolveInboxReplyDraftProductLine(detail, input.productLineId, context);
     const draft = await this.aiReplyDraftService.polishReplyDraft(
-      this.buildInboxReplyDraftPromptInput(detail, topic, productLine, context)
+      this.buildInboxReplyDraftPromptInput(detail, topic, productLine, context),
+      context
     );
     const saved = await this.saveOwnedInboxReplyDraft(detail.thread.id, topic, draft.bodyText, draft.metadata, context);
 

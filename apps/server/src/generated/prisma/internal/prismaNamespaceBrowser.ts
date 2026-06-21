@@ -84,6 +84,7 @@ export const ModelName = {
   CrmAiDraftQueueConfig: 'CrmAiDraftQueueConfig',
   AiPromptConfig: 'AiPromptConfig',
   AiModelConfig: 'AiModelConfig',
+  AiUserModelConfig: 'AiUserModelConfig',
   SerperConfig: 'SerperConfig',
   HunterConfig: 'HunterConfig',
   AiLeadKeywordHistory: 'AiLeadKeywordHistory',
@@ -766,6 +767,23 @@ export const AiModelConfigScalarFieldEnum = {
 } as const
 
 export type AiModelConfigScalarFieldEnum = (typeof AiModelConfigScalarFieldEnum)[keyof typeof AiModelConfigScalarFieldEnum]
+
+
+export const AiUserModelConfigScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  providerName: 'providerName',
+  apiBase: 'apiBase',
+  apiKey: 'apiKey',
+  encryptedApiKey: 'encryptedApiKey',
+  model: 'model',
+  temperature: 'temperature',
+  maxOutputTokens: 'maxOutputTokens',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AiUserModelConfigScalarFieldEnum = (typeof AiUserModelConfigScalarFieldEnum)[keyof typeof AiUserModelConfigScalarFieldEnum]
 
 
 export const SerperConfigScalarFieldEnum = {

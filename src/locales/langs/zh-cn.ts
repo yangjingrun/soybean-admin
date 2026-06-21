@@ -257,8 +257,8 @@ const local: App.I18n.Schema = {
   },
   page: {
     aiSettings: {
-      title: '模型配置',
-      description: '配置业务 AI 调用使用的模型通道，AI获客、匹配分析和开发信生成都会读取这里。',
+      title: '我的模型通道',
+      description: '配置当前账号发起业务 AI 请求使用的模型通道；未配置个人 API Key 时，业务 AI 请求不会使用平台 Key 兜底。',
       providers: {
         openrouter: 'OpenRouter / 中转站',
         custom: 'OpenAI 兼容',
@@ -279,7 +279,7 @@ const local: App.I18n.Schema = {
         apiKey: 'API Key'
       },
       placeholders: {
-        title: '默认模型',
+        title: '我的模型通道',
         model: 'openai/gpt-4o-mini',
         apiBase: 'https://openrouter.ai/api/v1',
         apiKey: '请输入模型服务密钥'
@@ -311,8 +311,8 @@ const local: App.I18n.Schema = {
       },
       ...aiSettingsHunterLocale,
       messages: {
-        loaded: '模型配置已加载',
-        saved: '模型配置已保存',
+        loaded: '个人模型通道已加载',
+        saved: '个人模型通道已保存',
         testPassed: '模型连通性正常'
       }
     },
@@ -354,7 +354,7 @@ const local: App.I18n.Schema = {
         totalTokens: '总计',
         empty: '暂无测试结果',
         modelConfigMissingTitle: '模型配置未完成',
-        modelConfigMissingDesc: '请先配置默认模型后再测试提示词'
+        modelConfigMissingDesc: '请先配置个人模型通道后再测试提示词'
       },
       messages: {
         loaded: '提示词已加载',

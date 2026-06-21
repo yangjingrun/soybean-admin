@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AppConfigService } from '../app-config/app-config.service';
 import type { PrismaService } from '../database/prisma.service';
+import { SecretCryptoService } from '../../shared/secret-crypto.service';
 import { PrismaAiModelConfigStore } from './prisma-ai-model-config.store';
 
 const secretKey = '0123456789abcdef0123456789abcdef';
@@ -31,7 +32,7 @@ describe('PrismaAiModelConfigStore', () => {
         }
       }
     } as unknown as PrismaService;
-    const store = new PrismaAiModelConfigStore(prisma, createAppConfigService());
+    const store = new PrismaAiModelConfigStore(prisma, createSecretCryptoService());
 
     const record = await store.getModelConfig('default');
 
@@ -72,7 +73,7 @@ describe('PrismaAiModelConfigStore', () => {
         }
       }
     } as unknown as PrismaService;
-    const store = new PrismaAiModelConfigStore(prisma, createAppConfigService());
+    const store = new PrismaAiModelConfigStore(prisma, createSecretCryptoService());
 
     const record = await store.saveModelConfig({
       configKey: 'default',
@@ -106,4 +107,8 @@ function createAppConfigService(): AppConfigService {
       aiConfigSecretEncryptionKey: secretKey
     }
   } as AppConfigService;
+}
+
+function createSecretCryptoService() {
+  return new SecretCryptoService(createAppConfigService());
 }

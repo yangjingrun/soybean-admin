@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { RequestUserContext } from '../../shared/request-context';
 import { defaultAiModelConfigKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { buildCrmAiDraftPrompt, parseCrmAiDraftOutput } from './crm-ai-draft-prompt';
@@ -9,15 +10,18 @@ export class CrmAiDraftService {
   constructor(@Inject(AiGatewayService) private readonly aiGatewayService: Pick<AiGatewayService, 'generateText'>) {}
 
   /** Generates a review-only CRM draft from product-line AI writing configuration. */
-  async generateDraft(input: CrmAiDraftPromptInput): Promise<CrmAiDraftGenerateResult> {
+  async generateDraft(input: CrmAiDraftPromptInput, context: RequestUserContext): Promise<CrmAiDraftGenerateResult> {
     const prompt = buildCrmAiDraftPrompt(input);
-    const result = await this.aiGatewayService.generateText({
-      prompt: prompt.userPrompt,
-      systemPrompt: prompt.systemPrompt,
-      modelConfigKey: defaultAiModelConfigKey,
-      temperature: 0.4,
-      maxOutputTokens: 1200
-    });
+    const result = await this.aiGatewayService.generateText(
+      {
+        prompt: prompt.userPrompt,
+        systemPrompt: prompt.systemPrompt,
+        modelConfigKey: defaultAiModelConfigKey,
+        temperature: 0.4,
+        maxOutputTokens: 1200
+      },
+      { user: context }
+    );
     const output = parseCrmAiDraftOutput(result.text);
     const riskNotes = [...new Set([...prompt.riskNotes, ...output.riskNotes])];
 

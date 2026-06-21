@@ -62,6 +62,19 @@ export class AiGatewayController {
     return ok(await this.aiGatewayService.getModelConfigDraft(params.configKey));
   }
 
+  @Get('my-model-config')
+  async getMyModelConfig(@CurrentContext() currentContext: RequestUserContext | null = null) {
+    return ok(await this.aiGatewayService.getMyModelConfigDraft(requireRequestUserContext(currentContext)));
+  }
+
+  @Post('my-model-config')
+  async saveMyModelConfig(
+    @Body() dto: SaveAiModelConfigDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    return ok(await this.aiGatewayService.saveMyModelConfig(dto, requireRequestUserContext(currentContext)));
+  }
+
   @Post('serper-configs')
   async saveSerperConfig(
     @Body() dto: SaveSerperConfigDto,

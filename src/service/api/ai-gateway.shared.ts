@@ -13,6 +13,17 @@ export function buildSaveAiModelConfigRequestConfig(
   };
 }
 
+/** Build the request config for saving the current account model channel. */
+export function buildSaveMyAiModelConfigRequestConfig(
+  data: Api.AiGateway.SaveMyModelConfigPayload
+): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-gateway/my-model-config',
+    method: 'post',
+    data
+  };
+}
+
 /** Build the request config for the long-running AI gateway text generation task. */
 export function buildGenerateAiTextRequestConfig(data: Api.AiGateway.GenerateTextPayload): CustomAxiosRequestConfig {
   return {

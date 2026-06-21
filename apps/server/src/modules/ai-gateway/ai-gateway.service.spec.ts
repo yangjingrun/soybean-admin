@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { AiProviderConfigService } from './ai-provider-config.service';
 import { AiGatewayService } from './ai-gateway.service';
+import type { RequestUserContext } from '../../shared/request-context';
 import type { SystemLogRecordInput } from '../system-log/system-log.types';
 import type {
   AiModelConfigRecord,
   AiModelConfigStore,
+  AiUserModelConfigRecord,
+  AiUserModelConfigStore,
   HunterConfigRecord,
   HunterConfigStore,
   AiPromptRecord,
@@ -37,7 +40,13 @@ describe('AiGatewayService', () => {
     const promptStore = createMemoryPromptStore();
     const modelConfigStore = createMemoryModelConfigStore();
     const logRecorder = createMemoryLogRecorder();
-    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
+    const service = new AiGatewayService(
+      generator,
+      promptStore,
+      modelConfigStore,
+      createMemoryUserModelConfigStore(),
+      logRecorder
+    );
 
     const result = await service.generateText({
       providerName: ' openrouter ',
@@ -64,7 +73,7 @@ describe('AiGatewayService', () => {
     assert.equal(result.usage.totalTokens, 20);
   });
 
-  it('uses saved model config and system prompt when generating with fixed keys', async () => {
+  it('uses the current user personal model config and system prompt when generating with fixed keys', async () => {
     let captured: AiTextGenerateParams | null = null;
     const generator: AiTextGenerator = {
       async generateText(params) {
@@ -83,29 +92,33 @@ describe('AiGatewayService', () => {
     };
     const promptStore = createMemoryPromptStore();
     const modelConfigStore = createMemoryModelConfigStore();
+    const userModelConfigStore = createMemoryUserModelConfigStore();
     const logRecorder = createMemoryLogRecorder();
-    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
+    const service = new AiGatewayService(generator, promptStore, modelConfigStore, userModelConfigStore, logRecorder);
 
-    await service.saveModelConfig({
-      configKey: 'default',
-      title: '默认模型',
-      providerName: ' openai ',
-      apiBase: ' https://api.openai.com/v1 ',
-      apiKey: ' sk-test ',
-      model: ' gpt-4o-mini ',
+    await userModelConfigStore.saveUserModelConfig({
+      userId: 'u-1',
+      providerName: 'openai',
+      apiBase: 'https://api.openai.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-4o-mini',
       temperature: 0.2,
-      maxOutputTokens: 1000
+      maxOutputTokens: 1000,
+      updatedAt: new Date().toISOString()
     });
     await service.savePrompt({
       promptKey: 'lead_keyword_optimize',
       title: ' 关键词优化 ',
       systemPrompt: ' 固定只输出 JSON，不要编造客户。 '
     });
-    await service.generateText({
-      promptKey: 'lead_keyword_optimize',
-      modelConfigKey: 'default',
-      prompt: '找沙特轴承进口商'
-    });
+    await service.generateText(
+      {
+        promptKey: 'lead_keyword_optimize',
+        modelConfigKey: 'default',
+        prompt: '找沙特轴承进口商'
+      },
+      { user: createUserContext('u-1') }
+    );
 
     const generatedParams = captured as AiTextGenerateParams | null;
 
@@ -113,6 +126,77 @@ describe('AiGatewayService', () => {
     assert.equal(generatedParams.apiBase, 'https://api.openai.com/v1');
     assert.equal(generatedParams.model, 'gpt-4o-mini');
     assert.equal(generatedParams.systemPrompt, '固定只输出 JSON，不要编造客户。');
+  });
+
+  it('rejects generation without a personal model config', async () => {
+    let defaultConfigReads = 0;
+    const modelConfigStore: AiModelConfigStore = {
+      async getModelConfig() {
+        defaultConfigReads += 1;
+        return {
+          configKey: 'default',
+          title: '平台默认',
+          providerName: 'openai',
+          apiBase: 'https://api.openai.com/v1',
+          apiKey: 'sk-platform',
+          model: 'gpt-4o-mini',
+          updatedAt: new Date().toISOString()
+        };
+      },
+      async saveModelConfig(record) {
+        return record;
+      }
+    };
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      modelConfigStore,
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await assert.rejects(
+      () => service.generateText({ prompt: 'hello' }, { user: createUserContext('u-missing') }),
+      /请先配置个人模型通道/
+    );
+    assert.equal(defaultConfigReads, 0);
+  });
+
+  it('rejects generation when the current user personal API key is empty', async () => {
+    const userModelConfigStore = createMemoryUserModelConfigStore();
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      userModelConfigStore,
+      createMemoryLogRecorder()
+    );
+
+    await userModelConfigStore.saveUserModelConfig({
+      userId: 'u-1',
+      providerName: 'openai',
+      apiBase: 'https://api.openai.com/v1',
+      apiKey: '',
+      model: 'gpt-4o-mini',
+      updatedAt: new Date().toISOString()
+    });
+
+    await assert.rejects(
+      () => service.generateText({ prompt: 'hello' }, { user: createUserContext('u-1') }),
+      /请先配置个人模型通道/
+    );
+  });
+
+  it('rejects non-inline generation without request user context', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await assert.rejects(() => service.generateText({ prompt: 'hello' }), /请先登录/);
   });
 
   it('uses the default Serper keyword prompt when no fixed prompt is saved', async () => {
@@ -136,22 +220,26 @@ describe('AiGatewayService', () => {
       generator,
       createMemoryPromptStore(),
       createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore([
+        {
+          userId: 'u-1',
+          providerName: 'openai',
+          apiBase: 'https://api.openai.com/v1',
+          apiKey: 'sk-test',
+          model: 'gpt-4o-mini',
+          updatedAt: new Date().toISOString()
+        }
+      ]),
       createMemoryLogRecorder()
     );
 
-    await service.saveModelConfig({
-      configKey: 'default',
-      title: '默认模型',
-      providerName: 'openai',
-      apiBase: 'https://api.openai.com/v1',
-      apiKey: 'sk-test',
-      model: 'gpt-4o-mini'
-    });
-    await service.generateText({
-      promptKey: 'lead_keyword_optimize',
-      modelConfigKey: 'default',
-      prompt: '我是河北卖轴承的，想找沙特进口商'
-    });
+    await service.generateText(
+      {
+        promptKey: 'lead_keyword_optimize',
+        prompt: '我是河北卖轴承的，想找沙特进口商'
+      },
+      { user: createUserContext('u-1') }
+    );
 
     const generatedParams = captured as AiTextGenerateParams | null;
 
@@ -166,6 +254,7 @@ describe('AiGatewayService', () => {
       createMemoryTextGenerator(),
       createMemoryPromptStore(),
       createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
       createMemoryLogRecorder()
     );
 
@@ -190,6 +279,7 @@ describe('AiGatewayService', () => {
       createMemoryTextGenerator(),
       createMemoryPromptStore(),
       createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
       createMemoryLogRecorder()
     );
 
@@ -209,6 +299,58 @@ describe('AiGatewayService', () => {
     assert.equal(draft.apiKey, 'sk-secret-model-key');
   });
 
+  it('saves and returns the current user personal model config for settings echo', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    const saved = await service.saveMyModelConfig(
+      {
+        configKey: 'default',
+        title: '个人模型',
+        providerName: ' openrouter ',
+        apiBase: ' https://openrouter.ai/api/v1 ',
+        apiKey: ' sk-user-secret ',
+        model: ' openai/gpt-4o-mini ',
+        temperature: 0.3,
+        maxOutputTokens: 1200
+      },
+      createUserContext('u-1')
+    );
+    const draft = await service.getMyModelConfigDraft(createUserContext('u-1'));
+
+    assert.equal(saved.providerName, 'openrouter');
+    assert.equal(saved.apiBase, 'https://openrouter.ai/api/v1');
+    assert.equal(saved.model, 'openai/gpt-4o-mini');
+    assert.equal(saved.hasApiKey, true);
+    assert.equal(saved.maskedApiKey, 'sk-u****cret');
+    assert.equal(saved.apiKey, 'sk-user-secret');
+    assert.equal(draft.apiKey, 'sk-user-secret');
+  });
+
+  it('returns an editable personal model draft when the current user has no config', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    const draft = await service.getMyModelConfigDraft(createUserContext('u-missing'));
+
+    assert.equal(draft.providerName, 'openrouter');
+    assert.equal(draft.apiBase, 'https://openrouter.ai/api/v1');
+    assert.equal(draft.model, 'openai/gpt-4o-mini');
+    assert.equal(draft.hasApiKey, false);
+    assert.equal(draft.maskedApiKey, '');
+    assert.equal(draft.apiKey, '');
+  });
+
   it('records a success log when text generation succeeds', async () => {
     const generator: AiTextGenerator = {
       async generateText() {
@@ -226,7 +368,13 @@ describe('AiGatewayService', () => {
     const promptStore = createMemoryPromptStore();
     const modelConfigStore = createMemoryModelConfigStore();
     const logRecorder = createMemoryLogRecorder();
-    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
+    const service = new AiGatewayService(
+      generator,
+      promptStore,
+      modelConfigStore,
+      createMemoryUserModelConfigStore(),
+      logRecorder
+    );
 
     await service.generateText(
       {
@@ -312,7 +460,13 @@ describe('AiGatewayService', () => {
     const promptStore = createMemoryPromptStore();
     const modelConfigStore = createMemoryModelConfigStore();
     const logRecorder = createMemoryLogRecorder();
-    const service = new AiGatewayService(generator, promptStore, modelConfigStore, logRecorder);
+    const service = new AiGatewayService(
+      generator,
+      promptStore,
+      modelConfigStore,
+      createMemoryUserModelConfigStore(),
+      logRecorder
+    );
 
     await assert.rejects(
       () =>
@@ -416,6 +570,7 @@ describe('AiGatewayService', () => {
       createMemoryTextGenerator(),
       createMemoryPromptStore(),
       createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
       logRecorder,
       providerConfigService
     );
@@ -490,6 +645,7 @@ describe('AiGatewayService', () => {
       createMemoryTextGenerator(),
       createMemoryPromptStore(),
       createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
       logRecorder,
       providerConfigService
     );
@@ -580,6 +736,24 @@ function createMemoryModelConfigStore(): AiModelConfigStore {
   };
 }
 
+function createMemoryUserModelConfigStore(records: AiUserModelConfigRecord[] = []): AiUserModelConfigStore {
+  const configs = new Map<string, AiUserModelConfigRecord>();
+
+  for (const record of records) {
+    configs.set(record.userId, record);
+  }
+
+  return {
+    async getUserModelConfig(userId) {
+      return configs.get(userId) ?? null;
+    },
+    async saveUserModelConfig(record) {
+      configs.set(record.userId, record);
+      return record;
+    }
+  };
+}
+
 function createMemoryHunterConfigStore(): HunterConfigStore {
   const configs = new Map<string, HunterConfigRecord>();
 
@@ -591,6 +765,16 @@ function createMemoryHunterConfigStore(): HunterConfigStore {
       configs.set(record.configKey, record);
       return record;
     }
+  };
+}
+
+function createUserContext(userId: string): RequestUserContext {
+  return {
+    userId,
+    userName: 'User',
+    roles: ['R_USER'],
+    organizationId: 'org-1',
+    organizationRole: 'member'
   };
 }
 
