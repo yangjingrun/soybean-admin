@@ -66,7 +66,7 @@ type CrmAiDraftQueueConfigView = Record<string, unknown>;
 type CrmWorkbenchOverviewView = Record<string, unknown>;
 
 type LooseServiceMethods<T> = {
-  [K in keyof T as T[K] extends (...args: infer Args) => unknown ? K : never]?: T[K] extends (
+  [K in keyof T as T[K] extends (...args: infer _Args) => unknown ? K : never]?: T[K] extends (
     ...args: infer Args
   ) => unknown
     ? (...args: Args) => unknown

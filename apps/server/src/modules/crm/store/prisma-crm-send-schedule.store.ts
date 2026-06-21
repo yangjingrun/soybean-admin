@@ -105,7 +105,7 @@ export class PrismaCrmSendScheduleStore {
       preferences.map(preference => [toOwnerPairKey(preference.organizationId, preference.ownerUserId), preference])
     );
     const queuedCountByOwner = new Map(
-      queuedRows.map(row => [toOwnerPairKey(row.organizationId, row.ownerUserId), row._count._all])
+      queuedRows.map(row => [toOwnerPairKey(row.organizationId, row.ownerUserId), row['_count']['_all']])
     );
     const dispatchedCountByOwner = new Map<
       string,
@@ -118,7 +118,7 @@ export class PrismaCrmSendScheduleStore {
 
     for (const row of dispatchedRows) {
       const key = toOwnerPairKey(row.organizationId, row.ownerUserId);
-      const count = row._count._all;
+      const count = row['_count']['_all'];
       const current = dispatchedCountByOwner.get(key) ?? {
         dailyCount: 0,
         firstTouchCount: 0,

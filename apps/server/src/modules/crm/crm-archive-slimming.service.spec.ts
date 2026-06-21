@@ -59,7 +59,7 @@ describe('CrmArchiveSlimmingService', () => {
       { config: loadAppConfig({ SERVER_RUNTIME_ROLE: 'api' }) } as never
     );
 
-    globalThis.setInterval = ((callback: () => void) => {
+    globalThis.setInterval = ((_callback: () => void) => {
       intervalStarted = true;
 
       return {

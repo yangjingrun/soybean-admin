@@ -9,6 +9,7 @@ import {
   buildStrategyStatSections,
   buildOperationLogSummaryRows,
   buildCrmSettingsOverview,
+  buildCrmSettingsTabVisibility,
   buildBlacklistSearchParams,
   buildEmailTemplateSearchParams,
   buildPersonaProfileSearchParams,
@@ -55,6 +56,54 @@ import {
 } from './shared';
 
 describe('crm settings shared helpers', () => {
+  it('keeps ordinary CRM members focused on personal setup tabs only', () => {
+    assert.deepEqual(
+      buildCrmSettingsTabVisibility({
+        organizationRole: 'member',
+        roles: []
+      }),
+      {
+        assets: false,
+        operations: false,
+        rules: false,
+        safety: false,
+        start: true
+      }
+    );
+  });
+
+  it('shows organization managers shared assets and safety tabs without platform operations', () => {
+    assert.deepEqual(
+      buildCrmSettingsTabVisibility({
+        organizationRole: 'admin',
+        roles: []
+      }),
+      {
+        assets: true,
+        operations: false,
+        rules: true,
+        safety: true,
+        start: true
+      }
+    );
+  });
+
+  it('shows platform super administrators all CRM settings tabs', () => {
+    assert.deepEqual(
+      buildCrmSettingsTabVisibility({
+        organizationRole: 'member',
+        roles: ['R_SUPER']
+      }),
+      {
+        assets: true,
+        operations: true,
+        rules: true,
+        safety: true,
+        start: true
+      }
+    );
+  });
+
   it('creates the platform global config form with the documented cooldown default', () => {
     assert.deepEqual(createDefaultGlobalConfigForm(), {
       emailVerificationCooldownDays: 30,

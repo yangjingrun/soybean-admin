@@ -145,5 +145,5 @@ function readBoolean(value: string | undefined, defaultValue: boolean) {
     return defaultValue;
   }
 
-  return value === 'true';
+  return value.trim().toLowerCase() === 'true';
 }

@@ -33,6 +33,15 @@ jobs:
       - name: Typecheck server
         run: pnpm --filter @soybean/server typecheck
 
+      - name: Lint
+        run: pnpm lint:check
+
+      - name: Whitespace check
+        run: pnpm whitespace:check
+
+      - name: Test scripts
+        run: pnpm test:scripts
+
       - name: Test frontend helpers
         run: pnpm test:front
 

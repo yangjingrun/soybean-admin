@@ -65,6 +65,16 @@ describe('loadAppConfig', () => {
     assert.equal(config.crmEnableMockEndpoints, false);
   });
 
+  it('normalizes boolean runtime flags from deploy platform strings', () => {
+    const config = loadAppConfig({
+      AUTH_DEV_FIXED_TOKEN_ENABLED: ' TRUE ',
+      CRM_ENABLE_MOCK_ENDPOINTS: 'True'
+    });
+
+    assert.equal(config.authDevFixedTokenEnabled, true);
+    assert.equal(config.crmEnableMockEndpoints, true);
+  });
+
   it('uses auth TTL values from env', () => {
     const config = loadAppConfig({
       AUTH_ACCESS_TOKEN_TTL_SECONDS: '3600',

@@ -530,12 +530,12 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 secondary
                 :disabled="
                   loading ||
-                  saving ||
-                  approving ||
-                  sendStarting ||
-                  refreshing ||
-                  nextDraftGenerating ||
-                  !canStopSequence
+                    saving ||
+                    approving ||
+                    sendStarting ||
+                    refreshing ||
+                    nextDraftGenerating ||
+                    !canStopSequence
                 "
                 :loading="stopping"
               >
@@ -547,14 +547,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
           <NButton
             :disabled="
               loading ||
-              approving ||
-              refreshing ||
-              sendStarting ||
-              stopping ||
-              versionRestoring ||
-              nextDraftGenerating ||
-              !currentMessage ||
-              !canEdit
+                approving ||
+                refreshing ||
+                sendStarting ||
+                stopping ||
+                versionRestoring ||
+                nextDraftGenerating ||
+                !currentMessage ||
+                !canEdit
             "
             :loading="saving"
             @click="handleSave"
@@ -564,14 +564,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
           <NButton
             :disabled="
               loading ||
-              saving ||
-              refreshing ||
-              sendStarting ||
-              stopping ||
-              versionRestoring ||
-              nextDraftGenerating ||
-              !currentMessage ||
-              !canApprove
+                saving ||
+                refreshing ||
+                sendStarting ||
+                stopping ||
+                versionRestoring ||
+                nextDraftGenerating ||
+                !currentMessage ||
+                !canApprove
             "
             :loading="approving"
             @click="handleApprove"
@@ -591,13 +591,13 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             type="primary"
             :disabled="
               loading ||
-              saving ||
-              approving ||
-              refreshing ||
-              stopping ||
-              nextDraftGenerating ||
-              !currentMessage ||
-              !canStartSend
+                saving ||
+                approving ||
+                refreshing ||
+                stopping ||
+                nextDraftGenerating ||
+                !currentMessage ||
+                !canStartSend
             "
             :loading="sendStarting"
             @click="emit('startSend')"

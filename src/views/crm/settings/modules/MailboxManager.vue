@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useAuthStore } from '@/store/modules/auth';
 import AiDraftQueueConfigCard from './AiDraftQueueConfigCard.vue';
 import AuthorizeMailboxModal from './AuthorizeMailboxModal.vue';
 import BasicRulesCard from './BasicRulesCard.vue';
@@ -17,10 +18,11 @@ import ProductLineManager from './ProductLineManager.vue';
 import SendPreferenceCard from './SendPreferenceCard.vue';
 import SequencePolicyManager from './SequencePolicyManager.vue';
 import StrategyStatsPanel from './StrategyStatsPanel.vue';
-import { buildCrmSettingsOverview } from './shared';
+import { buildCrmSettingsOverview, buildCrmSettingsTabVisibility } from './shared';
 import { useMailboxTable } from './useMailboxTable';
 import { useTemplateDefaults } from './useTemplateDefaults';
 
+const authStore = useAuthStore();
 const {
   authorizeSubmitting,
   authorizeVisible,
@@ -45,6 +47,9 @@ const {
 
 const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults } = useTemplateDefaults();
 
+const isSuperAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
+const canManageOrganization = computed(() => isSuperAdmin.value || authStore.userInfo.organizationRole === 'admin');
+const tabVisibility = computed(() => buildCrmSettingsTabVisibility(authStore.userInfo));
 const overviewItems = computed(() =>
   buildCrmSettingsOverview({
     mailboxes: records.value,
@@ -102,7 +107,7 @@ const overviewItems = computed(() =>
         </NSpace>
       </NTabPane>
 
-      <NTabPane name="assets" tab="写信资料">
+      <NTabPane v-if="tabVisibility.assets" name="assets" tab="写信资料">
         <NSpace vertical :size="12">
           <ProductLineManager />
           <PersonaProfileManager />
@@ -110,23 +115,23 @@ const overviewItems = computed(() =>
         </NSpace>
       </NTabPane>
 
-      <NTabPane name="rules" tab="发送规则">
+      <NTabPane v-if="tabVisibility.rules" name="rules" tab="发送规则">
         <NSpace vertical :size="12">
           <SequencePolicyManager />
-          <AiDraftQueueConfigCard />
-          <OrganizationPermissionCard />
-          <GlobalConfigCard />
+          <OrganizationPermissionCard v-if="canManageOrganization" />
+          <AiDraftQueueConfigCard v-if="isSuperAdmin" />
+          <GlobalConfigCard v-if="isSuperAdmin" />
         </NSpace>
       </NTabPane>
 
-      <NTabPane name="safety" tab="安全与拦截">
+      <NTabPane v-if="tabVisibility.safety" name="safety" tab="安全与拦截">
         <NSpace vertical :size="12">
           <BasicRulesCard />
           <BlacklistManager />
         </NSpace>
       </NTabPane>
 
-      <NTabPane name="operations" tab="运维诊断">
+      <NTabPane v-if="tabVisibility.operations" name="operations" tab="运维诊断">
         <NSpace vertical :size="12">
           <CrmOperationsPanel />
           <StrategyStatsPanel />

@@ -1,3 +1,4 @@
+export * from './access-settings';
 export * from './ai-draft-queue-settings';
 export * from './email-template-settings';
 export * from './global-config-settings';

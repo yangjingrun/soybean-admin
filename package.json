@@ -43,10 +43,13 @@
     "release": "sa release",
     "server:dev": "pnpm --filter @soybean/server dev",
     "server:start": "pnpm --filter @soybean/server start",
-    "test": "pnpm test:front && pnpm test:server",
-    "test:front": "tsx --test $(find src -name '*.spec.ts' -type f | sort)",
-    "test:server": "tsx --tsconfig apps/server/tsconfig.json --test $(find apps/server/src -name '*.spec.ts' -type f | sort)",
+    "lint:check": "oxlint && eslint .",
+    "test": "pnpm test:scripts && pnpm test:front && pnpm test:server",
+    "test:front": "node scripts/run-tests.mjs front",
+    "test:scripts": "node --test scripts/*.spec.mjs",
+    "test:server": "node scripts/run-tests.mjs server",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
+    "whitespace:check": "git diff --check",
     "update-pkg": "sa update-pkg"
   },
   "dependencies": {
