@@ -27,6 +27,16 @@ const emit = defineEmits<{
 
 const testInput = defineModel<string>('testInput', { required: true });
 const changeNote = defineModel<string>('changeNote', { required: true });
+const statusLabelMap: Record<Api.AiGateway.AiPromptValidationStatus, string> = {
+  pass: '通过',
+  warn: '预警',
+  fail: '失败'
+};
+const statusTypeMap: Record<Api.AiGateway.AiPromptValidationStatus, 'success' | 'warning' | 'error'> = {
+  pass: 'success',
+  warn: 'warning',
+  fail: 'error'
+};
 const validationSummary = computed(() => summarizePromptValidation(props.validationResult));
 const validationItems = computed(() =>
   props.validationResult?.items.map(item => ({
@@ -62,15 +72,31 @@ const latestFailureGuide = computed(() => {
 
 <template>
   <NCard :bordered="false" class="card-wrapper publish-panel">
-    <NSpace vertical :size="14">
-      <div class="publish-panel__header">
+    <div class="publish-panel__content">
+      <div class="publish-panel__top">
         <div>
+          <div class="publish-panel__eyebrow">发布闸口</div>
           <NText strong>测试与发布检查</NText>
           <p class="publish-panel__desc">{{ validationSummary.label }}</p>
         </div>
         <NTag :type="validationSummary.ok ? 'success' : 'warning'" :bordered="false">
           {{ validationSummary.ok ? '可发布' : '待检查' }}
         </NTag>
+      </div>
+
+      <div class="publish-panel__stats">
+        <div class="publish-panel__stat publish-panel__stat--pass">
+          <span>{{ validationSummary.passCount }}</span>
+          <small>通过</small>
+        </div>
+        <div class="publish-panel__stat publish-panel__stat--warn">
+          <span>{{ validationSummary.warnCount }}</span>
+          <small>预警</small>
+        </div>
+        <div class="publish-panel__stat publish-panel__stat--fail">
+          <span>{{ validationSummary.failCount }}</span>
+          <small>失败</small>
+        </div>
       </div>
 
       <NAlert v-if="isDirty" type="warning" :bordered="false">当前内容有未保存修改，发布前需要先保存草稿。</NAlert>
@@ -80,40 +106,40 @@ const latestFailureGuide = computed(() => {
           <NText strong>规则校验</NText>
           <NButton size="tiny" :loading="validating" :disabled="!canValidate" @click="emit('validate')">重新校验</NButton>
         </div>
-        <NEmpty v-if="!validationResult" description="尚未校验" />
-        <NList v-else size="small">
-          <NListItem v-for="item in validationItems" :key="item.key">
-            <NThing>
-              <template #header>
-                <NSpace align="center" :size="8">
-                  <NTag
-                    size="small"
-                    :type="item.status === 'pass' ? 'success' : item.status === 'warn' ? 'warning' : 'error'"
-                    :bordered="false"
-                  >
-                    {{ item.status }}
-                  </NTag>
-                  <NText>{{ item.label }}</NText>
-                </NSpace>
-              </template>
-              <template #description>{{ item.message }}</template>
-              <template #action>
-                <NButton
-                  v-if="item.target"
-                  size="tiny"
-                  text
-                  type="primary"
-                  @click="emit('focusSection', item.target.key)"
-                >
-                  定位到{{ item.target.label }}
-                </NButton>
-              </template>
-            </NThing>
-          </NListItem>
-        </NList>
+        <NEmpty v-if="!validationResult" description="尚未校验" size="small" />
+        <div v-else class="publish-panel__check-list">
+          <div
+            v-for="item in validationItems"
+            :key="item.key"
+            class="publish-panel__check"
+            :class="`publish-panel__check--${item.status}`"
+          >
+            <NTag size="small" :type="statusTypeMap[item.status]" :bordered="false">
+              {{ statusLabelMap[item.status] }}
+            </NTag>
+            <div class="publish-panel__check-body">
+              <div class="publish-panel__check-title">{{ item.label }}</div>
+              <div class="publish-panel__check-message">{{ item.message }}</div>
+            </div>
+            <NButton
+              v-if="item.target"
+              size="tiny"
+              text
+              type="primary"
+              class="publish-panel__check-action"
+              @click="emit('focusSection', item.target.key)"
+            >
+              定位
+            </NButton>
+          </div>
+        </div>
       </section>
 
       <section class="publish-panel__section">
+        <div class="publish-panel__section-title">
+          <NText strong>测试样例</NText>
+          <NText depth="3" class="publish-panel__section-note">运行后更新最近输出</NText>
+        </div>
         <NInput
           v-model:value="testInput"
           type="textarea"
@@ -130,36 +156,32 @@ const latestFailureGuide = computed(() => {
           </NSpace>
           <NAlert v-if="latestFailureGuide" type="error" :bordered="false">{{ latestFailureGuide }}</NAlert>
           <NText v-if="latestTestRun.errorMessage" type="error">{{ latestTestRun.errorMessage }}</NText>
-          <NList v-if="latestValidationIssues.length > 0" size="small" bordered>
-            <NListItem v-for="item in latestValidationIssues" :key="item.key">
-              <NThing>
-                <template #header>
-                  <NSpace align="center" :size="8">
-                    <NTag
-                      size="small"
-                      :type="item.status === 'warn' ? 'warning' : 'error'"
-                      :bordered="false"
-                    >
-                      {{ item.status }}
-                    </NTag>
-                    <NText>{{ item.label }}</NText>
-                  </NSpace>
-                </template>
-                <template #description>{{ item.message }}</template>
-                <template #action>
-                  <NButton
-                    v-if="item.target"
-                    size="tiny"
-                    text
-                    type="primary"
-                    @click="emit('focusSection', item.target.key)"
-                  >
-                    去看{{ item.target.label }}
-                  </NButton>
-                </template>
-              </NThing>
-            </NListItem>
-          </NList>
+          <div v-if="latestValidationIssues.length > 0" class="publish-panel__check-list">
+            <div
+              v-for="item in latestValidationIssues"
+              :key="item.key"
+              class="publish-panel__check"
+              :class="`publish-panel__check--${item.status}`"
+            >
+              <NTag size="small" :type="statusTypeMap[item.status]" :bordered="false">
+                {{ statusLabelMap[item.status] }}
+              </NTag>
+              <div class="publish-panel__check-body">
+                <div class="publish-panel__check-title">{{ item.label }}</div>
+                <div class="publish-panel__check-message">{{ item.message }}</div>
+              </div>
+              <NButton
+                v-if="item.target"
+                size="tiny"
+                text
+                type="primary"
+                class="publish-panel__check-action"
+                @click="emit('focusSection', item.target.key)"
+              >
+                定位
+              </NButton>
+            </div>
+          </div>
           <pre v-if="latestOutput" class="publish-panel__output">{{ latestOutput }}</pre>
         </div>
       </section>
@@ -173,17 +195,17 @@ const latestFailureGuide = computed(() => {
           </NButton>
         </NSpace>
       </section>
-    </NSpace>
+    </div>
   </NCard>
 </template>
 
 <style scoped>
-.publish-panel {
-  position: sticky;
-  top: 12px;
+.publish-panel__content {
+  display: grid;
+  gap: 14px;
 }
 
-.publish-panel__header,
+.publish-panel__top,
 .publish-panel__section-title {
   display: flex;
   align-items: flex-start;
@@ -191,23 +213,127 @@ const latestFailureGuide = computed(() => {
   gap: 12px;
 }
 
+.publish-panel__eyebrow {
+  margin-bottom: 4px;
+  color: var(--prompt-workbench-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .publish-panel__desc {
   margin: 4px 0 0;
-  color: var(--n-text-color-3);
+  color: var(--prompt-workbench-subtle);
   font-size: 13px;
+}
+
+.publish-panel__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.publish-panel__stat {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--prompt-workbench-border);
+  border-radius: 6px;
+  background: var(--prompt-workbench-muted);
+}
+
+.publish-panel__stat span {
+  color: var(--prompt-workbench-ink);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.publish-panel__stat small {
+  color: var(--prompt-workbench-subtle);
+  font-size: 12px;
+}
+
+.publish-panel__stat--pass span {
+  color: rgb(var(--success-color));
+}
+
+.publish-panel__stat--warn span {
+  color: rgb(var(--warning-color));
+}
+
+.publish-panel__stat--fail span {
+  color: rgb(var(--error-color));
 }
 
 .publish-panel__section {
   display: grid;
   gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--prompt-workbench-border);
+}
+
+.publish-panel__section-note {
+  font-size: 12px;
+}
+
+.publish-panel__check-list {
+  display: grid;
+  gap: 8px;
+}
+
+.publish-panel__check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--prompt-workbench-border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.publish-panel__check--pass {
+  border-left-color: rgb(var(--success-color));
+}
+
+.publish-panel__check--warn {
+  border-left-color: rgb(var(--warning-color));
+}
+
+.publish-panel__check--fail {
+  border-left-color: rgb(var(--error-color));
+}
+
+.publish-panel__check-body {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.publish-panel__check-title {
+  color: var(--prompt-workbench-ink);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.publish-panel__check-message {
+  color: var(--prompt-workbench-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.publish-panel__check-action {
+  margin-top: 1px;
 }
 
 .publish-panel__test-result {
   display: grid;
   gap: 8px;
   padding: 10px;
-  border: 1px solid var(--n-border-color);
-  border-radius: 8px;
+  border: 1px solid var(--prompt-workbench-border);
+  border-radius: 6px;
+  background: var(--prompt-workbench-muted);
 }
 
 .publish-panel__output {

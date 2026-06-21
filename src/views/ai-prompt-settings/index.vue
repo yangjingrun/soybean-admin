@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 import { aiSettingsPromptManagePermission, hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import PromptEditor from './modules/PromptEditor.vue';
@@ -14,6 +14,7 @@ const canManagePrompt = computed(
 );
 
 const page = usePromptSettingsPage();
+const versionDrawerVisible = shallowRef(false);
 
 watch(
   canManagePrompt,
@@ -28,20 +29,24 @@ watch(
 
 <template>
   <div v-if="canManagePrompt" class="prompt-workbench">
-    <PromptStepList
-      :steps="page.steps.value"
-      :selected-prompt-key="page.selectedPromptKey.value"
-      :loading="page.loadingSteps.value"
-      @reload="page.loadSteps()"
-      @select="page.selectPrompt"
-    />
+    <div class="prompt-workbench__nav">
+      <PromptStepList
+        :steps="page.steps.value"
+        :selected-prompt-key="page.selectedPromptKey.value"
+        :loading="page.loadingSteps.value"
+        @reload="page.loadSteps()"
+        @select="page.selectPrompt"
+      />
+    </div>
 
     <PromptEditor
       v-model:system-prompt="page.systemPrompt.value"
       :detail="page.detail.value"
       :focus-section-request="page.focusSectionRequest.value"
       :loading="page.loadingDetail.value"
+      :version-count="page.versions.value.length"
       @use-default="page.useDefaultPrompt"
+      @open-versions="versionDrawerVisible = true"
     />
 
     <div class="prompt-workbench__side">
@@ -65,13 +70,17 @@ watch(
         @focus-section="page.focusPromptSection"
         @publish="page.publishCurrentDraft"
       />
-
-      <PromptVersionTimeline
-        :versions="page.versions.value"
-        :rolling-back-version-id="page.rollingBackVersionId.value"
-        @rollback="page.rollbackVersion"
-      />
     </div>
+
+    <NDrawer v-model:show="versionDrawerVisible" :width="520" placement="right">
+      <NDrawerContent title="版本记录" closable>
+        <PromptVersionTimeline
+          :versions="page.versions.value"
+          :rolling-back-version-id="page.rollingBackVersionId.value"
+          @rollback="page.rollbackVersion"
+        />
+      </NDrawerContent>
+    </NDrawer>
   </div>
 
   <NCard v-else :bordered="false" class="card-wrapper">
@@ -81,32 +90,56 @@ watch(
 
 <style scoped>
 .prompt-workbench {
+  --prompt-workbench-border: #e7ecf5;
+  --prompt-workbench-muted: #f6f8fc;
+  --prompt-workbench-ink: #1f2937;
+  --prompt-workbench-subtle: #667085;
+  --prompt-workbench-primary: rgb(var(--primary-color));
+
   display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(300px, 360px);
-  align-items: flex-start;
-  gap: 16px;
+  grid-template-columns: minmax(236px, 268px) minmax(560px, 1fr) minmax(316px, 348px);
+  align-items: start;
+  gap: 14px;
+  min-height: calc(100vh - 168px);
+}
+
+.prompt-workbench__nav,
+.prompt-workbench__side {
+  position: sticky;
+  top: 12px;
 }
 
 .prompt-workbench__side {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 @media (max-width: 1280px) {
   .prompt-workbench {
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  }
+
+  .prompt-workbench__nav,
+  .prompt-workbench__side {
+    position: static;
   }
 
   .prompt-workbench__side {
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-column: 2;
   }
 }
 
 @media (max-width: 860px) {
-  .prompt-workbench,
+  .prompt-workbench {
+    grid-template-columns: 1fr;
+  }
+
   .prompt-workbench__side {
     grid-template-columns: 1fr;
+  }
+
+  .prompt-workbench__side {
+    grid-column: auto;
   }
 }
 </style>

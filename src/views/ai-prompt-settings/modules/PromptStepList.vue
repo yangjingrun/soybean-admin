@@ -24,8 +24,11 @@ const displaySteps = computed(() =>
 <template>
   <NCard :bordered="false" class="card-wrapper prompt-step-panel">
     <div class="prompt-step-panel__header">
-      <NText strong>内置业务步骤</NText>
-      <NButton size="small" quaternary :loading="loading" @click="emit('reload')">重新加载</NButton>
+      <div>
+        <NText strong>内置业务步骤</NText>
+        <p class="prompt-step-panel__subtitle">{{ displaySteps.length }} 个提示词节点</p>
+      </div>
+      <NButton size="tiny" quaternary :loading="loading" @click="emit('reload')">刷新</NButton>
     </div>
 
     <NScrollbar class="prompt-step-panel__scroll">
@@ -38,6 +41,7 @@ const displaySteps = computed(() =>
           :class="{ 'prompt-step-row--active': step.promptKey === selectedPromptKey }"
           @click="emit('select', step.promptKey)"
         >
+          <span class="prompt-step-row__marker" />
           <span class="prompt-step-row__main">
             <span class="prompt-step-row__title">{{ step.title }}</span>
             <span class="prompt-step-row__key">{{ step.promptKey }}</span>
@@ -56,7 +60,7 @@ const displaySteps = computed(() =>
 
 <style scoped>
 .prompt-step-panel {
-  height: 100%;
+  height: calc(100vh - 168px);
 }
 
 .prompt-step-panel__header {
@@ -64,27 +68,34 @@ const displaySteps = computed(() =>
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.prompt-step-panel__subtitle {
+  margin: 3px 0 0;
+  color: var(--prompt-workbench-subtle);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .prompt-step-panel__scroll {
-  max-height: calc(100vh - 260px);
+  max-height: calc(100vh - 238px);
 }
 
 .prompt-step-list {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .prompt-step-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 3px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 8px 10px 0;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--n-text-color);
   background: transparent;
   text-align: left;
@@ -94,10 +105,23 @@ const displaySteps = computed(() =>
     border-color 0.2s;
 }
 
-.prompt-step-row:hover,
+.prompt-step-row:hover {
+  background: var(--prompt-workbench-muted);
+}
+
 .prompt-step-row--active {
-  border-color: var(--n-primary-color);
-  background: var(--n-primary-color-suppl);
+  border-color: rgba(var(--primary-color), 0.28);
+  background: rgb(var(--primary-50-color));
+}
+
+.prompt-step-row__marker {
+  align-self: stretch;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.prompt-step-row--active .prompt-step-row__marker {
+  background: var(--prompt-workbench-primary);
 }
 
 .prompt-step-row__main {
@@ -107,20 +131,35 @@ const displaySteps = computed(() =>
 }
 
 .prompt-step-row__title {
+  color: var(--prompt-workbench-ink);
   font-weight: 600;
+  line-height: 1.35;
 }
 
 .prompt-step-row__key {
   overflow: hidden;
-  color: var(--n-text-color-3);
+  color: var(--prompt-workbench-subtle);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .prompt-step-row__meta {
+  grid-column: 2;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
+  min-width: 0;
+}
+
+@media (max-width: 1280px) {
+  .prompt-step-panel {
+    height: auto;
+  }
+
+  .prompt-step-panel__scroll {
+    max-height: none;
+  }
 }
 </style>
