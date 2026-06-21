@@ -253,6 +253,31 @@ describe('AiGatewayService', () => {
     assert.match(generatedParams.systemPrompt || '', /严禁生成真实公司名/);
   });
 
+  it('returns the built-in prompt draft even when a saved prompt exists', async () => {
+    const promptStore = createMemoryPromptStore();
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      promptStore,
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await service.savePrompt({
+      promptKey: 'lead_search_result_decide',
+      title: '旧搜索结果决策',
+      systemPrompt: '旧版本 Search / Places 提示词'
+    });
+
+    const saved = await service.getPrompt('lead_search_result_decide');
+    const draft = await service.getDefaultPromptDraft('lead_search_result_decide');
+
+    assert.equal(saved.systemPrompt, '旧版本 Search / Places 提示词');
+    assert.notEqual(draft.systemPrompt, saved.systemPrompt);
+    assert.match(draft.systemPrompt, /Search \/ Places \/ Maps/);
+    assert.equal(draft.updatedAt, '');
+  });
+
   it('uses stable temperature and no output limit for saved model config by default', async () => {
     const service = new AiGatewayService(
       createMemoryTextGenerator(),

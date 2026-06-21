@@ -331,6 +331,7 @@ const local: App.I18n.Schema = {
         clearTest: '清空输入',
         copyResult: '复制结果',
         goModelConfig: '去模型配置',
+        useDefault: '使用内置默认',
         save: '保存提示词'
       },
       form: {
@@ -359,6 +360,7 @@ const local: App.I18n.Schema = {
       messages: {
         loaded: '提示词已加载',
         saved: '提示词已保存',
+        defaultLoaded: '已载入内置默认提示词，请确认后保存',
         testPassed: '提示词测试完成',
         testCopied: '测试结果已复制'
       },

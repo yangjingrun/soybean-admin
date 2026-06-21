@@ -188,6 +188,11 @@ export class AiGatewayService {
     return record;
   }
 
+  /** Reads the code-level built-in prompt draft, ignoring any saved global override. */
+  async getDefaultPromptDraft(promptKey: string): Promise<AiPromptRecord> {
+    return createPromptDraft(normalizePromptKey(promptKey));
+  }
+
   /** Reads one saved backend model channel or returns an editable default draft for settings. */
   async getModelConfigDraft(configKey = defaultAiModelConfigKey): Promise<AiModelConfigViewRecord> {
     const normalizedKey = normalizeModelConfigKey(configKey);

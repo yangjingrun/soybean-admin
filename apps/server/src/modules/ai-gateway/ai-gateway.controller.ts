@@ -36,6 +36,16 @@ export class AiGatewayController {
     return ok(await this.aiGatewayService.getPrompt(params.promptKey));
   }
 
+  @Get('prompts/:promptKey/default')
+  async getDefaultPrompt(
+    @Param() params: AiPromptKeyParamDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+
+    return ok(await this.aiGatewayService.getDefaultPromptDraft(params.promptKey));
+  }
+
   @Post('model-configs')
   async saveModelConfig(
     @Body() dto: SaveAiModelConfigDto,

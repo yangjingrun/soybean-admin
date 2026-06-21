@@ -2,6 +2,13 @@ import type { CustomAxiosRequestConfig } from '@sa/axios';
 
 export const aiGatewayGenerateTextTimeout = 120 * 1000;
 
+/** Build the request config for reading one code-level built-in prompt draft. */
+export function buildGetDefaultAiPromptRequestConfig(promptKey: string): CustomAxiosRequestConfig {
+  return {
+    url: `/ai-gateway/prompts/${promptKey}/default`
+  };
+}
+
 /** Build the request config for saving the backend model channel. */
 export function buildSaveAiModelConfigRequestConfig(
   data: Api.AiGateway.SaveModelConfigPayload

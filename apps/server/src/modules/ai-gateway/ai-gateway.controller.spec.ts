@@ -15,6 +15,37 @@ describe('AiGatewayController', () => {
     await assert.rejects(() => controller.getPrompt({ promptKey: 'lead-keyword-optimize' }, null), UnauthorizedException);
   });
 
+  it('requires prompt permission before reading the built-in default prompt draft', async () => {
+    let called = false;
+    const controller = new AiGatewayController({
+      async getDefaultPromptDraft() {
+        called = true;
+        return { promptKey: 'lead_search_result_decide' };
+      }
+    } as never);
+
+    await assert.rejects(
+      () => controller.getDefaultPrompt({ promptKey: 'lead_search_result_decide' }, createUser()),
+      ForbiddenException
+    );
+    assert.equal(called, false);
+  });
+
+  it('allows platform super users to read the built-in default prompt draft', async () => {
+    const controller = new AiGatewayController({
+      async getDefaultPromptDraft(promptKey: string) {
+        return { promptKey, systemPrompt: 'default prompt' };
+      }
+    } as never);
+
+    const response = await controller.getDefaultPrompt({ promptKey: 'lead_search_result_decide' }, createSuperUser());
+
+    assert.deepEqual(response.data, {
+      promptKey: 'lead_search_result_decide',
+      systemPrompt: 'default prompt'
+    });
+  });
+
   it('requires platform super role before saving platform model config', async () => {
     let called = false;
     const controller = new AiGatewayController({

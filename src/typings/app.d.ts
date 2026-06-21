@@ -555,6 +555,7 @@ declare namespace App {
             clearTest: string;
             copyResult: string;
             goModelConfig: string;
+            useDefault: string;
             save: string;
           };
           form: {
@@ -583,6 +584,7 @@ declare namespace App {
           messages: {
             loaded: string;
             saved: string;
+            defaultLoaded: string;
             testPassed: string;
             testCopied: string;
           };

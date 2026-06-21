@@ -338,6 +338,7 @@ const local: App.I18n.Schema = {
         clearTest: 'Clear Input',
         copyResult: 'Copy Result',
         goModelConfig: 'Go to Model Config',
+        useDefault: 'Use Built-in Default',
         save: 'Save Prompt'
       },
       form: {
@@ -366,6 +367,7 @@ const local: App.I18n.Schema = {
       messages: {
         loaded: 'Prompts loaded',
         saved: 'Prompt saved',
+        defaultLoaded: 'Built-in default prompt loaded. Review it before saving.',
         testPassed: 'Prompt test completed',
         testCopied: 'Test result copied'
       },

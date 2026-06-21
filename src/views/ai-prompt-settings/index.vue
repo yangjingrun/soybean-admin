@@ -8,7 +8,7 @@ import {
   hasPermission
 } from '@soybean/shared';
 import { aiPromptOptions, defaultAiPromptKey, type AiPromptKey } from '@/constants/ai-gateway';
-import { getAiPrompt, saveAiPrompt } from '@/service/api';
+import { getAiPrompt, getDefaultAiPrompt, saveAiPrompt } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import PromptTestModal from './modules/PromptTestModal.vue';
 
@@ -48,6 +48,7 @@ const promptForm = reactive<Api.AiGateway.SavePromptPayload>({
 
 const isPromptLoading = shallowRef(false);
 const isPromptSaving = shallowRef(false);
+const isDefaultPromptLoading = shallowRef(false);
 const isPromptTestVisible = shallowRef(false);
 const promptRecords = reactive<Partial<Record<AiPromptKey, Api.AiGateway.AiPromptRecord>>>({});
 
@@ -153,6 +154,24 @@ async function handleSavePrompt() {
   }
 }
 
+/** Loads the code-level built-in prompt into the editor without saving it. */
+async function handleUseDefaultPrompt() {
+  isDefaultPromptLoading.value = true;
+
+  try {
+    const { data: record, error } = await getDefaultAiPrompt(promptForm.promptKey);
+
+    if (error) {
+      return;
+    }
+
+    syncPromptForm(record);
+    message.success(t('page.aiPromptSettings.messages.defaultLoaded'));
+  } finally {
+    isDefaultPromptLoading.value = false;
+  }
+}
+
 function handlePromptKeyUpdate(value: AiPromptKey) {
   const option = aiPromptOptions.find(item => item.value === value) || defaultPrompt;
 
@@ -229,6 +248,9 @@ function getPromptFormKey() {
               <NSpace :size="8">
                 <NTag type="warning" :bordered="false">{{ $t('page.aiPromptSettings.superOnly') }}</NTag>
                 <NText depth="3" class="updated-time">{{ selectedPromptUpdatedAt }}</NText>
+                <NButton size="small" :loading="isDefaultPromptLoading" @click="handleUseDefaultPrompt">
+                  {{ $t('page.aiPromptSettings.actions.useDefault') }}
+                </NButton>
                 <NButton
                   size="small"
                   type="primary"

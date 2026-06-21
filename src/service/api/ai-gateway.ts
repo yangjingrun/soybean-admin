@@ -1,5 +1,6 @@
 import { request } from '../request';
 import {
+  buildGetDefaultAiPromptRequestConfig,
   buildGenerateAiTextRequestConfig,
   buildSaveAiModelConfigRequestConfig,
   buildSaveMyAiModelConfigRequestConfig,
@@ -21,6 +22,11 @@ export function getAiPrompt(promptKey: string) {
   return request<Api.AiGateway.AiPromptRecord>({
     url: `/ai-gateway/prompts/${promptKey}`
   });
+}
+
+/** Read the code-level built-in prompt draft, ignoring saved global overrides. */
+export function getDefaultAiPrompt(promptKey: string) {
+  return request<Api.AiGateway.AiPromptRecord>(buildGetDefaultAiPromptRequestConfig(promptKey));
 }
 
 /** Save the backend model config used by AI workflows. */

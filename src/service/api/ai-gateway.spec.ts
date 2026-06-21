@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   aiGatewayGenerateTextTimeout,
+  buildGetDefaultAiPromptRequestConfig,
   buildGenerateAiTextRequestConfig,
   buildSaveMyAiModelConfigRequestConfig,
   buildSaveMyHunterConfigRequestConfig,
@@ -22,6 +23,12 @@ describe('ai gateway api helpers', () => {
     assert.equal(config.timeout, aiGatewayGenerateTextTimeout);
     assert.equal(config.timeout, 120 * 1000);
     assert.deepEqual(config.data, payload);
+  });
+
+  it('builds the built-in default prompt request config', () => {
+    const config = buildGetDefaultAiPromptRequestConfig('lead_search_result_decide');
+
+    assert.equal(config.url, '/ai-gateway/prompts/lead_search_result_decide/default');
   });
 
   it('saves my model config through the personal model endpoint', () => {
