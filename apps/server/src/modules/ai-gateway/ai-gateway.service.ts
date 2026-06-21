@@ -147,10 +147,10 @@ export class AiGatewayService {
     const record = await this.modelConfigStore.getModelConfig(normalizedKey);
 
     if (!record) {
-      return toModelConfigView(createModelConfigDraft(normalizedKey));
+      return toModelConfigView(createModelConfigDraft(normalizedKey), { exposeApiKey: true });
     }
 
-    return toModelConfigView(record);
+    return toModelConfigView(record, { exposeApiKey: true });
   }
 
   /** Generates text through the configured model and injects saved prompt rules when promptKey is provided. */
@@ -356,11 +356,17 @@ function createModelConfigDraft(configKey: string): AiModelConfigRecord {
   };
 }
 
-function toModelConfigView(record: AiModelConfigRecord): AiModelConfigViewRecord {
+function toModelConfigView(
+  record: AiModelConfigRecord,
+  options: {
+    exposeApiKey?: boolean;
+  } = {}
+): AiModelConfigViewRecord {
   const { apiKey, ...view } = record;
 
   return {
     ...view,
+    ...(options.exposeApiKey ? { apiKey } : {}),
     ...toSecretView(apiKey)
   };
 }

@@ -50,7 +50,9 @@ export interface AiModelConfigRecord {
   updatedAt: string;
 }
 
-export type AiModelConfigViewRecord = Omit<AiModelConfigRecord, 'apiKey'> & SecretViewFields;
+export type AiModelConfigViewRecord = Omit<AiModelConfigRecord, 'apiKey'> &
+  Partial<Pick<AiModelConfigRecord, 'apiKey'>> &
+  SecretViewFields;
 
 export interface AiModelConfigStore {
   getModelConfig(configKey: string): Promise<AiModelConfigRecord | null>;

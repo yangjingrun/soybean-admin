@@ -30,6 +30,7 @@ declare namespace Api {
       title: string;
       providerName: string;
       apiBase: string;
+      apiKey?: string;
       model: string;
       temperature?: number;
       maxOutputTokens?: number;

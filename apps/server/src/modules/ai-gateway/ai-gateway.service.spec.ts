@@ -185,7 +185,7 @@ describe('AiGatewayService', () => {
     assert.equal('apiKey' in record, false);
   });
 
-  it('returns masked model config drafts without exposing the saved API key', async () => {
+  it('returns model config drafts with the saved API key for settings echo', async () => {
     const service = new AiGatewayService(
       createMemoryTextGenerator(),
       createMemoryPromptStore(),
@@ -206,8 +206,7 @@ describe('AiGatewayService', () => {
 
     assert.equal(draft.hasApiKey, true);
     assert.equal(draft.maskedApiKey, 'sk-s****-key');
-    assert.equal(JSON.stringify(draft).includes('sk-secret-model-key'), false);
-    assert.equal('apiKey' in draft, false);
+    assert.equal(draft.apiKey, 'sk-secret-model-key');
   });
 
   it('records a success log when text generation succeeds', async () => {

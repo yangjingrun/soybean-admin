@@ -217,7 +217,7 @@ async function handleLoadModelConfig(showMessage = true) {
       title: record.title,
       providerName: record.providerName,
       apiBase: record.apiBase,
-      apiKey: '',
+      apiKey: record.apiKey ?? '',
       model: record.model
     });
     Object.assign(savedModelSecret, {
