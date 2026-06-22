@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-22 Nest 构造函数注入遇到运行时 undefined 要显式 Inject
+
+- 场景：后端启动时报 `Nest can't resolve dependencies of the CrmSendWorkerService ... argument at index [2]`，前端因 `localhost:9528` 后端未启动而通过 Vite 代理弹出 502。
+- 坑点：构造函数依赖只依赖 TypeScript 反射 metadata 时，某些可注入类在运行时可能被解析成 `undefined`，Nest 会在启动期失败，导致前端只看到代理层 502。
+- 正确做法：对启动失败的构造参数使用 `@Inject(ConcreteService)` 显式声明注入 token，不改业务兜底、不改前端提示来掩盖后端启动失败。
+- 相关文件：`apps/server/src/modules/crm/crm-send-worker.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，并启动 `pnpm --filter @soybean/server dev` 确认 Nest 能初始化到路由映射阶段。
+
 ### 2026-06-21 普通 CRM 成员进入邮件序列需要默认读取写信资料和发送规则
 
 - 场景：普通 `R_USER` 用户进入 `/crm/email-sequences` 时，页面会预加载“生成首封草稿”所需的客户、邮箱、产品资料和序列策略资源。

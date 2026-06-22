@@ -24,7 +24,7 @@ export class CrmSendWorkerService {
   constructor(
     @Inject(CRM_SEND_WORKER_REPOSITORY) private readonly store: CrmSendWorkerRepository,
     @Inject(CRM_EMAIL_SEND_GATEWAY) private readonly sendGateway: CrmEmailSendGateway,
-    private readonly availabilityService: CrmSendAvailabilityService,
+    @Inject(CrmSendAvailabilityService) private readonly availabilityService: CrmSendAvailabilityService,
     @Optional()
     @Inject(SystemNotificationService)
     private readonly systemNotificationService?: SystemNotificationService
