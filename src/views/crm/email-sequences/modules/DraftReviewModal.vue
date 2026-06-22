@@ -461,7 +461,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             <NEmpty v-else description="暂无后续邮件" size="small" />
           </div>
 
-          <div class="review-layout">
+          <div class="review-flow">
             <main class="review-main">
               <div class="review-section">
                 <div class="section-heading">
@@ -488,7 +488,35 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                   </NFormItem>
                 </NForm>
               </div>
+            </main>
 
+            <aside class="decision-panel">
+              <div>
+                <div class="section-title">当前处理</div>
+                <div class="decision-subtitle">{{ statusTip }}</div>
+              </div>
+              <div class="decision-checks">
+                <div
+                  v-for="check in item.checklist"
+                  :key="check.key"
+                  class="decision-check"
+                  :class="{ 'decision-check--passed': check.passed, 'decision-check--warning': !check.passed }"
+                >
+                  <NTag :type="check.passed ? 'success' : 'warning'" :bordered="false" size="small">
+                    {{ check.passed ? '通过' : '确认' }}
+                  </NTag>
+                  <div class="decision-check-content">
+                    <div class="decision-check-title">{{ check.label }}</div>
+                    <div class="decision-check-message">{{ check.message }}</div>
+                  </div>
+                </div>
+                <NEmpty v-if="!item.checklist.length" description="暂无需要确认的审核项" size="small" />
+              </div>
+            </aside>
+          </div>
+
+          <NCollapse class="advanced-info">
+            <NCollapseItem title="历史版本" name="draft-versions">
               <DraftVersionHistory
                 :items="draftVersionPreviewItems"
                 :active-preview="activeDraftVersionPreview"
@@ -499,56 +527,54 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 @hover="hoveredDraftVersionId = $event"
                 @restore="handleRestoreVersion"
               />
-            </main>
+            </NCollapseItem>
 
-            <aside class="review-context">
+            <NCollapseItem title="发送安排" name="send-schedule">
+              <NDescriptions :column="2" bordered size="small" label-placement="left">
+                <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
+                <NDescriptionsItem label="队列 Job">
+                  {{ formatNullableText(currentMessage?.bullJobId) }}
+                </NDescriptionsItem>
+                <NDescriptionsItem label="计划发送">
+                  {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
+                </NDescriptionsItem>
+                <NDescriptionsItem label="实际发送">
+                  {{ currentMessage?.sentAt ? formatSequenceDate(currentMessage.sentAt) : '-' }}
+                </NDescriptionsItem>
+              </NDescriptions>
+            </NCollapseItem>
+
+            <NCollapseItem title="发送前审核明细" name="send-audit">
               <SendAuditPanel :item="item" :current-message="currentMessage" />
+            </NCollapseItem>
 
-              <div class="review-section">
-                <div class="section-title">发送安排</div>
-                <NDescriptions :column="1" bordered size="small" label-placement="left">
-                  <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
-                  <NDescriptionsItem label="队列 Job">
-                    {{ formatNullableText(currentMessage?.bullJobId) }}
-                  </NDescriptionsItem>
-                  <NDescriptionsItem label="计划发送">
-                    {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
-                  </NDescriptionsItem>
-                  <NDescriptionsItem label="实际发送">
-                    {{ currentMessage?.sentAt ? formatSequenceDate(currentMessage.sentAt) : '-' }}
-                  </NDescriptionsItem>
-                </NDescriptions>
-              </div>
+            <NCollapseItem v-if="personaMatchRows.length" title="客户画像" name="persona">
+              <NDescriptions :column="1" bordered size="small" label-placement="left">
+                <NDescriptionsItem v-for="row in personaMatchRows" :key="row.key" :label="row.label">
+                  <span class="persona-match-text">{{ row.value }}</span>
+                </NDescriptionsItem>
+              </NDescriptions>
+            </NCollapseItem>
 
-              <div v-if="personaMatchRows.length" class="review-section">
-                <div class="section-title">客户画像</div>
-                <NDescriptions :column="1" bordered size="small" label-placement="left">
-                  <NDescriptionsItem v-for="row in personaMatchRows" :key="row.key" :label="row.label">
-                    <span class="persona-match-text">{{ row.value }}</span>
-                  </NDescriptionsItem>
-                </NDescriptions>
-              </div>
+            <NCollapseItem v-if="policyReviewHints.length" title="策略校验" name="policy">
+              <NDescriptions :column="1" bordered size="small" label-placement="left">
+                <NDescriptionsItem v-for="hint in policyReviewHints" :key="hint.key" :label="hint.label">
+                  <NSpace align="center" :size="8">
+                    <NTag :type="hint.tagType" :bordered="false" size="small">{{ hint.status }}</NTag>
+                    <span class="policy-hint-text">{{ hint.description }}</span>
+                  </NSpace>
+                </NDescriptionsItem>
+              </NDescriptions>
+            </NCollapseItem>
 
-              <div v-if="policyReviewHints.length" class="review-section">
-                <div class="section-title">策略校验</div>
-                <NDescriptions :column="1" bordered size="small" label-placement="left">
-                  <NDescriptionsItem v-for="hint in policyReviewHints" :key="hint.key" :label="hint.label">
-                    <NSpace align="center" :size="8">
-                      <NTag :type="hint.tagType" :bordered="false" size="small">{{ hint.status }}</NTag>
-                      <span class="policy-hint-text">{{ hint.description }}</span>
-                    </NSpace>
-                  </NDescriptionsItem>
-                </NDescriptions>
-              </div>
-
+            <NCollapseItem v-if="aiDraftInfo" title="AI 生成信息" name="ai-draft">
               <DraftAiInfoPanel
-                v-if="aiDraftInfo"
                 :summary-rows="aiDraftSummaryRows"
                 :review-tags="aiDraftReviewTags"
                 :prompt-snapshot-rows="aiDraftPromptSnapshotRows"
               />
-            </aside>
-          </div>
+            </NCollapseItem>
+          </NCollapse>
         </div>
         <NEmpty v-else description="请选择审核项" />
       </NScrollbar>
@@ -559,15 +585,16 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
         <NButton @click="modalVisible = false">关闭</NButton>
         <div class="modal-actions">
           <NButton
+            v-if="canRefreshSequence"
             :disabled="
-              loading || saving || approving || sendStarting || stopping || nextDraftGenerating || !canRefreshSequence
+              loading || saving || approving || sendStarting || stopping || nextDraftGenerating
             "
             :loading="refreshing"
             @click="emit('refresh')"
           >
             刷新状态
           </NButton>
-          <NPopconfirm positive-text="停止" negative-text="取消" @positive-click="emit('stop')">
+          <NPopconfirm v-if="canStopSequence" positive-text="停止" negative-text="取消" @positive-click="emit('stop')">
             <template #trigger>
               <NButton
                 type="error"
@@ -578,8 +605,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                     approving ||
                     sendStarting ||
                     refreshing ||
-                    nextDraftGenerating ||
-                    !canStopSequence
+                    nextDraftGenerating
                 "
                 :loading="stopping"
               >
@@ -589,6 +615,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             停止后当前序列不会继续发送，队列中的旧任务也会失效。
           </NPopconfirm>
           <NButton
+            v-if="canEdit"
             :disabled="
               loading ||
                 approving ||
@@ -597,8 +624,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 stopping ||
                 versionRestoring ||
                 nextDraftGenerating ||
-                !currentMessage ||
-                !canEdit
+                !currentMessage
             "
             :loading="saving"
             @click="handleSave"
@@ -606,6 +632,8 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             保存草稿
           </NButton>
           <NButton
+            v-if="canOperateSelectedDraft"
+            type="primary"
             :disabled="
               loading ||
                 saving ||
@@ -623,15 +651,15 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             确认草稿
           </NButton>
           <NButton
-            :disabled="
-              loading || saving || approving || refreshing || sendStarting || stopping || !canGenerateNextDraft
-            "
+            v-if="canGenerateNextDraft"
+            :disabled="loading || saving || approving || refreshing || sendStarting || stopping"
             :loading="nextDraftGenerating"
             @click="emit('generateNextDraft')"
           >
             生成下一封草稿
           </NButton>
           <NButton
+            v-if="canStartSend"
             type="primary"
             :disabled="
               loading ||
@@ -640,8 +668,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 refreshing ||
                 stopping ||
                 nextDraftGenerating ||
-                !currentMessage ||
-                !canStartSend
+                !currentMessage
             "
             :loading="sendStarting"
             @click="emit('startSend')"
@@ -658,7 +685,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 .review-workbench,
 .review-section,
 .review-main,
-.review-context {
+.decision-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -723,16 +750,74 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   white-space: nowrap;
 }
 
-.review-layout {
+.review-flow {
   display: grid;
   align-items: start;
   gap: 16px;
   grid-template-columns: minmax(520px, 1.5fr) minmax(300px, 0.82fr);
 }
 
-.review-context,
 .review-section {
   min-width: 0;
+}
+
+.decision-panel {
+  min-width: 0;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background: var(--n-table-color);
+  padding: 14px;
+}
+
+.decision-subtitle {
+  margin-top: 4px;
+  color: var(--n-text-color-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.decision-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.decision-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.decision-check--passed {
+  background: rgba(82, 196, 26, 0.08);
+}
+
+.decision-check--warning {
+  background: rgba(250, 173, 20, 0.1);
+}
+
+.decision-check-content {
+  min-width: 0;
+}
+
+.decision-check-title {
+  color: var(--n-text-color);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.decision-check-message {
+  margin-top: 2px;
+  color: var(--n-text-color-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.advanced-info {
+  border-top: 1px solid var(--n-divider-color);
+  padding-top: 4px;
 }
 
 .sequence-strip {
@@ -803,7 +888,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 }
 
 @media (max-width: 1280px) {
-  .review-layout {
+  .review-flow {
     grid-template-columns: minmax(460px, 1.35fr) minmax(280px, 0.85fr);
   }
 }
@@ -814,7 +899,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   }
 
   .review-hero,
-  .review-layout,
+  .review-flow,
   .sequence-strip {
     grid-template-columns: 1fr;
   }
