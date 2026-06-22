@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BulkAiDraftTaskDrawer from './BulkAiDraftTaskDrawer.vue';
-import DraftReviewDrawer from './DraftReviewDrawer.vue';
+import DraftReviewModal from './DraftReviewModal.vue';
 import EmailSequenceTable from './EmailSequenceTable.vue';
 import EmailSequenceToolbar from './EmailSequenceToolbar.vue';
 import SequenceCreateModal from './SequenceCreateModal.vue';
@@ -120,7 +120,7 @@ const {
       @update:show="handleCreateVisibleUpdate"
     />
 
-    <DraftReviewDrawer
+    <DraftReviewModal
       :show="drawerVisible"
       :approving="draftApproving"
       :item="currentItem"

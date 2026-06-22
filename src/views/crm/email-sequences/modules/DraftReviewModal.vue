@@ -66,7 +66,7 @@ interface AiDraftReviewTag {
 }
 
 const message = useMessage();
-const drawerVisible = computed({
+const modalVisible = computed({
   get: () => props.show,
   set: value => emit('update:show', value)
 });
@@ -410,110 +410,151 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 </script>
 
 <template>
-  <NDrawer v-model:show="drawerVisible" :width="760" placement="right">
-    <NDrawerContent title="开发信草稿审核" closable>
-      <NSpin :show="loading">
-        <NSpace v-if="item" vertical :size="16">
-          <div class="review-summary">
-            <NSpace align="center" :size="8">
-              <NTag :type="sequenceStatusTagTypeMap[item.enrollment.status]" :bordered="false" size="small">
-                {{ sequenceStatusLabelMap[item.enrollment.status] }}
-              </NTag>
-              <NTag v-if="currentMessage" :type="currentMessageStatusView?.tagType" :bordered="false" size="small">
-                {{ currentMessageStatusView?.label }}
-              </NTag>
-            </NSpace>
-            <div class="review-title">{{ item.account.name }}</div>
-            <div class="review-subtitle">
-              {{ formatNullableText(item.contact.fullName || item.contact.title) }} · {{ item.contact.maskedEmail }}
+  <NModal
+    v-model:show="modalVisible"
+    preset="card"
+    title="开发信草稿审核"
+    class="draft-review-modal"
+    :mask-closable="false"
+  >
+    <NSpin :show="loading">
+      <NScrollbar class="draft-review-scroll">
+        <div v-if="item" class="review-workbench">
+          <div class="review-hero">
+            <div class="review-hero-main">
+              <NSpace align="center" :size="8">
+                <NTag :type="sequenceStatusTagTypeMap[item.enrollment.status]" :bordered="false" size="small">
+                  {{ sequenceStatusLabelMap[item.enrollment.status] }}
+                </NTag>
+                <NTag v-if="currentMessage" :type="currentMessageStatusView?.tagType" :bordered="false" size="small">
+                  {{ currentMessageStatusView?.label }}
+                </NTag>
+              </NSpace>
+              <div class="review-title">{{ item.account.name }}</div>
+              <div class="review-subtitle">
+                {{ formatNullableText(item.contact.fullName || item.contact.title) }} · {{ item.contact.maskedEmail }}
+              </div>
+            </div>
+            <div class="review-hero-meta">
+              <div class="review-meta-item">
+                <span class="review-meta-label">产品线</span>
+                <span class="review-meta-value">{{ item.productLine?.name || '-' }}</span>
+              </div>
+              <div class="review-meta-item">
+                <span class="review-meta-label">发送邮箱</span>
+                <span class="review-meta-value">{{ item.mailbox?.maskedEmail || '-' }}</span>
+              </div>
+              <div class="review-meta-item">
+                <span class="review-meta-label">更新时间</span>
+                <span class="review-meta-value">{{ formatSequenceDate(item.enrollment.updatedAt) }}</span>
+              </div>
             </div>
           </div>
 
-          <NDescriptions :column="1" bordered size="small" label-placement="left">
-            <NDescriptionsItem label="产品线">{{ item.productLine?.name || '-' }}</NDescriptionsItem>
-            <NDescriptionsItem label="发送邮箱">{{ item.mailbox?.maskedEmail || '-' }}</NDescriptionsItem>
-            <NDescriptionsItem label="更新时间">{{ formatSequenceDate(item.enrollment.updatedAt) }}</NDescriptionsItem>
-          </NDescriptions>
+          <div class="review-layout">
+            <aside class="review-sidebar">
+              <div class="section-title">序列进度</div>
+              <SequenceMessageTimeline
+                v-if="timelineItems.length > 1"
+                :items="timelineItems"
+                @select="selectedMessageId = $event"
+              />
+              <NEmpty v-else description="暂无后续邮件" size="small" />
 
-          <NDescriptions :column="2" bordered size="small" label-placement="left">
-            <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
-            <NDescriptionsItem label="队列 Job">{{ formatNullableText(currentMessage?.bullJobId) }}</NDescriptionsItem>
-            <NDescriptionsItem label="计划发送">
-              {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem label="实际发送">
-              {{ currentMessage?.sentAt ? formatSequenceDate(currentMessage.sentAt) : '-' }}
-            </NDescriptionsItem>
-          </NDescriptions>
+              <NDescriptions :column="1" bordered size="small" label-placement="left">
+                <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
+                <NDescriptionsItem label="队列 Job">
+                  {{ formatNullableText(currentMessage?.bullJobId) }}
+                </NDescriptionsItem>
+                <NDescriptionsItem label="计划发送">
+                  {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
+                </NDescriptionsItem>
+                <NDescriptionsItem label="实际发送">
+                  {{ currentMessage?.sentAt ? formatSequenceDate(currentMessage.sentAt) : '-' }}
+                </NDescriptionsItem>
+              </NDescriptions>
+            </aside>
 
-          <SequenceMessageTimeline
-            v-if="timelineItems.length > 1"
-            :items="timelineItems"
-            @select="selectedMessageId = $event"
-          />
+            <main class="review-main">
+              <div class="review-section">
+                <div class="section-heading">
+                  <div>
+                    <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封草稿</div>
+                  </div>
+                </div>
+                <NAlert type="info" :bordered="false" class="status-alert">
+                  {{ statusTip }}
+                </NAlert>
+                <NForm :model="draftForm" label-placement="top" size="small">
+                  <NFormItem label="主题">
+                    <NInput v-model:value="draftForm.subject" :disabled="!canEdit" maxlength="200" show-count />
+                  </NFormItem>
+                  <NFormItem label="正文">
+                    <NInput
+                      v-model:value="draftForm.bodyText"
+                      type="textarea"
+                      :disabled="!canEdit"
+                      maxlength="5000"
+                      show-count
+                      :autosize="{ minRows: 14, maxRows: 22 }"
+                    />
+                  </NFormItem>
+                </NForm>
+              </div>
 
-          <SendAuditPanel :item="item" :current-message="currentMessage" />
+              <DraftVersionHistory
+                :items="draftVersionPreviewItems"
+                :active-preview="activeDraftVersionPreview"
+                :loading="versionLoading"
+                :can-edit="canEdit"
+                :restoring="versionRestoring"
+                @select="handleSelectDraftVersion"
+                @hover="hoveredDraftVersionId = $event"
+                @restore="handleRestoreVersion"
+              />
+            </main>
 
-          <NDescriptions v-if="personaMatchRows.length" :column="1" bordered size="small" label-placement="left">
-            <NDescriptionsItem v-for="row in personaMatchRows" :key="row.key" :label="row.label">
-              <span class="persona-match-text">{{ row.value }}</span>
-            </NDescriptionsItem>
-          </NDescriptions>
+            <aside class="review-context">
+              <SendAuditPanel :item="item" :current-message="currentMessage" />
 
-          <NDescriptions v-if="policyReviewHints.length" :column="1" bordered size="small" label-placement="left">
-            <NDescriptionsItem v-for="hint in policyReviewHints" :key="hint.key" :label="hint.label">
-              <NSpace align="center" :size="8">
-                <NTag :type="hint.tagType" :bordered="false" size="small">{{ hint.status }}</NTag>
-                <span class="policy-hint-text">{{ hint.description }}</span>
-              </NSpace>
-            </NDescriptionsItem>
-          </NDescriptions>
+              <div v-if="personaMatchRows.length" class="review-section">
+                <div class="section-title">客户画像</div>
+                <NDescriptions :column="1" bordered size="small" label-placement="left">
+                  <NDescriptionsItem v-for="row in personaMatchRows" :key="row.key" :label="row.label">
+                    <span class="persona-match-text">{{ row.value }}</span>
+                  </NDescriptionsItem>
+                </NDescriptions>
+              </div>
 
-          <div class="drawer-section">
-            <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封草稿</div>
-            <NAlert type="info" :bordered="false" class="status-alert">
-              {{ statusTip }}
-            </NAlert>
-            <DraftAiInfoPanel
-              v-if="aiDraftInfo"
-              :summary-rows="aiDraftSummaryRows"
-              :review-tags="aiDraftReviewTags"
-              :prompt-snapshot-rows="aiDraftPromptSnapshotRows"
-            />
-            <NForm :model="draftForm" label-placement="top" size="small">
-              <NFormItem label="主题">
-                <NInput v-model:value="draftForm.subject" :disabled="!canEdit" maxlength="200" show-count />
-              </NFormItem>
-              <NFormItem label="正文">
-                <NInput
-                  v-model:value="draftForm.bodyText"
-                  type="textarea"
-                  :disabled="!canEdit"
-                  maxlength="5000"
-                  show-count
-                  :autosize="{ minRows: 12, maxRows: 18 }"
-                />
-              </NFormItem>
-            </NForm>
+              <div v-if="policyReviewHints.length" class="review-section">
+                <div class="section-title">策略校验</div>
+                <NDescriptions :column="1" bordered size="small" label-placement="left">
+                  <NDescriptionsItem v-for="hint in policyReviewHints" :key="hint.key" :label="hint.label">
+                    <NSpace align="center" :size="8">
+                      <NTag :type="hint.tagType" :bordered="false" size="small">{{ hint.status }}</NTag>
+                      <span class="policy-hint-text">{{ hint.description }}</span>
+                    </NSpace>
+                  </NDescriptionsItem>
+                </NDescriptions>
+              </div>
+
+              <DraftAiInfoPanel
+                v-if="aiDraftInfo"
+                :summary-rows="aiDraftSummaryRows"
+                :review-tags="aiDraftReviewTags"
+                :prompt-snapshot-rows="aiDraftPromptSnapshotRows"
+              />
+            </aside>
           </div>
-
-          <DraftVersionHistory
-            :items="draftVersionPreviewItems"
-            :active-preview="activeDraftVersionPreview"
-            :loading="versionLoading"
-            :can-edit="canEdit"
-            :restoring="versionRestoring"
-            @select="handleSelectDraftVersion"
-            @hover="hoveredDraftVersionId = $event"
-            @restore="handleRestoreVersion"
-          />
-        </NSpace>
+        </div>
         <NEmpty v-else description="请选择审核项" />
-      </NSpin>
+      </NScrollbar>
+    </NSpin>
 
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="drawerVisible = false">关闭</NButton>
+    <template #footer>
+      <div class="modal-footer">
+        <NButton @click="modalVisible = false">关闭</NButton>
+        <div class="modal-actions">
           <NButton
             :disabled="
               loading || saving || approving || sendStarting || stopping || nextDraftGenerating || !canRefreshSequence
@@ -604,23 +645,93 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
           >
             启动发送
           </NButton>
-        </NSpace>
-      </template>
-    </NDrawerContent>
-  </NDrawer>
+        </div>
+      </div>
+    </template>
+  </NModal>
 </template>
 
 <style scoped>
-.review-summary,
-.drawer-section {
+.review-workbench,
+.review-section,
+.review-main,
+.review-sidebar,
+.review-context {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.draft-review-modal {
+  width: min(1180px, calc(100vw - 48px));
+}
+
+.draft-review-scroll {
+  max-height: min(72vh, 760px);
+}
+
+.review-workbench {
+  gap: 16px;
+  padding-right: 2px;
+}
+
+.review-hero {
+  display: grid;
+  align-items: stretch;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background: var(--n-table-color);
+  padding: 16px;
+}
+
+.review-hero-main {
+  display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 8px;
 }
 
-.review-summary {
-  border-bottom: 1px solid var(--n-divider-color);
-  padding-bottom: 14px;
+.review-hero-meta {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.review-meta-item {
+  display: flex;
+  min-width: 0;
+  border-left: 1px solid var(--n-divider-color);
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+}
+
+.review-meta-label {
+  color: var(--n-text-color-3);
+  font-size: 12px;
+}
+
+.review-meta-value {
+  overflow: hidden;
+  color: var(--n-text-color);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-layout {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+  grid-template-columns: minmax(210px, 0.72fr) minmax(420px, 1.5fr) minmax(280px, 0.95fr);
+}
+
+.review-sidebar,
+.review-context,
+.review-section {
+  min-width: 0;
 }
 
 .review-title {
@@ -650,8 +761,67 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   font-weight: 600;
 }
 
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .status-alert {
   margin-bottom: 10px;
 }
 
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 1280px) {
+  .review-layout {
+    grid-template-columns: minmax(220px, 0.75fr) minmax(420px, 1.45fr);
+  }
+
+  .review-context {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .draft-review-modal {
+    width: calc(100vw - 24px);
+  }
+
+  .review-hero,
+  .review-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .review-hero-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .review-meta-item {
+    border-left: 0;
+    border-top: 1px solid var(--n-divider-color);
+    padding-top: 10px;
+    padding-left: 0;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+  }
+
+  .modal-actions {
+    justify-content: flex-start;
+  }
+}
 </style>
