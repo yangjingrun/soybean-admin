@@ -72,7 +72,9 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /已选中关键词历史/);
     assert.match(pageSource, /历史搜索策略已选中/);
     assert.match(pageSource, /重新优化/);
-    assert.match(pageSource, /@positive-click="handleGenerate"/);
+    assert.match(pageSource, /:show="isHistoryGenerateConfirmVisible"/);
+    assert.match(pageSource, /@positive-click="handleConfirmGenerateFromHistory"/);
+    assert.match(pageSource, /@click="isHistoryGenerateConfirmVisible = true"/);
     assert.match(pageSource, /data-action="generate"/);
   });
 

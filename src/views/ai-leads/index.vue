@@ -68,6 +68,7 @@ type TaskActionButton = {
 
 const debugFooterRef = useTemplateRef<HTMLElement>('debugFooter');
 const debugExpandedNames = shallowRef<Array<string | number>>([]);
+const isHistoryGenerateConfirmVisible = shallowRef(false);
 
 const isGenerateDisabled = computed(
   () =>
@@ -123,6 +124,13 @@ function handlePrimarySearchAction() {
   }
 
   return handleSearchCustomers();
+}
+
+/** Closes the history confirm popup before the generate flow switches page state. */
+async function handleConfirmGenerateFromHistory() {
+  isHistoryGenerateConfirmVisible.value = false;
+  await nextTick();
+  await handleGenerate();
 }
 
 /**
@@ -260,9 +268,20 @@ const taskActionButtons = computed(
               </template>
               历史
             </NButton>
-            <NPopconfirm v-if="isRestoredKeywordHistory" @positive-click="handleGenerate">
+            <NPopconfirm
+              v-if="isRestoredKeywordHistory"
+              :show="isHistoryGenerateConfirmVisible"
+              @update:show="isHistoryGenerateConfirmVisible = $event"
+              @positive-click="handleConfirmGenerateFromHistory"
+            >
               <template #trigger>
-                <NButton size="small" :loading="isGenerating" :disabled="isGenerateDisabled" data-action="generate">
+                <NButton
+                  size="small"
+                  :loading="isGenerating"
+                  :disabled="isGenerateDisabled"
+                  data-action="generate"
+                  @click="isHistoryGenerateConfirmVisible = true"
+                >
                   重新优化
                 </NButton>
               </template>
