@@ -56,7 +56,7 @@ describe('CrmSequenceEligibilityService', () => {
     assert.equal(sequenceRepository.accountChecks.length, 0);
   });
 
-  it('uses the shared active sequence statuses for contact and same-company checks', async () => {
+  it('blocks first draft creation when the contact has any existing sequence history', async () => {
     const sequenceRepository = createSequenceRepository();
     const service = createService({
       sequenceRepository
@@ -73,7 +73,7 @@ describe('CrmSequenceEligibilityService', () => {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
       contactId: 'contact-1',
-      statuses: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused']
+      statuses: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused', 'stopped', 'replied', 'archived']
     });
     assert.deepEqual(sequenceRepository.accountChecks[0], {
       organizationId: 'org-1',
@@ -81,6 +81,25 @@ describe('CrmSequenceEligibilityService', () => {
       accountId: 'account-1',
       statuses: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused']
     });
+  });
+
+  it('rejects stopped or replied sequence history before generating another first draft', async () => {
+    const service = createService({
+      sequenceRepository: createSequenceRepository({
+        existingContactEnrollment: createEnrollment({ status: 'stopped' })
+      })
+    });
+
+    await assert.rejects(
+      () =>
+        service.assertCanCreateSequenceReview({
+          account: createAccount(),
+          contact: createContact(),
+          policy: null,
+          context: createContext()
+        }),
+      /该联系人已生成过开发信/
+    );
   });
 
   it('allows multiple contacts in the same company only when policy explicitly permits it', async () => {
@@ -137,11 +156,15 @@ function createSequenceRepository(input: {
     accountChecks: [],
     async findActiveEnrollmentByContact(args) {
       this.contactChecks.push(args);
-      return input.existingContactEnrollment ?? null;
+      const enrollment = input.existingContactEnrollment ?? null;
+
+      return enrollment && args.statuses.includes(enrollment.status) ? enrollment : null;
     },
     async findActiveEnrollmentByAccount(args) {
       this.accountChecks.push(args);
-      return input.existingAccountEnrollment ?? null;
+      const enrollment = input.existingAccountEnrollment ?? null;
+
+      return enrollment && args.statuses.includes(enrollment.status) ? enrollment : null;
     },
     async createSequenceDraftBundle() {
       throw new Error('createSequenceDraftBundle should not be called');

@@ -10,7 +10,7 @@ import type {
   CrmUserContext
 } from '../crm.types';
 import type { CrmSuppressionRepository } from '../suppression/crm-suppression.repository';
-import { activeSequenceBlockingStatuses } from './crm-sequence-control-rules';
+import { activeSequenceBlockingStatuses, firstDraftCreationBlockingStatuses } from './crm-sequence-control-rules';
 import type { CrmSequenceRepository } from './crm-sequence.repository';
 
 interface SequenceReviewEligibilityInput {
@@ -35,11 +35,11 @@ export class CrmSequenceEligibilityService {
     await this.assertPolicyAllowsSequence(input.account, input.contact, input.policy, input.context);
   }
 
-  /** Checks owner-only, account status, blacklist, and same-contact active sequence rules. */
+  /** Checks owner-only, account status, blacklist, and same-contact sequence history rules. */
   async assertLeadCanStartSequence(account: CrmAccountRecord, contact: CrmContactRecord, context: CrmUserContext) {
     this.assertOwnerCanDevelop(account, contact, context);
     await this.assertContactNotBlacklisted(contact, context);
-    await this.assertNoActiveContactSequence(contact, context);
+    await this.assertNoContactSequenceHistory(contact, context);
   }
 
   /** Applies same-company sequence strategy after the concrete policy has been resolved. */
@@ -86,16 +86,16 @@ export class CrmSequenceEligibilityService {
     }
   }
 
-  private async assertNoActiveContactSequence(contact: CrmContactRecord, context: CrmUserContext) {
+  private async assertNoContactSequenceHistory(contact: CrmContactRecord, context: CrmUserContext) {
     const existingEnrollment = await this.sequenceRepository.findActiveEnrollmentByContact({
       organizationId: context.organizationId,
       ownerUserId: context.userId,
       contactId: contact.id,
-      statuses: activeSequenceBlockingStatuses
+      statuses: firstDraftCreationBlockingStatuses
     });
 
     if (existingEnrollment) {
-      throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
+      throw new BadRequestException('该联系人已生成过开发信，不能再次生成首封草稿');
     }
   }
 }

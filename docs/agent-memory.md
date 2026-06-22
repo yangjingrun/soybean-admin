@@ -391,6 +391,14 @@
 - 相关文件：`apps/server/src/modules/ai-gateway/ai-config-secret-crypto.ts`、`apps/server/src/modules/crm/crm-gmail-oauth-token.provider.ts`、`apps/server/src/shared/secret-crypto.ts`、`apps/server/src/shared/api-exception.filter.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-gateway/ai-config-secret-crypto.spec.ts apps/server/src/modules/crm/crm-gmail-oauth-token.provider.spec.ts`，确认缺失或非法长度密钥返回可处理的 `ServiceUnavailableException`。
 
+### 2026-06-22 首封开发信创建要按联系人历史序列阻止重复生成
+
+- 场景：CRM 邮件序列页已经为某联系人生成过首封开发信草稿，后续序列可能已停止、已回复或归档。
+- 坑点：创建首封草稿前如果只检查 `draft_review_pending/ready_to_send/sequence_running/paused` 这类活跃状态，停止或已回复的历史序列不会被拦截，用户可以为同一联系人再次生成首封草稿。
+- 正确做法：首封创建使用独立的 `firstDraftCreationBlockingStatuses`，覆盖所有 `CrmSequenceEnrollmentStatus`；同公司多联系人策略仍只用活跃状态 `activeSequenceBlockingStatuses`，不要混淆“是否已生成过首封”和“是否有活跃序列”。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-control-rules.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`，确认 stopped/replied/archived 等历史序列会阻止再次生成首封草稿。
+
 ### 记录模板
 
 ```md
