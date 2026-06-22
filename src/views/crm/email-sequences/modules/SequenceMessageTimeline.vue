@@ -34,24 +34,27 @@ const emit = defineEmits<{
 
 <style scoped>
 .message-timeline {
-  display: grid;
+  display: flex;
+  overflow-x: auto;
   gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  padding-bottom: 2px;
 }
 
 .message-step-button {
   display: flex;
-  min-width: 0;
+  width: 172px;
+  min-width: 172px;
   border: 1px solid var(--n-border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--n-color);
   color: var(--n-text-color);
   cursor: pointer;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
+  gap: 4px;
+  padding: 8px 10px;
   text-align: left;
   transition:
+    background-color 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
@@ -59,6 +62,7 @@ const emit = defineEmits<{
 .message-step-button:hover,
 .message-step-button--selected {
   border-color: var(--n-primary-color);
+  background: rgba(99, 102, 241, 0.08);
   box-shadow: 0 0 0 1px var(--n-primary-color);
 }
 

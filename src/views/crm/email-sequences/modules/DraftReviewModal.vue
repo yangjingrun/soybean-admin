@@ -451,30 +451,17 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             </div>
           </div>
 
+          <div class="sequence-strip">
+            <div class="sequence-strip-title">邮件步骤</div>
+            <SequenceMessageTimeline
+              v-if="timelineItems.length > 1"
+              :items="timelineItems"
+              @select="selectedMessageId = $event"
+            />
+            <NEmpty v-else description="暂无后续邮件" size="small" />
+          </div>
+
           <div class="review-layout">
-            <aside class="review-sidebar">
-              <div class="section-title">序列进度</div>
-              <SequenceMessageTimeline
-                v-if="timelineItems.length > 1"
-                :items="timelineItems"
-                @select="selectedMessageId = $event"
-              />
-              <NEmpty v-else description="暂无后续邮件" size="small" />
-
-              <NDescriptions :column="1" bordered size="small" label-placement="left">
-                <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
-                <NDescriptionsItem label="队列 Job">
-                  {{ formatNullableText(currentMessage?.bullJobId) }}
-                </NDescriptionsItem>
-                <NDescriptionsItem label="计划发送">
-                  {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
-                </NDescriptionsItem>
-                <NDescriptionsItem label="实际发送">
-                  {{ currentMessage?.sentAt ? formatSequenceDate(currentMessage.sentAt) : '-' }}
-                </NDescriptionsItem>
-              </NDescriptions>
-            </aside>
-
             <main class="review-main">
               <div class="review-section">
                 <div class="section-heading">
@@ -516,6 +503,22 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 
             <aside class="review-context">
               <SendAuditPanel :item="item" :current-message="currentMessage" />
+
+              <div class="review-section">
+                <div class="section-title">发送安排</div>
+                <NDescriptions :column="1" bordered size="small" label-placement="left">
+                  <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
+                  <NDescriptionsItem label="队列 Job">
+                    {{ formatNullableText(currentMessage?.bullJobId) }}
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="计划发送">
+                    {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="实际发送">
+                    {{ currentMessage?.sentAt ? formatSequenceDate(currentMessage.sentAt) : '-' }}
+                  </NDescriptionsItem>
+                </NDescriptions>
+              </div>
 
               <div v-if="personaMatchRows.length" class="review-section">
                 <div class="section-title">客户画像</div>
@@ -655,7 +658,6 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 .review-workbench,
 .review-section,
 .review-main,
-.review-sidebar,
 .review-context {
   display: flex;
   flex-direction: column;
@@ -725,13 +727,28 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   display: grid;
   align-items: start;
   gap: 16px;
-  grid-template-columns: minmax(210px, 0.72fr) minmax(420px, 1.5fr) minmax(280px, 0.95fr);
+  grid-template-columns: minmax(520px, 1.5fr) minmax(300px, 0.82fr);
 }
 
-.review-sidebar,
 .review-context,
 .review-section {
   min-width: 0;
+}
+
+.sequence-strip {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.sequence-strip-title {
+  color: var(--n-text-color-3);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .review-title {
@@ -787,11 +804,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 
 @media (max-width: 1280px) {
   .review-layout {
-    grid-template-columns: minmax(220px, 0.75fr) minmax(420px, 1.45fr);
-  }
-
-  .review-context {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(460px, 1.35fr) minmax(280px, 0.85fr);
   }
 }
 
@@ -801,7 +814,8 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   }
 
   .review-hero,
-  .review-layout {
+  .review-layout,
+  .sequence-strip {
     grid-template-columns: 1fr;
   }
 
