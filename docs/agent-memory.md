@@ -362,7 +362,7 @@
 ### 2026-06-19 Gmail watch 自动续订禁用开关要容忍空白和大小写
 
 - 场景：生产或预发环境通过 `CRM_GMAIL_WATCH_RENEWAL_DISABLED=true` 临时关闭自动 watch 续订。
-- 坑点：部署平台或人工配置可能写成 ` TRUE `、`True` 等形式；如果只按精确字符串比较，会导致以为已关闭但实际仍启动定时续订。
+- 坑点：部署平台或人工配置可能写成 `TRUE`、`True` 等形式；如果只按精确字符串比较，会导致以为已关闭但实际仍启动定时续订。
 - 正确做法：读取 `CRM_GMAIL_WATCH_RENEWAL_DISABLED` 时先 `trim().toLowerCase()`，只把规范化后的 `true` 视为禁用；默认和其他值仍保持启用。
 - 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认带空白和大小写变化的 disabled env 不会启动首批续订或 interval。
@@ -390,6 +390,14 @@
 - 正确做法：模块级密钥包装函数要先校验密钥并把配置错误转换成 Nest `ServiceUnavailableException`，消息里指出要检查对应 env，例如 `AI_CONFIG_SECRET_ENCRYPTION_KEY` 或 `CRM_GMAIL_TOKEN_ENCRYPTION_KEY`；不要为了绕过错误使用默认密钥或明文回退。
 - 相关文件：`apps/server/src/modules/ai-gateway/ai-config-secret-crypto.ts`、`apps/server/src/modules/crm/crm-gmail-oauth-token.provider.ts`、`apps/server/src/shared/secret-crypto.ts`、`apps/server/src/shared/api-exception.filter.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-gateway/ai-config-secret-crypto.spec.ts apps/server/src/modules/crm/crm-gmail-oauth-token.provider.spec.ts`，确认缺失或非法长度密钥返回可处理的 `ServiceUnavailableException`。
+
+### 2026-06-22 真实 Gmail 回信入库后也要创建系统通知
+
+- 场景：用户通过 Gmail Pub/Sub + History 同步真实客户回信，收件箱线程状态已更新为待处理，但全局布局没有弹出系统通知。
+- 坑点：手动 mock 客户回信路径会调用 `SystemNotificationService.create()`，真实 Gmail history worker 只调用 store 入库并推进 checkpoint，导致收件箱状态正确但顶部全局提醒缺失；同时不能把 `shown` 当作已处理状态，否则用户只是看到弹窗但没点击查看时会停止提醒。
+- 正确做法：`CrmGmailHistorySyncWorkerService` 在 `ingestCustomerReply()` 返回非重复记录后，复用 `toInboxNotificationCopy()` 和 `inboxNotificationTargetType` 创建 `crm_customer_reply` 通知；重复 Gmail message 仍依赖 providerMessageId 幂等，不重复通知。系统通知待提醒列表继续包含 `pending` 和 `shown`，只有用户点击查看或明确确认后标记 `read` 才停止提醒。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`、`apps/server/src/modules/crm/inbox/crm-inbox-rules.ts`、`apps/server/src/modules/system-notification/system-notification.service.ts`、`src/layouts/base-layout/system-notification-action.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts apps/server/src/modules/system-notification/system-notification.service.spec.ts apps/server/src/modules/system-notification/system-notification.controller.spec.ts`，确认真实 Gmail 新回信会创建通知、重复 history 不重复通知、`shown` 未读通知仍会返回。
 
 ### 2026-06-22 首封开发信创建要按联系人历史序列阻止重复生成
 

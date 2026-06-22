@@ -89,9 +89,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Health check timed out after ${timeoutMs}ms`)), timeoutMs);
 
-    promise
-      .then(resolve, reject)
-      .finally(() => clearTimeout(timer));
+    promise.then(resolve, reject).finally(() => clearTimeout(timer));
   });
 }
 

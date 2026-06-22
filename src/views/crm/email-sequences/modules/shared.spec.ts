@@ -735,7 +735,9 @@ describe('email sequence review shared helpers', () => {
     });
     const adminVisibleMember = createSequenceItem({
       enrollment: { id: 'enrollment-admin-visible', status: 'sequence_running' },
-      messages: [createMessage({ id: 'message-admin-visible', enrollmentId: 'enrollment-admin-visible', status: 'sent' })]
+      messages: [
+        createMessage({ id: 'message-admin-visible', enrollmentId: 'enrollment-admin-visible', status: 'sent' })
+      ]
     });
     adminVisibleMember.canOperateDraft = false;
     adminVisibleMember.canControlSequence = true;

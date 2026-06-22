@@ -26,6 +26,7 @@
 **Covers:** Item 1 AI 试写/调试台 backend, Item 2 AI 重新生成当前草稿 backend.
 
 **Write scope:**
+
 - `apps/server/src/modules/crm/crm.controller.ts`
 - `apps/server/src/modules/crm/crm.service.ts`
 - `apps/server/src/modules/crm/crm.types.ts`
@@ -34,12 +35,14 @@
 - `apps/server/src/modules/crm/crm.controller.spec.ts`
 
 **Requirements:**
+
 - [x] Add a preview endpoint that takes account/contact/productLine/stepIndex and returns an AI draft preview without creating `CrmMessage`.
 - [x] Add a regenerate endpoint for a current `draft_pending_review` message. It must owner-only regenerate subject/body, keep the message pending review, write a draft version snapshot, and update AI metadata.
 - [x] Reuse `CrmAiDraftService`; do not create a second model SDK.
 - [x] Do not call Gmail or enqueue send jobs.
 
 **Verification:**
+
 - [x] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/crm-ai-draft.service.spec.ts`
 - [x] `pnpm --filter @soybean/server typecheck`
 
@@ -48,6 +51,7 @@
 **Covers:** Item 5 产品线 AI 配置前端权限隐藏, Item 6 创建首封草稿 AI 提示.
 
 **Write scope:**
+
 - `src/views/crm/settings/modules/ProductLineFormModal.vue`
 - `src/views/crm/settings/modules/shared.ts`
 - `src/views/crm/settings/modules/shared.spec.ts`
@@ -57,12 +61,14 @@
 - `src/typings/api/crm.d.ts`
 
 **Requirements:**
+
 - [x] Make ordinary members see AI writing config as read-only or hidden according to existing CRM permission fields.
 - [x] In the create-sequence modal, show whether the selected product line has AI writing enabled, disabled, or incomplete.
 - [x] Keep submit behavior unchanged: backend remains the source of truth for permission and config errors.
 - [x] Use Naive UI components only; no new UI library.
 
 **Verification:**
+
 - [x] `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts src/views/crm/email-sequences/modules/shared.spec.ts`
 - [x] `pnpm typecheck`
 - [x] `pnpm exec oxlint`
@@ -72,18 +78,21 @@
 **Covers:** Item 4 完整提示词快照展示, Item 7 AI 内容质量检查 frontend display.
 
 **Write scope:**
+
 - `src/views/crm/email-sequences/modules/DraftReviewDrawer.vue`
 - `src/views/crm/email-sequences/modules/shared.ts`
 - `src/views/crm/email-sequences/modules/shared.spec.ts`
 - `src/typings/api/crm.d.ts`
 
 **Requirements:**
+
 - [x] Add a compact AI metadata section in the review drawer.
 - [x] Show reason, risk notes, product line name, step index, generated time.
 - [x] Add a collapsed prompt snapshot area for common requirements, forbidden claims, product emphasis, and the step prompt used.
 - [x] If backend adds quality warnings later, render them as tags without changing drawer layout again.
 
 **Verification:**
+
 - [x] `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`
 - [x] `pnpm typecheck`
 - [x] `pnpm exec eslint --max-warnings=0 .`
@@ -93,6 +102,7 @@
 **Covers:** Item 3 批量 AI 生成草稿的前端体验.
 
 **Write scope:**
+
 - `src/views/crm/email-sequences/index.vue`
 - `src/views/crm/email-sequences/modules/EmailSequenceTable.vue`
 - `src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`
@@ -100,12 +110,14 @@
 - `src/views/crm/email-sequences/modules/shared.spec.ts`
 
 **Requirements:**
+
 - [x] Improve multi-select batch generate next draft UX.
 - [x] Show per-row result after batch generation: success, skipped, failed, and reason.
 - [x] Preserve owner-only behavior and existing batch API contract.
 - [x] Do not create a separate background queue in this wave.
 
 **Verification:**
+
 - [x] `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`
 - [x] `pnpm typecheck`
 - [x] `pnpm exec oxlint`
@@ -129,6 +141,7 @@
 **Covers:** Item 8 提示词版本管理 backend.
 
 **Write scope:**
+
 - `prisma/schema.prisma`
 - `prisma/migrations/*crm_ai_prompt_versions*/migration.sql`
 - `apps/server/src/generated/prisma/**`
@@ -139,12 +152,14 @@
 - `apps/server/src/modules/crm/crm.service.spec.ts`
 
 **Requirements:**
+
 - [x] Add a product-line AI prompt version table or version records.
 - [x] Create a new version whenever AI writing config changes meaningfully.
 - [x] Keep current `CrmMessage.metadata.aiDraft.snapshot` as immutable per-draft audit history.
 - [x] Add APIs/service methods to list versions and restore a version to current product-line config.
 
 **Verification:**
+
 - [x] `pnpm --filter @soybean/server exec prisma generate --schema ../../prisma/schema.prisma`
 - [x] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm.service.spec.ts`
 - [x] `pnpm --filter @soybean/server typecheck`
@@ -154,6 +169,7 @@
 **Starts after Agent 5 merges.**
 
 **Write scope:**
+
 - `src/service/api/crm.ts`
 - `src/typings/api/crm.d.ts`
 - `src/views/crm/settings/modules/ProductLineFormModal.vue`
@@ -161,12 +177,14 @@
 - `src/views/crm/settings/modules/shared.spec.ts`
 
 **Requirements:**
+
 - [x] Show product-line prompt version history.
 - [x] Allow comparing current config with a selected historical version.
 - [x] Allow organization admin to restore a previous version.
 - [x] Keep ordinary members read-only.
 
 **Verification:**
+
 - [x] `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`
 - [x] `pnpm typecheck`
 - [x] `pnpm exec eslint --max-warnings=0 .`
@@ -176,6 +194,7 @@
 **Covers:** Item 9 客户回信后的 AI 回复润色 backend.
 
 **Write scope:**
+
 - `apps/server/src/modules/crm/crm-ai-reply-draft.types.ts`
 - `apps/server/src/modules/crm/crm-ai-reply-draft-prompt.ts`
 - `apps/server/src/modules/crm/crm-ai-reply-draft.service.ts`
@@ -185,12 +204,14 @@
 - `apps/server/src/modules/crm/crm.controller.spec.ts`
 
 **Requirements:**
+
 - [x] Require the user to provide a reply topic, outline, or key points before AI runs.
 - [x] Use inbound message body, previous outbound messages, product line, contact, account, configured forbidden claims, and the user's topic/outline.
 - [x] Polish the user-provided topic into a local reply draft for human review; do not send Gmail.
 - [x] Mark polished reply draft metadata with reason/risk notes and the user-provided topic.
 
 **Verification:**
+
 - [x] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts`
 - [x] `pnpm --filter @soybean/server typecheck`
 
@@ -199,17 +220,20 @@
 **Starts after Agent 7 merges.**
 
 **Write scope:**
+
 - `src/service/api/crm.ts`
 - `src/typings/api/crm.d.ts`
 - `src/views/crm/inbox/**`
 
 **Requirements:**
+
 - [x] Add “AI 润色回复” action in inbox detail for owner-operable threads.
 - [x] Let the user provide a reply topic, outline, or key points before AI runs.
 - [x] Show the polished reply draft in an editable review area.
 - [x] Allow save/replace draft locally; real Gmail sending remains out of scope for this local AI drafting flow.
 
 **Verification:**
+
 - [x] `pnpm typecheck`
 - [x] `pnpm exec oxlint`
 - [x] Run any existing inbox shared tests if present.
@@ -229,6 +253,7 @@
 **Covers:** Item 10 大批量 AI 队列 backend.
 
 **Write scope:**
+
 - `prisma/schema.prisma`
 - `prisma/migrations/*crm_ai_draft_tasks*/migration.sql`
 - `apps/server/src/generated/prisma/**`
@@ -239,6 +264,7 @@
 - `apps/server/src/modules/crm/*spec.ts`
 
 **Requirements:**
+
 - [ ] Add task table for high-volume AI draft generation.
 - [ ] Add BullMQ worker or existing queue integration with runVersion/status guards.
 - [ ] Track per-item success/skipped/failed and model-call error reason.
@@ -246,6 +272,7 @@
 - [ ] Record business logs without full email body or secrets.
 
 **Verification:**
+
 - [ ] `pnpm --filter @soybean/server exec prisma generate --schema ../../prisma/schema.prisma`
 - [ ] `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-ai-draft-task*.spec.ts apps/server/src/modules/crm/crm.service.spec.ts`
 - [ ] `pnpm --filter @soybean/server typecheck`
@@ -255,18 +282,21 @@
 **Starts after Agent 9 API shape is stable.**
 
 **Write scope:**
+
 - `src/service/api/crm.ts`
 - `src/typings/api/crm.d.ts`
 - `src/views/crm/email-sequences/**`
 - `src/views/crm/settings/modules/useCrmOperationsPanel.ts`
 
 **Requirements:**
+
 - [ ] Add bulk task creation entry from selected sequence rows.
 - [ ] Add progress/result display with success/skipped/failed counts.
 - [ ] Add operations-panel visibility for recent bulk AI tasks.
 - [ ] Keep the existing synchronous batch path for small selections.
 
 **Verification:**
+
 - [ ] `pnpm typecheck`
 - [ ] `pnpm exec oxlint`
 - [ ] `pnpm exec eslint --max-warnings=0 .`

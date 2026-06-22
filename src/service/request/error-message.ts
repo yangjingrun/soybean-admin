@@ -34,10 +34,7 @@ export function getBackendErrorCode(error: AxiosError<BackendErrorBody>) {
 }
 
 /** Classifies backend business codes before the request layer performs side effects. */
-export function getBackendErrorCodeAction(
-  code: string,
-  config: BackendErrorCodeActionConfig
-): BackendErrorCodeAction {
+export function getBackendErrorCodeAction(code: string, config: BackendErrorCodeActionConfig): BackendErrorCodeAction {
   if (config.logoutCodes.includes(code)) {
     return 'logout';
   }

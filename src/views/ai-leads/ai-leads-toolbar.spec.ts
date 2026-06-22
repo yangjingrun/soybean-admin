@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 
 const pageSource = readFileSync(new URL('./index.vue', import.meta.url), 'utf8');
 const pageComposableSource = readFileSync(new URL('./modules/useAiLeadPage.ts', import.meta.url), 'utf8');
+const searchProgressPanelSource = readFileSync(new URL('./modules/SearchProgressPanel.vue', import.meta.url), 'utf8');
 
 /** Reads the explicit Naive UI button size for a toolbar button by one stable source marker. */
 function getButtonSizeByMarker(marker: string) {
@@ -21,7 +22,9 @@ function getButtonSizeByMarker(marker: string) {
 
 describe('AI leads toolbar', () => {
   it('keeps primary workflow action buttons at the same size', () => {
-    const buttonSizes = ['data-action="generate"', 'handlePrimarySearchAction', 'handleClear'].map(getButtonSizeByMarker);
+    const buttonSizes = ['data-action="generate"', 'handlePrimarySearchAction', 'handleClear'].map(
+      getButtonSizeByMarker
+    );
 
     assert.deepEqual(buttonSizes, ['small', 'small', 'small']);
   });
@@ -29,7 +32,10 @@ describe('AI leads toolbar', () => {
   it('uses the primary search button as the interrupt action while collecting', () => {
     assert.match(pageSource, /const isPrimarySearchInterruptAction = computed/);
     assert.match(pageSource, /handleSearchTaskAction\('interrupt'\)/);
-    assert.match(pageSource, /const searchPrimaryButtonType = computed\(\(\) => \(isPrimarySearchInterruptAction\.value \? 'error' : 'primary'\)\);/);
+    assert.match(
+      pageSource,
+      /const searchPrimaryButtonType = computed\(\(\) => \(isPrimarySearchInterruptAction\.value \? 'error' : 'primary'\)\);/
+    );
     assert.equal(pageSource.includes("{ key: 'interrupt', label: '中断'"), false);
   });
 
@@ -50,6 +56,15 @@ describe('AI leads toolbar', () => {
     assert.equal(pageSource.includes("title: '导入 CRM'"), false);
     assert.equal(pageSource.includes('采集完成后处理候选客户'), false);
     assert.match(pageSource, /title: '搜索采集'/);
+  });
+
+  it('guides completed search tasks into the CRM source-task lead queue', () => {
+    assert.match(pageComposableSource, /handleProcessCollectedLeads/);
+    assert.match(pageComposableSource, /sourceTaskId: task\.id/);
+    assert.match(pageSource, /@process-collected-leads="handleProcessCollectedLeads"/);
+    assert.match(searchProgressPanelSource, /处理本次客户/);
+    assert.match(searchProgressPanelSource, /可用线索已自动沉淀到 CRM/);
+    assert.equal(searchProgressPanelSource.includes('导入 CRM'), false);
   });
 
   it('makes restored keyword history visible before re-optimizing', () => {
@@ -78,7 +93,10 @@ describe('AI leads toolbar', () => {
   it('uses configurable keyword strategy permission for edit and debug controls', () => {
     assert.match(pageSource, /canManageKeywordStrategy/);
     assert.match(pageComposableSource, /aiLeadsKeywordStrategyManagePermission/);
-    assert.match(pageComposableSource, /hasPermission\(authStore\.userInfo,\s*aiLeadsKeywordStrategyManagePermission\)/);
+    assert.match(
+      pageComposableSource,
+      /hasPermission\(authStore\.userInfo,\s*aiLeadsKeywordStrategyManagePermission\)/
+    );
     assert.match(pageSource, /!hasSearchProgress && aiResult && canManageKeywordStrategy/);
     assert.match(pageSource, /v-if="canManageKeywordStrategy"/);
     assert.match(pageSource, /:show-serper-details="canManageKeywordStrategy"/);

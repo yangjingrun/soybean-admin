@@ -45,7 +45,10 @@ export class PrismaHunterConfigStore implements HunterConfigStore {
   }
 }
 
-function toHunterConfigRecord(record: HunterConfigModelLike, secretCryptoService: SecretCryptoService): HunterConfigRecord {
+function toHunterConfigRecord(
+  record: HunterConfigModelLike,
+  secretCryptoService: SecretCryptoService
+): HunterConfigRecord {
   return {
     configKey: record.configKey,
     title: record.title,

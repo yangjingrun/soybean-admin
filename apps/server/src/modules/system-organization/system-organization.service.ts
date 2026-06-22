@@ -266,7 +266,14 @@ function normalizeOrganizationName(value: string) {
 }
 
 function toCountMap(groups: Array<{ organizationId: string; _count: { _all: number } }>) {
-  return new Map(groups.map(group => [group.organizationId, group._count._all]));
+  return new Map(
+    groups.map(group => {
+      const { organizationId, _count: count } = group;
+      const { _all: total } = count;
+
+      return [organizationId, total] as const;
+    })
+  );
 }
 
 interface OrganizationCounters {

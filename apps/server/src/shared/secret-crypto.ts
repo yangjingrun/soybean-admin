@@ -10,7 +10,10 @@ export interface SecretCryptoOptions {
 }
 
 /** Verifies that a configured secret key matches the AES-256 key length. */
-export function assertSecretEncryptionKey(secretKey: string, options: Pick<SecretCryptoOptions, 'keyLabel'> = {}): void {
+export function assertSecretEncryptionKey(
+  secretKey: string,
+  options: Pick<SecretCryptoOptions, 'keyLabel'> = {}
+): void {
   normalizeSecretKey(secretKey, options.keyLabel);
 }
 

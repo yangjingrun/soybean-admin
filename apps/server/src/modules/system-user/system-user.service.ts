@@ -112,9 +112,7 @@ export class SystemUserService {
     const nextRoles = input.roles ?? (user.roles as SystemUserRole[]);
     const nextStatus = input.status ?? (user.status as SystemUserStatus);
     const nextExpireAt = input.expireAt !== undefined ? toNullableDate(input.expireAt) : user.expireAt;
-    const organization = input.organizationId
-      ? await this.findAssignableOrganization(input.organizationId)
-      : null;
+    const organization = input.organizationId ? await this.findAssignableOrganization(input.organizationId) : null;
 
     if (input.roles) {
       await this.assertRoles(input.roles);

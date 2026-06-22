@@ -75,7 +75,4 @@ export const crmBusinessDomainProviders = {
   aiDraft: [CrmAiDraftService, CrmAiDraftTaskService, CrmAiDraftTaskWorkerService]
 } as const satisfies Record<string, Provider[]>;
 
-export const crmDomainServices: Provider[] = [
-  ...Object.values(crmBusinessDomainProviders).flat(),
-  CrmLoggerService
-];
+export const crmDomainServices: Provider[] = [...Object.values(crmBusinessDomainProviders).flat(), CrmLoggerService];

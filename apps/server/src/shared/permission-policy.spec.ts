@@ -37,8 +37,14 @@ describe('permission-policy', () => {
   it('keeps CRM email body visibility rules centralized', () => {
     assert.equal(canViewEmailBody(createContext({ userId: 'owner' }), 'owner'), true);
     assert.equal(canViewEmailBody(createContext({ roles: ['R_SUPER'] }), 'owner'), true);
-    assert.equal(canViewEmailBody(createContext({ organizationRole: 'admin' }), 'owner', { allowAdminViewMemberEmailBody: true }), true);
-    assert.equal(canViewEmailBody(createContext({ organizationRole: 'admin' }), 'owner', { allowAdminViewMemberEmailBody: false }), false);
+    assert.equal(
+      canViewEmailBody(createContext({ organizationRole: 'admin' }), 'owner', { allowAdminViewMemberEmailBody: true }),
+      true
+    );
+    assert.equal(
+      canViewEmailBody(createContext({ organizationRole: 'admin' }), 'owner', { allowAdminViewMemberEmailBody: false }),
+      false
+    );
   });
 
   it('creates organization read scopes from the authenticated context', () => {

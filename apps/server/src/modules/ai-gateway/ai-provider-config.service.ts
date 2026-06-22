@@ -2,7 +2,12 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import type { RequestUserContext } from '../../shared/request-context';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
-import { defaultHunterApiBase, defaultHunterConfigKey, defaultSerperApiBase, defaultSerperConfigKey } from './ai-gateway.constants';
+import {
+  defaultHunterApiBase,
+  defaultHunterConfigKey,
+  defaultSerperApiBase,
+  defaultSerperConfigKey
+} from './ai-gateway.constants';
 import {
   AI_USER_HUNTER_CONFIG_STORE,
   AI_USER_SERPER_CONFIG_STORE,
@@ -46,7 +51,10 @@ export class AiProviderConfigService {
   ) {}
 
   /** Saves the Serper search channel used by AI leads search orchestration. */
-  async saveSerperConfig(dto: SaveSerperConfigDto, context: AiProviderConfigContext = {}): Promise<SerperConfigViewRecord> {
+  async saveSerperConfig(
+    dto: SaveSerperConfigDto,
+    context: AiProviderConfigContext = {}
+  ): Promise<SerperConfigViewRecord> {
     const configKey = normalizeSerperConfigKey(dto.configKey);
     const record = await this.serperConfigStore.saveSerperConfig({
       configKey,
@@ -94,7 +102,10 @@ export class AiProviderConfigService {
   }
 
   /** Saves the current user's personal Serper search channel. */
-  async saveMySerperConfig(dto: SaveMySerperConfigDto, user: RequestUserContext): Promise<AiUserSerperConfigViewRecord> {
+  async saveMySerperConfig(
+    dto: SaveMySerperConfigDto,
+    user: RequestUserContext
+  ): Promise<AiUserSerperConfigViewRecord> {
     const apiKey = await this.resolvePersonalSerperApiKey(dto, user);
     const record = await this.userSerperConfigStore.saveUserSerperConfig({
       userId: user.userId,
@@ -209,7 +220,10 @@ export class AiProviderConfigService {
   }
 
   /** Saves the Hunter Domain Search channel used to enrich AI lead contacts. */
-  async saveHunterConfig(dto: SaveHunterConfigDto, context: AiProviderConfigContext = {}): Promise<HunterConfigViewRecord> {
+  async saveHunterConfig(
+    dto: SaveHunterConfigDto,
+    context: AiProviderConfigContext = {}
+  ): Promise<HunterConfigViewRecord> {
     const configKey = normalizeHunterConfigKey(dto.configKey);
     const record = await this.hunterConfigStore.saveHunterConfig({
       configKey,
@@ -257,7 +271,10 @@ export class AiProviderConfigService {
   }
 
   /** Saves the current user's personal Hunter Domain Search channel. */
-  async saveMyHunterConfig(dto: SaveMyHunterConfigDto, user: RequestUserContext): Promise<AiUserHunterConfigViewRecord> {
+  async saveMyHunterConfig(
+    dto: SaveMyHunterConfigDto,
+    user: RequestUserContext
+  ): Promise<AiUserHunterConfigViewRecord> {
     const apiKey = await this.resolvePersonalHunterApiKey(dto, user);
     const record = await this.userHunterConfigStore.saveUserHunterConfig({
       userId: user.userId,

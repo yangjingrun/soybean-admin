@@ -104,12 +104,7 @@ export function normalizeFollowUpDelayDays(value: unknown): CrmFollowUpDelayDays
 export function serializeFollowUpDelayDays(value: unknown) {
   const normalized = normalizeFollowUpDelayDays(value);
 
-  return [
-    normalized.step2Days,
-    normalized.step3Days,
-    normalized.step4Days,
-    normalized.step5Days
-  ].join(',');
+  return [normalized.step2Days, normalized.step3Days, normalized.step4Days, normalized.step5Days].join(',');
 }
 
 function normalizeFollowUpDelayDay(value: unknown) {

@@ -93,10 +93,7 @@ export class AiGatewayController {
   }
 
   @Post('prompts')
-  async savePrompt(
-    @Body() dto: SaveAiPromptDto,
-    @CurrentContext() currentContext: RequestUserContext | null = null
-  ) {
+  async savePrompt(@Body() dto: SaveAiPromptDto, @CurrentContext() currentContext: RequestUserContext | null = null) {
     this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
 
     return ok(await this.aiGatewayService.savePrompt(dto));

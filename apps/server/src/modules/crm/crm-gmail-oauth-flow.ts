@@ -27,11 +27,7 @@ export interface CrmGmailOAuthStatePayload extends CrmGmailOAuthFlowContext {
 }
 
 export interface CrmGmailOAuthFlowHttpClient {
-  postForm(
-    url: string,
-    body: URLSearchParams,
-    headers: Record<string, string>
-  ): Promise<CrmGmailOAuthHttpResponse>;
+  postForm(url: string, body: URLSearchParams, headers: Record<string, string>): Promise<CrmGmailOAuthHttpResponse>;
   getJson(url: string, headers: Record<string, string>): Promise<CrmGmailOAuthHttpResponse>;
 }
 
@@ -64,7 +60,10 @@ const tokenEndpoint = 'https://oauth2.googleapis.com/token';
 const profileEndpoint = 'https://gmail.googleapis.com/gmail/v1/users/me/profile';
 const userinfoEndpoint = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const stateMaxAgeMs = 15 * 60 * 1000;
-const defaultGmailScopes = ['https://www.googleapis.com/auth/gmail.modify', 'https://www.googleapis.com/auth/gmail.send'];
+const defaultGmailScopes = [
+  'https://www.googleapis.com/auth/gmail.modify',
+  'https://www.googleapis.com/auth/gmail.send'
+];
 const gmailProfileScopes = new Set([
   'https://mail.google.com/',
   'https://www.googleapis.com/auth/gmail.modify',
@@ -263,7 +262,9 @@ export class CrmGmailOAuthFlow implements CrmGmailOAuthFlowPort {
     }
 
     try {
-      const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as CrmGmailOAuthStatePayload;
+      const payload = JSON.parse(
+        Buffer.from(encodedPayload, 'base64url').toString('utf8')
+      ) as CrmGmailOAuthStatePayload;
 
       if (!payload.organizationId || !payload.userId || !payload.issuedAt || !payload.nonce) {
         throw new CrmGmailOAuthStateError();

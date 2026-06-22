@@ -363,9 +363,15 @@ function getRouteQueryString(value: unknown) {
 }
 
 function isSequenceEnrollmentStatus(value: string): value is Api.Crm.SequenceEnrollmentStatus {
-  return ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused', 'stopped', 'replied', 'archived'].includes(
-    value
-  );
+  return [
+    'draft_review_pending',
+    'ready_to_send',
+    'sequence_running',
+    'paused',
+    'stopped',
+    'replied',
+    'archived'
+  ].includes(value);
 }
 
 function isSequenceReviewTodoType(value: string): value is Api.Crm.SequenceReviewTodoType {

@@ -88,9 +88,11 @@ export function usePromptSettingsPage() {
       }
 
       steps.value = data;
-      selectedPromptKey.value = (data.some(step => step.promptKey === preferredPromptKey)
-        ? preferredPromptKey
-        : data[0]?.promptKey || defaultAiPromptKey) as AiPromptKey;
+      selectedPromptKey.value = (
+        data.some(step => step.promptKey === preferredPromptKey)
+          ? preferredPromptKey
+          : data[0]?.promptKey || defaultAiPromptKey
+      ) as AiPromptKey;
       await loadDetail(selectedPromptKey.value);
     } finally {
       loadingSteps.value = false;

@@ -45,17 +45,14 @@ export interface CrmAccountRepository {
   upsertEmailVerificationCache(input: CrmEmailVerificationCacheUpsertInput): Promise<CrmEmailVerificationCacheRecord>;
   findArchivedFingerprints(input: CrmArchivedFingerprintLookupInput): Promise<CrmArchivedFingerprintRecord[]>;
   upsertArchivedFingerprint(input: CrmArchivedFingerprintUpsertInput): Promise<CrmArchivedFingerprintRecord>;
-  findLeadEnrichmentHistories(
-    input: CrmLeadEnrichmentHistoryLookupInput
-  ): Promise<CrmLeadEnrichmentHistoryRecord[]>;
-  upsertLeadEnrichmentHistory(
-    input: CrmLeadEnrichmentHistoryUpsertInput
-  ): Promise<CrmLeadEnrichmentHistoryRecord>;
+  findLeadEnrichmentHistories(input: CrmLeadEnrichmentHistoryLookupInput): Promise<CrmLeadEnrichmentHistoryRecord[]>;
+  upsertLeadEnrichmentHistory(input: CrmLeadEnrichmentHistoryUpsertInput): Promise<CrmLeadEnrichmentHistoryRecord>;
   listAccounts(args: {
     organizationId: string;
     ownerUserId?: string;
     keyword?: string;
     status?: CrmAccountStatus;
+    sourceTaskId?: string;
     skip: number;
     take: number;
   }): Promise<{ records: CrmAccountRecord[]; total: number }>;

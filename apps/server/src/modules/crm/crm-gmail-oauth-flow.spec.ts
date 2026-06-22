@@ -1,10 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  CrmGmailOAuthFlow,
-  CrmGmailOAuthStateError,
-  type CrmGmailOAuthFlowHttpClient
-} from './crm-gmail-oauth-flow';
+import { CrmGmailOAuthFlow, CrmGmailOAuthStateError, type CrmGmailOAuthFlowHttpClient } from './crm-gmail-oauth-flow';
 import { decryptGmailSecret } from './crm-gmail-oauth-token.provider';
 
 describe('CrmGmailOAuthFlow', () => {
@@ -34,10 +30,7 @@ describe('CrmGmailOAuthFlow', () => {
 
   it('builds a send-only Gmail OAuth authorization URL from configured scopes', () => {
     const flow = createFlow({
-      scopes: [
-        'https://www.googleapis.com/auth/gmail.send',
-        'https://www.googleapis.com/auth/userinfo.email'
-      ]
+      scopes: ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/userinfo.email']
     });
 
     const result = flow.createAuthorizationUrl(createContext());
@@ -54,10 +47,7 @@ describe('CrmGmailOAuthFlow', () => {
     const { state } = flow.createAuthorizationUrl(createContext());
 
     assert.throws(() => flow.verifyState(`${state.slice(0, -1)}x`, createContext()), CrmGmailOAuthStateError);
-    assert.throws(
-      () => flow.verifyState(state, createContext({ userId: 'user-2' })),
-      CrmGmailOAuthStateError
-    );
+    assert.throws(() => flow.verifyState(state, createContext({ userId: 'user-2' })), CrmGmailOAuthStateError);
   });
 
   it('rejects expired OAuth state values', () => {
@@ -119,10 +109,7 @@ describe('CrmGmailOAuthFlow', () => {
     });
     const flow = createFlow({
       httpClient,
-      scopes: [
-        'https://www.googleapis.com/auth/gmail.send',
-        'https://www.googleapis.com/auth/userinfo.email'
-      ]
+      scopes: ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/userinfo.email']
     });
 
     const result = await flow.exchangeCodeForMailbox('code-1');

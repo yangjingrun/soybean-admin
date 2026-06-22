@@ -1,8 +1,4 @@
-import type {
-  CrmInboxThreadGmailStateSyncInput,
-  CrmInboxThreadRecord,
-  CrmInboxThreadStatus
-} from '../crm.types';
+import type { CrmInboxThreadGmailStateSyncInput, CrmInboxThreadRecord, CrmInboxThreadStatus } from '../crm.types';
 
 /** Resolves local inbox-thread state changes from Gmail history label changes. */
 export function resolveGmailThreadStateUpdate(

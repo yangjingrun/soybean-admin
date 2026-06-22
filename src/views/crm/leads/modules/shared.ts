@@ -219,7 +219,8 @@ const archivedFingerprintMatchedEventType = 'archived_fingerprint_matched';
 export function createDefaultLeadFilterModel(): Api.Crm.LeadFilterModel {
   return {
     keyword: '',
-    status: null
+    status: null,
+    sourceTaskId: null
   };
 }
 
@@ -288,6 +289,12 @@ export function buildLeadSearchParams(options: {
 
   if (filterModel.status) {
     params.status = filterModel.status;
+  }
+
+  const sourceTaskId = filterModel.sourceTaskId?.trim();
+
+  if (sourceTaskId) {
+    params.sourceTaskId = sourceTaskId;
   }
 
   return params;

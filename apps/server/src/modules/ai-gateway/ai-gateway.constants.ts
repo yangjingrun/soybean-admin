@@ -68,7 +68,12 @@ export const aiPromptOutputTopLevelFields: Record<AiPromptKey, string[]> = {
 };
 
 export const aiPromptRequiredTextRules: Record<AiPromptKey, string[]> = {
-  lead_keyword_optimize: ['只输出一个合法 JSON 对象', 'serperSearchQueries', 'serperPlacesQueries', '不要新增 JSON 顶层字段'],
+  lead_keyword_optimize: [
+    '只输出一个合法 JSON 对象',
+    'serperSearchQueries',
+    'serperPlacesQueries',
+    '不要新增 JSON 顶层字段'
+  ],
   lead_maps_keyword_optimize: [
     '只输出一个合法 JSON 对象',
     'serperMapsQueries',

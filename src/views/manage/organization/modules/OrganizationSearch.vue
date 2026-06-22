@@ -40,7 +40,12 @@ const statusValue = computed({
           </NGi>
           <NGi span="24 m:10">
             <NFormItem label="状态">
-              <NSelect v-model:value="statusValue" :options="organizationStatusOptions" clearable placeholder="全部状态" />
+              <NSelect
+                v-model:value="statusValue"
+                :options="organizationStatusOptions"
+                clearable
+                placeholder="全部状态"
+              />
             </NFormItem>
           </NGi>
 

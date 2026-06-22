@@ -37,20 +37,24 @@ const emit = defineEmits<{
   display: flex;
   overflow-x: auto;
   gap: 8px;
-  padding-bottom: 2px;
+  padding: 2px 2px 4px;
 }
 
 .message-step-button {
+  position: relative;
   display: grid;
+  overflow: hidden;
   width: 190px;
   min-width: 190px;
+  appearance: none;
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
-  background: var(--n-color);
-  color: var(--n-text-color);
+  background: rgb(var(--container-bg-color));
+  color: rgb(var(--base-text-color));
   cursor: pointer;
+  font: inherit;
   gap: 4px;
-  padding: 8px 10px;
+  padding: 9px 10px 9px 14px;
   text-align: left;
   transition:
     background-color 0.2s ease,
@@ -58,11 +62,37 @@ const emit = defineEmits<{
     box-shadow 0.2s ease;
 }
 
-.message-step-button:hover,
+.message-step-button::before {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 7px;
+  width: 3px;
+  border-radius: 999px;
+  background: rgb(var(--primary-color));
+  content: '';
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.message-step-button:hover {
+  border-color: rgb(var(--primary-color) / 0.32);
+  background: rgb(var(--primary-color) / 0.045);
+}
+
+.message-step-button:focus-visible {
+  outline: 2px solid rgb(var(--primary-color) / 0.45);
+  outline-offset: 2px;
+}
+
 .message-step-button--selected {
-  border-color: var(--n-primary-color);
-  background: rgba(99, 102, 241, 0.08);
-  box-shadow: 0 0 0 1px var(--n-primary-color);
+  border-color: rgb(var(--primary-color) / 0.48);
+  background: linear-gradient(90deg, rgb(var(--primary-color) / 0.1), rgb(var(--primary-color) / 0.035));
+  box-shadow: 0 0 0 1px rgb(var(--primary-color) / 0.2);
+}
+
+.message-step-button--selected::before {
+  opacity: 1;
 }
 
 .message-step-header {
@@ -81,18 +111,23 @@ const emit = defineEmits<{
 }
 
 .message-step-title {
+  color: rgb(var(--base-text-color));
   font-size: 13px;
   font-weight: 600;
 }
 
+.message-step-button--selected .message-step-title {
+  color: rgb(var(--primary-color));
+}
+
 .message-step-subject {
-  color: var(--n-text-color-2);
+  color: rgb(var(--base-text-color) / 0.72);
   font-size: 12px;
 }
 
 .message-step-meta {
   display: none;
-  color: var(--n-text-color-3);
+  color: rgb(var(--base-text-color) / 0.52);
   font-size: 12px;
 }
 </style>

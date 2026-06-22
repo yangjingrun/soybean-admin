@@ -601,7 +601,9 @@ describe('AiLeadSearchTaskService', () => {
 
   it('does not read tasks from another organization even when user id matches', async () => {
     const taskStore = createTaskStore({
-      records: [createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'completed' })]
+      records: [
+        createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'completed' })
+      ]
     });
     const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
@@ -734,8 +736,9 @@ function createTaskStore(
     },
     async findTaskByIdForUser(id: string, userId: string, organizationId: string) {
       return (
-        records.find(record => record.id === id && record.userId === userId && record.organizationId === organizationId) ??
-        null
+        records.find(
+          record => record.id === id && record.userId === userId && record.organizationId === organizationId
+        ) ?? null
       );
     },
     async updateTask(id, patch, guard) {

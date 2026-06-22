@@ -79,7 +79,14 @@ describe('task-state', () => {
   });
 });
 
-function createTask(input: Partial<{ id: string; status: 'queued' | 'running' | 'failed' | 'completed'; updatedAt: Date; readAt: Date | null }> = {}) {
+function createTask(
+  input: Partial<{
+    id: string;
+    status: 'queued' | 'running' | 'failed' | 'completed';
+    updatedAt: Date;
+    readAt: Date | null;
+  }> = {}
+) {
   return {
     id: input.id ?? 'task',
     status: input.status ?? 'queued',

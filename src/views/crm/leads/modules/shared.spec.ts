@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildLeadQueueStats,
+  buildLeadSearchParams,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
   getLeadNextAction,
@@ -70,6 +71,27 @@ describe('crm lead shared helpers', () => {
     );
   });
 
+  it('builds lead search params with trimmed keyword filter', () => {
+    assert.deepEqual(
+      buildLeadSearchParams({
+        current: 1,
+        size: 20,
+        filterModel: {
+          keyword: ' bearing ',
+          status: 'missing_contact',
+          sourceTaskId: ' task-1 '
+        }
+      }),
+      {
+        current: 1,
+        size: 20,
+        keyword: 'bearing',
+        status: 'missing_contact',
+        sourceTaskId: 'task-1'
+      }
+    );
+  });
+
   it('extracts archived fingerprint match events from account timeline', () => {
     const events = [
       createTimelineEvent({ id: 'event-1', eventType: 'account_imported' }),
@@ -106,7 +128,10 @@ describe('crm lead shared helpers', () => {
   it('formats archived fingerprint timeline display helpers', () => {
     assert.equal(formatArchivedFingerprintTypeLabel('domain'), '域名');
     assert.equal(formatArchivedFingerprintTypeLabel('email_hash'), '邮箱');
-    assert.equal(getLeadTimelineItemType(createTimelineEvent({ eventType: 'archived_fingerprint_matched' })), 'warning');
+    assert.equal(
+      getLeadTimelineItemType(createTimelineEvent({ eventType: 'archived_fingerprint_matched' })),
+      'warning'
+    );
     assert.equal(getLeadTimelineItemType(createTimelineEvent({ eventType: 'note_added' })), 'default');
   });
 
@@ -179,8 +204,7 @@ describe('crm lead shared helpers', () => {
   it('formats lead website display with readable domain text', () => {
     assert.equal(
       formatLeadWebsiteDisplay({
-        websiteUrl:
-          'https://m.pump-shop.kr/product/%ED%8E%8C%ED%94%84%EC%83%B5-kbc-6203/category/266/display/1/',
+        websiteUrl: 'https://m.pump-shop.kr/product/%ED%8E%8C%ED%94%84%EC%83%B5-kbc-6203/category/266/display/1/',
         domain: 'm.pump-shop.kr'
       }),
       'm.pump-shop.kr'

@@ -77,6 +77,7 @@ Delete only at the final task:
 ## Task 1: Gmail Watch/Webhook/Renewal Repository
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/crm-gmail-watch.repository.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-gmail-watch.store.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-gmail-watch.store.spec.ts`
@@ -201,6 +202,7 @@ git commit --no-verify -m "拆分 CRM Gmail watch 仓储"
 ## Task 2: Send Scheduler Repository
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/crm-send-scheduler.repository.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-send-scheduler.store.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-send-scheduler.store.spec.ts`
@@ -218,11 +220,7 @@ import type { CrmStore } from './crm.types';
 /** Data port for selecting and reserving due CRM send jobs. */
 export type CrmSendSchedulerRepository = Pick<
   CrmStore,
-  | 'getGlobalConfig'
-  | 'listDueSendCandidates'
-  | 'listOwnerSendStates'
-  | 'listMailboxSendStates'
-  | 'updateMessage'
+  'getGlobalConfig' | 'listDueSendCandidates' | 'listOwnerSendStates' | 'listMailboxSendStates' | 'updateMessage'
 >;
 ```
 
@@ -274,6 +272,7 @@ git commit --no-verify -m "拆分 CRM 发送调度仓储"
 ## Task 3: Send Worker Repository
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/crm-send-worker.repository.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-send-worker.store.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-send-worker.store.spec.ts`
@@ -351,6 +350,7 @@ git commit --no-verify -m "拆分 CRM 发送 worker 仓储"
 ## Task 4: Inbox Prisma Spec Extraction
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/store/prisma-crm-inbox.store.spec.ts`
 - Modify: `apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
 
@@ -399,6 +399,7 @@ git commit --no-verify -m "迁移 CRM inbox Prisma 测试"
 ## Task 5: Archive Slimming Repository
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/crm-archive-slimming.repository.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-archive-slimming.store.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-archive-slimming.store.spec.ts`
@@ -414,10 +415,7 @@ git commit --no-verify -m "迁移 CRM inbox Prisma 测试"
 import type { CrmStore } from './crm.types';
 
 /** Data port for CRM archived account slimming. */
-export type CrmArchiveSlimmingRepository = Pick<
-  CrmStore,
-  'listAccountsForArchiveSlimming' | 'slimArchivedAccount'
->;
+export type CrmArchiveSlimmingRepository = Pick<CrmStore, 'listAccountsForArchiveSlimming' | 'slimArchivedAccount'>;
 ```
 
 - [ ] **Step 2: Add Prisma adapter**
@@ -462,6 +460,7 @@ git commit --no-verify -m "拆分 CRM 归档瘦身仓储"
 ## Task 6: AI Draft Worker Repository
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/crm-ai-draft-worker.repository.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-ai-draft-worker.store.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm-ai-draft-worker.store.spec.ts`
@@ -537,6 +536,7 @@ git commit --no-verify -m "拆分 CRM AI 草稿 worker 仓储"
 ## Task 7: Old Aggregate Spec Shrink Pass
 
 **Files:**
+
 - Modify: `apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
 
 - [ ] **Step 1: Delete migrated cases only**
@@ -580,6 +580,7 @@ git commit --no-verify -m "收缩 CRM legacy store 测试"
 ## Task 8: Remove `CRM_STORE` and `PrismaCrmStore`
 
 **Files:**
+
 - Delete: `apps/server/src/modules/crm/store/prisma-crm.store.ts`
 - Delete: `apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
 - Modify: `apps/server/src/modules/crm/crm.tokens.ts`
@@ -678,4 +679,3 @@ git commit --no-verify -m "移除 CRM legacy store 聚合"
 - `pnpm --filter @soybean/server typecheck` passes.
 - Relevant CRM specs pass.
 - `git diff --check` passes.
-

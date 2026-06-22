@@ -50,7 +50,10 @@ export class RolesGuard implements CanActivate {
   }
 
   private getLegacyDeniedMessage(context: ExecutionContext) {
-    return this.reflector.getAllAndOverride<string>(ROLE_DENIED_MESSAGE_KEY, [context.getHandler(), context.getClass()]);
+    return this.reflector.getAllAndOverride<string>(ROLE_DENIED_MESSAGE_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
   }
 }
 

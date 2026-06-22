@@ -178,7 +178,16 @@ searchExecutionRules
         createdByName: null,
         createdAt: ''
       }),
-      ['测试结果：失败', '错误信息：模型输出未通过提示词规则校验', '校验问题：', '- 顶层字段完整：缺少 buyerSegments', '', '{', '  "ok": true', '}'].join('\n')
+      [
+        '测试结果：失败',
+        '错误信息：模型输出未通过提示词规则校验',
+        '校验问题：',
+        '- 顶层字段完整：缺少 buyerSegments',
+        '',
+        '{',
+        '  "ok": true',
+        '}'
+      ].join('\n')
     );
   });
 

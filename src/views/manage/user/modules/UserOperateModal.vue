@@ -68,7 +68,10 @@ watch(
 
     void loadOrganizationOptions();
     void loadRoleOptions();
-    Object.assign(formModel, props.operateType === 'add' ? createDefaultFormModel() : createFormModelFromRow(props.row));
+    Object.assign(
+      formModel,
+      props.operateType === 'add' ? createDefaultFormModel() : createFormModelFromRow(props.row)
+    );
     void nextTick(restoreValidation);
   }
 );
@@ -192,7 +195,13 @@ async function loadRoleOptions() {
         </NGi>
         <NGi span="24">
           <NFormItem label="角色" path="roles">
-            <NSelect v-model:value="formModel.roles" :options="roleOptions" multiple clearable placeholder="请选择角色" />
+            <NSelect
+              v-model:value="formModel.roles"
+              :options="roleOptions"
+              multiple
+              clearable
+              placeholder="请选择角色"
+            />
           </NFormItem>
         </NGi>
         <NGi span="24">

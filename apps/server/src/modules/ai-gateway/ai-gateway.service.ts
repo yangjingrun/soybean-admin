@@ -13,7 +13,12 @@ import {
   defaultAiTemperature
 } from './ai-gateway.constants';
 import { validateAiPromptOutput, validateAiPromptText } from './ai-prompt-validator';
-import { AI_MODEL_CONFIG_STORE, AI_PROMPT_STORE, AI_TEXT_GENERATOR, AI_USER_MODEL_CONFIG_STORE } from './ai-gateway.tokens';
+import {
+  AI_MODEL_CONFIG_STORE,
+  AI_PROMPT_STORE,
+  AI_TEXT_GENERATOR,
+  AI_USER_MODEL_CONFIG_STORE
+} from './ai-gateway.tokens';
 import type { GenerateAiTextDto } from './dto/generate-ai-text.dto';
 import type { SaveAiPromptDto } from './dto/ai-prompt.dto';
 import type { SaveAiModelConfigDto, SaveMyAiModelConfigDto } from './dto/ai-model-config.dto';
@@ -108,7 +113,10 @@ export class AiGatewayService {
   }
 
   /** Saves the Serper search channel used by AI leads search orchestration. */
-  async saveSerperConfig(dto: SaveSerperConfigDto, context: GenerateAiTextContext = {}): Promise<SerperConfigViewRecord> {
+  async saveSerperConfig(
+    dto: SaveSerperConfigDto,
+    context: GenerateAiTextContext = {}
+  ): Promise<SerperConfigViewRecord> {
     return this.requireProviderConfigService().saveSerperConfig(dto, context);
   }
 
@@ -123,7 +131,10 @@ export class AiGatewayService {
   }
 
   /** Saves the current user's personal Serper channel. */
-  async saveMySerperConfig(dto: SaveMySerperConfigDto, user: RequestUserContext): Promise<AiUserSerperConfigViewRecord> {
+  async saveMySerperConfig(
+    dto: SaveMySerperConfigDto,
+    user: RequestUserContext
+  ): Promise<AiUserSerperConfigViewRecord> {
     return this.requireProviderConfigService().saveMySerperConfig(dto, user);
   }
 
@@ -148,7 +159,10 @@ export class AiGatewayService {
   }
 
   /** Saves the Hunter Domain Search channel used to enrich AI lead contacts. */
-  async saveHunterConfig(dto: SaveHunterConfigDto, context: GenerateAiTextContext = {}): Promise<HunterConfigViewRecord> {
+  async saveHunterConfig(
+    dto: SaveHunterConfigDto,
+    context: GenerateAiTextContext = {}
+  ): Promise<HunterConfigViewRecord> {
     return this.requireProviderConfigService().saveHunterConfig(dto, context);
   }
 
@@ -163,7 +177,10 @@ export class AiGatewayService {
   }
 
   /** Saves the current user's personal Hunter channel. */
-  async saveMyHunterConfig(dto: SaveMyHunterConfigDto, user: RequestUserContext): Promise<AiUserHunterConfigViewRecord> {
+  async saveMyHunterConfig(
+    dto: SaveMyHunterConfigDto,
+    user: RequestUserContext
+  ): Promise<AiUserHunterConfigViewRecord> {
     return this.requireProviderConfigService().saveMyHunterConfig(dto, user);
   }
 
@@ -516,7 +533,10 @@ export class AiGatewayService {
     }
   }
 
-  private async toGenerateParams(dto: GenerateAiTextDto, context: GenerateAiTextContext): Promise<AiTextGenerateParams> {
+  private async toGenerateParams(
+    dto: GenerateAiTextDto,
+    context: GenerateAiTextContext
+  ): Promise<AiTextGenerateParams> {
     const promptKey = dto.promptKey ? normalizePromptKey(dto.promptKey) : undefined;
     const savedPrompt = promptKey ? await this.getPrompt(promptKey) : null;
     const systemPrompt = savedPrompt?.systemPrompt.trim() || dto.systemPrompt?.trim();

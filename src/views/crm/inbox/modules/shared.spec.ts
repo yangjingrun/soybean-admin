@@ -99,18 +99,18 @@ describe('crm inbox shared helpers', () => {
   });
 
   it('validates reply sending inputs and builds the API payload', () => {
-    assert.deepEqual(
-      buildInboxReplySubmitPayload({ canOperate: false, topic: 'Quote', bodyText: 'Thanks' }),
-      { ok: false, message: '当前账号不可发送该回复' }
-    );
-    assert.deepEqual(
-      buildInboxReplySubmitPayload({ canOperate: true, topic: ' ', bodyText: 'Thanks' }),
-      { ok: false, message: '请先填写回复主题或要点' }
-    );
-    assert.deepEqual(
-      buildInboxReplySubmitPayload({ canOperate: true, topic: 'Quote', bodyText: ' ' }),
-      { ok: false, message: '回复正文不能为空' }
-    );
+    assert.deepEqual(buildInboxReplySubmitPayload({ canOperate: false, topic: 'Quote', bodyText: 'Thanks' }), {
+      ok: false,
+      message: '当前账号不可发送该回复'
+    });
+    assert.deepEqual(buildInboxReplySubmitPayload({ canOperate: true, topic: ' ', bodyText: 'Thanks' }), {
+      ok: false,
+      message: '请先填写回复主题或要点'
+    });
+    assert.deepEqual(buildInboxReplySubmitPayload({ canOperate: true, topic: 'Quote', bodyText: ' ' }), {
+      ok: false,
+      message: '回复正文不能为空'
+    });
     assert.deepEqual(buildInboxReplySubmitPayload({ canOperate: true, topic: ' Quote ', bodyText: ' Thanks ' }), {
       ok: true,
       payload: { bodyText: 'Thanks' }

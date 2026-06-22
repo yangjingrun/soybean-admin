@@ -45,7 +45,10 @@ watch(
       return;
     }
 
-    Object.assign(formModel, props.operateType === 'add' ? createDefaultFormModel() : createFormModelFromRow(props.row));
+    Object.assign(
+      formModel,
+      props.operateType === 'add' ? createDefaultFormModel() : createFormModelFromRow(props.row)
+    );
     void nextTick(restoreValidation);
   }
 );

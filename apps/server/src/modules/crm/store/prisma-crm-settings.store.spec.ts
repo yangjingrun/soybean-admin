@@ -128,9 +128,14 @@ class SettingsPrisma {
   };
 
   readonly crmOrganizationConfig = {
-    upsertCalls: [] as Array<UpsertCall<ReturnType<typeof createOrganizationConfig>, Partial<ReturnType<typeof createOrganizationConfig>>>>,
+    upsertCalls: [] as Array<
+      UpsertCall<ReturnType<typeof createOrganizationConfig>, Partial<ReturnType<typeof createOrganizationConfig>>>
+    >,
     upsert: async (
-      args: UpsertCall<ReturnType<typeof createOrganizationConfig>, Partial<ReturnType<typeof createOrganizationConfig>>>
+      args: UpsertCall<
+        ReturnType<typeof createOrganizationConfig>,
+        Partial<ReturnType<typeof createOrganizationConfig>>
+      >
     ) => {
       this.crmOrganizationConfig.upsertCalls.push(args);
       return createOrganizationConfig(args.create);

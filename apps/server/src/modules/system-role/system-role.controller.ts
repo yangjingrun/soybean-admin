@@ -3,7 +3,11 @@ import { ok } from '../../shared/api-response';
 import { requireSuperUserContext } from '../../shared/permission-policy';
 import type { RequestUserContext } from '../../shared/request-context';
 import { CurrentContext, SuperOnly } from '../auth/auth.decorators';
-import { CreateSystemRoleDto, UpdateSystemRoleDto, UpdateSystemRolePermissionsDto } from './dto/system-role-operate.dto';
+import {
+  CreateSystemRoleDto,
+  UpdateSystemRoleDto,
+  UpdateSystemRolePermissionsDto
+} from './dto/system-role-operate.dto';
 import { SystemRoleQueryDto } from './dto/system-role-query.dto';
 import { SystemRoleService } from './system-role.service';
 
@@ -27,10 +31,7 @@ export class SystemRoleController {
   }
 
   @Post()
-  async create(
-    @CurrentContext() context: RequestUserContext | null = null,
-    @Body() dto: CreateSystemRoleDto
-  ) {
+  async create(@CurrentContext() context: RequestUserContext | null = null, @Body() dto: CreateSystemRoleDto) {
     const operator = this.requireSuperContext(context);
 
     return ok(await this.systemRoleService.create(dto, operator));

@@ -603,7 +603,7 @@ describe('CRM split controllers', () => {
     assert.equal(paused.data.mailbox.status, 'paused');
     assert.equal(resumed.data.mailbox.status, 'active');
     assert.deepEqual(
-      calls.map((call) => ({
+      calls.map(call => ({
         action: call.action,
         id: call.id,
         userId: call.context.userId
@@ -641,7 +641,7 @@ describe('CRM split controllers', () => {
     assert.ok(result.data);
     assert.equal(result.data.watch.historyId, '150');
     assert.deepEqual(
-      calls.map((call) => ({ id: call.id, userId: call.context.userId })),
+      calls.map(call => ({ id: call.id, userId: call.context.userId })),
       [{ id: 'mailbox-1', userId: 'user-1' }]
     );
   });
@@ -677,7 +677,7 @@ describe('CRM split controllers', () => {
     assert.equal(result.code, '0000');
     assert.equal(result.data.sync.queued, true);
     assert.deepEqual(
-      calls.map((call) => ({ id: call.id, userId: call.context.userId })),
+      calls.map(call => ({ id: call.id, userId: call.context.userId })),
       [{ id: 'mailbox-1', userId: 'user-1' }]
     );
   });
@@ -756,7 +756,7 @@ describe('CRM split controllers', () => {
     assert.equal(updated.data.productLine.name, 'Premium Bearing Series');
     assert.equal(archived.data.productLine.status, 'archived');
     assert.deepEqual(
-      calls.map((call) => ({
+      calls.map(call => ({
         action: call.action,
         id: call.id,
         organizationId: call.context.organizationId
@@ -825,7 +825,7 @@ describe('CRM split controllers', () => {
     assert.equal(versions.data.records[0].version, 1);
     assert.equal(restored.data.version.version, 2);
     assert.deepEqual(
-      calls.map((call) => [call.action, call.id, call.versionId, call.context.userId]),
+      calls.map(call => [call.action, call.id, call.versionId, call.context.userId]),
       [
         ['list', 'line-1', undefined, 'user-1'],
         ['restore', 'line-1', 'prompt-version-1', 'user-1']
@@ -912,7 +912,7 @@ describe('CRM split controllers', () => {
     assert.equal(archived.data.personaProfile.status, 'archived');
     assert.equal(defaulted.data.personaProfile.isDefault, true);
     assert.deepEqual(
-      calls.map((call) => ({
+      calls.map(call => ({
         action: call.action,
         id: call.id,
         organizationId: call.context.organizationId
@@ -1005,7 +1005,7 @@ describe('CRM split controllers', () => {
     const payload = {
       name: 'Distributor sequence',
       language: 'en',
-      steps: createEmailTemplateGroupView().steps.map((step) => ({
+      steps: createEmailTemplateGroupView().steps.map(step => ({
         stepIndex: step.stepIndex,
         name: step.name,
         threadMode: step.threadMode,
@@ -1031,7 +1031,7 @@ describe('CRM split controllers', () => {
     assert.equal(archived.data.templateGroup.status, 'archived');
     assert.equal(defaulted.data.templateGroup.isDefault, true);
     assert.deepEqual(
-      calls.map((call) => ({
+      calls.map(call => ({
         action: call.action,
         id: call.id,
         organizationId: call.context.organizationId
@@ -1095,7 +1095,7 @@ describe('CRM split controllers', () => {
     assert.equal(listed.data.records[0].enrollment.id, 'enrollment-1');
     assert.equal(detail.data.enrollment.id, 'enrollment-1');
     assert.deepEqual(
-      calls.map((call) => [call.action, call.context.userId]),
+      calls.map(call => [call.action, call.context.userId]),
       [
         ['create', 'user-1'],
         ['list', 'user-1'],
@@ -1193,11 +1193,11 @@ describe('CRM split controllers', () => {
 
     assert.equal(read.data.task.readAt, '2026-06-20T10:00:00.000Z');
     assert.deepEqual(
-      calls.map((call) => call.action),
+      calls.map(call => call.action),
       ['current', 'list', 'detail', 'retry', 'cancel', 'read']
     );
     assert.equal(
-      calls.every((call) => call.context.userId === 'user-1'),
+      calls.every(call => call.context.userId === 'user-1'),
       true
     );
   });
@@ -1295,7 +1295,7 @@ describe('CRM split controllers', () => {
     assert.equal(generated.data.message.stepIndex, 2);
     assert.equal(stopped.data.enrollment.status, 'stopped');
     assert.deepEqual(
-      calls.map((call) => [call.action, call.id, call.context.organizationId]),
+      calls.map(call => [call.action, call.id, call.context.organizationId]),
       [
         ['update', 'message-1', 'org-1'],
         ['approve', 'message-1', 'org-1'],
@@ -1358,7 +1358,7 @@ describe('CRM split controllers', () => {
     assert.equal(versions.data.versions[0].versionNo, 1);
     assert.equal(restored.data.message.subject, 'Historic subject');
     assert.deepEqual(
-      calls.map((call) => [call.action, call.id, call.versionId ?? null, call.context.userId]),
+      calls.map(call => [call.action, call.id, call.versionId ?? null, call.context.userId]),
       [
         ['list-versions', 'message-1', null, 'user-1'],
         ['restore-version', 'message-1', 'draft-version-1', 'user-1']
@@ -1437,7 +1437,7 @@ describe('CRM split controllers', () => {
     assert.equal(preview.data.preview.subject, 'AI subject step 2');
     assert.equal(regenerated.data.message.subject, 'AI subject step 1');
     assert.deepEqual(
-      calls.map((call) => [call.action, call.id ?? null, call.context.userId]),
+      calls.map(call => [call.action, call.id ?? null, call.context.userId]),
       [
         ['preview', null, 'user-1'],
         ['regenerate', 'message-1', 'user-1']
@@ -1498,7 +1498,7 @@ describe('CRM split controllers', () => {
     assert.equal(approved.data.successCount, 1);
     assert.equal(stopped.data.skippedCount, 1);
     assert.deepEqual(
-      calls.map((call) => [call.action, call.ids, call.context.userId]),
+      calls.map(call => [call.action, call.ids, call.context.userId]),
       [
         ['batch-generate-next-draft', ['enrollment-1', 'enrollment-2'], 'user-1'],
         ['batch-approve-draft', ['enrollment-1', 'enrollment-2'], 'user-1'],
@@ -1635,7 +1635,7 @@ describe('CRM split controllers', () => {
     assert.equal(savedDraft.data.replyDraft?.bodyText, 'Manual reply');
     assert.equal(reply.data.messages[0].direction, 'inbound');
     assert.deepEqual(
-      calls.map((call) => [call.action, call.id ?? null, call.context.organizationId]),
+      calls.map(call => [call.action, call.id ?? null, call.context.organizationId]),
       [
         ['list-inbox', null, 'org-1'],
         ['detail-inbox', 'inbox-thread-1', 'org-1'],
@@ -1686,7 +1686,7 @@ describe('CRM split controllers', () => {
     assert.equal(loaded.data.allowAdminViewMemberEmailBody, false);
     assert.equal(saved.data.allowAdminViewMemberEmailBody, true);
     assert.deepEqual(
-      calls.map((call) => [call.action, call.context.organizationId, call.context.organizationRole]),
+      calls.map(call => [call.action, call.context.organizationId, call.context.organizationRole]),
       [
         ['get', 'org-1', 'admin'],
         ['save', 'org-1', 'admin']
@@ -2040,7 +2040,7 @@ function createAiWritingConfigView(): NonNullable<CrmProductLineView['aiWritingC
     commonRequirements: 'Write concise B2B emails.',
     forbiddenClaims: 'Do not invent prices.',
     productEmphasis: 'Focus on supply reliability.',
-    steps: [1, 2, 3, 4, 5].map((stepIndex) => ({
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: `Prompt ${stepIndex}`
     }))

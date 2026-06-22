@@ -3,7 +3,13 @@ import { describe, it } from 'node:test';
 import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
-import { AUTH_POLICY_KEY, IS_PUBLIC_KEY, ROLE_DENIED_MESSAGE_KEY, ROLES_KEY, type AuthPolicyMetadata } from './auth.decorators';
+import {
+  AUTH_POLICY_KEY,
+  IS_PUBLIC_KEY,
+  ROLE_DENIED_MESSAGE_KEY,
+  ROLES_KEY,
+  type AuthPolicyMetadata
+} from './auth.decorators';
 import type { AuthService } from './auth.service';
 import { RolesGuard } from './roles.guard';
 
@@ -96,7 +102,9 @@ describe('RolesGuard', () => {
   });
 
   it('uses route-specific denial messages when provided', () => {
-    const guard = new RolesGuard(createReflector({ policy: { anyRoles: ['R_SUPER'], deniedMessage: '无权访问用户管理' } }));
+    const guard = new RolesGuard(
+      createReflector({ policy: { anyRoles: ['R_SUPER'], deniedMessage: '无权访问用户管理' } })
+    );
     const request = createRequest();
     request.user = createUser(['R_ADMIN']);
 

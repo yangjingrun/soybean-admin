@@ -92,46 +92,47 @@ apps/server/src/modules/crm/
 
 ## Domain Boundary Map
 
-| Domain | Owns | Must Not Own |
-| --- | --- | --- |
-| `accounts` | account import, contact import, notes, archive/restore, email verification, archived fingerprints, account timeline | sending, Gmail OAuth, inbox reply drafting |
-| `settings` | global config, organization config, send preference, product lines, persona profiles, email templates, sequence policies, template defaults, AI draft queue config | account records, actual message sending |
-| `suppression` | blacklist list/remove/upsert/query, organization-level unsubscribe checks | inbox message creation, sequence state transitions |
-| `mailbox` | mailbox bind/list/pause/resume, Gmail OAuth, Gmail watch, mailbox sync mode, mailbox authorization expiration | message body editing, sequence approval |
-| `sequence` | review items, enrollments, message drafts, draft versions, AI draft tasks, send start/stop/reconcile, worker claim/complete/fail | Gmail OAuth callback, inbox thread UI status |
-| `inbox` | inbox threads, inbound message ingest, reply drafts, reply send, unsubscribe confirmation, customer-reply notifications | product/persona/template CRUD |
-| `dashboard` | workbench overview, strategy stats, read-only aggregates | writes and side effects |
+| Domain        | Owns                                                                                                                                                               | Must Not Own                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| `accounts`    | account import, contact import, notes, archive/restore, email verification, archived fingerprints, account timeline                                                | sending, Gmail OAuth, inbox reply drafting         |
+| `settings`    | global config, organization config, send preference, product lines, persona profiles, email templates, sequence policies, template defaults, AI draft queue config | account records, actual message sending            |
+| `suppression` | blacklist list/remove/upsert/query, organization-level unsubscribe checks                                                                                          | inbox message creation, sequence state transitions |
+| `mailbox`     | mailbox bind/list/pause/resume, Gmail OAuth, Gmail watch, mailbox sync mode, mailbox authorization expiration                                                      | message body editing, sequence approval            |
+| `sequence`    | review items, enrollments, message drafts, draft versions, AI draft tasks, send start/stop/reconcile, worker claim/complete/fail                                   | Gmail OAuth callback, inbox thread UI status       |
+| `inbox`       | inbox threads, inbound message ingest, reply drafts, reply send, unsubscribe confirmation, customer-reply notifications                                            | product/persona/template CRUD                      |
+| `dashboard`   | workbench overview, strategy stats, read-only aggregates                                                                                                           | writes and side effects                            |
 
 ## Method Migration Map From `CrmService`
 
-| Current Method Group | New Owner |
-| --- | --- |
-| `importAccountFromLead`, `listAccounts`, `getAccountDetail`, `updateAccountStatus`, `addAccountNote`, `archiveAccount`, `restoreAccount`, `verifyContactEmail` | `CrmAccountService` |
-| `getGlobalConfig`, `saveGlobalConfig`, `getOrganizationConfig`, `saveOrganizationConfig`, `getSendPreference`, `saveSendPreference`, product line/persona/template/sequence-policy methods, `getTemplateDefaults`, AI draft queue config methods | `CrmSettingsService` |
-| `listBlacklistEntries`, `removeBlacklistEntry`, runtime blacklist checks | `CrmSuppressionService` |
-| `mockAuthorizeMailbox`, `createGmailOAuthAuthorizationUrl`, `completeGmailOAuthAuthorization`, `listMailboxes`, `pauseMailbox`, `resumeMailbox` | `CrmMailboxService` |
-| `listSequenceReviewItems`, `getSequenceReviewItem`, `createSequenceReviewItem`, draft edit/regenerate/approve/version/restore, next draft generation, batch operations, send start/stop/reconcile | `CrmSequenceService`, `CrmDraftService`, `CrmSequenceSendService` |
-| `createAiDraftTask`, `getCurrentAiDraftTask`, `listAiDraftTasks`, `retryFailedAiDraftTask`, `cancelAiDraftTask`, `markAiDraftTaskRead` | `CrmSequenceService` first, optionally `CrmAiDraftTaskService` later |
-| `listInboxThreads`, `getInboxThread`, `polishInboxReplyDraft`, `saveInboxReplyDraft`, `updateInboxThreadStatus`, `replyInboxThread`, `mockCustomerReply`, `confirmInboxMessageUnsubscribe` | `CrmInboxService` |
-| `listStrategyStats`, `getWorkbenchOverview` | `CrmDashboardService` |
+| Current Method Group                                                                                                                                                                                                                             | New Owner                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `importAccountFromLead`, `listAccounts`, `getAccountDetail`, `updateAccountStatus`, `addAccountNote`, `archiveAccount`, `restoreAccount`, `verifyContactEmail`                                                                                   | `CrmAccountService`                                                  |
+| `getGlobalConfig`, `saveGlobalConfig`, `getOrganizationConfig`, `saveOrganizationConfig`, `getSendPreference`, `saveSendPreference`, product line/persona/template/sequence-policy methods, `getTemplateDefaults`, AI draft queue config methods | `CrmSettingsService`                                                 |
+| `listBlacklistEntries`, `removeBlacklistEntry`, runtime blacklist checks                                                                                                                                                                         | `CrmSuppressionService`                                              |
+| `mockAuthorizeMailbox`, `createGmailOAuthAuthorizationUrl`, `completeGmailOAuthAuthorization`, `listMailboxes`, `pauseMailbox`, `resumeMailbox`                                                                                                  | `CrmMailboxService`                                                  |
+| `listSequenceReviewItems`, `getSequenceReviewItem`, `createSequenceReviewItem`, draft edit/regenerate/approve/version/restore, next draft generation, batch operations, send start/stop/reconcile                                                | `CrmSequenceService`, `CrmDraftService`, `CrmSequenceSendService`    |
+| `createAiDraftTask`, `getCurrentAiDraftTask`, `listAiDraftTasks`, `retryFailedAiDraftTask`, `cancelAiDraftTask`, `markAiDraftTaskRead`                                                                                                           | `CrmSequenceService` first, optionally `CrmAiDraftTaskService` later |
+| `listInboxThreads`, `getInboxThread`, `polishInboxReplyDraft`, `saveInboxReplyDraft`, `updateInboxThreadStatus`, `replyInboxThread`, `mockCustomerReply`, `confirmInboxMessageUnsubscribe`                                                       | `CrmInboxService`                                                    |
+| `listStrategyStats`, `getWorkbenchOverview`                                                                                                                                                                                                      | `CrmDashboardService`                                                |
 
 ## Repository Split Map From `CrmStore`
 
-| Current `CrmStore` Methods | New Repository |
-| --- | --- |
-| account/contact/archive/timeline/email verification cache methods | `CrmAccountRepository` |
-| global/org/send config, product line, persona, email template, sequence policy, AI draft queue config methods | `CrmSettingsRepository` |
-| blacklist methods and batch blacklist lookup | `CrmSuppressionRepository` |
-| mailbox methods, authorization expiry, history id advance, watch renewal list | `CrmMailboxRepository` |
-| enrollment/message/draft version/review/send claim/send completion/fail/stop methods | `CrmSequenceRepository` |
-| inbox thread/message/reply/unsubscribe/customer-reply ingest methods | `CrmInboxRepository` |
-| strategy stats, workbench overview, send state counts used only for dashboards | `CrmDashboardRepository` |
+| Current `CrmStore` Methods                                                                                    | New Repository             |
+| ------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| account/contact/archive/timeline/email verification cache methods                                             | `CrmAccountRepository`     |
+| global/org/send config, product line, persona, email template, sequence policy, AI draft queue config methods | `CrmSettingsRepository`    |
+| blacklist methods and batch blacklist lookup                                                                  | `CrmSuppressionRepository` |
+| mailbox methods, authorization expiry, history id advance, watch renewal list                                 | `CrmMailboxRepository`     |
+| enrollment/message/draft version/review/send claim/send completion/fail/stop methods                          | `CrmSequenceRepository`    |
+| inbox thread/message/reply/unsubscribe/customer-reply ingest methods                                          | `CrmInboxRepository`       |
+| strategy stats, workbench overview, send state counts used only for dashboards                                | `CrmDashboardRepository`   |
 
 ---
 
 ## Phase 0: Baseline And Safety Net
 
 **Files:**
+
 - Read only: `apps/server/src/modules/crm/crm.service.ts`
 - Read only: `apps/server/src/modules/crm/crm.controller.ts`
 - Read only: `apps/server/src/modules/crm/crm.types.ts`
@@ -179,6 +180,7 @@ Expected: no business code has changed in Phase 0.
 ## Phase 1: Shared Context, Scope, Error, And Log Helpers
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/shared/crm-context.ts`
 - Create: `apps/server/src/modules/crm/shared/crm-scope.ts`
 - Create: `apps/server/src/modules/crm/shared/crm-errors.ts`
@@ -249,11 +251,7 @@ export function requireCrmOrganizationAdminScope(context: CrmUserContext): CrmOr
 // apps/server/src/modules/crm/shared/crm-scope.spec.ts
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  createCrmOwnerWriteScope,
-  createCrmReadScope,
-  requireCrmOrganizationAdminScope
-} from './crm-scope';
+import { createCrmOwnerWriteScope, createCrmReadScope, requireCrmOrganizationAdminScope } from './crm-scope';
 
 test('createCrmReadScope keeps ordinary members owner-scoped', () => {
   const scope = createCrmReadScope({
@@ -329,6 +327,7 @@ Expected: scope helper tests pass, CRM service behavior remains unchanged.
 ## Phase 2: Add Repository Ports With Legacy Adapters
 
 **Files:**
+
 - Modify: `apps/server/src/modules/crm/crm.tokens.ts`
 - Create: `apps/server/src/modules/crm/accounts/crm-account.repository.ts`
 - Create: `apps/server/src/modules/crm/accounts/legacy-crm-account.repository.ts`
@@ -388,7 +387,11 @@ export interface CrmAccountRepository {
   findAccountByDomain(organizationId: string, ownerUserId: string, domain: string): Promise<CrmAccountRecord | null>;
   createAccount(input: CrmAccountCreateInput): Promise<CrmAccountRecord>;
   updateAccount(id: string, input: CrmAccountUpdateInput): Promise<CrmAccountRecord | null>;
-  findContactByEmailHash(organizationId: string, ownerUserId: string, emailHash: string): Promise<CrmContactRecord | null>;
+  findContactByEmailHash(
+    organizationId: string,
+    ownerUserId: string,
+    emailHash: string
+  ): Promise<CrmContactRecord | null>;
   createContact(input: CrmContactCreateInput): Promise<CrmContactRecord>;
   updateContact(id: string, input: CrmContactUpdateInput): Promise<CrmContactRecord | null>;
   findContactById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmContactRecord | null>;
@@ -465,6 +468,7 @@ Expected: any missing adapter method fails at compile time before service extrac
 ## Phase 3: Extract Settings Domain First
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/settings/crm-settings.service.ts`
 - Create: `apps/server/src/modules/crm/settings/crm-settings.service.spec.ts`
 - Modify: `apps/server/src/modules/crm/crm.service.ts`
@@ -573,6 +577,7 @@ git commit --no-verify -m "refactor: 拆分 CRM 配置服务"
 ## Phase 4: Extract Accounts And Suppression
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/accounts/crm-account.service.ts`
 - Create: `apps/server/src/modules/crm/accounts/crm-account.service.spec.ts`
 - Create: `apps/server/src/modules/crm/suppression/crm-suppression.service.ts`
@@ -674,6 +679,7 @@ git commit --no-verify -m "refactor: 拆分 CRM 线索和黑名单服务"
 ## Phase 5: Extract Mailbox And Gmail Boundary
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/mailbox/crm-mailbox.service.ts`
 - Create: `apps/server/src/modules/crm/mailbox/crm-mailbox.service.spec.ts`
 - Move later: `apps/server/src/modules/crm/crm-gmail-*.ts` into `apps/server/src/modules/crm/mailbox/gmail/`
@@ -751,6 +757,7 @@ git commit --no-verify -m "refactor: 拆分 CRM 邮箱和 Gmail 边界"
 ## Phase 6: Extract Sequence, Draft, AI Draft Task, And Send Boundary
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/sequence/crm-sequence.service.ts`
 - Create: `apps/server/src/modules/crm/sequence/crm-draft.service.ts`
 - Create: `apps/server/src/modules/crm/sequence/crm-sequence-send.service.ts`
@@ -892,6 +899,7 @@ git commit --no-verify -m "refactor: 拆分 CRM 序列和发送服务"
 ## Phase 7: Extract Inbox And Reply Boundary
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/inbox/crm-inbox.service.ts`
 - Create: `apps/server/src/modules/crm/inbox/crm-inbox.service.spec.ts`
 - Modify: `apps/server/src/modules/crm/crm.service.ts`
@@ -971,6 +979,7 @@ git commit --no-verify -m "refactor: 拆分 CRM 收件箱服务"
 ## Phase 8: Extract Dashboard Read Model
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/dashboard/crm-dashboard.service.ts`
 - Create: `apps/server/src/modules/crm/dashboard/crm-dashboard.service.spec.ts`
 - Modify: `apps/server/src/modules/crm/crm.service.ts`
@@ -1011,6 +1020,7 @@ git commit --no-verify -m "refactor: 拆分 CRM 工作台读模型"
 ## Phase 9: Split Prisma Store Into Domain Repositories
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/store/prisma-crm.mappers.ts`
 - Create: `apps/server/src/modules/crm/store/prisma-crm.includes.ts`
 - Create: `apps/server/src/modules/crm/accounts/prisma-crm-account.repository.ts`
@@ -1113,6 +1123,7 @@ git commit --no-verify -m "refactor: 拆分 CRM Prisma 仓储"
 ## Phase 10: Split Controllers Without Changing Routes
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/controllers/crm-account.controller.ts`
 - Create: `apps/server/src/modules/crm/controllers/crm-settings.controller.ts`
 - Create: `apps/server/src/modules/crm/controllers/crm-mailbox.controller.ts`
@@ -1236,6 +1247,7 @@ git commit --no-verify -m "refactor: 拆分 CRM 控制器"
 ## Phase 11: Split Nest Modules
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/crm-shared.module.ts`
 - Create: `apps/server/src/modules/crm/accounts/crm-accounts.module.ts`
 - Create: `apps/server/src/modules/crm/settings/crm-settings.module.ts`
@@ -1317,6 +1329,7 @@ git commit --no-verify -m "refactor: 拆分 CRM Nest 模块"
 ## Phase 12: Remove Compatibility Facade And Legacy Artifacts
 
 **Files:**
+
 - Modify or delete: `apps/server/src/modules/crm/crm.service.ts`
 - Delete: legacy repository adapters that still depend on `CRM_STORE`
 - Delete: `apps/server/src/modules/crm/store/prisma-crm.store.ts` only after all Prisma domain repositories own its behavior

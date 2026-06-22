@@ -102,10 +102,7 @@ describe('CrmGmailWebhookController', () => {
       }
     } as Pick<CrmGmailWebhookService, 'handlePubSubPush'> as CrmGmailWebhookService);
 
-    await assert.rejects(
-      () => controller.handlePubSubPush({ message: { data: 'unused' } }),
-      UnauthorizedException
-    );
+    await assert.rejects(() => controller.handlePubSubPush({ message: { data: 'unused' } }), UnauthorizedException);
     assert.equal(called, false);
   });
 
@@ -196,11 +193,7 @@ describe('CrmGmailWebhookController', () => {
       } as Pick<CrmGmailPubSubOidcVerifier, 'verify'> as CrmGmailPubSubOidcVerifier
     );
 
-    const result = await controller.handlePubSubPush(
-      { message: { data: 'unused' } },
-      '',
-      'Bearer oidc-token-1'
-    );
+    const result = await controller.handlePubSubPush({ message: { data: 'unused' } }, '', 'Bearer oidc-token-1');
 
     assert.equal(result.code, '0000');
     assert.deepEqual(verifierCalls, [

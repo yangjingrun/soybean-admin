@@ -11,11 +11,7 @@ import type {
 } from '../crm.types';
 
 export interface CrmDraftRepository {
-  findMessageById(args: {
-    id: string;
-    organizationId: string;
-    ownerUserId?: string;
-  }): Promise<CrmMessageRecord | null>;
+  findMessageById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmMessageRecord | null>;
   getSequenceReviewItem(args: {
     id: string;
     organizationId: string;

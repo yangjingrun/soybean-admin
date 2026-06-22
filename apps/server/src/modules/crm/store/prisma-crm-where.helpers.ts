@@ -66,7 +66,10 @@ export function toMailboxIdentityWhere(args: {
 }
 
 /** Builds the scoped product line identity filter used before organization-level writes. */
-export function toProductLineIdentityWhere(args: { id: string; organizationId: string }): Prisma.CrmProductLineWhereInput {
+export function toProductLineIdentityWhere(args: {
+  id: string;
+  organizationId: string;
+}): Prisma.CrmProductLineWhereInput {
   return {
     id: args.id,
     organizationId: args.organizationId
@@ -118,6 +121,7 @@ export function toAccountListWhere(args: {
   ownerUserId?: string;
   keyword?: string;
   status?: CrmAccountStatus;
+  sourceTaskId?: string;
 }): Prisma.CrmAccountWhereInput {
   const keywordFilter = args.keyword ? toAccountKeywordFilter(args.keyword) : undefined;
 
@@ -125,6 +129,7 @@ export function toAccountListWhere(args: {
     organizationId: args.organizationId,
     ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
     ...(args.status ? { status: args.status } : {}),
+    ...(args.sourceTaskId ? { sourceTaskId: args.sourceTaskId } : {}),
     ...(keywordFilter ? { OR: keywordFilter } : {})
   };
 }
@@ -173,7 +178,9 @@ export function toPersonaProfileListWhere(args: CrmPersonaProfileListInput): Pri
 }
 
 /** Builds the Prisma email template group list scope and optional UI filters. */
-export function toEmailTemplateGroupListWhere(args: CrmEmailTemplateGroupListInput): Prisma.CrmEmailTemplateGroupWhereInput {
+export function toEmailTemplateGroupListWhere(
+  args: CrmEmailTemplateGroupListInput
+): Prisma.CrmEmailTemplateGroupWhereInput {
   const keywordFilter = args.keyword ? toEmailTemplateKeywordFilter(args.keyword) : undefined;
 
   return {

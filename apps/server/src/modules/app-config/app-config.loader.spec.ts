@@ -88,7 +88,10 @@ describe('loadAppConfig', () => {
   it('rejects invalid numeric runtime config values during startup', () => {
     assert.throws(() => loadAppConfig({ PORT: 'NaN' }), /Invalid PORT/);
     assert.throws(() => loadAppConfig({ AUTH_ACCESS_TOKEN_TTL_SECONDS: '0' }), /Invalid AUTH_ACCESS_TOKEN_TTL_SECONDS/);
-    assert.throws(() => loadAppConfig({ AUTH_REFRESH_TOKEN_TTL_SECONDS: '-1' }), /Invalid AUTH_REFRESH_TOKEN_TTL_SECONDS/);
+    assert.throws(
+      () => loadAppConfig({ AUTH_REFRESH_TOKEN_TTL_SECONDS: '-1' }),
+      /Invalid AUTH_REFRESH_TOKEN_TTL_SECONDS/
+    );
   });
 
   it('reads the AI config secret encryption key from env', () => {

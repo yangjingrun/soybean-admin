@@ -27,9 +27,9 @@ export interface AiSettingsTabPermissionState {
 export function canSaveModelConfig(form: ModelConfigFormModel, savedSecret: SavedSecretState) {
   return Boolean(
     form.providerName.trim() &&
-      form.apiBase.trim() &&
-      form.model.trim() &&
-      (form.apiKey.trim() || savedSecret.hasApiKey)
+    form.apiBase.trim() &&
+    form.model.trim() &&
+    (form.apiKey.trim() || savedSecret.hasApiKey)
   );
 }
 
@@ -37,9 +37,9 @@ export function canSaveModelConfig(form: ModelConfigFormModel, savedSecret: Save
 export function canTestModelConfig(form: ModelConfigFormModel, savedSecret: SavedSecretState) {
   return Boolean(
     form.providerName.trim() &&
-      form.apiBase.trim() &&
-      form.model.trim() &&
-      (form.apiKey.trim() || savedSecret.hasApiKey)
+    form.apiBase.trim() &&
+    form.model.trim() &&
+    (form.apiKey.trim() || savedSecret.hasApiKey)
   );
 }
 

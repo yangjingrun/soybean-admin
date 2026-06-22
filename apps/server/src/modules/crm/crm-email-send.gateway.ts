@@ -16,11 +16,7 @@ export interface CrmGmailEmailSendApiHttpResponse {
 }
 
 export interface CrmGmailEmailSendApiHttpClient {
-  postJson(
-    url: string,
-    body: unknown,
-    headers: Record<string, string>
-  ): Promise<CrmGmailEmailSendApiHttpResponse>;
+  postJson(url: string, body: unknown, headers: Record<string, string>): Promise<CrmGmailEmailSendApiHttpResponse>;
 }
 
 interface GmailSendResponse {

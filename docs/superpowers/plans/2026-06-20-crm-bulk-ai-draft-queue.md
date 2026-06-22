@@ -294,6 +294,7 @@ Add endpoints under `/crm/ai-draft-tasks`:
 ### Task 1: Schema And Type Foundation
 
 **Files:**
+
 - Modify `prisma/schema.prisma`
 - Create `prisma/migrations/20260620_create_crm_ai_draft_tasks/migration.sql`
 - Modify generated Prisma files via `pnpm --filter @soybean/server exec prisma generate --schema ../../prisma/schema.prisma`
@@ -312,6 +313,7 @@ Add endpoints under `/crm/ai-draft-tasks`:
 ### Task 2: Store And Service Task Creation
 
 **Files:**
+
 - Modify `apps/server/src/modules/crm/store/prisma-crm.store.ts`
 - Modify `apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`
 - Modify `apps/server/src/modules/crm/crm.service.ts`
@@ -329,6 +331,7 @@ Add endpoints under `/crm/ai-draft-tasks`:
 ### Task 3: Queue And Worker
 
 **Files:**
+
 - Create `apps/server/src/modules/crm/crm-ai-draft-task-queue.service.ts`
 - Create `apps/server/src/modules/crm/crm-ai-draft-task-worker-host.service.ts`
 - Create `apps/server/src/modules/crm/crm-ai-draft-task-worker.service.ts`
@@ -348,6 +351,7 @@ Add endpoints under `/crm/ai-draft-tasks`:
 ### Task 4: Retry, Backoff, Auto Slowdown, Cancel
 
 **Files:**
+
 - Modify `apps/server/src/modules/crm/crm-ai-draft-task-state.ts`
 - Modify `apps/server/src/modules/crm/crm-ai-draft-task-worker.service.ts`
 - Modify `apps/server/src/modules/crm/store/prisma-crm.store.ts`
@@ -366,6 +370,7 @@ Add endpoints under `/crm/ai-draft-tasks`:
 ### Task 5: Super Admin Config API
 
 **Files:**
+
 - Create `apps/server/src/modules/crm/dto/update-crm-ai-draft-queue-config.dto.ts`
 - Modify `apps/server/src/modules/crm/crm.controller.ts`
 - Modify `apps/server/src/modules/crm/crm.service.ts`
@@ -382,6 +387,7 @@ Add endpoints under `/crm/ai-draft-tasks`:
 ### Task 6: Frontend Bulk Task Entry And Drawer
 
 **Files:**
+
 - Modify `src/service/api/crm.ts`
 - Modify `src/typings/api/crm.d.ts`
 - Modify `src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`
@@ -402,6 +408,7 @@ Add endpoints under `/crm/ai-draft-tasks`:
 ### Task 7: Frontend Config And Operations Panel
 
 **Files:**
+
 - Create `src/views/crm/settings/modules/AiDraftQueueConfigCard.vue`
 - Modify `src/views/crm/settings/modules/useCrmOperationsPanel.ts`
 - Modify `src/views/crm/settings/modules/CrmOperationsPanel.vue`

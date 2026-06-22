@@ -34,8 +34,12 @@ export function createCrmGmailIntegrationProviders(env: CrmGmailIntegrationEnv) 
   const topicName = normalizeEnvString(env.CRM_GMAIL_PUBSUB_TOPIC_NAME);
   const tokenProvider = tokenConfig ? new CrmGmailOAuthTokenProvider(tokenConfig) : null;
   const historyGateway =
-    tokenProvider && supportsHistorySync ? new CrmGmailApiHistoryGateway(tokenProvider) : new MockCrmGmailHistoryGateway();
-  const emailSendGateway = tokenProvider ? new CrmGmailApiEmailSendGateway(tokenProvider) : new MockCrmEmailSendGateway();
+    tokenProvider && supportsHistorySync
+      ? new CrmGmailApiHistoryGateway(tokenProvider)
+      : new MockCrmGmailHistoryGateway();
+  const emailSendGateway = tokenProvider
+    ? new CrmGmailApiEmailSendGateway(tokenProvider)
+    : new MockCrmEmailSendGateway();
   const watchGateway =
     tokenProvider && topicName && supportsHistorySync
       ? new CrmGmailApiWatchGateway(tokenProvider, { topicName })

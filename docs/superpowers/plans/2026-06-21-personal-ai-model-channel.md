@@ -31,6 +31,7 @@
 ## Task 1: Backend Personal Model Config Store
 
 **Files:**
+
 - Modify: `prisma/schema.prisma`
 - Create: `prisma/migrations/<timestamp>_create_ai_user_model_config/migration.sql`
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.types.ts`
@@ -111,6 +112,7 @@ Run the store spec again. Expected: pass.
 ## Task 2: Gateway API And Personal Resolution
 
 **Files:**
+
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.service.ts`
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.controller.ts`
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts`
@@ -173,6 +175,7 @@ Run the gateway service/controller specs again. Expected: pass.
 ## Task 3: CRM AI Call Context
 
 **Files:**
+
 - Modify CRM controllers/services that call `CrmAiDraftService.generateDraft()` and `CrmAiReplyDraftService.polishReplyDraft()`
 - Modify: `apps/server/src/modules/crm/crm-ai-draft.service.ts`
 - Modify: `apps/server/src/modules/crm/crm-ai-reply-draft.service.ts`
@@ -209,6 +212,7 @@ Run the same focused CRM specs. Expected: pass.
 ## Task 4: Frontend Personal Model Channel
 
 **Files:**
+
 - Modify: `src/service/api/ai-gateway.ts`
 - Modify: `src/service/api/ai-gateway.shared.ts`
 - Modify: `src/service/api/ai-gateway.spec.ts`
@@ -244,7 +248,7 @@ Add `getMyAiModelConfig()` and `saveMyAiModelConfig()`. Switch `handleLoadModelC
 Set the model tab visible for all logged-in users:
 
 ```ts
-model: true
+model: true;
 ```
 
 Keep save/test disabled only by form validity and the relevant backend ability where still needed. Since every logged-in user can maintain their own model config, personal model save should not depend on `aiSettingsModelWritePermission`.
@@ -258,6 +262,7 @@ Run the frontend focused specs again. Expected: pass.
 ## Task 5: Integration Verification
 
 **Files:**
+
 - Review all files changed by tasks 1-4.
 - Update `docs/agent-memory.md` only if a new confirmed project-specific pitfall was reproduced and solved.
 

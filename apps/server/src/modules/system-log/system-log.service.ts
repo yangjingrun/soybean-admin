@@ -109,5 +109,4 @@ export class SystemLogService {
 
     return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
   }
-
 }

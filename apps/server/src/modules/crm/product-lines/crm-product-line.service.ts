@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-  Optional
-} from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createPageResult } from '../../../shared/pagination';
 import { requirePermission } from '../../../shared/permission-policy';
 import type {
@@ -174,13 +168,18 @@ export class CrmProductLineService {
       throw new NotFoundException('AI 写信配置版本不存在');
     }
 
-    await this.crmLogger?.record('product-line-ai-prompt-version-restore', 'CRM 产品线 AI 写信配置恢复历史版本', context, {
-      organizationId: context.organizationId,
-      productLineId: productLine.id,
-      restoredVersionId: restored.restoredVersion.id,
-      restoredVersion: restored.restoredVersion.version,
-      newVersion: restored.currentVersion.version
-    });
+    await this.crmLogger?.record(
+      'product-line-ai-prompt-version-restore',
+      'CRM 产品线 AI 写信配置恢复历史版本',
+      context,
+      {
+        organizationId: context.organizationId,
+        productLineId: productLine.id,
+        restoredVersionId: restored.restoredVersion.id,
+        restoredVersion: restored.restoredVersion.version,
+        newVersion: restored.currentVersion.version
+      }
+    );
 
     return {
       productLine: toProductLineView(restored.productLine),
@@ -296,10 +295,10 @@ export class CrmProductLineService {
 
     const hasInstruction = Boolean(
       config?.enabled ||
-        config?.commonRequirements ||
-        config?.forbiddenClaims ||
-        config?.productEmphasis ||
-        config?.steps.some(step => step.prompt)
+      config?.commonRequirements ||
+      config?.forbiddenClaims ||
+      config?.productEmphasis ||
+      config?.steps.some(step => step.prompt)
     );
 
     if (hasInstruction) {

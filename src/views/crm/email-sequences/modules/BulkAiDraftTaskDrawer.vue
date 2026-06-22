@@ -82,12 +82,7 @@ const columns: DataTableColumns<Api.Crm.AiDraftTaskItemRecord> = [
 </script>
 
 <template>
-  <NDrawer
-    :show="show"
-    :width="720"
-    placement="right"
-    @update:show="emit('update:show', $event)"
-  >
+  <NDrawer :show="show" :width="720" placement="right" @update:show="emit('update:show', $event)">
     <NDrawerContent title="批量 AI 草稿任务">
       <NSpin :show="loading">
         <NEmpty v-if="!task" description="暂无批量 AI 草稿任务" />
@@ -124,13 +119,7 @@ const columns: DataTableColumns<Api.Crm.AiDraftTaskItemRecord> = [
               >
                 取消
               </NButton>
-              <NButton
-                v-if="!isActiveTask"
-                size="small"
-                type="primary"
-                :loading="reading"
-                @click="emit('read')"
-              >
+              <NButton v-if="!isActiveTask" size="small" type="primary" :loading="reading" @click="emit('read')">
                 知道了
               </NButton>
             </NSpace>

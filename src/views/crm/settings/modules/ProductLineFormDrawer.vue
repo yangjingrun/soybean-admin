@@ -168,7 +168,13 @@ async function handleSubmit() {
                 <NSwitch v-model:value="formModel.aiWritingConfig.enabled" :disabled="isAiWritingConfigReadonly" />
               </NSpace>
 
-              <NGrid v-if="formModel.aiWritingConfig.enabled" :cols="24" :x-gap="12" responsive="screen" item-responsive>
+              <NGrid
+                v-if="formModel.aiWritingConfig.enabled"
+                :cols="24"
+                :x-gap="12"
+                responsive="screen"
+                item-responsive
+              >
                 <NGi span="24">
                   <NFormItem label="通用要求">
                     <NInput

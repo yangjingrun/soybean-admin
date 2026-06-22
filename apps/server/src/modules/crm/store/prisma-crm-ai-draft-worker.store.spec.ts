@@ -387,14 +387,16 @@ function createPrismaBlacklist(input: Record<string, unknown> = {}) {
   };
 }
 
-function createPrisma(options: {
-  aiDraftTaskFindFirstResult?: ReturnType<typeof createPrismaAiDraftTask> | null;
-  aiDraftActiveCountResults?: number[];
-  aiDraftQueueConfig?: ReturnType<typeof createPrismaAiDraftQueueConfig> | null;
-  blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
-  existingNextMessage?: ReturnType<typeof createPrismaMessage> | null;
-  transactionError?: Error;
-} = {}) {
+function createPrisma(
+  options: {
+    aiDraftTaskFindFirstResult?: ReturnType<typeof createPrismaAiDraftTask> | null;
+    aiDraftActiveCountResults?: number[];
+    aiDraftQueueConfig?: ReturnType<typeof createPrismaAiDraftQueueConfig> | null;
+    blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
+    existingNextMessage?: ReturnType<typeof createPrismaMessage> | null;
+    transactionError?: Error;
+  } = {}
+) {
   const account = {
     id: 'account-1',
     organizationId: 'org-1',

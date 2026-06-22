@@ -1,12 +1,7 @@
 import type { Dayjs } from 'dayjs';
 import { getMailboxWatchStatus, summarizeMailboxSyncHealth } from './mailbox-settings';
 
-export type CrmSettingsOverviewKey =
-  | 'mailboxConnection'
-  | 'writingProfile'
-  | 'sendPace'
-  | 'safetyBlock'
-  | 'syncHealth';
+export type CrmSettingsOverviewKey = 'mailboxConnection' | 'writingProfile' | 'sendPace' | 'safetyBlock' | 'syncHealth';
 
 export interface CrmSettingsOverviewItem {
   key: CrmSettingsOverviewKey;
@@ -26,7 +21,9 @@ function formatAttentionDescription(parts: string[]) {
 function countActiveWatchIssues(records: Api.Crm.MailboxRecord[], now?: Dayjs) {
   return records.filter(
     record =>
-      record.status === 'active' && record.syncMode === 'full_sync' && getMailboxWatchStatus(record.watchExpiration, now) !== 'normal'
+      record.status === 'active' &&
+      record.syncMode === 'full_sync' &&
+      getMailboxWatchStatus(record.watchExpiration, now) !== 'normal'
   ).length;
 }
 

@@ -10,12 +10,11 @@ import type {
   CrmMailboxAuthorizationExpiredInput,
   CrmMailboxHistoryAdvanceInput,
   CrmMailboxRecord,
-  CrmMessageRecord
+  CrmMessageRecord,
+  CrmCustomerReplyIngestRecord
 } from './crm.types';
 
-type GmailHistorySyncReplyIngestResult = Awaited<
-  ReturnType<CrmGmailHistorySyncRepository['ingestCustomerReply']>
->;
+type GmailHistorySyncReplyIngestResult = Awaited<ReturnType<CrmGmailHistorySyncRepository['ingestCustomerReply']>>;
 type GmailHistorySyncTimelineEvent = Awaited<ReturnType<CrmGmailHistorySyncRepository['createTimelineEvent']>>;
 type GmailHistorySyncThreadStatusUpdate = NonNullable<
   Awaited<ReturnType<CrmGmailHistorySyncRepository['syncInboxThreadGmailState']>>
@@ -278,6 +277,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
   it('ingests Gmail messages that reply to known sent provider messages', async () => {
     const mailbox = createMailbox({ lastHistoryId: '100' });
     const ingested: Parameters<CrmGmailHistorySyncRepository['ingestCustomerReply']>[0][] = [];
+    const notifications = createNotificationRecorder();
     const service = new CrmGmailHistorySyncWorkerService(
       createStore({
         mailbox,
@@ -288,7 +288,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
         async ingestCustomerReply(input) {
           ingested.push(input);
 
-          return { isDuplicate: false } as GmailHistorySyncReplyIngestResult;
+          return createCustomerReplyIngestRecord();
         }
       }),
       {
@@ -317,7 +317,9 @@ describe('CrmGmailHistorySyncWorkerService', () => {
             ]
           };
         }
-      }
+      },
+      undefined,
+      notifications.service as never
     );
 
     const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
@@ -337,6 +339,68 @@ describe('CrmGmailHistorySyncWorkerService', () => {
         messageType: undefined
       }
     ]);
+    assert.equal(notifications.records.length, 1);
+    assert.deepEqual(notifications.records[0], {
+      userId: 'user-1',
+      userName: 'Alice',
+      module: 'crm',
+      type: 'crm_customer_reply',
+      title: '收到客户回信',
+      content: 'ABC Trading / a***@buyer.com 回复了开发信',
+      targetType: 'crmInboxThread',
+      targetId: 'inbox-thread-1',
+      routePath: '/crm/inbox',
+      metadata: {
+        organizationId: 'org-1',
+        accountId: 'account-1',
+        contactId: 'contact-1',
+        threadId: 'inbox-thread-1',
+        messageType: 'customer_reply',
+        source: 'gmail-history'
+      }
+    });
+  });
+
+  it('does not notify again when Gmail history sync sees a duplicate reply message', async () => {
+    const mailbox = createMailbox({ lastHistoryId: '100' });
+    const notifications = createNotificationRecorder();
+    const service = new CrmGmailHistorySyncWorkerService(
+      createStore({
+        mailbox,
+        sentMessage: createMessage({ providerMessageId: 'gmail-sent-1' }),
+        async advanceMailboxHistoryId(input) {
+          return { ...mailbox, lastHistoryId: input.toHistoryId };
+        },
+        async ingestCustomerReply() {
+          return createCustomerReplyIngestRecord({ isDuplicate: true });
+        }
+      }),
+      {
+        async listHistory(input) {
+          return {
+            nextHistoryId: input.targetHistoryId,
+            messages: [
+              {
+                providerMessageId: 'gmail-reply-1',
+                providerThreadId: 'gmail-thread-1',
+                replyToProviderMessageId: 'gmail-sent-1',
+                direction: 'inbound',
+                subject: 'Re: Bearing Series',
+                bodyText: 'Please send details.',
+                receivedAt: new Date('2026-06-19T08:30:00.000Z')
+              }
+            ]
+          };
+        }
+      },
+      undefined,
+      notifications.service as never
+    );
+
+    const result = await service.processHistorySyncJob(createJob({ historyId: '120' }));
+
+    assert.equal(result.ingestedCount, 0);
+    assert.equal(notifications.records.length, 0);
   });
 
   it('falls back to provider thread id when reply-to is missing or unmatched', async () => {
@@ -384,7 +448,7 @@ describe('CrmGmailHistorySyncWorkerService', () => {
         async ingestCustomerReply(input) {
           ingested.push(input);
 
-          return { isDuplicate: false } as GmailHistorySyncReplyIngestResult;
+          return createCustomerReplyIngestRecord();
         }
       }),
       {
@@ -910,6 +974,60 @@ function createInboxThreadStatusUpdate(): GmailHistorySyncThreadStatusUpdate {
       updatedAt: new Date('2026-06-19T08:30:00.000Z')
     },
     event: createTimelineEvent({ eventType: 'gmail_label_synced' })
+  };
+}
+
+function createCustomerReplyIngestRecord(
+  input: Partial<CrmCustomerReplyIngestRecord> = {}
+): CrmCustomerReplyIngestRecord {
+  const statusUpdate = createInboxThreadStatusUpdate();
+
+  return {
+    thread: statusUpdate.thread,
+    message: {
+      id: 'inbox-message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      threadId: 'inbox-thread-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
+      enrollmentId: 'enrollment-1',
+      mailboxId: 'mailbox-1',
+      provider: 'gmail',
+      providerMessageId: 'gmail-reply-1',
+      replyToMessageId: 'message-1',
+      fromEmail: 'buyer@example.com',
+      fromEmailHash: 'buyer-email-hash',
+      maskedFromEmail: 'a***@buyer.com',
+      subject: 'Re: Bearing Series',
+      snippet: 'Please send details.',
+      bodyText: 'Please send details.',
+      receivedAt: new Date('2026-06-19T08:30:00.000Z'),
+      messageType: 'customer_reply',
+      createdAt: new Date('2026-06-19T08:30:00.000Z')
+    },
+    account: statusUpdate.account,
+    contact: {
+      id: 'contact-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      accountId: 'account-1',
+      fullName: 'Ali Buyer',
+      title: 'Purchasing Manager',
+      email: 'buyer@example.com',
+      emailHash: 'buyer-email-hash',
+      maskedEmail: 'a***@buyer.com',
+      isPublicEmail: false,
+      emailStatus: 'valid',
+      sourceTaskId: null,
+      createdAt: new Date('2026-06-18T09:00:00.000Z'),
+      updatedAt: new Date('2026-06-18T09:00:00.000Z')
+    },
+    mailbox: createMailbox(),
+    enrollment: null,
+    event: createTimelineEvent({ eventType: 'customer_reply_received' }),
+    isDuplicate: false,
+    ...input
   };
 }
 

@@ -224,7 +224,10 @@ describe('ai leads search progress state', () => {
     );
 
     assert.equal(state.status, 'completed');
-    assert.equal(state.currentDescription, '后台采集任务已完成，可以导入客户，也可以继续采集或开始新任务。');
+    assert.equal(
+      state.currentDescription,
+      '后台采集任务已完成，可用线索已沉淀到 CRM。下一步处理本次客户，补齐联系人并创建开发信。'
+    );
     assert.equal(state.result?.summary.actionCount, 1);
     assert.equal(state.result?.summary.qualityCheckCount, 1);
     assert.equal(state.result?.summary.candidateCount, 1);

@@ -1,16 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Inject,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Res
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { aiLeadsKeywordStrategyManagePermission, aiLeadsQueueConfigManagePermission } from '@soybean/shared';
 import { Throttle } from '@nestjs/throttler';
 import type { FastifyReply } from 'fastify';
@@ -101,19 +90,14 @@ export class AiLeadsController {
   }
 
   @Get('search-tasks/current')
-  async getCurrentSearchTask(
-    @CurrentContext() currentContext: RequestUserContext | null = null
-  ) {
+  async getCurrentSearchTask(@CurrentContext() currentContext: RequestUserContext | null = null) {
     const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.getCurrentTask({ user }));
   }
 
   @Get('search-tasks/:id')
-  async getSearchTask(
-    @Param('id') id: string,
-    @CurrentContext() currentContext: RequestUserContext | null = null
-  ) {
+  async getSearchTask(@Param('id') id: string, @CurrentContext() currentContext: RequestUserContext | null = null) {
     const user = requireRequestUserContext(currentContext);
     const task = await this.searchTaskService.getTaskById(id, { user });
 
@@ -131,30 +115,21 @@ export class AiLeadsController {
   }
 
   @Post('search-tasks/:id/resume')
-  async resumeSearchTask(
-    @Param('id') id: string,
-    @CurrentContext() currentContext: RequestUserContext | null = null
-  ) {
+  async resumeSearchTask(@Param('id') id: string, @CurrentContext() currentContext: RequestUserContext | null = null) {
     const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.resumeTask(id, { user }));
   }
 
   @Post('search-tasks/:id/retry')
-  async retrySearchTask(
-    @Param('id') id: string,
-    @CurrentContext() currentContext: RequestUserContext | null = null
-  ) {
+  async retrySearchTask(@Param('id') id: string, @CurrentContext() currentContext: RequestUserContext | null = null) {
     const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.retryTask(id, { user }));
   }
 
   @Post('search-tasks/:id/discard')
-  async discardSearchTask(
-    @Param('id') id: string,
-    @CurrentContext() currentContext: RequestUserContext | null = null
-  ) {
+  async discardSearchTask(@Param('id') id: string, @CurrentContext() currentContext: RequestUserContext | null = null) {
     const user = requireRequestUserContext(currentContext);
 
     return ok(await this.searchTaskService.discardTask(id, { user }));

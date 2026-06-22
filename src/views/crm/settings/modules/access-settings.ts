@@ -19,8 +19,7 @@ export function buildCrmSettingsTabVisibility(input: CrmSettingsAccessInput): Cr
     hasPermission(input, 'crm:settings:global:write') || hasPermission(input, 'crm:settings:ai-draft-queue:write');
 
   return {
-    assets:
-      hasPermission(input, 'crm:settings:assets:read') || hasPermission(input, 'crm:settings:assets:write'),
+    assets: hasPermission(input, 'crm:settings:assets:read') || hasPermission(input, 'crm:settings:assets:write'),
     operations: hasPermission(input, 'crm:settings:operations:write'),
     rules:
       hasPlatformRulePermission ||

@@ -63,7 +63,10 @@ describe('SystemOrganizationService', () => {
     assert.equal(organizations[0].name, 'AI外贸管理系统 Inc.');
     assert.equal(updated.name, 'AI外贸管理系统 Inc.');
     assert.equal(disabled.status, 'disabled');
-    assert.deepEqual(logService.records.map(record => record.action), ['create', 'update', 'disable']);
+    assert.deepEqual(
+      logService.records.map(record => record.action),
+      ['create', 'update', 'disable']
+    );
   });
 
   it('rejects blank or duplicated organization names', async () => {
@@ -81,10 +84,7 @@ describe('SystemOrganizationService', () => {
 });
 
 function createService(prisma: ReturnType<typeof createPrismaStub>, logService = createLogServiceStub()) {
-  return new SystemOrganizationService(
-    prisma as unknown as PrismaService,
-    logService as unknown as SystemLogService
-  );
+  return new SystemOrganizationService(prisma as unknown as PrismaService, logService as unknown as SystemLogService);
 }
 
 function createPrismaStub(organizations: TestOrganization[], users: TestUser[] = []) {

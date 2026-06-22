@@ -1,5 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import type { CrmAiReplyDraftOutput, CrmAiReplyDraftPrompt, CrmAiReplyDraftPromptInput } from './crm-ai-reply-draft.types';
+import type {
+  CrmAiReplyDraftOutput,
+  CrmAiReplyDraftPrompt,
+  CrmAiReplyDraftPromptInput
+} from './crm-ai-reply-draft.types';
 
 /** Builds a reply-polish prompt that requires the user's topic or outline as the source intent. */
 export function buildCrmAiReplyDraftPrompt(input: CrmAiReplyDraftPromptInput): CrmAiReplyDraftPrompt {

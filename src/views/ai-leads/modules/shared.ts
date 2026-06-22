@@ -224,7 +224,9 @@ export function formatKeywordOptimizationVisibleText(viewModel: KeywordOptimizat
   const placesQueryText = viewModel.placesQueries
     .map(query => `${query.buyerType}｜${query.intent}｜${query.q}`)
     .join('\n');
-  const mapsQueryText = viewModel.mapsQueries.map(query => `${query.buyerType}｜${query.intent}｜${query.q}`).join('\n');
+  const mapsQueryText = viewModel.mapsQueries
+    .map(query => `${query.buyerType}｜${query.intent}｜${query.q}`)
+    .join('\n');
 
   return `${summaryText}\n\n${buyerSegmentText}\n\nSearch 查询词：\n${searchQueryText}\n\nPlaces 查询词：\n${placesQueryText}\n\nMaps 查询词：\n${mapsQueryText}`;
 }

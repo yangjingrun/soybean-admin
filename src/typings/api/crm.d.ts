@@ -145,11 +145,13 @@ declare namespace Api {
     interface LeadSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
       status?: CrmAccountStatus;
+      sourceTaskId?: string;
     }
 
     interface LeadFilterModel {
       keyword: string;
       status: CrmAccountStatus | null;
+      sourceTaskId: string | null;
     }
 
     interface LeadImportContactPayload {

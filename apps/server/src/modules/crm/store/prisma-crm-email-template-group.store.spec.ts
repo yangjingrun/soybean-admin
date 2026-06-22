@@ -149,7 +149,10 @@ class EmailTemplateGroupPrisma {
     findManyCalls: [] as ListCall[],
     countCalls: [] as Array<{ where: unknown }>,
     findUniqueCalls: [] as Array<{ where: unknown; include?: unknown }>,
-    updateManyCalls: [] as Array<{ where: { organizationId?: string; id?: unknown; isDefault?: boolean }; data: Partial<TemplateGroupRecord> }>,
+    updateManyCalls: [] as Array<{
+      where: { organizationId?: string; id?: unknown; isDefault?: boolean };
+      data: Partial<TemplateGroupRecord>;
+    }>,
     updateManyAndReturnCalls: [] as Array<{
       where: { id?: string; organizationId?: string; status?: string };
       data: Partial<TemplateGroupRecord>;
@@ -172,7 +175,10 @@ class EmailTemplateGroupPrisma {
       this.crmEmailTemplateGroup.findUniqueCalls.push(args);
       return createTemplateGroup(this.latestGroupData);
     },
-    updateMany: async (args: { where: { organizationId?: string; id?: unknown; isDefault?: boolean }; data: Partial<TemplateGroupRecord> }) => {
+    updateMany: async (args: {
+      where: { organizationId?: string; id?: unknown; isDefault?: boolean };
+      data: Partial<TemplateGroupRecord>;
+    }) => {
       this.crmEmailTemplateGroup.updateManyCalls.push(args);
       return { count: 1 };
     },

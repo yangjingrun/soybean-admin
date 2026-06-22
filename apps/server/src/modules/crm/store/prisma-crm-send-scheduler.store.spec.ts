@@ -67,10 +67,13 @@ describe('PrismaCrmSendSchedulerStore', () => {
         { organizationId: 'org-1', ownerUserId: 'user-2' }
       ]
     });
-    assert.deepEqual(prisma.crmMessage.groupByCalls.map(call => call.by), [
-      ['organizationId', 'ownerUserId'],
-      ['organizationId', 'ownerUserId', 'stepIndex']
-    ]);
+    assert.deepEqual(
+      prisma.crmMessage.groupByCalls.map(call => call.by),
+      [
+        ['organizationId', 'ownerUserId'],
+        ['organizationId', 'ownerUserId', 'stepIndex']
+      ]
+    );
   });
 
   it('batch loads mailbox send states with daily and hourly grouped counts', async () => {
@@ -112,10 +115,13 @@ describe('PrismaCrmSendSchedulerStore', () => {
         hourlyCount: 0
       }
     ]);
-    assert.deepEqual(prisma.crmMessage.groupByCalls.slice(-2).map(call => call.by), [
-      ['organizationId', 'mailboxId'],
-      ['organizationId', 'mailboxId']
-    ]);
+    assert.deepEqual(
+      prisma.crmMessage.groupByCalls.slice(-2).map(call => call.by),
+      [
+        ['organizationId', 'mailboxId'],
+        ['organizationId', 'mailboxId']
+      ]
+    );
     assert.deepEqual(prisma.crmMessage.groupByCalls.at(-2)?.where, {
       AND: [
         {

@@ -349,6 +349,7 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
     ownerUserId?: string;
     keyword?: string;
     status?: CrmAccountStatus;
+    sourceTaskId?: string;
     skip: number;
     take: number;
   }) {

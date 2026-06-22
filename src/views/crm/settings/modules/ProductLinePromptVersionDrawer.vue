@@ -77,7 +77,7 @@ async function loadVersions(productLineId = props.productLineId, preferredVersio
         ? preferredVersionId
         : data.records.some(version => version.id === selectedVersionId.value)
           ? selectedVersionId.value
-          : data.records[0]?.id ?? null;
+          : (data.records[0]?.id ?? null);
   } finally {
     if (requestId === latestListRequestId) {
       loading.value = false;

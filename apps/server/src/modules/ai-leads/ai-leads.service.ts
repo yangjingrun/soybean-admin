@@ -251,7 +251,10 @@ export class AiLeadsService {
   }
 
   /** Keeps super-admin diagnostics raw while hiding search traces from ordinary users. */
-  private toVisibleSearchResult<T extends Parameters<typeof toLeadSearchPublicResult>[0]>(result: T, user: RequestUserContext) {
+  private toVisibleSearchResult<T extends Parameters<typeof toLeadSearchPublicResult>[0]>(
+    result: T,
+    user: RequestUserContext
+  ) {
     if (isSuper(user)) {
       return result;
     }

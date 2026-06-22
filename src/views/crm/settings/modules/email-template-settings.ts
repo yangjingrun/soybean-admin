@@ -112,4 +112,3 @@ export function normalizeEmailTemplatePayload(formModel: Api.Crm.EmailTemplateFo
       }))
   };
 }
-

@@ -138,10 +138,12 @@ function createPrismaBlacklist(input: Record<string, unknown> = {}) {
   };
 }
 
-function createPrisma(options: {
-  blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
-  blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
-} = {}) {
+function createPrisma(
+  options: {
+    blacklistEntry?: ReturnType<typeof createPrismaBlacklist> | null;
+    blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
+  } = {}
+) {
   const blacklistEntry = options.blacklistEntry ?? createPrismaBlacklist();
 
   return {

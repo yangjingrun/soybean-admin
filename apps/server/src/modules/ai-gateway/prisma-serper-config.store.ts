@@ -45,7 +45,10 @@ export class PrismaSerperConfigStore implements SerperConfigStore {
   }
 }
 
-function toSerperConfigRecord(record: SerperConfigModelLike, secretCryptoService: SecretCryptoService): SerperConfigRecord {
+function toSerperConfigRecord(
+  record: SerperConfigModelLike,
+  secretCryptoService: SecretCryptoService
+): SerperConfigRecord {
   return {
     configKey: record.configKey,
     title: record.title,

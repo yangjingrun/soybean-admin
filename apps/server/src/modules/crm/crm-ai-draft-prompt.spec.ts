@@ -11,7 +11,9 @@ import type { CrmProductLineAiWritingConfig } from './crm.types';
 
 describe('crm-ai-draft-prompt', () => {
   it('normalizes complete five-step AI writing config', () => {
-    const config = normalizeCrmProductLineAiWritingConfig(createWritingConfig({ commonRequirements: '  Natural tone  ' }));
+    const config = normalizeCrmProductLineAiWritingConfig(
+      createWritingConfig({ commonRequirements: '  Natural tone  ' })
+    );
 
     assert.equal(config?.commonRequirements, 'Natural tone');
     assert.equal(config?.steps.length, 5);
@@ -107,9 +109,7 @@ describe('crm-ai-draft-prompt', () => {
   });
 });
 
-function createWritingConfig(
-  overrides: Partial<CrmProductLineAiWritingConfig> = {}
-): CrmProductLineAiWritingConfig {
+function createWritingConfig(overrides: Partial<CrmProductLineAiWritingConfig> = {}): CrmProductLineAiWritingConfig {
   return {
     enabled: true,
     commonRequirements: 'Natural English, under 120 words.',

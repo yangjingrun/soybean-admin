@@ -86,7 +86,10 @@ export class AiLeadHunterEnrichmentService {
     };
   }
 
-  private async findBestContact(config: Awaited<ReturnType<AiGatewayService['getRequiredUserHunterConfig']>>, domain: string) {
+  private async findBestContact(
+    config: Awaited<ReturnType<AiGatewayService['getRequiredUserHunterConfig']>>,
+    domain: string
+  ) {
     const result = await this.hunterClient.domainSearch(config, { domain, limit: 10, offset: 0 });
 
     return selectBestHunterContact(result);

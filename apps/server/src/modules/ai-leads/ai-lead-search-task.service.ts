@@ -83,12 +83,14 @@ export class AiLeadSearchTaskService {
       });
 
       const queuedTask = await this.updateTaskOrThrow(task.id, { bullJobId: job.jobId }, this.taskGuard(task));
-      await this.createTaskEventSafely(createTaskStateChangeEvent({
-        taskId: task.id,
-        eventType: 'task_queued',
-        toStatus: 'queued',
-        title: '采集任务已排队'
-      }));
+      await this.createTaskEventSafely(
+        createTaskStateChangeEvent({
+          taskId: task.id,
+          eventType: 'task_queued',
+          toStatus: 'queued',
+          title: '采集任务已排队'
+        })
+      );
 
       return this.toVisibleTask(queuedTask, context);
     } catch (error) {
@@ -251,13 +253,15 @@ export class AiLeadSearchTaskService {
       this.taskGuard(task)
     );
 
-    await this.createTaskEventSafely(createTaskStateChangeEvent({
-      taskId: task.id,
-      eventType,
-      fromStatus: task.status,
-      toStatus: status,
-      title
-    }));
+    await this.createTaskEventSafely(
+      createTaskStateChangeEvent({
+        taskId: task.id,
+        eventType,
+        fromStatus: task.status,
+        toStatus: status,
+        title
+      })
+    );
 
     return nextTask;
   }
@@ -308,13 +312,15 @@ export class AiLeadSearchTaskService {
       throw error;
     }
 
-    await this.createTaskEventSafely(createTaskStateChangeEvent({
-      taskId: task.id,
-      eventType,
-      fromStatus: task.status,
-      toStatus: 'queued',
-      title
-    }));
+    await this.createTaskEventSafely(
+      createTaskStateChangeEvent({
+        taskId: task.id,
+        eventType,
+        fromStatus: task.status,
+        toStatus: 'queued',
+        title
+      })
+    );
 
     return finalTask;
   }
@@ -370,26 +376,30 @@ export class AiLeadSearchTaskService {
       return;
     }
 
-    await this.createTaskEventSafely(createTaskStateChangeEvent({
-      taskId: task.id,
-      eventType: 'task_enqueue_failed',
-      fromStatus: 'queued',
-      toStatus: 'failed',
-      title: '采集任务入队失败',
-      message
-    }));
+    await this.createTaskEventSafely(
+      createTaskStateChangeEvent({
+        taskId: task.id,
+        eventType: 'task_enqueue_failed',
+        fromStatus: 'queued',
+        toStatus: 'failed',
+        title: '采集任务入队失败',
+        message
+      })
+    );
   }
 
   private async removeQueuedJobSafely(taskId: string, jobId: string) {
     try {
       await this.taskQueue.removeSearchTaskJob(jobId);
     } catch (error) {
-      await this.createTaskEventSafely(createTaskStateChangeEvent({
-        taskId,
-        eventType: 'task_job_remove_failed',
-        title: '采集任务队列任务移除失败',
-        message: error instanceof Error ? error.message : String(error)
-      }));
+      await this.createTaskEventSafely(
+        createTaskStateChangeEvent({
+          taskId,
+          eventType: 'task_job_remove_failed',
+          title: '采集任务队列任务移除失败',
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
     }
   }
 
@@ -397,12 +407,14 @@ export class AiLeadSearchTaskService {
     try {
       await this.notificationService?.markTargetReadForUser('aiLeadSearchTask', task.id, task.userId);
     } catch (error) {
-      await this.createTaskEventSafely(createTaskStateChangeEvent({
-        taskId: task.id,
-        eventType: 'task_notification_read_failed',
-        title: '任务通知标记已读失败',
-        message: error instanceof Error ? error.message : String(error)
-      }));
+      await this.createTaskEventSafely(
+        createTaskStateChangeEvent({
+          taskId: task.id,
+          eventType: 'task_notification_read_failed',
+          title: '任务通知标记已读失败',
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
     }
   }
 

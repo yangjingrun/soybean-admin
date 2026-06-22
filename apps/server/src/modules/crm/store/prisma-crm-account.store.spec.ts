@@ -71,6 +71,25 @@ describe('PrismaCrmAccountStore', () => {
       });
     });
 
+    it('filters listed accounts by AI lead source task without dropping owner scope', async () => {
+      const prisma = createPrisma();
+      const store = new PrismaCrmAccountStore(prisma as never);
+
+      await store.listAccounts({
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        skip: 0,
+        take: 20,
+        sourceTaskId: 'task-1'
+      });
+
+      assert.deepEqual(prisma.crmAccount.findManyCalls[0].where, {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        sourceTaskId: 'task-1'
+      });
+    });
+
     it('returns the existing account when concurrent create hits a unique conflict', async () => {
       const prisma = createPrisma();
       const store = new PrismaCrmAccountStore(prisma as never);

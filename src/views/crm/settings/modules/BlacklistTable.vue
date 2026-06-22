@@ -27,7 +27,11 @@ function renderSource(row: Api.Crm.BlacklistRecord) {
     row.sourceMessageId ? `邮件 ${row.sourceMessageId}` : ''
   ].filter(Boolean);
 
-  return h('span', { class: values.length ? 'blacklist-source-text' : 'blacklist-empty-text' }, values.join(' / ') || '-');
+  return h(
+    'span',
+    { class: values.length ? 'blacklist-source-text' : 'blacklist-empty-text' },
+    values.join(' / ') || '-'
+  );
 }
 
 const columns = computed<DataTableColumns<Api.Crm.BlacklistRecord>>(() => {

@@ -64,11 +64,17 @@ export function useLeadTable() {
 
   function applyRouteFilters() {
     const status = getRouteQueryString(route.query.status);
+    const sourceTaskId = getRouteQueryString(route.query.sourceTaskId);
 
     filterModel.status = null;
+    filterModel.sourceTaskId = null;
 
     if (isLeadStatus(status)) {
       filterModel.status = status;
+    }
+
+    if (sourceTaskId) {
+      filterModel.sourceTaskId = sourceTaskId;
     }
   }
 

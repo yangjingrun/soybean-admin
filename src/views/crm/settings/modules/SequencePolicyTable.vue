@@ -96,7 +96,9 @@ const columns = computed<DataTableColumns<Api.Crm.SequencePolicyRecord>>(() => {
                 },
                 { default: () => sequencePolicyStatusLabelMap[row.status] }
               ),
-              row.isDefault ? h(NTag, { bordered: false, size: 'small', type: 'info' }, { default: () => '默认' }) : null
+              row.isDefault
+                ? h(NTag, { bordered: false, size: 'small', type: 'info' }, { default: () => '默认' })
+                : null
             ]
           }
         )

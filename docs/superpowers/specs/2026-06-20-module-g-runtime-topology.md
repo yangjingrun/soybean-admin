@@ -33,16 +33,16 @@
 
 ## Role Table
 
-| Host | Role | Reason |
-| --- | --- | --- |
-| `AiLeadSearchTaskWorkerHost` | `worker` | Consumes AI leads BullMQ jobs. |
-| `CrmSendWorkerHost` | `worker` | Consumes CRM send BullMQ jobs. |
-| `CrmGmailHistorySyncWorkerHost` | `worker` | Consumes Gmail history sync BullMQ jobs. |
-| `CrmAiDraftTaskWorkerHost` | `worker` | Consumes CRM AI draft BullMQ jobs. |
-| `CrmSendSchedulerHost` | `scheduler` | Periodically dispatches due messages. |
-| `CrmGmailWatchRenewalService` | `scheduler` | Periodically renews Gmail watches. |
-| `CrmArchiveSlimmingService` | `scheduler` | Periodically slims archived accounts. |
-| Queue services and controllers | `api` or `all` | Produce jobs and serve HTTP requests; they should not require worker role. |
+| Host                            | Role           | Reason                                                                     |
+| ------------------------------- | -------------- | -------------------------------------------------------------------------- |
+| `AiLeadSearchTaskWorkerHost`    | `worker`       | Consumes AI leads BullMQ jobs.                                             |
+| `CrmSendWorkerHost`             | `worker`       | Consumes CRM send BullMQ jobs.                                             |
+| `CrmGmailHistorySyncWorkerHost` | `worker`       | Consumes Gmail history sync BullMQ jobs.                                   |
+| `CrmAiDraftTaskWorkerHost`      | `worker`       | Consumes CRM AI draft BullMQ jobs.                                         |
+| `CrmSendSchedulerHost`          | `scheduler`    | Periodically dispatches due messages.                                      |
+| `CrmGmailWatchRenewalService`   | `scheduler`    | Periodically renews Gmail watches.                                         |
+| `CrmArchiveSlimmingService`     | `scheduler`    | Periodically slims archived accounts.                                      |
+| Queue services and controllers  | `api` or `all` | Produce jobs and serve HTTP requests; they should not require worker role. |
 
 ## Execution Tasks
 

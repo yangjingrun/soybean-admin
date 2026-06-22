@@ -222,11 +222,14 @@ describe('AiLeadsController', () => {
 
   it('requires queue config permission before loading AI leads queue config', async () => {
     let called = false;
-    const controller = new AiLeadsController({} as unknown as AiLeadsService, {
-      async getQueueConfig() {
-        called = true;
-      }
-    } as unknown as AiLeadSearchTaskService);
+    const controller = new AiLeadsController(
+      {} as unknown as AiLeadsService,
+      {
+        async getQueueConfig() {
+          called = true;
+        }
+      } as unknown as AiLeadSearchTaskService
+    );
 
     await assert.rejects(() => controller.getQueueConfig(createUser(['R_USER'])), ForbiddenException);
     assert.equal(called, false);
@@ -234,16 +237,19 @@ describe('AiLeadsController', () => {
 
   it('allows assigned roles to manage AI leads queue config', async () => {
     const calls: string[] = [];
-    const controller = new AiLeadsController({} as unknown as AiLeadsService, {
-      async getQueueConfig() {
-        calls.push('get');
-        return { workerConcurrency: 2 };
-      },
-      async saveQueueConfig(_workerConcurrency: number) {
-        calls.push('save');
-        return { workerConcurrency: 3 };
-      }
-    } as unknown as AiLeadSearchTaskService);
+    const controller = new AiLeadsController(
+      {} as unknown as AiLeadsService,
+      {
+        async getQueueConfig() {
+          calls.push('get');
+          return { workerConcurrency: 2 };
+        },
+        async saveQueueConfig(_workerConcurrency: number) {
+          calls.push('save');
+          return { workerConcurrency: 3 };
+        }
+      } as unknown as AiLeadSearchTaskService
+    );
     const user = createUser(['R_USER'], [aiLeadsQueueConfigManagePermission]);
 
     const loaded = await controller.getQueueConfig(user);

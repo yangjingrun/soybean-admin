@@ -35,8 +35,14 @@ describe('shared permissions', () => {
     assert.equal(crmPermissionDefinitions.map<string>(item => item.group).includes('ai_settings_serper'), false);
     assert.equal(crmPermissionDefinitions.map<string>(item => item.group).includes('ai_settings_hunter'), false);
     assert.equal(getDefaultPermissionCodesByRoles(['R_SUPER']).map(String).includes('ai:settings:model:manage'), false);
-    assert.equal(getDefaultPermissionCodesByRoles(['R_SUPER']).map(String).includes('ai:settings:serper:manage'), false);
-    assert.equal(getDefaultPermissionCodesByRoles(['R_SUPER']).map(String).includes('ai:settings:hunter:manage'), false);
+    assert.equal(
+      getDefaultPermissionCodesByRoles(['R_SUPER']).map(String).includes('ai:settings:serper:manage'),
+      false
+    );
+    assert.equal(
+      getDefaultPermissionCodesByRoles(['R_SUPER']).map(String).includes('ai:settings:hunter:manage'),
+      false
+    );
   });
 
   it('grants AI leads keyword strategy maintenance to super users and configurable roles', () => {

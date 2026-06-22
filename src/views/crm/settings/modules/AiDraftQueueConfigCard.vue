@@ -21,9 +21,7 @@ const saving = shallowRef(false);
 const updatedAt = shallowRef<string | null>(null);
 const updatedByName = shallowRef<string | null>(null);
 
-const canManageAiDraftQueue = computed(() =>
-  hasPermission(authStore.userInfo, 'crm:settings:ai-draft-queue:write')
-);
+const canManageAiDraftQueue = computed(() => hasPermission(authStore.userInfo, 'crm:settings:ai-draft-queue:write'));
 const canSave = computed(() => canManageAiDraftQueue.value && !validateAiDraftQueueConfigForm(formModel));
 const formattedUpdatedAt = computed(() => {
   if (!updatedAt.value || dayjs(updatedAt.value).valueOf() <= 0) {
@@ -168,12 +166,7 @@ async function saveConfig() {
 
             <NGi>
               <NFormItem label="失败重试">
-                <NInputNumber
-                  v-model:value="formModel.maxAttempts"
-                  :min="1"
-                  :precision="0"
-                  class="config-number-input"
-                >
+                <NInputNumber v-model:value="formModel.maxAttempts" :min="1" :precision="0" class="config-number-input">
                   <template #suffix>次</template>
                 </NInputNumber>
               </NFormItem>
@@ -188,9 +181,7 @@ async function saveConfig() {
         </NForm>
 
         <div class="ai-draft-config-footer">
-          <NText depth="3" class="updated-time">
-            更新：{{ formattedUpdatedAt }} / {{ updatedByText }}
-          </NText>
+          <NText depth="3" class="updated-time">更新：{{ formattedUpdatedAt }} / {{ updatedByText }}</NText>
           <NSpace :size="8">
             <NButton size="small" :loading="loading" @click="loadConfig()">重新加载</NButton>
             <NButton size="small" type="primary" :loading="saving" :disabled="!canSave" @click="saveConfig">

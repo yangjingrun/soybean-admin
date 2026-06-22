@@ -39,7 +39,10 @@ export function canTransitionTaskStatus<TStatus extends string>(
 }
 
 /** Pick current task candidates without coupling AI and CRM task implementations. */
-export function resolveCurrentTask<TTask extends { status: TStatus; updatedAt: Date; readAt?: Date | null }, TStatus extends string>(
+export function resolveCurrentTask<
+  TTask extends { status: TStatus; updatedAt: Date; readAt?: Date | null },
+  TStatus extends string
+>(
   records: TTask[],
   options: {
     activeStatuses: readonly TStatus[];

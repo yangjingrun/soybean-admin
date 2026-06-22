@@ -4,8 +4,8 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "nest build",
     "backfill:ai-config-secrets": "tsx src/scripts/backfill-ai-config-secrets.ts",
+    "build": "nest build",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"

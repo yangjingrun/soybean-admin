@@ -2,12 +2,7 @@
 import { computed, h } from 'vue';
 import { NBadge, NButton, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import {
-  formatInboxDate,
-  formatInboxText,
-  inboxThreadStatusLabelMap,
-  inboxThreadStatusTagTypeMap
-} from './shared';
+import { formatInboxDate, formatInboxText, inboxThreadStatusLabelMap, inboxThreadStatusTagTypeMap } from './shared';
 
 defineProps<{
   loading?: boolean;

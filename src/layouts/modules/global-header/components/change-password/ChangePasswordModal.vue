@@ -14,14 +14,11 @@ const { formRef, formModel, rules, submitting, resetForm, submit } = useChangePa
   }
 });
 
-watch(
-  visible,
-  show => {
-    if (!show) {
-      resetForm();
-    }
+watch(visible, show => {
+  if (!show) {
+    resetForm();
   }
-);
+});
 </script>
 
 <template>

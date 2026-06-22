@@ -1,9 +1,4 @@
-import type {
-  CrmAccountRecord,
-  CrmContactRecord,
-  CrmMessageThreadMode,
-  CrmProductLineRecord
-} from './crm.types';
+import type { CrmAccountRecord, CrmContactRecord, CrmMessageThreadMode, CrmProductLineRecord } from './crm.types';
 
 export interface PersonaProfile {
   id?: string;
@@ -164,9 +159,8 @@ export function findPersonaProfile(title?: string | null) {
   if (!normalizedTitle) return null;
 
   return (
-    personaProfiles.find(profile =>
-      profile.aliases.some(alias => normalizedTitle.includes(alias.toLowerCase()))
-    ) ?? null
+    personaProfiles.find(profile => profile.aliases.some(alias => normalizedTitle.includes(alias.toLowerCase()))) ??
+    null
   );
 }
 

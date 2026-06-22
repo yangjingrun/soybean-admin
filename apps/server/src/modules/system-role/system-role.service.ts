@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common';
 import {
   crmPermissionCodes,
   getInvalidPermissionCodes,
@@ -70,7 +77,8 @@ export class SystemRoleService {
     assertRoleCode(roleCode);
     await this.assertUniqueRoleCode(roleCode);
 
-    const permissions = roleCode === superRoleCode ? [...crmPermissionCodes] : normalizeRolePermissions(input.permissions || []);
+    const permissions =
+      roleCode === superRoleCode ? [...crmPermissionCodes] : normalizeRolePermissions(input.permissions || []);
     const created = await this.prisma.systemRole.create({
       data: {
         roleName,

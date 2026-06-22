@@ -216,11 +216,7 @@ function createPrisma() {
         this.findFirstCalls.push(args);
         return mailbox;
       },
-      async findMany(args: {
-        where: Record<string, unknown>;
-        orderBy: Array<Record<string, unknown>>;
-        take: number;
-      }) {
+      async findMany(args: { where: Record<string, unknown>; orderBy: Array<Record<string, unknown>>; take: number }) {
         this.findManyCalls.push(args);
         return [mailbox];
       },

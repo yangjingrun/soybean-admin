@@ -38,13 +38,10 @@ test('createCrmOwnerFilter omits organizationId for repository calls that alread
 });
 
 test('createCrmOwnerWriteScope is always owner-only', () => {
-  assert.deepEqual(
-    createCrmOwnerWriteScope(createContext({ roles: ['R_SUPER'], organizationRole: 'admin' })),
-    {
-      organizationId: 'org-1',
-      ownerUserId: 'user-1'
-    }
-  );
+  assert.deepEqual(createCrmOwnerWriteScope(createContext({ roles: ['R_SUPER'], organizationRole: 'admin' })), {
+    organizationId: 'org-1',
+    ownerUserId: 'user-1'
+  });
 });
 
 test('requireCrmOrganizationAdminScope rejects ordinary members', () => {

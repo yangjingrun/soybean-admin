@@ -33,4 +33,10 @@ export class CrmAccountQueryDto {
   @IsIn(crmAccountStatuses)
   @Transform(trimOptionalString)
   status?: CrmAccountStatus;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  @Transform(trimOptionalString)
+  sourceTaskId?: string;
 }

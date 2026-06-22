@@ -53,11 +53,9 @@ describe('CrmArchiveSlimmingService', () => {
     const originalClearInterval = globalThis.clearInterval;
     let intervalStarted = false;
     const store = createStore({ dueAccounts: [createAccount()] });
-    const service = new CrmArchiveSlimmingService(
-      store as never,
-      undefined,
-      { config: loadAppConfig({ SERVER_RUNTIME_ROLE: 'api' }) } as never
-    );
+    const service = new CrmArchiveSlimmingService(store as never, undefined, {
+      config: loadAppConfig({ SERVER_RUNTIME_ROLE: 'api' })
+    } as never);
 
     globalThis.setInterval = ((_callback: () => void) => {
       intervalStarted = true;

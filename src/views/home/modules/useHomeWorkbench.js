@@ -1,0 +1,108 @@
+import { computed, onActivated, onMounted, onUnmounted, shallowRef } from 'vue';
+import { useRouter } from 'vue-router';
+import { listenCrmWorkbenchRefresh } from '@/hooks/business/crm-workbench-refresh';
+import { fetchCrmWorkbenchOverview } from '@/service/api';
+import {
+  buildWorkbenchMetricCards,
+  buildWorkbenchRecommendation,
+  buildWorkbenchTodoItems,
+  buildWorkbenchTrendOption,
+  createWorkbenchLoadingTracker,
+  formatWorkbenchUpdatedAt,
+  shouldPollWorkbench
+} from './shared';
+const pollingIntervalMs = 5000;
+/** Manage today's personal CRM workbench data, polling and route actions. */
+export function useHomeWorkbench() {
+  const router = useRouter();
+  const overview = shallowRef(null);
+  const loadingTracker = createWorkbenchLoadingTracker();
+  const { loading, refreshing } = loadingTracker;
+  const errorMessage = shallowRef('');
+  let latestRequestId = 0;
+  let pollingTimer = null;
+  let cleanupWorkbenchRefreshListener = null;
+  const recommendation = computed(() => buildWorkbenchRecommendation(overview.value));
+  const metricCards = computed(() => buildWorkbenchMetricCards(overview.value));
+  const todoItems = computed(() => buildWorkbenchTodoItems(overview.value));
+  const trendOption = computed(() => buildWorkbenchTrendOption(overview.value?.trend ?? []));
+  const lastUpdatedText = computed(() => formatWorkbenchUpdatedAt(overview.value?.generatedAt));
+  onMounted(() => {
+    cleanupWorkbenchRefreshListener = listenCrmWorkbenchRefresh(() => {
+      void refreshOverview();
+    });
+    void loadOverview();
+  });
+  onActivated(() => {
+    if (!overview.value) return;
+    void refreshOverview();
+  });
+  onUnmounted(() => {
+    cleanupWorkbenchRefreshListener?.();
+    cleanupWorkbenchRefreshListener = null;
+    stopPolling();
+  });
+  async function loadOverview() {
+    await requestOverview('initial');
+  }
+  async function refreshOverview() {
+    await requestOverview('refresh');
+  }
+  /** Navigate to the matching CRM module with the workbench filter context. */
+  async function handleNavigate(target) {
+    if (!target.routePath) {
+      await refreshOverview();
+      return;
+    }
+    await router.push({
+      path: target.routePath,
+      query: target.query
+    });
+  }
+  async function requestOverview(mode) {
+    const requestId = latestRequestId + 1;
+    latestRequestId = requestId;
+    const finishLoading = loadingTracker.start(mode);
+    try {
+      const { data, error } = await fetchCrmWorkbenchOverview();
+      if (error || requestId !== latestRequestId) {
+        if (error && mode !== 'poll') errorMessage.value = '今日工作台加载失败';
+        return;
+      }
+      errorMessage.value = '';
+      overview.value = data;
+      syncPolling();
+    } finally {
+      finishLoading();
+    }
+  }
+  function syncPolling() {
+    if (!shouldPollWorkbench(overview.value)) {
+      stopPolling();
+      return;
+    }
+    if (pollingTimer) return;
+    pollingTimer = window.setInterval(() => {
+      void requestOverview('poll');
+    }, pollingIntervalMs);
+  }
+  function stopPolling() {
+    if (!pollingTimer) return;
+    window.clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
+  return {
+    overview,
+    loading,
+    refreshing,
+    errorMessage,
+    recommendation,
+    metricCards,
+    todoItems,
+    trendOption,
+    lastUpdatedText,
+    loadOverview,
+    refreshOverview,
+    handleNavigate
+  };
+}

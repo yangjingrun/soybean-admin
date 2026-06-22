@@ -23,7 +23,10 @@ describe('route shared auth helpers', () => {
       }),
       true
     );
-    assert.equal(hasRouteAccess(createUser({ buttons: [] }), { permissions: [aiLeadsKeywordStrategyManagePermission] }), false);
+    assert.equal(
+      hasRouteAccess(createUser({ buttons: [] }), { permissions: [aiLeadsKeywordStrategyManagePermission] }),
+      false
+    );
   });
 
   it('filters child routes with the same role and permission policy as the guard', () => {
@@ -39,7 +42,10 @@ describe('route shared auth helpers', () => {
 
     const [route] = filterAuthRoutesByUser(routes, createUser());
 
-    assert.deepEqual(route.children?.map(child => child.name), ['crm_visible']);
+    assert.deepEqual(
+      route.children?.map(child => child.name),
+      ['crm_visible']
+    );
   });
 
   it('keeps ai settings reachable for users without platform config permissions', () => {
@@ -57,7 +63,11 @@ function createUser(input: Partial<Pick<Api.Auth.UserInfo, 'roles' | 'buttons'>>
   };
 }
 
-function createRoute(input: { name: string; meta?: RouteAccessMeta; children?: ElegantConstRoute[] }): ElegantConstRoute {
+function createRoute(input: {
+  name: string;
+  meta?: RouteAccessMeta;
+  children?: ElegantConstRoute[];
+}): ElegantConstRoute {
   return {
     name: input.name,
     path: `/${input.name}`,

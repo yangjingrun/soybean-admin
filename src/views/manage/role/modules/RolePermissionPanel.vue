@@ -105,9 +105,7 @@ function getModulePageSummary(module: PermissionModule) {
       <div v-if="!isSuperRole" class="permission-toolbar">
         <div class="permission-toolbar__status">
           <NText strong>{{ preview.changed ? '权限草稿已变更' : '权限未变更' }}</NText>
-          <NText depth="3">
-            新增 {{ preview.addedLabels.length }} 项 / 移除 {{ preview.removedLabels.length }} 项
-          </NText>
+          <NText depth="3">新增 {{ preview.addedLabels.length }} 项 / 移除 {{ preview.removedLabels.length }} 项</NText>
         </div>
         <NSpace :size="8" class="permission-toolbar__actions">
           <NButton size="small" :disabled="saving || !preview.changed" @click="handleReset">撤销修改</NButton>

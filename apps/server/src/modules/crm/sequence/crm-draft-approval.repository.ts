@@ -6,11 +6,7 @@ import type {
 } from '../crm.types';
 
 export interface CrmDraftApprovalRepository {
-  findMessageById(args: {
-    id: string;
-    organizationId: string;
-    ownerUserId?: string;
-  }): Promise<CrmMessageRecord | null>;
+  findMessageById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmMessageRecord | null>;
   getSequenceReviewItem(args: {
     id: string;
     organizationId: string;

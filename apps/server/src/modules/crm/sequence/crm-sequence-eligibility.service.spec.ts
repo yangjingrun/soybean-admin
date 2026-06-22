@@ -73,7 +73,15 @@ describe('CrmSequenceEligibilityService', () => {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
       contactId: 'contact-1',
-      statuses: ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused', 'stopped', 'replied', 'archived']
+      statuses: [
+        'draft_review_pending',
+        'ready_to_send',
+        'sequence_running',
+        'paused',
+        'stopped',
+        'replied',
+        'archived'
+      ]
     });
     assert.deepEqual(sequenceRepository.accountChecks[0], {
       organizationId: 'org-1',
@@ -128,18 +136,17 @@ describe('CrmSequenceEligibilityService', () => {
   });
 });
 
-function createService(input: {
-  sequenceRepository?: FakeSequenceRepository;
-  blacklistEntry?: CrmBlacklistRecord | null;
-} = {}) {
-  return new CrmSequenceEligibilityService(
-    input.sequenceRepository ?? createSequenceRepository(),
-    {
-      async findBlacklistEntry() {
-        return input.blacklistEntry ?? null;
-      }
-    } as never
-  );
+function createService(
+  input: {
+    sequenceRepository?: FakeSequenceRepository;
+    blacklistEntry?: CrmBlacklistRecord | null;
+  } = {}
+) {
+  return new CrmSequenceEligibilityService(input.sequenceRepository ?? createSequenceRepository(), {
+    async findBlacklistEntry() {
+      return input.blacklistEntry ?? null;
+    }
+  } as never);
 }
 
 type FakeSequenceRepository = CrmSequenceRepository & {
@@ -147,10 +154,12 @@ type FakeSequenceRepository = CrmSequenceRepository & {
   accountChecks: Array<Parameters<CrmSequenceRepository['findActiveEnrollmentByAccount']>[0]>;
 };
 
-function createSequenceRepository(input: {
-  existingContactEnrollment?: CrmSequenceEnrollmentRecord | null;
-  existingAccountEnrollment?: CrmSequenceEnrollmentRecord | null;
-} = {}): FakeSequenceRepository {
+function createSequenceRepository(
+  input: {
+    existingContactEnrollment?: CrmSequenceEnrollmentRecord | null;
+    existingAccountEnrollment?: CrmSequenceEnrollmentRecord | null;
+  } = {}
+): FakeSequenceRepository {
   return {
     contactChecks: [],
     accountChecks: [],

@@ -38,6 +38,7 @@
 ## Task 1: Product-Line AI Config Persistence
 
 **Files:**
+
 - Modify: `prisma/schema.prisma`
 - Create: `prisma/migrations/20260620153000_add_crm_product_line_ai_writing_config/migration.sql`
 - Modify generated Prisma client after `prisma generate`
@@ -142,7 +143,7 @@ aiWritingConfig?: CrmProductLineAiWritingConfig | null;
 In `toProductLineRecord`, map JSON with a local helper:
 
 ```ts
-aiWritingConfig: toProductLineAiWritingConfig(record.aiWritingConfig)
+aiWritingConfig: toProductLineAiWritingConfig(record.aiWritingConfig);
 ```
 
 Add helper in `prisma-crm.store.ts`:
@@ -172,6 +173,7 @@ Expected: tests and server typecheck pass.
 ## Task 2: AI Prompt Helpers And Service
 
 **Files:**
+
 - Create: `apps/server/src/modules/crm/crm-ai-draft.types.ts`
 - Create: `apps/server/src/modules/crm/crm-ai-draft-prompt.ts`
 - Create: `apps/server/src/modules/crm/crm-ai-draft-prompt.spec.ts`
@@ -280,6 +282,7 @@ Expected: all pass.
 ## Task 3: Backend CRM Draft Generation Integration
 
 **Files:**
+
 - Modify: `apps/server/src/modules/crm/crm.service.ts`
 - Modify: `apps/server/src/modules/crm/crm.service.spec.ts`
 - Modify: `apps/server/src/modules/crm/crm.controller.spec.ts` if DTO calls need updates
@@ -379,6 +382,7 @@ Expected: all pass.
 ## Task 4: Frontend Product-Line AI Writing Configuration
 
 **Files:**
+
 - Modify: `src/typings/api/crm.d.ts`
 - Modify: `src/views/crm/settings/modules/shared.ts`
 - Modify: `src/views/crm/settings/modules/shared.spec.ts`
@@ -433,7 +437,9 @@ Implement helpers:
 
 ```ts
 export function createDefaultProductLineAiWritingConfig(): Api.Crm.ProductLineAiWritingConfig;
-export function normalizeProductLineAiWritingConfig(config: Api.Crm.ProductLineAiWritingConfig): Api.Crm.ProductLineAiWritingConfig | null;
+export function normalizeProductLineAiWritingConfig(
+  config: Api.Crm.ProductLineAiWritingConfig
+): Api.Crm.ProductLineAiWritingConfig | null;
 export function validateProductLineAiWritingConfig(config: Api.Crm.ProductLineAiWritingConfig): string | null;
 ```
 
@@ -465,6 +471,7 @@ Expected: tests, typecheck, and oxlint pass.
 ## Task 5: Review Drawer AI Metadata Display
 
 **Files:**
+
 - Modify: `src/typings/api/crm.d.ts`
 - Modify: `src/views/crm/email-sequences/modules/shared.ts`
 - Modify: `src/views/crm/email-sequences/modules/shared.spec.ts`
@@ -550,6 +557,7 @@ Expected: tests, typecheck, and eslint pass.
 ## Task 6: Integration Verification
 
 **Files:**
+
 - All touched files from Tasks 1-5.
 
 - [ ] **Step 1: Run focused backend tests**

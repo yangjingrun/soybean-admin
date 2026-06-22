@@ -153,7 +153,10 @@ describe('CRM organization resource permissions', () => {
       () => service.createEmailTemplateGroup({ name: 'Default', steps: createEmailTemplateSteps() }, context),
       /findEmailTemplateGroupByName/
     );
-    await assert.rejects(() => service.setDefaultEmailTemplateGroup('template-1', context), /findEmailTemplateGroupById/);
+    await assert.rejects(
+      () => service.setDefaultEmailTemplateGroup('template-1', context),
+      /findEmailTemplateGroupById/
+    );
   });
 
   it('rejects users without assigned permission when writing organization sequence policies', async () => {

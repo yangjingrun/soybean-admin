@@ -65,7 +65,8 @@ describe('CrmSendWorkerService', () => {
         stepIndex: 2,
         threadMode: 'same_thread',
         subject: 'Bearing Series for ABC Trading',
-        bodyText: 'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
+        bodyText:
+          'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
         status: 'draft_pending_review',
         scheduledAt: new Date(store.completed[0].sentAt.getTime() + 3 * 24 * 60 * 60 * 1000),
         providerThreadId: 'mock-thread:enrollment-1'
@@ -101,7 +102,8 @@ describe('CrmSendWorkerService', () => {
       stepIndex: 3,
       threadMode: 'same_thread',
       subject: 'Bearing Series for ABC Trading',
-      bodyText: 'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
+      bodyText:
+        'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
       status: 'draft_pending_review',
       scheduledAt: new Date(store.completed[0].sentAt.getTime() + 7 * 24 * 60 * 60 * 1000),
       providerThreadId: 'mock-thread:enrollment-1'
@@ -419,7 +421,9 @@ function createWorkerStore(
   };
 }
 
-function createGateway(error?: Error): CrmEmailSendGateway & { calls: Parameters<CrmEmailSendGateway['sendPlainText']>[0][] } {
+function createGateway(
+  error?: Error
+): CrmEmailSendGateway & { calls: Parameters<CrmEmailSendGateway['sendPlainText']>[0][] } {
   const calls: Parameters<CrmEmailSendGateway['sendPlainText']>[0][] = [];
 
   return {

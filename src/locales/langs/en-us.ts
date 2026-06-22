@@ -382,7 +382,8 @@ const local: App.I18n.Schema = {
         },
         leadSearchResultDecide: {
           title: 'Search Result Decision',
-          usage: 'Decide whether Serper Search / Places / Maps results should paginate, requery, switch channel, or stop.'
+          usage:
+            'Decide whether Serper Search / Places / Maps results should paginate, requery, switch channel, or stop.'
         },
         leadMatchAnalyze: {
           title: 'Match Analysis',

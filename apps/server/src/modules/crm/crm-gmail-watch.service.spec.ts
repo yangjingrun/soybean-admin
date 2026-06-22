@@ -319,8 +319,7 @@ function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext 
 }
 
 function createStore(mailboxes: CrmMailboxRecord[]) {
-  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }> =
-    [];
+  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }> = [];
   let lastMailboxDetailArgs: Parameters<CrmGmailWatchRepository['findMailboxById']>[0] | undefined;
 
   return {

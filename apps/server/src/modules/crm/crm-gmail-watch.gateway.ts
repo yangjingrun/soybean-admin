@@ -27,11 +27,7 @@ export interface CrmGmailWatchApiHttpResponse {
 }
 
 export interface CrmGmailWatchApiHttpClient {
-  postJson(
-    url: string,
-    body: unknown,
-    headers: Record<string, string>
-  ): Promise<CrmGmailWatchApiHttpResponse>;
+  postJson(url: string, body: unknown, headers: Record<string, string>): Promise<CrmGmailWatchApiHttpResponse>;
 }
 
 interface GmailWatchResponse {
@@ -58,11 +54,7 @@ export class CrmGmailAuthorizationExpiredError extends Error {
 }
 
 export class FetchCrmGmailWatchApiHttpClient implements CrmGmailWatchApiHttpClient {
-  async postJson(
-    url: string,
-    body: unknown,
-    headers: Record<string, string>
-  ): Promise<CrmGmailWatchApiHttpResponse> {
+  async postJson(url: string, body: unknown, headers: Record<string, string>): Promise<CrmGmailWatchApiHttpResponse> {
     const response = await fetch(url, {
       method: 'POST',
       headers,

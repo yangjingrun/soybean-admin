@@ -16,20 +16,14 @@ export class SystemNotificationController {
   }
 
   @Post(':id/shown')
-  async shown(
-    @Param('id') id: string,
-    @CurrentContext() context: RequestUserContext | null = null
-  ) {
+  async shown(@Param('id') id: string, @CurrentContext() context: RequestUserContext | null = null) {
     const user = requireRequestUserContext(context);
 
     return ok(await this.notificationService.markShown(id, user.userId));
   }
 
   @Post(':id/read')
-  async read(
-    @Param('id') id: string,
-    @CurrentContext() context: RequestUserContext | null = null
-  ) {
+  async read(@Param('id') id: string, @CurrentContext() context: RequestUserContext | null = null) {
     const user = requireRequestUserContext(context);
 
     return ok(await this.notificationService.markRead(id, user.userId));

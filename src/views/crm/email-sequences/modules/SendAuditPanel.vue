@@ -5,7 +5,7 @@ import {
   formatSequenceDate,
   getFailedSequenceMessages,
   getMessageStatusView,
-  getSequenceSendAuditSummary,
+  getSequenceSendAuditSummary
 } from './shared';
 
 const props = defineProps<{
@@ -68,16 +68,13 @@ const retryDisabledReason = computed(() => {
       <template #header>发送失败状态</template>
       <NSpace vertical :size="8">
         <div v-for="failedMessage in failedMessages" :key="failedMessage.id" class="failed-message-row">
-          <div class="failed-message-title">
-            第 {{ failedMessage.stepIndex }} 封 · {{ failedMessage.subject }}
-          </div>
+          <div class="failed-message-title">第 {{ failedMessage.stepIndex }} 封 · {{ failedMessage.subject }}</div>
           <div class="failed-message-meta">
-            Job {{ formatNullableText(failedMessage.bullJobId) }} · 更新时间 {{ formatSequenceDate(failedMessage.updatedAt) }}
+            Job {{ formatNullableText(failedMessage.bullJobId) }} · 更新时间
+            {{ formatSequenceDate(failedMessage.updatedAt) }}
           </div>
         </div>
-        <div class="failed-message-meta">
-          失败重试暂未开放，请先刷新状态；需要终止后续发送时可停止序列。
-        </div>
+        <div class="failed-message-meta">失败重试暂未开放，请先刷新状态；需要终止后续发送时可停止序列。</div>
       </NSpace>
     </NAlert>
 

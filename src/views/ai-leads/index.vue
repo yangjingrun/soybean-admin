@@ -263,12 +263,7 @@ const taskActionButtons = computed(
             </NButton>
             <NPopconfirm v-if="isRestoredKeywordHistory" @positive-click="handleGenerate">
               <template #trigger>
-                <NButton
-                  size="small"
-                  :loading="isGenerating"
-                  :disabled="isGenerateDisabled"
-                  data-action="generate"
-                >
+                <NButton size="small" :loading="isGenerating" :disabled="isGenerateDisabled" data-action="generate">
                   重新优化
                 </NButton>
               </template>
@@ -324,7 +319,8 @@ const taskActionButtons = computed(
         </div>
         <NAlert v-if="isRestoredKeywordHistory" type="info" :bordered="false" class="history-context-alert">
           <template #header>已选中关键词历史</template>
-          当前展示的是 {{ selectedHistoryUpdatedAtLabel }} 保存的搜索策略。可以直接开始获客；重新优化会生成一条新的历史。
+          当前展示的是
+          {{ selectedHistoryUpdatedAtLabel }} 保存的搜索策略。可以直接开始获客；重新优化会生成一条新的历史。
         </NAlert>
       </NForm>
     </NCard>

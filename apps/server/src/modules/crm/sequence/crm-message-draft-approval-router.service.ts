@@ -8,11 +8,7 @@ const initialDraftStepIndex = 1;
 const editableDraftStatuses: CrmMessageStatus[] = ['draft_pending_review'];
 
 interface CrmMessageDraftApprovalRouterRepository {
-  findMessageById(args: {
-    id: string;
-    organizationId: string;
-    ownerUserId?: string;
-  }): Promise<CrmMessageRecord | null>;
+  findMessageById(args: { id: string; organizationId: string; ownerUserId?: string }): Promise<CrmMessageRecord | null>;
 }
 
 @Injectable()

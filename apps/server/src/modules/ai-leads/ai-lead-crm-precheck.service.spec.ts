@@ -25,7 +25,10 @@ describe('AiLeadCrmPrecheckService', () => {
     });
 
     assert.equal(batchInputs.length, 1);
-    assert.deepEqual(batchInputs[0].domains, candidates.map(candidate => candidate.url!.replace('https://', '')));
+    assert.deepEqual(
+      batchInputs[0].domains,
+      candidates.map(candidate => candidate.url!.replace('https://', ''))
+    );
     assert.deepEqual(batchInputs[0].normalizedNames, []);
     assert.equal(result.acceptedCandidates.length, 5);
     assert.equal(result.summary.rawCandidateCount, 10);

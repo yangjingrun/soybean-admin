@@ -305,9 +305,6 @@ function normalizeMailboxEmail(value: string) {
   return normalized;
 }
 
-function isOwnedMailbox(
-  mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'ownerUserId'>,
-  context: CrmUserContext
-) {
+function isOwnedMailbox(mailbox: Pick<CrmMailboxRecord, 'organizationId' | 'ownerUserId'>, context: CrmUserContext) {
   return mailbox.organizationId === context.organizationId && mailbox.ownerUserId === context.userId;
 }

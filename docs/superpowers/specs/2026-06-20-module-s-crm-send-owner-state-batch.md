@@ -36,7 +36,7 @@ The in-memory `ownerStates` map prevented duplicate work for the same owner, but
 
 ## Impact Boundary
 
-- Reduces owner-state query count from O(owner count * 5) to three batch queries per scheduler pass.
+- Reduces owner-state query count from O(owner count \* 5) to three batch queries per scheduler pass.
 - Keeps per-candidate mailbox capacity checks and queueing order intact.
 - Keeps `claimFirstMessageSendDelivery()` as the final consistency boundary before quota claim and sending.
 

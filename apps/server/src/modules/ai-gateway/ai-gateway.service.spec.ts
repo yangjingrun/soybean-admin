@@ -880,8 +880,14 @@ describe('AiGatewayService', () => {
         organic: [{ title: 'Example', link: 'https://example.com' }]
       }
     });
-    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('serper-key')), false);
-    assert.deepEqual(logRecorder.records.map(record => record.action), ['save-serper-config', 'test-serper-config']);
+    assert.equal(
+      logRecorder.records.some(record => JSON.stringify(record.metadata).includes('serper-key')),
+      false
+    );
+    assert.deepEqual(
+      logRecorder.records.map(record => record.action),
+      ['save-serper-config', 'test-serper-config']
+    );
   });
 
   it('saves and returns Hunter config API key without logging it', async () => {
@@ -956,8 +962,14 @@ describe('AiGatewayService', () => {
       resultEmailCount: 1
     });
     assert.equal(JSON.stringify(testResult).includes('alice@example.com'), false);
-    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('hunter-key')), false);
-    assert.deepEqual(logRecorder.records.map(record => record.action), ['save-hunter-config', 'test-hunter-config']);
+    assert.equal(
+      logRecorder.records.some(record => JSON.stringify(record.metadata).includes('hunter-key')),
+      false
+    );
+    assert.deepEqual(
+      logRecorder.records.map(record => record.action),
+      ['save-hunter-config', 'test-hunter-config']
+    );
   });
 
   it('saves and tests personal Serper config while preserving an existing API key', async () => {
@@ -1012,7 +1024,10 @@ describe('AiGatewayService', () => {
     assert.deepEqual(testResult, { ok: true, result: { organic: [] } });
     assert.equal(runtime.configKey, 'user:u-1');
     assert.equal(runtime.apiKey, 'serper-old');
-    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('serper-old')), false);
+    assert.equal(
+      logRecorder.records.some(record => JSON.stringify(record.metadata).includes('serper-old')),
+      false
+    );
   });
 
   it('saves and tests personal Hunter config while preserving an existing API key', async () => {
@@ -1067,7 +1082,10 @@ describe('AiGatewayService', () => {
     assert.deepEqual(testResult, { ok: true, resultEmailCount: 1 });
     assert.equal(runtime.configKey, 'user:u-1');
     assert.equal(runtime.apiKey, 'hunter-old');
-    assert.equal(logRecorder.records.some(record => JSON.stringify(record.metadata).includes('hunter-old')), false);
+    assert.equal(
+      logRecorder.records.some(record => JSON.stringify(record.metadata).includes('hunter-old')),
+      false
+    );
   });
 });
 

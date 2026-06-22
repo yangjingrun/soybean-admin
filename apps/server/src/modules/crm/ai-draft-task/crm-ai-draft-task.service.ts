@@ -1,4 +1,11 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+  ServiceUnavailableException
+} from '@nestjs/common';
 import { createPageResult } from '../../../shared/pagination';
 import { isOrganizationAdmin } from '../../../shared/permission-policy';
 import { SystemLogService } from '../../system-log/system-log.service';

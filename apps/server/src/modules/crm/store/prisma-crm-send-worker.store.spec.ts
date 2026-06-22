@@ -312,7 +312,9 @@ describe('PrismaCrmSendWorkerStore', () => {
       ownerUserId: 'user-1',
       stepIndex: 2
     });
-    const metadata = prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata as { nextMessageId?: string } | undefined;
+    const metadata = prisma.crmTimelineEvent.createCalls.at(-1)?.data.metadata as
+      | { nextMessageId?: string }
+      | undefined;
     assert.equal(metadata?.nextMessageId, 'message-local-2');
   });
 

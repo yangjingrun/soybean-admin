@@ -56,4 +56,3 @@ export function isValidFollowUpSharePercent(value: number | null): value is numb
 export function isValidFollowUpDelayDays(value: Api.Crm.FollowUpDelayDays) {
   return Object.values(value).every(day => Number.isInteger(day) && day >= 1 && day <= 90);
 }
-

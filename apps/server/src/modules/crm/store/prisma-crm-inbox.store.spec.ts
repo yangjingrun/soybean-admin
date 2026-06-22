@@ -687,7 +687,11 @@ function createInboxPrisma(
       }
     },
     crmMessage: {
-      findFirstCalls: [] as Array<{ where: InboxPrismaRecord; include?: InboxPrismaRecord; select?: InboxPrismaRecord }>,
+      findFirstCalls: [] as Array<{
+        where: InboxPrismaRecord;
+        include?: InboxPrismaRecord;
+        select?: InboxPrismaRecord;
+      }>,
       updateManyCalls: [] as Array<{ where: InboxPrismaRecord; data: InboxPrismaRecord }>,
       async findFirst(args: { where: InboxPrismaRecord; include?: InboxPrismaRecord; select?: InboxPrismaRecord }) {
         this.findFirstCalls.push(args);
@@ -783,7 +787,9 @@ function createInboxPrisma(
       async update(args: { where: InboxPrismaRecord; data: InboxPrismaRecord; include?: InboxPrismaRecord }) {
         this.updateCalls.push(args);
         Object.assign(inboxMessage, args.data);
-        return args.include ? { ...inboxMessage, thread: inboxThread, account, contact, mailbox, enrollment } : inboxMessage;
+        return args.include
+          ? { ...inboxMessage, thread: inboxThread, account, contact, mailbox, enrollment }
+          : inboxMessage;
       }
     },
     crmBlacklist: {

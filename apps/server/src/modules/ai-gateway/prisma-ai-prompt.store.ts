@@ -121,7 +121,8 @@ export class PrismaAiPromptStore implements AiPromptStore {
           version: true
         }
       });
-      const nextVersion = (versionAggregate._max.version ?? 0) + 1;
+      const { _max: maxAggregate } = versionAggregate;
+      const nextVersion = (maxAggregate.version ?? 0) + 1;
       const published = await tx.aiPromptVersion.create({
         data: {
           promptKey: draft.promptKey,

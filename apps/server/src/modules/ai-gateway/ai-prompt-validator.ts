@@ -1,8 +1,4 @@
-import {
-  aiPromptOutputTopLevelFields,
-  aiPromptRequiredTextRules,
-  type AiPromptKey
-} from './ai-gateway.constants';
+import { aiPromptOutputTopLevelFields, aiPromptRequiredTextRules, type AiPromptKey } from './ai-gateway.constants';
 import type { AiPromptValidationItem, AiPromptValidationResult, AiPromptValidationStatus } from './ai-gateway.types';
 
 type JsonRecord = Record<string, unknown>;
@@ -82,7 +78,9 @@ function validateTopLevelFields(promptKey: AiPromptKey, output: JsonRecord): AiP
     'top-level-fields',
     '顶层字段完整',
     ok ? 'pass' : 'fail',
-    ok ? '顶层字段符合约定' : `缺少字段：${missingFields.join('、') || '无'}；多余字段：${extraFields.join('、') || '无'}`
+    ok
+      ? '顶层字段符合约定'
+      : `缺少字段：${missingFields.join('、') || '无'}；多余字段：${extraFields.join('、') || '无'}`
   );
 }
 

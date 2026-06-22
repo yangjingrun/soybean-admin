@@ -90,4 +90,3 @@ export function normalizePersonaProfilePayload(
     isDefault: formModel.isDefault
   };
 }
-

@@ -48,9 +48,18 @@ describe('crm ai draft task state helpers', () => {
   });
 
   it('classifies transient AI/provider errors as retryable', () => {
-    assert.equal(classifyCrmAiDraftTaskItemFailure(Object.assign(new Error('rate limit'), { status: 429 })), 'retryable');
-    assert.equal(classifyCrmAiDraftTaskItemFailure(Object.assign(new Error('bad gateway'), { statusCode: 502 })), 'retryable');
-    assert.equal(classifyCrmAiDraftTaskItemFailure(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' })), 'retryable');
+    assert.equal(
+      classifyCrmAiDraftTaskItemFailure(Object.assign(new Error('rate limit'), { status: 429 })),
+      'retryable'
+    );
+    assert.equal(
+      classifyCrmAiDraftTaskItemFailure(Object.assign(new Error('bad gateway'), { statusCode: 502 })),
+      'retryable'
+    );
+    assert.equal(
+      classifyCrmAiDraftTaskItemFailure(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' })),
+      'retryable'
+    );
     assert.equal(classifyCrmAiDraftTaskItemFailure(new Error('invalid prompt payload')), 'fatal');
   });
 
@@ -77,7 +86,12 @@ describe('crm ai draft task state helpers', () => {
     const current = resolveCurrentCrmAiDraftTask([
       createTask({ id: 'completed-read', status: 'completed', readAt: new Date('2026-06-20T01:00:00Z') }),
       createTask({ id: 'failed-unread', status: 'failed', readAt: null, updatedAt: new Date('2026-06-20T03:00:00Z') }),
-      createTask({ id: 'completed-unread', status: 'completed', readAt: null, updatedAt: new Date('2026-06-20T02:00:00Z') })
+      createTask({
+        id: 'completed-unread',
+        status: 'completed',
+        readAt: null,
+        updatedAt: new Date('2026-06-20T02:00:00Z')
+      })
     ]);
 
     assert.equal(current?.id, 'failed-unread');

@@ -1,10 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  validateAiPromptOutput,
-  validateAiPromptText,
-  type AiPromptValidationResult
-} from './ai-prompt-validator';
+import { validateAiPromptOutput, validateAiPromptText, type AiPromptValidationResult } from './ai-prompt-validator';
 
 describe('ai-prompt-validator', () => {
   it('passes a valid Maps keyword optimization JSON output', () => {

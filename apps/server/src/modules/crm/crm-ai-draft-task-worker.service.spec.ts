@@ -1,17 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  CrmAiDraftTaskQueueService,
-  toCrmAiDraftTaskJobId
-} from './crm-ai-draft-task-queue.service';
+import { CrmAiDraftTaskQueueService, toCrmAiDraftTaskJobId } from './crm-ai-draft-task-queue.service';
 import { CrmAiDraftTaskWorkerService } from './crm-ai-draft-task-worker.service';
 import type { CrmUserContext } from './shared/crm-context';
 import type { CrmAiDraftPromptInput } from './crm-ai-draft.types';
-import type {
-  CrmAiDraftTaskItemRecord,
-  CrmAiDraftTaskQueueJob,
-  CrmAiDraftTaskRecord
-} from './crm-ai-draft-task.types';
+import type { CrmAiDraftTaskItemRecord, CrmAiDraftTaskQueueJob, CrmAiDraftTaskRecord } from './crm-ai-draft-task.types';
 import type { CrmAiDraftWorkerRepository } from './crm-ai-draft-worker.repository';
 import type {
   CrmAccountRecord,
@@ -94,7 +87,11 @@ describe('CrmAiDraftTaskWorkerService', () => {
     const store = createWorkerStore();
     const aiDraftService = createAiDraftService();
     const notifications = createNotificationRecorder();
-    const worker = new CrmAiDraftTaskWorkerService(store as never, aiDraftService as never, notifications.service as never);
+    const worker = new CrmAiDraftTaskWorkerService(
+      store as never,
+      aiDraftService as never,
+      notifications.service as never
+    );
 
     await worker.processTaskJob(createJob());
 
@@ -225,7 +222,10 @@ describe('CrmAiDraftTaskWorkerService', () => {
     await worker.processTaskJob(createJob());
 
     assert.equal(aiDraftService.calls.length, 2);
-    assert.equal(store.itemUpdates.some(update => update.patch.status === 'retrying'), true);
+    assert.equal(
+      store.itemUpdates.some(update => update.patch.status === 'retrying'),
+      true
+    );
     assert.equal(store.itemUpdates.at(-1)?.patch.status, 'succeeded');
     assert.equal(store.task.status, 'completed');
   });
@@ -264,7 +264,11 @@ describe('CrmAiDraftTaskWorkerService', () => {
     const store = createWorkerStore();
     const aiDraftService = createAiDraftService(new Error('AI unavailable'));
     const notifications = createNotificationRecorder();
-    const worker = new CrmAiDraftTaskWorkerService(store as never, aiDraftService as never, notifications.service as never);
+    const worker = new CrmAiDraftTaskWorkerService(
+      store as never,
+      aiDraftService as never,
+      notifications.service as never
+    );
 
     await worker.processTaskJob(createJob());
 

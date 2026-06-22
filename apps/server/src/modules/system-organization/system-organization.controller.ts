@@ -19,10 +19,7 @@ export class SystemOrganizationController {
   ) {}
 
   @Get()
-  async list(
-    @CurrentContext() context: RequestUserContext | null = null,
-    @Query() query: SystemOrganizationQueryDto
-  ) {
+  async list(@CurrentContext() context: RequestUserContext | null = null, @Query() query: SystemOrganizationQueryDto) {
     this.requireSuperContext(context);
 
     return ok(await this.systemOrganizationService.list(query));
@@ -36,10 +33,7 @@ export class SystemOrganizationController {
   }
 
   @Post()
-  async create(
-    @CurrentContext() context: RequestUserContext | null = null,
-    @Body() dto: CreateSystemOrganizationDto
-  ) {
+  async create(@CurrentContext() context: RequestUserContext | null = null, @Body() dto: CreateSystemOrganizationDto) {
     const operator = this.requireSuperContext(context);
 
     return ok(await this.systemOrganizationService.create(dto, operator));

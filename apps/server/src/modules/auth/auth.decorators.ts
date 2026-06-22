@@ -45,8 +45,10 @@ export const CurrentUser = createParamDecorator((_data: unknown, context: Execut
   return request.user || null;
 });
 
-export const CurrentContext = createParamDecorator((_data: unknown, context: ExecutionContext): RequestUserContext | null => {
-  const request = context.switchToHttp().getRequest<{ user?: UserInfo }>();
+export const CurrentContext = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): RequestUserContext | null => {
+    const request = context.switchToHttp().getRequest<{ user?: UserInfo }>();
 
-  return request.user ? toRequestUserContext(request.user) : null;
-});
+    return request.user ? toRequestUserContext(request.user) : null;
+  }
+);

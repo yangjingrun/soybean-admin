@@ -16,10 +16,7 @@ describe('run-tests script helpers', () => {
       writeFileSync(join(root, 'a', 'first.spec.ts'), '');
       writeFileSync(join(root, 'a', 'ignored.test.ts'), '');
 
-      assert.deepEqual(findSpecFiles(root), [
-        join(root, 'a', 'first.spec.ts'),
-        join(root, 'b', 'later.spec.ts')
-      ]);
+      assert.deepEqual(findSpecFiles(root), [join(root, 'a', 'first.spec.ts'), join(root, 'b', 'later.spec.ts')]);
     } finally {
       rmSync(root, { force: true, recursive: true });
     }

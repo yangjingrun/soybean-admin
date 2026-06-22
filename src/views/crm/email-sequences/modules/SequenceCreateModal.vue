@@ -30,7 +30,9 @@ const selectedProductLineOption = computed(() =>
   props.productLineOptions.find(option => option.value === formModel.value.productLineId)
 );
 const selectedProductLineAiWritingStatus = computed(() =>
-  selectedProductLineOption.value ? getProductLineAiWritingStatus(selectedProductLineOption.value.aiWritingConfig) : null
+  selectedProductLineOption.value
+    ? getProductLineAiWritingStatus(selectedProductLineOption.value.aiWritingConfig)
+    : null
 );
 </script>
 

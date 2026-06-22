@@ -157,10 +157,7 @@ export function createInboxReplyPolishSnapshot(options: InboxReplyPolishSnapshot
 }
 
 /** Keep AI polish undo scoped to the thread that created the snapshot. */
-export function canRestoreInboxReplyPolishSnapshot(
-  snapshot: InboxReplyPolishSnapshot | null,
-  threadId: string | null
-) {
+export function canRestoreInboxReplyPolishSnapshot(snapshot: InboxReplyPolishSnapshot | null, threadId: string | null) {
   return Boolean(snapshot && threadId && snapshot.threadId === threadId);
 }
 

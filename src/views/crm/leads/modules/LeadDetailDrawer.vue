@@ -235,12 +235,7 @@ function handleSubmitStatus() {
             <span v-else class="lead-secondary-text">暂无官网</span>
           </div>
 
-          <NAlert
-            v-if="archivedMatchGroups.length"
-            type="warning"
-            title="历史触达提醒"
-            class="historical-touch-alert"
-          >
+          <NAlert v-if="archivedMatchGroups.length" type="warning" title="历史触达提醒" class="historical-touch-alert">
             <NSpace vertical :size="8">
               <div class="historical-touch-content">
                 {{ archivedMatchGroups[0].event.content || '该客户命中过往归档记录，请确认是否需要重新开发。' }}
@@ -357,7 +352,9 @@ function handleSubmitStatus() {
               placeholder="输入跟进备注"
             />
             <div class="form-actions">
-              <NButton size="small" type="primary" :loading="noteSubmitting" @click="handleSubmitNote">添加备注</NButton>
+              <NButton size="small" type="primary" :loading="noteSubmitting" @click="handleSubmitNote">
+                添加备注
+              </NButton>
             </div>
           </div>
 

@@ -1,4 +1,11 @@
-import { BadGatewayException, BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional
+} from '@nestjs/common';
 import { resolveMx } from 'node:dns/promises';
 import { createPageResult } from '../../../shared/pagination';
 import { AiGatewayService } from '../../ai-gateway/ai-gateway.service';
@@ -235,16 +242,19 @@ export class CrmAccountService {
       size?: number | string;
       keyword?: string;
       status?: CrmAccountStatus;
+      sourceTaskId?: string;
     } = {}
   ) {
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
+    const sourceTaskId = normalizeNullableString(query.sourceTaskId);
     const result = await this.accountRepository.listAccounts({
       organizationId: context.organizationId,
       ...createCrmOwnerFilter(context),
       ...(keyword ? { keyword } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(sourceTaskId ? { sourceTaskId } : {}),
       skip: (current - 1) * size,
       take: size
     });
@@ -265,11 +275,7 @@ export class CrmAccountService {
   }
 
   /** Manually refresh contacts for one scoped CRM account through a provider. */
-  async refreshAccountEnrichment(
-    id: string,
-    input: { provider: CrmLeadEnrichmentProvider },
-    context: CrmUserContext
-  ) {
+  async refreshAccountEnrichment(id: string, input: { provider: CrmLeadEnrichmentProvider }, context: CrmUserContext) {
     if (input.provider !== 'hunter') {
       throw new BadRequestException('暂不支持该联系人获取渠道');
     }
@@ -523,7 +529,9 @@ export class CrmAccountService {
 
     if (existingContact) {
       if (existingContact.accountId !== account.id) {
-        const updatedContact = await this.accountRepository.updateContact(existingContact.id, { accountId: account.id });
+        const updatedContact = await this.accountRepository.updateContact(existingContact.id, {
+          accountId: account.id
+        });
 
         return updatedContact ?? existingContact;
       }
@@ -951,11 +959,15 @@ function isPastArchiveRecoveryWindow(archivedAt: Date, now = new Date()) {
 }
 
 function normalizeUniqueDomains(values: string[]) {
-  return Array.from(new Set(values.flatMap(value => {
-    const domain = normalizeCrmDomain(value);
+  return Array.from(
+    new Set(
+      values.flatMap(value => {
+        const domain = normalizeCrmDomain(value);
 
-    return domain ? [domain] : [];
-  })));
+        return domain ? [domain] : [];
+      })
+    )
+  );
 }
 
 function normalizeUniqueNames(values: string[]) {

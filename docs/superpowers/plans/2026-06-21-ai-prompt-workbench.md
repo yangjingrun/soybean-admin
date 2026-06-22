@@ -74,6 +74,7 @@
 ### Task 1: Backend Contracts And Pure Validation
 
 **Files:**
+
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.types.ts`
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.constants.ts`
 - Create: `apps/server/src/modules/ai-gateway/ai-prompt-validator.ts`
@@ -87,6 +88,7 @@
 ### Task 2: Database Store And Migration
 
 **Files:**
+
 - Modify: `prisma/schema.prisma`
 - Create: `prisma/migrations/20260621210000_create_ai_prompt_workbench/migration.sql`
 - Modify: `apps/server/src/modules/ai-gateway/prisma-ai-prompt.store.ts`
@@ -101,6 +103,7 @@
 ### Task 3: Service And Controller Workbench API
 
 **Files:**
+
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.service.ts`
 - Modify: `apps/server/src/modules/ai-gateway/ai-gateway.controller.ts`
 - Modify/Create DTOs under `apps/server/src/modules/ai-gateway/dto`
@@ -116,6 +119,7 @@
 ### Task 4: Frontend API Contracts And Pure Helpers
 
 **Files:**
+
 - Modify: `src/typings/api/ai-gateway.d.ts`
 - Modify: `src/service/api/ai-gateway.ts`
 - Create: `src/views/ai-prompt-settings/modules/shared.ts`
@@ -129,6 +133,7 @@
 ### Task 5: Frontend Workbench UI
 
 **Files:**
+
 - Create: `src/views/ai-prompt-settings/modules/usePromptSettingsPage.ts`
 - Create: `src/views/ai-prompt-settings/modules/PromptStepList.vue`
 - Create: `src/views/ai-prompt-settings/modules/PromptEditor.vue`
@@ -145,6 +150,7 @@
 ### Task 6: Verification And Commit
 
 **Files:**
+
 - All files touched in Tasks 1-5.
 
 - [x] Step 1: Run backend validator/store/service/controller specs.

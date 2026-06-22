@@ -106,8 +106,7 @@ describe('createCrmGmailIntegrationProviders', () => {
   it('keeps real watch and history gateways when configured scopes include Gmail modify', () => {
     const providers = createCrmGmailIntegrationProviders({
       ...createEnv(),
-      CRM_GMAIL_OAUTH_SCOPES:
-        'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send'
+      CRM_GMAIL_OAUTH_SCOPES: 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send'
     });
 
     assert.ok(providers.historyGateway instanceof CrmGmailApiHistoryGateway);

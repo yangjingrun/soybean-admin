@@ -135,7 +135,10 @@ describe('CrmGmailWatchRenewalService', () => {
 
       assert.equal(unhandledRejectionCount, 0);
       assert.equal(store.renewalListCalls.length, 2);
-      assert.equal(logs.records.filter(record => record.action === 'gmail-watch-auto-renew-scheduled-failed').length, 2);
+      assert.equal(
+        logs.records.filter(record => record.action === 'gmail-watch-auto-renew-scheduled-failed').length,
+        2
+      );
       assert.deepEqual(logs.records[0], {
         level: 'error',
         status: 'failed',
@@ -198,8 +201,14 @@ describe('CrmGmailWatchRenewalService', () => {
     });
     assert.equal(store.mailboxes[0].lastHistoryId, '100');
     assert.equal(store.mailboxes[0].watchExpiration?.toISOString(), '2026-06-26T08:00:00.000Z');
-    assert.equal(logs.records.some(record => record.action === 'gmail-watch-auto-renew'), true);
-    assert.equal(logs.records.some(record => record.action === 'gmail-watch-auto-renew-summary'), true);
+    assert.equal(
+      logs.records.some(record => record.action === 'gmail-watch-auto-renew'),
+      true
+    );
+    assert.equal(
+      logs.records.some(record => record.action === 'gmail-watch-auto-renew-summary'),
+      true
+    );
   });
 
   it('initializes the checkpoint only when a due mailbox has no last history id', async () => {
@@ -306,7 +315,10 @@ describe('CrmGmailWatchRenewalService', () => {
 
     assert.equal(result.failedCount, 1);
     assert.equal(result.renewedCount, 1);
-    assert.equal(logs.records.some(record => record.action === 'gmail-watch-auto-renew-failed'), true);
+    assert.equal(
+      logs.records.some(record => record.action === 'gmail-watch-auto-renew-failed'),
+      true
+    );
     assert.equal(store.mailboxes[1].watchExpiration?.toISOString(), '2026-06-26T08:00:00.000Z');
   });
 });
@@ -324,8 +336,7 @@ function createGateway(): CrmGmailWatchGateway {
 
 function createStore(mailboxes: CrmMailboxRecord[]) {
   const renewalListCalls: Array<Parameters<CrmGmailWatchRepository['listMailboxesForWatchRenewal']>[0]> = [];
-  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }> =
-    [];
+  const mailboxUpdateCalls: Array<{ id: string; input: Parameters<CrmGmailWatchRepository['updateMailbox']>[1] }> = [];
   let listMailboxesForWatchRenewalOverride:
     | ((input: Parameters<CrmGmailWatchRepository['listMailboxesForWatchRenewal']>[0]) => Promise<CrmMailboxRecord[]>)
     | null = null;

@@ -2,11 +2,7 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import { fetchCrmSendPreference, saveCrmSendPreference } from '@/service/api';
-import {
-  createDefaultSendPreferenceForm,
-  isValidDailySendLimit,
-  isValidFollowUpSharePercent
-} from './shared';
+import { createDefaultSendPreferenceForm, isValidDailySendLimit, isValidFollowUpSharePercent } from './shared';
 
 const message = useMessage();
 
@@ -142,9 +138,7 @@ async function saveSendPreference() {
       </NForm>
 
       <div class="send-preference-footer">
-        <NText depth="3" class="send-preference-note">
-          平台硬上限：每日 {{ formModel.ownerDailySendLimitMax }} 封
-        </NText>
+        <NText depth="3" class="send-preference-note">平台硬上限：每日 {{ formModel.ownerDailySendLimitMax }} 封</NText>
         <NSpace :size="8">
           <NButton size="small" :loading="loading" @click="loadSendPreference()">重新加载</NButton>
           <NButton size="small" type="primary" :loading="saving" :disabled="!canSave" @click="saveSendPreference">

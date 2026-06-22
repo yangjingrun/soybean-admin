@@ -298,7 +298,7 @@ export function useInboxTable() {
   function handleRestorePolishSnapshot() {
     const snapshot = replyPolishUndoSnapshot.value;
 
-    if (!canRestoreInboxReplyPolishSnapshot(snapshot, selectedThreadId.value)) {
+    if (!snapshot || !canRestoreInboxReplyPolishSnapshot(snapshot, selectedThreadId.value)) {
       return;
     }
 

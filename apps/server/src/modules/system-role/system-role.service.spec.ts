@@ -38,11 +38,11 @@ describe('SystemRoleService', () => {
     const logService = createLogServiceStub();
     const service = createService(createPrismaStub(roles), logService);
 
-    const updated = await service.updatePermissions(
-      'role-admin',
-      ['crm:settings:safety:write'],
-      { userId: 'u-super', userName: 'Super', roles: ['R_SUPER'] }
-    );
+    const updated = await service.updatePermissions('role-admin', ['crm:settings:safety:write'], {
+      userId: 'u-super',
+      userName: 'Super',
+      roles: ['R_SUPER']
+    });
 
     assert.deepEqual(updated.permissions, ['crm:settings:safety:read', 'crm:settings:safety:write']);
     assert.deepEqual(roles[0].permissions, updated.permissions);

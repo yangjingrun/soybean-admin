@@ -118,14 +118,10 @@ export class CrmSequencePolicyService {
   async archiveSequencePolicy(id: string, context: CrmUserContext) {
     requirePermission(context, sequencePolicyWritePermission, '无权维护 CRM 发送规则');
     const currentPolicy = await this.requireScopedSequencePolicy(id, context);
-    const policy = await this.sequencePolicyRepository.updateSequencePolicy(
-      currentPolicy.id,
-      context.organizationId,
-      {
-        status: 'archived',
-        isDefault: false
-      }
-    );
+    const policy = await this.sequencePolicyRepository.updateSequencePolicy(currentPolicy.id, context.organizationId, {
+      status: 'archived',
+      isDefault: false
+    });
 
     if (!policy) {
       throw new NotFoundException('序列策略不存在');

@@ -56,16 +56,16 @@
 
 ## Reference Matrix
 
-| Plan area | Reference anchors | How to use here |
-| --- | --- | --- |
-| Controller / Guard / Permission | NestJS Guards, NestJS Validation, NestJS Rate Limiting, OWASP REST Security | 校准 `@CurrentContext()`、`@Roles()`、DTO 校验、限流和错误暴露边界。 |
-| Exception / Error Contract | NestJS Exception Filters, OWASP Error Handling, OWASP REST Security | 改 HTTP 状态时，保留业务 envelope，但不泄露内部错误细节。 |
-| Secrets / API Key | OWASP Secrets Management, OWASP Secure Code Review, existing Gmail encrypted token provider | AI/Serper/Hunter key 加密存储、脱敏返回、日志不落密钥。 |
-| Queue / Worker / Scheduler | BullMQ Workers, BullMQ Concurrency, BullMQ Graceful Shutdown, BullMQ Going to Production | API 和 worker/scheduler 进程分离，worker 并发、关闭、stalled job 风险治理。 |
-| Database / Migration / Transactions | Prisma Indexes, Prisma Transactions, Prisma Customizing Migrations, Prisma Deploy Migrations | 状态约束、索引、事务边界、生产 migration 流程。 |
-| Health / Readiness / Operations | NestJS Terminus, NestJS Lifecycle Events, Spring Boot Actuator endpoints and probes | 设计 liveness/readiness、依赖检查、优雅关闭和冒烟验证。 |
-| AI enterprise product patterns | Dify, MaxKB, FastGPT, NextChat/ChatGPT-Next-Web | 借鉴模型配置、工作流、日志观测、企业私有部署、Prompt/Mask/Agent 配置边界。 |
-| Logging / Audit | OWASP Logging, OWASP Logging Vocabulary, Dify LLMOps pattern | 业务日志、外部调用日志、AI 运行观测和敏感字段脱敏。 |
+| Plan area                           | Reference anchors                                                                            | How to use here                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Controller / Guard / Permission     | NestJS Guards, NestJS Validation, NestJS Rate Limiting, OWASP REST Security                  | 校准 `@CurrentContext()`、`@Roles()`、DTO 校验、限流和错误暴露边界。        |
+| Exception / Error Contract          | NestJS Exception Filters, OWASP Error Handling, OWASP REST Security                          | 改 HTTP 状态时，保留业务 envelope，但不泄露内部错误细节。                   |
+| Secrets / API Key                   | OWASP Secrets Management, OWASP Secure Code Review, existing Gmail encrypted token provider  | AI/Serper/Hunter key 加密存储、脱敏返回、日志不落密钥。                     |
+| Queue / Worker / Scheduler          | BullMQ Workers, BullMQ Concurrency, BullMQ Graceful Shutdown, BullMQ Going to Production     | API 和 worker/scheduler 进程分离，worker 并发、关闭、stalled job 风险治理。 |
+| Database / Migration / Transactions | Prisma Indexes, Prisma Transactions, Prisma Customizing Migrations, Prisma Deploy Migrations | 状态约束、索引、事务边界、生产 migration 流程。                             |
+| Health / Readiness / Operations     | NestJS Terminus, NestJS Lifecycle Events, Spring Boot Actuator endpoints and probes          | 设计 liveness/readiness、依赖检查、优雅关闭和冒烟验证。                     |
+| AI enterprise product patterns      | Dify, MaxKB, FastGPT, NextChat/ChatGPT-Next-Web                                              | 借鉴模型配置、工作流、日志观测、企业私有部署、Prompt/Mask/Agent 配置边界。  |
+| Logging / Audit                     | OWASP Logging, OWASP Logging Vocabulary, Dify LLMOps pattern                                 | 业务日志、外部调用日志、AI 运行观测和敏感字段脱敏。                         |
 
 Baseline reference URLs:
 

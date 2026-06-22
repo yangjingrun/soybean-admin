@@ -1,11 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  BadRequestException,
-  ForbiddenException,
-  UnauthorizedException,
-  type ArgumentsHost
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, UnauthorizedException, type ArgumentsHost } from '@nestjs/common';
 import { ApiExceptionFilter } from './api-exception.filter';
 
 describe('ApiExceptionFilter', () => {

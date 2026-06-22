@@ -49,8 +49,12 @@ export class CrmDraftPreviewService {
   async previewAiDraft(input: CrmAiDraftPreviewInput, context: CrmUserContext) {
     const stepIndex = toAiWritingStepIndex(input.stepIndex);
     const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
-    const productLine = this.requireAiWritingProductLine(await this.requireActiveProductLine(input.productLineId, context));
-    const sequenceItem = input.enrollmentId ? await this.requireOwnedSequenceReviewItem(input.enrollmentId, context) : null;
+    const productLine = this.requireAiWritingProductLine(
+      await this.requireActiveProductLine(input.productLineId, context)
+    );
+    const sequenceItem = input.enrollmentId
+      ? await this.requireOwnedSequenceReviewItem(input.enrollmentId, context)
+      : null;
 
     if (sequenceItem) {
       this.assertPreviewMatchesSequence(input, sequenceItem, productLine.id);
@@ -71,7 +75,9 @@ export class CrmDraftPreviewService {
       })) ??
       sequenceItem?.messages
         .filter(message => message.stepIndex < stepIndex)
-        .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()) ??
+        .sort(
+          (left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()
+        ) ??
       [];
     const fallbackDraft =
       stepIndex === initialDraftStepIndex
@@ -185,7 +191,11 @@ export class CrmDraftPreviewService {
     item: CrmSequenceReviewRecord,
     productLineId: string
   ) {
-    if (item.account.id !== input.accountId || item.contact.id !== input.contactId || item.productLine?.id !== productLineId) {
+    if (
+      item.account.id !== input.accountId ||
+      item.contact.id !== input.contactId ||
+      item.productLine?.id !== productLineId
+    ) {
       throw new BadRequestException('预览参数与邮件序列不匹配');
     }
 

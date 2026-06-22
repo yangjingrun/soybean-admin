@@ -3,11 +3,7 @@ import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
-import {
-  aiLeadsQueueConfigManagePermission,
-  hasPermission,
-  type PermissionCode
-} from '@soybean/shared';
+import { aiLeadsQueueConfigManagePermission, hasPermission, type PermissionCode } from '@soybean/shared';
 import { defaultAiModelConfigKey, defaultHunterConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
 import {
   fetchAiLeadQueueConfig,
@@ -128,8 +124,7 @@ const tabVisibility = computed<Record<AiSettingsTabKey, boolean>>(() =>
 );
 const canViewAnySettingsTab = computed(() => Object.values(tabVisibility.value).some(Boolean));
 const firstVisibleSettingsTab = computed(
-  () =>
-    (Object.keys(tabVisibility.value) as AiSettingsTabKey[]).find(tabKey => tabVisibility.value[tabKey]) || 'model'
+  () => (Object.keys(tabVisibility.value) as AiSettingsTabKey[]).find(tabKey => tabVisibility.value[tabKey]) || 'model'
 );
 const modelApiKeyPlaceholder = computed(() =>
   savedModelSecret.hasApiKey && savedModelSecret.maskedApiKey
@@ -698,7 +693,12 @@ function buildSavedApiKeyPlaceholder(savedSecret: SavedSecretState) {
                 <NButton size="small" :loading="isModelLoading" @click="handleLoadModelConfig()">
                   {{ $t('page.aiSettings.actions.reload') }}
                 </NButton>
-                <NButton size="small" :loading="isModelTesting" :disabled="!canTestModel" @click="handleTestModelConfig">
+                <NButton
+                  size="small"
+                  :loading="isModelTesting"
+                  :disabled="!canTestModel"
+                  @click="handleTestModelConfig"
+                >
                   {{ $t('page.aiSettings.actions.test') }}
                 </NButton>
                 <NButton

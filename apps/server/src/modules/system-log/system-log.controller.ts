@@ -26,10 +26,7 @@ export class SystemLogController {
   }
 
   @Get(':id')
-  async detail(
-    @CurrentContext() context: RequestUserContext | null = null,
-    @Param() params: SystemLogIdParamDto
-  ) {
+  async detail(@CurrentContext() context: RequestUserContext | null = null, @Param() params: SystemLogIdParamDto) {
     this.requireSuperContext(context);
 
     return ok(await this.systemLogService.getById(params.id));

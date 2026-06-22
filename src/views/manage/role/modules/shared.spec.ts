@@ -46,7 +46,10 @@ describe('system role shared helpers', () => {
     assert.equal(roleStatusLabelMap.enabled, '启用');
     assert.equal(roleStatusLabelMap.disabled, '禁用');
     assert.equal(getPermissionLabel('crm:settings:assets:write'), '维护写信资料');
-    assert.equal(rolePermissionGroups.some(group => group.key === 'crm_settings_assets'), true);
+    assert.equal(
+      rolePermissionGroups.some(group => group.key === 'crm_settings_assets'),
+      true
+    );
   });
 
   it('groups permissions by module and page for readable role authorization', () => {
@@ -55,16 +58,22 @@ describe('system role shared helpers', () => {
 
     assert.equal(aiModule?.label, 'AI 平台配置');
     assert.equal(modelPage?.label, '模型配置');
-    assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_model'), false);
-    assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_serper'), false);
-    assert.equal(modelPage?.groups.some(group => group.key === 'ai_settings_hunter'), false);
+    assert.equal(
+      modelPage?.groups.some(group => group.key === 'ai_settings_model'),
+      false
+    );
+    assert.equal(
+      modelPage?.groups.some(group => group.key === 'ai_settings_serper'),
+      false
+    );
+    assert.equal(
+      modelPage?.groups.some(group => group.key === 'ai_settings_hunter'),
+      false
+    );
   });
 
   it('builds normalized role permission change previews', () => {
-    const preview = buildRolePermissionChangePreview(
-      ['crm:settings:assets:read'],
-      ['crm:settings:assets:write']
-    );
+    const preview = buildRolePermissionChangePreview(['crm:settings:assets:read'], ['crm:settings:assets:write']);
 
     assert.equal(preview.changed, true);
     assert.deepEqual(preview.added, ['crm:settings:assets:write']);

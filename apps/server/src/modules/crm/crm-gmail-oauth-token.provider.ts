@@ -17,11 +17,7 @@ export interface CrmGmailOAuthHttpResponse {
 }
 
 export interface CrmGmailOAuthHttpClient {
-  postForm(
-    url: string,
-    body: URLSearchParams,
-    headers: Record<string, string>
-  ): Promise<CrmGmailOAuthHttpResponse>;
+  postForm(url: string, body: URLSearchParams, headers: Record<string, string>): Promise<CrmGmailOAuthHttpResponse>;
 }
 
 interface GmailOAuthTokenResponse {
@@ -113,9 +109,7 @@ function requireGmailSecretEncryptionKey(secretKey: string) {
   try {
     assertSecretEncryptionKey(secretKey, gmailSecretCryptoOptions);
   } catch {
-    throw new ServiceUnavailableException(
-      'Gmail token 加密密钥必须为 32 字节，请检查 CRM_GMAIL_TOKEN_ENCRYPTION_KEY'
-    );
+    throw new ServiceUnavailableException('Gmail token 加密密钥必须为 32 字节，请检查 CRM_GMAIL_TOKEN_ENCRYPTION_KEY');
   }
 
   return secretKey;

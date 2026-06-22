@@ -49,9 +49,12 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
     }
 
     void this.runScheduledRenewal();
-    this.renewalTimer = setInterval(() => {
-      void this.runScheduledRenewal();
-    }, getPositiveEnvNumber('CRM_GMAIL_WATCH_RENEWAL_INTERVAL_MS', defaultRenewalIntervalMs));
+    this.renewalTimer = setInterval(
+      () => {
+        void this.runScheduledRenewal();
+      },
+      getPositiveEnvNumber('CRM_GMAIL_WATCH_RENEWAL_INTERVAL_MS', defaultRenewalIntervalMs)
+    );
     this.renewalTimer.unref?.();
   }
 
@@ -64,7 +67,9 @@ export class CrmGmailWatchRenewalService implements OnModuleInit, OnModuleDestro
 
   /** Renews active Gmail watches that are missing or close to expiration without advancing live checkpoints. */
   async renewDueMailboxWatches(now = new Date()): Promise<CrmGmailWatchRenewalResult> {
-    const renewBefore = new Date(now.getTime() + getPositiveEnvNumber('CRM_GMAIL_WATCH_RENEWAL_WINDOW_MS', defaultRenewalWindowMs));
+    const renewBefore = new Date(
+      now.getTime() + getPositiveEnvNumber('CRM_GMAIL_WATCH_RENEWAL_WINDOW_MS', defaultRenewalWindowMs)
+    );
     const mailboxes = await this.store.listMailboxesForWatchRenewal({
       provider: 'gmail',
       renewBefore,

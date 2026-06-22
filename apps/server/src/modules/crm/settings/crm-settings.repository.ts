@@ -13,7 +13,8 @@ import type { CrmSequencePolicyRepository } from '../sequence-policies/crm-seque
 import type { CrmEmailTemplateGroupRepository } from '../template-groups/crm-email-template-group.repository';
 
 export interface CrmSettingsRepository
-  extends CrmProductLineRepository,
+  extends
+    CrmProductLineRepository,
     CrmPersonaProfileRepository,
     CrmEmailTemplateGroupRepository,
     CrmSequencePolicyRepository {

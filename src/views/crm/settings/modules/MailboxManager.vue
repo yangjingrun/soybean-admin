@@ -50,9 +50,7 @@ const { loadTemplateDefaults, loading: templateDefaultsLoading, templateDefaults
 const activeSettingsKey = shallowRef<CrmSettingsOverviewKey>('mailboxConnection');
 
 const canManageOrganization = computed(() => hasPermission(authStore.userInfo, 'crm:settings:rules:write'));
-const canManageAiDraftQueue = computed(() =>
-  hasPermission(authStore.userInfo, 'crm:settings:ai-draft-queue:write')
-);
+const canManageAiDraftQueue = computed(() => hasPermission(authStore.userInfo, 'crm:settings:ai-draft-queue:write'));
 const canManageGlobalConfig = computed(() => hasPermission(authStore.userInfo, 'crm:settings:global:write'));
 const tabVisibility = computed(() => buildCrmSettingsTabVisibility(authStore.userInfo));
 const sectionVisibility = computed<Record<CrmSettingsOverviewKey, boolean>>(() => ({

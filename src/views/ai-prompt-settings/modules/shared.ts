@@ -104,7 +104,9 @@ export function resolvePromptStepStatus(step: Api.AiGateway.AiPromptStepSummary)
 }
 
 /** Counts prompt validation items for the publish checklist header. */
-export function summarizePromptValidation(result: Api.AiGateway.AiPromptValidationResult | null): PromptValidationSummary {
+export function summarizePromptValidation(
+  result: Api.AiGateway.AiPromptValidationResult | null
+): PromptValidationSummary {
   if (!result) {
     return {
       ok: false,
@@ -179,9 +181,7 @@ export function resolvePromptLineStartOffset(systemPrompt: string, line: number)
 }
 
 /** Maps one validation item to the most relevant prompt section for quick repair. */
-export function resolvePromptValidationSection(
-  item: Api.AiGateway.AiPromptValidationItem
-): PromptSectionAnchor | null {
+export function resolvePromptValidationSection(item: Api.AiGateway.AiPromptValidationItem): PromptSectionAnchor | null {
   const key = validationItemSectionMap[item.key];
 
   if (!key) {

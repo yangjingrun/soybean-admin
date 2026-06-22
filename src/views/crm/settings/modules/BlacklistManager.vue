@@ -61,9 +61,7 @@ const {
       @update:show="handleRemoveModalVisibleUpdate"
     >
       <NSpace vertical :size="12">
-        <NAlert type="warning" :bordered="false">
-          解除后不会修改历史回信或时间线，只会影响未来发送拦截。
-        </NAlert>
+        <NAlert type="warning" :bordered="false">解除后不会修改历史回信或时间线，只会影响未来发送拦截。</NAlert>
         <NDescriptions :column="1" bordered size="small" label-placement="left">
           <NDescriptionsItem label="邮箱">{{ removingRecord?.maskedEmail || '-' }}</NDescriptionsItem>
           <NDescriptionsItem label="来源邮件">{{ removingRecord?.sourceMessageId || '-' }}</NDescriptionsItem>

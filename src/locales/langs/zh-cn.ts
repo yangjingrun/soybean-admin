@@ -258,7 +258,8 @@ const local: App.I18n.Schema = {
   page: {
     aiSettings: {
       title: '我的模型通道',
-      description: '配置当前账号发起业务 AI 请求使用的模型通道；未配置个人 API Key 时，业务 AI 请求不会使用平台 Key 兜底。',
+      description:
+        '配置当前账号发起业务 AI 请求使用的模型通道；未配置个人 API Key 时，业务 AI 请求不会使用平台 Key 兜底。',
       providers: {
         openrouter: 'OpenRouter / 中转站',
         custom: 'OpenAI 兼容',

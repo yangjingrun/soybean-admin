@@ -4,6 +4,40 @@ import type { CrmAccountRecord, CrmContactRecord, CrmTimelineEventCreateInput } 
 import { CrmAccountService } from './crm-account.service';
 
 describe('CrmAccountService', () => {
+  it('passes source task filter to scoped account listing', async () => {
+    const listCalls: unknown[] = [];
+    const service = new CrmAccountService(
+      {
+        async listAccounts(input: unknown) {
+          listCalls.push(input);
+
+          return { records: [], total: 0 };
+        }
+      } as never,
+      {} as never
+    );
+
+    await service.listAccounts(
+      {
+        userId: 'user-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        buttons: [],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      },
+      { current: 1, size: 20, sourceTaskId: ' task-1 ' }
+    );
+
+    assert.deepEqual(listCalls[0], {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      sourceTaskId: 'task-1',
+      skip: 0,
+      take: 20
+    });
+  });
+
   it('manually refreshes Hunter contacts and updates enrichment history', async () => {
     const account = createAccount();
     const createdContacts: CrmContactRecord[] = [];
@@ -99,49 +133,57 @@ describe('CrmAccountService', () => {
     };
     const service = new CrmAccountService(
       accountRepository as never,
-      { async getGlobalConfig() {
-        return {
-          configKey: 'default',
-          emailVerificationCooldownDays: 30,
-          ownerConcurrentSendLimit: 5,
-          ownerDailySendLimitMax: 200,
-          followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 },
-          updatedAt: new Date('2026-06-21T00:00:00Z')
-        };
-      } } as never,
-      { async resolveMx() {
-        return [{ exchange: 'mx.abc.example', priority: 10 }];
-      } },
+      {
+        async getGlobalConfig() {
+          return {
+            configKey: 'default',
+            emailVerificationCooldownDays: 30,
+            ownerConcurrentSendLimit: 5,
+            ownerDailySendLimitMax: 200,
+            followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 },
+            updatedAt: new Date('2026-06-21T00:00:00Z')
+          };
+        }
+      } as never,
+      {
+        async resolveMx() {
+          return [{ exchange: 'mx.abc.example', priority: 10 }];
+        }
+      },
       undefined,
-      { async getRequiredUserHunterConfig(user: { userId: string }) {
-        assert.equal(user.userId, 'u-1');
+      {
+        async getRequiredUserHunterConfig(user: { userId: string }) {
+          assert.equal(user.userId, 'u-1');
 
-        return {
-          configKey: 'default',
-          title: 'Hunter',
-          apiBase: 'https://api.hunter.io/v2',
-          apiKey: 'hunter-key',
-          updatedAt: new Date('2026-06-21T00:00:00Z')
-        };
-      } } as never,
-      { async domainSearch(_config: unknown, request: { domain: string }) {
-        hunterCalls.push(request.domain);
+          return {
+            configKey: 'default',
+            title: 'Hunter',
+            apiBase: 'https://api.hunter.io/v2',
+            apiKey: 'hunter-key',
+            updatedAt: new Date('2026-06-21T00:00:00Z')
+          };
+        }
+      } as never,
+      {
+        async domainSearch(_config: unknown, request: { domain: string }) {
+          hunterCalls.push(request.domain);
 
-        return {
-          data: {
-            emails: [
-              {
-                value: 'alice@abc.example',
-                type: 'personal',
-                confidence: 95,
-                first_name: 'Alice',
-                last_name: 'Buyer',
-                position: 'Purchasing Manager'
-              }
-            ]
-          }
-        };
-      } } as never
+          return {
+            data: {
+              emails: [
+                {
+                  value: 'alice@abc.example',
+                  type: 'personal',
+                  confidence: 95,
+                  first_name: 'Alice',
+                  last_name: 'Buyer',
+                  position: 'Purchasing Manager'
+                }
+              ]
+            }
+          };
+        }
+      } as never
     );
 
     const result = await service.refreshAccountEnrichment(

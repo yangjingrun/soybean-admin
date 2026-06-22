@@ -1,14 +1,6 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import {
-  CRM_SEQUENCE_REPOSITORY,
-  CRM_SUPPRESSION_REPOSITORY
-} from '../crm.tokens';
-import type {
-  CrmAccountRecord,
-  CrmContactRecord,
-  CrmSequencePolicyRecord,
-  CrmUserContext
-} from '../crm.types';
+import { CRM_SEQUENCE_REPOSITORY, CRM_SUPPRESSION_REPOSITORY } from '../crm.tokens';
+import type { CrmAccountRecord, CrmContactRecord, CrmSequencePolicyRecord, CrmUserContext } from '../crm.types';
 import type { CrmSuppressionRepository } from '../suppression/crm-suppression.repository';
 import { activeSequenceBlockingStatuses, firstDraftCreationBlockingStatuses } from './crm-sequence-control-rules';
 import type { CrmSequenceRepository } from './crm-sequence.repository';

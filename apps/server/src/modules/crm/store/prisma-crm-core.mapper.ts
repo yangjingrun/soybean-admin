@@ -48,7 +48,9 @@ export function toContactRecord(record: CrmContactModel): CrmContactRecord {
 }
 
 /** Maps cached email verification state into the CRM domain record. */
-export function toEmailVerificationCacheRecord(record: CrmEmailVerificationCacheModel): CrmEmailVerificationCacheRecord {
+export function toEmailVerificationCacheRecord(
+  record: CrmEmailVerificationCacheModel
+): CrmEmailVerificationCacheRecord {
   return {
     ...record,
     status: record.status as CrmEmailVerificationCacheRecord['status'],
@@ -57,9 +59,7 @@ export function toEmailVerificationCacheRecord(record: CrmEmailVerificationCache
 }
 
 /** Maps provider enrichment history into the CRM domain record. */
-export function toLeadEnrichmentHistoryRecord(
-  record: CrmLeadEnrichmentHistoryModel
-): CrmLeadEnrichmentHistoryRecord {
+export function toLeadEnrichmentHistoryRecord(record: CrmLeadEnrichmentHistoryModel): CrmLeadEnrichmentHistoryRecord {
   return {
     ...record,
     provider: record.provider as CrmLeadEnrichmentHistoryRecord['provider'],

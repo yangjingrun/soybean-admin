@@ -51,14 +51,17 @@ describe('AiLeadHunterEnrichmentService', () => {
       } as Pick<HunterClient, 'domainSearch'> as HunterClient
     );
 
-    const result = await service.enrichCrmImportInputs([
-      {
-        name: 'Example Trading',
-        websiteUrl: 'https://www.example.com/products',
-        sourceTaskId: 'task-1',
-        contact: null
-      }
-    ], createUser());
+    const result = await service.enrichCrmImportInputs(
+      [
+        {
+          name: 'Example Trading',
+          websiteUrl: 'https://www.example.com/products',
+          sourceTaskId: 'task-1',
+          contact: null
+        }
+      ],
+      createUser()
+    );
 
     assert.deepEqual(calls, ['example.com']);
     assert.equal(result.enrichedCount, 1);
@@ -90,14 +93,17 @@ describe('AiLeadHunterEnrichmentService', () => {
       } as Pick<HunterClient, 'domainSearch'> as HunterClient
     );
 
-    const result = await service.enrichCrmImportInputs([
-      {
-        name: 'Example Trading',
-        websiteUrl: 'https://example.com',
-        sourceTaskId: 'task-1',
-        contact: null
-      }
-    ], createUser());
+    const result = await service.enrichCrmImportInputs(
+      [
+        {
+          name: 'Example Trading',
+          websiteUrl: 'https://example.com',
+          sourceTaskId: 'task-1',
+          contact: null
+        }
+      ],
+      createUser()
+    );
 
     assert.equal(result.enrichedCount, 0);
     assert.equal(result.failedCount, 1);
@@ -119,14 +125,17 @@ describe('AiLeadHunterEnrichmentService', () => {
       } as Pick<HunterClient, 'domainSearch'> as HunterClient
     );
 
-    const result = await service.enrichCrmImportInputs([
-      {
-        name: 'No Website Trading',
-        websiteUrl: null,
-        sourceTaskId: 'task-1',
-        contact: null
-      }
-    ], createUser());
+    const result = await service.enrichCrmImportInputs(
+      [
+        {
+          name: 'No Website Trading',
+          websiteUrl: null,
+          sourceTaskId: 'task-1',
+          contact: null
+        }
+      ],
+      createUser()
+    );
 
     assert.equal(result.attemptedCount, 0);
     assert.equal(result.enrichedCount, 0);
@@ -167,18 +176,21 @@ describe('AiLeadHunterEnrichmentService', () => {
       } as Pick<HunterClient, 'domainSearch'> as HunterClient
     );
 
-    const result = await service.enrichCrmImportInputs([
-      {
-        name: 'Example Trading',
-        websiteUrl: 'https://example.com',
-        sourceTaskId: 'task-1',
-        contact: {
-          fullName: 'Existing Contact',
-          title: 'Owner',
-          email: null
+    const result = await service.enrichCrmImportInputs(
+      [
+        {
+          name: 'Example Trading',
+          websiteUrl: 'https://example.com',
+          sourceTaskId: 'task-1',
+          contact: {
+            fullName: 'Existing Contact',
+            title: 'Owner',
+            email: null
+          }
         }
-      }
-    ], createUser());
+      ],
+      createUser()
+    );
 
     assert.equal(result.enrichedCount, 1);
     assert.deepEqual(result.inputs[0].contact, {
@@ -224,18 +236,21 @@ describe('AiLeadHunterEnrichmentService', () => {
       } as Pick<HunterClient, 'domainSearch'> as HunterClient
     );
 
-    const result = await service.enrichCrmImportInputs([
-      {
-        name: 'Example Trading',
-        websiteUrl: 'https://example.com',
-        sourceTaskId: 'task-1',
-        contact: {
-          fullName: null,
-          title: null,
-          email: 'existing@example.com'
+    const result = await service.enrichCrmImportInputs(
+      [
+        {
+          name: 'Example Trading',
+          websiteUrl: 'https://example.com',
+          sourceTaskId: 'task-1',
+          contact: {
+            fullName: null,
+            title: null,
+            email: 'existing@example.com'
+          }
         }
-      }
-    ], createUser());
+      ],
+      createUser()
+    );
 
     assert.deepEqual(calls, ['example.com']);
     assert.equal(result.enrichedCount, 1);
@@ -279,14 +294,17 @@ describe('AiLeadHunterEnrichmentService', () => {
       } as Pick<HunterClient, 'domainSearch'> as HunterClient
     );
 
-    const result = await service.enrichCrmImportInputs([
-      {
-        name: 'Example Trading',
-        websiteUrl: 'https://example.com',
-        sourceTaskId: 'task-1',
-        contact: null
-      }
-    ], createUser());
+    const result = await service.enrichCrmImportInputs(
+      [
+        {
+          name: 'Example Trading',
+          websiteUrl: 'https://example.com',
+          sourceTaskId: 'task-1',
+          contact: null
+        }
+      ],
+      createUser()
+    );
 
     assert.equal(result.enrichedCount, 0);
     assert.equal(result.inputs[0].contact, null);
@@ -325,14 +343,17 @@ describe('AiLeadHunterEnrichmentService', () => {
       } as Pick<HunterClient, 'domainSearch'> as HunterClient
     );
 
-    const result = await service.enrichCrmImportInputs([
-      {
-        name: 'Example Trading',
-        websiteUrl: 'https://example.com',
-        sourceTaskId: 'task-1',
-        contact: null
-      }
-    ], createUser());
+    const result = await service.enrichCrmImportInputs(
+      [
+        {
+          name: 'Example Trading',
+          websiteUrl: 'https://example.com',
+          sourceTaskId: 'task-1',
+          contact: null
+        }
+      ],
+      createUser()
+    );
 
     assert.equal(result.enrichedCount, 0);
     assert.equal(result.inputs[0].contact, null);

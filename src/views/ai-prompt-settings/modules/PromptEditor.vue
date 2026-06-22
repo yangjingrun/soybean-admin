@@ -105,7 +105,7 @@ watch(
                 @click="handleAnchorClick(anchor)"
               >
                 {{ anchor.label }}
-                <span> L{{ anchor.line }}</span>
+                <span>L{{ anchor.line }}</span>
               </NButton>
             </aside>
             <NInput

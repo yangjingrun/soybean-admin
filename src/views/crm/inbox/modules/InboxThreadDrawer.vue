@@ -56,7 +56,10 @@ const canReadBody = computed(() => Boolean(thread.value?.canReadBody));
 const canEditDraft = computed(() => Boolean(props.detail?.canOperate));
 const hasReplyBody = computed(() => Boolean(props.replyBody.trim()));
 const isReplyDraftSyncedWithInputs = computed(
-  () => Boolean(replyDraft.value) && props.replyTopic === replyDraft.value?.topic && props.replyBody === replyDraft.value?.bodyText
+  () =>
+    Boolean(replyDraft.value) &&
+    props.replyTopic === replyDraft.value?.topic &&
+    props.replyBody === replyDraft.value?.bodyText
 );
 const draftMetadataItems = computed(() =>
   isReplyDraftSyncedWithInputs.value ? buildInboxReplyDraftMetadataItems(replyDraft.value?.metadata) : []
@@ -89,7 +92,9 @@ const saveDisabled = computed(() =>
   )
 );
 const sendDisabled = computed(() =>
-  Boolean(!canEditDraft.value || !props.replyTopic.trim() || !props.replyBody.trim() || props.loading || props.replySending)
+  Boolean(
+    !canEditDraft.value || !props.replyTopic.trim() || !props.replyBody.trim() || props.loading || props.replySending
+  )
 );
 const statusActions = [
   { label: '标记待处理', value: 'pending' },
@@ -103,6 +108,22 @@ const statusDropdownOptions = computed(() =>
     disabled: isStatusDisabled(item.value)
   }))
 );
+
+type MessageTimelineType = 'default' | 'success' | 'error' | 'warning' | 'info';
+
+const inboxMessageTimelineTypeMap: Record<Api.Crm.InboxMessageRecord['messageType'], MessageTimelineType> = {
+  customer_reply: 'info',
+  bounce: 'error',
+  unsubscribe_hint: 'warning',
+  unsubscribe_review_pending: 'warning'
+};
+
+/** Match the timeline dot to the email direction and current message risk. */
+function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTimelineType {
+  if (message.direction === 'outbound') return 'success';
+
+  return inboxMessageTimelineTypeMap[message.messageType];
+}
 
 /** Check whether a status action should be unavailable for the current detail. */
 function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
@@ -134,12 +155,7 @@ function handleStatusSelect(key: string | number) {
         <div class="modal-heading">
           <NSpace align="center" :size="8">
             <span class="modal-title">处理客户回复</span>
-            <NTag
-              v-if="thread"
-              :type="inboxThreadStatusTagTypeMap[thread.status]"
-              :bordered="false"
-              size="small"
-            >
+            <NTag v-if="thread" :type="inboxThreadStatusTagTypeMap[thread.status]" :bordered="false" size="small">
               {{ inboxThreadStatusLabelMap[thread.status] }}
             </NTag>
             <NTag v-if="thread?.unreadCount" type="error" :bordered="false" size="small">
@@ -147,7 +163,8 @@ function handleStatusSelect(key: string | number) {
             </NTag>
           </NSpace>
           <div v-if="thread" class="modal-subtitle">
-            {{ thread.subject }} · 最近回复 {{ formatInboxDate(thread.lastInboundAt) }} · 共 {{ thread.messageCount }} 封
+            {{ thread.subject }} · 最近回复 {{ formatInboxDate(thread.lastInboundAt) }} · 共
+            {{ thread.messageCount }} 封
           </div>
         </div>
         <NSpace align="center" :size="8">
@@ -183,33 +200,38 @@ function handleStatusSelect(key: string | number) {
           <div class="mail-thread-pane">
             <div class="drawer-section">
               <div class="section-title">邮件正文</div>
-              <NSpace v-if="messages.length" vertical :size="0" class="message-list">
-                <div
+              <NTimeline v-if="messages.length" class="message-list" size="medium">
+                <NTimelineItem
                   v-for="item in messages"
                   :key="item.id"
-                  class="message-item"
-                  :class="`message-item--${item.direction}`"
+                  :type="getMessageTimelineType(item)"
+                  :line-type="item.direction === 'outbound' ? 'dashed' : 'default'"
                 >
-                  <div class="message-header">
-                    <NSpace align="center" :size="8">
-                      <NTag :type="inboxMessageDirectionTagTypeMap[item.direction]" :bordered="false" size="small">
-                        {{ inboxMessageDirectionLabelMap[item.direction] }}
-                      </NTag>
-                      <NTag
-                        v-if="item.direction === 'inbound'"
-                        :type="inboxMessageTypeTagTypeMap[item.messageType]"
-                        :bordered="false"
-                        size="small"
-                      >
-                        {{ inboxMessageTypeLabelMap[item.messageType] }}
-                      </NTag>
-                      <span class="message-time">{{ formatInboxMessageTime(item) }}</span>
-                    </NSpace>
+                  <template #header>
+                    <div class="message-header">
+                      <NSpace align="center" :size="8">
+                        <NTag :type="inboxMessageDirectionTagTypeMap[item.direction]" :bordered="false" size="small">
+                          {{ inboxMessageDirectionLabelMap[item.direction] }}
+                        </NTag>
+                        <NTag
+                          v-if="item.direction === 'inbound'"
+                          :type="inboxMessageTypeTagTypeMap[item.messageType]"
+                          :bordered="false"
+                          size="small"
+                        >
+                          {{ inboxMessageTypeLabelMap[item.messageType] }}
+                        </NTag>
+                        <span class="message-time">{{ formatInboxMessageTime(item) }}</span>
+                      </NSpace>
+                    </div>
+                  </template>
+
+                  <div class="message-item" :class="`message-item--${item.direction}`">
                     <div class="message-subject">{{ item.subject }}</div>
+                    <div class="message-body">{{ item.bodyText }}</div>
                   </div>
-                  <div class="message-body">{{ item.bodyText }}</div>
-                </div>
-              </NSpace>
+                </NTimelineItem>
+              </NTimeline>
               <NEmpty v-else :description="canReadBody ? '暂无邮件正文' : '当前账号不可查看邮件正文'" />
             </div>
           </div>
@@ -291,7 +313,13 @@ function handleStatusSelect(key: string | number) {
                   placeholder="AI 润色后的回复草稿会显示在这里，也可以人工修改后保存"
                 />
 
-                <NDescriptions v-if="draftMetadataItems.length" :column="1" label-placement="left" bordered size="small">
+                <NDescriptions
+                  v-if="draftMetadataItems.length"
+                  :column="1"
+                  label-placement="left"
+                  bordered
+                  size="small"
+                >
                   <NDescriptionsItem v-for="item in draftMetadataItems" :key="item.key" :label="item.label">
                     {{ item.value }}
                   </NDescriptionsItem>
@@ -411,58 +439,53 @@ function handleStatusSelect(key: string | number) {
 .message-list {
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
-  background-color: var(--n-color-embedded);
-  padding: 12px;
+  background-color: rgb(var(--layout-bg-color));
+  padding: 14px 14px 2px;
   overflow: hidden;
+}
+
+.message-list :deep(.n-timeline-item-content__title) {
+  margin-bottom: 6px;
+}
+
+.message-list :deep(.n-timeline-item-content__content) {
+  min-width: 0;
 }
 
 .message-item {
   position: relative;
+  overflow: hidden;
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
-  background-color: var(--n-color);
-  padding: 14px 16px 14px 18px;
+  background: linear-gradient(90deg, rgb(var(--primary-color) / 0.055), rgb(var(--container-bg-color)) 46%);
+  padding: 12px 14px;
 }
 
-.message-item::before {
-  position: absolute;
-  top: 14px;
-  bottom: 14px;
-  left: 8px;
-  width: 3px;
-  border-radius: 999px;
-  background-color: rgb(var(--primary-color));
-  content: '';
-}
-
-.message-item + .message-item {
-  margin-top: 10px;
-}
-
-.message-item--outbound::before {
-  background-color: rgb(var(--success-color));
+.message-item--outbound {
+  border-color: rgb(var(--success-color) / 0.2);
+  background: linear-gradient(90deg, rgb(var(--success-color) / 0.08), rgb(var(--container-bg-color)) 46%);
 }
 
 .section-subtitle,
 .message-time,
 .draft-updated-text {
-  color: var(--n-text-color-3);
+  color: rgb(var(--base-text-color) / 0.52);
   font-size: 12px;
 }
 
 .section-title {
-  color: var(--n-text-color);
+  color: rgb(var(--base-text-color));
   font-size: 14px;
   font-weight: 600;
 }
 
 .message-subject {
-  color: var(--n-text-color);
+  color: rgb(var(--base-text-color));
   font-weight: 600;
 }
 
 .message-body {
-  color: var(--n-text-color);
+  color: rgb(var(--base-text-color) / 0.82);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;

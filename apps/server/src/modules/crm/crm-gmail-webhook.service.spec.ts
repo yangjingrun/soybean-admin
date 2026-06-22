@@ -101,10 +101,7 @@ describe('CrmGmailWebhookService', () => {
 function createStore(
   options: { mailbox?: Awaited<ReturnType<CrmGmailWatchRepository['findMailboxByProviderAndEmailHash']>> } = {}
 ) {
-  const mailbox =
-    options.mailbox === undefined
-      ? createMailbox()
-      : options.mailbox;
+  const mailbox = options.mailbox === undefined ? createMailbox() : options.mailbox;
 
   return {
     async findMailboxByProviderAndEmailHash(provider, emailHash) {

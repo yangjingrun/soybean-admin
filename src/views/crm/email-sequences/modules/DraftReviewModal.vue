@@ -590,9 +590,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
         <div class="modal-actions">
           <NButton
             v-if="canRefreshSequence"
-            :disabled="
-              loading || saving || approving || sendStarting || stopping || nextDraftGenerating
-            "
+            :disabled="loading || saving || approving || sendStarting || stopping || nextDraftGenerating"
             :loading="refreshing"
             @click="emit('refresh')"
           >
@@ -603,14 +601,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               <NButton
                 type="error"
                 secondary
-                :disabled="
-                  loading ||
-                    saving ||
-                    approving ||
-                    sendStarting ||
-                    refreshing ||
-                    nextDraftGenerating
-                "
+                :disabled="loading || saving || approving || sendStarting || refreshing || nextDraftGenerating"
                 :loading="stopping"
               >
                 停止序列
@@ -622,13 +613,13 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             v-if="canEdit"
             :disabled="
               loading ||
-                approving ||
-                refreshing ||
-                sendStarting ||
-                stopping ||
-                versionRestoring ||
-                nextDraftGenerating ||
-                !currentMessage
+              approving ||
+              refreshing ||
+              sendStarting ||
+              stopping ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage
             "
             :loading="saving"
             @click="handleSave"
@@ -640,14 +631,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             type="primary"
             :disabled="
               loading ||
-                saving ||
-                refreshing ||
-                sendStarting ||
-                stopping ||
-                versionRestoring ||
-                nextDraftGenerating ||
-                !currentMessage ||
-                !canApprove
+              saving ||
+              refreshing ||
+              sendStarting ||
+              stopping ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage ||
+              !canApprove
             "
             :loading="approving"
             @click="handleApprove"
@@ -666,13 +657,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             v-if="canStartSend"
             type="primary"
             :disabled="
-              loading ||
-                saving ||
-                approving ||
-                refreshing ||
-                stopping ||
-                nextDraftGenerating ||
-                !currentMessage
+              loading || saving || approving || refreshing || stopping || nextDraftGenerating || !currentMessage
             "
             :loading="sendStarting"
             @click="emit('startSend')"

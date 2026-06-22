@@ -13,7 +13,10 @@ describe('AiGatewayController', () => {
       }
     } as never);
 
-    await assert.rejects(() => controller.getPrompt({ promptKey: 'lead-keyword-optimize' }, null), UnauthorizedException);
+    await assert.rejects(
+      () => controller.getPrompt({ promptKey: 'lead-keyword-optimize' }, null),
+      UnauthorizedException
+    );
   });
 
   it('requires prompt permission before reading the built-in default prompt draft', async () => {
@@ -324,10 +327,13 @@ describe('AiGatewayController', () => {
     );
     assert.deepEqual(
       (
-        await controller.validatePromptDraft({
-          promptKey: 'lead_maps_keyword_optimize',
-          systemPrompt: 'prompt'
-        }, user)
+        await controller.validatePromptDraft(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            systemPrompt: 'prompt'
+          },
+          user
+        )
       ).data,
       { ok: true, items: [{ key: 'lead_maps_keyword_optimize' }] }
     );

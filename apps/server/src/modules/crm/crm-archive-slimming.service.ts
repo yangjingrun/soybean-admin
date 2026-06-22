@@ -40,9 +40,12 @@ export class CrmArchiveSlimmingService implements OnModuleInit, OnModuleDestroy 
     }
 
     void this.slimDueArchivedAccounts();
-    this.slimmingTimer = setInterval(() => {
-      void this.slimDueArchivedAccounts();
-    }, getPositiveEnvNumber('CRM_ARCHIVE_SLIMMING_INTERVAL_MS', defaultSlimmingIntervalMs));
+    this.slimmingTimer = setInterval(
+      () => {
+        void this.slimDueArchivedAccounts();
+      },
+      getPositiveEnvNumber('CRM_ARCHIVE_SLIMMING_INTERVAL_MS', defaultSlimmingIntervalMs)
+    );
     this.slimmingTimer.unref?.();
   }
 

@@ -41,21 +41,23 @@ const statusTypeMap: Record<Api.AiGateway.AiPromptValidationStatus, 'success' | 
   fail: 'error'
 };
 const validationSummary = computed(() => summarizePromptValidation(props.validationResult));
-const validationItems = computed(() =>
-  props.validationResult?.items.map(item => ({
-    ...item,
-    target: resolvePromptValidationSection(item)
-  })) ?? []
-);
-const latestOutput = computed(() => props.latestTestRun?.outputText || '');
-const latestTestRunCopyText = computed(() => formatLatestPromptTestRunForCopy(props.latestTestRun));
-const latestValidationIssues = computed(() =>
-  props.latestTestRun?.validationResult?.items
-    .filter(item => item.status !== 'pass')
-    .map(item => ({
+const validationItems = computed(
+  () =>
+    props.validationResult?.items.map(item => ({
       ...item,
       target: resolvePromptValidationSection(item)
     })) ?? []
+);
+const latestOutput = computed(() => props.latestTestRun?.outputText || '');
+const latestTestRunCopyText = computed(() => formatLatestPromptTestRunForCopy(props.latestTestRun));
+const latestValidationIssues = computed(
+  () =>
+    props.latestTestRun?.validationResult?.items
+      .filter(item => item.status !== 'pass')
+      .map(item => ({
+        ...item,
+        target: resolvePromptValidationSection(item)
+      })) ?? []
 );
 const latestFailureGuide = computed(() => {
   if (props.latestTestRun?.success || !props.latestTestRun?.errorMessage) {
@@ -118,7 +120,9 @@ async function copyLatestTestRun() {
       <section class="publish-panel__section">
         <div class="publish-panel__section-title">
           <NText strong>规则校验</NText>
-          <NButton size="tiny" :loading="validating" :disabled="!canValidate" @click="emit('validate')">重新校验</NButton>
+          <NButton size="tiny" :loading="validating" :disabled="!canValidate" @click="emit('validate')">
+            重新校验
+          </NButton>
         </div>
         <NEmpty v-if="!validationResult" description="尚未校验" size="small" />
         <div v-else class="publish-panel__check-list">
@@ -211,11 +215,7 @@ async function copyLatestTestRun() {
             发布全局版本
           </NButton>
         </NSpace>
-        <NText
-          depth="3"
-          class="publish-panel__publish-hint"
-          :type="canPublish ? 'success' : 'warning'"
-        >
+        <NText depth="3" class="publish-panel__publish-hint" :type="canPublish ? 'success' : 'warning'">
           {{ publishReadinessHint }}
         </NText>
       </section>

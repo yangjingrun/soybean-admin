@@ -1,8 +1,5 @@
 import { Prisma } from '../../../generated/prisma/client';
-import {
-  serializeSequencePolicyStepDelayDays,
-  serializeSequencePolicyThreadModes
-} from '../crm-sequence-policy';
+import { serializeSequencePolicyStepDelayDays, serializeSequencePolicyThreadModes } from '../crm-sequence-policy';
 import type {
   CrmAiDraftTaskItemUpdateInput,
   CrmAiDraftTaskUpdateInput,

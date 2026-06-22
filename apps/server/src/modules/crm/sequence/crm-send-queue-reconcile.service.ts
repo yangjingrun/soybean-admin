@@ -20,10 +20,7 @@ export class CrmSendQueueReconcileService {
   ) {}
 
   /** Repairs stale queued messages whose BullMQ job has disappeared. */
-  async reconcileSendQueue(
-    input: { now?: Date; staleMinutes?: number; take?: number } = {},
-    context: CrmUserContext
-  ) {
+  async reconcileSendQueue(input: { now?: Date; staleMinutes?: number; take?: number } = {}, context: CrmUserContext) {
     requirePermission(context, 'crm:settings:operations:write', '无权执行 CRM 运维诊断');
 
     if (!this.sendQueue) {

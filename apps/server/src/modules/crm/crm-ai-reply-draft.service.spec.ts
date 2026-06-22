@@ -24,10 +24,12 @@ describe('CrmAiReplyDraftService', () => {
     } as never);
 
     const result = await service.polishReplyDraft(createPromptInput(), createContext());
+    const firstCall = calls[0];
 
     assert.equal(result.bodyText, 'Hi Alex, thanks for your update.');
-    assert.equal((calls[0]?.input as { modelConfigKey?: string }).modelConfigKey, 'default');
-    assert.equal((calls[0]?.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
+    assert.ok(firstCall);
+    assert.equal((firstCall.input as { modelConfigKey?: string }).modelConfigKey, 'default');
+    assert.equal((firstCall.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
   });
 });
 

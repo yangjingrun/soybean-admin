@@ -1,5 +1,9 @@
 import dayjs, { type Dayjs } from 'dayjs';
-import { aiDraftTaskStatusLabelMap, aiDraftTaskStatusTagTypeMap, formatAiDraftTaskCounts } from './ai-draft-queue-settings';
+import {
+  aiDraftTaskStatusLabelMap,
+  aiDraftTaskStatusTagTypeMap,
+  formatAiDraftTaskCounts
+} from './ai-draft-queue-settings';
 import { emailTemplateThreadModeLabelMap } from './email-template-settings';
 import {
   formatMailboxDate,

@@ -3,28 +3,28 @@ import { useMessage } from 'naive-ui';
 import { aiLeadsKeywordStrategyManagePermission, hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import {
-    createLeadSearchTask,
-    deleteLeadKeywordHistory,
-    discardLeadSearchTask,
-    fetchLeadKeywordHistories,
-    fetchCurrentLeadSearchTask,
-    fetchLeadSearchTask,
-    importCrmLead,
-    interruptLeadSearchTask,
-    markLeadSearchTaskRead,
-    optimizeLeadKeywords,
-    resumeLeadSearchTask,
-    retryLeadSearchTask,
-    updateLeadKeywordHistory
-  } from '@/service/api';
+  createLeadSearchTask,
+  deleteLeadKeywordHistory,
+  discardLeadSearchTask,
+  fetchLeadKeywordHistories,
+  fetchCurrentLeadSearchTask,
+  fetchLeadSearchTask,
+  importCrmLead,
+  interruptLeadSearchTask,
+  markLeadSearchTaskRead,
+  optimizeLeadKeywords,
+  resumeLeadSearchTask,
+  retryLeadSearchTask,
+  updateLeadKeywordHistory
+} from '@/service/api';
 import {
-    canReturnToKeywordOptimizationStep,
-    createLeadSearchProgressStateFromTask,
-    createLeadSearchProgressState,
-    getLeadSearchTaskActionState,
-    isLeadSearchTaskPending,
-    shouldClearSearchTaskAfterAction
-  } from './search-progress';
+  canReturnToKeywordOptimizationStep,
+  createLeadSearchProgressStateFromTask,
+  createLeadSearchProgressState,
+  getLeadSearchTaskActionState,
+  isLeadSearchTaskPending,
+  shouldClearSearchTaskAfterAction
+} from './search-progress';
 import type { LeadSearchProgressState, LeadSearchTaskAction } from './search-progress';
 import { sortKeywordHistoryRecords } from './useAiLeadKeywordHistory';
 import { createDefaultLeadSearchForm } from './useAiLeadKeywordOptimization';
@@ -34,23 +34,23 @@ import {
   shouldRestoreSearchTaskAfterCreateRequestError
 } from './useAiLeadSearchTask';
 import {
-    buildAiLeadCandidateImportPayload,
-    buildKeywordHistoryUpdatePayload,
-    cloneKeywordPlan,
-    createAiResultFromKeywordHistory,
-    createKeywordOptimizationViewModel,
-    formatAiFinishReason,
-    formatKeywordOptimizationVisibleText,
-    isValidTargetLeadCount,
-    parseKeywordOptimizationPlan,
-    resolveTargetLeadCountAfterOptimization,
-    type AiLeadCandidateImportRow
-  } from './shared';
+  buildAiLeadCandidateImportPayload,
+  buildKeywordHistoryUpdatePayload,
+  cloneKeywordPlan,
+  createAiResultFromKeywordHistory,
+  createKeywordOptimizationViewModel,
+  formatAiFinishReason,
+  formatKeywordOptimizationVisibleText,
+  isValidTargetLeadCount,
+  parseKeywordOptimizationPlan,
+  resolveTargetLeadCountAfterOptimization,
+  type AiLeadCandidateImportRow
+} from './shared';
 
 type KeywordResultOrigin = 'none' | 'history' | 'generated' | 'task';
 
 export function useAiLeadPage() {
-    const message = useMessage();
+  const message = useMessage();
   const authStore = useAuthStore();
   const defaultTargetLeadCount = 20;
   const maxLeadSearchRepeatRounds = 2;
@@ -65,14 +65,15 @@ export function useAiLeadPage() {
     discarded: '已放弃'
   };
 
-  const searchTaskStatusTypeMap: Record<Api.AiLeads.TaskStatus, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
-    queued: 'warning',
-    running: 'info',
-    interrupted: 'warning',
-    failed: 'error',
-    completed: 'success',
-    discarded: 'default'
-  };
+  const searchTaskStatusTypeMap: Record<Api.AiLeads.TaskStatus, 'default' | 'info' | 'success' | 'warning' | 'error'> =
+    {
+      queued: 'warning',
+      running: 'info',
+      interrupted: 'warning',
+      failed: 'error',
+      completed: 'success',
+      discarded: 'default'
+    };
 
   const searchTaskActionSuccessTextMap: Record<LeadSearchTaskAction, string> = {
     interrupt: '采集任务已中断',
@@ -108,7 +109,9 @@ export function useAiLeadPage() {
   const canGenerate = computed(() => Boolean(form.requirement.trim()));
   const isTargetLeadCountValid = computed(() => isValidTargetLeadCount(form.targetLeadCount));
   const targetLeadCountValidationStatus = computed(() => (isTargetLeadCountValid.value ? undefined : 'error'));
-  const targetLeadCountFeedback = computed(() => (isTargetLeadCountValid.value ? undefined : '请输入 1-200 的采集数量'));
+  const targetLeadCountFeedback = computed(() =>
+    isTargetLeadCountValid.value ? undefined : '请输入 1-200 的采集数量'
+  );
   const canSaveHistory = computed(() =>
     Boolean(selectedHistoryId.value && editableKeywordPlan.value && form.requirement.trim())
   );
@@ -505,7 +508,9 @@ export function useAiLeadPage() {
       }
 
       upsertHistoryRecord(record);
-      applyKeywordHistoryRecord(record, { origin: keywordResultOrigin.value === 'generated' ? 'generated' : 'history' });
+      applyKeywordHistoryRecord(record, {
+        origin: keywordResultOrigin.value === 'generated' ? 'generated' : 'history'
+      });
       message.success('保存完成');
     } finally {
       isHistorySaving.value = false;

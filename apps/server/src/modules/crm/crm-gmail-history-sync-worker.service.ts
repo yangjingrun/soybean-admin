@@ -14,8 +14,10 @@ import type {
   CrmGmailHistorySyncQueueJob,
   CrmGmailHistorySyncResult,
   CrmMailboxRecord,
-  CrmMessageRecord
+  CrmMessageRecord,
+  CrmCustomerReplyIngestRecord
 } from './crm.types';
+import { inboxNotificationTargetType, toInboxNotificationCopy } from './inbox/crm-inbox-rules';
 
 type RecoveredCrmGmailHistoryResult = CrmGmailHistoryListResult & { historyExpired?: boolean };
 
@@ -264,10 +266,36 @@ export class CrmGmailHistorySyncWorkerService {
 
       if (ingested && !ingested.isDuplicate) {
         ingestedCount += 1;
+        await this.notifyCustomerReply(ingested);
       }
     }
 
     return { ingestedCount, skippedMessageCount };
+  }
+
+  /** Creates the same owner-facing reminder for real Gmail replies as the manual mock path. */
+  private async notifyCustomerReply(record: CrmCustomerReplyIngestRecord) {
+    const notificationCopy = toInboxNotificationCopy(record.message.messageType, record.account, record.contact);
+
+    await this.systemNotificationService?.create({
+      userId: record.thread.ownerUserId,
+      userName: record.mailbox?.ownerUserName,
+      module: 'crm',
+      type: 'crm_customer_reply',
+      title: notificationCopy.title,
+      content: notificationCopy.content,
+      targetType: inboxNotificationTargetType,
+      targetId: record.thread.id,
+      routePath: '/crm/inbox',
+      metadata: {
+        organizationId: record.thread.organizationId,
+        accountId: record.thread.accountId,
+        contactId: record.thread.contactId,
+        threadId: record.thread.id,
+        messageType: record.message.messageType,
+        source: 'gmail-history'
+      }
+    });
   }
 
   private async syncGmailLabelChanges(job: CrmGmailHistorySyncQueueJob, labelChanges: CrmGmailHistoryLabelChange[]) {

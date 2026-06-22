@@ -134,10 +134,7 @@ function createPrisma() {
       },
       async findMany(args: { where: Record<string, unknown>; select: Record<string, unknown> }) {
         this.findManyCalls.push(args);
-        return [
-          { sentAt: new Date('2026-06-20T08:00:00.000Z') },
-          { sentAt: new Date('2026-06-20T09:00:00.000Z') }
-        ];
+        return [{ sentAt: new Date('2026-06-20T08:00:00.000Z') }, { sentAt: new Date('2026-06-20T09:00:00.000Z') }];
       }
     },
     crmInboxThread: {
@@ -186,11 +183,7 @@ function createPrisma() {
         orderBy: Array<Record<string, unknown>>;
         take: number;
       }>,
-      async findMany(args: {
-        where: Record<string, unknown>;
-        orderBy: Array<Record<string, unknown>>;
-        take: number;
-      }) {
+      async findMany(args: { where: Record<string, unknown>; orderBy: Array<Record<string, unknown>>; take: number }) {
         this.findManyCalls.push(args);
         return [
           {

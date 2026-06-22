@@ -20,10 +20,7 @@ export class SystemUserController {
   }
 
   @Post()
-  async create(
-    @CurrentContext() context: RequestUserContext | null = null,
-    @Body() dto: CreateSystemUserDto
-  ) {
+  async create(@CurrentContext() context: RequestUserContext | null = null, @Body() dto: CreateSystemUserDto) {
     const operator = this.requireSuperContext(context);
 
     return ok(await this.systemUserService.create(dto, operator));
@@ -52,10 +49,7 @@ export class SystemUserController {
   }
 
   @Post(':id/reset-password')
-  async resetPassword(
-    @CurrentContext() context: RequestUserContext | null = null,
-    @Param('id') id: string
-  ) {
+  async resetPassword(@CurrentContext() context: RequestUserContext | null = null, @Param('id') id: string) {
     const operator = this.requireSuperContext(context);
 
     return ok(await this.systemUserService.resetPassword(id, operator));

@@ -26,14 +26,16 @@ describe('CrmAiDraftService', () => {
     } as never);
 
     const result = await service.generateDraft(createPromptInput(), createContext());
+    const firstCall = calls[0];
 
     assert.equal(result.subject, 'Bearing supply option');
     assert.equal(result.metadata.reason, 'Focused on sourcing angle.');
     assert.equal(result.metadata.snapshot.productLineId, 'line-1');
     assert.equal(result.metadata.snapshot.stepIndex, 1);
     assert.equal(result.metadata.snapshot.writingConfig.steps.length, 5);
-    assert.equal((calls[0]?.input as { modelConfigKey?: string }).modelConfigKey, 'default');
-    assert.equal((calls[0]?.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
+    assert.ok(firstCall);
+    assert.equal((firstCall.input as { modelConfigKey?: string }).modelConfigKey, 'default');
+    assert.equal((firstCall.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
   });
 
   it('rejects invalid AI JSON output', async () => {
@@ -47,28 +49,32 @@ describe('CrmAiDraftService', () => {
       }
     } as never);
 
-    await assert.rejects(() =>
-      service.generateDraft({
-        account: { name: 'ABC Trading', country: null, domain: null, customerType: null },
-        contact: { fullName: null, title: null, maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
-        productLine: {
-          id: 'line-1',
-          name: 'Bearing Series',
-          targetCustomerType: null,
-          coreSellingPoints: null,
-          moq: null,
-          leadTime: null,
-          paymentTerms: null,
-          certifications: null,
-          catalogUrl: null,
-          websiteUrl: null,
-          commonModelsText: null
-        },
-        writingConfig: createWritingConfig(),
-        stepIndex: 1,
-        previousMessages: [],
-        senderName: 'Alice'
-      }, createContext()),
+    await assert.rejects(
+      () =>
+        service.generateDraft(
+          {
+            account: { name: 'ABC Trading', country: null, domain: null, customerType: null },
+            contact: { fullName: null, title: null, maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
+            productLine: {
+              id: 'line-1',
+              name: 'Bearing Series',
+              targetCustomerType: null,
+              coreSellingPoints: null,
+              moq: null,
+              leadTime: null,
+              paymentTerms: null,
+              certifications: null,
+              catalogUrl: null,
+              websiteUrl: null,
+              commonModelsText: null
+            },
+            writingConfig: createWritingConfig(),
+            stepIndex: 1,
+            previousMessages: [],
+            senderName: 'Alice'
+          },
+          createContext()
+        ),
       /AI 返回内容不是合法 JSON/
     );
   });
