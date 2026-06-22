@@ -755,6 +755,11 @@ export interface CrmContactUpdateInput {
   accountId?: string;
   fullName?: string | null;
   title?: string | null;
+  email?: string;
+  emailHash?: string;
+  maskedEmail?: string;
+  isPublicEmail?: boolean;
+  emailStatus?: CrmEmailStatus;
   sourceTaskId?: string | null;
 }
 

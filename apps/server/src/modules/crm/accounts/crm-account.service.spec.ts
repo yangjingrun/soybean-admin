@@ -38,6 +38,247 @@ describe('CrmAccountService', () => {
     });
   });
 
+  it('updates editable account profile fields and records a timeline event', async () => {
+    const account = createAccount();
+    const updateCalls: Array<Record<string, unknown>> = [];
+    const eventCalls: CrmTimelineEventCreateInput[] = [];
+    const service = new CrmAccountService(
+      {
+        async getAccountDetail() {
+          return {
+            account,
+            contacts: [],
+            enrichmentHistories: [],
+            timelineEvents: []
+          };
+        },
+        async updateAccount(id: string, input: Record<string, unknown>) {
+          updateCalls.push({ id, ...input });
+
+          return {
+            ...account,
+            name: 'ABC Bearing Group',
+            normalizedName: 'abc bearing group',
+            websiteUrl: 'https://group.example',
+            domain: 'group.example',
+            country: 'AE',
+            customerType: 'distributor'
+          };
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          eventCalls.push(input);
+
+          return {
+            id: 'event-1',
+            organizationId: input.organizationId,
+            accountId: input.accountId,
+            contactId: input.contactId ?? null,
+            ownerUserId: input.ownerUserId,
+            eventType: input.eventType,
+            title: input.title,
+            content: input.content ?? null,
+            metadata: input.metadata ?? null,
+            createdAt: new Date('2026-06-21T00:00:00Z')
+          };
+        }
+      } as never,
+      {} as never
+    );
+
+    const result = await service.updateAccount(
+      account.id,
+      {
+        name: 'ABC Bearing Group',
+        normalizedName: 'abc bearing group',
+        websiteUrl: 'https://group.example',
+        country: 'AE',
+        customerType: 'distributor'
+      },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(updateCalls[0].id, account.id);
+    assert.equal(updateCalls[0].domain, 'group.example');
+    assert.equal(eventCalls[0].eventType, 'account_profile_updated');
+    assert.equal((result.account as { name: string }).name, 'ABC Bearing Group');
+  });
+
+  it('creates one manual contact under the owned account', async () => {
+    const account = createAccount();
+    const createdContacts: CrmContactRecord[] = [];
+    const service = new CrmAccountService(
+      {
+        async getAccountDetail() {
+          return {
+            account,
+            contacts: [],
+            enrichmentHistories: [],
+            timelineEvents: []
+          };
+        },
+        async findContactByEmailHash() {
+          return null;
+        },
+        async createContact(input: Partial<CrmContactRecord>) {
+          const contact = createContact(input);
+          createdContacts.push(contact);
+          return contact;
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return {
+            id: 'event-1',
+            organizationId: input.organizationId,
+            accountId: input.accountId,
+            contactId: input.contactId ?? null,
+            ownerUserId: input.ownerUserId,
+            eventType: input.eventType,
+            title: input.title,
+            content: input.content ?? null,
+            metadata: input.metadata ?? null,
+            createdAt: new Date('2026-06-21T00:00:00Z')
+          };
+        },
+        async updateAccount() {
+          return {
+            ...account,
+            status: 'email_verification_pending'
+          };
+        }
+      } as never,
+      {} as never
+    );
+
+    const result = await service.createContact(
+      account.id,
+      { fullName: 'Alice Buyer', title: 'Purchasing Manager', email: 'alice@abc.example' },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(createdContacts[0].email, 'alice@abc.example');
+    assert.equal(result.contact.email, 'alice@abc.example');
+  });
+
+  it('updates one owned contact email and resets its verification status', async () => {
+    const contact = createContact({});
+    const service = new CrmAccountService(
+      {
+        async findContactById() {
+          return contact;
+        },
+        async findContactByEmailHash() {
+          return null;
+        },
+        async updateContact(_id: string, input: Partial<CrmContactRecord>) {
+          return createContact({
+            ...contact,
+            ...input,
+            emailStatus: input.emailStatus as CrmContactRecord['emailStatus']
+          });
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return {
+            id: 'event-1',
+            organizationId: input.organizationId,
+            accountId: input.accountId,
+            contactId: input.contactId ?? null,
+            ownerUserId: input.ownerUserId,
+            eventType: input.eventType,
+            title: input.title,
+            content: input.content ?? null,
+            metadata: input.metadata ?? null,
+            createdAt: new Date('2026-06-21T00:00:00Z')
+          };
+        }
+      } as never,
+      {} as never
+    );
+
+    const result = await service.updateContact(
+      contact.id,
+      { email: 'buyer@abc.example', fullName: 'Buyer' },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(result.contact.email, 'buyer@abc.example');
+    assert.equal(result.contact.emailStatus, 'unchecked');
+  });
+
+  it('deletes one owned contact and moves the account back to missing_contact when it becomes empty', async () => {
+    const account = createAccount();
+    const contact = createContact({});
+    const service = new CrmAccountService(
+      {
+        async findContactById() {
+          return contact;
+        },
+        async deleteContact() {
+          return contact;
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return {
+            id: 'event-1',
+            organizationId: input.organizationId,
+            accountId: input.accountId,
+            contactId: input.contactId ?? null,
+            ownerUserId: input.ownerUserId,
+            eventType: input.eventType,
+            title: input.title,
+            content: input.content ?? null,
+            metadata: input.metadata ?? null,
+            createdAt: new Date('2026-06-21T00:00:00Z')
+          };
+        },
+        async getAccountDetail() {
+          return {
+            account: {
+              ...account,
+              id: contact.accountId,
+              status: 'ready'
+            },
+            contacts: [],
+            enrichmentHistories: [],
+            timelineEvents: []
+          };
+        },
+        async updateAccount() {
+          return {
+            ...account,
+            status: 'missing_contact'
+          };
+        }
+      } as never,
+      {} as never
+    );
+
+    const result = await service.deleteContact(contact.id, {
+      userId: 'u-1',
+      userName: 'Sales',
+      roles: ['R_USER'],
+      organizationId: 'org-1',
+      organizationRole: 'member'
+    });
+
+    assert.equal(result.contact.id, contact.id);
+  });
+
   it('manually refreshes Hunter contacts and updates enrichment history', async () => {
     const account = createAccount();
     const createdContacts: CrmContactRecord[] = [];

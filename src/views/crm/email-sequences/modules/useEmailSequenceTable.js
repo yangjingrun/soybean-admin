@@ -144,7 +144,7 @@ export function useEmailSequenceTable() {
     const executableRows = checkedRows.value.filter(canGenerateNextSequenceDraft);
     const ids = executableRows.map(item => item.enrollment.id);
     if (ids.length === 0) {
-      message.warning('当前选中序列没有可生成下一封的记录');
+      message.warning('当前选中开发信任务没有可生成下一封的记录');
       return;
     }
     batchNextDraftResultDisplays.value = [];
@@ -172,7 +172,7 @@ export function useEmailSequenceTable() {
     const executableRows = checkedRows.value.filter(canApproveSequenceDraftInBatch);
     const ids = executableRows.map(item => item.enrollment.id);
     if (ids.length === 0) {
-      message.warning('当前选中序列没有可确认的待审草稿');
+      message.warning('当前选中开发信任务没有可确认的开发信');
       return;
     }
     batchNextDraftResultDisplays.value = [];
@@ -198,7 +198,7 @@ export function useEmailSequenceTable() {
   async function handleBatchStopSequences() {
     const ids = getStoppableSequenceIds(checkedRows.value);
     if (ids.length === 0) {
-      message.warning('当前选中序列没有可停止的记录');
+      message.warning('当前选中开发信任务没有可停止的记录');
       return;
     }
     batchNextDraftResultDisplays.value = [];
@@ -208,7 +208,7 @@ export function useEmailSequenceTable() {
       if (error) {
         return;
       }
-      const resultText = formatSequenceBatchResultText('批量停止序列', data);
+      const resultText = formatSequenceBatchResultText('批量停止跟进', data);
       if (data.failedCount > 0) {
         message.warning(resultText);
       } else {

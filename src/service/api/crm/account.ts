@@ -26,6 +26,15 @@ export function fetchCrmAccountDetail(id: string) {
   });
 }
 
+/** Update editable CRM account profile fields from the lead detail drawer. */
+export function updateCrmAccount(id: string, data: Api.Crm.LeadAccountUpdatePayload) {
+  return request<Api.Crm.LeadAccountUpdateResult>({
+    url: `/crm/accounts/${id}`,
+    method: 'patch',
+    data
+  });
+}
+
 /** Update the lifecycle status of one CRM account. */
 export function updateCrmAccountStatus(id: string, data: Api.Crm.LeadStatusPayload) {
   return request<Api.Crm.LeadStatusResult>({
@@ -41,6 +50,32 @@ export function createCrmAccountNote(id: string, data: Api.Crm.LeadNotePayload) 
     url: `/crm/accounts/${id}/notes`,
     method: 'post',
     data
+  });
+}
+
+/** Create one manual contact under the current CRM account. */
+export function createCrmContact(accountId: string, data: Api.Crm.LeadContactCreatePayload) {
+  return request<Api.Crm.LeadContactMutateResult>({
+    url: `/crm/accounts/${accountId}/contacts`,
+    method: 'post',
+    data
+  });
+}
+
+/** Update one CRM contact. */
+export function updateCrmContact(contactId: string, data: Api.Crm.LeadContactUpdatePayload) {
+  return request<Api.Crm.LeadContactMutateResult>({
+    url: `/crm/contacts/${contactId}`,
+    method: 'patch',
+    data
+  });
+}
+
+/** Delete one CRM contact. */
+export function deleteCrmContact(contactId: string) {
+  return request<Api.Crm.LeadContactMutateResult>({
+    url: `/crm/contacts/${contactId}/delete`,
+    method: 'post'
   });
 }
 

@@ -43,7 +43,7 @@ import {
   normalizeNullableString,
   normalizePositiveInteger
 } from '../shared/crm-normalizers';
-import { createCrmOwnerFilter } from '../shared/crm-scope';
+import { createCrmOwnerFilter, createCrmOwnerWriteScope } from '../shared/crm-scope';
 import {
   toAccountDetailView,
   toAccountView,
@@ -274,6 +274,73 @@ export class CrmAccountService {
     return toAccountDetailView(detail);
   }
 
+  /** Update editable account profile fields from the detail drawer and append a timeline record. */
+  async updateAccount(
+    id: string,
+    input: {
+      name?: string;
+      normalizedName?: string;
+      websiteUrl?: string | null;
+      country?: string | null;
+      customerType?: string | null;
+    },
+    context: CrmUserContext
+  ) {
+    const detail = await this.requireScopedAccountDetail(id, context);
+    const nextName = input.name ? normalizeLimitedContent(input.name, '客户名称不能为空', 200) : detail.account.name;
+    const nextNormalizedName = input.normalizedName
+      ? normalizeLimitedContent(input.normalizedName, '标准名不能为空', 200)
+      : detail.account.normalizedName;
+    const nextWebsiteUrl =
+      input.websiteUrl === undefined ? detail.account.websiteUrl : normalizeNullableString(input.websiteUrl);
+    const nextCountry = input.country === undefined ? detail.account.country : normalizeNullableString(input.country);
+    const nextCustomerType =
+      input.customerType === undefined ? detail.account.customerType : normalizeNullableString(input.customerType);
+    const nextDomain = normalizeCrmDomain(nextWebsiteUrl);
+
+    const account = await this.accountRepository.updateAccount(detail.account.id, {
+      name: nextName,
+      normalizedName: nextNormalizedName,
+      websiteUrl: nextWebsiteUrl,
+      domain: nextDomain,
+      country: nextCountry,
+      customerType: nextCustomerType
+    });
+
+    if (!account) {
+      throw new NotFoundException('线索不存在');
+    }
+
+    const event = await this.accountRepository.createTimelineEvent({
+      organizationId: account.organizationId,
+      accountId: account.id,
+      ownerUserId: context.userId,
+      eventType: 'account_profile_updated',
+      title: '更新账户信息',
+      metadata: {
+        before: {
+          name: detail.account.name,
+          normalizedName: detail.account.normalizedName,
+          websiteUrl: detail.account.websiteUrl,
+          country: detail.account.country,
+          customerType: detail.account.customerType
+        },
+        after: {
+          name: account.name,
+          normalizedName: account.normalizedName,
+          websiteUrl: account.websiteUrl,
+          country: account.country,
+          customerType: account.customerType
+        }
+      }
+    });
+
+    return {
+      account: toAccountView(account),
+      event: toTimelineEventView(event)
+    };
+  }
+
   /** Manually refresh contacts for one scoped CRM account through a provider. */
   async refreshAccountEnrichment(id: string, input: { provider: CrmLeadEnrichmentProvider }, context: CrmUserContext) {
     if (input.provider !== 'hunter') {
@@ -406,6 +473,157 @@ export class CrmAccountService {
 
     return {
       event: toTimelineEventView(event)
+    };
+  }
+
+  /** Create one manual contact under the owned account and keep account status in sync. */
+  async createContact(
+    accountId: string,
+    input: { fullName?: string | null; title?: string | null; email: string },
+    context: CrmUserContext
+  ) {
+    const scope = createCrmOwnerWriteScope(context);
+    const detail = await this.accountRepository.getAccountDetail({
+      id: accountId,
+      organizationId: scope.organizationId,
+      ownerUserId: scope.ownerUserId
+    });
+
+    if (!detail) {
+      throw new NotFoundException('线索不存在');
+    }
+
+    const contact = await this.upsertManualContact(detail.account, input, context);
+    const updatedAccount = await this.applyImportedContactAccountStatus(detail.account, contact);
+
+    return {
+      account: toAccountView(updatedAccount),
+      contact: toContactView(contact)
+    };
+  }
+
+  /** Update one owned contact and preserve the private-contact ownership boundary. */
+  async updateContact(
+    id: string,
+    input: { fullName?: string | null; title?: string | null; email?: string },
+    context: CrmUserContext
+  ) {
+    const scope = createCrmOwnerWriteScope(context);
+    const contact = await this.accountRepository.findContactById({
+      id,
+      organizationId: scope.organizationId,
+      ownerUserId: scope.ownerUserId
+    });
+
+    if (!contact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    const nextEmail = input.email === undefined ? contact.email : normalizeEmail(input.email);
+
+    if (!nextEmail) {
+      throw new BadRequestException('联系人邮箱不能为空');
+    }
+
+    const emailHash = hashEmail(nextEmail);
+    const duplicate = await this.accountRepository.findContactByEmailHash(
+      scope.organizationId,
+      scope.ownerUserId,
+      emailHash
+    );
+
+    if (duplicate && duplicate.id !== contact.id) {
+      throw new BadRequestException('该邮箱已存在于当前联系人库');
+    }
+
+    const updatedContact = await this.accountRepository.updateContact(contact.id, {
+      fullName: input.fullName === undefined ? contact.fullName : normalizeNullableString(input.fullName),
+      title: input.title === undefined ? contact.title : normalizeNullableString(input.title),
+      email: nextEmail,
+      emailHash,
+      maskedEmail: maskEmail(nextEmail),
+      isPublicEmail: isPublicEmail(nextEmail),
+      emailStatus: nextEmail === contact.email ? contact.emailStatus : 'unchecked'
+    });
+
+    if (!updatedContact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    await this.accountRepository.createTimelineEvent({
+      organizationId: updatedContact.organizationId,
+      accountId: updatedContact.accountId,
+      contactId: updatedContact.id,
+      ownerUserId: context.userId,
+      eventType: 'contact_updated',
+      title: '更新联系人',
+      metadata: {
+        before: {
+          fullName: contact.fullName,
+          title: contact.title,
+          maskedEmail: contact.maskedEmail,
+          emailStatus: contact.emailStatus
+        },
+        after: {
+          fullName: updatedContact.fullName,
+          title: updatedContact.title,
+          maskedEmail: updatedContact.maskedEmail,
+          emailStatus: updatedContact.emailStatus
+        }
+      }
+    });
+
+    return {
+      contact: toContactView(updatedContact)
+    };
+  }
+
+  /** Delete one owned contact and adjust the account status when no contact remains. */
+  async deleteContact(id: string, context: CrmUserContext) {
+    const scope = createCrmOwnerWriteScope(context);
+    const contact = await this.accountRepository.findContactById({
+      id,
+      organizationId: scope.organizationId,
+      ownerUserId: scope.ownerUserId
+    });
+
+    if (!contact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    const deletedContact = await this.accountRepository.deleteContact(contact.id);
+
+    if (!deletedContact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    await this.accountRepository.createTimelineEvent({
+      organizationId: deletedContact.organizationId,
+      accountId: deletedContact.accountId,
+      contactId: deletedContact.id,
+      ownerUserId: context.userId,
+      eventType: 'contact_deleted',
+      title: '删除联系人',
+      metadata: {
+        maskedEmail: deletedContact.maskedEmail,
+        fullName: deletedContact.fullName
+      }
+    });
+
+    const detail = await this.accountRepository.getAccountDetail({
+      id: deletedContact.accountId,
+      organizationId: scope.organizationId,
+      ownerUserId: scope.ownerUserId
+    });
+
+    if (detail && detail.contacts.length === 0 && detail.account.status !== 'archived') {
+      await this.accountRepository.updateAccount(detail.account.id, {
+        status: 'missing_contact'
+      });
+    }
+
+    return {
+      contact: toContactView(deletedContact)
     };
   }
 
@@ -570,6 +788,62 @@ export class CrmAccountService {
     const { contact: verifiedContact } = await this.applyContactEmailVerification(contact, verification, context);
 
     return verifiedContact;
+  }
+
+  private async upsertManualContact(
+    account: CrmAccountRecord,
+    input: { fullName?: string | null; title?: string | null; email: string },
+    context: CrmUserContext
+  ) {
+    const email = normalizeEmail(input.email);
+
+    if (!email) {
+      throw new BadRequestException('联系人邮箱不能为空');
+    }
+
+    const emailHash = hashEmail(email);
+    const existingContact = await this.accountRepository.findContactByEmailHash(
+      context.organizationId,
+      context.userId,
+      emailHash
+    );
+
+    if (existingContact) {
+      if (existingContact.accountId !== account.id) {
+        throw new BadRequestException('该邮箱已存在于其他客户下');
+      }
+
+      throw new BadRequestException('该联系人邮箱已存在');
+    }
+
+    const contact = await this.accountRepository.createContact({
+      organizationId: context.organizationId,
+      accountId: account.id,
+      ownerUserId: context.userId,
+      fullName: normalizeNullableString(input.fullName),
+      title: normalizeNullableString(input.title),
+      email,
+      emailHash,
+      maskedEmail: maskEmail(email),
+      isPublicEmail: isPublicEmail(email),
+      emailStatus: 'unchecked',
+      sourceTaskId: account.sourceTaskId
+    });
+
+    await this.accountRepository.createTimelineEvent({
+      organizationId: context.organizationId,
+      accountId: account.id,
+      contactId: contact.id,
+      ownerUserId: context.userId,
+      eventType: 'contact_created',
+      title: '新增联系人',
+      metadata: {
+        maskedEmail: contact.maskedEmail,
+        isPublicEmail: contact.isPublicEmail
+      }
+    });
+
+    return contact;
   }
 
   private async applyContactEmailVerification(

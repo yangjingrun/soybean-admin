@@ -1,9 +1,9 @@
 export var SetupStoreId;
-(function (setupStoreId) {
-  setupStoreId['App'] = 'app-store';
-  setupStoreId['AiLeadsTaskNotification'] = 'ai-leads-task-notification-store';
-  setupStoreId['Theme'] = 'theme-store';
-  setupStoreId['Auth'] = 'auth-store';
-  setupStoreId['Route'] = 'route-store';
-  setupStoreId['Tab'] = 'tab-store';
+(function (SetupStoreIdValue) {
+  SetupStoreIdValue['App'] = 'app-store';
+  SetupStoreIdValue['AiLeadsTaskNotification'] = 'ai-leads-task-notification-store';
+  SetupStoreIdValue['Theme'] = 'theme-store';
+  SetupStoreIdValue['Auth'] = 'auth-store';
+  SetupStoreIdValue['Route'] = 'route-store';
+  SetupStoreIdValue['Tab'] = 'tab-store';
 })(SetupStoreId || (SetupStoreId = {}));

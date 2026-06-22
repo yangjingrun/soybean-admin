@@ -5,10 +5,13 @@ import { CrmAccountService } from '../accounts/crm-account.service';
 import { CrmControllerBase } from '../crm-controller.helpers';
 import type { CrmUserContext } from '../crm.types';
 import { ArchiveCrmAccountDto } from '../dto/archive-crm-account.dto';
+import { CreateCrmContactDto } from '../dto/create-crm-contact.dto';
 import { CreateCrmAccountNoteDto } from '../dto/create-crm-account-note.dto';
 import { CrmAccountQueryDto } from '../dto/crm-account-query.dto';
 import { ImportCrmLeadDto } from '../dto/import-crm-lead.dto';
 import { RefreshCrmAccountEnrichmentDto } from '../dto/refresh-crm-account-enrichment.dto';
+import { UpdateCrmContactDto } from '../dto/update-crm-contact.dto';
+import { UpdateCrmAccountDto } from '../dto/update-crm-account.dto';
 import { UpdateCrmAccountStatusDto } from '../dto/update-crm-account-status.dto';
 
 /** Handles CRM accounts, lead imports, account notes, archive/restore, and contact email verify endpoints. */
@@ -35,6 +38,15 @@ export class CrmAccountController extends CrmControllerBase {
     return ok(await this.accountService.getAccountDetail(id, this.requireUserContext(context)));
   }
 
+  @Patch('accounts/:id')
+  async updateAccount(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmAccountDto
+  ) {
+    return ok(await this.accountService.updateAccount(id, dto, this.requireUserContext(context)));
+  }
+
   @Patch('accounts/:id/status')
   async updateAccountStatus(
     @CurrentContext() context: CrmUserContext | null = null,
@@ -51,6 +63,29 @@ export class CrmAccountController extends CrmControllerBase {
     @Body() dto: CreateCrmAccountNoteDto
   ) {
     return ok(await this.accountService.addAccountNote(id, dto, this.requireUserContext(context)));
+  }
+
+  @Post('accounts/:id/contacts')
+  async createContact(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Param('id') id: string,
+    @Body() dto: CreateCrmContactDto
+  ) {
+    return ok(await this.accountService.createContact(id, dto, this.requireUserContext(context)));
+  }
+
+  @Patch('contacts/:id')
+  async updateContact(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Param('id') id: string,
+    @Body() dto: UpdateCrmContactDto
+  ) {
+    return ok(await this.accountService.updateContact(id, dto, this.requireUserContext(context)));
+  }
+
+  @Post('contacts/:id/delete')
+  async deleteContact(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.accountService.deleteContact(id, this.requireUserContext(context)));
   }
 
   @Post('accounts/:id/archive')

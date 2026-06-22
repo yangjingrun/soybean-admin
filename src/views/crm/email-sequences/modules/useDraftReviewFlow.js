@@ -303,7 +303,7 @@ export function useDraftReviewFlow(options) {
       if (selectedEnrollmentId.value !== enrollmentId || !currentItem.value) {
         return;
       }
-      message.success('开发信序列已停止');
+      message.success('开发信跟进已停止');
       notifyCrmWorkbenchChanged();
       currentItem.value = data.message
         ? replaceReviewMessage(

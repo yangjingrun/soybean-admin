@@ -226,7 +226,7 @@ declare namespace Api {
       address?: string;
       phoneNumber?: string;
       sourceType?: string;
-      sourceLabel: string;
+      sourceLabel?: string;
       sourceUrl?: string;
       score?: number;
       reason?: string;
@@ -240,10 +240,10 @@ declare namespace Api {
 
     interface LeadSearchPublicResult {
       summary: {
-        actionCount: number;
-        qualityCheckCount: number;
+        actionCount?: number;
+        qualityCheckCount?: number;
         candidateCount: number;
-        stopReason: string;
+        stopReason?: string;
       };
       candidates: LeadSearchCandidateView[];
       serperResults: LeadSearchSerperResultView[];

@@ -180,7 +180,7 @@ export function buildAiLeadCandidateImportPayload(candidate, options = {}) {
   return {
     name: title,
     websiteUrl: website,
-    customerType: candidate.sourceLabel.trim(),
+    customerType: candidate.sourceLabel?.trim() || 'AI线索',
     sourceTaskId: options.sourceTaskId ?? null,
     sourceSnapshot: compactSourceSnapshot({
       title,

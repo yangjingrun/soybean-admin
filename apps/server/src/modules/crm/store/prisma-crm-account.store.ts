@@ -187,6 +187,15 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
     return records[0] ? toContactRecord(records[0]) : null;
   }
 
+  async deleteContact(id: string) {
+    const records = await this.prisma.crmContact.deleteManyAndReturn({
+      where: { id },
+      limit: 1
+    });
+
+    return records[0] ? toContactRecord(records[0]) : null;
+  }
+
   findContactById(args: { id: string; organizationId: string; ownerUserId?: string }) {
     return this.prisma.crmContact
       .findFirst({

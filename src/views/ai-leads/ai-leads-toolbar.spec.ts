@@ -64,7 +64,7 @@ describe('AI leads toolbar', () => {
     assert.match(pageComposableSource, /sourceTaskId: task\.id/);
     assert.match(pageSource, /@process-collected-leads="handleProcessCollectedLeads"/);
     assert.match(searchProgressPanelSource, /处理本次客户/);
-    assert.match(searchProgressPanelSource, /可用线索已自动沉淀到 CRM/);
+    assert.match(searchProgressPanelSource, /可用线索已自动进入 CRM/);
     assert.equal(searchProgressPanelSource.includes('导入 CRM'), false);
   });
 

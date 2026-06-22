@@ -225,6 +225,71 @@ describe('CRM split controllers', () => {
     assert.equal(calls[0].context.organizationId, 'org-1');
   });
 
+  it('updates one account profile with the current user context', async () => {
+    const calls: Array<{ id: string; dto: Record<string, unknown>; context: CrmUserContext }> = [];
+    const controller = createAccountController({
+      async updateAccount(id, dto, context) {
+        calls.push({ id, dto: dto as Record<string, unknown>, context });
+
+        return {
+          account: createAccountView({ id, name: 'ABC Trading Updated', websiteUrl: 'https://abc.example' }),
+          event: createTimelineEventView({ title: '更新账户信息' })
+        };
+      }
+    });
+
+    const dto = {
+      name: 'ABC Trading Updated',
+      normalizedName: 'abc trading updated',
+      websiteUrl: 'https://abc.example',
+      country: 'AE',
+      customerType: 'distributor'
+    };
+    const result = await controller.updateAccount(createContext(), 'account-1', dto);
+
+    assert.equal(result.code, '0000');
+    assert.equal(calls[0].id, 'account-1');
+    assert.deepEqual(calls[0].dto, dto);
+    assert.equal(calls[0].context.userId, 'user-1');
+    assert.equal((result.data.account as { name: string }).name, 'ABC Trading Updated');
+  });
+
+  it('creates, updates and deletes contacts with the current user context', async () => {
+    const calls: Array<{ method: string; args: unknown[] }> = [];
+    const controller = createAccountController({
+      async createContact(accountId, dto, context) {
+        calls.push({ method: 'create', args: [accountId, dto, context] });
+        return { contact: createContactView({ accountId }) };
+      },
+      async updateContact(contactId, dto, context) {
+        calls.push({ method: 'update', args: [contactId, dto, context] });
+        return { contact: createContactView({ id: contactId, email: 'buyer@example.com' }) };
+      },
+      async deleteContact(contactId, context) {
+        calls.push({ method: 'delete', args: [contactId, context] });
+        return { contact: createContactView({ id: contactId }) };
+      }
+    });
+
+    const createResult = await controller.createContact(createContext(), 'account-1', {
+      fullName: 'Alice',
+      title: 'Buyer',
+      email: 'alice@example.com'
+    });
+    const updateResult = await controller.updateContact(createContext(), 'contact-1', {
+      fullName: 'Alice Buyer',
+      email: 'buyer@example.com'
+    });
+    const deleteResult = await controller.deleteContact(createContext(), 'contact-1');
+
+    assert.equal(createResult.code, '0000');
+    assert.equal(updateResult.code, '0000');
+    assert.equal(deleteResult.code, '0000');
+    assert.equal(calls[0].method, 'create');
+    assert.equal(calls[1].method, 'update');
+    assert.equal(calls[2].method, 'delete');
+  });
+
   it('gets account detail with the current user context', async () => {
     const calls: Array<{ id: string; context: CrmUserContext }> = [];
     const controller = createAccountController({

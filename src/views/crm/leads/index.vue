@@ -9,12 +9,18 @@ import { useLeadTable } from './modules/shared/useLeadTable';
 
 const {
   archiveOperatingId,
+  accountSubmitting,
+  contactDeletingId,
+  contactSubmitting,
   detailLoading,
   detailVisible,
   filterModel,
   handleArchiveLead,
+  handleUpdateAccount,
   handleCreateSequenceFromContact,
+  handleCreateContact,
   handleCreateNote,
+  handleDeleteContact,
   handleDetailVisibleUpdate,
   handleImportLead,
   handleImportVisibleUpdate,
@@ -24,6 +30,7 @@ const {
   handleRefreshAccountEnrichment,
   handleRestoreLead,
   handleSearch,
+  handleUpdateContact,
   handleUpdateStatus,
   handleVerifyContactEmail,
   importForm,
@@ -82,14 +89,21 @@ const {
       :show="detailVisible"
       :detail="leadDetail"
       :loading="detailLoading"
+      :account-submitting="accountSubmitting"
+      :contact-deleting-id="contactDeletingId"
+      :contact-submitting="contactSubmitting"
       :note-submitting="noteSubmitting"
       :status-submitting="statusSubmitting"
       :verifying-contact-ids="verifyingContactIds"
       :refreshing-enrichment-provider="refreshingEnrichmentProvider"
       @update:show="handleDetailVisibleUpdate"
       @create-sequence="handleCreateSequenceFromContact"
+      @create-contact="handleCreateContact"
+      @delete-contact="handleDeleteContact"
       @refresh-enrichment="handleRefreshAccountEnrichment"
       @reload="loadLeadDetail()"
+      @submit-account="handleUpdateAccount"
+      @update-contact="handleUpdateContact"
       @submit-note="handleCreateNote"
       @submit-status="handleUpdateStatus"
       @verify-contact-email="handleVerifyContactEmail"

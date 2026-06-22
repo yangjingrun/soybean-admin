@@ -695,19 +695,16 @@ describe('AiLeadsService', () => {
       },
       { user: ordinaryUser }
     )) as {
-      summary: { actionCount: number; qualityCheckCount: number; candidateCount: number };
-      candidates: Array<{ sourceLabel: string }>;
+      summary: { candidateCount: number; actionCount?: number; qualityCheckCount?: number; stopReason?: string };
+      candidates: Array<Record<string, unknown>>;
       serperResults: unknown[];
       decisions?: unknown[];
     };
 
     assert.deepEqual(result.summary, {
-      actionCount: 1,
-      qualityCheckCount: 1,
-      candidateCount: 1,
-      stopReason: '所有查询已完成'
+      candidateCount: 1
     });
-    assert.equal(result.candidates[0].sourceLabel, '公开线索');
+    assert.equal('sourceLabel' in result.candidates[0], false);
     assert.deepEqual(result.serperResults, []);
     assert.equal('decisions' in result, false);
   });

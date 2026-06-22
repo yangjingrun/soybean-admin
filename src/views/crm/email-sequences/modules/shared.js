@@ -1,29 +1,33 @@
 import dayjs from 'dayjs';
 export const sequenceStatusOptions = [
-  { label: '草稿待审', value: 'draft_review_pending' },
-  { label: '待发送', value: 'ready_to_send' },
-  { label: '运行中', value: 'sequence_running' },
-  { label: '已暂停', value: 'paused' },
-  { label: '已停止', value: 'stopped' },
-  { label: '已回复', value: 'replied' },
-  { label: '已归档', value: 'archived' }
+  { label: '待确认开发信', value: 'draft_review_pending' },
+  { label: '待启动发送', value: 'ready_to_send' },
+  { label: '跟进中', value: 'sequence_running' },
+  { label: '已暂停跟进', value: 'paused' },
+  { label: '已停止跟进', value: 'stopped' },
+  { label: '客户已回复', value: 'replied' },
+  { label: '已结束记录', value: 'archived' }
 ];
+export const sequencePageGuide = {
+  title: '开发信跟进承接可开发客户',
+  description: '从客户管理创建后，先确认 AI 草稿，再启动首封发送；客户回信后会自动转到客户回信页处理。'
+};
 export const sequenceTodoTypeOptions = [
-  { label: '草稿待审', value: 'draft_review_pending' },
-  { label: '后续待审', value: 'follow_up_draft_review' },
+  { label: '待确认开发信', value: 'draft_review_pending' },
+  { label: '后续信待确认', value: 'follow_up_draft_review' },
   { label: '待启动首封', value: 'ready_to_start' },
   { label: '可生成下一封', value: 'can_generate_next' },
   { label: '发送失败', value: 'send_failed' },
-  { label: '已到最后一封', value: 'max_steps_reached' }
+  { label: '已完成全部步骤', value: 'max_steps_reached' }
 ];
 export const sequenceStatusLabelMap = {
-  draft_review_pending: '草稿待审',
-  ready_to_send: '待发送',
-  sequence_running: '运行中',
-  paused: '已暂停',
-  stopped: '已停止',
-  replied: '已回复',
-  archived: '已归档'
+  draft_review_pending: '待确认开发信',
+  ready_to_send: '待启动发送',
+  sequence_running: '跟进中',
+  paused: '已暂停跟进',
+  stopped: '已停止跟进',
+  replied: '客户已回复',
+  archived: '已结束记录'
 };
 export const sequenceStatusTagTypeMap = {
   draft_review_pending: 'warning',
@@ -35,9 +39,9 @@ export const sequenceStatusTagTypeMap = {
   archived: 'default'
 };
 export const messageStatusLabelMap = {
-  draft_pending_review: '草稿待审',
+  draft_pending_review: '待确认',
   draft_ready: '已确认',
-  queued: '队列中',
+  queued: '等待发送',
   sent: '已发送',
   failed: '发送失败',
   skipped: '已跳过'
@@ -516,16 +520,16 @@ export function getSequenceNextAction(item) {
   const currentMessage = getCurrentSequenceMessage(item);
   if (currentMessage?.status === 'draft_pending_review') {
     return {
-      label: '审核草稿',
+      label: '确认开发信',
       description: `第 ${currentMessage.stepIndex} 封待人工确认`,
-      buttonLabel: '审核',
+      buttonLabel: '确认',
       tagType: 'warning'
     };
   }
   if (item.enrollment.status === 'ready_to_send' && item.firstMessage?.status === 'draft_ready') {
     return {
       label: '启动首封',
-      description: '首封已确认，等待进入发送队列',
+      description: '首封已确认，等待启动发送',
       buttonLabel: '启动',
       tagType: 'success'
     };
@@ -576,7 +580,7 @@ export function getSequenceNextAction(item) {
   }
   if (item.enrollment.status === 'sequence_running') {
     return {
-      label: '运行中',
+      label: '跟进中',
       description: '等待下一步跟进或客户回复',
       buttonLabel: '查看',
       tagType: 'info'
@@ -584,15 +588,15 @@ export function getSequenceNextAction(item) {
   }
   if (item.enrollment.status === 'replied') {
     return {
-      label: '已回信',
-      description: '同公司当前序列已停发',
+      label: '客户已回复',
+      description: '同公司开发信已停止',
       buttonLabel: '查看',
       tagType: 'success'
     };
   }
   if (item.enrollment.status === 'stopped') {
     return {
-      label: '已停止',
+      label: '已停止跟进',
       description: '旧发送任务会自动跳过',
       buttonLabel: '查看',
       tagType: 'default'
@@ -600,7 +604,7 @@ export function getSequenceNextAction(item) {
   }
   if (item.enrollment.status === 'paused') {
     return {
-      label: '已暂停',
+      label: '已暂停跟进',
       description: '恢复后会创建新的运行版本',
       buttonLabel: '查看',
       tagType: 'warning'

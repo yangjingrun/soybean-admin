@@ -613,13 +613,13 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             v-if="canEdit"
             :disabled="
               loading ||
-                approving ||
-                refreshing ||
-                sendStarting ||
-                stopping ||
-                versionRestoring ||
-                nextDraftGenerating ||
-                !currentMessage
+              approving ||
+              refreshing ||
+              sendStarting ||
+              stopping ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage
             "
             :loading="saving"
             @click="handleSave"
@@ -631,14 +631,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             type="primary"
             :disabled="
               loading ||
-                saving ||
-                refreshing ||
-                sendStarting ||
-                stopping ||
-                versionRestoring ||
-                nextDraftGenerating ||
-                !currentMessage ||
-                !canApprove
+              saving ||
+              refreshing ||
+              sendStarting ||
+              stopping ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage ||
+              !canApprove
             "
             :loading="approving"
             @click="handleApprove"

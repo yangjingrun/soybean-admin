@@ -200,6 +200,9 @@ export const leadTimelineEventLabelMap: Record<string, string> = {
   archived_fingerprint_matched: '历史触达提醒',
   lead_enrichment_refreshed: '重新获取联系人',
   lead_enrichment_refresh_failed: '重新获取联系人失败',
+  contact_created: '新增联系人',
+  contact_updated: '更新联系人',
+  contact_deleted: '删除联系人',
   customer_unsubscribed: '客户退订',
   email_bounced: '邮件退信'
 };

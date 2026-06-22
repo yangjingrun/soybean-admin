@@ -4,12 +4,16 @@ import { useDialog, useMessage } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   archiveCrmAccount,
+  createCrmContact,
   createCrmAccountNote,
+  deleteCrmContact,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
   importCrmLead,
   refreshCrmAccountEnrichment,
   restoreCrmAccount,
+  updateCrmAccount,
+  updateCrmContact,
   updateCrmAccountStatus,
   verifyCrmContactEmail
 } from '@/service/api';
@@ -29,6 +33,9 @@ export function useLeadTable() {
   const leadDetail = shallowRef(null);
   const selectedLeadId = shallowRef(null);
   const noteSubmitting = shallowRef(false);
+  const accountSubmitting = shallowRef(false);
+  const contactSubmitting = shallowRef(false);
+  const contactDeletingId = shallowRef(null);
   const statusSubmitting = shallowRef(false);
   const archiveOperatingId = shallowRef(null);
   const verifyingContactIds = shallowRef([]);
@@ -57,9 +64,14 @@ export function useLeadTable() {
   );
   function applyRouteFilters() {
     const status = getRouteQueryString(route.query.status);
+    const sourceTaskId = getRouteQueryString(route.query.sourceTaskId);
     filterModel.status = null;
+    filterModel.sourceTaskId = null;
     if (isLeadStatus(status)) {
       filterModel.status = status;
+    }
+    if (sourceTaskId) {
+      filterModel.sourceTaskId = sourceTaskId;
     }
   }
   /** Load CRM account leads with backend pagination. */
@@ -238,6 +250,89 @@ export function useLeadTable() {
       noteSubmitting.value = false;
     }
   }
+  async function handleUpdateAccount(payload, done) {
+    const id = selectedLeadId.value;
+    if (!id) {
+      done?.(false);
+      return;
+    }
+    accountSubmitting.value = true;
+    try {
+      const { error } = await updateCrmAccount(id, payload);
+      if (error) {
+        done?.(false);
+        return;
+      }
+      message.success('账户信息已更新');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+      if (detailVisible.value && selectedLeadId.value === id) {
+        await loadLeadDetail(id);
+      }
+      done?.(true);
+    } finally {
+      accountSubmitting.value = false;
+    }
+  }
+  async function handleCreateContact(payload) {
+    const accountId = selectedLeadId.value;
+    if (!accountId) {
+      return false;
+    }
+    contactSubmitting.value = true;
+    try {
+      const { error } = await createCrmContact(accountId, payload);
+      if (error) {
+        return false;
+      }
+      message.success('联系人已新增');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+      if (detailVisible.value && selectedLeadId.value === accountId) {
+        await loadLeadDetail(accountId);
+      }
+      return true;
+    } finally {
+      contactSubmitting.value = false;
+    }
+  }
+  async function handleUpdateContact(contactId, payload) {
+    contactSubmitting.value = true;
+    try {
+      const { error } = await updateCrmContact(contactId, payload);
+      if (error) {
+        return false;
+      }
+      message.success('联系人已更新');
+      notifyCrmWorkbenchChanged();
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+      }
+      return true;
+    } finally {
+      contactSubmitting.value = false;
+    }
+  }
+  async function handleDeleteContact(contact) {
+    if (contactDeletingId.value) {
+      return;
+    }
+    contactDeletingId.value = contact.id;
+    try {
+      const { error } = await deleteCrmContact(contact.id);
+      if (error) {
+        return;
+      }
+      message.success('联系人已删除');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+      if (detailVisible.value && selectedLeadId.value === contact.accountId) {
+        await loadLeadDetail(contact.accountId);
+      }
+    } finally {
+      contactDeletingId.value = null;
+    }
+  }
   async function handleUpdateStatus(payload) {
     const id = selectedLeadId.value;
     if (!id) {
@@ -261,18 +356,18 @@ export function useLeadTable() {
   }
   function handleArchiveLead(record) {
     dialog.warning({
-      title: '确认归档客户',
-      content: `确认归档“${record.name}”？归档后客户会进入已归档状态。`,
-      positiveText: '归档',
+      title: '确认暂不开发客户',
+      content: `确认将“${record.name}”标记为暂不开发？客户会移出日常开发队列，但保留历史记录，后续可重新开发。`,
+      positiveText: '暂不开发',
       negativeText: '取消',
       onPositiveClick: () => archiveLead(record)
     });
   }
   function handleRestoreLead(record) {
     dialog.warning({
-      title: '确认恢复客户',
-      content: `确认恢复“${record.name}”？恢复后客户会回到候选状态。`,
-      positiveText: '恢复',
+      title: '确认重新开发客户',
+      content: `确认重新开发“${record.name}”？客户会回到候选线索，继续补资料和创建开发信。`,
+      positiveText: '重新开发',
       negativeText: '取消',
       onPositiveClick: () => restoreLead(record)
     });
@@ -285,7 +380,7 @@ export function useLeadTable() {
       if (error) {
         return;
       }
-      message.success('客户已归档');
+      message.success('客户已标记为暂不开发');
       notifyCrmWorkbenchChanged();
       if (selectedLeadId.value === record.id) {
         handleDetailVisibleUpdate(false);
@@ -303,7 +398,7 @@ export function useLeadTable() {
       if (error) {
         return;
       }
-      message.success('客户已恢复');
+      message.success('客户已恢复为候选线索');
       notifyCrmWorkbenchChanged();
       await loadLeads();
       if (detailVisible.value && selectedLeadId.value === record.id) {
@@ -333,14 +428,20 @@ export function useLeadTable() {
   }
   return {
     archiveOperatingId,
+    accountSubmitting,
+    contactDeletingId,
+    contactSubmitting,
     detailLoading,
     detailVisible,
     filterModel,
     handleArchiveLead,
+    handleUpdateAccount,
     handleImportLead,
     handleImportVisibleUpdate,
     handleCreateSequenceFromContact,
+    handleCreateContact,
     handleCreateNote,
+    handleDeleteContact,
     handleDetailVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
@@ -348,6 +449,7 @@ export function useLeadTable() {
     handleRestoreLead,
     handleRefreshAccountEnrichment,
     handleSearch,
+    handleUpdateContact,
     handleUpdateStatus,
     handleVerifyContactEmail,
     importForm,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, h, reactive, watch } from 'vue';
-import { NButton, NSpace, NTag, useMessage } from 'naive-ui';
+import { computed, h, reactive, ref, watch } from 'vue';
+import { NButton, NPopconfirm, NSpace, NTag, useMessage } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   createDefaultLeadNoteForm,
@@ -28,6 +28,9 @@ const props = defineProps<{
   show: boolean;
   detail: Api.Crm.LeadDetail | null;
   loading?: boolean;
+  accountSubmitting?: boolean;
+  contactDeletingId?: string | null;
+  contactSubmitting?: boolean;
   noteSubmitting?: boolean;
   statusSubmitting?: boolean;
   verifyingContactIds?: string[];
@@ -36,15 +39,33 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   createSequence: [contact: Api.Crm.LeadContact];
+  createContact: [payload: Api.Crm.LeadContactCreatePayload, done?: (success: boolean) => void];
+  deleteContact: [contact: Api.Crm.LeadContact];
   refreshEnrichment: [provider: Api.Crm.LeadEnrichmentProvider];
   'update:show': [show: boolean];
   reload: [];
+  submitAccount: [payload: Api.Crm.LeadAccountUpdatePayload, done?: (success: boolean) => void];
   submitNote: [payload: Api.Crm.LeadNotePayload];
   submitStatus: [payload: Api.Crm.LeadStatusPayload];
+  updateContact: [contactId: string, payload: Api.Crm.LeadContactUpdatePayload, done?: (success: boolean) => void];
   verifyContactEmail: [contact: Api.Crm.LeadContact];
 }>();
 
 const message = useMessage();
+
+interface LeadAccountFormModel {
+  name: string;
+  normalizedName: string;
+  websiteUrl: string;
+  country: string;
+  customerType: string;
+}
+
+interface LeadContactFormModel {
+  fullName: string;
+  title: string;
+  email: string;
+}
 
 const drawerVisible = computed({
   get: () => props.show,
@@ -53,6 +74,21 @@ const drawerVisible = computed({
 
 const noteForm = reactive(createDefaultLeadNoteForm());
 const statusForm = reactive(createDefaultLeadStatusForm());
+const accountForm = reactive<LeadAccountFormModel>({
+  name: '',
+  normalizedName: '',
+  websiteUrl: '',
+  country: '',
+  customerType: ''
+});
+const accountEditing = ref(false);
+const contactModalVisible = ref(false);
+const contactEditingId = ref<string | null>(null);
+const contactForm = reactive<LeadContactFormModel>({
+  fullName: '',
+  title: '',
+  email: ''
+});
 
 const account = computed(() => props.detail?.account ?? null);
 const contacts = computed(() => props.detail?.contacts ?? []);
@@ -72,6 +108,7 @@ const archivedMatchGroups = computed(() =>
 const archivedMatchCount = computed(() =>
   archivedMatchGroups.value.reduce((total, group) => total + group.matches.length, 0)
 );
+const contactModalTitle = computed(() => (contactEditingId.value ? '编辑联系人' : '新增联系人'));
 
 /** Check whether the current contact already has an email verification request in flight. */
 function isContactVerifying(contactId: string) {
@@ -86,6 +123,10 @@ function isEnrichmentRefreshing(provider: Api.Crm.LeadEnrichmentProvider) {
 /** Contacts that explicitly opted out or failed verification should not start new outreach from the drawer. */
 function canCreateSequence(contact: Api.Crm.LeadContact) {
   return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
+}
+
+function isContactDeleting(contactId: string) {
+  return props.contactDeletingId === contactId;
 }
 
 const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
@@ -139,6 +180,38 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
               {
                 size: 'small',
                 text: true,
+                type: 'info',
+                disabled: props.contactSubmitting,
+                onClick: () => handleStartEditContact(row)
+              },
+              { default: () => '编辑' }
+            ),
+            h(
+              NPopconfirm,
+              {
+                onPositiveClick: () => emit('deleteContact', row)
+              },
+              {
+                trigger: () =>
+                  h(
+                    NButton,
+                    {
+                      size: 'small',
+                      text: true,
+                      type: 'error',
+                      loading: isContactDeleting(row.id),
+                      disabled: isContactDeleting(row.id) || props.contactSubmitting
+                    },
+                    { default: () => '删除' }
+                  ),
+                default: () => '确认删除这个联系人吗？'
+              }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
                 type: 'primary',
                 loading: isContactVerifying(row.id),
                 disabled: isContactVerifying(row.id),
@@ -162,6 +235,20 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
       )
   }
 ]);
+
+watch(
+  () => props.detail?.account,
+  value => {
+    Object.assign(accountForm, {
+      name: value?.name ?? '',
+      normalizedName: value?.normalizedName ?? '',
+      websiteUrl: value?.websiteUrl ?? '',
+      country: value?.country ?? '',
+      customerType: value?.customerType ?? ''
+    });
+  },
+  { immediate: true }
+);
 
 watch(
   () => props.detail?.account.status,
@@ -204,6 +291,123 @@ function handleSubmitStatus() {
     ...(remark ? { remark } : {})
   });
 }
+
+function handleStartEditAccount() {
+  if (!account.value) {
+    return;
+  }
+
+  Object.assign(accountForm, {
+    name: account.value.name ?? '',
+    normalizedName: account.value.normalizedName ?? '',
+    websiteUrl: account.value.websiteUrl ?? '',
+    country: account.value.country ?? '',
+    customerType: account.value.customerType ?? ''
+  });
+  accountEditing.value = true;
+}
+
+function handleCancelEditAccount() {
+  accountEditing.value = false;
+  Object.assign(accountForm, {
+    name: account.value?.name ?? '',
+    normalizedName: account.value?.normalizedName ?? '',
+    websiteUrl: account.value?.websiteUrl ?? '',
+    country: account.value?.country ?? '',
+    customerType: account.value?.customerType ?? ''
+  });
+}
+
+function handleSubmitAccount() {
+  const name = accountForm.name.trim();
+  const normalizedName = accountForm.normalizedName.trim();
+
+  if (!name) {
+    message.warning('请输入客户名称');
+    return;
+  }
+
+  if (!normalizedName) {
+    message.warning('请输入标准名');
+    return;
+  }
+
+  emit(
+    'submitAccount',
+    {
+      name,
+      normalizedName,
+      websiteUrl: accountForm.websiteUrl.trim(),
+      country: accountForm.country.trim(),
+      customerType: accountForm.customerType.trim()
+    },
+    success => {
+      if (success) {
+        accountEditing.value = false;
+      }
+    }
+  );
+}
+
+function resetContactForm() {
+  Object.assign(contactForm, {
+    fullName: '',
+    title: '',
+    email: ''
+  });
+}
+
+function handleStartCreateContact() {
+  contactEditingId.value = null;
+  resetContactForm();
+  contactModalVisible.value = true;
+}
+
+function handleStartEditContact(contact: Api.Crm.LeadContact) {
+  contactEditingId.value = contact.id;
+  Object.assign(contactForm, {
+    fullName: contact.fullName ?? '',
+    title: contact.title ?? '',
+    email: contact.email
+  });
+  contactModalVisible.value = true;
+}
+
+function handleCloseContactModal() {
+  contactModalVisible.value = false;
+  contactEditingId.value = null;
+  resetContactForm();
+}
+
+function handleSubmitContact() {
+  const email = contactForm.email.trim();
+
+  if (!email) {
+    message.warning('请输入联系人邮箱');
+    return;
+  }
+
+  const payload = {
+    fullName: contactForm.fullName.trim(),
+    title: contactForm.title.trim(),
+    email
+  };
+
+  if (contactEditingId.value) {
+    emit('updateContact', contactEditingId.value, payload, success => {
+      if (success) {
+        handleCloseContactModal();
+      }
+    });
+    return;
+  }
+
+  emit('createContact', payload, success => {
+    if (success) {
+      handleCloseContactModal();
+    }
+  });
+}
 </script>
 
 <template>
@@ -222,9 +426,16 @@ function handleSubmitStatus() {
               </NTag>
               <span class="lead-summary-domain">{{ formatLeadText(account.domain) }}</span>
             </NSpace>
-            <div class="lead-summary-title">{{ account.name }}</div>
+            <NInput v-if="accountEditing" v-model:value="accountForm.name" size="small" placeholder="输入客户名称" />
+            <div v-else class="lead-summary-title">{{ account.name }}</div>
+            <NInput
+              v-if="accountEditing"
+              v-model:value="accountForm.websiteUrl"
+              size="small"
+              placeholder="输入官网链接或域名"
+            />
             <a
-              v-if="account.websiteUrl"
+              v-else-if="account.websiteUrl"
               class="lead-summary-link"
               :href="websiteHref"
               target="_blank"
@@ -261,11 +472,48 @@ function handleSubmitStatus() {
           </NAlert>
 
           <div class="drawer-section">
-            <div class="section-title">账户信息</div>
+            <div class="section-title-row">
+              <div class="section-title">账户信息</div>
+              <NSpace :size="8">
+                <NButton v-if="!accountEditing" size="small" secondary type="primary" @click="handleStartEditAccount">
+                  编辑
+                </NButton>
+                <template v-else>
+                  <NButton size="small" :disabled="accountSubmitting" @click="handleCancelEditAccount">取消</NButton>
+                  <NButton size="small" type="primary" :loading="accountSubmitting" @click="handleSubmitAccount">
+                    保存
+                  </NButton>
+                </template>
+              </NSpace>
+            </div>
             <NDescriptions :column="1" label-placement="left" bordered size="small">
-              <NDescriptionsItem label="标准名">{{ account.normalizedName }}</NDescriptionsItem>
-              <NDescriptionsItem label="国家">{{ formatLeadText(account.country) }}</NDescriptionsItem>
-              <NDescriptionsItem label="客户类型">{{ formatLeadText(account.customerType) }}</NDescriptionsItem>
+              <NDescriptionsItem label="标准名">
+                <NInput
+                  v-if="accountEditing"
+                  v-model:value="accountForm.normalizedName"
+                  size="small"
+                  placeholder="输入标准名"
+                />
+                <span v-else>{{ formatLeadText(account.normalizedName) }}</span>
+              </NDescriptionsItem>
+              <NDescriptionsItem label="国家">
+                <NInput
+                  v-if="accountEditing"
+                  v-model:value="accountForm.country"
+                  size="small"
+                  placeholder="输入国家/地区"
+                />
+                <span v-else>{{ formatLeadText(account.country) }}</span>
+              </NDescriptionsItem>
+              <NDescriptionsItem label="客户类型">
+                <NInput
+                  v-if="accountEditing"
+                  v-model:value="accountForm.customerType"
+                  size="small"
+                  placeholder="输入客户类型"
+                />
+                <span v-else>{{ formatLeadText(account.customerType) }}</span>
+              </NDescriptionsItem>
               <NDescriptionsItem label="来源任务">{{ formatLeadText(account.sourceTaskId) }}</NDescriptionsItem>
               <NDescriptionsItem label="创建时间">{{ formatLeadDate(account.createdAt) }}</NDescriptionsItem>
               <NDescriptionsItem label="更新时间">{{ formatLeadDate(account.updatedAt) }}</NDescriptionsItem>
@@ -329,12 +577,23 @@ function handleSubmitStatus() {
           </div>
 
           <div class="drawer-section">
-            <div class="section-title">联系人</div>
+            <div class="section-title-row">
+              <div class="section-title">联系人</div>
+              <NButton
+                size="small"
+                type="primary"
+                secondary
+                :disabled="contactSubmitting"
+                @click="handleStartCreateContact"
+              >
+                新增联系人
+              </NButton>
+            </div>
             <NDataTable
               :columns="contactColumns"
               :data="contacts"
               :row-key="row => row.id"
-              :scroll-x="620"
+              :scroll-x="760"
               size="small"
             >
               <template #empty>
@@ -377,6 +636,35 @@ function handleSubmitStatus() {
       </NSpin>
     </NDrawerContent>
   </NDrawer>
+
+  <NModal v-model:show="contactModalVisible" preset="card" :title="contactModalTitle" class="lead-contact-modal">
+    <NForm :model="contactForm" label-placement="top" size="small">
+      <NGrid :cols="24" :x-gap="12" responsive="screen" item-responsive>
+        <NGi span="24 m:12">
+          <NFormItem label="联系人">
+            <NInput v-model:value="contactForm.fullName" placeholder="输入联系人姓名" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24 m:12">
+          <NFormItem label="职位">
+            <NInput v-model:value="contactForm.title" placeholder="输入职位" />
+          </NFormItem>
+        </NGi>
+        <NGi span="24">
+          <NFormItem label="邮箱">
+            <NInput v-model:value="contactForm.email" placeholder="name@example.com" />
+          </NFormItem>
+        </NGi>
+      </NGrid>
+    </NForm>
+
+    <template #footer>
+      <NSpace justify="end">
+        <NButton :disabled="contactSubmitting" @click="handleCloseContactModal">取消</NButton>
+        <NButton type="primary" :loading="contactSubmitting" @click="handleSubmitContact">保存</NButton>
+      </NSpace>
+    </template>
+  </NModal>
 </template>
 
 <style scoped>
@@ -390,6 +678,13 @@ function handleSubmitStatus() {
 .drawer-toolbar {
   display: flex;
   justify-content: flex-end;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .lead-summary {
@@ -416,6 +711,10 @@ function handleSubmitStatus() {
 
 .lead-summary-link:hover {
   text-decoration: underline;
+}
+
+.lead-contact-modal {
+  width: min(560px, calc(100vw - 32px));
 }
 
 .historical-touch-alert {

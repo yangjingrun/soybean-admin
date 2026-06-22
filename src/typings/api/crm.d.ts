@@ -185,8 +185,34 @@ declare namespace Api {
       remark?: string;
     }
 
+    interface LeadAccountUpdatePayload {
+      name: string;
+      normalizedName: string;
+      websiteUrl?: string;
+      country?: string;
+      customerType?: string;
+    }
+
     interface LeadNotePayload {
       content: string;
+    }
+
+    interface LeadContactFormModel {
+      fullName: string;
+      title: string;
+      email: string;
+    }
+
+    interface LeadContactCreatePayload {
+      fullName?: string;
+      title?: string;
+      email: string;
+    }
+
+    interface LeadContactUpdatePayload {
+      fullName?: string;
+      title?: string;
+      email?: string;
     }
 
     interface LeadArchivePayload {
@@ -202,6 +228,11 @@ declare namespace Api {
       event: LeadTimelineEvent;
     }
 
+    interface LeadAccountUpdateResult {
+      account: LeadRecord;
+      event: LeadTimelineEvent;
+    }
+
     interface LeadNoteResult {
       event: LeadTimelineEvent;
     }
@@ -209,6 +240,11 @@ declare namespace Api {
     interface LeadContactEmailVerifyResult {
       contact: LeadContact;
       event: LeadTimelineEvent;
+    }
+
+    interface LeadContactMutateResult {
+      contact: LeadContact;
+      account?: LeadRecord;
     }
 
     interface LeadEnrichmentRefreshResult {

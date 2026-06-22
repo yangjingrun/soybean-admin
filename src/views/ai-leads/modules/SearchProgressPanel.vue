@@ -59,9 +59,10 @@ const summaryItems = computed(() => {
     { label: '质量判断', value: summary.qualityCheckCount },
     { label: '候选线索', value: summary.candidateCount },
     { label: '完成原因', value: summary.stopReason }
-  ];
+  ].filter(item => item.value !== undefined && item.value !== null && item.value !== '');
 });
 const candidateRows = computed(() => buildAiLeadCandidateImportRows(props.state.result?.candidates ?? []));
+const showSourceColumn = computed(() => candidateRows.value.some(row => Boolean(row.candidate.sourceLabel?.trim())));
 const serperResultRows = computed(() =>
   (props.showSerperDetails ? (props.state.result?.serperResults ?? []) : []).map((item, index) => ({
     key: `${item.endpoint}-${index}`,
@@ -70,92 +71,102 @@ const serperResultRows = computed(() =>
     resultCode: formatJson(item.result)
   }))
 );
-const candidateColumns: DataTableColumns<AiLeadCandidateImportRow> = [
-  {
-    title: '线索名称',
-    key: 'title',
-    minWidth: 180,
-    ellipsis: { tooltip: true },
-    render: row => row.candidate.title || '-'
-  },
-  {
-    title: '网站',
-    key: 'website',
-    minWidth: 220,
-    ellipsis: { tooltip: true },
-    render: row =>
-      row.candidate.website
-        ? h(
-            'a',
+const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(() => {
+  const columns: DataTableColumns<AiLeadCandidateImportRow> = [
+    {
+      title: '线索名称',
+      key: 'title',
+      minWidth: 180,
+      ellipsis: { tooltip: true },
+      render: row => row.candidate.title || '-'
+    },
+    {
+      title: '网站',
+      key: 'website',
+      minWidth: 220,
+      ellipsis: { tooltip: true },
+      render: row =>
+        row.candidate.website
+          ? h(
+              'a',
+              {
+                class: 'candidate-link',
+                href: row.candidate.website,
+                rel: 'noopener noreferrer',
+                target: '_blank'
+              },
+              row.candidate.website
+            )
+          : '-'
+    },
+    {
+      title: '线索信息',
+      key: 'snippet',
+      minWidth: 260,
+      ellipsis: { tooltip: true },
+      render: row => row.candidate.snippet || '-'
+    },
+    {
+      title: '地区',
+      key: 'address',
+      minWidth: 180,
+      ellipsis: { tooltip: true },
+      render: row => row.candidate.address || '-'
+    },
+    {
+      title: '电话',
+      key: 'phoneNumber',
+      width: 150,
+      ellipsis: { tooltip: true },
+      render: row => row.candidate.phoneNumber || '-'
+    },
+    {
+      title: 'CRM 状态',
+      key: 'importState',
+      minWidth: 170,
+      render: row =>
+        h('div', { class: 'candidate-quality-cell' }, [
+          h(
+            NTag,
             {
-              class: 'candidate-link',
-              href: row.candidate.website,
-              rel: 'noopener noreferrer',
-              target: '_blank'
+              size: 'small',
+              bordered: false,
+              type: row.importState.canImport ? 'success' : 'warning'
             },
-            row.candidate.website
-          )
-        : '-'
-  },
-  {
-    title: '线索信息',
-    key: 'snippet',
-    minWidth: 260,
-    ellipsis: { tooltip: true },
-    render: row => row.candidate.snippet || '-'
-  },
-  {
-    title: '地区',
-    key: 'address',
-    minWidth: 180,
-    ellipsis: { tooltip: true },
-    render: row => row.candidate.address || '-'
-  },
-  {
-    title: '电话',
-    key: 'phoneNumber',
-    width: 150,
-    ellipsis: { tooltip: true },
-    render: row => row.candidate.phoneNumber || '-'
-  },
-  {
-    title: '来源',
-    key: 'sourceLabel',
-    width: 130,
-    render: row =>
-      h(
-        NTag,
-        {
-          size: 'small',
-          bordered: false,
-          type: row.candidate.sourceLabel.includes('本地') ? 'success' : 'info'
-        },
-        { default: () => row.candidate.sourceLabel }
-      )
-  },
-  {
-    title: 'CRM 状态',
-    key: 'importState',
-    minWidth: 170,
-    render: row =>
-      h('div', { class: 'candidate-quality-cell' }, [
-        h(
+            { default: () => (row.importState.canImport ? '已入库' : '已过滤') }
+          ),
+          h('span', { class: 'candidate-quality-text' }, getImportStateText(row))
+        ])
+    }
+  ];
+
+  if (showSourceColumn.value) {
+    columns.splice(5, 0, {
+      title: '来源',
+      key: 'sourceLabel',
+      width: 130,
+      render: row => {
+        const sourceLabel = row.candidate.sourceLabel?.trim();
+
+        if (!sourceLabel) {
+          return '-';
+        }
+
+        return h(
           NTag,
           {
             size: 'small',
             bordered: false,
-            type: row.importState.canImport ? 'success' : 'warning'
+            type: sourceLabel.includes('本地') ? 'success' : 'info'
           },
-          { default: () => (row.importState.canImport ? '已沉淀' : '已过滤') }
-        ),
-        h(
-          'span',
-          { class: 'candidate-quality-text' },
-          row.importState.reasons.join('、') || row.importState.domain || '已进入 CRM 客户管理'
-        )
-      ])
+          { default: () => sourceLabel }
+        );
+      }
+    });
   }
-];
+
+  return columns;
+});
 
 function getStepIndex(index: number) {
   return String(index + 1).padStart(2, '0');
@@ -171,6 +182,15 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
   const q = typeof item.requestBody.q === 'string' ? item.requestBody.q : '';
 
   return q ? `${getStepIndex(index)} ${item.endpoint} · ${q}` : `${getStepIndex(index)} ${item.endpoint}`;
+}
+
+/** Keeps CRM status copy user-facing and hides internal domain details after import. */
+function getImportStateText(row: AiLeadCandidateImportRow) {
+  if (row.importState.canImport) {
+    return '已进入 CRM 客户管理';
+  }
+
+  return row.importState.reasons.join('、') || '该线索暂未进入 CRM';
 }
 </script>
 
@@ -212,7 +232,7 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
     <NAlert v-if="state.status === 'completed'" type="success" :bordered="false" class="crm-next-step-alert">
       <div class="crm-next-step">
         <div class="crm-next-step__copy">
-          <NText strong>可用线索已自动沉淀到 CRM</NText>
+          <NText strong>可用线索已自动进入 CRM</NText>
           <NText depth="3">下一步处理本次客户，补齐联系人、验证邮箱，并从可开发联系人创建开发信。</NText>
         </div>
         <NButton type="primary" size="small" :disabled="!processable" @click="emit('processCollectedLeads')">

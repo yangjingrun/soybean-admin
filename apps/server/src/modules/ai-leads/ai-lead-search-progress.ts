@@ -19,7 +19,7 @@ export interface LeadSearchCandidateView {
   snippet?: string;
   address?: string;
   phoneNumber?: string;
-  sourceLabel: string;
+  sourceLabel?: string;
 }
 
 export interface LeadSearchSerperResultView {
@@ -30,10 +30,10 @@ export interface LeadSearchSerperResultView {
 
 export interface LeadSearchPublicResult {
   summary: {
-    actionCount: number;
-    qualityCheckCount: number;
+    actionCount?: number;
+    qualityCheckCount?: number;
     candidateCount: number;
-    stopReason: string;
+    stopReason?: string;
   };
   candidates: LeadSearchCandidateView[];
   serperResults: LeadSearchSerperResultView[];
@@ -110,14 +110,10 @@ export function serializeLeadSearchProgressEvent(event: LeadSearchProgressEvent)
 export function toLeadSearchPublicResult(result: InternalSearchResult): LeadSearchPublicResult {
   return {
     summary: {
-      actionCount: result.serperRequests.length,
-      qualityCheckCount: result.decisions.length,
-      candidateCount: result.candidates.length,
-      stopReason: toPublicText(result.stopReason)
+      candidateCount: result.candidates.length
     },
     candidates: result.candidates.map(toCandidateView),
-    serperResults: [],
-    warnings: result.qualityWarnings?.length ? result.qualityWarnings.map(toPublicText) : undefined
+    serperResults: []
   };
 }
 
@@ -127,36 +123,6 @@ function toCandidateView(candidate: InternalCandidateSummary): LeadSearchCandida
     website: candidate.website || candidate.url,
     snippet: candidate.snippet,
     address: candidate.address,
-    phoneNumber: candidate.phoneNumber,
-    sourceLabel: toSourceLabel(candidate.sourceType)
+    phoneNumber: candidate.phoneNumber
   };
-}
-
-function toSourceLabel(sourceType?: string) {
-  if (sourceType === 'maps') {
-    return '地图商家线索';
-  }
-
-  if (sourceType === 'place' || sourceType === 'local') {
-    return '本地商家线索';
-  }
-
-  if (sourceType === 'organic') {
-    return '公开线索';
-  }
-
-  return '候选线索';
-}
-
-function toPublicText(text: string) {
-  return text
-    .replace(/Serper 请求/g, '采集动作')
-    .replace(/Serper/g, '采集')
-    .replace(/Search 查询/g, '公开线索采集方向')
-    .replace(/Places 查询/g, '本地商家采集方向')
-    .replace(/Maps 查询/g, '地图商家采集方向')
-    .replace(/Search/g, '公开线索采集')
-    .replace(/Places/g, '本地商家采集')
-    .replace(/Maps/g, '地图商家采集')
-    .replace(/endpoint/gi, '采集通道');
 }

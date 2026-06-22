@@ -22,6 +22,14 @@ export function fetchCrmAccountDetail(id) {
     method: 'get'
   });
 }
+/** Update editable CRM account profile fields from the lead detail drawer. */
+export function updateCrmAccount(id, data) {
+  return request({
+    url: `/crm/accounts/${id}`,
+    method: 'patch',
+    data
+  });
+}
 /** Update the lifecycle status of one CRM account. */
 export function updateCrmAccountStatus(id, data) {
   return request({
@@ -36,6 +44,29 @@ export function createCrmAccountNote(id, data) {
     url: `/crm/accounts/${id}/notes`,
     method: 'post',
     data
+  });
+}
+/** Create one manual contact under the current CRM account. */
+export function createCrmContact(accountId, data) {
+  return request({
+    url: `/crm/accounts/${accountId}/contacts`,
+    method: 'post',
+    data
+  });
+}
+/** Update one CRM contact. */
+export function updateCrmContact(contactId, data) {
+  return request({
+    url: `/crm/contacts/${contactId}`,
+    method: 'patch',
+    data
+  });
+}
+/** Delete one CRM contact. */
+export function deleteCrmContact(contactId) {
+  return request({
+    url: `/crm/contacts/${contactId}/delete`,
+    method: 'post'
   });
 }
 /** Verify one CRM contact email and append the backend timeline event. */

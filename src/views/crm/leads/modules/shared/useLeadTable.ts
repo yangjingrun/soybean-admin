@@ -4,12 +4,16 @@ import { useDialog, useMessage } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   archiveCrmAccount,
+  createCrmContact,
   createCrmAccountNote,
+  deleteCrmContact,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
   importCrmLead,
   refreshCrmAccountEnrichment,
   restoreCrmAccount,
+  updateCrmAccount,
+  updateCrmContact,
   updateCrmAccountStatus,
   verifyCrmContactEmail
 } from '@/service/api';
@@ -30,6 +34,9 @@ export function useLeadTable() {
   const leadDetail = shallowRef<Api.Crm.LeadDetail | null>(null);
   const selectedLeadId = shallowRef<string | null>(null);
   const noteSubmitting = shallowRef(false);
+  const accountSubmitting = shallowRef(false);
+  const contactSubmitting = shallowRef(false);
+  const contactDeletingId = shallowRef<string | null>(null);
   const statusSubmitting = shallowRef(false);
   const archiveOperatingId = shallowRef<string | null>(null);
   const verifyingContactIds = shallowRef<string[]>([]);
@@ -297,6 +304,117 @@ export function useLeadTable() {
     }
   }
 
+  async function handleUpdateAccount(payload: Api.Crm.LeadAccountUpdatePayload, done?: (success: boolean) => void) {
+    const id = selectedLeadId.value;
+
+    if (!id) {
+      done?.(false);
+      return;
+    }
+
+    accountSubmitting.value = true;
+
+    try {
+      const { error } = await updateCrmAccount(id, payload);
+
+      if (error) {
+        done?.(false);
+        return;
+      }
+
+      message.success('账户信息已更新');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === id) {
+        await loadLeadDetail(id);
+      }
+
+      done?.(true);
+    } finally {
+      accountSubmitting.value = false;
+    }
+  }
+
+  async function handleCreateContact(payload: Api.Crm.LeadContactCreatePayload) {
+    const accountId = selectedLeadId.value;
+
+    if (!accountId) {
+      return false;
+    }
+
+    contactSubmitting.value = true;
+
+    try {
+      const { error } = await createCrmContact(accountId, payload);
+
+      if (error) {
+        return false;
+      }
+
+      message.success('联系人已新增');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === accountId) {
+        await loadLeadDetail(accountId);
+      }
+
+      return true;
+    } finally {
+      contactSubmitting.value = false;
+    }
+  }
+
+  async function handleUpdateContact(contactId: string, payload: Api.Crm.LeadContactUpdatePayload) {
+    contactSubmitting.value = true;
+
+    try {
+      const { error } = await updateCrmContact(contactId, payload);
+
+      if (error) {
+        return false;
+      }
+
+      message.success('联系人已更新');
+      notifyCrmWorkbenchChanged();
+
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+      }
+
+      return true;
+    } finally {
+      contactSubmitting.value = false;
+    }
+  }
+
+  async function handleDeleteContact(contact: Api.Crm.LeadContact) {
+    if (contactDeletingId.value) {
+      return;
+    }
+
+    contactDeletingId.value = contact.id;
+
+    try {
+      const { error } = await deleteCrmContact(contact.id);
+
+      if (error) {
+        return;
+      }
+
+      message.success('联系人已删除');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === contact.accountId) {
+        await loadLeadDetail(contact.accountId);
+      }
+    } finally {
+      contactDeletingId.value = null;
+    }
+  }
+
   async function handleUpdateStatus(payload: Api.Crm.LeadStatusPayload) {
     const id = selectedLeadId.value;
 
@@ -416,14 +534,20 @@ export function useLeadTable() {
 
   return {
     archiveOperatingId,
+    accountSubmitting,
+    contactDeletingId,
+    contactSubmitting,
     detailLoading,
     detailVisible,
     filterModel,
     handleArchiveLead,
+    handleUpdateAccount,
     handleImportLead,
     handleImportVisibleUpdate,
     handleCreateSequenceFromContact,
+    handleCreateContact,
     handleCreateNote,
+    handleDeleteContact,
     handleDetailVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
@@ -431,6 +555,7 @@ export function useLeadTable() {
     handleRestoreLead,
     handleRefreshAccountEnrichment,
     handleSearch,
+    handleUpdateContact,
     handleUpdateStatus,
     handleVerifyContactEmail,
     importForm,

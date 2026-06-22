@@ -571,13 +571,13 @@ describe('AiLeadSearchTaskService', () => {
 
     const task = await service.getTaskById('task-1', { user: ordinaryUser });
     const result = task.result as {
-      summary: { actionCount: number };
-      candidates: Array<{ sourceLabel: string }>;
+      summary: { candidateCount: number; actionCount?: number; qualityCheckCount?: number; stopReason?: string };
+      candidates: Array<Record<string, unknown>>;
       serperResults: unknown[];
     };
 
-    assert.equal(result.summary.actionCount, 1);
-    assert.equal(result.candidates[0].sourceLabel, '公开线索');
+    assert.deepEqual(result.summary, { candidateCount: 1 });
+    assert.equal('sourceLabel' in result.candidates[0], false);
     assert.deepEqual(result.serperResults, []);
   });
 

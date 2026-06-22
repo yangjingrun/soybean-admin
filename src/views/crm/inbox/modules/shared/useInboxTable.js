@@ -191,7 +191,7 @@ export function useInboxTable() {
       if (error || selectedThreadId.value !== threadId) {
         return;
       }
-      message.success('收件箱状态已更新');
+      message.success('客户回信状态已更新');
       notifyCrmWorkbenchChanged();
       currentDetail.value = currentDetail.value
         ? {
@@ -252,7 +252,7 @@ export function useInboxTable() {
   /** Restore the local draft fields to the state before the latest AI polish. */
   function handleRestorePolishSnapshot() {
     const snapshot = replyPolishUndoSnapshot.value;
-    if (!canRestoreInboxReplyPolishSnapshot(snapshot, selectedThreadId.value)) {
+    if (!snapshot || !canRestoreInboxReplyPolishSnapshot(snapshot, selectedThreadId.value)) {
       return;
     }
     replyTopic.value = snapshot.topic;
@@ -333,7 +333,7 @@ export function useInboxTable() {
       return;
     }
     if (!currentDetail.value?.canOperate) {
-      message.warning('当前账号不可确认该退订');
+      message.warning('当前账号不可确认不再联系');
       return;
     }
     unsubscribeConfirming.value = true;
@@ -342,7 +342,7 @@ export function useInboxTable() {
       if (error || selectedThreadId.value !== threadId) {
         return;
       }
-      message.success('已确认退订并加入黑名单');
+      message.success('已加入不再联系名单');
       notifyCrmWorkbenchChanged();
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);
