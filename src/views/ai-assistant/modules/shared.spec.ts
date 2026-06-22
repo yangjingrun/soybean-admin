@@ -30,7 +30,7 @@ const baseLead: Api.Crm.LeadRecord = {
   updatedAt: '2026-06-22T00:00:00.000Z'
 };
 
-function createLead(status: Api.Crm.CrmAccountStatus, id = status): Api.Crm.LeadRecord {
+function createLead(status: Api.Crm.CrmAccountStatus, id: string = status): Api.Crm.LeadRecord {
   return {
     ...baseLead,
     id,

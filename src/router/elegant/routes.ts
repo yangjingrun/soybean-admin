@@ -40,6 +40,17 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'ai-assistant',
+    path: '/ai-assistant',
+    component: 'layout.base$view.ai-assistant',
+    meta: {
+      title: 'ai-assistant',
+      i18nKey: 'route.ai-assistant',
+      icon: 'mdi:robot-happy-outline',
+      order: 2
+    }
+  },
+  {
     name: 'ai-leads',
     path: '/ai-leads',
     component: 'layout.base$view.ai-leads',
@@ -47,7 +58,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'ai-leads',
       i18nKey: 'route.ai-leads',
       icon: 'mdi:account-search-outline',
-      order: 2,
+      order: 3,
       keepAlive: true
     }
   },

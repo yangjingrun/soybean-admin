@@ -98,8 +98,12 @@ export function useAiAssistantPage() {
   }
 
   /** Create the first follow-up review item from the best available contact. */
-  async function startFollowUp() {
-    const detail = selectedDetail.value;
+  async function startFollowUp(record = selectedDetail.value?.account) {
+    if (!record) {
+      return;
+    }
+
+    const detail = await ensureLeadDetailForAction(record);
 
     if (!detail) {
       return;
@@ -124,10 +128,9 @@ export function useAiAssistantPage() {
     message.success('首封开发信草稿已生成');
     notifyCrmWorkbenchChanged();
 
-    const enrollmentId = data.item.enrollment.id;
     await router.push({
       path: '/crm/email-sequences',
-      ...(enrollmentId ? { query: { enrollmentId } } : {})
+      query: { todoType: 'draft_review_pending' }
     });
   }
 
@@ -210,7 +213,7 @@ export function useAiAssistantPage() {
   /** Load detail for the selected lead and prevent old responses from replacing newer detail. */
   async function loadDetail(id = selectedLeadId.value) {
     if (!id) {
-      return;
+      return null;
     }
 
     const requestId = latestDetailRequestId + 1;
@@ -221,15 +224,18 @@ export function useAiAssistantPage() {
       const { data, error } = await fetchCrmAccountDetail(id);
 
       if (error || requestId !== latestDetailRequestId || selectedLeadId.value !== id) {
-        return;
+        return null;
       }
 
       selectedDetail.value = data;
+      return data;
     } finally {
       if (requestId === latestDetailRequestId) {
         detailLoading.value = false;
       }
     }
+
+    return null;
   }
 
   /** Refresh list and the currently open detail after a lead mutation. */
@@ -240,6 +246,19 @@ export function useAiAssistantPage() {
     if (detailVisible.value && selectedLeadId.value) {
       await loadDetail(selectedLeadId.value);
     }
+  }
+
+  /** Load detail before account-level actions that need contacts or timeline context. */
+  async function ensureLeadDetailForAction(record: Api.Crm.LeadRecord) {
+    if (selectedDetail.value?.account.id === record.id) {
+      return selectedDetail.value;
+    }
+
+    selectedLeadId.value = record.id;
+    selectedDetail.value = null;
+    detailVisible.value = true;
+
+    return loadDetail(record.id);
   }
 
   return {
