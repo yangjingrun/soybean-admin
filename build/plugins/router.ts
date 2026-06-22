@@ -48,38 +48,39 @@ export function setupElegantRouter() {
 
       if (key === 'ai-settings') {
         meta.icon = 'mdi:server-network-outline';
-        meta.order = 7;
+        meta.order = 6;
       }
 
       if (key === 'ai-prompt-settings') {
         meta.icon = 'mdi:file-document-edit-outline';
-        meta.order = 4;
+        meta.order = 7;
         meta.permissions = ['ai:settings:prompt:manage'];
       }
 
       if (key === 'crm') {
         meta.icon = 'mdi:account-box-multiple-outline';
-        meta.order = 5;
+        meta.order = 3;
+        meta.flattenChildrenInMenu = true;
       }
 
       if (key === 'crm_leads') {
         meta.icon = 'mdi:account-multiple-outline';
-        meta.order = 1;
+        meta.order = 3;
       }
 
       if (key === 'crm_email-sequences') {
         meta.icon = 'mdi:email-sync-outline';
-        meta.order = 2;
+        meta.order = 4;
       }
 
       if (key === 'crm_inbox') {
         meta.icon = 'mdi:inbox-full-outline';
-        meta.order = 3;
+        meta.order = 5;
       }
 
       if (key === 'crm_settings') {
         meta.icon = 'mdi:cog-outline';
-        meta.order = 4;
+        meta.order = 8;
         meta.permissions = [
           'crm:settings:assets:read',
           'crm:settings:assets:write',
@@ -100,7 +101,7 @@ export function setupElegantRouter() {
 
       if (key === 'manage') {
         meta.icon = 'carbon:cloud-service-management';
-        meta.order = 6;
+        meta.order = 9;
         meta.roles = ['R_SUPER'];
       }
 

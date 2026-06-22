@@ -57,6 +57,12 @@ declare module 'vue-router' {
     /** Whether to hide the route in the menu */
     hideInMenu?: boolean | null;
     /**
+     * Whether to lift visible child routes to the current menu level.
+     *
+     * Useful when a route is only a URL grouping container.
+     */
+    flattenChildrenInMenu?: boolean | null;
+    /**
      * The menu key will be activated when entering the route
      *
      * The route is not in the menu

@@ -59,7 +59,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'ai-prompt-settings',
       i18nKey: 'route.ai-prompt-settings',
       icon: 'mdi:file-document-edit-outline',
-      order: 4,
+      order: 7,
       permissions: ['ai:settings:prompt:manage']
     }
   },
@@ -71,7 +71,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'ai-settings',
       i18nKey: 'route.ai-settings',
       icon: 'mdi:server-network-outline',
-      order: 7
+      order: 6
     }
   },
   {
@@ -82,7 +82,8 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'crm',
       i18nKey: 'route.crm',
       icon: 'mdi:account-box-multiple-outline',
-      order: 5
+      order: 3,
+      flattenChildrenInMenu: true
     },
     children: [
       {
@@ -93,7 +94,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'crm_email-sequences',
           i18nKey: 'route.crm_email-sequences',
           icon: 'mdi:email-sync-outline',
-          order: 2
+          order: 4
         }
       },
       {
@@ -115,7 +116,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'crm_inbox',
           i18nKey: 'route.crm_inbox',
           icon: 'mdi:inbox-full-outline',
-          order: 3
+          order: 5
         }
       },
       {
@@ -126,7 +127,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'crm_leads',
           i18nKey: 'route.crm_leads',
           icon: 'mdi:account-multiple-outline',
-          order: 1
+          order: 3
         }
       },
       {
@@ -137,7 +138,7 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'crm_settings',
           i18nKey: 'route.crm_settings',
           icon: 'mdi:cog-outline',
-          order: 4,
+          order: 8,
           permissions: [
             'crm:settings:assets:read',
             'crm:settings:assets:write',
@@ -197,7 +198,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'manage',
       i18nKey: 'route.manage',
       icon: 'carbon:cloud-service-management',
-      order: 6,
+      order: 9,
       roles: ['R_SUPER']
     },
     children: [

@@ -91,6 +91,11 @@ export function getGlobalMenusByAuthRoutes(routes: ElegantConstRoute[]) {
   const menus: App.Global.Menu[] = [];
 
   routes.forEach(route => {
+    if (route.meta?.flattenChildrenInMenu) {
+      menus.push(...getFlattenedGlobalMenusByRoute(route));
+      return;
+    }
+
     if (!route.meta?.hideInMenu) {
       const menu = getGlobalMenuByBaseRoute(route);
 
@@ -103,6 +108,19 @@ export function getGlobalMenusByAuthRoutes(routes: ElegantConstRoute[]) {
   });
 
   return menus;
+}
+
+/**
+ * Lift visible child routes to current menu level.
+ *
+ * @param route Route that only works as a path grouping container
+ */
+function getFlattenedGlobalMenusByRoute(route: ElegantConstRoute) {
+  if (!route.children?.length) {
+    return [];
+  }
+
+  return getGlobalMenusByAuthRoutes(route.children);
 }
 
 /**
