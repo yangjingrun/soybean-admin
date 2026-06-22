@@ -28,7 +28,7 @@ const {
   handleDeleteCurrentHistory,
   handleDeleteHistory,
   handleGenerate,
-  handleImportCandidate,
+  handleProcessCollectedLeads,
   handleReturnToKeywordOptimization,
   handleSaveHistory,
   handleSearchCustomers,
@@ -38,7 +38,6 @@ const {
   handleTargetLeadCountUpdate,
   hasSearchProgress,
   historyRecords,
-  importingCandidateKey,
   isEditingResult,
   isGenerating,
   isHistoryDeleting,
@@ -415,10 +414,10 @@ const taskActionButtons = computed(
       <div v-if="hasSearchProgress" class="result-panel">
         <SearchProgressPanel
           :state="searchProgress"
-          :importing-candidate-key="importingCandidateKey"
           :loading="isSearchTaskPending"
+          :processable="Boolean(currentSearchTask?.id)"
           :show-serper-details="canManageKeywordStrategy"
-          @import-candidate="handleImportCandidate"
+          @process-collected-leads="handleProcessCollectedLeads"
         />
       </div>
       <div v-else-if="aiResult" class="result-panel keyword-ready-panel">

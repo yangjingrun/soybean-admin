@@ -52,6 +52,10 @@ const {
       @reset="handleReset"
     />
 
+    <NAlert v-if="filterModel.sourceTaskId" type="info" :bordered="false">
+      正在处理本次 AI 采集客户。优先补齐联系人、验证邮箱，再从可开发联系人创建开发信。
+    </NAlert>
+
     <LeadStats :records="records" :total="pagination.total" />
 
     <LeadTable

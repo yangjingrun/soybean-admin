@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { aiLeadsKeywordStrategyManagePermission, hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
@@ -9,7 +10,6 @@ import {
   fetchLeadKeywordHistories,
   fetchCurrentLeadSearchTask,
   fetchLeadSearchTask,
-  importCrmLead,
   interruptLeadSearchTask,
   markLeadSearchTaskRead,
   optimizeLeadKeywords,
@@ -34,7 +34,6 @@ import {
   shouldRestoreSearchTaskAfterCreateRequestError
 } from './useAiLeadSearchTask';
 import {
-  buildAiLeadCandidateImportPayload,
   buildKeywordHistoryUpdatePayload,
   cloneKeywordPlan,
   createAiResultFromKeywordHistory,
@@ -43,14 +42,14 @@ import {
   formatKeywordOptimizationVisibleText,
   isValidTargetLeadCount,
   parseKeywordOptimizationPlan,
-  resolveTargetLeadCountAfterOptimization,
-  type AiLeadCandidateImportRow
+  resolveTargetLeadCountAfterOptimization
 } from './shared';
 
 type KeywordResultOrigin = 'none' | 'history' | 'generated' | 'task';
 
 export function useAiLeadPage() {
   const message = useMessage();
+  const router = useRouter();
   const authStore = useAuthStore();
   const defaultTargetLeadCount = 20;
   const maxLeadSearchRepeatRounds = 2;
@@ -88,7 +87,6 @@ export function useAiLeadPage() {
   const isGenerating = shallowRef(false);
   const isSearchTaskSubmitting = shallowRef(false);
   const isSearchTaskActionLoading = shallowRef(false);
-  const importingCandidateKey = shallowRef('');
   const isHistoryLoading = shallowRef(false);
   const isHistorySaving = shallowRef(false);
   const isHistoryDrawerVisible = shallowRef(false);
@@ -377,26 +375,22 @@ export function useAiLeadPage() {
     message.success('结果已复制');
   }
 
-  /** Import one pre-filtered AI lead candidate into the current owner's CRM library. */
-  async function handleImportCandidate(row: AiLeadCandidateImportRow) {
-    if (!row.importState.canImport || importingCandidateKey.value) {
+  /** Opens the CRM lead queue filtered to the completed AI collection task. */
+  async function handleProcessCollectedLeads() {
+    const task = currentSearchTask.value;
+
+    if (!task?.id) {
       return;
     }
 
-    importingCandidateKey.value = row.importState.key;
-    try {
-      const { error } = await importCrmLead(
-        buildAiLeadCandidateImportPayload(row.candidate, { sourceTaskId: currentSearchTask.value?.id ?? null })
-      );
-
-      if (error) {
-        return;
-      }
-
-      message.success('候选客户已导入 CRM');
-    } finally {
-      importingCandidateKey.value = '';
+    if (!(await markCompletedTaskRead(task))) {
+      return;
     }
+
+    await router.push({
+      path: '/crm/leads',
+      query: { sourceTaskId: task.id }
+    });
   }
 
   /** Restores the task that should keep showing when the user enters the page. */
@@ -615,23 +609,34 @@ export function useAiLeadPage() {
       return true;
     }
 
-    if (!task.readAt) {
-      isSearchTaskActionLoading.value = true;
-
-      try {
-        const { error } = await markLeadSearchTaskRead(task.id);
-
-        if (error) {
-          await syncCurrentSearchTaskAfterRequestError();
-          return false;
-        }
-      } finally {
-        isSearchTaskActionLoading.value = false;
-      }
+    if (!(await markCompletedTaskRead(task))) {
+      return false;
     }
 
     resetSearchProgress();
     return true;
+  }
+
+  /** Marks one completed task read without clearing the visible result panel. */
+  async function markCompletedTaskRead(task: Api.AiLeads.TaskRecord) {
+    if (task.status !== 'completed' || task.readAt) {
+      return true;
+    }
+
+    isSearchTaskActionLoading.value = true;
+
+    try {
+      const { error } = await markLeadSearchTaskRead(task.id);
+
+      if (error) {
+        await syncCurrentSearchTaskAfterRequestError();
+        return false;
+      }
+
+      return true;
+    } finally {
+      isSearchTaskActionLoading.value = false;
+    }
   }
 
   /** Clears previous local search progress and stops frontend polling. */
@@ -763,7 +768,7 @@ export function useAiLeadPage() {
     handleDeleteCurrentHistory,
     handleDeleteHistory,
     handleGenerate,
-    handleImportCandidate,
+    handleProcessCollectedLeads,
     handleReturnToKeywordOptimization,
     handleSaveHistory,
     handleSearchCustomers,
@@ -773,7 +778,6 @@ export function useAiLeadPage() {
     handleTargetLeadCountUpdate,
     hasSearchProgress,
     historyRecords,
-    importingCandidateKey,
     isEditingResult,
     isGenerating,
     isHistoryDeleting,

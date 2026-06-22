@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NButton, NProgress, NTag } from 'naive-ui';
+import { NProgress, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { getMetricDisplayText } from './search-progress';
 import type { LeadSearchProgressState } from './search-progress';
@@ -8,13 +8,13 @@ import { buildAiLeadCandidateImportRows, type AiLeadCandidateImportRow } from '.
 
 const props = defineProps<{
   state: LeadSearchProgressState;
-  importingCandidateKey?: string;
   loading?: boolean;
+  processable?: boolean;
   showSerperDetails?: boolean;
 }>();
 
 const emit = defineEmits<{
-  importCandidate: [row: AiLeadCandidateImportRow];
+  processCollectedLeads: [];
 }>();
 
 const statusTextMap: Record<LeadSearchProgressState['status'], string> = {
@@ -134,7 +134,7 @@ const candidateColumns: DataTableColumns<AiLeadCandidateImportRow> = [
       )
   },
   {
-    title: '导入判断',
+    title: 'CRM 状态',
     key: 'importState',
     minWidth: 170,
     render: row =>
@@ -146,32 +146,14 @@ const candidateColumns: DataTableColumns<AiLeadCandidateImportRow> = [
             bordered: false,
             type: row.importState.canImport ? 'success' : 'warning'
           },
-          { default: () => (row.importState.canImport ? '可导入' : '已过滤') }
+          { default: () => (row.importState.canImport ? '已沉淀' : '已过滤') }
         ),
         h(
           'span',
           { class: 'candidate-quality-text' },
-          row.importState.reasons.join('、') || row.importState.domain || '-'
+          row.importState.reasons.join('、') || row.importState.domain || '已进入 CRM 客户管理'
         )
       ])
-  },
-  {
-    title: '操作',
-    key: 'operate',
-    width: 110,
-    fixed: 'right',
-    render: row =>
-      h(
-        NButton,
-        {
-          size: 'tiny',
-          type: 'primary',
-          disabled: !row.importState.canImport || Boolean(props.importingCandidateKey),
-          loading: props.importingCandidateKey === row.importState.key,
-          onClick: () => emit('importCandidate', row)
-        },
-        { default: () => '导入 CRM' }
-      )
   }
 ];
 
@@ -225,6 +207,18 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
 
     <NAlert v-if="state.errorMessage" type="error" :bordered="false">
       {{ state.errorMessage }}
+    </NAlert>
+
+    <NAlert v-if="state.status === 'completed'" type="success" :bordered="false" class="crm-next-step-alert">
+      <div class="crm-next-step">
+        <div class="crm-next-step__copy">
+          <NText strong>可用线索已自动沉淀到 CRM</NText>
+          <NText depth="3">下一步处理本次客户，补齐联系人、验证邮箱，并从可开发联系人创建开发信。</NText>
+        </div>
+        <NButton type="primary" size="small" :disabled="!processable" @click="emit('processCollectedLeads')">
+          处理本次客户
+        </NButton>
+      </div>
     </NAlert>
 
     <section v-if="state.steps.length" class="progress-steps">
@@ -493,6 +487,20 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
 :deep(.candidate-quality-text) {
   color: var(--n-text-color-3);
   font-size: 12px;
+}
+
+.crm-next-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crm-next-step__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .serper-json-grid {

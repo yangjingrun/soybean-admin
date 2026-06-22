@@ -250,7 +250,7 @@ function createTaskBaseProgressState(task: Api.AiLeads.TaskRecord): LeadSearchPr
       ...baseState,
       status: 'completed',
       currentTitle: '搜索采集完成',
-      currentDescription: '后台采集任务已完成，可以导入客户，也可以继续采集或开始新任务。',
+      currentDescription: '后台采集任务已完成，可用线索已沉淀到 CRM。下一步处理本次客户，补齐联系人并创建开发信。',
       progressPercent: 100
     },
     discarded: baseState
