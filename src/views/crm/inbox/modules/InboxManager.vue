@@ -7,6 +7,7 @@ import { useInboxTable } from './shared/useInboxTable';
 
 const {
   currentDetail,
+  canRestorePolishSnapshot,
   detailLoading,
   detailVisible,
   draftPolishing,
@@ -18,6 +19,7 @@ const {
   handlePageUpdate,
   handlePolishReplyDraft,
   handleReset,
+  handleRestorePolishSnapshot,
   handleSaveReplyDraft,
   handleSendReply,
   handleSearch,
@@ -66,6 +68,7 @@ const {
       v-model:reply-body="replyBody"
       v-model:reply-topic="replyTopic"
       :show="detailVisible"
+      :can-restore-polish="canRestorePolishSnapshot"
       :detail="currentDetail"
       :draft-polishing="draftPolishing"
       :draft-saving="draftSaving"
@@ -77,6 +80,7 @@ const {
       @confirm-unsubscribe="handleConfirmUnsubscribe"
       @reload="loadThreadDetail()"
       @polish-reply-draft="handlePolishReplyDraft"
+      @restore-polish="handleRestorePolishSnapshot"
       @save-reply-draft="handleSaveReplyDraft"
       @send-reply="handleSendReply"
       @submit-status="handleUpdateStatus"

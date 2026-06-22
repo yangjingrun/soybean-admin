@@ -2,6 +2,7 @@ import { computed, onMounted, reactive, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
+import type { InboxReplyPolishSnapshot } from '../shared';
 import {
   confirmCrmInboxMessageUnsubscribe,
   fetchCrmInboxThreadDetail,
@@ -16,6 +17,8 @@ import {
   buildInboxPendingCountParams,
   buildInboxReplySubmitPayload,
   buildInboxThreadSearchParams,
+  canRestoreInboxReplyPolishSnapshot,
+  createInboxReplyPolishSnapshot,
   createDefaultInboxFilterModel
 } from '../shared';
 
@@ -32,6 +35,7 @@ export function useInboxTable() {
   const detailLoading = shallowRef(false);
   const replyTopic = shallowRef('');
   const replyBody = shallowRef('');
+  const replyPolishUndoSnapshot = shallowRef<InboxReplyPolishSnapshot | null>(null);
   const draftPolishing = shallowRef(false);
   const draftSaving = shallowRef(false);
   const replySending = shallowRef(false);
@@ -56,6 +60,9 @@ export function useInboxTable() {
       label: mailbox.maskedEmail,
       value: mailbox.id
     }))
+  );
+  const canRestorePolishSnapshot = computed(() =>
+    canRestoreInboxReplyPolishSnapshot(replyPolishUndoSnapshot.value, selectedThreadId.value)
   );
 
   onMounted(() => {
@@ -167,6 +174,7 @@ export function useInboxTable() {
 
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);
+      replyPolishUndoSnapshot.value = null;
     } finally {
       if (requestId === latestDetailRequestId) {
         detailLoading.value = false;
@@ -180,6 +188,7 @@ export function useInboxTable() {
     currentDetail.value = null;
     replyTopic.value = '';
     replyBody.value = '';
+    replyPolishUndoSnapshot.value = null;
     detailVisible.value = true;
     void loadThreadDetail(record.id);
   }
@@ -193,6 +202,7 @@ export function useInboxTable() {
       currentDetail.value = null;
       replyTopic.value = '';
       replyBody.value = '';
+      replyPolishUndoSnapshot.value = null;
       detailLoading.value = false;
     }
   }
@@ -260,6 +270,12 @@ export function useInboxTable() {
       return;
     }
 
+    const undoSnapshot = createInboxReplyPolishSnapshot({
+      threadId,
+      topic: replyTopic.value,
+      bodyText: replyBody.value
+    });
+
     draftPolishing.value = true;
     try {
       const { data, error } = await polishCrmInboxReplyDraft(threadId, { topic });
@@ -271,10 +287,25 @@ export function useInboxTable() {
       message.success('AI 润色回复草稿已生成');
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);
+      replyPolishUndoSnapshot.value = undoSnapshot;
       await loadThreads();
     } finally {
       draftPolishing.value = false;
     }
+  }
+
+  /** Restore the local draft fields to the state before the latest AI polish. */
+  function handleRestorePolishSnapshot() {
+    const snapshot = replyPolishUndoSnapshot.value;
+
+    if (!canRestoreInboxReplyPolishSnapshot(snapshot, selectedThreadId.value)) {
+      return;
+    }
+
+    replyTopic.value = snapshot.topic;
+    replyBody.value = snapshot.bodyText;
+    replyPolishUndoSnapshot.value = null;
+    message.success('已撤回到润色前草稿');
   }
 
   /** Save the locally edited reply draft without triggering Gmail sending. */
@@ -313,6 +344,7 @@ export function useInboxTable() {
       message.success('回复草稿已保存');
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);
+      replyPolishUndoSnapshot.value = null;
     } finally {
       draftSaving.value = false;
     }
@@ -349,6 +381,7 @@ export function useInboxTable() {
       notifyCrmWorkbenchChanged();
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);
+      replyPolishUndoSnapshot.value = null;
       // 发送会改变线程消息、状态和列表统计，两个视图都重新拉取。
       await Promise.all([loadThreadDetail(threadId), loadThreads()]);
     } finally {
@@ -416,12 +449,14 @@ export function useInboxTable() {
     draftPolishing,
     draftSaving,
     filterModel,
+    canRestorePolishSnapshot,
     handleDetailVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
     handlePolishReplyDraft,
     handleConfirmUnsubscribe,
     handleReset,
+    handleRestorePolishSnapshot,
     handleSaveReplyDraft,
     handleSendReply,
     handleSearch,

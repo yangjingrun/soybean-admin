@@ -8,6 +8,12 @@ export interface InboxReplyDraftMetadataItem {
   value: string;
 }
 
+export interface InboxReplyPolishSnapshot {
+  bodyText: string;
+  threadId: string;
+  topic: string;
+}
+
 export type InboxReplySubmitPayloadResult =
   | {
       ok: true;
@@ -139,6 +145,23 @@ export function buildInboxReplySubmitPayload(options: {
     ok: true,
     payload: { bodyText }
   };
+}
+
+/** Create a local undo point before AI polish overwrites the editable draft fields. */
+export function createInboxReplyPolishSnapshot(options: InboxReplyPolishSnapshot): InboxReplyPolishSnapshot {
+  return {
+    threadId: options.threadId,
+    topic: options.topic,
+    bodyText: options.bodyText
+  };
+}
+
+/** Keep AI polish undo scoped to the thread that created the snapshot. */
+export function canRestoreInboxReplyPolishSnapshot(
+  snapshot: InboxReplyPolishSnapshot | null,
+  threadId: string | null
+) {
+  return Boolean(snapshot && threadId && snapshot.threadId === threadId);
 }
 
 /** Format backend ISO datetime for inbox surfaces. */

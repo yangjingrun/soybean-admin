@@ -3,6 +3,8 @@ import { describe, it } from 'node:test';
 import {
   buildInboxReplySubmitPayload,
   buildInboxReplyDraftMetadataItems,
+  canRestoreInboxReplyPolishSnapshot,
+  createInboxReplyPolishSnapshot,
   findPendingUnsubscribeReviewMessage,
   inboxMessageTypeLabelMap,
   inboxMessageTypeTagTypeMap
@@ -113,5 +115,22 @@ describe('crm inbox shared helpers', () => {
       ok: true,
       payload: { bodyText: 'Thanks' }
     });
+  });
+
+  it('creates an undo snapshot that can only restore the same inbox thread', () => {
+    const snapshot = createInboxReplyPolishSnapshot({
+      threadId: 'thread-1',
+      topic: 'Original topic',
+      bodyText: 'Original body'
+    });
+
+    assert.deepEqual(snapshot, {
+      threadId: 'thread-1',
+      topic: 'Original topic',
+      bodyText: 'Original body'
+    });
+    assert.equal(canRestoreInboxReplyPolishSnapshot(snapshot, 'thread-1'), true);
+    assert.equal(canRestoreInboxReplyPolishSnapshot(snapshot, 'thread-2'), false);
+    assert.equal(canRestoreInboxReplyPolishSnapshot(null, 'thread-1'), false);
   });
 });

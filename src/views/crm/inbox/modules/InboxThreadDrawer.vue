@@ -15,6 +15,7 @@ import {
 } from './shared';
 
 const props = defineProps<{
+  canRestorePolish?: boolean;
   detail: Api.Crm.InboxThreadDetail | null;
   draftPolishing?: boolean;
   draftSaving?: boolean;
@@ -31,6 +32,7 @@ const emit = defineEmits<{
   confirmUnsubscribe: [messageId: string];
   reload: [];
   polishReplyDraft: [];
+  restorePolish: [];
   saveReplyDraft: [];
   sendReply: [];
   submitStatus: [status: Api.Crm.InboxThreadStatus];
@@ -53,7 +55,12 @@ const replyDraft = computed(() => props.detail?.replyDraft ?? null);
 const canReadBody = computed(() => Boolean(thread.value?.canReadBody));
 const canEditDraft = computed(() => Boolean(props.detail?.canOperate));
 const hasReplyBody = computed(() => Boolean(props.replyBody.trim()));
-const draftMetadataItems = computed(() => buildInboxReplyDraftMetadataItems(replyDraft.value?.metadata));
+const isReplyDraftSyncedWithInputs = computed(
+  () => Boolean(replyDraft.value) && props.replyTopic === replyDraft.value?.topic && props.replyBody === replyDraft.value?.bodyText
+);
+const draftMetadataItems = computed(() =>
+  isReplyDraftSyncedWithInputs.value ? buildInboxReplyDraftMetadataItems(replyDraft.value?.metadata) : []
+);
 const pendingUnsubscribeMessage = computed(() => findPendingUnsubscribeReviewMessage(messages.value));
 const replyTopicModel = computed({
   get: () => props.replyTopic,
@@ -67,6 +74,9 @@ const polishDisabled = computed(() =>
   Boolean(
     !canEditDraft.value || !props.replyTopic.trim() || props.draftPolishing || props.draftSaving || props.replySending
   )
+);
+const restorePolishDisabled = computed(() =>
+  Boolean(!props.canRestorePolish || props.draftPolishing || props.draftSaving || props.replySending)
 );
 const saveDisabled = computed(() =>
   Boolean(
@@ -227,27 +237,38 @@ function handleStatusSelect(key: string | number) {
                   <div class="section-title">回复草稿</div>
                   <div class="section-subtitle">填写要点后可直接让 AI 润色成正式回复。</div>
                 </div>
-                <NPopconfirm
-                  v-if="canEditDraft && hasReplyBody"
-                  :disabled="polishDisabled"
-                  positive-text="确认润色"
-                  negative-text="取消"
-                  @positive-click="emit('polishReplyDraft')"
-                >
-                  <template #trigger>
-                    <NButton size="small" :disabled="polishDisabled" :loading="draftPolishing">AI 润色回复</NButton>
-                  </template>
-                  当前正文草稿会被 AI 润色结果覆盖，是否继续？
-                </NPopconfirm>
-                <NButton
-                  v-else-if="canEditDraft"
-                  size="small"
-                  :disabled="polishDisabled"
-                  :loading="draftPolishing"
-                  @click="emit('polishReplyDraft')"
-                >
-                  AI 润色回复
-                </NButton>
+                <NSpace v-if="canEditDraft" align="center" :size="8">
+                  <NButton
+                    v-if="canRestorePolish"
+                    size="small"
+                    secondary
+                    :disabled="restorePolishDisabled"
+                    @click="emit('restorePolish')"
+                  >
+                    撤回润色
+                  </NButton>
+                  <NPopconfirm
+                    v-if="hasReplyBody"
+                    :disabled="polishDisabled"
+                    positive-text="确认润色"
+                    negative-text="取消"
+                    @positive-click="emit('polishReplyDraft')"
+                  >
+                    <template #trigger>
+                      <NButton size="small" :disabled="polishDisabled" :loading="draftPolishing">AI 润色回复</NButton>
+                    </template>
+                    当前正文草稿会被 AI 润色结果覆盖，是否继续？
+                  </NPopconfirm>
+                  <NButton
+                    v-else
+                    size="small"
+                    :disabled="polishDisabled"
+                    :loading="draftPolishing"
+                    @click="emit('polishReplyDraft')"
+                  >
+                    AI 润色回复
+                  </NButton>
+                </NSpace>
               </div>
 
               <NSpace vertical :size="10">
@@ -276,7 +297,7 @@ function handleStatusSelect(key: string | number) {
                   </NDescriptionsItem>
                 </NDescriptions>
 
-                <NText v-if="replyDraft" depth="3" class="draft-updated-text">
+                <NText v-if="replyDraft && isReplyDraftSyncedWithInputs" depth="3" class="draft-updated-text">
                   草稿更新时间 {{ formatInboxDate(replyDraft.updatedAt) }}
                   <template v-if="replyDraft.updatedByName">· {{ replyDraft.updatedByName }}</template>
                 </NText>
