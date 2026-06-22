@@ -261,6 +261,8 @@ describe('ai leads search progress state', () => {
       title: 'Bearing House',
       website: 'https://bearing.example.com',
       snippet: 'bearing distributor',
+      country: undefined,
+      city: undefined,
       address: undefined,
       phoneNumber: undefined,
       sourceType: 'organic',

@@ -37,6 +37,21 @@ export class ImportCrmLeadDto {
   @IsOptional()
   @IsString()
   @MaxLength(120)
+  city?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  timeZone?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
   customerType?: string | null;
 
   @IsOptional()

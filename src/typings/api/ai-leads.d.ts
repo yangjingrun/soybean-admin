@@ -223,6 +223,8 @@ declare namespace Api {
       title?: string;
       website?: string;
       snippet?: string;
+      country?: string;
+      city?: string;
       address?: string;
       phoneNumber?: string;
       sourceType?: string;

@@ -38,6 +38,167 @@ describe('CrmAccountService', () => {
     });
   });
 
+  it('imports lead location profile fields into the account create input', async () => {
+    const createAccountCalls: Array<Record<string, unknown>> = [];
+    const service = new CrmAccountService(
+      {
+        async findArchivedFingerprints() {
+          return [];
+        },
+        async findAccountByDomain() {
+          return null;
+        },
+        async createAccount(input: Partial<CrmAccountRecord>) {
+          createAccountCalls.push(input);
+
+          return createAccount(input);
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return createTimelineEvent(input);
+        }
+      } as never,
+      {} as never
+    );
+
+    await service.importAccountFromLead(
+      {
+        name: 'ABC Bearing',
+        websiteUrl: 'https://abc.example',
+        country: 'AE',
+        city: ' Dubai ',
+        address: ' JAFZA South ',
+        timeZone: ' Asia/Dubai '
+      },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(createAccountCalls[0].city, 'Dubai');
+    assert.equal(createAccountCalls[0].address, 'JAFZA South');
+    assert.equal(createAccountCalls[0].timeZone, 'Asia/Dubai');
+  });
+
+  it('infers account timezone from imported country and city when timezone is missing', async () => {
+    const createAccountCalls: Array<Record<string, unknown>> = [];
+    const service = new CrmAccountService(
+      {
+        async findArchivedFingerprints() {
+          return [];
+        },
+        async findAccountByDomain() {
+          return null;
+        },
+        async createAccount(input: Partial<CrmAccountRecord>) {
+          createAccountCalls.push(input);
+
+          return createAccount(input);
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return createTimelineEvent(input);
+        }
+      } as never,
+      {} as never
+    );
+
+    await service.importAccountFromLead(
+      {
+        name: 'NY Bearing',
+        websiteUrl: 'https://ny.example',
+        country: 'United States',
+        city: ' New York '
+      },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(createAccountCalls[0].country, 'United States');
+    assert.equal(createAccountCalls[0].city, 'New York');
+    assert.equal(createAccountCalls[0].timeZone, 'America/New_York');
+  });
+
+  it('does not infer account timezone for imported multi-timezone countries without city', async () => {
+    const createAccountCalls: Array<Record<string, unknown>> = [];
+    const service = new CrmAccountService(
+      {
+        async findArchivedFingerprints() {
+          return [];
+        },
+        async findAccountByDomain() {
+          return null;
+        },
+        async createAccount(input: Partial<CrmAccountRecord>) {
+          createAccountCalls.push(input);
+
+          return createAccount(input);
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return createTimelineEvent(input);
+        }
+      } as never,
+      {} as never
+    );
+
+    await service.importAccountFromLead(
+      {
+        name: 'US Bearing',
+        websiteUrl: 'https://us.example',
+        country: 'US'
+      },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(createAccountCalls[0].timeZone, null);
+  });
+
+  it('does not expose account timeZone in list records', async () => {
+    const service = new CrmAccountService(
+      {
+        async listAccounts() {
+          return {
+            records: [
+              createAccount({
+                city: 'Dubai',
+                address: 'JAFZA South',
+                timeZone: 'Asia/Dubai'
+              } as Partial<CrmAccountRecord>)
+            ],
+            total: 1
+          };
+        }
+      } as never,
+      {} as never
+    );
+
+    const result = await service.listAccounts({
+      userId: 'user-1',
+      userName: 'Sales',
+      roles: ['R_USER'],
+      buttons: [],
+      organizationId: 'org-1',
+      organizationRole: 'member'
+    });
+
+    assert.equal('timeZone' in result.records[0], false);
+    assert.equal((result.records[0] as { city?: string }).city, 'Dubai');
+    assert.equal((result.records[0] as { address?: string }).address, 'JAFZA South');
+  });
+
   it('updates editable account profile fields and records a timeline event', async () => {
     const account = createAccount();
     const updateCalls: Array<Record<string, unknown>> = [];
@@ -62,6 +223,9 @@ describe('CrmAccountService', () => {
             websiteUrl: 'https://group.example',
             domain: 'group.example',
             country: 'AE',
+            city: 'Dubai',
+            address: 'JAFZA South',
+            timeZone: 'Asia/Dubai',
             customerType: 'distributor'
           };
         },
@@ -92,6 +256,9 @@ describe('CrmAccountService', () => {
         normalizedName: 'abc bearing group',
         websiteUrl: 'https://group.example',
         country: 'AE',
+        city: ' Dubai ',
+        address: ' JAFZA South ',
+        timeZone: ' Asia/Dubai ',
         customerType: 'distributor'
       },
       {
@@ -105,8 +272,117 @@ describe('CrmAccountService', () => {
 
     assert.equal(updateCalls[0].id, account.id);
     assert.equal(updateCalls[0].domain, 'group.example');
+    assert.equal(updateCalls[0].city, 'Dubai');
+    assert.equal(updateCalls[0].address, 'JAFZA South');
+    assert.equal(updateCalls[0].timeZone, 'Asia/Dubai');
     assert.equal(eventCalls[0].eventType, 'account_profile_updated');
+    assert.equal((eventCalls[0].metadata as { before: { city: string | null } }).before.city, null);
+    assert.equal((eventCalls[0].metadata as { after: { city: string | null } }).after.city, 'Dubai');
+    assert.equal((eventCalls[0].metadata as { before: { address: string | null } }).before.address, null);
+    assert.equal((eventCalls[0].metadata as { after: { address: string | null } }).after.address, 'JAFZA South');
+    assert.equal((eventCalls[0].metadata as { before: { timeZone: string | null } }).before.timeZone, null);
+    assert.equal((eventCalls[0].metadata as { after: { timeZone: string | null } }).after.timeZone, 'Asia/Dubai');
     assert.equal((result.account as { name: string }).name, 'ABC Bearing Group');
+  });
+
+  it('recalculates account timezone when country and city are updated', async () => {
+    const account = createAccount({
+      country: 'US',
+      city: 'New York',
+      timeZone: 'America/New_York'
+    });
+    const updateCalls: Array<Record<string, unknown>> = [];
+    const service = new CrmAccountService(
+      {
+        async getAccountDetail() {
+          return {
+            account,
+            contacts: [],
+            enrichmentHistories: [],
+            timelineEvents: []
+          };
+        },
+        async updateAccount(id: string, input: Partial<CrmAccountRecord>) {
+          updateCalls.push({ id, ...input });
+
+          return createAccount({
+            ...account,
+            ...input
+          });
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return createTimelineEvent(input);
+        }
+      } as never,
+      {} as never
+    );
+
+    await service.updateAccount(
+      account.id,
+      {
+        country: 'United States',
+        city: ' Los Angeles '
+      },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(updateCalls[0].country, 'United States');
+    assert.equal(updateCalls[0].city, 'Los Angeles');
+    assert.equal(updateCalls[0].timeZone, 'America/Los_Angeles');
+  });
+
+  it('keeps the existing account timezone when non-location fields are updated', async () => {
+    const account = createAccount({
+      country: 'US',
+      city: 'New York',
+      timeZone: 'America/New_York'
+    });
+    const updateCalls: Array<Record<string, unknown>> = [];
+    const service = new CrmAccountService(
+      {
+        async getAccountDetail() {
+          return {
+            account,
+            contacts: [],
+            enrichmentHistories: [],
+            timelineEvents: []
+          };
+        },
+        async updateAccount(id: string, input: Partial<CrmAccountRecord>) {
+          updateCalls.push({ id, ...input });
+
+          return createAccount({
+            ...account,
+            ...input
+          });
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return createTimelineEvent(input);
+        }
+      } as never,
+      {} as never
+    );
+
+    await service.updateAccount(
+      account.id,
+      { customerType: 'distributor' },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(updateCalls[0].timeZone, 'America/New_York');
+    assert.equal(updateCalls[0].customerType, 'distributor');
   });
 
   it('creates one manual contact under the owned account', async () => {
@@ -448,7 +724,7 @@ describe('CrmAccountService', () => {
   });
 });
 
-function createAccount(): CrmAccountRecord {
+function createAccount(overrides: Partial<CrmAccountRecord> = {}): CrmAccountRecord {
   return {
     id: 'account-1',
     organizationId: 'org-1',
@@ -458,6 +734,9 @@ function createAccount(): CrmAccountRecord {
     websiteUrl: 'https://abc.example',
     domain: 'abc.example',
     country: null,
+    city: null,
+    address: null,
+    timeZone: null,
     customerType: null,
     status: 'missing_contact',
     sourceTaskId: null,
@@ -465,7 +744,23 @@ function createAccount(): CrmAccountRecord {
     archiveReason: null,
     archiveSlimmedAt: null,
     createdAt: new Date('2026-06-01T00:00:00Z'),
-    updatedAt: new Date('2026-06-01T00:00:00Z')
+    updatedAt: new Date('2026-06-01T00:00:00Z'),
+    ...overrides
+  };
+}
+
+function createTimelineEvent(input: CrmTimelineEventCreateInput) {
+  return {
+    id: 'event-1',
+    organizationId: input.organizationId,
+    accountId: input.accountId,
+    contactId: input.contactId ?? null,
+    ownerUserId: input.ownerUserId,
+    eventType: input.eventType,
+    title: input.title,
+    content: input.content ?? null,
+    metadata: input.metadata ?? null,
+    createdAt: new Date('2026-06-21T00:00:00Z')
   };
 }
 

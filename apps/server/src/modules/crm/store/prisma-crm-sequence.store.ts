@@ -137,6 +137,18 @@ export class PrismaCrmSequenceStore implements CrmSequenceRepository {
     return this.sendStateStore.claimFirstMessageSendDelivery(...args);
   }
 
+  findQueuedMessageSendTarget(
+    ...args: Parameters<PrismaCrmSequenceSendStateStore['findQueuedMessageSendTarget']>
+  ): ReturnType<PrismaCrmSequenceSendStateStore['findQueuedMessageSendTarget']> {
+    return this.sendStateStore.findQueuedMessageSendTarget(...args);
+  }
+
+  deferQueuedMessageSend(
+    ...args: Parameters<PrismaCrmSequenceSendStateStore['deferQueuedMessageSend']>
+  ): ReturnType<PrismaCrmSequenceSendStateStore['deferQueuedMessageSend']> {
+    return this.sendStateStore.deferQueuedMessageSend(...args);
+  }
+
   stopSequenceEnrollment(
     ...args: Parameters<PrismaCrmSequenceSendStateStore['stopSequenceEnrollment']>
   ): ReturnType<PrismaCrmSequenceSendStateStore['stopSequenceEnrollment']> {

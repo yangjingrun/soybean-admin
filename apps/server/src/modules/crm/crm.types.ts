@@ -108,6 +108,9 @@ export interface ImportCrmLeadInput {
   name: string;
   websiteUrl?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   sourceTaskId?: string | null;
   sourceSnapshot?: Record<string, unknown> | null;
@@ -127,6 +130,9 @@ export interface CrmAccountRecord {
   websiteUrl: string | null;
   domain: string | null;
   country: string | null;
+  city: string | null;
+  address: string | null;
+  timeZone: string | null;
   customerType: string | null;
   status: CrmAccountStatus;
   sourceTaskId: string | null;
@@ -577,6 +583,7 @@ export interface CrmMessageRecord {
   bullJobId: string | null;
   providerMessageId: string | null;
   providerThreadId: string | null;
+  recipientTimeZone: string | null;
   metadata?: unknown | null;
   createdAt: Date;
   updatedAt: Date;
@@ -706,6 +713,9 @@ export interface CrmAccountCreateInput {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status: CrmAccountStatus;
   sourceTaskId?: string | null;
@@ -717,6 +727,9 @@ export interface CrmAccountUpdateInput {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: CrmAccountStatus;
   sourceTaskId?: string | null;
@@ -1048,6 +1061,7 @@ export interface CrmMessageCreateInput {
   bullJobId?: string | null;
   providerMessageId?: string | null;
   providerThreadId?: string | null;
+  recipientTimeZone?: string | null;
   metadata?: unknown | null;
 }
 
@@ -1062,6 +1076,7 @@ export interface CrmMessageUpdateInput {
   bullJobId?: string | null;
   providerMessageId?: string | null;
   providerThreadId?: string | null;
+  recipientTimeZone?: string | null;
   metadata?: unknown | null;
 }
 
@@ -1253,6 +1268,14 @@ export interface CrmSendDeliveryClaimRecord extends Omit<CrmSequenceReviewRecord
   firstMessage: CrmMessageRecord;
 }
 
+export type CrmQueuedMessageSendTargetInput = CrmSendQueueJob;
+
+export type CrmQueuedMessageSendTargetRecord = CrmSendDeliveryClaimRecord;
+
+export interface CrmQueuedMessageSendDeferInput extends CrmSendQueueJob {
+  scheduledAt: Date;
+}
+
 export interface CrmSequenceStopInput {
   enrollmentId: string;
   organizationId: string;
@@ -1278,6 +1301,7 @@ export interface CrmSendCompletionInput {
   sentAt: Date;
   providerMessageId?: string | null;
   providerThreadId?: string | null;
+  recipientTimeZone?: string | null;
   nextMessage?: Omit<CrmMessageCreateInput, 'enrollmentId'> | null;
 }
 

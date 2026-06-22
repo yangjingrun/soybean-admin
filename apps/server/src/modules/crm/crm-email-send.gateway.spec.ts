@@ -189,6 +189,9 @@ function createAccount(input: Partial<CrmAccountRecord> = {}): CrmAccountRecord 
     websiteUrl: input.websiteUrl ?? 'https://abc.example.com',
     domain: input.domain ?? 'abc.example.com',
     country: input.country ?? 'AE',
+    city: input.city ?? null,
+    address: input.address ?? null,
+    timeZone: input.timeZone ?? null,
     customerType: input.customerType ?? 'distributor',
     status: input.status || 'sequence_running',
     sourceTaskId: input.sourceTaskId ?? null,
@@ -284,6 +287,7 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
     bullJobId: input.bullJobId ?? 'send-job-1',
     providerMessageId: input.providerMessageId ?? null,
     providerThreadId: input.providerThreadId ?? null,
+    recipientTimeZone: input.recipientTimeZone ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };

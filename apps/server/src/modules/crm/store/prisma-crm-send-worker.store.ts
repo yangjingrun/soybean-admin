@@ -32,6 +32,18 @@ export class PrismaCrmSendWorkerStore implements CrmSendWorkerRepository {
     return this.sequenceStore.claimFirstMessageSendDelivery(...args);
   }
 
+  findQueuedMessageSendTarget(
+    ...args: Parameters<PrismaCrmSequenceStore['findQueuedMessageSendTarget']>
+  ): ReturnType<PrismaCrmSequenceStore['findQueuedMessageSendTarget']> {
+    return this.sequenceStore.findQueuedMessageSendTarget(...args);
+  }
+
+  deferQueuedMessageSend(
+    ...args: Parameters<PrismaCrmSequenceStore['deferQueuedMessageSend']>
+  ): ReturnType<PrismaCrmSequenceStore['deferQueuedMessageSend']> {
+    return this.sequenceStore.deferQueuedMessageSend(...args);
+  }
+
   completeFirstMessageSend(
     ...args: Parameters<PrismaCrmSequenceStore['completeFirstMessageSend']>
   ): ReturnType<PrismaCrmSequenceStore['completeFirstMessageSend']> {

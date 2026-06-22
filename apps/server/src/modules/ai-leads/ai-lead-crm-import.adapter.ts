@@ -6,6 +6,7 @@ interface AiLeadCandidateLike {
   website?: unknown;
   url?: unknown;
   snippet?: unknown;
+  city?: unknown;
   address?: unknown;
   phoneNumber?: unknown;
   country?: unknown;
@@ -31,6 +32,7 @@ export function mapAiLeadTaskResultToCrmImportInputs(taskId: string, result: unk
         name,
         websiteUrl: normalizeString(candidate.website) || normalizeString(candidate.url),
         ...buildCandidateCountryPatch(candidate),
+        ...buildCandidateLocationPatch(candidate),
         sourceTaskId: taskId,
         contact: null,
         sourceSnapshot: buildCandidateSourceSnapshot(candidate)
@@ -59,10 +61,22 @@ function normalizeNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/** Build a CRM location patch only from explicit candidate profile fields. */
+function buildCandidateLocationPatch(candidate: AiLeadCandidateLike) {
+  const city = normalizeString(candidate.city);
+  const address = normalizeString(candidate.address);
+
+  return {
+    ...(city ? { city } : {}),
+    ...(address ? { address } : {})
+  };
+}
+
 function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
   const snapshot: Record<string, string | number> = {};
   const stringFields = [
     'snippet',
+    'city',
     'address',
     'phoneNumber',
     'country',

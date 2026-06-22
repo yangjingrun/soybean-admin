@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { CrmSendAvailabilityService } from './crm-send-availability.service';
 import { CrmSendSchedulerService } from './crm-send-scheduler.service';
 import type { CrmSendSchedulerRepository } from './crm-send-scheduler.repository';
 import type {
@@ -26,6 +27,10 @@ type SchedulerFakeStore = CrmSendSchedulerRepository & {
   getSendPreferenceCalls: unknown[];
   countOwnerQueuedMessagesCalls: unknown[];
   countDispatchedMessagesCalls: Array<{ stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }>;
+  updateCalls: Array<{
+    id: string;
+    input: { status?: string; bullJobId?: string | null; scheduledAt?: Date | null };
+  }>;
 };
 
 describe('CrmSendSchedulerService', () => {
@@ -41,7 +46,7 @@ describe('CrmSendSchedulerService', () => {
       ]
     });
     const queue = createQueue();
-    const scheduler = new CrmSendSchedulerService(store, queue);
+    const scheduler = new CrmSendSchedulerService(store, queue, createAllowingAvailability());
 
     const result = await scheduler.dispatchDueMessages({ now, take: 20 });
 
@@ -61,7 +66,7 @@ describe('CrmSendSchedulerService', () => {
       candidates: [createCandidate({ messageId: 'first-1', stepIndex: 1 })]
     });
     const queue = createQueue();
-    const scheduler = new CrmSendSchedulerService(store, queue);
+    const scheduler = new CrmSendSchedulerService(store, queue, createAllowingAvailability());
 
     const result = await scheduler.dispatchDueMessages({ now, take: 20 });
 
@@ -83,7 +88,7 @@ describe('CrmSendSchedulerService', () => {
       ]
     });
     const queue = createQueue();
-    const scheduler = new CrmSendSchedulerService(store, queue);
+    const scheduler = new CrmSendSchedulerService(store, queue, createAllowingAvailability());
 
     const result = await scheduler.dispatchDueMessages({ now, take: 20 });
 
@@ -111,7 +116,7 @@ describe('CrmSendSchedulerService', () => {
       ]
     });
     const queue = createQueue();
-    const scheduler = new CrmSendSchedulerService(store, queue);
+    const scheduler = new CrmSendSchedulerService(store, queue, createAllowingAvailability());
 
     const result = await scheduler.dispatchDueMessages({ now, take: 20 });
 
@@ -134,7 +139,7 @@ describe('CrmSendSchedulerService', () => {
       mailboxStates: [createMailboxSendState({ mailboxId: 'mailbox-1', dailyCount: 0, hourlyCount: 0 })]
     });
     const queue = createQueue();
-    const scheduler = new CrmSendSchedulerService(store, queue);
+    const scheduler = new CrmSendSchedulerService(store, queue, createAllowingAvailability());
 
     const result = await scheduler.dispatchDueMessages({ now, take: 20 });
 
@@ -145,6 +150,53 @@ describe('CrmSendSchedulerService', () => {
       ['first-1']
     );
     assert.equal(store.countDispatchedMessagesCalls.filter(call => call.mailboxId).length, 0);
+  });
+
+  it('defers messages outside the recipient local send window before capacity checks and queueing', async () => {
+    const now = new Date('2026-06-20T02:00:00.000Z');
+    const nextAvailableAt = new Date('2026-06-20T13:30:00.000Z');
+    const store = createSchedulerStore({
+      candidates: [
+        createCandidate({
+          messageId: 'first-1',
+          stepIndex: 1,
+          country: 'US',
+          city: 'New York',
+          timeZone: 'America/New_York'
+        })
+      ]
+    });
+    const queue = createQueue();
+    const availability = createAvailability({
+      canSend: false,
+      timeZone: 'America/New_York',
+      reason: 'outside_window',
+      nextAvailableAt
+    });
+    const scheduler = new CrmSendSchedulerService(store, queue, availability);
+
+    const result = await scheduler.dispatchDueMessages({ now, take: 20 });
+
+    assert.equal(result.dispatchedCount, 0);
+    assert.equal(result.skippedCount, 1);
+    assert.equal(queue.jobs.length, 0);
+    assert.equal(store.queuedMessageIds.length, 0);
+    assert.equal(store.ownerStateCalls.length, 0);
+    assert.equal(store.mailboxStateCalls.length, 0);
+    assert.deepEqual(availability.calls[0], {
+      now,
+      country: 'US',
+      city: 'New York',
+      timeZone: 'America/New_York'
+    });
+    assert.deepEqual(store.updateCalls[0], {
+      id: 'first-1',
+      input: {
+        status: 'draft_ready',
+        scheduledAt: nextAvailableAt,
+        bullJobId: null
+      }
+    });
   });
 });
 
@@ -181,6 +233,10 @@ function createSchedulerStore(input: {
   const getSendPreferenceCalls: unknown[] = [];
   const countOwnerQueuedMessagesCalls: unknown[] = [];
   const countDispatchedMessagesCalls: Array<{ stepKind?: CrmScheduledMessageStepKind; mailboxId?: string }> = [];
+  const updateCalls: Array<{
+    id: string;
+    input: { status?: string; bullJobId?: string | null; scheduledAt?: Date | null };
+  }> = [];
   const mailboxStateCalls: Array<{
     mailboxes: Array<{ organizationId: string; mailboxId: string }>;
     day: { from: Date; to: Date };
@@ -191,6 +247,7 @@ function createSchedulerStore(input: {
     queuedMessageIds,
     ownerStateCalls,
     mailboxStateCalls,
+    updateCalls,
     getSendPreferenceCalls,
     countOwnerQueuedMessagesCalls,
     countDispatchedMessagesCalls,
@@ -257,16 +314,30 @@ function createSchedulerStore(input: {
     async listDueSendCandidates() {
       return candidates;
     },
-    async updateMessage(id: string, _organizationId: string, update: { status?: string; bullJobId?: string }) {
+    async updateMessage(
+      id: string,
+      _organizationId: string,
+      update: { status?: string; bullJobId?: string | null; scheduledAt?: Date | null }
+    ) {
+      updateCalls.push({ id, input: update });
       const candidate = candidates.find(item => item.message.id === id);
 
-      if (!candidate || update.status !== 'queued') {
+      if (!candidate) {
         return null;
       }
 
-      candidate.message.status = 'queued';
-      candidate.message.bullJobId = update.bullJobId ?? null;
-      queuedMessageIds.push(id);
+      if (update.status) {
+        candidate.message.status = update.status as typeof candidate.message.status;
+      }
+      if ('scheduledAt' in update) {
+        candidate.message.scheduledAt = update.scheduledAt ?? null;
+      }
+      if ('bullJobId' in update) {
+        candidate.message.bullJobId = update.bullJobId ?? null;
+      }
+      if (update.status === 'queued') {
+        queuedMessageIds.push(id);
+      }
 
       return candidate.message;
     }
@@ -363,6 +434,9 @@ function createCandidate(input: {
   mailboxId?: string;
   dailyLimit?: number;
   hourlyLimit?: number;
+  country?: string | null;
+  city?: string | null;
+  timeZone?: string | null;
 }): CrmDueSendCandidateRecord {
   const stepKind: CrmScheduledMessageStepKind = input.stepIndex === 1 ? 'first_touch' : 'follow_up';
   const organizationId = input.organizationId ?? 'org-1';
@@ -398,7 +472,10 @@ function createCandidate(input: {
       normalizedName: 'abc trading',
       websiteUrl: null,
       domain: null,
-      country: null,
+      country: input.country ?? null,
+      city: input.city ?? null,
+      address: null,
+      timeZone: input.timeZone ?? null,
       customerType: null,
       status: 'sequence_running',
       sourceTaskId: null,
@@ -469,9 +546,32 @@ function createCandidate(input: {
       bullJobId: null,
       providerMessageId: null,
       providerThreadId: null,
+      recipientTimeZone: null,
       metadata: null,
       createdAt: new Date('2026-06-18T09:00:00.000Z'),
       updatedAt: new Date('2026-06-18T09:00:00.000Z')
     }
+  };
+}
+
+function createAllowingAvailability() {
+  return createAvailability({
+    canSend: true,
+    timeZone: 'Asia/Dubai',
+    reason: 'within_window'
+  });
+}
+
+function createAvailability(result: ReturnType<CrmSendAvailabilityService['evaluate']>) {
+  const calls: Parameters<CrmSendAvailabilityService['evaluate']>[0][] = [];
+
+  return {
+    calls,
+    evaluate(input: Parameters<CrmSendAvailabilityService['evaluate']>[0]) {
+      calls.push(input);
+      return result;
+    }
+  } as unknown as CrmSendAvailabilityService & {
+    calls: Parameters<CrmSendAvailabilityService['evaluate']>[0][];
   };
 }

@@ -112,6 +112,7 @@ function createMessage(overrides: Partial<CrmMessageRecord> = {}): CrmMessageRec
     bullJobId: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z'),
-    ...overrides
+    ...overrides,
+    recipientTimeZone: overrides.recipientTimeZone ?? null
   };
 }

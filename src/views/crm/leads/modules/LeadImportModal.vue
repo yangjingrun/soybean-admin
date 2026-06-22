@@ -63,8 +63,17 @@ async function handleSubmit() {
         </NGi>
 
         <NGi span="24 m:12">
-          <NFormItem label="国家/地区">
-            <NInput v-model:value="formModel.country" clearable />
+          <NFormItem label="地区">
+            <NInputGroup>
+              <NInput v-model:value="formModel.country" clearable placeholder="国家/地区" />
+              <NInput v-model:value="formModel.city" clearable placeholder="城市" />
+            </NInputGroup>
+          </NFormItem>
+        </NGi>
+
+        <NGi span="24">
+          <NFormItem label="地址">
+            <NInput v-model:value="formModel.address" clearable />
           </NFormItem>
         </NGi>
 

@@ -179,7 +179,10 @@ function createAccount(overrides: Partial<CrmAccountRecord>): CrmAccountRecord {
     archiveSlimmedAt: null,
     createdAt: new Date('2026-06-01T00:00:00Z'),
     updatedAt: new Date('2026-06-01T00:00:00Z'),
-    ...overrides
+    ...overrides,
+    city: overrides.city ?? null,
+    address: overrides.address ?? null,
+    timeZone: overrides.timeZone ?? null
   };
 }
 

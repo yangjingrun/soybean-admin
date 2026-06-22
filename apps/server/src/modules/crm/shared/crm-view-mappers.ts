@@ -30,6 +30,13 @@ export function toAccountView(record: CrmAccountRecord) {
   };
 }
 
+/** Convert account list rows while hiding internal scheduling profile fields. */
+export function toAccountListView(record: CrmAccountRecord) {
+  const { timeZone: _timeZone, ...safeRecord } = toAccountView(record);
+
+  return safeRecord;
+}
+
 /** Convert contact dates to transport-safe ISO strings. */
 export function toContactView(record: CrmContactRecord) {
   return {

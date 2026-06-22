@@ -7,6 +7,7 @@ import {
   normalizeOwnerDailySendLimit,
   normalizeOwnerDailySendLimitMax
 } from './crm-global-config';
+import { CrmSendAvailabilityService } from './crm-send-availability.service';
 import { toCrmSendJobId } from './crm-send-queue.service';
 import type { CrmSendSchedulerRepository } from './crm-send-scheduler.repository';
 import { CRM_SEND_QUEUE, CRM_SEND_SCHEDULER_REPOSITORY } from './crm.tokens';
@@ -43,7 +44,8 @@ interface MailboxDispatchState {
 export class CrmSendSchedulerService {
   constructor(
     @Inject(CRM_SEND_SCHEDULER_REPOSITORY) private readonly store: CrmSendSchedulerRepository,
-    @Inject(CRM_SEND_QUEUE) private readonly sendQueue: CrmSendQueuePort
+    @Inject(CRM_SEND_QUEUE) private readonly sendQueue: CrmSendQueuePort,
+    private readonly availabilityService: CrmSendAvailabilityService
   ) {}
 
   /** Moves due locally approved drafts into the real BullMQ send queue within owner and mailbox limits. */
@@ -59,12 +61,35 @@ export class CrmSendSchedulerService {
     const ownerStates = new Map<string, OwnerDispatchState>();
     const dayRange = toUtcRange(now, 'day');
     const hourRange = toUtcRange(now, 'hour');
-    const ownerStateSnapshots = await this.loadOwnerStateSnapshots(candidates, dayRange);
-    const mailboxStates = await this.loadMailboxStates(candidates, dayRange, hourRange);
+    const availableCandidates: CrmDueSendCandidateRecord[] = [];
     let dispatchedCount = 0;
     let skippedCount = 0;
 
     for (const candidate of candidates) {
+      const availability = this.availabilityService.evaluate({
+        now,
+        country: candidate.account.country ?? '',
+        timeZone: candidate.account.timeZone,
+        city: candidate.account.city
+      });
+
+      if (!availability.canSend) {
+        skippedCount += 1;
+
+        if (availability.nextAvailableAt) {
+          await this.deferCandidate(candidate, availability.nextAvailableAt);
+        }
+
+        continue;
+      }
+
+      availableCandidates.push(candidate);
+    }
+
+    const ownerStateSnapshots = await this.loadOwnerStateSnapshots(availableCandidates, dayRange);
+    const mailboxStates = await this.loadMailboxStates(availableCandidates, dayRange, hourRange);
+
+    for (const candidate of availableCandidates) {
       const ownerKey = toOwnerKey(candidate.message.organizationId, candidate.message.ownerUserId);
       const state = this.getOwnerState(ownerKey, {
         ownerDailySendLimitMax,
@@ -79,7 +104,7 @@ export class CrmSendSchedulerService {
         continue;
       }
 
-      if (!this.canUseShareSlot(candidate, candidates, state)) {
+      if (!this.canUseShareSlot(candidate, availableCandidates, state)) {
         skippedCount += 1;
         continue;
       }
@@ -315,6 +340,20 @@ export class CrmSendSchedulerService {
       );
       throw error;
     }
+  }
+
+  /** Keeps a locally-invalid candidate draft-ready until the recipient's next send window. */
+  private async deferCandidate(candidate: CrmDueSendCandidateRecord, nextAvailableAt: Date) {
+    await this.store.updateMessage(
+      candidate.message.id,
+      candidate.message.organizationId,
+      {
+        status: 'draft_ready',
+        scheduledAt: nextAvailableAt,
+        bullJobId: null
+      },
+      { status: 'draft_ready' }
+    );
   }
 }
 

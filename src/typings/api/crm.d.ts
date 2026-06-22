@@ -77,6 +77,8 @@ declare namespace Api {
       websiteUrl: string | null;
       domain: string | null;
       country: string | null;
+      city: string | null;
+      address: string | null;
       customerType: string | null;
       status: CrmAccountStatus;
       sourceTaskId: string | null;
@@ -164,6 +166,8 @@ declare namespace Api {
       name: string;
       websiteUrl?: string;
       country?: string;
+      city?: string;
+      address?: string;
       customerType?: string;
       sourceTaskId?: string | null;
       sourceSnapshot?: Record<string, unknown> | null;
@@ -174,6 +178,8 @@ declare namespace Api {
       name: string;
       websiteUrl: string;
       country: string;
+      city: string;
+      address: string;
       customerType: string;
       contactFullName: string;
       contactTitle: string;
@@ -190,6 +196,8 @@ declare namespace Api {
       normalizedName: string;
       websiteUrl?: string;
       country?: string;
+      city?: string;
+      address?: string;
       customerType?: string;
     }
 

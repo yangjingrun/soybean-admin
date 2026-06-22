@@ -284,6 +284,8 @@ function toCandidateView(candidate: Record<string, unknown>): Api.AiLeads.LeadSe
     title: readString(candidate.title),
     website: readString(candidate.website) || readString(candidate.url),
     snippet: readString(candidate.snippet),
+    country: readString(candidate.country),
+    city: readString(candidate.city),
     address: readString(candidate.address),
     phoneNumber: readString(candidate.phoneNumber),
     sourceType: readString(candidate.sourceType),

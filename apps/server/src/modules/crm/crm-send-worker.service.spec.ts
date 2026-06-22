@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
+import type { CrmSendAvailabilityService } from './crm-send-availability.service';
 import type { CrmSendWorkerRepository } from './crm-send-worker.repository';
 import { CrmSendWorkerService } from './crm-send-worker.service';
 import type {
@@ -25,7 +26,7 @@ describe('CrmSendWorkerService', () => {
       message: createMessage({ status: 'queued' })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await worker.processSendJob(createJob({ runVersion: 1 }));
 
@@ -41,7 +42,7 @@ describe('CrmSendWorkerService', () => {
       mailbox: createMailbox({ status: 'active' })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await worker.processSendJob(createJob({ runVersion: 2 }));
 
@@ -87,7 +88,7 @@ describe('CrmSendWorkerService', () => {
       mailbox: createMailbox({ status: 'active' })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -135,7 +136,7 @@ describe('CrmSendWorkerService', () => {
       }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -168,7 +169,7 @@ describe('CrmSendWorkerService', () => {
       })
     });
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -197,7 +198,7 @@ describe('CrmSendWorkerService', () => {
       }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await worker.processSendJob(createJob({ messageId: 'message-2', runVersion: 2 }));
 
@@ -228,13 +229,84 @@ describe('CrmSendWorkerService', () => {
       { claimResult: null }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await worker.processSendJob(createJob({ runVersion: 2 }));
 
     assert.equal(gateway.calls.length, 0);
     assert.equal(store.completed.length, 0);
     assert.equal(store.failed.length, 0);
+  });
+
+  it('defers queued messages outside the recipient local send window before claiming quota', async () => {
+    const now = new Date('2026-06-20T02:00:00.000Z');
+    const nextAvailableAt = new Date('2026-06-20T13:30:00.000Z');
+    const store = createWorkerStore({
+      enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2 }),
+      account: createAccount({
+        country: 'US',
+        city: 'New York',
+        timeZone: 'America/New_York'
+      }),
+      message: createMessage({ status: 'queued' }),
+      mailbox: createMailbox({ status: 'active' })
+    });
+    const availability = createAvailability({
+      canSend: false,
+      timeZone: 'America/New_York',
+      reason: 'outside_window',
+      nextAvailableAt
+    });
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store, gateway, availability);
+
+    await worker.processSendJob(createJob({ runVersion: 2 }), now);
+
+    assert.equal(gateway.calls.length, 0);
+    assert.equal(store.claims.length, 0);
+    assert.equal(store.completed.length, 0);
+    assert.equal(store.failed.length, 0);
+    assert.deepEqual(availability.calls[0], {
+      now,
+      country: 'US',
+      city: 'New York',
+      timeZone: 'America/New_York'
+    });
+    assert.deepEqual(store.deferred[0], {
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 2,
+      scheduledAt: nextAvailableAt
+    });
+  });
+
+  it('skips queued messages with unresolved recipient timezone before claiming quota', async () => {
+    const now = new Date('2026-06-20T02:00:00.000Z');
+    const store = createWorkerStore({
+      enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2 }),
+      account: createAccount({
+        country: 'US',
+        city: 'New York',
+        timeZone: null
+      }),
+      message: createMessage({ status: 'queued' }),
+      mailbox: createMailbox({ status: 'active' })
+    });
+    const availability = createAvailability({
+      canSend: false,
+      timeZone: null,
+      reason: 'ambiguous_timezone'
+    });
+    const gateway = createGateway();
+    const worker = new CrmSendWorkerService(store, gateway, availability);
+
+    await worker.processSendJob(createJob({ runVersion: 2 }), now);
+
+    assert.equal(gateway.calls.length, 0);
+    assert.equal(store.claims.length, 0);
+    assert.equal(store.deferred.length, 0);
   });
 
   it('loads next draft context before sending so local config failures do not send email', async () => {
@@ -249,7 +321,7 @@ describe('CrmSendWorkerService', () => {
       }
     );
     const gateway = createGateway();
-    const worker = new CrmSendWorkerService(store, gateway);
+    const worker = new CrmSendWorkerService(store, gateway, createAllowingAvailability());
 
     await assert.rejects(() => worker.processSendJob(createJob()), /global config unavailable/);
 
@@ -263,7 +335,7 @@ describe('CrmSendWorkerService', () => {
       message: createMessage({ status: 'queued' }),
       mailbox: createMailbox({ status: 'active' })
     });
-    const worker = new CrmSendWorkerService(store, createGateway(new Error('gmail unavailable')));
+    const worker = new CrmSendWorkerService(store, createGateway(new Error('gmail unavailable')), createAllowingAvailability());
 
     await assert.rejects(() => worker.processSendJob(createJob()), /gmail unavailable/);
     assert.equal(store.failed[0].reason, 'gmail unavailable');
@@ -279,6 +351,7 @@ describe('CrmSendWorkerService', () => {
     const worker = new CrmSendWorkerService(
       store,
       createGateway(new CrmGmailAuthorizationExpiredError('invalid_grant')),
+      createAllowingAvailability(),
       notifications.service as never
     );
 
@@ -338,6 +411,14 @@ function createWorkerStore(
   const completed: Parameters<CrmSendWorkerRepository['completeFirstMessageSend']>[0][] = [];
   const failed: Parameters<CrmSendWorkerRepository['failFirstMessageSend']>[0][] = [];
   const claims: Parameters<CrmSendWorkerRepository['claimFirstMessageSendDelivery']>[0][] = [];
+  const deferred: Array<{
+    enrollmentId: string;
+    messageId: string;
+    organizationId: string;
+    ownerUserId: string;
+    runVersion: number;
+    scheduledAt: Date;
+  }> = [];
   const authExpired: Array<{
     mailboxId: string;
     organizationId: string;
@@ -350,7 +431,36 @@ function createWorkerStore(
     completed,
     failed,
     claims,
+    deferred,
     authExpired,
+    async findQueuedMessageSendTarget(args) {
+      if (
+        item.enrollment.id !== args.enrollmentId ||
+        item.enrollment.organizationId !== args.organizationId ||
+        item.enrollment.ownerUserId !== args.ownerUserId ||
+        item.enrollment.runVersion !== args.runVersion ||
+        item.enrollment.status !== 'sequence_running' ||
+        item.firstMessage?.id !== args.messageId ||
+        item.firstMessage.status !== 'queued' ||
+        item.mailbox?.status !== 'active'
+      ) {
+        return null;
+      }
+
+      if (!item.mailbox || !item.firstMessage) {
+        return null;
+      }
+
+      return {
+        ...item,
+        mailbox: item.mailbox,
+        firstMessage: item.firstMessage
+      };
+    },
+    async deferQueuedMessageSend(args) {
+      deferred.push(args);
+      return item.firstMessage ?? null;
+    },
     async getGlobalConfig() {
       if (options.globalConfigError) {
         throw options.globalConfigError;
@@ -417,6 +527,7 @@ function createWorkerStore(
     completed: Parameters<CrmSendWorkerRepository['completeFirstMessageSend']>[0][];
     failed: Parameters<CrmSendWorkerRepository['failFirstMessageSend']>[0][];
     claims: Parameters<CrmSendWorkerRepository['claimFirstMessageSendDelivery']>[0][];
+    deferred: typeof deferred;
     authExpired: typeof authExpired;
   };
 }
@@ -479,6 +590,9 @@ function createAccount(input: Partial<CrmAccountRecord> = {}): CrmAccountRecord 
     websiteUrl: input.websiteUrl ?? null,
     domain: input.domain ?? 'abc.example',
     country: input.country ?? null,
+    city: input.city ?? null,
+    address: input.address ?? null,
+    timeZone: input.timeZone ?? null,
     customerType: input.customerType ?? null,
     status: input.status || 'sequence_running',
     sourceTaskId: input.sourceTaskId ?? null,
@@ -487,6 +601,28 @@ function createAccount(input: Partial<CrmAccountRecord> = {}): CrmAccountRecord 
     archiveSlimmedAt: input.archiveSlimmedAt ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
+  };
+}
+
+function createAllowingAvailability() {
+  return createAvailability({
+    canSend: true,
+    timeZone: 'Asia/Dubai',
+    reason: 'within_window'
+  });
+}
+
+function createAvailability(result: ReturnType<CrmSendAvailabilityService['evaluate']>) {
+  const calls: Parameters<CrmSendAvailabilityService['evaluate']>[0][] = [];
+
+  return {
+    calls,
+    evaluate(input: Parameters<CrmSendAvailabilityService['evaluate']>[0]) {
+      calls.push(input);
+      return result;
+    }
+  } as unknown as CrmSendAvailabilityService & {
+    calls: Parameters<CrmSendAvailabilityService['evaluate']>[0][];
   };
 }
 
@@ -653,6 +789,7 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
     bullJobId: input.bullJobId ?? 'send-job-1',
     providerMessageId: input.providerMessageId ?? null,
     providerThreadId: input.providerThreadId ?? null,
+    recipientTimeZone: input.recipientTimeZone ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };

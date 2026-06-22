@@ -9,6 +9,9 @@ import type {
   CrmSendDeliveryClaimRecord,
   CrmSendFailureInput,
   CrmSendFailureRecord,
+  CrmQueuedMessageSendDeferInput,
+  CrmQueuedMessageSendTargetInput,
+  CrmQueuedMessageSendTargetRecord,
   CrmSendStartInput,
   CrmSendStartRecord,
   CrmSequenceStopInput,
@@ -222,6 +225,82 @@ export class PrismaCrmSequenceSendStateStore {
     });
   }
 
+  /** Reads a queued delivery target without reserving mailbox quota. */
+  async findQueuedMessageSendTarget(
+    input: CrmQueuedMessageSendTargetInput
+  ): Promise<CrmQueuedMessageSendTargetRecord | null> {
+    const record = await this.prisma.crmSequenceEnrollment.findFirst({
+      where: {
+        id: input.enrollmentId,
+        organizationId: input.organizationId,
+        ownerUserId: input.ownerUserId,
+        runVersion: input.runVersion,
+        status: 'sequence_running'
+      },
+      include: toSequenceReviewInclude()
+    });
+
+    if (!record) {
+      return null;
+    }
+
+    const reviewItem = toSequenceReviewRecord(record);
+    const targetMessage = reviewItem.messages.find(message => message.id === input.messageId) ?? null;
+
+    if (
+      !targetMessage ||
+      targetMessage.status !== 'queued' ||
+      !reviewItem.mailbox ||
+      reviewItem.mailbox.status !== 'active'
+    ) {
+      return null;
+    }
+
+    return {
+      ...reviewItem,
+      mailbox: reviewItem.mailbox,
+      firstMessage: targetMessage
+    };
+  }
+
+  /** Moves a queued message back to draft_ready before quota claim when recipient timing blocks delivery. */
+  async deferQueuedMessageSend(input: CrmQueuedMessageSendDeferInput) {
+    return this.prisma.$transaction(async tx => {
+      const enrollment = await tx.crmSequenceEnrollment.findFirst({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          runVersion: input.runVersion,
+          status: 'sequence_running'
+        },
+        select: { id: true }
+      });
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          id: input.messageId,
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: 'queued'
+        },
+        data: {
+          status: 'draft_ready',
+          bullJobId: null,
+          scheduledAt: input.scheduledAt
+        },
+        limit: 1
+      });
+
+      return messages[0] ? toMessageRecord(messages[0]) : null;
+    });
+  }
+
   async stopSequenceEnrollment(input: CrmSequenceStopInput): Promise<CrmSequenceStopRecord | null> {
     return this.prisma.$transaction(async tx => {
       const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
@@ -320,6 +399,11 @@ export class PrismaCrmSequenceSendStateStore {
         return null;
       }
 
+      const recipientAccount = await tx.crmAccount.findUnique({
+        where: { id: targetMessage.accountId },
+        select: { timeZone: true }
+      });
+
       const messages = await tx.crmMessage.updateManyAndReturn({
         where: {
           id: input.messageId,
@@ -332,7 +416,8 @@ export class PrismaCrmSequenceSendStateStore {
           status: 'sent',
           sentAt: input.sentAt,
           providerMessageId: input.providerMessageId ?? null,
-          providerThreadId: input.providerThreadId ?? null
+          providerThreadId: input.providerThreadId ?? null,
+          recipientTimeZone: recipientAccount?.timeZone ?? null
         },
         limit: 1
       });

@@ -4,13 +4,16 @@ import { CrmAiDraftTaskWorkerService } from '../crm-ai-draft-task-worker.service
 import { CrmAiDraftService } from '../crm-ai-draft.service';
 import { CrmAiReplyDraftService } from '../crm-ai-reply-draft.service';
 import { CrmArchiveSlimmingService } from '../crm-archive-slimming.service';
+import { CrmDateHolidayProvider } from '../crm-holiday.provider';
 import { CrmGmailHistorySyncWorkerService } from '../crm-gmail-history-sync-worker.service';
 import { CrmGmailPubSubOidcVerifier } from '../crm-gmail-pubsub-oidc.verifier';
 import { CrmGmailWatchRenewalService } from '../crm-gmail-watch-renewal.service';
 import { CrmGmailWatchService } from '../crm-gmail-watch.service';
 import { CrmGmailWebhookService } from '../crm-gmail-webhook.service';
+import { CrmSendAvailabilityService } from '../crm-send-availability.service';
 import { CrmSendSchedulerService } from '../crm-send-scheduler.service';
 import { CrmSendWorkerService } from '../crm-send-worker.service';
+import { CRM_HOLIDAY_PROVIDER } from '../crm.tokens';
 import { CrmAiDraftTaskService } from '../ai-draft-task/crm-ai-draft-task.service';
 import { CrmDashboardService } from '../dashboard/crm-dashboard.service';
 import { CrmInboxService } from '../inbox/crm-inbox.service';
@@ -59,9 +62,14 @@ export const crmBusinessDomainProviders = {
     CrmBatchDraftApprovalService,
     CrmBatchSequenceStopService,
     CrmSequenceControlService,
+    CrmSendAvailabilityService,
     CrmSendQueueReconcileService,
     CrmSendSchedulerService,
-    CrmSendWorkerService
+    CrmSendWorkerService,
+    {
+      provide: CRM_HOLIDAY_PROVIDER,
+      useClass: CrmDateHolidayProvider
+    }
   ],
   mailbox: [
     CrmMailboxService,

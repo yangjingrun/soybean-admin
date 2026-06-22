@@ -25,6 +25,7 @@ import type {
   CrmUserContext,
   ImportCrmLeadInput
 } from '../crm.types';
+import { resolveCrmCustomerTimeZone } from '../crm-customer-timezone.rules';
 import {
   hashEmail,
   isNoMxDnsError,
@@ -46,6 +47,7 @@ import {
 import { createCrmOwnerFilter, createCrmOwnerWriteScope } from '../shared/crm-scope';
 import {
   toAccountDetailView,
+  toAccountListView,
   toAccountView,
   toContactView,
   toLeadEnrichmentHistoryView,
@@ -101,6 +103,9 @@ export class CrmAccountService {
     }
 
     const domain = normalizeCrmDomain(input.websiteUrl);
+    const country = normalizeNullableString(input.country);
+    const city = normalizeNullableString(input.city);
+    const timeZone = normalizeNullableString(input.timeZone) ?? resolveCrmCustomerTimeZone({ country, city });
     const archivedMatches = await this.findArchivedImportMatches(domain, input, context);
     const existingAccount = domain
       ? await this.accountRepository.findAccountByDomain(context.organizationId, context.userId, domain)
@@ -114,7 +119,10 @@ export class CrmAccountService {
         normalizedName: normalizeCrmName(name),
         websiteUrl: normalizeNullableString(input.websiteUrl),
         domain,
-        country: normalizeNullableString(input.country),
+        country,
+        city,
+        address: normalizeNullableString(input.address),
+        timeZone,
         customerType: normalizeNullableString(input.customerType),
         status: input.contact?.email ? 'email_verification_pending' : 'missing_contact',
         sourceTaskId: normalizeNullableString(input.sourceTaskId)
@@ -263,7 +271,7 @@ export class CrmAccountService {
       current,
       size,
       total: result.total,
-      records: result.records.map(toAccountView)
+      records: result.records.map(toAccountListView)
     });
   }
 
@@ -282,6 +290,9 @@ export class CrmAccountService {
       normalizedName?: string;
       websiteUrl?: string | null;
       country?: string | null;
+      city?: string | null;
+      address?: string | null;
+      timeZone?: string | null;
       customerType?: string | null;
     },
     context: CrmUserContext
@@ -294,6 +305,15 @@ export class CrmAccountService {
     const nextWebsiteUrl =
       input.websiteUrl === undefined ? detail.account.websiteUrl : normalizeNullableString(input.websiteUrl);
     const nextCountry = input.country === undefined ? detail.account.country : normalizeNullableString(input.country);
+    const nextCity = input.city === undefined ? detail.account.city : normalizeNullableString(input.city);
+    const nextAddress = input.address === undefined ? detail.account.address : normalizeNullableString(input.address);
+    const locationChanged = input.country !== undefined || input.city !== undefined;
+    const nextTimeZone =
+      input.timeZone !== undefined
+        ? normalizeNullableString(input.timeZone)
+        : locationChanged
+          ? resolveCrmCustomerTimeZone({ country: nextCountry, city: nextCity })
+          : detail.account.timeZone;
     const nextCustomerType =
       input.customerType === undefined ? detail.account.customerType : normalizeNullableString(input.customerType);
     const nextDomain = normalizeCrmDomain(nextWebsiteUrl);
@@ -304,6 +324,9 @@ export class CrmAccountService {
       websiteUrl: nextWebsiteUrl,
       domain: nextDomain,
       country: nextCountry,
+      city: nextCity,
+      address: nextAddress,
+      timeZone: nextTimeZone,
       customerType: nextCustomerType
     });
 
@@ -323,6 +346,9 @@ export class CrmAccountService {
           normalizedName: detail.account.normalizedName,
           websiteUrl: detail.account.websiteUrl,
           country: detail.account.country,
+          city: detail.account.city,
+          address: detail.account.address,
+          timeZone: detail.account.timeZone,
           customerType: detail.account.customerType
         },
         after: {
@@ -330,6 +356,9 @@ export class CrmAccountService {
           normalizedName: account.normalizedName,
           websiteUrl: account.websiteUrl,
           country: account.country,
+          city: account.city,
+          address: account.address,
+          timeZone: account.timeZone,
           customerType: account.customerType
         }
       }
@@ -370,6 +399,9 @@ export class CrmAccountService {
               name: detail.account.name,
               websiteUrl: detail.account.websiteUrl ?? domain,
               country: detail.account.country,
+              city: detail.account.city,
+              address: detail.account.address,
+              timeZone: detail.account.timeZone,
               customerType: detail.account.customerType,
               sourceTaskId: detail.account.sourceTaskId,
               contact

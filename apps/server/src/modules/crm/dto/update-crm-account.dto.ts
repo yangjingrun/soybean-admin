@@ -39,5 +39,23 @@ export class UpdateCrmAccountDto {
   @IsString()
   @MaxLength(120)
   @Transform(trimOptionalString)
+  city?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  @Transform(trimOptionalString)
+  address?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Transform(trimOptionalString)
+  timeZone?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Transform(trimOptionalString)
   customerType?: string | null;
 }

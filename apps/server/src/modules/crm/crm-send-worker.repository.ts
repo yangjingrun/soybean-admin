@@ -3,6 +3,10 @@ import type {
   CrmGlobalConfigRecord,
   CrmMailboxAuthorizationExpiredInput,
   CrmMailboxAuthorizationExpiredRecord,
+  CrmMessageRecord,
+  CrmQueuedMessageSendDeferInput,
+  CrmQueuedMessageSendTargetInput,
+  CrmQueuedMessageSendTargetRecord,
   CrmSendCompletionInput,
   CrmSendCompletionRecord,
   CrmSendDeliveryClaimInput,
@@ -13,6 +17,8 @@ import type {
 
 /** Data port for guarded CRM email delivery and completion. */
 export interface CrmSendWorkerRepository {
+  findQueuedMessageSendTarget(input: CrmQueuedMessageSendTargetInput): Promise<CrmQueuedMessageSendTargetRecord | null>;
+  deferQueuedMessageSend(input: CrmQueuedMessageSendDeferInput): Promise<CrmMessageRecord | null>;
   claimFirstMessageSendDelivery(input: CrmSendDeliveryClaimInput): Promise<CrmSendDeliveryClaimRecord | null>;
   completeFirstMessageSend(input: CrmSendCompletionInput): Promise<CrmSendCompletionRecord | null>;
   failFirstMessageSend(input: CrmSendFailureInput): Promise<CrmSendFailureRecord | null>;

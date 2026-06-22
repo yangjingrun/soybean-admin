@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
+import { CrmSendAvailabilityService } from './crm-send-availability.service';
 import type { CrmSendWorkerRepository } from './crm-send-worker.repository';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_SEND_WORKER_REPOSITORY } from './crm.tokens';
 import type {
@@ -23,16 +24,41 @@ export class CrmSendWorkerService {
   constructor(
     @Inject(CRM_SEND_WORKER_REPOSITORY) private readonly store: CrmSendWorkerRepository,
     @Inject(CRM_EMAIL_SEND_GATEWAY) private readonly sendGateway: CrmEmailSendGateway,
+    private readonly availabilityService: CrmSendAvailabilityService,
     @Optional()
     @Inject(SystemNotificationService)
     private readonly systemNotificationService?: SystemNotificationService
   ) {}
 
   /** Processes one queued CRM email with persisted guards before mock/real sending. */
-  async processSendJob(job: CrmSendQueueJob) {
+  async processSendJob(job: CrmSendQueueJob, now = new Date()) {
+    const target = await this.store.findQueuedMessageSendTarget(job);
+
+    if (!target) {
+      return;
+    }
+
+    const availability = this.availabilityService.evaluate({
+      now,
+      country: target.account.country ?? '',
+      timeZone: target.account.timeZone,
+      city: target.account.city
+    });
+
+    if (!availability.canSend) {
+      if (availability.nextAvailableAt) {
+        await this.store.deferQueuedMessageSend({
+          ...job,
+          scheduledAt: availability.nextAvailableAt
+        });
+      }
+
+      return;
+    }
+
     const item = await this.store.claimFirstMessageSendDelivery({
       ...job,
-      claimedAt: new Date()
+      claimedAt: now
     });
 
     if (!item) {

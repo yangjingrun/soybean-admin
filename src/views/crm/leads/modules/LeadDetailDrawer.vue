@@ -5,6 +5,7 @@ import type { DataTableColumns } from 'naive-ui';
 import {
   createDefaultLeadNoteForm,
   createDefaultLeadStatusForm,
+  buildLeadAccountUpdatePayload,
   formatArchivedFingerprintTypeLabel,
   formatLeadDate,
   formatLeadText,
@@ -58,6 +59,8 @@ interface LeadAccountFormModel {
   normalizedName: string;
   websiteUrl: string;
   country: string;
+  city: string;
+  address: string;
   customerType: string;
 }
 
@@ -79,6 +82,8 @@ const accountForm = reactive<LeadAccountFormModel>({
   normalizedName: '',
   websiteUrl: '',
   country: '',
+  city: '',
+  address: '',
   customerType: ''
 });
 const accountEditing = ref(false);
@@ -244,6 +249,8 @@ watch(
       normalizedName: value?.normalizedName ?? '',
       websiteUrl: value?.websiteUrl ?? '',
       country: value?.country ?? '',
+      city: value?.city ?? '',
+      address: value?.address ?? '',
       customerType: value?.customerType ?? ''
     });
   },
@@ -302,6 +309,8 @@ function handleStartEditAccount() {
     normalizedName: account.value.normalizedName ?? '',
     websiteUrl: account.value.websiteUrl ?? '',
     country: account.value.country ?? '',
+    city: account.value.city ?? '',
+    address: account.value.address ?? '',
     customerType: account.value.customerType ?? ''
   });
   accountEditing.value = true;
@@ -314,6 +323,8 @@ function handleCancelEditAccount() {
     normalizedName: account.value?.normalizedName ?? '',
     websiteUrl: account.value?.websiteUrl ?? '',
     country: account.value?.country ?? '',
+    city: account.value?.city ?? '',
+    address: account.value?.address ?? '',
     customerType: account.value?.customerType ?? ''
   });
 }
@@ -334,13 +345,15 @@ function handleSubmitAccount() {
 
   emit(
     'submitAccount',
-    {
+    buildLeadAccountUpdatePayload({
       name,
       normalizedName,
-      websiteUrl: accountForm.websiteUrl.trim(),
-      country: accountForm.country.trim(),
-      customerType: accountForm.customerType.trim()
-    },
+      websiteUrl: accountForm.websiteUrl,
+      country: accountForm.country,
+      city: accountForm.city,
+      address: accountForm.address,
+      customerType: accountForm.customerType
+    }),
     success => {
       if (success) {
         accountEditing.value = false;
@@ -496,14 +509,19 @@ function handleSubmitContact() {
                 />
                 <span v-else>{{ formatLeadText(account.normalizedName) }}</span>
               </NDescriptionsItem>
-              <NDescriptionsItem label="国家">
-                <NInput
-                  v-if="accountEditing"
-                  v-model:value="accountForm.country"
-                  size="small"
-                  placeholder="输入国家/地区"
-                />
-                <span v-else>{{ formatLeadText(account.country) }}</span>
+              <NDescriptionsItem label="地区/地址">
+                <div v-if="accountEditing" class="lead-location-editor">
+                  <NInputGroup>
+                    <NInput v-model:value="accountForm.country" size="small" placeholder="国家/地区" />
+                    <NInput v-model:value="accountForm.city" size="small" placeholder="城市" />
+                  </NInputGroup>
+                  <NInput v-model:value="accountForm.address" size="small" placeholder="地址" />
+                </div>
+                <div v-else class="lead-location-view">
+                  <span>{{ formatLeadText(account.country) }}</span>
+                  <span v-if="account.city" class="lead-secondary-text">{{ account.city }}</span>
+                  <span v-if="account.address" class="lead-secondary-text">{{ account.address }}</span>
+                </div>
               </NDescriptionsItem>
               <NDescriptionsItem label="客户类型">
                 <NInput
@@ -702,6 +720,13 @@ function handleSubmitContact() {
 .lead-secondary-text {
   color: var(--n-text-color-3);
   font-size: 12px;
+}
+
+.lead-location-editor,
+.lead-location-view {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .lead-summary-link {

@@ -57,8 +57,10 @@ function renderWebsite(row: Api.Crm.LeadRecord) {
 }
 
 function renderRegion(row: Api.Crm.LeadRecord) {
+  const regionText = [row.country, row.city].filter(Boolean).join(' / ');
+
   return h('div', { class: 'lead-stack-cell' }, [
-    h('span', { class: row.country ? 'lead-primary-text' : 'lead-empty-text' }, row.country || '-'),
+    h('span', { class: regionText ? 'lead-primary-text' : 'lead-empty-text' }, regionText || '-'),
     h('span', { class: 'lead-secondary-text' }, row.customerType || '-')
   ]);
 }
@@ -95,7 +97,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
   },
   {
     key: 'region',
-    title: '国家 / 客户类型',
+    title: '地区 / 客户类型',
     minWidth: 160,
     render: row => renderRegion(row)
   },

@@ -2,7 +2,7 @@ import { Prisma } from '../../../generated/prisma/client';
 
 /** Builds account keyword filters for list search. */
 export function toAccountKeywordFilter(keyword: string): Prisma.CrmAccountWhereInput[] {
-  return ['name', 'domain', 'websiteUrl', 'country', 'customerType'].map(field => ({
+  return ['name', 'domain', 'websiteUrl', 'country', 'city', 'address', 'customerType'].map(field => ({
     [field]: {
       contains: keyword,
       mode: 'insensitive'

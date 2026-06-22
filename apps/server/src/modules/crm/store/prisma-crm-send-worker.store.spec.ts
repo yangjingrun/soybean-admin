@@ -158,6 +158,45 @@ describe('PrismaCrmSendWorkerStore', () => {
     assert.equal(result?.firstMessage.stepIndex, 2);
   });
 
+  it('finds queued message send target without reserving mailbox quota', async () => {
+    const prisma = createPrm();
+    const store = new PrismaCrmSendWorkerStore(prisma as never);
+
+    const result = await store.findQueuedMessageSendTarget({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1
+    });
+
+    assert.equal(result?.firstMessage.id, 'message-1');
+    assert.equal(prisma.crmMailboxSendUsage.updateManyCalls.length, 0);
+    assert.equal(prisma.crmMailboxSendUsage.createCalls.length, 0);
+  });
+
+  it('defers a queued message back to draft_ready with a guarded scheduledAt update', async () => {
+    const prisma = createPrm();
+    const store = new PrismaCrmSendWorkerStore(prisma as never);
+    const scheduledAt = new Date('2026-06-20T13:30:00.000Z');
+
+    const result = await store.deferQueuedMessageSend({
+      enrollmentId: 'enrollment-1',
+      messageId: 'message-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      runVersion: 1,
+      scheduledAt
+    });
+
+    assert.equal(result?.status, 'draft_ready');
+    assert.deepEqual(prisma.crmMessage.updateManyAndReturnCalls.at(-1)?.data, {
+      status: 'draft_ready',
+      bullJobId: null,
+      scheduledAt
+    });
+  });
+
   it('does not claim queued first message delivery when mailbox quota is exhausted', async () => {
     const prisma = createPrm();
     const store = new PrismaCrmSendWorkerStore(prisma as never);
@@ -206,7 +245,8 @@ describe('PrismaCrmSendWorkerStore', () => {
       status: 'sent',
       sentAt,
       providerMessageId: 'gmail-message-1',
-      providerThreadId: 'gmail-thread-1'
+      providerThreadId: 'gmail-thread-1',
+      recipientTimeZone: 'Asia/Dubai'
     });
   });
 
@@ -406,6 +446,9 @@ function createPrm(
     websiteUrl: 'https://abc.example',
     domain: 'abc.example',
     country: 'AE',
+    city: 'Dubai',
+    address: 'Sheikh Zayed Road',
+    timeZone: 'Asia/Dubai',
     customerType: 'distributor',
     status: 'missing_contact',
     sourceTaskId: 'task-1',
@@ -504,6 +547,11 @@ function createPrm(
     },
     crmAccount: {
       updateCalls: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
+      findUniqueCalls: [] as Array<{ where: Record<string, unknown>; select?: Record<string, unknown> }>,
+      async findUnique(args: { where: Record<string, unknown>; select?: Record<string, unknown> }) {
+        this.findUniqueCalls.push(args);
+        return args.select ? { timeZone: account.timeZone } : account;
+      },
       async update(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
         this.updateCalls.push(args);
         return { ...account, ...args.data, updatedAt: new Date('2026-06-18T10:00:00.000Z') };

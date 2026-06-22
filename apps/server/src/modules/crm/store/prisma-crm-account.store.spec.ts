@@ -66,6 +66,8 @@ describe('PrismaCrmAccountStore', () => {
           { domain: { contains: 'bearing', mode: 'insensitive' } },
           { websiteUrl: { contains: 'bearing', mode: 'insensitive' } },
           { country: { contains: 'bearing', mode: 'insensitive' } },
+          { city: { contains: 'bearing', mode: 'insensitive' } },
+          { address: { contains: 'bearing', mode: 'insensitive' } },
           { customerType: { contains: 'bearing', mode: 'insensitive' } }
         ]
       });

@@ -250,16 +250,24 @@ export function buildAiLeadCandidateImportPayload(
 ): Api.Crm.LeadImportPayload {
   const title = candidate.title?.trim() ?? '';
   const website = candidate.website?.trim() ?? '';
+  const country = candidate.country?.trim();
+  const city = candidate.city?.trim();
+  const address = candidate.address?.trim();
 
   return {
     name: title,
     websiteUrl: website,
+    ...(country ? { country } : {}),
+    ...(city ? { city } : {}),
+    ...(address ? { address } : {}),
     customerType: candidate.sourceLabel?.trim() || 'AI线索',
     sourceTaskId: options.sourceTaskId ?? null,
     sourceSnapshot: compactSourceSnapshot({
       title,
       website,
       snippet: candidate.snippet,
+      country: candidate.country,
+      city: candidate.city,
       address: candidate.address,
       phoneNumber: candidate.phoneNumber,
       sourceType: candidate.sourceType,

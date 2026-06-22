@@ -28,6 +28,7 @@ export function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
   const message = record as CrmMessageModel & {
     providerMessageId?: string | null;
     providerThreadId?: string | null;
+    recipientTimeZone?: string | null;
     metadata?: unknown | null;
   };
 
@@ -37,6 +38,7 @@ export function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
     status: message.status as CrmMessageRecord['status'],
     providerMessageId: message.providerMessageId ?? null,
     providerThreadId: message.providerThreadId ?? null,
+    recipientTimeZone: message.recipientTimeZone ?? null,
     metadata: message.metadata ?? null
   };
 }

@@ -916,7 +916,8 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
     providerThreadId: null,
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T10:00:00.000Z'),
-    ...input
+    ...input,
+    recipientTimeZone: input.recipientTimeZone ?? null
   };
 }
 
@@ -964,6 +965,9 @@ function createInboxThreadStatusUpdate(): GmailHistorySyncThreadStatusUpdate {
       websiteUrl: 'https://abc.example',
       domain: 'abc.example',
       country: 'AE',
+      city: null,
+      address: null,
+      timeZone: null,
       customerType: 'distributor',
       status: 'replied_pending',
       sourceTaskId: null,
