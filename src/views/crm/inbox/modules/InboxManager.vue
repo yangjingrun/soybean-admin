@@ -33,7 +33,6 @@ const {
   replyBody,
   replySending,
   replyTopic,
-  statusOperating,
   statusSubmitting,
   unsubscribeConfirming
 } = useInboxTable();
@@ -72,7 +71,6 @@ const {
       :draft-saving="draftSaving"
       :loading="detailLoading"
       :reply-sending="replySending"
-      :status-operating="statusOperating"
       :status-submitting="statusSubmitting"
       :unsubscribe-confirming="unsubscribeConfirming"
       @update:show="handleDetailVisibleUpdate"
