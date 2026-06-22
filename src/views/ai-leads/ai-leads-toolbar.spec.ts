@@ -22,11 +22,14 @@ function getButtonSizeByMarker(marker: string) {
 
 describe('AI leads toolbar', () => {
   it('keeps primary workflow action buttons at the same size', () => {
-    const buttonSizes = ['data-action="generate"', 'handlePrimarySearchAction', 'handleClear'].map(
-      getButtonSizeByMarker
-    );
+    const buttonSizes = [
+      'data-action="generate"',
+      'data-action="cancel-generate"',
+      'handlePrimarySearchAction',
+      'handleClear'
+    ].map(getButtonSizeByMarker);
 
-    assert.deepEqual(buttonSizes, ['small', 'small', 'small']);
+    assert.deepEqual(buttonSizes, ['small', 'small', 'small', 'small']);
   });
 
   it('uses the primary search button as the interrupt action while collecting', () => {
@@ -76,6 +79,20 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /@positive-click="handleConfirmGenerateFromHistory"/);
     assert.match(pageSource, /@click="isHistoryGenerateConfirmVisible = true"/);
     assert.match(pageSource, /data-action="generate"/);
+  });
+
+  it('restores the routed task when notification view lands on ai leads', () => {
+    assert.match(pageComposableSource, /useRoute\(\)/);
+    assert.match(pageComposableSource, /normalizeRouteTaskId\(route\.query\.taskId\)/);
+    assert.match(pageComposableSource, /taskId \? fetchLeadSearchTask\(taskId\) : fetchCurrentLeadSearchTask\(\)/);
+  });
+
+  it('allows keyword re-optimization to be interrupted without applying stale results', () => {
+    assert.match(pageSource, /data-action="cancel-generate"/);
+    assert.match(pageSource, /handleCancelGenerate/);
+    assert.match(pageComposableSource, /const generatingRequestId = shallowRef\(0\)/);
+    assert.match(pageComposableSource, /if \(requestId !== generatingRequestId\.value\)/);
+    assert.match(pageComposableSource, /message\.info\('已中断本次重新优化'\)/);
   });
 
   it('keeps debug details in the bottom-left result area', () => {

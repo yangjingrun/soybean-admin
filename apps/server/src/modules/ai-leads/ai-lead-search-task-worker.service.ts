@@ -441,7 +441,7 @@ export class AiLeadSearchTaskWorkerService {
       content,
       targetType: 'aiLeadSearchTask',
       targetId: task.id,
-      routePath: '/ai-leads',
+      routePath: `/ai-leads?taskId=${encodeURIComponent(task.id)}`,
       metadata: createTaskNotificationMetadata(task.id)
     });
   }

@@ -1,4 +1,5 @@
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { aiLeadsKeywordStrategyManagePermission, hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
@@ -46,6 +47,7 @@ import {
 } from './shared';
 export function useAiLeadPage() {
   const message = useMessage();
+  const route = useRoute();
   const authStore = useAuthStore();
   const defaultTargetLeadCount = 20;
   const maxLeadSearchRepeatRounds = 2;
@@ -75,6 +77,7 @@ export function useAiLeadPage() {
   };
   const form = reactive(createDefaultLeadSearchForm(defaultTargetLeadCount));
   const isGenerating = shallowRef(false);
+  const generatingRequestId = shallowRef(0);
   const isSearchTaskSubmitting = shallowRef(false);
   const isSearchTaskActionLoading = shallowRef(false);
   const importingCandidateKey = shallowRef('');
@@ -184,12 +187,18 @@ export function useAiLeadPage() {
   onMounted(() => {
     void initPage();
   });
+  watch(
+    () => normalizeRouteTaskId(route.query.taskId),
+    taskId => {
+      void restoreCurrentSearchTask(taskId);
+    }
+  );
   onBeforeUnmount(() => {
     stopSearchTaskPolling();
   });
   async function initPage() {
     await loadKeywordHistories();
-    await restoreCurrentSearchTask();
+    await restoreCurrentSearchTask(normalizeRouteTaskId(route.query.taskId));
   }
   /** Calls the AI leads keyword optimization workflow. */
   async function handleGenerate() {
@@ -200,6 +209,8 @@ export function useAiLeadPage() {
     if (!(await prepareCompletedSearchTaskForNextWorkflow())) {
       return;
     }
+    const requestId = generatingRequestId.value + 1;
+    generatingRequestId.value = requestId;
     const targetLeadCount = form.targetLeadCount;
     const isTargetLeadCountManuallyEdited = isTargetLeadCountTouched.value;
     isGenerating.value = true;
@@ -210,6 +221,9 @@ export function useAiLeadPage() {
         leadSourceMode: form.leadSourceMode
       });
       if (error) {
+        return;
+      }
+      if (requestId !== generatingRequestId.value) {
         return;
       }
       aiResult.value = result;
@@ -225,8 +239,18 @@ export function useAiLeadPage() {
       isTargetLeadCountTouched.value = isTargetLeadCountManuallyEdited;
       message.success('生成完成');
     } finally {
-      isGenerating.value = false;
+      if (requestId === generatingRequestId.value) {
+        isGenerating.value = false;
+      }
     }
+  }
+  function handleCancelGenerate() {
+    if (!isGenerating.value) {
+      return;
+    }
+    generatingRequestId.value += 1;
+    isGenerating.value = false;
+    message.info('已中断本次重新优化');
   }
   /** Creates a background search task and restores its persisted progress state. */
   async function handleSearchCustomers() {
@@ -349,8 +373,9 @@ export function useAiLeadPage() {
     }
   }
   /** Restores the task that should keep showing when the user enters the page. */
-  async function restoreCurrentSearchTask() {
-    const { data: task, error } = await fetchCurrentLeadSearchTask();
+  async function restoreCurrentSearchTask(taskId) {
+    const request = taskId ? fetchLeadSearchTask(taskId) : fetchCurrentLeadSearchTask();
+    const { data: task, error } = await request;
     if (error || !task) {
       return;
     }
@@ -640,6 +665,7 @@ export function useAiLeadPage() {
     form,
     handleCancelEdit,
     handleClear,
+    handleCancelGenerate,
     handleCopyResult,
     handleDeleteCurrentHistory,
     handleDeleteHistory,
@@ -676,6 +702,12 @@ export function useAiLeadPage() {
     targetLeadCountFeedback,
     targetLeadCountValidationStatus
   };
+}
+function normalizeRouteTaskId(taskId) {
+  if (Array.isArray(taskId)) {
+    return taskId.find(Boolean) || undefined;
+  }
+  return taskId || undefined;
 }
 function resolveLeadSourceMode(plan) {
   const mapsCount = plan.serperMapsQueries?.length ?? 0;

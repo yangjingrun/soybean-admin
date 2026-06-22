@@ -283,7 +283,7 @@ describe('AiLeadSearchTaskWorkerService', () => {
   });
 
   it('creates the completion notification when the task completion event cannot be written', async () => {
-    const notifications: Array<{ type: string; title: string }> = [];
+    const notifications: Array<{ type: string; title: string; routePath?: string | null }> = [];
     const task = createTask({ status: 'queued' });
     const store = createTaskStore({ task, queries: [], failEventTypes: ['task_completed'] });
     const orchestrator = {
@@ -304,6 +304,7 @@ describe('AiLeadSearchTaskWorkerService', () => {
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0].type, 'task_completed');
     assert.equal(notifications[0].title, '采集任务已完成');
+    assert.equal(notifications[0].routePath, `/ai-leads?taskId=${task.id}`);
   });
 
   it('keeps task notification metadata scoped to the task id', async () => {

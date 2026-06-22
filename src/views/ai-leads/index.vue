@@ -24,6 +24,7 @@ const {
   form,
   handleCancelEdit,
   handleClear,
+  handleCancelGenerate,
   handleCopyResult,
   handleDeleteCurrentHistory,
   handleDeleteHistory,
@@ -268,8 +269,18 @@ const taskActionButtons = computed(
               </template>
               历史
             </NButton>
+            <NButton
+              v-if="isGenerating"
+              size="small"
+              type="error"
+              secondary
+              data-action="cancel-generate"
+              @click="handleCancelGenerate"
+            >
+              中断优化
+            </NButton>
             <NPopconfirm
-              v-if="isRestoredKeywordHistory"
+              v-else-if="isRestoredKeywordHistory"
               :show="isHistoryGenerateConfirmVisible"
               @update:show="isHistoryGenerateConfirmVisible = $event"
               @positive-click="handleConfirmGenerateFromHistory"
