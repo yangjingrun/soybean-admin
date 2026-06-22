@@ -174,7 +174,12 @@ function handleStatusSelect(key: string | number) {
             <div class="drawer-section">
               <div class="section-title">邮件正文</div>
               <NSpace v-if="messages.length" vertical :size="0" class="message-list">
-                <div v-for="item in messages" :key="item.id" class="message-item">
+                <div
+                  v-for="item in messages"
+                  :key="item.id"
+                  class="message-item"
+                  :class="`message-item--${item.direction}`"
+                >
                   <div class="message-header">
                     <NSpace align="center" :size="8">
                       <NTag :type="inboxMessageDirectionTagTypeMap[item.direction]" :bordered="false" size="small">
@@ -385,15 +390,36 @@ function handleStatusSelect(key: string | number) {
 .message-list {
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
+  background-color: var(--n-color-embedded);
+  padding: 12px;
   overflow: hidden;
 }
 
 .message-item {
-  padding: 14px 16px;
+  position: relative;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background-color: var(--n-color);
+  padding: 14px 16px 14px 18px;
+}
+
+.message-item::before {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 8px;
+  width: 3px;
+  border-radius: 999px;
+  background-color: rgb(var(--primary-color));
+  content: '';
 }
 
 .message-item + .message-item {
-  border-top: 1px solid var(--n-divider-color);
+  margin-top: 10px;
+}
+
+.message-item--outbound::before {
+  background-color: rgb(var(--success-color));
 }
 
 .section-subtitle,
