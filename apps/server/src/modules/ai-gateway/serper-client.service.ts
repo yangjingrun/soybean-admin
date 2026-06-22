@@ -37,14 +37,20 @@ export class SerperClient {
   }
 
   private async request(endpoint: SerperEndpoint, config: SerperConfigRecord, request: SerperRequestBody) {
-    const response = await this.fetcher(this.toEndpointUrl(config.apiBase, endpoint), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-KEY': config.apiKey
-      },
-      body: JSON.stringify(this.toRequestBody(request))
-    });
+    let response: Response;
+
+    try {
+      response = await this.fetcher(this.toEndpointUrl(config.apiBase, endpoint), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-KEY': config.apiKey
+        },
+        body: JSON.stringify(this.toRequestBody(request))
+      });
+    } catch {
+      throw new BadGatewayException(`Serper ${endpoint} 调用失败：网络异常`);
+    }
 
     if (!response.ok) {
       throw new BadGatewayException(`Serper ${endpoint} 调用失败：${response.status}`);

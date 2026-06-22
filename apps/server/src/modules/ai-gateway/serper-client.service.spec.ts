@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { BadGatewayException } from '@nestjs/common';
 import { SerperClient } from './serper-client.service';
 
 describe('SerperClient', () => {
@@ -133,5 +134,37 @@ describe('SerperClient', () => {
       ll: '@41.6469296,-73.2681778,8z',
       page: 1
     });
+  });
+
+  it('translates fetch network errors into a Chinese message', async () => {
+    const client = new SerperClient(async () => {
+      throw new TypeError('fetch failed');
+    });
+
+    await assert.rejects(
+      () =>
+        client.search(
+          {
+            configKey: 'default',
+            title: 'Serper 搜索',
+            apiBase: 'https://google.serper.dev',
+            apiKey: 'serper-key',
+            updatedAt: ''
+          },
+          {
+            q: 'bearing distributor Saudi Arabia',
+            gl: 'sa',
+            hl: 'en',
+            num: 10,
+            page: 1
+          }
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof BadGatewayException);
+        assert.equal(error.message, 'Serper search 调用失败：网络异常');
+
+        return true;
+      }
+    );
   });
 });
