@@ -22,30 +22,26 @@ function getButtonSizeByMarker(marker: string) {
 
 describe('AI leads toolbar', () => {
   it('keeps primary workflow action buttons at the same size', () => {
-    const buttonSizes = [
-      'data-action="generate"',
-      'data-action="cancel-generate"',
-      'handlePrimarySearchAction',
-      'handleClear'
-    ].map(getButtonSizeByMarker);
+    const buttonSizes = ['data-action="start-leads"', 'data-action="stop-leads"'].map(getButtonSizeByMarker);
 
-    assert.deepEqual(buttonSizes, ['small', 'small', 'small', 'small']);
+    assert.deepEqual(buttonSizes, ['small', 'small']);
   });
 
-  it('uses the primary search button as the interrupt action while collecting', () => {
-    assert.match(pageSource, /const isPrimarySearchInterruptAction = computed/);
-    assert.match(pageSource, /handleSearchTaskAction\('interrupt'\)/);
-    assert.match(
-      pageSource,
-      /const searchPrimaryButtonType = computed\(\(\) => \(isPrimarySearchInterruptAction\.value \? 'error' : 'primary'\)\);/
-    );
-    assert.equal(pageSource.includes("{ key: 'interrupt', label: '中断'"), false);
+  it('keeps the main path to one-click lead generation with history visible', () => {
+    assert.match(pageSource, /data-action="start-leads"/);
+    assert.match(pageSource, /data-action="stop-leads"/);
+    assert.match(pageSource, /handleStartLeadWorkflow/);
+    assert.match(pageSource, /停止本次获客/);
+    assert.match(pageSource, /历史/);
+    assert.equal(pageSource.includes('data-action="generate"'), false);
+    assert.equal(pageSource.includes('优化关键词'), false);
+    assert.equal(pageSource.includes('重新优化'), false);
+    assert.equal(pageSource.includes('放弃'), false);
   });
 
   it('keeps task read action out of the primary toolbar copy', () => {
     assert.equal(pageSource.includes('确认结果'), false);
-    assert.match(pageSource, /继续采集更多/);
-    assert.match(pageSource, /开始新任务/);
+    assert.match(pageSource, /开始获客/);
   });
 
   it('does not expose keyword plan as a primary result tab', () => {
@@ -55,10 +51,12 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /搜索策略已准备好/);
   });
 
-  it('keeps search collection as the final visible workflow step', () => {
+  it('does not expose internal workflow steps on the main page', () => {
     assert.equal(pageSource.includes("title: '导入 CRM'"), false);
     assert.equal(pageSource.includes('采集完成后处理候选客户'), false);
-    assert.match(pageSource, /title: '搜索采集'/);
+    assert.equal(pageSource.includes('workflow-card'), false);
+    assert.equal(pageSource.includes("title: 'AI 准备'"), false);
+    assert.match(pageComposableSource, /正在搜索客户/);
   });
 
   it('guides completed search tasks into the CRM source-task lead queue', () => {
@@ -70,15 +68,17 @@ describe('AI leads toolbar', () => {
     assert.equal(searchProgressPanelSource.includes('导入 CRM'), false);
   });
 
-  it('makes restored keyword history visible before re-optimizing', () => {
+  it('uses the latest matching strategy automatically before collecting leads', () => {
+    assert.match(pageComposableSource, /handleStartLeadWorkflow/);
+    assert.match(pageComposableSource, /resolveReusableKeywordPlan/);
+    assert.match(pageComposableSource, /runKeywordOptimizationForWorkflow/);
+    assert.match(pageComposableSource, /createLeadSearchTaskWithPlan/);
+  });
+
+  it('keeps restored keyword history available without making it the main workflow', () => {
     assert.match(pageComposableSource, /isRestoredKeywordHistory/);
     assert.match(pageSource, /已选中关键词历史/);
     assert.match(pageSource, /历史搜索策略已选中/);
-    assert.match(pageSource, /重新优化/);
-    assert.match(pageSource, /:show="isHistoryGenerateConfirmVisible"/);
-    assert.match(pageSource, /@positive-click="handleConfirmGenerateFromHistory"/);
-    assert.match(pageSource, /@click="isHistoryGenerateConfirmVisible = true"/);
-    assert.match(pageSource, /data-action="generate"/);
   });
 
   it('restores the routed task when notification view lands on ai leads', () => {
@@ -87,12 +87,12 @@ describe('AI leads toolbar', () => {
     assert.match(pageComposableSource, /taskId \? fetchLeadSearchTask\(taskId\) : fetchCurrentLeadSearchTask\(\)/);
   });
 
-  it('allows keyword re-optimization to be interrupted without applying stale results', () => {
-    assert.match(pageSource, /data-action="cancel-generate"/);
-    assert.match(pageSource, /handleCancelGenerate/);
+  it('allows the automatic keyword optimization stage to be stopped without applying stale results', () => {
+    assert.match(pageSource, /data-action="stop-leads"/);
+    assert.match(pageSource, /handleStopLeadWorkflow/);
     assert.match(pageComposableSource, /const generatingRequestId = shallowRef\(0\)/);
     assert.match(pageComposableSource, /if \(requestId !== generatingRequestId\.value\)/);
-    assert.match(pageComposableSource, /message\.info\('已中断本次重新优化'\)/);
+    assert.match(pageComposableSource, /message\.info\('已停止本次获客'\)/);
   });
 
   it('keeps debug details in the bottom-left result area', () => {

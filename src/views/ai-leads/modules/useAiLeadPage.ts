@@ -121,6 +121,9 @@ export function useAiLeadPage() {
   );
   const isSearchTaskPending = computed(() => isLeadSearchTaskPending(currentSearchTask.value?.status));
   const isSearching = computed(() => isSearchTaskSubmitting.value || isSearchTaskPending.value);
+  const isLeadWorkflowRunning = computed(
+    () => isGenerating.value || isSearching.value || isSearchTaskActionLoading.value
+  );
   const canCreateSearchTask = computed(() => {
     if (!currentSearchTask.value) {
       return true;
@@ -129,6 +132,8 @@ export function useAiLeadPage() {
     return (
       currentSearchTask.value.status === 'completed' ||
       currentSearchTask.value.status === 'discarded' ||
+      currentSearchTask.value.status === 'interrupted' ||
+      currentSearchTask.value.status === 'failed' ||
       Boolean(currentSearchTask.value.readAt)
     );
   });
@@ -156,6 +161,29 @@ export function useAiLeadPage() {
       !isSearchTaskActionLoading.value &&
       canCreateSearchTask.value
   );
+  const canStartLeadWorkflow = computed(
+    () =>
+      canGenerate.value &&
+      isTargetLeadCountValid.value &&
+      !isLeadWorkflowRunning.value &&
+      canCreateSearchTask.value &&
+      !isHistorySaving.value &&
+      !isHistoryDeleting.value
+  );
+  const canStopLeadWorkflow = computed(
+    () => isGenerating.value || isLeadSearchTaskPending(currentSearchTask.value?.status)
+  );
+  const leadWorkflowStatusLabel = computed(() => {
+    if (isGenerating.value) {
+      return '正在分析需求';
+    }
+
+    if (isSearchTaskSubmitting.value || isLeadSearchTaskPending(currentSearchTask.value?.status)) {
+      return '正在搜索客户';
+    }
+
+    return '';
+  });
   const keywordOptimizationViewModel = computed(() =>
     keywordOptimizationPlan.value
       ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, canManageKeywordStrategy.value)
@@ -278,6 +306,107 @@ export function useAiLeadPage() {
     message.info('已中断本次重新优化');
   }
 
+  /** Starts the simplest lead workflow: reuse a matching strategy or optimize first, then collect. */
+  async function handleStartLeadWorkflow() {
+    if (!canGenerate.value) {
+      message.warning('请先填写获客需求');
+      return;
+    }
+
+    const targetLeadCount = getRequiredTargetLeadCount();
+    if (!targetLeadCount) {
+      message.warning('请输入 1-200 的采集数量');
+      return;
+    }
+
+    if (isLeadWorkflowRunning.value) {
+      return;
+    }
+
+    if (!(await discardRecoverableSearchTaskForNextWorkflow())) {
+      return;
+    }
+
+    if (!(await prepareCompletedSearchTaskForNextWorkflow())) {
+      return;
+    }
+
+    const reusableKeywordPlan = resolveReusableKeywordPlan();
+    const workflowInput = reusableKeywordPlan
+      ? { keywordPlan: reusableKeywordPlan, targetLeadCount }
+      : await runKeywordOptimizationForWorkflow(targetLeadCount);
+
+    if (!workflowInput) {
+      return;
+    }
+
+    await createLeadSearchTaskWithPlan(workflowInput.keywordPlan, workflowInput.targetLeadCount);
+  }
+
+  /** Stops the visible one-click workflow, including the hidden optimization stage. */
+  async function handleStopLeadWorkflow() {
+    if (isGenerating.value) {
+      generatingRequestId.value += 1;
+      isGenerating.value = false;
+      message.info('已停止本次获客');
+      return;
+    }
+
+    const task = currentSearchTask.value;
+    if (!task || isSearchTaskActionLoading.value) {
+      return;
+    }
+
+    isSearchTaskActionLoading.value = true;
+
+    try {
+      const { data: interruptedTask, error: interruptError } =
+        task.status === 'running' ? await interruptLeadSearchTask(task.id) : { data: task, error: null };
+
+      if (interruptError) {
+        await syncCurrentSearchTaskAfterRequestError();
+        return;
+      }
+
+      const { error } = await discardLeadSearchTask(interruptedTask.id);
+
+      if (error) {
+        await syncCurrentSearchTaskAfterRequestError();
+        return;
+      }
+
+      clearHandledSearchTaskContext('discard');
+      message.info('已停止本次获客');
+    } finally {
+      isSearchTaskActionLoading.value = false;
+    }
+  }
+
+  /** Clears a failed or interrupted task before starting a fresh one-click workflow. */
+  async function discardRecoverableSearchTaskForNextWorkflow() {
+    const task = currentSearchTask.value;
+
+    if (!task || (task.status !== 'interrupted' && task.status !== 'failed')) {
+      return true;
+    }
+
+    isSearchTaskActionLoading.value = true;
+
+    try {
+      const { error } = await discardLeadSearchTask(task.id);
+
+      if (error) {
+        await syncCurrentSearchTaskAfterRequestError();
+        return false;
+      }
+
+      clearHandledSearchTaskContext('discard');
+      return true;
+    } finally {
+      isSearchTaskActionLoading.value = false;
+    }
+  }
+
   /** Creates a background search task and restores its persisted progress state. */
   async function handleSearchCustomers() {
     if (isSearching.value) {
@@ -310,6 +439,10 @@ export function useAiLeadPage() {
       return;
     }
 
+    await createLeadSearchTaskWithPlan(keywordPlan, targetLeadCount);
+  }
+
+  async function createLeadSearchTaskWithPlan(keywordPlan: Api.AiLeads.OptimizedKeywordPlan, targetLeadCount: number) {
     isSearchTaskSubmitting.value = true;
     keywordQualityWarnings.value = [];
     searchProgress.value = createStartingSearchProgressState();
@@ -334,6 +467,61 @@ export function useAiLeadPage() {
     } finally {
       isSearchTaskSubmitting.value = false;
     }
+  }
+
+  async function runKeywordOptimizationForWorkflow(targetLeadCount: number) {
+    const requestId = generatingRequestId.value + 1;
+    generatingRequestId.value = requestId;
+    const isTargetLeadCountManuallyEdited = isTargetLeadCountTouched.value;
+    isGenerating.value = true;
+    resetSearchProgress();
+
+    try {
+      const { data: result, error } = await optimizeLeadKeywords({
+        requirement: form.requirement.trim(),
+        leadSourceMode: form.leadSourceMode
+      });
+
+      if (error || requestId !== generatingRequestId.value) {
+        return null;
+      }
+
+      aiResult.value = result;
+      keywordQualityWarnings.value = result.qualityWarnings ?? [];
+      upsertHistoryRecord(result.historyRecord);
+      applyKeywordHistoryRecord(result.historyRecord, { syncTargetLeadCount: false, origin: 'generated' });
+
+      const resolvedTargetLeadCount = resolveTargetLeadCountAfterOptimization({
+        currentValue: targetLeadCount,
+        resolvedValue: result.historyRecord.keywordPlan.resolvedTargetLeadCount,
+        isManuallyEdited: isTargetLeadCountManuallyEdited,
+        defaultValue: defaultTargetLeadCount
+      });
+      form.targetLeadCount = resolvedTargetLeadCount;
+      isTargetLeadCountTouched.value = isTargetLeadCountManuallyEdited;
+
+      return {
+        keywordPlan: cloneKeywordPlan(result.historyRecord.keywordPlan),
+        targetLeadCount: resolvedTargetLeadCount ?? targetLeadCount
+      };
+    } finally {
+      if (requestId === generatingRequestId.value) {
+        isGenerating.value = false;
+      }
+    }
+  }
+
+  function resolveReusableKeywordPlan() {
+    const keywordPlan = keywordOptimizationPlan.value;
+
+    if (!keywordPlan || resolveLeadSourceMode(keywordPlan) !== form.leadSourceMode) {
+      return null;
+    }
+
+    const currentRequirement = normalizeLeadRequirement(form.requirement);
+    const reusableRequirement = currentHistoryRecord.value?.requirement || currentSearchTask.value?.requirement || '';
+
+    return normalizeLeadRequirement(reusableRequirement) === currentRequirement ? cloneKeywordPlan(keywordPlan) : null;
   }
 
   async function handleSearchTaskAction(action: LeadSearchTaskAction) {
@@ -783,6 +971,8 @@ export function useAiLeadPage() {
     canReturnToKeywordStep,
     canSaveHistory,
     canSearchCustomers,
+    canStartLeadWorkflow,
+    canStopLeadWorkflow,
     currentHistoryRecord,
     currentSearchTask,
     currentSearchTaskStatusLabel,
@@ -804,7 +994,9 @@ export function useAiLeadPage() {
     handleSearchCustomers,
     handleSearchTaskAction,
     handleSelectHistory,
+    handleStartLeadWorkflow,
     handleStartEdit,
+    handleStopLeadWorkflow,
     handleTargetLeadCountUpdate,
     hasSearchProgress,
     historyRecords,
@@ -820,8 +1012,10 @@ export function useAiLeadPage() {
     isSearchTaskPending,
     isSearchTaskSubmitting,
     isSearching,
+    isLeadWorkflowRunning,
     keywordOptimizationViewModel,
     keywordQualityWarnings,
+    leadWorkflowStatusLabel,
     maxLeadSearchRepeatRounds,
     searchProgress,
     searchTaskActionState,
@@ -837,6 +1031,10 @@ function normalizeRouteTaskId(taskId: string | null | Array<string | null> | und
   }
 
   return taskId || undefined;
+}
+
+function normalizeLeadRequirement(requirement: string) {
+  return requirement.trim().replace(/\s+/g, ' ');
 }
 
 function resolveLeadSourceMode(plan: Api.AiLeads.OptimizedKeywordPlan): Api.AiLeads.LeadSourceMode {

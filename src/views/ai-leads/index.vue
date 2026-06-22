@@ -9,33 +9,27 @@ import { useAiLeadPage } from './modules/useAiLeadPage';
 const {
   aiFinishReasonLabel,
   aiResult,
-  canGenerate,
   canManageKeywordStrategy,
   canReturnToKeywordStep,
   canSaveHistory,
-  canSearchCustomers,
+  canStartLeadWorkflow,
+  canStopLeadWorkflow,
   currentHistoryRecord,
   currentSearchTask,
-  currentSearchTaskStatusLabel,
-  currentSearchTaskStatusType,
-  currentWorkflowStepLabel,
   deletingKeywordHistoryId,
   editableKeywordPlan,
   form,
   handleCancelEdit,
-  handleClear,
-  handleCancelGenerate,
   handleCopyResult,
   handleDeleteCurrentHistory,
   handleDeleteHistory,
-  handleGenerate,
   handleProcessCollectedLeads,
   handleReturnToKeywordOptimization,
   handleSaveHistory,
-  handleSearchCustomers,
-  handleSearchTaskAction,
   handleSelectHistory,
+  handleStartLeadWorkflow,
   handleStartEdit,
+  handleStopLeadWorkflow,
   handleTargetLeadCountUpdate,
   hasSearchProgress,
   historyRecords,
@@ -50,63 +44,19 @@ const {
   isSearchTaskBlockingForm,
   isSearchTaskPending,
   isSearchTaskSubmitting,
-  isSearching,
+  isLeadWorkflowRunning,
   keywordOptimizationViewModel,
   keywordQualityWarnings,
+  leadWorkflowStatusLabel,
   searchProgress,
-  searchTaskActionState,
   selectedHistoryId,
   targetLeadCountFeedback
 } = useAiLeadPage();
 
-type WorkflowStepState = 'wait' | 'active' | 'completed' | 'warning' | 'error';
-type TaskActionButton = {
-  key: 'resume' | 'retry';
-  label: string;
-  type: 'primary';
-  visible: boolean;
-};
-
 const debugFooterRef = useTemplateRef<HTMLElement>('debugFooter');
 const debugExpandedNames = shallowRef<Array<string | number>>([]);
-const isHistoryGenerateConfirmVisible = shallowRef(false);
 
-const isGenerateDisabled = computed(
-  () =>
-    !canGenerate.value ||
-    isSearching.value ||
-    isSearchTaskActionLoading.value ||
-    isHistorySaving.value ||
-    isHistoryDeleting.value ||
-    isSearchTaskBlockingForm.value
-);
-
-const isClearDisabled = computed(
-  () =>
-    isGenerating.value ||
-    isSearching.value ||
-    isSearchTaskActionLoading.value ||
-    isHistorySaving.value ||
-    isHistoryDeleting.value ||
-    isSearchTaskBlockingForm.value
-);
-
-const hasCompletedSearchTask = computed(() => currentSearchTask.value?.status === 'completed');
-const isPrimarySearchInterruptAction = computed(() => searchTaskActionState.value.canInterrupt);
-const searchButtonLabel = computed(() =>
-  isPrimarySearchInterruptAction.value ? '中断' : hasCompletedSearchTask.value ? '继续采集更多' : '开始获客'
-);
-const searchPrimaryButtonType = computed(() => (isPrimarySearchInterruptAction.value ? 'error' : 'primary'));
-const searchPrimaryButtonLoading = computed(() =>
-  isPrimarySearchInterruptAction.value ? isSearchTaskActionLoading.value : isSearchTaskSubmitting.value
-);
 const debugFooterClass = computed(() => ({ 'is-editing-focus': isEditingResult.value }));
-const isSearchPrimaryButtonDisabled = computed(() =>
-  isPrimarySearchInterruptAction.value
-    ? isHistorySaving.value || isHistoryDeleting.value
-    : !canSearchCustomers.value || isHistorySaving.value || isHistoryDeleting.value
-);
-const clearButtonLabel = computed(() => (hasCompletedSearchTask.value ? '开始新任务' : '清空'));
 const selectedHistoryUpdatedAtLabel = computed(() =>
   currentHistoryRecord.value ? dayjs(currentHistoryRecord.value.updatedAt).format('YYYY-MM-DD HH:mm') : ''
 );
@@ -114,25 +64,8 @@ const keywordReadyResultTitle = computed(() =>
   isRestoredKeywordHistory.value ? '历史搜索策略已选中' : '搜索策略已准备好'
 );
 const keywordReadyResultDescription = computed(() =>
-  isRestoredKeywordHistory.value
-    ? '可以直接开始获客；如需按当前需求生成新策略，请点击重新优化。'
-    : '点击开始获客，系统会直接返回候选客户。'
+  isRestoredKeywordHistory.value ? '点击开始获客，系统会复用这条历史策略。' : '点击开始获客，系统会直接返回候选客户。'
 );
-
-function handlePrimarySearchAction() {
-  if (isPrimarySearchInterruptAction.value) {
-    return handleSearchTaskAction('interrupt');
-  }
-
-  return handleSearchCustomers();
-}
-
-/** Closes the history confirm popup before the generate flow switches page state. */
-async function handleConfirmGenerateFromHistory() {
-  isHistoryGenerateConfirmVisible.value = false;
-  await nextTick();
-  await handleGenerate();
-}
 
 /**
  * Enters keyword plan edit mode and guides the user to the editable debug panel.
@@ -144,63 +77,6 @@ async function handleStartKeywordResultEdit() {
   await nextTick();
   debugFooterRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-
-const workflowSteps = computed(() => {
-  const hasRequirement = Boolean(form.requirement.trim());
-  const hasKeywordPlan = Boolean(keywordOptimizationViewModel.value);
-  const taskStatus = currentSearchTask.value?.status;
-  const searchStatus = searchProgress.value.status;
-  const hasCompletedSearch = searchStatus === 'completed' || taskStatus === 'completed';
-  const hasFailedSearch = searchStatus === 'failed' || taskStatus === 'failed';
-  const hasInterruptedSearch = searchStatus === 'interrupted' || taskStatus === 'interrupted';
-  const hasStartedSearch = hasSearchProgress.value || isSearching.value;
-
-  return [
-    {
-      key: 'requirement',
-      title: '描述需求',
-      description: hasRequirement ? '已填写目标客户描述' : '输入产品、地区和客户类型',
-      state: hasRequirement ? 'completed' : 'active'
-    },
-    {
-      key: 'keyword',
-      title: 'AI 准备',
-      description: isRestoredKeywordHistory.value
-        ? '已选中历史搜索策略'
-        : hasKeywordPlan
-          ? '搜索策略已准备好'
-          : '先让 AI 归纳搜索方向',
-      state: hasKeywordPlan ? 'completed' : hasRequirement ? 'active' : 'wait'
-    },
-    {
-      key: 'search',
-      title: '搜索采集',
-      description: currentSearchTask.value ? currentSearchTaskStatusLabel.value : '创建后台采集任务',
-      state: hasFailedSearch
-        ? 'error'
-        : hasInterruptedSearch
-          ? 'warning'
-          : hasCompletedSearch
-            ? 'completed'
-            : hasStartedSearch
-              ? 'active'
-              : 'wait'
-    }
-  ] satisfies Array<{
-    key: string;
-    title: string;
-    description: string;
-    state: WorkflowStepState;
-  }>;
-});
-
-const taskActionButtons = computed(
-  () =>
-    [
-      { key: 'resume', label: '继续', type: 'primary', visible: searchTaskActionState.value.canResume },
-      { key: 'retry', label: '重试', type: 'primary', visible: searchTaskActionState.value.canRetry }
-    ].filter(item => item.visible) as TaskActionButton[]
-);
 </script>
 
 <template>
@@ -250,9 +126,8 @@ const taskActionButtons = computed(
                 {{ targetLeadCountFeedback }}
               </NText>
             </div>
-            <NTag size="small" type="info" :bordered="false">{{ currentWorkflowStepLabel }}</NTag>
-            <NTag v-if="currentSearchTask" size="small" :type="currentSearchTaskStatusType" :bordered="false">
-              {{ currentSearchTaskStatusLabel }}
+            <NTag v-if="leadWorkflowStatusLabel" size="small" type="info" :bordered="false">
+              {{ leadWorkflowStatusLabel }}
             </NTag>
           </div>
 
@@ -270,100 +145,37 @@ const taskActionButtons = computed(
               历史
             </NButton>
             <NButton
-              v-if="isGenerating"
+              v-if="!isLeadWorkflowRunning"
+              size="small"
+              type="primary"
+              :disabled="!canStartLeadWorkflow"
+              data-action="start-leads"
+              @click="handleStartLeadWorkflow"
+            >
+              开始获客
+            </NButton>
+            <NButton v-else size="small" type="primary" loading disabled data-action="start-leads">
+              {{ leadWorkflowStatusLabel || '正在获客' }}
+            </NButton>
+            <NButton
+              v-if="canStopLeadWorkflow"
               size="small"
               type="error"
               secondary
-              data-action="cancel-generate"
-              @click="handleCancelGenerate"
-            >
-              中断优化
-            </NButton>
-            <NPopconfirm
-              v-else-if="isRestoredKeywordHistory"
-              :show="isHistoryGenerateConfirmVisible"
-              @update:show="isHistoryGenerateConfirmVisible = $event"
-              @positive-click="handleConfirmGenerateFromHistory"
-            >
-              <template #trigger>
-                <NButton
-                  size="small"
-                  :loading="isGenerating"
-                  :disabled="isGenerateDisabled"
-                  data-action="generate"
-                  @click="isHistoryGenerateConfirmVisible = true"
-                >
-                  重新优化
-                </NButton>
-              </template>
-              当前选中的是历史记录。重新优化会按上方需求生成新的搜索策略，并切换到新历史，确认继续？
-            </NPopconfirm>
-            <NButton
-              v-else
-              size="small"
-              :loading="isGenerating"
-              :disabled="isGenerateDisabled"
-              data-action="generate"
-              @click="handleGenerate"
-            >
-              优化关键词
-            </NButton>
-            <NButton
-              size="small"
-              :type="searchPrimaryButtonType"
-              :loading="searchPrimaryButtonLoading"
-              :disabled="isSearchPrimaryButtonDisabled"
-              @click="handlePrimarySearchAction"
-            >
-              {{ searchButtonLabel }}
-            </NButton>
-            <NButton size="small" :disabled="isClearDisabled" @click="handleClear">{{ clearButtonLabel }}</NButton>
-            <NButton
-              v-for="item in taskActionButtons"
-              :key="item.key"
-              size="small"
-              secondary
-              :type="item.type"
               :loading="isSearchTaskActionLoading"
-              :disabled="isHistorySaving || isHistoryDeleting"
-              @click="handleSearchTaskAction(item.key)"
+              data-action="stop-leads"
+              @click="handleStopLeadWorkflow"
             >
-              {{ item.label }}
+              停止本次获客
             </NButton>
-            <NPopconfirm v-if="searchTaskActionState.canDiscard" @positive-click="handleSearchTaskAction('discard')">
-              <template #trigger>
-                <NButton
-                  size="small"
-                  type="error"
-                  secondary
-                  :loading="isSearchTaskActionLoading"
-                  :disabled="isHistorySaving || isHistoryDeleting"
-                >
-                  放弃
-                </NButton>
-              </template>
-              放弃后该采集任务将不再恢复，确认放弃？
-            </NPopconfirm>
           </NSpace>
         </div>
         <NAlert v-if="isRestoredKeywordHistory" type="info" :bordered="false" class="history-context-alert">
           <template #header>已选中关键词历史</template>
           当前展示的是
-          {{ selectedHistoryUpdatedAtLabel }} 保存的搜索策略。可以直接开始获客；重新优化会生成一条新的历史。
+          {{ selectedHistoryUpdatedAtLabel }} 保存的搜索策略。需求不变时会直接复用，需求变化后会自动重新分析。
         </NAlert>
       </NForm>
-    </NCard>
-
-    <NCard :bordered="false" size="small" class="card-wrapper workflow-card">
-      <div class="workflow-strip">
-        <div v-for="step in workflowSteps" :key="step.key" class="workflow-step" :class="`is-${step.state}`">
-          <span class="workflow-dot" />
-          <div class="workflow-step-copy">
-            <span class="workflow-step-title">{{ step.title }}</span>
-            <span class="workflow-step-description">{{ step.description }}</span>
-          </div>
-        </div>
-      </div>
     </NCard>
 
     <NCard :bordered="false" size="small" class="card-wrapper result-card" content-class="result-card-content">
@@ -441,7 +253,14 @@ const taskActionButtons = computed(
         </div>
       </template>
 
-      <div v-if="hasSearchProgress" class="result-panel">
+      <div v-if="isGenerating || isSearchTaskSubmitting" class="result-panel lead-workflow-skeleton">
+        <NSkeleton text :repeat="1" width="38%" />
+        <NSkeleton text :repeat="2" />
+        <div class="skeleton-grid">
+          <NSkeleton v-for="item in 6" :key="item" height="72px" :sharp="false" />
+        </div>
+      </div>
+      <div v-else-if="hasSearchProgress" class="result-panel">
         <SearchProgressPanel
           :state="searchProgress"
           :loading="isSearchTaskPending"
@@ -515,7 +334,6 @@ const taskActionButtons = computed(
 }
 
 .task-card,
-.workflow-card,
 .result-card {
   overflow: hidden;
   border: 1px solid var(--ai-leads-border);
@@ -549,8 +367,7 @@ const taskActionButtons = computed(
   background: #fbfcff;
 }
 
-.task-card :deep(.n-card__content),
-.workflow-card :deep(.n-card__content) {
+.task-card :deep(.n-card__content) {
   padding: 10px 16px;
 }
 
@@ -624,98 +441,22 @@ const taskActionButtons = computed(
   background: #ffffff;
 }
 
-.workflow-strip {
-  display: flex;
-  align-items: flex-start;
-}
-
-.workflow-step {
-  position: relative;
-  display: flex;
-  flex: 1 1 0;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 2px 12px 2px 0;
-}
-
-.workflow-step::after {
-  position: absolute;
-  top: 8px;
-  right: 14px;
-  left: 17px;
-  height: 1px;
-  background: #e5eaf3;
-  content: '';
-}
-
-.workflow-step:last-child::after {
-  display: none;
-}
-
-.workflow-dot {
-  position: relative;
-  z-index: 1;
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  margin-top: 5px;
-  border-radius: 999px;
-  background: #c5cedb;
-}
-
-.workflow-step-copy {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-  padding-left: 2px;
-  background: #ffffff;
-}
-
-.workflow-step-title {
-  overflow: hidden;
-  color: var(--ai-leads-ink);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workflow-step-description {
-  color: var(--ai-leads-text-weak);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.workflow-step.is-active {
-  color: var(--ai-leads-primary);
-}
-
-.workflow-step.is-active .workflow-dot {
-  background: var(--ai-leads-primary);
-}
-
-.workflow-step.is-completed .workflow-dot {
-  background: var(--ai-leads-success);
-}
-
-.workflow-step.is-warning .workflow-dot {
-  background: var(--ai-leads-warning);
-}
-
-.workflow-step.is-error .workflow-dot {
-  background: var(--ai-leads-error);
-}
-
 .result-panel {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 14px;
+}
+
+.lead-workflow-skeleton {
+  justify-content: center;
+  min-height: 320px;
+}
+
+.skeleton-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .keyword-ready-panel {
@@ -815,18 +556,8 @@ const taskActionButtons = computed(
     justify-content: flex-start;
   }
 
-  .workflow-strip {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .workflow-step {
-    width: 100%;
-    padding-right: 0;
-  }
-
-  .workflow-step::after {
-    display: none;
+  .skeleton-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
