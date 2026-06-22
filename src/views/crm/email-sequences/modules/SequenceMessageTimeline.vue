@@ -41,17 +41,16 @@ const emit = defineEmits<{
 }
 
 .message-step-button {
-  display: flex;
-  width: 150px;
-  min-width: 150px;
+  display: grid;
+  width: 190px;
+  min-width: 190px;
   border: 1px solid var(--n-border-color);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--n-color);
   color: var(--n-text-color);
   cursor: pointer;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
+  gap: 4px;
+  padding: 8px 10px;
   text-align: left;
   transition:
     background-color 0.2s ease,
@@ -69,7 +68,8 @@ const emit = defineEmits<{
 .message-step-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -86,7 +86,6 @@ const emit = defineEmits<{
 }
 
 .message-step-subject {
-  flex: 1;
   color: var(--n-text-color-2);
   font-size: 12px;
 }
