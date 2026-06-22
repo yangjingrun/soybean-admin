@@ -4,6 +4,7 @@ import DraftReviewModal from './DraftReviewModal.vue';
 import EmailSequenceTable from './EmailSequenceTable.vue';
 import EmailSequenceToolbar from './EmailSequenceToolbar.vue';
 import SequenceCreateModal from './SequenceCreateModal.vue';
+import { sequencePageGuide } from './shared';
 import { useEmailSequenceTable } from './useEmailSequenceTable';
 
 const {
@@ -77,6 +78,10 @@ const {
 
 <template>
   <NSpace vertical :size="12">
+    <NAlert type="info" :bordered="false" :title="sequencePageGuide.title">
+      {{ sequencePageGuide.description }}
+    </NAlert>
+
     <EmailSequenceToolbar
       v-model:filter-model="filterModel"
       :loading="loading"

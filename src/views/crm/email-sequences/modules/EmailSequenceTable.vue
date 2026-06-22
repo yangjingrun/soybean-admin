@@ -105,7 +105,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
     },
     {
       key: 'status',
-      title: '序列状态',
+      title: '跟进状态',
       width: 120,
       render: row =>
         h(
@@ -116,7 +116,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
     },
     {
       key: 'progress',
-      title: '序列进度',
+      title: '开发信进度',
       width: 130,
       render: row => getSequenceProgressText(row.enrollment)
     },
@@ -255,7 +255,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="序列审核清单">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="开发信跟进任务">
     <template #header-extra>
       <NSpace align="center" :size="8">
         <NText v-if="batchSelectionSummary.selectedCount > 0" depth="3">
@@ -270,7 +270,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
           :loading="batchDraftApproving"
           @click="emit('batchApproveDrafts')"
         >
-          批量确认草稿
+          批量确认开发信
         </NButton>
         <NButton
           size="small"
@@ -300,7 +300,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
           :loading="batchSequenceStopping"
           @click="emit('batchStopSequences')"
         >
-          停止序列
+          停止跟进
         </NButton>
       </NSpace>
     </template>
@@ -334,7 +334,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
       @update:page-size="emit('updatePageSize', $event)"
     >
       <template #empty>
-        <NEmpty description="暂无待审核草稿" />
+        <NEmpty description="暂无开发信跟进任务" />
       </template>
     </NDataTable>
   </NCard>

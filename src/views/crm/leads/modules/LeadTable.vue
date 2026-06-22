@@ -178,7 +178,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
                 loading: props.archiveOperatingId === row.id,
                 onClick: () => (row.status === 'archived' ? emit('restore', row) : emit('archive', row))
               },
-              { default: () => (row.status === 'archived' ? '恢复' : '归档') }
+              { default: () => (row.status === 'archived' ? '重新开发' : '暂不开发') }
             )
           ]
         }
@@ -188,7 +188,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="客户列表">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="客户管理">
     <NSpace vertical :size="12">
       <NDataTable
         :columns="columns"

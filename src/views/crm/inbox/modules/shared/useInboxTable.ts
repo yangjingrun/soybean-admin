@@ -225,7 +225,7 @@ export function useInboxTable() {
         return;
       }
 
-      message.success('收件箱状态已更新');
+      message.success('客户回信状态已更新');
       notifyCrmWorkbenchChanged();
       currentDetail.value = currentDetail.value
         ? {
@@ -398,7 +398,7 @@ export function useInboxTable() {
     }
 
     if (!currentDetail.value?.canOperate) {
-      message.warning('当前账号不可确认该退订');
+      message.warning('当前账号不可确认不再联系');
       return;
     }
 
@@ -410,7 +410,7 @@ export function useInboxTable() {
         return;
       }
 
-      message.success('已确认退订并加入黑名单');
+      message.success('已加入不再联系名单');
       notifyCrmWorkbenchChanged();
       currentDetail.value = data;
       syncReplyDraftFromDetail(data);

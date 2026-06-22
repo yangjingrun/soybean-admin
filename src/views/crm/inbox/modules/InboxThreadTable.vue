@@ -62,10 +62,10 @@ const columns = computed<DataTableColumns<Api.Crm.InboxThreadRecord>>(() => [
     minWidth: 220,
     render: row => renderRelation(row)
   },
-  {
-    key: 'mailbox',
-    title: '邮箱 / 序列',
-    minWidth: 210,
+    {
+      key: 'mailbox',
+      title: '邮箱 / 跟进任务',
+      minWidth: 210,
     render: row => renderMailbox(row)
   },
   {

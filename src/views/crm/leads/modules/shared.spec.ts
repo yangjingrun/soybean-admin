@@ -3,17 +3,27 @@ import { describe, it } from 'node:test';
 import {
   buildLeadQueueStats,
   buildLeadSearchParams,
+  crmLeadPageGuide,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
   getLeadNextAction,
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
+  leadStatusLabelMap,
   readArchivedFingerprintMatches,
   createDefaultLeadImportForm,
   normalizeLeadImportPayload
 } from './shared';
 
 describe('crm lead shared helpers', () => {
+  it('uses plain business wording for AI leads handoff', () => {
+    assert.equal(crmLeadPageGuide.title, '客户管理承接 AI 获客结果');
+    assert.match(crmLeadPageGuide.description, /可开发客户创建开发信/);
+    assert.match(crmLeadPageGuide.description, /暂不开发客户/);
+    assert.equal(leadStatusLabelMap.archived, '暂不开发');
+    assert.equal(leadStatusLabelMap.sequence_running, '开发信跟进中');
+  });
+
   it('creates an empty manual lead import form', () => {
     assert.deepEqual(createDefaultLeadImportForm(), {
       name: '',
@@ -176,17 +186,17 @@ describe('crm lead shared helpers', () => {
     });
     assert.deepEqual(getLeadNextAction('ready'), {
       label: '创建开发信',
-      description: '进入邮件序列审核',
+      description: '进入开发信跟进审核',
       type: 'success'
     });
     assert.deepEqual(getLeadNextAction('sequence_running'), {
-      label: '查看序列',
-      description: '跟踪当前开发节奏',
+      label: '查看开发信',
+      description: '跟踪当前开发信节奏',
       type: 'primary'
     });
     assert.deepEqual(getLeadNextAction('replied_pending'), {
       label: '处理回信',
-      description: '优先进入收件箱跟进',
+      description: '优先进入客户回信处理',
       type: 'info'
     });
     assert.deepEqual(getLeadNextAction('customer'), {
@@ -195,9 +205,14 @@ describe('crm lead shared helpers', () => {
       type: 'success'
     });
     assert.deepEqual(getLeadNextAction('invalid'), {
-      label: '归档',
-      description: '从开发队列移出',
+      label: '暂不开发',
+      description: '移出日常开发队列',
       type: 'error'
+    });
+    assert.deepEqual(getLeadNextAction('archived'), {
+      label: '重新开发',
+      description: '需要时恢复到候选线索',
+      type: 'default'
     });
   });
 

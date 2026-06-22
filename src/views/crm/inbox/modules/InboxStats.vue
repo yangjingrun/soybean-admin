@@ -14,7 +14,7 @@ const currentPageReplyCount = computed(() => props.records.reduce((sum, record) 
   <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1 s:3">
     <NGi>
       <NCard :bordered="false" size="small" class="card-wrapper">
-        <NStatistic label="未处理" :value="pendingTotal" />
+        <NStatistic label="待处理回信" :value="pendingTotal" />
       </NCard>
     </NGi>
     <NGi>

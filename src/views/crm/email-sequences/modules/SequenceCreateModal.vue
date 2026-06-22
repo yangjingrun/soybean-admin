@@ -37,7 +37,7 @@ const selectedProductLineAiWritingStatus = computed(() =>
 </script>
 
 <template>
-  <NModal v-model:show="show" preset="card" title="生成首封草稿" class="max-w-560px">
+  <NModal v-model:show="show" preset="card" title="生成首封开发信草稿" class="max-w-560px">
     <NSpin :show="loading">
       <NForm :model="formModel" label-placement="top">
         <NFormItem label="客户">
@@ -86,7 +86,7 @@ const selectedProductLineAiWritingStatus = computed(() =>
             placeholder="可选，后续发送前仍会校验"
           />
         </NFormItem>
-        <NFormItem label="序列策略">
+        <NFormItem label="跟进策略">
           <NSelect
             v-model:value="formModel.policyId"
             filterable
@@ -101,7 +101,7 @@ const selectedProductLineAiWritingStatus = computed(() =>
     <template #footer>
       <NSpace justify="end">
         <NButton @click="show = false">取消</NButton>
-        <NButton type="primary" :loading="submitting" @click="emit('submit')">生成草稿</NButton>
+        <NButton type="primary" :loading="submitting" @click="emit('submit')">生成开发信草稿</NButton>
       </NSpace>
     </template>
   </NModal>

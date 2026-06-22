@@ -106,7 +106,7 @@ export function useEmailSequenceAiDraftTask(options: UseEmailSequenceAiDraftTask
     const ids = executableRows.map(item => item.enrollment.id);
 
     if (ids.length === 0) {
-      message.warning('当前选中序列没有可 AI 生成草稿的记录');
+      message.warning('当前选中开发信任务没有可 AI 生成草稿的记录');
       return;
     }
 

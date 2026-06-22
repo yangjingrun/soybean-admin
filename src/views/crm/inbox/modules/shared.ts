@@ -25,15 +25,20 @@ export type InboxReplySubmitPayloadResult =
     };
 
 export const inboxThreadStatusOptions = [
-  { label: '待处理', value: 'pending' },
+  { label: '待处理回信', value: 'pending' },
   { label: '已处理', value: 'handled' },
-  { label: '已归档', value: 'archived' }
+  { label: '已忽略', value: 'archived' }
 ] satisfies Array<{ label: string; value: Api.Crm.InboxThreadStatus }>;
 
+export const inboxPageGuide = {
+  title: '客户回信承接开发信结果',
+  description: '优先处理待处理回信；确认拒绝或退订会加入不再联系名单，暂不处理的回信可标记为已忽略。'
+};
+
 export const inboxThreadStatusLabelMap: Record<Api.Crm.InboxThreadStatus, string> = {
-  pending: '待处理',
+  pending: '待处理回信',
   handled: '已处理',
-  archived: '已归档'
+  archived: '已忽略'
 };
 
 export const inboxThreadStatusTagTypeMap: Record<Api.Crm.InboxThreadStatus, NaiveUI.ThemeColor> = {
@@ -55,8 +60,8 @@ export const inboxMessageDirectionTagTypeMap: Record<Api.Crm.InboxMessageDirecti
 export const inboxMessageTypeLabelMap: Record<InboxMessageType, string> = {
   customer_reply: '客户回复',
   bounce: '退信',
-  unsubscribe_hint: '退订/拒绝',
-  unsubscribe_review_pending: '疑似退订'
+  unsubscribe_hint: '客户拒绝/退订',
+  unsubscribe_review_pending: '疑似拒绝/退订'
 };
 
 export const inboxMessageTypeTagTypeMap: Record<InboxMessageType, NaiveUI.ThemeColor> = {

@@ -51,7 +51,7 @@ const emit = defineEmits<{
                 <NButton size="small" type="primary" :loading="loading" @click="emit('search')">查询</NButton>
                 <NButton size="small" :loading="loading" @click="emit('reset')">重置</NButton>
                 <NButton size="small" @click="emit('refresh')">刷新</NButton>
-                <NButton size="small" type="primary" ghost @click="emit('create')">生成首封草稿</NButton>
+                <NButton size="small" type="primary" ghost @click="emit('create')">生成首封开发信</NButton>
               </NSpace>
             </div>
           </NGi>

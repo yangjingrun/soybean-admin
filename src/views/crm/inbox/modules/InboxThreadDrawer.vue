@@ -97,9 +97,9 @@ const sendDisabled = computed(() =>
   )
 );
 const statusActions = [
-  { label: '标记待处理', value: 'pending' },
+  { label: '标记待处理回信', value: 'pending' },
   { label: '标记已处理', value: 'handled' },
-  { label: '归档', value: 'archived' }
+  { label: '标记已忽略', value: 'archived' }
 ] satisfies Array<{ label: string; value: Api.Crm.InboxThreadStatus }>;
 const statusDropdownOptions = computed(() =>
   statusActions.map(item => ({
@@ -180,10 +180,10 @@ function handleStatusSelect(key: string | number) {
           v-if="pendingUnsubscribeMessage && detail?.canOperate"
           type="warning"
           :bordered="false"
-          title="疑似退订"
+          title="疑似拒绝/退订"
         >
           <NSpace justify="space-between" align="center" :wrap-item="false">
-            <span>这封回复可能表达退订或拒绝，确认后会拉黑该联系人并跳过后续待发邮件。</span>
+            <span>这封回复可能表达拒绝或退订，确认后会加入不再联系名单，并跳过后续待发邮件。</span>
             <NButton
               size="small"
               type="warning"
@@ -191,7 +191,7 @@ function handleStatusSelect(key: string | number) {
               :loading="unsubscribeConfirming"
               @click="emit('confirmUnsubscribe', pendingUnsubscribeMessage.id)"
             >
-              确认退订并拉黑
+              确认不再联系
             </NButton>
           </NSpace>
         </NAlert>
@@ -248,7 +248,7 @@ function handleStatusSelect(key: string | number) {
                   {{ formatInboxText(contact?.maskedEmail) }}
                 </NDescriptionsItem>
                 <NDescriptionsItem label="邮箱">{{ formatInboxText(mailbox?.maskedEmail) }}</NDescriptionsItem>
-                <NDescriptionsItem label="序列">{{ formatInboxText(enrollment?.name) }}</NDescriptionsItem>
+                <NDescriptionsItem label="跟进任务">{{ formatInboxText(enrollment?.name) }}</NDescriptionsItem>
                 <NDescriptionsItem label="更新时间">{{ formatInboxDate(thread.updatedAt) }}</NDescriptionsItem>
               </NDescriptions>
             </div>

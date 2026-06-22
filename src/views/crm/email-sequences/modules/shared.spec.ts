@@ -29,6 +29,10 @@ import {
   canStopSequenceInBatch,
   getStoppableSequenceIds,
   isDraftBlockedBySequencePolicy,
+  messageStatusLabelMap,
+  sequencePageGuide,
+  sequenceStatusLabelMap,
+  sequenceTodoTypeOptions,
   summarizeSequenceBatchSelection,
   normalizeSequenceCreatePayload
 } from './shared';
@@ -173,6 +177,19 @@ function createSequencePolicy(overrides: Partial<Api.Crm.SequencePolicyRecord> =
 }
 
 describe('email sequence review shared helpers', () => {
+  it('uses business wording for development email follow-up', () => {
+    assert.equal(sequencePageGuide.title, '开发信跟进承接可开发客户');
+    assert.match(sequencePageGuide.description, /确认 AI 草稿/);
+    assert.match(sequencePageGuide.description, /客户回信/);
+    assert.equal(sequenceStatusLabelMap.draft_review_pending, '待确认开发信');
+    assert.equal(sequenceStatusLabelMap.ready_to_send, '待启动发送');
+    assert.equal(sequenceStatusLabelMap.sequence_running, '跟进中');
+    assert.equal(sequenceStatusLabelMap.stopped, '已停止跟进');
+    assert.equal(messageStatusLabelMap.draft_pending_review, '待确认');
+    assert.equal(messageStatusLabelMap.queued, '等待发送');
+    assert.equal(sequenceTodoTypeOptions[0]?.label, '待确认开发信');
+  });
+
   it('normalizes selected sequence policy into the create payload', () => {
     const form = {
       ...createDefaultSequenceCreateForm(),
@@ -230,7 +247,7 @@ describe('email sequence review shared helpers', () => {
 
     assert.deepEqual(buildSequenceReviewFilterTags(filterModel), [
       { key: 'keyword', label: '关键词：ABC' },
-      { key: 'todoType', label: '待办：草稿待审' },
+      { key: 'todoType', label: '待办：待确认开发信' },
       { key: 'messageStatus', label: '邮件：已发送' },
       { key: 'dateScope', label: '时间：今天' }
     ]);
@@ -452,7 +469,7 @@ describe('email sequence review shared helpers', () => {
       tagType: 'warning'
     });
     assert.deepEqual(getMessageStatusView(queued, 'sequence_running'), {
-      label: '队列中',
+      label: '等待发送',
       tagType: 'info'
     });
   });
@@ -489,8 +506,8 @@ describe('email sequence review shared helpers', () => {
       items.map(item => [item.id, item.title, item.statusLabel, item.selected]),
       [
         ['message-1', '第 1 封', '已发送', false],
-        ['message-2', '第 2 封', '队列中', true],
-        ['message-3', '第 3 封', '草稿待审', false]
+        ['message-2', '第 2 封', '等待发送', true],
+        ['message-3', '第 3 封', '待确认', false]
       ]
     );
     assert.match(items[0].metaText, /^已发送 /);
@@ -598,13 +615,13 @@ describe('email sequence review shared helpers', () => {
     });
 
     assert.equal(getCurrentSequenceMessage(pending)?.id, 'message-2');
-    assert.equal(getSequenceNextAction(pending).label, '审核草稿');
+    assert.equal(getSequenceNextAction(pending).label, '确认开发信');
     assert.equal(getSequenceNextAction(ready).label, '启动首封');
     assert.equal(getSequenceNextAction(failed).label, '处理失败');
     assert.equal(getSequenceNextAction(canGenerateNext).label, '生成下一封');
     assert.equal(getSequenceNextAction(canGenerateNext).buttonLabel, '生成');
     assert.equal(getSequenceNextAction(reachedLastStep).label, '已到最后一封');
-    assert.equal(getSequenceNextAction(replied).description, '同公司当前序列已停发');
+    assert.equal(getSequenceNextAction(replied).description, '同公司开发信已停止');
   });
 
   it('gets the largest sequence message step from existing messages', () => {

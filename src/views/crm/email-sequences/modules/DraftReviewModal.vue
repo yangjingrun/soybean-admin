@@ -278,19 +278,19 @@ const canStopSequence = computed(() =>
   )
 );
 const statusTip = computed(() => {
-  if (props.item?.enrollment.status === 'stopped') return '序列已停止，旧发送任务会在执行前跳过';
+  if (props.item?.enrollment.status === 'stopped') return '跟进已停止，旧发送任务会在执行前跳过';
   if (!currentMessage.value) return '暂无草稿';
   if (isCurrentDraftBlockedByPolicy.value) return '当前策略阻止新增链接，请删除草稿中的链接后再确认';
   if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review')
     return '确认后会按计划时间进入发送队列';
-  if (currentMessage.value.status === 'draft_pending_review') return '草稿待人工确认后才能进入发送队列';
+  if (currentMessage.value.status === 'draft_pending_review') return '开发信待人工确认后才能进入发送队列';
   if (
     currentMessage.value.status === 'draft_ready' &&
     currentMessage.value.scheduledAt &&
     props.item?.enrollment.status === 'sequence_running'
   )
-    return '草稿已确认，等待发送调度器按计划入队';
-  if (currentMessage.value.status === 'draft_ready') return '草稿已确认，可以启动首封发送';
+    return '开发信已确认，等待发送调度器按计划入队';
+  if (currentMessage.value.status === 'draft_ready') return '开发信已确认，可以启动首封发送';
   if (currentMessage.value.status === 'queued') return '开发信已进入发送队列';
   if (currentMessage.value.status === 'sent') return '开发信已发送';
   if (currentMessage.value.status === 'failed') return '发送失败，重试操作暂未开放';
@@ -604,22 +604,22 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 :disabled="loading || saving || approving || sendStarting || refreshing || nextDraftGenerating"
                 :loading="stopping"
               >
-                停止序列
+                停止跟进
               </NButton>
             </template>
-            停止后当前序列不会继续发送，队列中的旧任务也会失效。
+            停止后当前跟进不会继续发送，队列中的旧任务也会失效。
           </NPopconfirm>
           <NButton
             v-if="canEdit"
             :disabled="
               loading ||
-              approving ||
-              refreshing ||
-              sendStarting ||
-              stopping ||
-              versionRestoring ||
-              nextDraftGenerating ||
-              !currentMessage
+                approving ||
+                refreshing ||
+                sendStarting ||
+                stopping ||
+                versionRestoring ||
+                nextDraftGenerating ||
+                !currentMessage
             "
             :loading="saving"
             @click="handleSave"
@@ -631,14 +631,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             type="primary"
             :disabled="
               loading ||
-              saving ||
-              refreshing ||
-              sendStarting ||
-              stopping ||
-              versionRestoring ||
-              nextDraftGenerating ||
-              !currentMessage ||
-              !canApprove
+                saving ||
+                refreshing ||
+                sendStarting ||
+                stopping ||
+                versionRestoring ||
+                nextDraftGenerating ||
+                !currentMessage ||
+                !canApprove
             "
             :loading="approving"
             @click="handleApprove"

@@ -6,7 +6,7 @@ export const leadStatusOptions = [
   { label: '邮箱验证中', value: 'email_verification_pending' },
   { label: '待人工复核', value: 'manual_review_pending' },
   { label: '可触达', value: 'ready' },
-  { label: '邮件序列中', value: 'sequence_running' },
+  { label: '开发信跟进中', value: 'sequence_running' },
   { label: '待处理回复', value: 'replied_pending' },
   { label: '已跟进', value: 'followed_up' },
   { label: '商机', value: 'opportunity' },
@@ -14,8 +14,13 @@ export const leadStatusOptions = [
   { label: '无效', value: 'invalid' },
   { label: '已暂停', value: 'paused' },
   { label: '已阻止', value: 'blocked' },
-  { label: '已归档', value: 'archived' }
+  { label: '暂不开发', value: 'archived' }
 ] satisfies Array<{ label: string; value: Api.Crm.CrmAccountStatus }>;
+
+export const crmLeadPageGuide = {
+  title: '客户管理承接 AI 获客结果',
+  description: '先补齐联系人和邮箱验证；可开发客户创建开发信，暂不开发客户会保留历史记录但移出日常跟进。'
+};
 
 export const leadStatusLabelMap: Record<Api.Crm.CrmAccountStatus, string> = {
   candidate: '候选线索',
@@ -23,7 +28,7 @@ export const leadStatusLabelMap: Record<Api.Crm.CrmAccountStatus, string> = {
   email_verification_pending: '邮箱验证中',
   manual_review_pending: '待人工复核',
   ready: '可触达',
-  sequence_running: '邮件序列中',
+  sequence_running: '开发信跟进中',
   replied_pending: '待处理回复',
   followed_up: '已跟进',
   opportunity: '商机',
@@ -31,7 +36,7 @@ export const leadStatusLabelMap: Record<Api.Crm.CrmAccountStatus, string> = {
   invalid: '无效',
   paused: '已暂停',
   blocked: '已阻止',
-  archived: '已归档'
+  archived: '暂不开发'
 };
 
 export const leadStatusTagTypeMap: Record<Api.Crm.CrmAccountStatus, NaiveUI.ThemeColor> = {
@@ -103,17 +108,17 @@ const leadNextActionMap: Record<Api.Crm.CrmAccountStatus, LeadNextAction> = {
   },
   ready: {
     label: '创建开发信',
-    description: '进入邮件序列审核',
+    description: '进入开发信跟进审核',
     type: 'success'
   },
   sequence_running: {
-    label: '查看序列',
-    description: '跟踪当前开发节奏',
+    label: '查看开发信',
+    description: '跟踪当前开发信节奏',
     type: 'primary'
   },
   replied_pending: {
     label: '处理回信',
-    description: '优先进入收件箱跟进',
+    description: '优先进入客户回信处理',
     type: 'info'
   },
   followed_up: {
@@ -132,23 +137,23 @@ const leadNextActionMap: Record<Api.Crm.CrmAccountStatus, LeadNextAction> = {
     type: 'success'
   },
   invalid: {
-    label: '归档',
-    description: '从开发队列移出',
+    label: '暂不开发',
+    description: '移出日常开发队列',
     type: 'error'
   },
   paused: {
-    label: '恢复跟进',
+    label: '重新开发',
     description: '确认原因后重新推进',
     type: 'default'
   },
   blocked: {
-    label: '归档',
+    label: '暂不开发',
     description: '保留记录并停止开发',
     type: 'error'
   },
   archived: {
-    label: '查看归档',
-    description: '需要时恢复到队列',
+    label: '重新开发',
+    description: '需要时恢复到候选线索',
     type: 'default'
   }
 };
@@ -191,7 +196,7 @@ export const leadTimelineEventLabelMap: Record<string, string> = {
   contact_imported: '联系人导入',
   status_changed: '状态变更',
   note_added: '备注',
-  account_archived: '归档',
+  account_archived: '暂不开发',
   archived_fingerprint_matched: '历史触达提醒',
   lead_enrichment_refreshed: '重新获取联系人',
   lead_enrichment_refresh_failed: '重新获取联系人失败',

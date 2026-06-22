@@ -238,10 +238,10 @@ function handleSubmitStatus() {
           <NAlert v-if="archivedMatchGroups.length" type="warning" title="历史触达提醒" class="historical-touch-alert">
             <NSpace vertical :size="8">
               <div class="historical-touch-content">
-                {{ archivedMatchGroups[0].event.content || '该客户命中过往归档记录，请确认是否需要重新开发。' }}
+                {{ archivedMatchGroups[0].event.content || '该客户命中过往暂不开发记录，请确认是否需要重新开发。' }}
               </div>
               <NTag v-if="archivedMatchCount" size="small" type="warning" :bordered="false">
-                命中 {{ archivedMatchCount }} 条组织归档指纹
+                命中 {{ archivedMatchCount }} 条组织历史记录
               </NTag>
               <div v-for="group in archivedMatchGroups" :key="group.event.id" class="historical-match-list">
                 <div
@@ -253,7 +253,7 @@ function handleSubmitStatus() {
                     {{ formatArchivedFingerprintTypeLabel(match.fingerprintType) }}
                   </NTag>
                   <span class="historical-match-value">{{ formatLeadText(match.maskedValue) }}</span>
-                  <span class="lead-secondary-text">归档于 {{ formatLeadDate(match.archivedAt) }}</span>
+                  <span class="lead-secondary-text">暂不开发于 {{ formatLeadDate(match.archivedAt) }}</span>
                   <span v-if="match.accountName" class="lead-secondary-text">原客户：{{ match.accountName }}</span>
                 </div>
               </div>

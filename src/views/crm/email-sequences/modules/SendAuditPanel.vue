@@ -21,7 +21,7 @@ const currentMessageStatusView = computed(() =>
 const isCurrentMessageFailed = computed(() => props.currentMessage?.status === 'failed');
 const retryDisabledReason = computed(() => {
   if (!isCurrentMessageFailed.value) return '当前邮件不是失败状态';
-  return '失败重试暂未开放，请先刷新状态或停止序列';
+  return '失败重试暂未开放，请先刷新状态或停止跟进';
 });
 </script>
 
@@ -74,7 +74,7 @@ const retryDisabledReason = computed(() => {
             {{ formatSequenceDate(failedMessage.updatedAt) }}
           </div>
         </div>
-        <div class="failed-message-meta">失败重试暂未开放，请先刷新状态；需要终止后续发送时可停止序列。</div>
+        <div class="failed-message-meta">失败重试暂未开放，请先刷新状态；需要终止后续发送时可停止跟进。</div>
       </NSpace>
     </NAlert>
 

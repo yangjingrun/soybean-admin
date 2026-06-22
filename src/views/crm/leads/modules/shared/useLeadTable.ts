@@ -327,9 +327,9 @@ export function useLeadTable() {
 
   function handleArchiveLead(record: Api.Crm.LeadRecord) {
     dialog.warning({
-      title: '确认归档客户',
-      content: `确认归档“${record.name}”？归档后客户会进入已归档状态。`,
-      positiveText: '归档',
+      title: '确认暂不开发客户',
+      content: `确认将“${record.name}”标记为暂不开发？客户会移出日常开发队列，但保留历史记录，后续可重新开发。`,
+      positiveText: '暂不开发',
       negativeText: '取消',
       onPositiveClick: () => archiveLead(record)
     });
@@ -337,9 +337,9 @@ export function useLeadTable() {
 
   function handleRestoreLead(record: Api.Crm.LeadRecord) {
     dialog.warning({
-      title: '确认恢复客户',
-      content: `确认恢复“${record.name}”？恢复后客户会回到候选状态。`,
-      positiveText: '恢复',
+      title: '确认重新开发客户',
+      content: `确认重新开发“${record.name}”？客户会回到候选线索，继续补资料和创建开发信。`,
+      positiveText: '重新开发',
       negativeText: '取消',
       onPositiveClick: () => restoreLead(record)
     });
@@ -356,7 +356,7 @@ export function useLeadTable() {
         return;
       }
 
-      message.success('客户已归档');
+      message.success('客户已标记为暂不开发');
       notifyCrmWorkbenchChanged();
 
       if (selectedLeadId.value === record.id) {
@@ -380,7 +380,7 @@ export function useLeadTable() {
         return;
       }
 
-      message.success('客户已恢复');
+      message.success('客户已恢复为候选线索');
       notifyCrmWorkbenchChanged();
       await loadLeads();
 

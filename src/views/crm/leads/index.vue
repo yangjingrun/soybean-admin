@@ -4,6 +4,7 @@ import LeadDetailDrawer from './modules/LeadDetailDrawer.vue';
 import LeadImportModal from './modules/LeadImportModal.vue';
 import LeadStats from './modules/LeadStats.vue';
 import LeadTable from './modules/LeadTable.vue';
+import { crmLeadPageGuide } from './modules/shared';
 import { useLeadTable } from './modules/shared/useLeadTable';
 
 const {
@@ -44,6 +45,10 @@ const {
 
 <template>
   <NSpace vertical :size="12">
+    <NAlert type="info" :bordered="false" :title="crmLeadPageGuide.title">
+      {{ crmLeadPageGuide.description }}
+    </NAlert>
+
     <FilterPanel
       v-model="filterModel"
       :loading="loading"
@@ -53,7 +58,7 @@ const {
     />
 
     <NAlert v-if="filterModel.sourceTaskId" type="info" :bordered="false">
-      正在处理本次 AI 采集客户。优先补齐联系人、验证邮箱，再从可开发联系人创建开发信。
+      正在处理本次 AI 采集客户。优先补齐联系人、验证邮箱，再从可开发客户创建开发信。
     </NAlert>
 
     <LeadStats :records="records" :total="pagination.total" />
