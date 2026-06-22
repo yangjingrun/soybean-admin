@@ -495,7 +495,11 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                 <div class="section-title">当前处理</div>
                 <div class="decision-subtitle">{{ statusTip }}</div>
               </div>
-              <div class="decision-checks">
+              <div
+                class="decision-checks"
+                :class="{ 'decision-checks--flow': item.checklist.length > 1 }"
+                aria-label="处理顺序从下到上"
+              >
                 <div
                   v-for="check in item.checklist"
                   :key="check.key"
@@ -782,12 +786,55 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   gap: 8px;
 }
 
+.decision-checks--flow {
+  position: relative;
+  padding-left: 24px;
+}
+
+.decision-checks--flow::before {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 8px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(to top, rgba(99, 102, 241, 0.78), rgba(99, 102, 241, 0.2));
+  content: '';
+}
+
+.decision-checks--flow::after {
+  position: absolute;
+  top: 4px;
+  left: 3px;
+  width: 0;
+  height: 0;
+  border-right: 6px solid transparent;
+  border-bottom: 8px solid rgba(99, 102, 241, 0.78);
+  border-left: 6px solid transparent;
+  content: '';
+}
+
 .decision-check {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 10px;
   border-radius: 6px;
   padding: 10px;
+}
+
+.decision-checks--flow .decision-check::before {
+  position: absolute;
+  top: 50%;
+  left: -21px;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--n-color);
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.78);
+  content: '';
+  transform: translateY(-50%);
 }
 
 .decision-check--passed {
