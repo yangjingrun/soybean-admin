@@ -40,14 +40,9 @@ export function setupElegantRouter() {
         meta.order = 1;
       }
 
-      if (key === 'ai-assistant') {
-        meta.icon = 'mdi:robot-happy-outline';
-        meta.order = 2;
-      }
-
       if (key === 'ai-leads') {
         meta.icon = 'mdi:account-search-outline';
-        meta.order = 3;
+        meta.order = 2;
         meta.keepAlive = true;
       }
 

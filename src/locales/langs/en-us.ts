@@ -243,7 +243,6 @@ const local: App.I18n.Schema = {
     404: 'Page Not Found',
     500: 'Server Error',
     'iframe-page': 'Iframe',
-    'ai-assistant': 'AI Assistant',
     'ai-leads': 'AI Leads',
     'ai-settings': 'Model Config',
     'ai-prompt-settings': 'Prompt Config',

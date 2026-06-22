@@ -238,7 +238,6 @@ const local: App.I18n.Schema = {
     404: '页面不存在',
     500: '服务器错误',
     'iframe-page': '外链页面',
-    'ai-assistant': 'AI开发助手',
     'ai-leads': 'AI获客',
     'ai-settings': '模型配置',
     'ai-prompt-settings': '提示词配置',
