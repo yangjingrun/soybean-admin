@@ -21,7 +21,8 @@ const emit = defineEmits<{
 
 const { routerPushByKey } = useRouterPush();
 
-const errorConfigHint = computed(() => resolveConfigHintTarget(props.state.errorMessage));
+const visibleErrorMessage = computed(() => (props.state.status === 'failed' ? '' : props.state.errorMessage));
+const errorConfigHint = computed(() => resolveConfigHintTarget(visibleErrorMessage.value));
 
 /** Jumps to the AI settings page and opens the tab that resolves the current error. */
 function handleGoConfig(tab: string) {
@@ -296,9 +297,9 @@ function getImportStateText(row: AiLeadCandidateImportRow) {
       />
     </section>
 
-    <NAlert v-if="state.errorMessage" type="error" :bordered="false">
+    <NAlert v-if="visibleErrorMessage" type="error" :bordered="false">
       <div class="error-hint">
-        <span class="error-hint__text">{{ state.errorMessage }}</span>
+        <span class="error-hint__text">{{ visibleErrorMessage }}</span>
         <NButton v-if="errorConfigHint" size="small" type="primary" @click="handleGoConfig(errorConfigHint.tab)">
           {{ errorConfigHint.label }}
         </NButton>
