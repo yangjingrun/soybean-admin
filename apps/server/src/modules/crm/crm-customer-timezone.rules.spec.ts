@@ -12,6 +12,9 @@ describe('resolveCrmCustomerTimeZone', () => {
       [{ country: 'US', city: 'Denver' }, 'America/Denver'],
       [{ country: 'United Arab Emirates', city: 'Dubai' }, 'Asia/Dubai'],
       [{ country: 'SA', city: 'Jeddah' }, 'Asia/Riyadh'],
+      [{ country: 'Qatar', city: 'Doha' }, 'Asia/Qatar'],
+      [{ country: 'Kuwait', city: 'Kuwait City' }, 'Asia/Kuwait'],
+      [{ country: 'Oman', city: 'Muscat' }, 'Asia/Muscat'],
       [{ country: 'GB', city: 'London' }, 'Europe/London'],
       [{ country: 'DE', city: 'Berlin' }, 'Europe/Berlin'],
       [{ country: 'FR', city: 'Paris' }, 'Europe/Paris'],
@@ -35,6 +38,8 @@ describe('resolveCrmCustomerTimeZone', () => {
     assert.equal(resolveCrmCustomerTimeZone({ country: 'AE', city: null }), 'Asia/Dubai');
     assert.equal(resolveCrmCustomerTimeZone({ country: 'UAE', city: '' }), 'Asia/Dubai');
     assert.equal(resolveCrmCustomerTimeZone({ country: 'Saudi Arabia', city: 'Unknown' }), 'Asia/Riyadh');
+    assert.equal(resolveCrmCustomerTimeZone({ country: 'Qatar', city: null }), 'Asia/Qatar');
+    assert.equal(resolveCrmCustomerTimeZone({ country: 'Kuwait', city: null }), 'Asia/Kuwait');
     assert.equal(resolveCrmCustomerTimeZone({ country: 'UK', city: null }), 'Europe/London');
   });
 });

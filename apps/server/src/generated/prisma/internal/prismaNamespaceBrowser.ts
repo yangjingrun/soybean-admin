@@ -54,6 +54,7 @@ export const ModelName = {
   AuthSession: 'AuthSession',
   Organization: 'Organization',
   CrmAccount: 'CrmAccount',
+  CrmGeoCityName: 'CrmGeoCityName',
   CrmContact: 'CrmContact',
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
@@ -220,6 +221,28 @@ export const CrmAccountScalarFieldEnum = {
 } as const;
 
 export type CrmAccountScalarFieldEnum = (typeof CrmAccountScalarFieldEnum)[keyof typeof CrmAccountScalarFieldEnum];
+
+export const CrmGeoCityNameScalarFieldEnum = {
+  id: 'id',
+  geonameId: 'geonameId',
+  countryCode: 'countryCode',
+  name: 'name',
+  normalizedName: 'normalizedName',
+  asciiName: 'asciiName',
+  timeZone: 'timeZone',
+  population: 'population',
+  latitude: 'latitude',
+  longitude: 'longitude',
+  nameSource: 'nameSource',
+  languageCode: 'languageCode',
+  isPreferred: 'isPreferred',
+  isShort: 'isShort',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmGeoCityNameScalarFieldEnum =
+  (typeof CrmGeoCityNameScalarFieldEnum)[keyof typeof CrmGeoCityNameScalarFieldEnum];
 
 export const CrmContactScalarFieldEnum = {
   id: 'id',

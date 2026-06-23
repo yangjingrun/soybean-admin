@@ -13,6 +13,7 @@ export type * from './models/SystemRole';
 export type * from './models/AuthSession';
 export type * from './models/Organization';
 export type * from './models/CrmAccount';
+export type * from './models/CrmGeoCityName';
 export type * from './models/CrmContact';
 export type * from './models/CrmEmailVerificationCache';
 export type * from './models/CrmGlobalConfig';

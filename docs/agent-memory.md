@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-23 CRM 客户时区优先查 GeoNames 字典，新增可选依赖放构造函数末尾
+
+- 场景：CRM 导入 AI 获客或手动客户时，需要用 `country + city` 判断客户 IANA 时区，城市可能是阿拉伯语等小语种名称。
+- 坑点：只靠 `crm-customer-timezone.rules.ts` 手写英文城市映射覆盖不足；在 `CrmAccountService` 构造函数中间插入新的可选依赖，会让大量单测里手动 `new CrmAccountService(...)` 的后续依赖参数错位。
+- 正确做法：GeoNames 城市名写入 `CrmGeoCityName` 表，`CrmGeoTimezoneService` 按国家代码和标准化城市名查询，查不到再回退本地规则；给已有 Service 增加可选依赖时优先追加到构造函数末尾，避免破坏现有测试和手动实例化。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/geo/crm-geo-timezone.service.ts`、`apps/server/src/modules/crm/geo/geonames-timezone-import.ts`、`apps/server/src/modules/crm/accounts/crm-account.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/geo/crm-geo-timezone.service.spec.ts apps/server/src/modules/crm/geo/geonames-timezone-import.spec.ts apps/server/src/modules/crm/accounts/crm-account.service.spec.ts apps/server/src/modules/crm/crm-customer-timezone.rules.spec.ts apps/server/src/modules/crm/crm-send-availability.service.spec.ts`，并用 `pnpm --filter @soybean/server import:geonames -- --cities /tmp/geonames-cities-sample.txt --dry-run` 验证脚本入口。
+
 ### 2026-06-22 Nest 构造函数注入遇到运行时 undefined 要显式 Inject
 
 - 场景：后端启动时报 `Nest can't resolve dependencies of the CrmSendWorkerService ... argument at index [2]`，前端因 `localhost:9528` 后端未启动而通过 Vite 代理弹出 502。

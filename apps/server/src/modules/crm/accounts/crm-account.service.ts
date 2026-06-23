@@ -53,6 +53,7 @@ import {
   toLeadEnrichmentHistoryView,
   toTimelineEventView
 } from '../shared/crm-view-mappers';
+import { CrmGeoTimezoneService } from '../geo/crm-geo-timezone.service';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
 import type { CrmAccountRepository } from './crm-account.repository';
 
@@ -89,7 +90,10 @@ export class CrmAccountService {
     private readonly aiGatewayService?: Pick<AiGatewayService, 'getRequiredUserHunterConfig'>,
     @Optional()
     @Inject(HunterClient)
-    private readonly hunterClient?: Pick<HunterClient, 'domainSearch'>
+    private readonly hunterClient?: Pick<HunterClient, 'domainSearch'>,
+    @Optional()
+    @Inject(CrmGeoTimezoneService)
+    private readonly geoTimezoneService?: Pick<CrmGeoTimezoneService, 'resolveCustomerTimeZone'>
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -105,7 +109,7 @@ export class CrmAccountService {
     const domain = normalizeCrmDomain(input.websiteUrl);
     const country = normalizeNullableString(input.country);
     const city = normalizeNullableString(input.city);
-    const timeZone = normalizeNullableString(input.timeZone) ?? resolveCrmCustomerTimeZone({ country, city });
+    const timeZone = await this.resolveCustomerTimeZone({ country, city, timeZone: input.timeZone });
     const archivedMatches = await this.findArchivedImportMatches(domain, input, context);
     const existingAccount = domain
       ? await this.accountRepository.findAccountByDomain(context.organizationId, context.userId, domain)
@@ -312,7 +316,7 @@ export class CrmAccountService {
       input.timeZone !== undefined
         ? normalizeNullableString(input.timeZone)
         : locationChanged
-          ? resolveCrmCustomerTimeZone({ country: nextCountry, city: nextCity })
+          ? await this.resolveCustomerTimeZone({ country: nextCountry, city: nextCity })
           : detail.account.timeZone;
     const nextCustomerType =
       input.customerType === undefined ? detail.account.customerType : normalizeNullableString(input.customerType);
@@ -368,6 +372,26 @@ export class CrmAccountService {
       account: toAccountView(account),
       event: toTimelineEventView(event)
     };
+  }
+
+  /** Resolve account timezone from explicit input, imported city dictionary, then local rules. */
+  private async resolveCustomerTimeZone(input: {
+    country?: string | null;
+    city?: string | null;
+    timeZone?: string | null;
+  }) {
+    const explicitTimeZone = normalizeNullableString(input.timeZone);
+
+    if (explicitTimeZone) {
+      return explicitTimeZone;
+    }
+
+    return (
+      (await this.geoTimezoneService?.resolveCustomerTimeZone({
+        country: input.country,
+        city: input.city
+      })) ?? resolveCrmCustomerTimeZone(input)
+    );
   }
 
   /** Manually refresh contacts for one scoped CRM account through a provider. */

@@ -126,6 +126,57 @@ describe('CrmAccountService', () => {
     assert.equal(createAccountCalls[0].timeZone, 'America/New_York');
   });
 
+  it('resolves imported small-language city timezone from the GeoNames dictionary service', async () => {
+    const createAccountCalls: Array<Record<string, unknown>> = [];
+    const service = new CrmAccountService(
+      {
+        async findArchivedFingerprints() {
+          return [];
+        },
+        async findAccountByDomain() {
+          return null;
+        },
+        async createAccount(input: Partial<CrmAccountRecord>) {
+          createAccountCalls.push(input);
+
+          return createAccount(input);
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          return createTimelineEvent(input);
+        }
+      } as never,
+      {} as never,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        async resolveCustomerTimeZone() {
+          return 'Asia/Riyadh';
+        }
+      } as never
+    );
+
+    await service.importAccountFromLead(
+      {
+        name: 'Riyadh Bearing',
+        websiteUrl: 'https://riyadh.example',
+        country: 'Saudi Arabia',
+        city: ' الرياض '
+      },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.equal(createAccountCalls[0].city, 'الرياض');
+    assert.equal(createAccountCalls[0].timeZone, 'Asia/Riyadh');
+  });
+
   it('does not infer account timezone for imported multi-timezone countries without city', async () => {
     const createAccountCalls: Array<Record<string, unknown>> = [];
     const service = new CrmAccountService(

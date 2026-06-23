@@ -231,6 +231,29 @@ model CrmAccount {
   @@index([sourceTaskId])
 }
 
+model CrmGeoCityName {
+  id             String   @id @default(uuid())
+  geonameId      Int
+  countryCode    String
+  name           String
+  normalizedName String
+  asciiName      String?
+  timeZone       String
+  population     Int      @default(0)
+  latitude       Float?
+  longitude      Float?
+  nameSource     String
+  languageCode   String?
+  isPreferred    Boolean  @default(false)
+  isShort        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([countryCode, normalizedName, geonameId])
+  @@index([countryCode, normalizedName, population])
+  @@index([geonameId])
+}
+
 model CrmContact {
   id             String   @id @default(uuid())
   organizationId String

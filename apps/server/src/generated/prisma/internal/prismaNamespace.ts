@@ -367,6 +367,7 @@ export const ModelName = {
   AuthSession: 'AuthSession',
   Organization: 'Organization',
   CrmAccount: 'CrmAccount',
+  CrmGeoCityName: 'CrmGeoCityName',
   CrmContact: 'CrmContact',
   CrmEmailVerificationCache: 'CrmEmailVerificationCache',
   CrmGlobalConfig: 'CrmGlobalConfig',
@@ -433,6 +434,7 @@ export type TypeMap<
       | 'authSession'
       | 'organization'
       | 'crmAccount'
+      | 'crmGeoCityName'
       | 'crmContact'
       | 'crmEmailVerificationCache'
       | 'crmGlobalConfig'
@@ -917,6 +919,80 @@ export type TypeMap<
         count: {
           args: Prisma.CrmAccountCountArgs<ExtArgs>;
           result: runtime.Types.Utils.Optional<Prisma.CrmAccountCountAggregateOutputType> | number;
+        };
+      };
+    };
+    CrmGeoCityName: {
+      payload: Prisma.$CrmGeoCityNamePayload<ExtArgs>;
+      fields: Prisma.CrmGeoCityNameFieldRefs;
+      operations: {
+        findUnique: {
+          args: Prisma.CrmGeoCityNameFindUniqueArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload> | null;
+        };
+        findUniqueOrThrow: {
+          args: Prisma.CrmGeoCityNameFindUniqueOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>;
+        };
+        findFirst: {
+          args: Prisma.CrmGeoCityNameFindFirstArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload> | null;
+        };
+        findFirstOrThrow: {
+          args: Prisma.CrmGeoCityNameFindFirstOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>;
+        };
+        findMany: {
+          args: Prisma.CrmGeoCityNameFindManyArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>[];
+        };
+        create: {
+          args: Prisma.CrmGeoCityNameCreateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>;
+        };
+        createMany: {
+          args: Prisma.CrmGeoCityNameCreateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        createManyAndReturn: {
+          args: Prisma.CrmGeoCityNameCreateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>[];
+        };
+        delete: {
+          args: Prisma.CrmGeoCityNameDeleteArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>;
+        };
+        update: {
+          args: Prisma.CrmGeoCityNameUpdateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>;
+        };
+        deleteMany: {
+          args: Prisma.CrmGeoCityNameDeleteManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateMany: {
+          args: Prisma.CrmGeoCityNameUpdateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateManyAndReturn: {
+          args: Prisma.CrmGeoCityNameUpdateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>[];
+        };
+        upsert: {
+          args: Prisma.CrmGeoCityNameUpsertArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmGeoCityNamePayload>;
+        };
+        aggregate: {
+          args: Prisma.CrmGeoCityNameAggregateArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmGeoCityName>;
+        };
+        groupBy: {
+          args: Prisma.CrmGeoCityNameGroupByArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmGeoCityNameGroupByOutputType>[];
+        };
+        count: {
+          args: Prisma.CrmGeoCityNameCountArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmGeoCityNameCountAggregateOutputType> | number;
         };
       };
     };
@@ -4028,6 +4104,28 @@ export const CrmAccountScalarFieldEnum = {
 
 export type CrmAccountScalarFieldEnum = (typeof CrmAccountScalarFieldEnum)[keyof typeof CrmAccountScalarFieldEnum];
 
+export const CrmGeoCityNameScalarFieldEnum = {
+  id: 'id',
+  geonameId: 'geonameId',
+  countryCode: 'countryCode',
+  name: 'name',
+  normalizedName: 'normalizedName',
+  asciiName: 'asciiName',
+  timeZone: 'timeZone',
+  population: 'population',
+  latitude: 'latitude',
+  longitude: 'longitude',
+  nameSource: 'nameSource',
+  languageCode: 'languageCode',
+  isPreferred: 'isPreferred',
+  isShort: 'isShort',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmGeoCityNameScalarFieldEnum =
+  (typeof CrmGeoCityNameScalarFieldEnum)[keyof typeof CrmGeoCityNameScalarFieldEnum];
+
 export const CrmContactScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
@@ -4886,6 +4984,16 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>;
 
 /**
+ * Reference to a field of type 'Float'
+ */
+export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>;
+
+/**
+ * Reference to a field of type 'Float[]'
+ */
+export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>;
+
+/**
  * Reference to a field of type 'CrmSequenceEnrollmentStatus'
  */
 export type EnumCrmSequenceEnrollmentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<
@@ -4942,16 +5050,6 @@ export type ListEnumCrmAiDraftTaskItemStatusFieldRefInput<$PrismaModel> = FieldR
   $PrismaModel,
   'CrmAiDraftTaskItemStatus[]'
 >;
-
-/**
- * Reference to a field of type 'Float'
- */
-export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>;
-
-/**
- * Reference to a field of type 'Float[]'
- */
-export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>;
 
 /**
  * Reference to a field of type 'AiLeadSearchTaskStatus'
@@ -5108,6 +5206,7 @@ export type GlobalOmitConfig = {
   authSession?: Prisma.AuthSessionOmit;
   organization?: Prisma.OrganizationOmit;
   crmAccount?: Prisma.CrmAccountOmit;
+  crmGeoCityName?: Prisma.CrmGeoCityNameOmit;
   crmContact?: Prisma.CrmContactOmit;
   crmEmailVerificationCache?: Prisma.CrmEmailVerificationCacheOmit;
   crmGlobalConfig?: Prisma.CrmGlobalConfigOmit;

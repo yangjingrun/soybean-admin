@@ -47,6 +47,11 @@ export type Organization = Prisma.OrganizationModel;
  */
 export type CrmAccount = Prisma.CrmAccountModel;
 /**
+ * Model CrmGeoCityName
+ *
+ */
+export type CrmGeoCityName = Prisma.CrmGeoCityNameModel;
+/**
  * Model CrmContact
  *
  */

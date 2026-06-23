@@ -69,6 +69,42 @@ export const crmCountrySendRules: Record<string, CrmCountrySendRule> = {
     windows: defaultCrmSendWindows,
     defaultTimezone: 'Asia/Riyadh'
   },
+  QA: {
+    country: 'QA',
+    workdays: sundayToThursday,
+    windows: defaultCrmSendWindows,
+    defaultTimezone: 'Asia/Qatar'
+  },
+  KW: {
+    country: 'KW',
+    workdays: sundayToThursday,
+    windows: defaultCrmSendWindows,
+    defaultTimezone: 'Asia/Kuwait'
+  },
+  OM: {
+    country: 'OM',
+    workdays: sundayToThursday,
+    windows: defaultCrmSendWindows,
+    defaultTimezone: 'Asia/Muscat'
+  },
+  BH: {
+    country: 'BH',
+    workdays: sundayToThursday,
+    windows: defaultCrmSendWindows,
+    defaultTimezone: 'Asia/Bahrain'
+  },
+  JO: {
+    country: 'JO',
+    workdays: sundayToThursday,
+    windows: defaultCrmSendWindows,
+    defaultTimezone: 'Asia/Amman'
+  },
+  IQ: {
+    country: 'IQ',
+    workdays: sundayToThursday,
+    windows: defaultCrmSendWindows,
+    defaultTimezone: 'Asia/Baghdad'
+  },
   GB: {
     country: 'GB',
     workdays: mondayToFriday,

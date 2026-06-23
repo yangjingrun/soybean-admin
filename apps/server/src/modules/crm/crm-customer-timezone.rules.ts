@@ -4,6 +4,7 @@ interface CrmCustomerTimeZoneInput {
 }
 
 interface CountryTimeZoneRule {
+  code: string;
   aliases: string[];
   cities: Record<string, string>;
   defaultTimeZone: string | null;
@@ -11,6 +12,7 @@ interface CountryTimeZoneRule {
 
 const countryRules: Record<string, CountryTimeZoneRule> = {
   US: {
+    code: 'US',
     aliases: ['us', 'usa', 'united states', 'united states of america'],
     cities: {
       'new york': 'America/New_York',
@@ -25,6 +27,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: null
   },
   AE: {
+    code: 'AE',
     aliases: ['ae', 'uae', 'united arab emirates'],
     cities: {
       dubai: 'Asia/Dubai'
@@ -32,6 +35,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: 'Asia/Dubai'
   },
   SA: {
+    code: 'SA',
     aliases: ['sa', 'saudi arabia', 'kingdom of saudi arabia', 'ksa'],
     cities: {
       riyadh: 'Asia/Riyadh',
@@ -39,7 +43,57 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     },
     defaultTimeZone: 'Asia/Riyadh'
   },
+  QA: {
+    code: 'QA',
+    aliases: ['qa', 'qatar'],
+    cities: {
+      doha: 'Asia/Qatar'
+    },
+    defaultTimeZone: 'Asia/Qatar'
+  },
+  KW: {
+    code: 'KW',
+    aliases: ['kw', 'kuwait'],
+    cities: {
+      kuwait: 'Asia/Kuwait',
+      'kuwait city': 'Asia/Kuwait'
+    },
+    defaultTimeZone: 'Asia/Kuwait'
+  },
+  OM: {
+    code: 'OM',
+    aliases: ['om', 'oman'],
+    cities: {
+      muscat: 'Asia/Muscat'
+    },
+    defaultTimeZone: 'Asia/Muscat'
+  },
+  BH: {
+    code: 'BH',
+    aliases: ['bh', 'bahrain'],
+    cities: {
+      manama: 'Asia/Bahrain'
+    },
+    defaultTimeZone: 'Asia/Bahrain'
+  },
+  JO: {
+    code: 'JO',
+    aliases: ['jo', 'jordan'],
+    cities: {
+      amman: 'Asia/Amman'
+    },
+    defaultTimeZone: 'Asia/Amman'
+  },
+  IQ: {
+    code: 'IQ',
+    aliases: ['iq', 'iraq'],
+    cities: {
+      baghdad: 'Asia/Baghdad'
+    },
+    defaultTimeZone: 'Asia/Baghdad'
+  },
   GB: {
+    code: 'GB',
     aliases: ['gb', 'uk', 'united kingdom', 'great britain', 'england'],
     cities: {
       london: 'Europe/London'
@@ -47,6 +101,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: 'Europe/London'
   },
   DE: {
+    code: 'DE',
     aliases: ['de', 'germany', 'deutschland'],
     cities: {
       berlin: 'Europe/Berlin'
@@ -54,6 +109,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: 'Europe/Berlin'
   },
   FR: {
+    code: 'FR',
     aliases: ['fr', 'france'],
     cities: {
       paris: 'Europe/Paris'
@@ -61,6 +117,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: 'Europe/Paris'
   },
   IN: {
+    code: 'IN',
     aliases: ['in', 'india'],
     cities: {
       mumbai: 'Asia/Kolkata',
@@ -70,6 +127,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: 'Asia/Kolkata'
   },
   JP: {
+    code: 'JP',
     aliases: ['jp', 'japan'],
     cities: {
       tokyo: 'Asia/Tokyo'
@@ -77,6 +135,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: 'Asia/Tokyo'
   },
   KR: {
+    code: 'KR',
     aliases: ['kr', 'korea', 'south korea', 'republic of korea'],
     cities: {
       seoul: 'Asia/Seoul'
@@ -84,6 +143,7 @@ const countryRules: Record<string, CountryTimeZoneRule> = {
     defaultTimeZone: 'Asia/Seoul'
   },
   CN: {
+    code: 'CN',
     aliases: ['cn', 'china', 'prc', "people's republic of china"],
     cities: {
       shanghai: 'Asia/Shanghai',
@@ -123,6 +183,17 @@ export function resolveCrmCustomerTimeZone(input: CrmCustomerTimeZoneInput) {
   }
 
   return countryRule.defaultTimeZone;
+}
+
+/** Resolve supported country aliases into ISO alpha-2 codes for GeoNames lookups. */
+export function resolveCrmCustomerCountryCode(country?: string | null) {
+  const normalizedCountry = normalizeRuleKey(country);
+
+  if (/^[a-z]{2}$/.test(normalizedCountry)) {
+    return normalizedCountry.toUpperCase();
+  }
+
+  return countryAliasIndex.get(normalizedCountry)?.code ?? null;
 }
 
 function normalizeRuleKey(value?: string | null) {

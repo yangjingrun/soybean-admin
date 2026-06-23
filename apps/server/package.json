@@ -7,6 +7,7 @@
     "backfill:ai-config-secrets": "tsx src/scripts/backfill-ai-config-secrets.ts",
     "build": "nest build",
     "dev": "tsx watch src/main.ts",
+    "import:geonames": "tsx src/scripts/import-geonames-timezones.ts",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
