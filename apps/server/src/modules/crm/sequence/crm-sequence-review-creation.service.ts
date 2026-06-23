@@ -91,6 +91,8 @@ export class CrmSequenceReviewCreationService {
       context,
       stepIndex: initialDraftStepIndex,
       previousMessages: [],
+      templateLanguage: defaultTemplateGroup?.language ?? null,
+      personaProfile: personaMatch.templatePersona,
       fallbackDraft: generateFirstDraft({
         account,
         contact,
@@ -276,8 +278,20 @@ export class CrmSequenceReviewCreationService {
     stepIndex: CrmAiWritingStepIndex;
     previousMessages: Array<Pick<CrmMessageRecord, 'stepIndex' | 'subject' | 'bodyText'>>;
     fallbackDraft: GeneratedDraft;
+    templateLanguage?: string | null;
+    personaProfile?: PersonaProfile | null;
   }): Promise<GeneratedDraft> {
-    const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex } = input;
+    const {
+      account,
+      contact,
+      productLine,
+      context,
+      fallbackDraft,
+      previousMessages,
+      stepIndex,
+      templateLanguage,
+      personaProfile
+    } = input;
 
     if (!productLine?.aiWritingConfig?.enabled) {
       return fallbackDraft;
@@ -321,7 +335,13 @@ export class CrmSequenceReviewCreationService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: context.userName
+        senderName: context.userName,
+        templateLanguage,
+        baseDraft: {
+          subject: fallbackDraft.subject,
+          bodyText: fallbackDraft.bodyText
+        },
+        persona: personaProfile ?? findPersonaProfile(contact.title)
       },
       context
     );

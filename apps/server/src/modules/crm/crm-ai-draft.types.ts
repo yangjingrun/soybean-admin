@@ -4,6 +4,7 @@ import type {
   CrmEmailStatus,
   CrmProductLineAiWritingConfig
 } from './crm.types';
+import type { PersonaProfile } from './crm-email-template-renderer';
 
 export interface CrmAiDraftPromptAccount {
   name: string;
@@ -39,6 +40,11 @@ export interface CrmAiDraftPromptMessage {
   bodyText: string;
 }
 
+export interface CrmAiDraftBaseDraft {
+  subject: string;
+  bodyText: string;
+}
+
 export interface CrmAiDraftPromptInput {
   account: CrmAiDraftPromptAccount;
   contact: CrmAiDraftPromptContact;
@@ -47,6 +53,9 @@ export interface CrmAiDraftPromptInput {
   stepIndex: CrmAiWritingStepIndex;
   previousMessages: CrmAiDraftPromptMessage[];
   senderName: string | null;
+  templateLanguage?: string | null;
+  baseDraft: CrmAiDraftBaseDraft;
+  persona?: Pick<PersonaProfile, 'label' | 'focusText' | 'draftFocusText' | 'painPoints' | 'avoidText'> | null;
 }
 
 export interface CrmAiDraftPrompt {

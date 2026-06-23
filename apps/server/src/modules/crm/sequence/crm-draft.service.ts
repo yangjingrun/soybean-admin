@@ -1,5 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
+import { findPersonaProfile, type PersonaProfile } from '../crm-email-template-renderer';
 import { CRM_SEQUENCE_DRAFT_REPOSITORY } from '../crm.tokens';
 import type {
   CrmAccountRecord,
@@ -106,6 +107,7 @@ export class CrmDraftService {
         .sort(
           (left, right) => left.stepIndex - right.stepIndex || left.createdAt.getTime() - right.createdAt.getTime()
         ),
+      personaProfile: findPersonaProfile(item.contact.title),
       fallbackDraft: {
         subject: message.subject,
         bodyText: message.bodyText
@@ -279,8 +281,10 @@ export class CrmDraftService {
     stepIndex: CrmAiWritingStepIndex;
     previousMessages: Array<Pick<CrmMessageRecord, 'stepIndex' | 'subject' | 'bodyText'>>;
     fallbackDraft: GeneratedDraft;
+    personaProfile?: PersonaProfile | null;
   }): Promise<GeneratedDraft> {
-    const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex } = input;
+    const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex, personaProfile } =
+      input;
     const writingConfig = productLine.aiWritingConfig;
 
     if (!this.aiDraftService) {
@@ -325,7 +329,12 @@ export class CrmDraftService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: context.userName
+        senderName: context.userName,
+        baseDraft: {
+          subject: fallbackDraft.subject,
+          bodyText: fallbackDraft.bodyText
+        },
+        persona: personaProfile ?? findPersonaProfile(contact.title)
       },
       context
     );

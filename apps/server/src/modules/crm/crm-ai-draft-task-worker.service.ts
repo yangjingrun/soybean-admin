@@ -261,7 +261,21 @@ export class CrmAiDraftTaskWorkerService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: task.ownerUserName
+        senderName: task.ownerUserName,
+        templateLanguage: defaultTemplateGroup?.language ?? null,
+        baseDraft: {
+          subject: baseNextMessage.subject,
+          bodyText: baseNextMessage.bodyText
+        },
+        persona: personaMatch.templatePersona
+          ? {
+              label: personaMatch.templatePersona.label,
+              focusText: personaMatch.templatePersona.focusText,
+              draftFocusText: personaMatch.templatePersona.draftFocusText,
+              painPoints: personaMatch.templatePersona.painPoints,
+              avoidText: personaMatch.templatePersona.avoidText
+            }
+          : null
       },
       toTaskOwnerContext(task)
     );

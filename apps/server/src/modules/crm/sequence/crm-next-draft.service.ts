@@ -42,6 +42,14 @@ interface GeneratedDraft {
   aiDraft?: CrmAiDraftMetadata | null;
 }
 
+interface AiPersonaContext {
+  label: string;
+  focusText: string;
+  draftFocusText: string;
+  painPoints?: string | null;
+  avoidText?: string | null;
+}
+
 type NextDraftGenerationContext = {
   globalConfig: CrmGlobalConfigRecord;
   defaultTemplateGroup: CrmEmailTemplateGroupRecord | null;
@@ -151,6 +159,16 @@ export class CrmNextDraftService {
       context,
       stepIndex: toAiWritingStepIndex(baseNextMessage.stepIndex),
       previousMessages: item.messages,
+      templateLanguage: resolvedGenerationContext.defaultTemplateGroup?.language ?? null,
+      personaProfile: personaMatch.templatePersona
+        ? {
+            label: personaMatch.templatePersona.label,
+            focusText: personaMatch.templatePersona.focusText,
+            draftFocusText: personaMatch.templatePersona.draftFocusText,
+            painPoints: personaMatch.templatePersona.painPoints,
+            avoidText: personaMatch.templatePersona.avoidText
+          }
+        : null,
       fallbackDraft: {
         subject: baseNextMessage.subject,
         bodyText: baseNextMessage.bodyText
@@ -236,8 +254,20 @@ export class CrmNextDraftService {
     stepIndex: CrmAiWritingStepIndex;
     previousMessages: Array<Pick<CrmMessageRecord, 'stepIndex' | 'subject' | 'bodyText'>>;
     fallbackDraft: GeneratedDraft;
+    templateLanguage?: string | null;
+    personaProfile?: AiPersonaContext | null;
   }): Promise<GeneratedDraft> {
-    const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex } = input;
+    const {
+      account,
+      contact,
+      productLine,
+      context,
+      fallbackDraft,
+      previousMessages,
+      stepIndex,
+      templateLanguage,
+      personaProfile
+    } = input;
 
     if (!productLine?.aiWritingConfig?.enabled) {
       return fallbackDraft;
@@ -281,7 +311,13 @@ export class CrmNextDraftService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: context.userName
+        senderName: context.userName,
+        templateLanguage,
+        baseDraft: {
+          subject: fallbackDraft.subject,
+          bodyText: fallbackDraft.bodyText
+        },
+        persona: personaProfile ?? null
       },
       context
     );

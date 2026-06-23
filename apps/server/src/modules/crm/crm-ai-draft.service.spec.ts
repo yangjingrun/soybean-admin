@@ -36,6 +36,8 @@ describe('CrmAiDraftService', () => {
     assert.ok(firstCall);
     assert.equal((firstCall.input as { modelConfigKey?: string }).modelConfigKey, 'default');
     assert.equal((firstCall.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
+    assert.match((firstCall.input as { prompt?: string }).prompt || '', /Base draft to customize/);
+    assert.match((firstCall.input as { prompt?: string }).prompt || '', /Matched persona/);
   });
 
   it('rejects invalid AI JSON output', async () => {
@@ -71,7 +73,11 @@ describe('CrmAiDraftService', () => {
             writingConfig: createWritingConfig(),
             stepIndex: 1,
             previousMessages: [],
-            senderName: 'Alice'
+            senderName: 'Alice',
+            baseDraft: {
+              subject: 'Bearing Series for ABC Trading',
+              bodyText: 'Hi there,\n\nSharing one short intro.\n\nBest regards,\nAlice'
+            }
           },
           createContext()
         ),
@@ -100,7 +106,19 @@ function createPromptInput(): CrmAiDraftPromptInput {
     writingConfig: createWritingConfig(),
     stepIndex: 1 as const,
     previousMessages: [],
-    senderName: 'Alice'
+    senderName: 'Alice',
+    templateLanguage: 'en',
+    baseDraft: {
+      subject: 'Bearing Series for ABC Trading',
+      bodyText: 'Hi Alex,\n\nSharing one tailored intro.\n\nBest regards,\nAlice'
+    },
+    persona: {
+      label: 'Purchasing Manager',
+      focusText: '价格、MOQ、交期、付款方式',
+      draftFocusText: 'price, MOQ, lead time, and payment terms',
+      painPoints: 'Need stable suppliers',
+      avoidText: 'Do not use generic catalog dump'
+    }
   };
 }
 

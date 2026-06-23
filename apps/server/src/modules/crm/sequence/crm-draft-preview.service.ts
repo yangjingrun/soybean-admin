@@ -97,6 +97,8 @@ export class CrmDraftPreviewService {
       context,
       stepIndex,
       previousMessages,
+      templateLanguage: defaultTemplateGroup?.language ?? null,
+      personaProfile: personaMatch?.templatePersona ?? null,
       fallbackDraft
     });
 
@@ -222,8 +224,20 @@ export class CrmDraftPreviewService {
     stepIndex: CrmAiWritingStepIndex;
     previousMessages: Array<Pick<CrmMessageRecord, 'stepIndex' | 'subject' | 'bodyText'>>;
     fallbackDraft: GeneratedDraft;
+    templateLanguage?: string | null;
+    personaProfile?: PersonaProfile | null;
   }): Promise<GeneratedDraft> {
-    const { account, contact, productLine, context, fallbackDraft, previousMessages, stepIndex } = input;
+    const {
+      account,
+      contact,
+      productLine,
+      context,
+      fallbackDraft,
+      previousMessages,
+      stepIndex,
+      templateLanguage,
+      personaProfile
+    } = input;
     const writingConfig = productLine.aiWritingConfig;
 
     if (!this.aiDraftService) {
@@ -268,7 +282,13 @@ export class CrmDraftPreviewService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: context.userName
+        senderName: context.userName,
+        templateLanguage,
+        baseDraft: {
+          subject: fallbackDraft.subject,
+          bodyText: fallbackDraft.bodyText
+        },
+        persona: personaProfile ?? findPersonaProfile(contact.title)
       },
       context
     );

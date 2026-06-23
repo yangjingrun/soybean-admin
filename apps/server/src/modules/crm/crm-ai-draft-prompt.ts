@@ -58,6 +58,7 @@ export function buildCrmAiDraftPrompt(input: CrmAiDraftPromptInput): CrmAiDraftP
   const config = requireEnabledCrmProductLineAiWritingConfig(input.writingConfig);
   const stepPrompt = getStepConfig(config, input.stepIndex).prompt;
   const riskNotes = collectCrmAiDraftRiskNotes(input);
+  const templateLanguage = normalizeString(input.templateLanguage) || 'en';
   const previousMessages = input.previousMessages.length
     ? input.previousMessages
         .map(
@@ -66,23 +67,43 @@ export function buildCrmAiDraftPrompt(input: CrmAiDraftPromptInput): CrmAiDraftP
         )
         .join('\n\n')
     : 'No previous messages.';
+  const personaContext = input.persona
+    ? JSON.stringify(
+        {
+          label: input.persona.label,
+          focusText: input.persona.focusText,
+          draftFocusText: input.persona.draftFocusText,
+          painPoints: input.persona.painPoints,
+          avoidText: input.persona.avoidText
+        },
+        null,
+        2
+      )
+    : 'No matched persona.';
 
   return {
     systemPrompt: [
-      'You write concise B2B outbound email drafts for human review.',
+      'You customize an existing B2B outbound email draft for human review.',
+      'Keep the same output language as the base draft unless the input explicitly requires another language.',
+      'Start from the base draft structure and wording, then tailor it with the provided CRM facts, matched persona, and step goal.',
       'Return only one valid JSON object with subject, bodyText, reason, and riskNotes.',
       'Do not wrap JSON in Markdown.',
       'Never invent price, MOQ, lead time, certifications, customer references, exclusive claims, or compliance claims.',
-      'Use missing fields as missing; do not create fake personalization.'
+      'Use missing fields as missing; do not create fake personalization.',
+      'Do not mix languages inside one email unless the base draft already mixes languages.'
     ].join('\n'),
     userPrompt: [
       `Step ${input.stepIndex} of 5.`,
       'Do not repeat previous emails. Change the angle according to the step prompt.',
+      `Template language:\n${templateLanguage}`,
       '',
       `Common requirements:\n${config.commonRequirements}`,
       `Forbidden claims:\n${config.forbiddenClaims}`,
       `Product emphasis:\n${config.productEmphasis}`,
       `Step prompt:\n${stepPrompt}`,
+      '',
+      `Base draft to customize:\n${JSON.stringify(input.baseDraft, null, 2)}`,
+      `Matched persona:\n${personaContext}`,
       '',
       `Account:\n${JSON.stringify(input.account, null, 2)}`,
       `Contact:\n${JSON.stringify(input.contact, null, 2)}`,

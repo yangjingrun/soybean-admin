@@ -54,13 +54,62 @@ describe('crm-ai-draft-prompt', () => {
       writingConfig: createWritingConfig(),
       stepIndex: 2,
       previousMessages: [{ stepIndex: 1, subject: 'Bearing Series', bodyText: 'First email body.' }],
-      senderName: 'Alice'
+      senderName: 'Alice',
+      baseDraft: {
+        subject: 'Re: Bearing Series for ABC Trading',
+        bodyText: 'Hi Alex,\n\nFollowing up on the last note.\n\nBest regards,\nAlice'
+      }
     });
 
     assert.match(prompt.userPrompt, /Previous messages/);
     assert.match(prompt.userPrompt, /Step 2/);
     assert.match(prompt.userPrompt, /Do not repeat/);
     assert.match(prompt.userPrompt, /First email body/);
+  });
+
+  it('builds first-draft prompt from the template draft and matched persona context', () => {
+    const prompt = buildCrmAiDraftPrompt({
+      account: { name: 'ABC Trading', country: 'AE', domain: 'abc.example', customerType: 'distributor' },
+      contact: { fullName: 'Alex', title: 'Buyer', maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
+      productLine: {
+        id: 'line-1',
+        name: 'Bearing Series',
+        targetCustomerType: 'distributor',
+        coreSellingPoints: 'Stable stock',
+        moq: '100 pcs',
+        leadTime: '15 days',
+        paymentTerms: 'T/T',
+        certifications: 'ISO 9001',
+        catalogUrl: null,
+        websiteUrl: null,
+        commonModelsText: '6204, 6205'
+      },
+      writingConfig: createWritingConfig(),
+      stepIndex: 1,
+      previousMessages: [],
+      senderName: 'Alice',
+      templateLanguage: 'en',
+      baseDraft: {
+        subject: 'Bearing Series for ABC Trading',
+        bodyText:
+          'Hi Alex,\n\nI noticed ABC Trading and thought this might be relevant to your team.\n\nBest regards,\nAlice'
+      },
+      persona: {
+        label: 'Purchasing Manager',
+        focusText: '价格、MOQ、交期、付款方式',
+        draftFocusText: 'price, MOQ, lead time, and payment terms',
+        painPoints: 'Need stable suppliers',
+        avoidText: 'Do not use generic catalog dump'
+      }
+    });
+
+    assert.match(prompt.systemPrompt, /customize an existing B2B outbound email draft/i);
+    assert.match(prompt.systemPrompt, /same output language as the base draft/i);
+    assert.match(prompt.userPrompt, /Base draft to customize/);
+    assert.match(prompt.userPrompt, /Bearing Series for ABC Trading/);
+    assert.match(prompt.userPrompt, /Matched persona/);
+    assert.match(prompt.userPrompt, /Purchasing Manager/);
+    assert.match(prompt.userPrompt, /Need stable suppliers/);
   });
 
   it('collects risk notes for missing contact title and product lead time', () => {
@@ -83,7 +132,11 @@ describe('crm-ai-draft-prompt', () => {
       writingConfig: createWritingConfig(),
       stepIndex: 1,
       previousMessages: [],
-      senderName: 'Alice'
+      senderName: 'Alice',
+      baseDraft: {
+        subject: 'Bearing Series for ABC Trading',
+        bodyText: 'Hi there,\n\nSharing one short intro.\n\nBest regards,\nAlice'
+      }
     });
 
     assert.deepEqual(notes, ['联系人职位缺失', '产品核心卖点缺失', '产品交期未配置']);
