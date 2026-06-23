@@ -15,6 +15,7 @@ import GlobalFooter from '../modules/global-footer/index.vue';
 import ThemeDrawer from '../modules/theme-drawer/index.vue';
 import { provideMixMenuContext } from '../modules/global-menu/context';
 import { handleSystemNotificationRouteAction } from './system-notification-action';
+import { resolveSystemNotificationDisplayPolicy } from './system-notification-display';
 
 defineOptions({
   name: 'BaseLayout'
@@ -145,6 +146,14 @@ function showSystemNotification(item: Api.SystemNotification.SystemNotification)
   }
 
   activeNotificationIds.add(item.id);
+  const displayPolicy = resolveSystemNotificationDisplayPolicy(item);
+
+  if (displayPolicy.mode === 'silent-read') {
+    void taskNotificationStore.markRead(item.id).finally(() => {
+      activeNotificationIds.delete(item.id);
+    });
+    return;
+  }
 
   let destroyNotice: (() => void) | null = null;
   const routePath = item.routePath;
@@ -152,7 +161,7 @@ function showSystemNotification(item: Api.SystemNotification.SystemNotification)
     title: item.title,
     content: item.content,
     meta: '系统通知',
-    duration: 8000,
+    duration: displayPolicy.duration,
     keepAliveOnHover: true,
     onAfterLeave: () => {
       activeNotificationIds.delete(item.id);
@@ -180,12 +189,7 @@ function showSystemNotification(item: Api.SystemNotification.SystemNotification)
           )
       : undefined
   };
-  const notice =
-    item.type === 'task_failed'
-      ? notification.error(options)
-      : item.type === 'task_completed'
-        ? notification.success(options)
-        : notification.info(options);
+  const notice = notification[displayPolicy.type](options);
 
   destroyNotice = () => notice.destroy();
   void taskNotificationStore.markShown(item.id);
