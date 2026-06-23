@@ -61,6 +61,7 @@ interface LeadAccountFormModel {
   country: string;
   city: string;
   address: string;
+  timeZone: string;
   customerType: string;
 }
 
@@ -84,6 +85,7 @@ const accountForm = reactive<LeadAccountFormModel>({
   country: '',
   city: '',
   address: '',
+  timeZone: '',
   customerType: ''
 });
 const accountEditing = ref(false);
@@ -251,6 +253,7 @@ watch(
       country: value?.country ?? '',
       city: value?.city ?? '',
       address: value?.address ?? '',
+      timeZone: value?.timeZone ?? '',
       customerType: value?.customerType ?? ''
     });
   },
@@ -311,6 +314,7 @@ function handleStartEditAccount() {
     country: account.value.country ?? '',
     city: account.value.city ?? '',
     address: account.value.address ?? '',
+    timeZone: account.value.timeZone ?? '',
     customerType: account.value.customerType ?? ''
   });
   accountEditing.value = true;
@@ -325,6 +329,7 @@ function handleCancelEditAccount() {
     country: account.value?.country ?? '',
     city: account.value?.city ?? '',
     address: account.value?.address ?? '',
+    timeZone: account.value?.timeZone ?? '',
     customerType: account.value?.customerType ?? ''
   });
 }
@@ -352,6 +357,7 @@ function handleSubmitAccount() {
       country: accountForm.country,
       city: accountForm.city,
       address: accountForm.address,
+      timeZone: accountForm.timeZone === (account.value?.timeZone ?? '') ? undefined : accountForm.timeZone,
       customerType: accountForm.customerType
     }),
     success => {
@@ -522,6 +528,15 @@ function handleSubmitContact() {
                   <span v-if="account.city" class="lead-secondary-text">{{ account.city }}</span>
                   <span v-if="account.address" class="lead-secondary-text">{{ account.address }}</span>
                 </div>
+              </NDescriptionsItem>
+              <NDescriptionsItem label="时区">
+                <NInput
+                  v-if="accountEditing"
+                  v-model:value="accountForm.timeZone"
+                  size="small"
+                  placeholder="留空自动根据地区识别，如 Asia/Riyadh"
+                />
+                <span v-else>{{ formatLeadText(account.timeZone) }}</span>
               </NDescriptionsItem>
               <NDescriptionsItem label="客户类型">
                 <NInput

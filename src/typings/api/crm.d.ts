@@ -79,6 +79,7 @@ declare namespace Api {
       country: string | null;
       city: string | null;
       address: string | null;
+      timeZone?: string | null;
       customerType: string | null;
       status: CrmAccountStatus;
       sourceTaskId: string | null;
@@ -168,6 +169,7 @@ declare namespace Api {
       country?: string;
       city?: string;
       address?: string;
+      timeZone?: string;
       customerType?: string;
       sourceTaskId?: string | null;
       sourceSnapshot?: Record<string, unknown> | null;
@@ -180,6 +182,7 @@ declare namespace Api {
       country: string;
       city: string;
       address: string;
+      timeZone: string;
       customerType: string;
       contactFullName: string;
       contactTitle: string;
@@ -198,6 +201,7 @@ declare namespace Api {
       country?: string;
       city?: string;
       address?: string;
+      timeZone?: string;
       customerType?: string;
     }
 

@@ -78,6 +78,12 @@ async function handleSubmit() {
         </NGi>
 
         <NGi span="24 m:12">
+          <NFormItem label="时区">
+            <NInput v-model:value="formModel.timeZone" clearable placeholder="留空自动识别，如 Asia/Riyadh" />
+          </NFormItem>
+        </NGi>
+
+        <NGi span="24 m:12">
           <NFormItem label="客户类型">
             <NInput v-model:value="formModel.customerType" clearable placeholder="importer / distributor / retailer" />
           </NFormItem>
