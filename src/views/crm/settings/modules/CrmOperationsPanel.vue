@@ -475,7 +475,7 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   },
   {
     key: 'watchExpiration',
-    title: 'Gmail watch',
+    title: '收信同步',
     minWidth: 190,
     render: row => renderWatchStatus(row)
   },
@@ -487,7 +487,7 @@ const syncColumns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   },
   {
     key: 'lastHistoryId',
-    title: '同步检查点',
+    title: '同步进度',
     minWidth: 150,
     render: row => renderSyncCheckpoint(row)
   },
@@ -624,7 +624,7 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
           <NStatistic label="授权过期" :value="mailboxHealth.authExpired" />
         </NGi>
         <NGi>
-          <NStatistic label="Watch 待处理" :value="mailboxHealth.watchNeedsAttention" />
+          <NStatistic label="收信待处理" :value="mailboxHealth.watchNeedsAttention" />
         </NGi>
         <NGi>
           <NStatistic label="同步需处理" :value="mailboxHealth.syncIssues" />
@@ -632,7 +632,7 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
       </NGrid>
 
       <NSpace vertical :size="8">
-        <NText strong>Webhook / History / Watch / Send 摘要</NText>
+        <NText strong>收信 / 同步 / 发送摘要</NText>
         <NDataTable
           size="small"
           :columns="operationSummaryColumns"
@@ -679,7 +679,7 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
       <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="1 l:2">
         <NGi>
           <NSpace vertical :size="8">
-            <NText strong>同步 / 续订</NText>
+            <NText strong>邮箱收信同步</NText>
             <NDataTable
               size="small"
               :columns="syncColumns"

@@ -20,6 +20,8 @@ import {
 } from '../crm-ai-draft-task-state';
 import {
   crmGlobalConfigKey,
+  serializeCrmSendWindows,
+  serializeCrmSendWorkdays,
   normalizeEmailVerificationCooldownDays,
   normalizeOwnerConcurrentSendLimit,
   normalizeOwnerDailySendLimitMax,
@@ -50,6 +52,8 @@ export class PrismaCrmConfigStore {
     const ownerConcurrentSendLimit = normalizeOwnerConcurrentSendLimit(input.ownerConcurrentSendLimit);
     const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(input.ownerDailySendLimitMax);
     const followUpDelayDaysText = serializeFollowUpDelayDays(input.followUpDelayDays);
+    const sendWorkdaysText = serializeCrmSendWorkdays(input.sendWorkdays);
+    const sendWindowsText = serializeCrmSendWindows(input.sendWindows);
     const record = await this.prisma.crmGlobalConfig.upsert({
       where: { configKey: crmGlobalConfigKey },
       create: {
@@ -58,6 +62,8 @@ export class PrismaCrmConfigStore {
         ownerConcurrentSendLimit,
         ownerDailySendLimitMax,
         followUpDelayDaysText,
+        sendWorkdaysText,
+        sendWindowsText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
       },
@@ -66,6 +72,8 @@ export class PrismaCrmConfigStore {
         ownerConcurrentSendLimit,
         ownerDailySendLimitMax,
         followUpDelayDaysText,
+        sendWorkdaysText,
+        sendWindowsText,
         updatedById: input.updatedById,
         updatedByName: input.updatedByName
       }

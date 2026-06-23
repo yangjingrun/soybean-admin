@@ -44,6 +44,8 @@ export type CrmGlobalConfigMinAggregateOutputType = {
   ownerConcurrentSendLimit: number | null;
   ownerDailySendLimitMax: number | null;
   followUpDelayDaysText: string | null;
+  sendWorkdaysText: string | null;
+  sendWindowsText: string | null;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date | null;
@@ -57,6 +59,8 @@ export type CrmGlobalConfigMaxAggregateOutputType = {
   ownerConcurrentSendLimit: number | null;
   ownerDailySendLimitMax: number | null;
   followUpDelayDaysText: string | null;
+  sendWorkdaysText: string | null;
+  sendWindowsText: string | null;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date | null;
@@ -70,6 +74,8 @@ export type CrmGlobalConfigCountAggregateOutputType = {
   ownerConcurrentSendLimit: number;
   ownerDailySendLimitMax: number;
   followUpDelayDaysText: number;
+  sendWorkdaysText: number;
+  sendWindowsText: number;
   updatedById: number;
   updatedByName: number;
   createdAt: number;
@@ -96,6 +102,8 @@ export type CrmGlobalConfigMinAggregateInputType = {
   ownerConcurrentSendLimit?: true;
   ownerDailySendLimitMax?: true;
   followUpDelayDaysText?: true;
+  sendWorkdaysText?: true;
+  sendWindowsText?: true;
   updatedById?: true;
   updatedByName?: true;
   createdAt?: true;
@@ -109,6 +117,8 @@ export type CrmGlobalConfigMaxAggregateInputType = {
   ownerConcurrentSendLimit?: true;
   ownerDailySendLimitMax?: true;
   followUpDelayDaysText?: true;
+  sendWorkdaysText?: true;
+  sendWindowsText?: true;
   updatedById?: true;
   updatedByName?: true;
   createdAt?: true;
@@ -122,6 +132,8 @@ export type CrmGlobalConfigCountAggregateInputType = {
   ownerConcurrentSendLimit?: true;
   ownerDailySendLimitMax?: true;
   followUpDelayDaysText?: true;
+  sendWorkdaysText?: true;
+  sendWindowsText?: true;
   updatedById?: true;
   updatedByName?: true;
   createdAt?: true;
@@ -223,6 +235,8 @@ export type CrmGlobalConfigGroupByOutputType = {
   ownerConcurrentSendLimit: number;
   ownerDailySendLimitMax: number;
   followUpDelayDaysText: string;
+  sendWorkdaysText: string;
+  sendWindowsText: string;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date;
@@ -256,6 +270,8 @@ export type CrmGlobalConfigWhereInput = {
   ownerConcurrentSendLimit?: Prisma.IntFilter<'CrmGlobalConfig'> | number;
   ownerDailySendLimitMax?: Prisma.IntFilter<'CrmGlobalConfig'> | number;
   followUpDelayDaysText?: Prisma.StringFilter<'CrmGlobalConfig'> | string;
+  sendWorkdaysText?: Prisma.StringFilter<'CrmGlobalConfig'> | string;
+  sendWindowsText?: Prisma.StringFilter<'CrmGlobalConfig'> | string;
   updatedById?: Prisma.StringNullableFilter<'CrmGlobalConfig'> | string | null;
   updatedByName?: Prisma.StringNullableFilter<'CrmGlobalConfig'> | string | null;
   createdAt?: Prisma.DateTimeFilter<'CrmGlobalConfig'> | Date | string;
@@ -269,6 +285,8 @@ export type CrmGlobalConfigOrderByWithRelationInput = {
   ownerConcurrentSendLimit?: Prisma.SortOrder;
   ownerDailySendLimitMax?: Prisma.SortOrder;
   followUpDelayDaysText?: Prisma.SortOrder;
+  sendWorkdaysText?: Prisma.SortOrder;
+  sendWindowsText?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder;
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -286,6 +304,8 @@ export type CrmGlobalConfigWhereUniqueInput = Prisma.AtLeast<
     ownerConcurrentSendLimit?: Prisma.IntFilter<'CrmGlobalConfig'> | number;
     ownerDailySendLimitMax?: Prisma.IntFilter<'CrmGlobalConfig'> | number;
     followUpDelayDaysText?: Prisma.StringFilter<'CrmGlobalConfig'> | string;
+    sendWorkdaysText?: Prisma.StringFilter<'CrmGlobalConfig'> | string;
+    sendWindowsText?: Prisma.StringFilter<'CrmGlobalConfig'> | string;
     updatedById?: Prisma.StringNullableFilter<'CrmGlobalConfig'> | string | null;
     updatedByName?: Prisma.StringNullableFilter<'CrmGlobalConfig'> | string | null;
     createdAt?: Prisma.DateTimeFilter<'CrmGlobalConfig'> | Date | string;
@@ -301,6 +321,8 @@ export type CrmGlobalConfigOrderByWithAggregationInput = {
   ownerConcurrentSendLimit?: Prisma.SortOrder;
   ownerDailySendLimitMax?: Prisma.SortOrder;
   followUpDelayDaysText?: Prisma.SortOrder;
+  sendWorkdaysText?: Prisma.SortOrder;
+  sendWindowsText?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder;
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -322,6 +344,8 @@ export type CrmGlobalConfigScalarWhereWithAggregatesInput = {
   ownerConcurrentSendLimit?: Prisma.IntWithAggregatesFilter<'CrmGlobalConfig'> | number;
   ownerDailySendLimitMax?: Prisma.IntWithAggregatesFilter<'CrmGlobalConfig'> | number;
   followUpDelayDaysText?: Prisma.StringWithAggregatesFilter<'CrmGlobalConfig'> | string;
+  sendWorkdaysText?: Prisma.StringWithAggregatesFilter<'CrmGlobalConfig'> | string;
+  sendWindowsText?: Prisma.StringWithAggregatesFilter<'CrmGlobalConfig'> | string;
   updatedById?: Prisma.StringNullableWithAggregatesFilter<'CrmGlobalConfig'> | string | null;
   updatedByName?: Prisma.StringNullableWithAggregatesFilter<'CrmGlobalConfig'> | string | null;
   createdAt?: Prisma.DateTimeWithAggregatesFilter<'CrmGlobalConfig'> | Date | string;
@@ -335,6 +359,8 @@ export type CrmGlobalConfigCreateInput = {
   ownerConcurrentSendLimit?: number;
   ownerDailySendLimitMax?: number;
   followUpDelayDaysText?: string;
+  sendWorkdaysText?: string;
+  sendWindowsText?: string;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -348,6 +374,8 @@ export type CrmGlobalConfigUncheckedCreateInput = {
   ownerConcurrentSendLimit?: number;
   ownerDailySendLimitMax?: number;
   followUpDelayDaysText?: string;
+  sendWorkdaysText?: string;
+  sendWindowsText?: string;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -361,6 +389,8 @@ export type CrmGlobalConfigUpdateInput = {
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWorkdaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWindowsText?: Prisma.StringFieldUpdateOperationsInput | string;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -374,6 +404,8 @@ export type CrmGlobalConfigUncheckedUpdateInput = {
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWorkdaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWindowsText?: Prisma.StringFieldUpdateOperationsInput | string;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -387,6 +419,8 @@ export type CrmGlobalConfigCreateManyInput = {
   ownerConcurrentSendLimit?: number;
   ownerDailySendLimitMax?: number;
   followUpDelayDaysText?: string;
+  sendWorkdaysText?: string;
+  sendWindowsText?: string;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -400,6 +434,8 @@ export type CrmGlobalConfigUpdateManyMutationInput = {
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWorkdaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWindowsText?: Prisma.StringFieldUpdateOperationsInput | string;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -413,6 +449,8 @@ export type CrmGlobalConfigUncheckedUpdateManyInput = {
   ownerConcurrentSendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   ownerDailySendLimitMax?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpDelayDaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWorkdaysText?: Prisma.StringFieldUpdateOperationsInput | string;
+  sendWindowsText?: Prisma.StringFieldUpdateOperationsInput | string;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -426,6 +464,8 @@ export type CrmGlobalConfigCountOrderByAggregateInput = {
   ownerConcurrentSendLimit?: Prisma.SortOrder;
   ownerDailySendLimitMax?: Prisma.SortOrder;
   followUpDelayDaysText?: Prisma.SortOrder;
+  sendWorkdaysText?: Prisma.SortOrder;
+  sendWindowsText?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrder;
   updatedByName?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -445,6 +485,8 @@ export type CrmGlobalConfigMaxOrderByAggregateInput = {
   ownerConcurrentSendLimit?: Prisma.SortOrder;
   ownerDailySendLimitMax?: Prisma.SortOrder;
   followUpDelayDaysText?: Prisma.SortOrder;
+  sendWorkdaysText?: Prisma.SortOrder;
+  sendWindowsText?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrder;
   updatedByName?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -458,6 +500,8 @@ export type CrmGlobalConfigMinOrderByAggregateInput = {
   ownerConcurrentSendLimit?: Prisma.SortOrder;
   ownerDailySendLimitMax?: Prisma.SortOrder;
   followUpDelayDaysText?: Prisma.SortOrder;
+  sendWorkdaysText?: Prisma.SortOrder;
+  sendWindowsText?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrder;
   updatedByName?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -480,6 +524,8 @@ export type CrmGlobalConfigSelect<
     ownerConcurrentSendLimit?: boolean;
     ownerDailySendLimitMax?: boolean;
     followUpDelayDaysText?: boolean;
+    sendWorkdaysText?: boolean;
+    sendWindowsText?: boolean;
     updatedById?: boolean;
     updatedByName?: boolean;
     createdAt?: boolean;
@@ -498,6 +544,8 @@ export type CrmGlobalConfigSelectCreateManyAndReturn<
     ownerConcurrentSendLimit?: boolean;
     ownerDailySendLimitMax?: boolean;
     followUpDelayDaysText?: boolean;
+    sendWorkdaysText?: boolean;
+    sendWindowsText?: boolean;
     updatedById?: boolean;
     updatedByName?: boolean;
     createdAt?: boolean;
@@ -516,6 +564,8 @@ export type CrmGlobalConfigSelectUpdateManyAndReturn<
     ownerConcurrentSendLimit?: boolean;
     ownerDailySendLimitMax?: boolean;
     followUpDelayDaysText?: boolean;
+    sendWorkdaysText?: boolean;
+    sendWindowsText?: boolean;
     updatedById?: boolean;
     updatedByName?: boolean;
     createdAt?: boolean;
@@ -531,6 +581,8 @@ export type CrmGlobalConfigSelectScalar = {
   ownerConcurrentSendLimit?: boolean;
   ownerDailySendLimitMax?: boolean;
   followUpDelayDaysText?: boolean;
+  sendWorkdaysText?: boolean;
+  sendWindowsText?: boolean;
   updatedById?: boolean;
   updatedByName?: boolean;
   createdAt?: boolean;
@@ -546,6 +598,8 @@ export type CrmGlobalConfigOmit<
   | 'ownerConcurrentSendLimit'
   | 'ownerDailySendLimitMax'
   | 'followUpDelayDaysText'
+  | 'sendWorkdaysText'
+  | 'sendWindowsText'
   | 'updatedById'
   | 'updatedByName'
   | 'createdAt'
@@ -566,6 +620,8 @@ export type $CrmGlobalConfigPayload<
       ownerConcurrentSendLimit: number;
       ownerDailySendLimitMax: number;
       followUpDelayDaysText: string;
+      sendWorkdaysText: string;
+      sendWindowsText: string;
       updatedById: string | null;
       updatedByName: string | null;
       createdAt: Date;
@@ -1082,6 +1138,8 @@ export interface CrmGlobalConfigFieldRefs {
   readonly ownerConcurrentSendLimit: Prisma.FieldRef<'CrmGlobalConfig', 'Int'>;
   readonly ownerDailySendLimitMax: Prisma.FieldRef<'CrmGlobalConfig', 'Int'>;
   readonly followUpDelayDaysText: Prisma.FieldRef<'CrmGlobalConfig', 'String'>;
+  readonly sendWorkdaysText: Prisma.FieldRef<'CrmGlobalConfig', 'String'>;
+  readonly sendWindowsText: Prisma.FieldRef<'CrmGlobalConfig', 'String'>;
   readonly updatedById: Prisma.FieldRef<'CrmGlobalConfig', 'String'>;
   readonly updatedByName: Prisma.FieldRef<'CrmGlobalConfig', 'String'>;
   readonly createdAt: Prisma.FieldRef<'CrmGlobalConfig', 'DateTime'>;

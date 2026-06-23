@@ -19,24 +19,31 @@ import {
   mailboxWarmupLabelMap,
   mailboxWarmupTagTypeMap
 } from './shared';
+import type { MailboxOperationAction, OperatingMailboxAction } from './useMailboxTable';
 
 const props = defineProps<{
   records: Api.Crm.MailboxRecord[];
   loading?: boolean;
-  operatingMailboxId?: string | null;
+  operatingMailboxAction?: OperatingMailboxAction | null;
   page: number;
   pageSize: number;
   total: number;
 }>();
 
 const emit = defineEmits<{
+  deleteMailbox: [record: Api.Crm.MailboxRecord];
   reauthorize: [record: Api.Crm.MailboxRecord];
   renewWatch: [record: Api.Crm.MailboxRecord];
+  revokeAuthorization: [record: Api.Crm.MailboxRecord];
   syncNow: [record: Api.Crm.MailboxRecord];
   toggle: [record: Api.Crm.MailboxRecord];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
 }>();
+
+function isOperating(row: Api.Crm.MailboxRecord, action: MailboxOperationAction) {
+  return props.operatingMailboxAction?.id === row.id && props.operatingMailboxAction.action === action;
+}
 
 function renderEmail(row: Api.Crm.MailboxRecord) {
   return h('div', { class: 'mailbox-stack-cell' }, [
@@ -54,9 +61,11 @@ function renderOwner(row: Api.Crm.MailboxRecord) {
 
 function renderAuthorizationStatus(row: Api.Crm.MailboxRecord) {
   const description =
-    row.status === 'paused' && row.pausedAt
-      ? `暂停于 ${formatMailboxDate(row.pausedAt)}`
-      : `授权于 ${formatMailboxDate(row.authorizedAt)}`;
+    row.status === 'revoked' && row.pausedAt
+      ? `取消于 ${formatMailboxDate(row.pausedAt)}`
+      : row.status === 'paused' && row.pausedAt
+        ? `暂停于 ${formatMailboxDate(row.pausedAt)}`
+        : `授权于 ${formatMailboxDate(row.authorizedAt)}`;
 
   return h('div', { class: 'mailbox-stack-cell' }, [
     h(
@@ -159,6 +168,63 @@ function renderSyncCheckpoint(row: Api.Crm.MailboxRecord) {
   ]);
 }
 
+function renderRevokeAuthorizationAction(row: Api.Crm.MailboxRecord, enabled: boolean) {
+  return h(
+    NPopconfirm,
+    {
+      onPositiveClick: () => {
+        if (enabled) {
+          emit('revokeAuthorization', row);
+        }
+      }
+    },
+    {
+      default: () =>
+        `取消后“${row.maskedEmail}”会保留在当前账号，停止发送和同步；删除邮箱后其他用户才可绑定。确认取消授权？`,
+      trigger: () =>
+        h(
+          NButton,
+          {
+            disabled: !enabled,
+            loading: isOperating(row, 'revokeAuthorization'),
+            size: 'small',
+            text: true,
+            type: 'error'
+          },
+          { default: () => '取消授权' }
+        )
+    }
+  );
+}
+
+function renderDeleteAction(row: Api.Crm.MailboxRecord, enabled: boolean) {
+  return h(
+    NPopconfirm,
+    {
+      onPositiveClick: () => {
+        if (enabled) {
+          emit('deleteMailbox', row);
+        }
+      }
+    },
+    {
+      default: () => `删除后“${row.maskedEmail}”会从当前账号移除，其他用户可重新绑定。确认删除？`,
+      trigger: () =>
+        h(
+          NButton,
+          {
+            disabled: !enabled,
+            loading: isOperating(row, 'delete'),
+            size: 'small',
+            text: true,
+            type: 'error'
+          },
+          { default: () => '删除' }
+        )
+    }
+  );
+}
+
 const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   {
     key: 'emailAddress',
@@ -201,7 +267,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   },
   {
     key: 'watchExpiration',
-    title: 'Gmail watch',
+    title: '收信同步',
     minWidth: 180,
     render: row => renderWatchStatus(row)
   },
@@ -213,7 +279,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   },
   {
     key: 'lastHistoryId',
-    title: '同步检查点',
+    title: '同步进度',
     minWidth: 150,
     render: row => renderSyncCheckpoint(row)
   },
@@ -226,32 +292,47 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
   {
     key: 'operate',
     title: '操作',
-    width: 240,
+    width: 320,
     fixed: 'right',
     render: row => {
       const isActive = row.status === 'active';
       const isPaused = row.status === 'paused';
-      const canReauthorize = row.status === 'auth_expired' && row.provider === 'gmail';
+      const canReauthorize = (row.status === 'auth_expired' || row.status === 'revoked') && row.provider === 'gmail';
       const canRenewWatch = isActive && row.provider === 'gmail';
+      const canRevokeAuthorization = row.provider === 'gmail' && row.status !== 'revoked';
+      const canDelete = row.status === 'auth_expired' || row.status === 'revoked';
       const canSyncNow = isActive && row.provider === 'gmail';
       const actionText = isActive ? '暂停' : '恢复';
 
       if (!isActive && !isPaused) {
         return h(
-          NButton,
+          NSpace,
           {
-            size: 'small',
-            text: true,
-            type: canReauthorize ? 'primary' : 'default',
-            disabled: !canReauthorize,
-            loading: props.operatingMailboxId === row.id,
-            onClick: () => {
-              if (canReauthorize) {
-                emit('reauthorize', row);
-              }
-            }
+            size: 8,
+            justify: 'center'
           },
-          { default: () => '重新授权' }
+          {
+            default: () => [
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  text: true,
+                  type: canReauthorize ? 'primary' : 'default',
+                  disabled: !canReauthorize,
+                  loading: isOperating(row, 'reauthorize'),
+                  onClick: () => {
+                    if (canReauthorize) {
+                      emit('reauthorize', row);
+                    }
+                  }
+                },
+                { default: () => '重新授权' }
+              ),
+              canRevokeAuthorization ? renderRevokeAuthorizationAction(row, canRevokeAuthorization) : null,
+              canDelete ? renderDeleteAction(row, canDelete) : null
+            ]
+          }
         );
       }
 
@@ -270,10 +351,10 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
                     size: 'small',
                     text: true,
                     type: 'primary',
-                    loading: props.operatingMailboxId === row.id,
+                    loading: isOperating(row, 'renewWatch'),
                     onClick: () => emit('renewWatch', row)
                   },
-                  { default: () => '续订 watch' }
+                  { default: () => '续期收信' }
                 )
               : null,
             canSyncNow
@@ -283,7 +364,7 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
                     size: 'small',
                     text: true,
                     type: 'info',
-                    loading: props.operatingMailboxId === row.id,
+                    loading: isOperating(row, 'syncNow'),
                     onClick: () => emit('syncNow', row)
                   },
                   { default: () => formatMailboxSyncActionLabel(row) }
@@ -303,12 +384,13 @@ const columns = computed<DataTableColumns<Api.Crm.MailboxRecord>>(() => [
                       size: 'small',
                       text: true,
                       type: isActive ? 'warning' : 'success',
-                      loading: props.operatingMailboxId === row.id
+                      loading: isOperating(row, 'toggle')
                     },
                     { default: () => actionText }
                   )
               }
-            )
+            ),
+            renderRevokeAuthorizationAction(row, canRevokeAuthorization)
           ]
         }
       );

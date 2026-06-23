@@ -1,5 +1,15 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsObject, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsInt,
+  IsObject,
+  IsOptional,
+  Max,
+  Min,
+  ValidateNested
+} from 'class-validator';
 import {
   maxEmailVerificationCooldownDays,
   maxFollowUpDelayDays,
@@ -33,6 +43,20 @@ class SaveCrmFollowUpDelayDaysDto {
   step5Days!: number;
 }
 
+class SaveCrmSendWindowDto {
+  @IsInt()
+  @Min(0)
+  @Max(24 * 60 - 1)
+  @Type(() => Number)
+  startMinute!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(24 * 60)
+  @Type(() => Number)
+  endMinute!: number;
+}
+
 export class SaveCrmGlobalConfigDto {
   @IsInt()
   @Min(1)
@@ -59,4 +83,22 @@ export class SaveCrmGlobalConfigDto {
   @ValidateNested()
   @Type(() => SaveCrmFollowUpDelayDaysDto)
   followUpDelayDays?: SaveCrmFollowUpDelayDaysDto;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  @Type(() => Number)
+  sendWorkdays?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(4)
+  @ValidateNested({ each: true })
+  @Type(() => SaveCrmSendWindowDto)
+  sendWindows?: SaveCrmSendWindowDto[];
 }

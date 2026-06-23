@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ok } from '../../../shared/api-response';
 import { AppConfigService } from '../../app-config/app-config.service';
 import { CurrentContext, SuperOnly } from '../../auth/auth.decorators';
@@ -61,6 +61,16 @@ export class CrmMailboxController extends CrmControllerBase {
   @Patch('mailboxes/:id/resume')
   async resumeMailbox(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
     return ok(await this.mailboxService.resumeMailbox(id, this.requireUserContext(context)));
+  }
+
+  @Patch('mailboxes/:id/revoke-authorization')
+  async revokeMailboxAuthorization(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.mailboxService.revokeMailboxAuthorization(id, this.requireUserContext(context)));
+  }
+
+  @Delete('mailboxes/:id')
+  async deleteMailbox(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.mailboxService.deleteMailbox(id, this.requireUserContext(context)));
   }
 
   @Post('mailboxes/:id/renew-watch')

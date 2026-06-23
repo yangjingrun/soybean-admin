@@ -14,10 +14,10 @@ export interface CrmSettingsOverviewItem {
 
 /** Format the sync-health checklist hint from concrete attention items. */
 function formatAttentionDescription(parts: string[]) {
-  return parts.length > 0 ? `${parts.join('，')}；会影响回信入库和停发闭环` : 'Gmail 授权、watch 和 History 同步均正常';
+  return parts.length > 0 ? `${parts.join('，')}；会影响回信入库和停发闭环` : 'Gmail 授权和收信同步均正常';
 }
 
-/** Count active full-sync mailboxes whose Gmail watch cannot support the reply loop. */
+/** Count active full-sync mailboxes whose receive-sync subscription cannot support the reply loop. */
 function countActiveWatchIssues(records: Api.Crm.MailboxRecord[], now?: Dayjs) {
   return records.filter(
     record =>
@@ -41,7 +41,7 @@ export function buildCrmSettingsOverview(options: {
   const activeWatchIssues = countActiveWatchIssues(options.mailboxes, options.now);
   const syncAttentionParts = [
     health.authExpired > 0 ? `${health.authExpired} 个 Gmail 授权过期` : '',
-    activeWatchIssues > 0 ? `${activeWatchIssues} 个 Gmail watch 异常` : '',
+    activeWatchIssues > 0 ? `${activeWatchIssues} 个收信同步异常` : '',
     health.syncIssues > 0 ? `${health.syncIssues} 个同步异常` : ''
   ].filter(Boolean);
   const syncAttentionCount = health.authExpired + activeWatchIssues + health.syncIssues;

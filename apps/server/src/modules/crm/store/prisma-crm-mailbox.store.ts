@@ -10,7 +10,11 @@ import {
 import type {
   CrmMailboxAuthorizationExpiredInput,
   CrmMailboxAuthorizationExpiredRecord,
+  CrmMailboxAuthorizationRevokeInput,
+  CrmMailboxAuthorizationRevokeRecord,
   CrmMailboxCreateInput,
+  CrmMailboxDeleteInput,
+  CrmMailboxDeleteRecord,
   CrmMailboxHistoryAdvanceInput,
   CrmMailboxProvider,
   CrmMailboxStatus,
@@ -180,6 +184,127 @@ export class PrismaCrmMailboxStore implements CrmMailboxRepository {
           }
         })
       ]);
+
+      return {
+        mailbox: toMailboxRecord(mailbox),
+        pausedEnrollmentCount: pausedEnrollments.count,
+        resetMessageCount: resetMessages.count
+      };
+    });
+  }
+
+  async revokeMailboxAuthorization(
+    input: CrmMailboxAuthorizationRevokeInput
+  ): Promise<CrmMailboxAuthorizationRevokeRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const mailbox = await tx.crmMailbox.findFirst({
+        where: {
+          id: input.mailboxId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        }
+      });
+
+      if (!mailbox) {
+        return null;
+      }
+
+      const [updatedMailbox, pausedEnrollments, resetMessages] = await Promise.all([
+        tx.crmMailbox.update({
+          where: {
+            id: input.mailboxId
+          },
+          data: {
+            encryptedRefreshToken: null,
+            lastHistoryId: null,
+            pausedAt: input.revokedAt,
+            status: 'revoked',
+            syncIssueAt: null,
+            syncIssueMessage: null,
+            syncIssueType: null,
+            watchExpiration: null
+          }
+        }),
+        tx.crmSequenceEnrollment.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            mailboxId: input.mailboxId,
+            status: { in: ['ready_to_send', 'sequence_running'] }
+          },
+          data: {
+            status: 'paused',
+            runVersion: { increment: 1 }
+          }
+        }),
+        tx.crmMessage.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            mailboxId: input.mailboxId,
+            status: 'queued'
+          },
+          data: {
+            status: 'draft_ready',
+            bullJobId: null
+          }
+        })
+      ]);
+
+      return {
+        mailbox: toMailboxRecord(updatedMailbox),
+        pausedEnrollmentCount: pausedEnrollments.count,
+        resetMessageCount: resetMessages.count
+      };
+    });
+  }
+
+  async deleteMailbox(input: CrmMailboxDeleteInput): Promise<CrmMailboxDeleteRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const mailbox = await tx.crmMailbox.findFirst({
+        where: {
+          id: input.mailboxId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId
+        }
+      });
+
+      if (!mailbox) {
+        return null;
+      }
+
+      const [pausedEnrollments, resetMessages] = await Promise.all([
+        tx.crmSequenceEnrollment.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            mailboxId: input.mailboxId,
+            status: { in: ['ready_to_send', 'sequence_running'] }
+          },
+          data: {
+            status: 'paused',
+            runVersion: { increment: 1 }
+          }
+        }),
+        tx.crmMessage.updateMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            mailboxId: input.mailboxId,
+            status: 'queued'
+          },
+          data: {
+            status: 'draft_ready',
+            bullJobId: null
+          }
+        })
+      ]);
+
+      await tx.crmMailbox.delete({
+        where: {
+          id: input.mailboxId
+        }
+      });
 
       return {
         mailbox: toMailboxRecord(mailbox),

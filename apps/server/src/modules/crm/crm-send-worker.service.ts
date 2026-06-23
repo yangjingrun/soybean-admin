@@ -46,11 +46,16 @@ export class CrmSendWorkerService {
       return;
     }
 
+    const globalConfig = await this.loadGlobalConfigForSend(job);
     const availability = this.availabilityService.evaluate({
       now,
       country: target.account.country ?? '',
       timeZone: target.account.timeZone,
-      city: target.account.city
+      city: target.account.city,
+      sendRule: {
+        workdays: globalConfig.sendWorkdays,
+        windows: globalConfig.sendWindows
+      }
     });
 
     if (!availability.canSend) {
@@ -74,7 +79,7 @@ export class CrmSendWorkerService {
     }
 
     try {
-      const nextDraftContext = await this.prepareNextFollowUpDraftContext(item);
+      const nextDraftContext = await this.prepareNextFollowUpDraftContext(item, globalConfig);
       const sent = await this.sendGateway.sendPlainText({
         enrollment: item.enrollment,
         message: item.firstMessage,
@@ -115,21 +120,35 @@ export class CrmSendWorkerService {
 
   /** Loads local follow-up context before the external send to keep retryable jobs idempotent. */
   private async prepareNextFollowUpDraftContext(
-    item: CrmSendDeliveryClaimRecord
+    item: CrmSendDeliveryClaimRecord,
+    globalConfig: CrmGlobalConfigRecord
   ): Promise<NextFollowUpDraftContext | null> {
     if (item.firstMessage.stepIndex + 1 > item.enrollment.totalSteps) {
       return null;
     }
 
-    const [globalConfig, defaultTemplateGroup] = await Promise.all([
-      this.store.getGlobalConfig(),
-      this.store.findDefaultEmailTemplateGroup(item.enrollment.organizationId)
-    ]);
+    const defaultTemplateGroup = await this.store.findDefaultEmailTemplateGroup(item.enrollment.organizationId);
 
     return {
       followUpDelayDays: globalConfig.followUpDelayDays,
       templateGroup: defaultTemplateGroup
     };
+  }
+
+  private async loadGlobalConfigForSend(job: CrmSendQueueJob) {
+    try {
+      return await this.store.getGlobalConfig();
+    } catch (error) {
+      await this.store.failFirstMessageSend({
+        enrollmentId: job.enrollmentId,
+        messageId: job.messageId,
+        organizationId: job.organizationId,
+        ownerUserId: job.ownerUserId,
+        runVersion: job.runVersion,
+        reason: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
   }
 
   private buildNextFollowUpDraft(

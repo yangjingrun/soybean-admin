@@ -1,4 +1,4 @@
-import type { CrmFollowUpDelayDays } from './crm-global-config';
+import type { CrmConfiguredSendWindow, CrmFollowUpDelayDays } from './crm-global-config';
 import type { CrmAiDraftTaskStatus } from './crm-ai-draft-task.types';
 import type { CrmSendQueueJob } from './crm-ports.types';
 import type { RequestUserContext } from '../../shared/request-context';
@@ -42,7 +42,7 @@ export type CrmEmailVerificationReason =
   | 'dns_temporary_failure'
   | 'public_email';
 
-export const crmMailboxStatuses = ['active', 'paused', 'auth_expired'] as const;
+export const crmMailboxStatuses = ['active', 'paused', 'auth_expired', 'revoked'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;
 export const crmMailboxSyncIssueTypes = ['history_expired'] as const;
 export const crmProductLineStatuses = ['active', 'archived'] as const;
@@ -193,6 +193,8 @@ export interface CrmGlobalConfigRecord {
   ownerConcurrentSendLimit: number;
   ownerDailySendLimitMax: number;
   followUpDelayDays: CrmFollowUpDelayDays;
+  sendWorkdays: number[];
+  sendWindows: CrmConfiguredSendWindow[];
   updatedAt: Date;
 }
 
@@ -201,6 +203,8 @@ export interface CrmGlobalConfigInput {
   ownerConcurrentSendLimit?: number;
   ownerDailySendLimitMax?: number;
   followUpDelayDays?: CrmFollowUpDelayDays;
+  sendWorkdays?: number[];
+  sendWindows?: CrmConfiguredSendWindow[];
   updatedById?: string | null;
   updatedByName?: string | null;
 }
@@ -1338,6 +1342,31 @@ export interface CrmMailboxAuthorizationExpiredInput {
 }
 
 export interface CrmMailboxAuthorizationExpiredRecord {
+  mailbox: CrmMailboxRecord;
+  pausedEnrollmentCount: number;
+  resetMessageCount: number;
+}
+
+export interface CrmMailboxAuthorizationRevokeInput {
+  mailboxId: string;
+  organizationId: string;
+  ownerUserId: string;
+  revokedAt: Date;
+}
+
+export interface CrmMailboxAuthorizationRevokeRecord {
+  mailbox: CrmMailboxRecord;
+  pausedEnrollmentCount: number;
+  resetMessageCount: number;
+}
+
+export interface CrmMailboxDeleteInput {
+  mailboxId: string;
+  organizationId: string;
+  ownerUserId: string;
+}
+
+export interface CrmMailboxDeleteRecord {
   mailbox: CrmMailboxRecord;
   pausedEnrollmentCount: number;
   resetMessageCount: number;

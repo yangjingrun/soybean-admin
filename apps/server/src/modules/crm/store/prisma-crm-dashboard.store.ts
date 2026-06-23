@@ -134,7 +134,7 @@ export class PrismaCrmDashboardStore implements CrmDashboardRepository {
       this.prisma.crmMailbox.count({
         where: {
           ...scopedWhere,
-          status: { in: ['paused', 'auth_expired'] }
+          status: { in: ['paused', 'auth_expired', 'revoked'] }
         }
       }),
       this.prisma.crmAccount.count({

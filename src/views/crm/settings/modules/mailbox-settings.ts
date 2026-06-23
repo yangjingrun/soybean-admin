@@ -13,25 +13,28 @@ export interface MailboxSyncHealthSummary {
 export const mailboxStatusOptions = [
   { label: '启用', value: 'active' },
   { label: '暂停', value: 'paused' },
-  { label: '授权过期', value: 'auth_expired' }
+  { label: '授权过期', value: 'auth_expired' },
+  { label: '已取消授权', value: 'revoked' }
 ] satisfies Array<{ label: string; value: Api.Crm.MailboxStatus }>;
 
 export const mailboxStatusLabelMap: Record<Api.Crm.MailboxStatus, string> = {
   active: '启用',
   paused: '暂停',
-  auth_expired: '授权过期'
+  auth_expired: '授权过期',
+  revoked: '已取消授权'
 };
 
 export const mailboxStatusTagTypeMap: Record<Api.Crm.MailboxStatus, NaiveUI.ThemeColor> = {
   active: 'success',
   paused: 'warning',
-  auth_expired: 'error'
+  auth_expired: 'error',
+  revoked: 'default'
 };
 
 export const mailboxSyncModeLabelMap: Record<Api.Crm.MailboxSyncMode, string> = {
   full_sync: '完整同步',
   send_only: '仅发信',
-  mock_watch: 'Mock Watch'
+  mock_watch: '模拟同步'
 };
 
 export const mailboxSyncModeTagTypeMap: Record<Api.Crm.MailboxSyncMode, NaiveUI.ThemeColor> = {
@@ -133,7 +136,7 @@ export function formatMailboxDate(value: string | null) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 }
 
-/** Derive Gmail watch health from its expiration time. */
+/** Derive receive-sync health from its expiration time. */
 export function getMailboxWatchStatus(watchExpiration: string | null, now: Dayjs = dayjs()): MailboxWatchStatus {
   if (!watchExpiration) {
     return 'not_started';
@@ -145,14 +148,14 @@ export function getMailboxWatchStatus(watchExpiration: string | null, now: Dayjs
     return 'expired';
   }
 
-  // Gmail watch 24 小时内到期时提前提示。
+  // 收信同步 24 小时内到期时提前提示。
   return expiration.diff(now, 'hour', true) <= MAILBOX_WATCH_EXPIRING_SOON_HOURS ? 'expiring_soon' : 'normal';
 }
 
 /** Format watch expiration as a short status description. */
 export function formatMailboxWatchDescription(watchExpiration: string | null) {
   if (!watchExpiration) {
-    return '暂无 watch 到期时间';
+    return '暂无收信同步到期时间';
   }
 
   return `到期时间 ${formatMailboxDate(watchExpiration)}`;
@@ -165,10 +168,10 @@ export function formatMailboxSyncModeDescription(row: Pick<Api.Crm.MailboxRecord
   }
 
   if (row.syncMode === 'mock_watch') {
-    return '缺少真实 Pub/Sub watch，不能视为完整闭环';
+    return '缺少真实收信同步，不能视为完整闭环';
   }
 
-  return '可接入 Gmail history 增量同步';
+  return '可自动同步客户回复';
 }
 
 /** Mask Gmail history checkpoint while keeping it recognizable in the table. */

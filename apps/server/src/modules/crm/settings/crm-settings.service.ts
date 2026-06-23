@@ -43,6 +43,8 @@ export class CrmSettingsService {
       ownerConcurrentSendLimit?: number;
       ownerDailySendLimitMax?: number;
       followUpDelayDays?: CrmGlobalConfigRecord['followUpDelayDays'];
+      sendWorkdays?: CrmGlobalConfigRecord['sendWorkdays'];
+      sendWindows?: CrmGlobalConfigRecord['sendWindows'];
     },
     context: CrmUserContext
   ) {
@@ -53,6 +55,8 @@ export class CrmSettingsService {
       ownerConcurrentSendLimit: input.ownerConcurrentSendLimit,
       ownerDailySendLimitMax: input.ownerDailySendLimitMax,
       followUpDelayDays: input.followUpDelayDays,
+      sendWorkdays: input.sendWorkdays,
+      sendWindows: input.sendWindows,
       updatedById: context.userId,
       updatedByName: context.userName
     });
@@ -61,7 +65,9 @@ export class CrmSettingsService {
       emailVerificationCooldownDays: record.emailVerificationCooldownDays,
       ownerConcurrentSendLimit: record.ownerConcurrentSendLimit,
       ownerDailySendLimitMax: record.ownerDailySendLimitMax,
-      followUpDelayDays: record.followUpDelayDays
+      followUpDelayDays: record.followUpDelayDays,
+      sendWorkdays: record.sendWorkdays,
+      sendWindows: record.sendWindows
     });
 
     return toGlobalConfigView(record);

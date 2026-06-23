@@ -33,6 +33,7 @@ export type * from './models/CrmEmailTemplateStep';
 export type * from './models/CrmSequencePolicy';
 export type * from './models/CrmSequenceEnrollment';
 export type * from './models/CrmMessage';
+export type * from './models/CrmEmailOpenEvent';
 export type * from './models/CrmMessageDraftVersion';
 export type * from './models/CrmInboxThread';
 export type * from './models/CrmInboxMessage';

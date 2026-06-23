@@ -42,6 +42,22 @@ export function resumeCrmMailbox(id: string) {
   });
 }
 
+/** Cancel one CRM Gmail authorization while keeping the mailbox record. */
+export function revokeCrmMailboxAuthorization(id: string) {
+  return request<Api.Crm.MailboxOperateResult>({
+    url: `/crm/mailboxes/${id}/revoke-authorization`,
+    method: 'patch'
+  });
+}
+
+/** Delete one unavailable CRM mailbox and release the Gmail address. */
+export function deleteCrmMailbox(id: string) {
+  return request<Api.Crm.MailboxOperateResult>({
+    url: `/crm/mailboxes/${id}`,
+    method: 'delete'
+  });
+}
+
 /** Renew Gmail watch for one active CRM mailbox. */
 export function renewCrmMailboxWatch(id: string) {
   return request<Api.Crm.MailboxWatchRenewResult>({

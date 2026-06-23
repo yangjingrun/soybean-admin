@@ -16,6 +16,7 @@ import OrganizationPermissionCard from './OrganizationPermissionCard.vue';
 import PersonaProfileManager from './PersonaProfileManager.vue';
 import ProductLineManager from './ProductLineManager.vue';
 import SendPreferenceCard from './SendPreferenceCard.vue';
+import SendWorkTimeCard from './SendWorkTimeCard.vue';
 import SequencePolicyManager from './SequencePolicyManager.vue';
 import StrategyStatsPanel from './StrategyStatsPanel.vue';
 import { buildCrmSettingsOverview, buildCrmSettingsTabVisibility, type CrmSettingsOverviewKey } from './shared';
@@ -28,15 +29,17 @@ const {
   authorizeVisible,
   handleAuthorizeMailbox,
   handleAuthorizeVisibleUpdate,
+  handleDeleteMailbox,
   handlePageSizeUpdate,
   handlePageUpdate,
   handleReauthorizeMailbox,
   handleRenewMailboxWatch,
+  handleRevokeMailboxAuthorization,
   handleSyncMailboxNow,
   handleToggleMailbox,
   loading,
   openAuthorizeModal,
-  operatingMailboxId,
+  operatingMailboxAction,
   pagination,
   records
 } = useMailboxTable();
@@ -89,12 +92,14 @@ function handleSelectSettingsSection(key: CrmSettingsOverviewKey) {
         <MailboxTable
           :records="records"
           :loading="loading"
-          :operating-mailbox-id="operatingMailboxId"
+          :operating-mailbox-action="operatingMailboxAction"
           :page="pagination.current"
           :page-size="pagination.size"
           :total="pagination.total"
+          @delete-mailbox="handleDeleteMailbox"
           @reauthorize="handleReauthorizeMailbox"
           @renew-watch="handleRenewMailboxWatch"
+          @revoke-authorization="handleRevokeMailboxAuthorization"
           @sync-now="handleSyncMailboxNow"
           @toggle="handleToggleMailbox"
           @update-page="handlePageUpdate"
@@ -142,6 +147,7 @@ function handleSelectSettingsSection(key: CrmSettingsOverviewKey) {
         </NText>
 
         <SendPreferenceCard />
+        <SendWorkTimeCard v-if="canManageGlobalConfig" />
         <SequencePolicyManager v-if="tabVisibility.rules" />
         <OrganizationPermissionCard v-if="canManageOrganization" />
         <AiDraftQueueConfigCard v-if="canManageAiDraftQueue" />

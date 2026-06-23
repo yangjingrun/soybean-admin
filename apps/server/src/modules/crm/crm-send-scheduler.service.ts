@@ -70,7 +70,11 @@ export class CrmSendSchedulerService {
         now,
         country: candidate.account.country ?? '',
         timeZone: candidate.account.timeZone,
-        city: candidate.account.city
+        city: candidate.account.city,
+        sendRule: {
+          workdays: globalConfig.sendWorkdays,
+          windows: globalConfig.sendWindows
+        }
       });
 
       if (!availability.canSend) {

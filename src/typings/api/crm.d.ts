@@ -24,7 +24,7 @@ declare namespace Api {
 
     type MailboxProvider = 'gmail';
 
-    type MailboxStatus = 'active' | 'paused' | 'auth_expired';
+    type MailboxStatus = 'active' | 'paused' | 'auth_expired' | 'revoked';
 
     type MailboxWarmupStage = 'new' | 'warming' | 'ready';
 
@@ -270,6 +270,8 @@ declare namespace Api {
       ownerConcurrentSendLimit: number;
       ownerDailySendLimitMax: number;
       followUpDelayDays: FollowUpDelayDays;
+      sendWorkdays: number[];
+      sendWindows: SendWindow[];
       updatedAt: string;
     }
 
@@ -285,6 +287,8 @@ declare namespace Api {
       ownerConcurrentSendLimit: number;
       ownerDailySendLimitMax: number;
       followUpDelayDays: FollowUpDelayDays;
+      sendWorkdays: number[];
+      sendWindows: SendWindow[];
     }
 
     interface GlobalConfigFormModel {
@@ -292,6 +296,13 @@ declare namespace Api {
       ownerConcurrentSendLimit: number | null;
       ownerDailySendLimitMax: number | null;
       followUpDelayDays: FollowUpDelayDays;
+      sendWorkdays: number[];
+      sendWindows: SendWindow[];
+    }
+
+    interface SendWindow {
+      startMinute: number;
+      endMinute: number;
     }
 
     interface SendPreference {

@@ -102,6 +102,63 @@ describe('PrismaCrmMailboxStore', () => {
       where: prisma.crmMailbox.findManyCalls[0].where
     });
   });
+
+  it('revokes mailbox authorization, pauses pending sends, and keeps the mailbox reserved', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmMailboxStore(prisma as never);
+    const revokedAt = new Date('2026-06-18T10:30:00.000Z');
+
+    const result = await store.revokeMailboxAuthorization({
+      mailboxId: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      revokedAt
+    });
+
+    assert.equal(result?.mailbox.id, 'mailbox-1');
+    assert.equal(result?.mailbox.status, 'revoked');
+    assert.equal(result?.mailbox.encryptedRefreshToken, null);
+    assert.equal(result?.pausedEnrollmentCount, 1);
+    assert.equal(result?.resetMessageCount, 1);
+    assert.deepEqual(prisma.crmMailbox.findFirstCalls.at(-1), {
+      where: {
+        id: 'mailbox-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1'
+      }
+    });
+    assert.deepEqual(prisma.crmMailbox.updateCalls.at(-1), {
+      where: { id: 'mailbox-1' },
+      data: {
+        encryptedRefreshToken: null,
+        lastHistoryId: null,
+        pausedAt: revokedAt,
+        status: 'revoked',
+        syncIssueAt: null,
+        syncIssueMessage: null,
+        syncIssueType: null,
+        watchExpiration: null
+      }
+    });
+  });
+
+  it('deletes mailbox records after pausing pending sends to release provider email uniqueness', async () => {
+    const prisma = createPrisma();
+    const store = new PrismaCrmMailboxStore(prisma as never);
+
+    const result = await store.deleteMailbox({
+      mailboxId: 'mailbox-1',
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+
+    assert.equal(result?.mailbox.id, 'mailbox-1');
+    assert.equal(result?.pausedEnrollmentCount, 1);
+    assert.equal(result?.resetMessageCount, 1);
+    assert.deepEqual(prisma.crmMailbox.deleteCalls.at(-1), {
+      where: { id: 'mailbox-1' }
+    });
+  });
 });
 
 function createPrismaMailbox(input: Record<string, unknown> = {}) {
@@ -139,7 +196,10 @@ function createPrisma() {
     crmMailbox: {
       createError: null as Error | null,
       createCalls: [] as Array<{ data: Record<string, unknown> }>,
+      deleteCalls: [] as Array<{ where: Record<string, unknown> }>,
+      findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findUniqueCalls: [] as Array<{ where: Record<string, unknown> }>,
+      updateCalls: [] as Array<{ data: Record<string, unknown>; where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
         where: Record<string, unknown>;
         skip: number;
@@ -160,6 +220,10 @@ function createPrisma() {
         this.findUniqueCalls.push(args);
         return mailbox;
       },
+      async findFirst(args: { where: Record<string, unknown> }) {
+        this.findFirstCalls.push(args);
+        return mailbox;
+      },
       async findMany(args: {
         where: Record<string, unknown>;
         skip: number;
@@ -172,7 +236,32 @@ function createPrisma() {
       async count(args: { where: Record<string, unknown> }) {
         this.countCalls.push(args);
         return 1;
+      },
+      async update(args: { data: Record<string, unknown>; where: Record<string, unknown> }) {
+        this.updateCalls.push(args);
+        return { ...mailbox, ...args.data };
+      },
+      async delete(args: { where: Record<string, unknown> }) {
+        this.deleteCalls.push(args);
+        return mailbox;
       }
+    },
+    crmSequenceEnrollment: {
+      updateManyCalls: [] as Array<{ data: Record<string, unknown>; where: Record<string, unknown> }>,
+      async updateMany(args: { data: Record<string, unknown>; where: Record<string, unknown> }) {
+        this.updateManyCalls.push(args);
+        return { count: 1 };
+      }
+    },
+    crmMessage: {
+      updateManyCalls: [] as Array<{ data: Record<string, unknown>; where: Record<string, unknown> }>,
+      async updateMany(args: { data: Record<string, unknown>; where: Record<string, unknown> }) {
+        this.updateManyCalls.push(args);
+        return { count: 1 };
+      }
+    },
+    async $transaction<T>(callback: (tx: unknown) => Promise<T>) {
+      return callback(this);
     }
   };
 }

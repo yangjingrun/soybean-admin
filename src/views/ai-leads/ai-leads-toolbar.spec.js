@@ -71,6 +71,12 @@ describe('AI leads toolbar', () => {
     assert.match(pageComposableSource, /normalizeRouteTaskId\(route\.query\.taskId\)/);
     assert.match(pageComposableSource, /taskId \? fetchLeadSearchTask\(taskId\) : fetchCurrentLeadSearchTask\(\)/);
   });
+  it('hides inline task error details after the failed notification is shown', () => {
+    assert.match(searchProgressPanelSource, /const visibleErrorMessage = computed/);
+    assert.match(searchProgressPanelSource, /props\.state\.status === 'failed' \? '' : props\.state\.errorMessage/);
+    assert.match(searchProgressPanelSource, /v-if="visibleErrorMessage"/);
+    assert.doesNotMatch(searchProgressPanelSource, /v-if="state\.errorMessage"/);
+  });
   it('allows the automatic keyword optimization stage to be stopped without applying stale results', () => {
     assert.match(pageSource, /data-action="stop-leads"/);
     assert.match(pageSource, /handleStopLeadWorkflow/);

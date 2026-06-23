@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CrmGmailOAuthFlow, CrmGmailOAuthStateError, type CrmGmailOAuthFlowHttpClient } from './crm-gmail-oauth-flow';
-import { decryptGmailSecret } from './crm-gmail-oauth-token.provider';
+import { decryptGmailSecret, encryptGmailSecret } from './crm-gmail-oauth-token.provider';
 
 describe('CrmGmailOAuthFlow', () => {
   it('builds a Gmail OAuth authorization URL with a signed state', () => {
@@ -135,6 +135,22 @@ describe('CrmGmailOAuthFlow', () => {
 
     await assert.rejects(() => flow.exchangeCodeForMailbox('code-1'), /missing refresh_token/);
   });
+
+  it('revokes an encrypted Gmail refresh token through Google OAuth revocation endpoint', async () => {
+    const httpClient = createHttpClient({
+      revokeResponse: {
+        status: 200,
+        body: null
+      }
+    });
+    const flow = createFlow({ httpClient });
+
+    await flow.revokeEncryptedRefreshToken(encryptGmailSecret('refresh-token-1', secretKey));
+
+    assert.equal(httpClient.postFormCalls[0].url, 'https://oauth2.googleapis.com/revoke');
+    assert.equal(httpClient.postFormCalls[0].body.get('token'), 'refresh-token-1');
+    assert.equal(httpClient.postFormCalls[0].headers['Content-Type'], 'application/x-www-form-urlencoded');
+  });
 });
 
 const secretKey = '0123456789abcdef0123456789abcdef';
@@ -161,6 +177,7 @@ function createHttpClient(input: {
   tokenResponse?: { status: number; body: unknown };
   profileResponse?: { status: number; body: unknown };
   userinfoResponse?: { status: number; body: unknown };
+  revokeResponse?: { status: number; body: unknown };
 }) {
   const postFormCalls: Array<{ url: string; body: URLSearchParams; headers: Record<string, string> }> = [];
   const getJsonCalls: Array<{ url: string; headers: Record<string, string> }> = [];
@@ -172,6 +189,12 @@ function createHttpClient(input: {
     getJsonCalls,
     async postForm(url, body, headers) {
       postFormCalls.push({ url, body, headers });
+      if (url === 'https://oauth2.googleapis.com/revoke') {
+        assert.ok(input.revokeResponse, `Unexpected OAuth revocation request: ${url}`);
+
+        return input.revokeResponse;
+      }
+
       assert.ok(input.tokenResponse, `Unexpected OAuth token request: ${url}`);
 
       return input.tokenResponse;

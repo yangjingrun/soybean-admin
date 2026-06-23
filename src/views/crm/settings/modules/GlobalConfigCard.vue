@@ -10,7 +10,9 @@ import {
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
   isValidOwnerConcurrentSendLimit,
-  isValidOwnerDailySendLimitMax
+  isValidOwnerDailySendLimitMax,
+  isValidSendWindows,
+  isValidSendWorkdays
 } from './shared';
 
 const message = useMessage();
@@ -28,7 +30,9 @@ const canSave = computed(
     isValidEmailVerificationCooldownDays(formModel.emailVerificationCooldownDays) &&
     isValidOwnerConcurrentSendLimit(formModel.ownerConcurrentSendLimit) &&
     isValidOwnerDailySendLimitMax(formModel.ownerDailySendLimitMax) &&
-    isValidFollowUpDelayDays(formModel.followUpDelayDays)
+    isValidFollowUpDelayDays(formModel.followUpDelayDays) &&
+    isValidSendWorkdays(formModel.sendWorkdays) &&
+    isValidSendWindows(formModel.sendWindows)
 );
 const formattedUpdatedAt = computed(() => {
   if (!updatedAt.value || dayjs(updatedAt.value).valueOf() <= 0) {
@@ -63,6 +67,8 @@ async function loadGlobalConfig(showMessage = true) {
     formModel.ownerConcurrentSendLimit = data.ownerConcurrentSendLimit;
     formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
     formModel.followUpDelayDays = { ...data.followUpDelayDays };
+    formModel.sendWorkdays = [...data.sendWorkdays];
+    formModel.sendWindows = data.sendWindows.map(window => ({ ...window }));
     updatedAt.value = data.updatedAt;
 
     if (showMessage) {
@@ -110,7 +116,9 @@ async function saveGlobalConfig() {
       emailVerificationCooldownDays,
       ownerConcurrentSendLimit,
       ownerDailySendLimitMax,
-      followUpDelayDays: formModel.followUpDelayDays
+      followUpDelayDays: formModel.followUpDelayDays,
+      sendWorkdays: formModel.sendWorkdays,
+      sendWindows: formModel.sendWindows
     });
 
     if (error) {
@@ -121,6 +129,8 @@ async function saveGlobalConfig() {
     formModel.ownerConcurrentSendLimit = data.ownerConcurrentSendLimit;
     formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
     formModel.followUpDelayDays = { ...data.followUpDelayDays };
+    formModel.sendWorkdays = [...data.sendWorkdays];
+    formModel.sendWindows = data.sendWindows.map(window => ({ ...window }));
     updatedAt.value = data.updatedAt;
     message.success('CRM 全局配置已保存');
   } finally {

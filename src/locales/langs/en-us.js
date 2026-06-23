@@ -243,7 +243,7 @@ const local = {
     500: 'Server Error',
     'iframe-page': 'Iframe',
     'ai-leads': 'AI Leads',
-    'ai-settings': 'Model Config',
+    'ai-settings': 'AI Settings',
     'ai-prompt-settings': 'Prompt Config',
     crm: 'CRM',
     crm_leads: 'Customers',
@@ -261,7 +261,7 @@ const local = {
   },
   page: {
     aiSettings: {
-      title: 'My Model Channel',
+      title: 'AI Settings',
       description:
         'Configure the model channel used by AI requests from your account. Business AI requests do not fall back to a platform key.',
       providers: {

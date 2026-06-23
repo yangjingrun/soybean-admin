@@ -173,6 +173,11 @@ export type CrmSequenceEnrollment = Prisma.CrmSequenceEnrollmentModel;
  */
 export type CrmMessage = Prisma.CrmMessageModel;
 /**
+ * Model CrmEmailOpenEvent
+ *
+ */
+export type CrmEmailOpenEvent = Prisma.CrmEmailOpenEventModel;
+/**
  * Model CrmMessageDraftVersion
  *
  */

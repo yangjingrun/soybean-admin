@@ -74,6 +74,7 @@ export const ModelName = {
   CrmSequencePolicy: 'CrmSequencePolicy',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
+  CrmEmailOpenEvent: 'CrmEmailOpenEvent',
   CrmMessageDraftVersion: 'CrmMessageDraftVersion',
   CrmInboxThread: 'CrmInboxThread',
   CrmInboxMessage: 'CrmInboxMessage',
@@ -288,6 +289,8 @@ export const CrmGlobalConfigScalarFieldEnum = {
   ownerConcurrentSendLimit: 'ownerConcurrentSendLimit',
   ownerDailySendLimitMax: 'ownerDailySendLimitMax',
   followUpDelayDaysText: 'followUpDelayDaysText',
+  sendWorkdaysText: 'sendWorkdaysText',
+  sendWindowsText: 'sendWindowsText',
   updatedById: 'updatedById',
   updatedByName: 'updatedByName',
   createdAt: 'createdAt',
@@ -606,6 +609,26 @@ export const CrmMessageScalarFieldEnum = {
 } as const;
 
 export type CrmMessageScalarFieldEnum = (typeof CrmMessageScalarFieldEnum)[keyof typeof CrmMessageScalarFieldEnum];
+
+export const CrmEmailOpenEventScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  messageId: 'messageId',
+  openCount: 'openCount',
+  firstOpenedAt: 'firstOpenedAt',
+  lastOpenedAt: 'lastOpenedAt',
+  lastUserAgent: 'lastUserAgent',
+  lastIpAddress: 'lastIpAddress',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmEmailOpenEventScalarFieldEnum =
+  (typeof CrmEmailOpenEventScalarFieldEnum)[keyof typeof CrmEmailOpenEventScalarFieldEnum];
 
 export const CrmMessageDraftVersionScalarFieldEnum = {
   id: 'id',

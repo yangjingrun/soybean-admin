@@ -14,12 +14,22 @@ export const defaultFollowUpDelayDays = {
   step5Days: 21
 };
 export const maxFollowUpDelayDays = 90;
+export const defaultCrmSendWorkdays = [1, 2, 3, 4, 5];
+export const defaultCrmSendWindows = [
+  { startMinute: toMinuteOfDay(9, 0), endMinute: toMinuteOfDay(12, 0) },
+  { startMinute: toMinuteOfDay(14, 0), endMinute: toMinuteOfDay(18, 0) }
+];
 
 export interface CrmFollowUpDelayDays {
   step2Days: number;
   step3Days: number;
   step4Days: number;
   step5Days: number;
+}
+
+export interface CrmConfiguredSendWindow {
+  startMinute: number;
+  endMinute: number;
 }
 
 /** Normalizes the platform-wide email verification cache cooldown in days. */
@@ -107,6 +117,36 @@ export function serializeFollowUpDelayDays(value: unknown) {
   return [normalized.step2Days, normalized.step3Days, normalized.step4Days, normalized.step5Days].join(',');
 }
 
+/** Normalizes platform-wide customer local workdays, using 0-6 as Sunday-Saturday. */
+export function normalizeCrmSendWorkdays(value: unknown): number[] {
+  const rawItems = typeof value === 'string' ? value.split(',') : Array.isArray(value) ? value : [];
+  const workdays = rawItems.map(item => Number(item)).filter(item => Number.isInteger(item) && item >= 0 && item <= 6);
+  const uniqueWorkdays = Array.from(new Set(workdays));
+
+  return uniqueWorkdays.length > 0 ? uniqueWorkdays : [...defaultCrmSendWorkdays];
+}
+
+/** Serializes platform-wide customer local workdays into a compact DB text field. */
+export function serializeCrmSendWorkdays(value: unknown) {
+  return normalizeCrmSendWorkdays(value).join(',');
+}
+
+/** Normalizes platform-wide customer local send windows. */
+export function normalizeCrmSendWindows(value: unknown): CrmConfiguredSendWindow[] {
+  const rawItems = typeof value === 'string' ? value.split(',') : Array.isArray(value) ? value : [];
+  const windows = rawItems
+    .map(item => normalizeCrmSendWindow(item))
+    .filter((item): item is CrmConfiguredSendWindow => Boolean(item))
+    .sort((left, right) => left.startMinute - right.startMinute);
+
+  return windows.length > 0 ? windows : defaultCrmSendWindows.map(window => ({ ...window }));
+}
+
+/** Serializes platform-wide customer local send windows into a compact DB text field. */
+export function serializeCrmSendWindows(value: unknown) {
+  return normalizeCrmSendWindows(value).map(formatCrmSendWindow).join(',');
+}
+
 function normalizeFollowUpDelayDay(value: unknown) {
   const numberValue = Number(value);
 
@@ -115,4 +155,68 @@ function normalizeFollowUpDelayDay(value: unknown) {
   }
 
   return Math.min(numberValue, maxFollowUpDelayDays);
+}
+
+function normalizeCrmSendWindow(value: unknown): CrmConfiguredSendWindow | null {
+  if (typeof value === 'string') {
+    const [start, end] = value.split('-').map(part => parseMinuteOfDay(part));
+
+    if (start === null || end === null || start >= end) {
+      return null;
+    }
+
+    return { startMinute: start, endMinute: end };
+  }
+
+  const record = value as Partial<CrmConfiguredSendWindow> | null | undefined;
+  const startMinute = Number(record?.startMinute);
+  const endMinute = Number(record?.endMinute);
+
+  if (
+    !Number.isInteger(startMinute) ||
+    !Number.isInteger(endMinute) ||
+    startMinute < 0 ||
+    endMinute > 24 * 60 ||
+    startMinute >= endMinute
+  ) {
+    return null;
+  }
+
+  return { startMinute, endMinute };
+}
+
+function parseMinuteOfDay(value: string | undefined) {
+  const match = value?.trim().match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 24 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  if (hour === 24 && minute !== 0) {
+    return null;
+  }
+
+  return toMinuteOfDay(hour, minute);
+}
+
+function formatCrmSendWindow(window: CrmConfiguredSendWindow) {
+  return `${formatMinuteOfDay(window.startMinute)}-${formatMinuteOfDay(window.endMinute)}`;
+}
+
+function formatMinuteOfDay(value: number) {
+  const hour = Math.floor(value / 60);
+  const minute = value % 60;
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function toMinuteOfDay(hour: number, minute: number) {
+  return hour * 60 + minute;
 }

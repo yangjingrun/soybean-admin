@@ -23,6 +23,7 @@ export interface CrmSendAvailabilityInput {
   country: string;
   timeZone?: string | null;
   city?: string | null;
+  sendRule?: Pick<CrmCountrySendRule, 'workdays' | 'windows'>;
 }
 
 export interface CrmSendAvailabilityResult {
@@ -42,7 +43,7 @@ export class CrmSendAvailabilityService {
   /** Evaluates whether a CRM message can be sent now in the customer's local business calendar. */
   evaluate(input: CrmSendAvailabilityInput): CrmSendAvailabilityResult {
     const country = normalizeCrmSendCountry(input.country);
-    const rule = getCrmCountrySendRule(country);
+    const rule = this.resolveSendRule(country, input.sendRule);
     const resolvedTimeZone = resolveCrmSendTimezone(input);
 
     if (!resolvedTimeZone.timeZone) {
@@ -144,6 +145,20 @@ export class CrmSendAvailabilityService {
 
   private isWorkday(date: CrmLocalDateParts, rule: CrmCountrySendRule) {
     return rule.workdays.includes(getCrmLocalWeekday(date));
+  }
+
+  private resolveSendRule(country: string, sendRule?: Pick<CrmCountrySendRule, 'workdays' | 'windows'>) {
+    const countryRule = getCrmCountrySendRule(country);
+
+    if (!sendRule) {
+      return countryRule;
+    }
+
+    return {
+      ...countryRule,
+      workdays: sendRule.workdays,
+      windows: sendRule.windows
+    };
   }
 
   private isHoliday(country: string, timeZone: string, date: Date, localDate: CrmLocalDateParts) {

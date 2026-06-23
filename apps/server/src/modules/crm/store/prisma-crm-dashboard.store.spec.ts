@@ -61,7 +61,7 @@ describe('PrismaCrmDashboardStore', () => {
     assert.deepEqual(prisma.crmMailbox.countCalls[0].where, {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
-      status: { in: ['paused', 'auth_expired'] }
+      status: { in: ['paused', 'auth_expired', 'revoked'] }
     });
     assert.deepEqual(prisma.aiLeadSearchTask.countCalls[0].where, {
       organizationId: 'org-1',

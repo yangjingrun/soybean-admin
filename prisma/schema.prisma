@@ -316,6 +316,8 @@ model CrmGlobalConfig {
   ownerConcurrentSendLimit      Int      @default(5)
   ownerDailySendLimitMax        Int      @default(200)
   followUpDelayDaysText         String   @default("3,7,14,21")
+  sendWorkdaysText              String   @default("1,2,3,4,5")
+  sendWindowsText               String   @default("09:00-12:00,14:00-18:00")
   updatedById                   String?
   updatedByName                 String?
   createdAt                     DateTime @default(now())

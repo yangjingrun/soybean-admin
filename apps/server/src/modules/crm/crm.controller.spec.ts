@@ -680,6 +680,46 @@ describe('CRM split controllers', () => {
     );
   });
 
+  it('revokes mailbox authorization with the current user context', async () => {
+    const calls: Array<{ context: CrmUserContext; id: string }> = [];
+    const controller = createMailboxController({
+      async revokeMailboxAuthorization(id, context) {
+        calls.push({ context, id });
+
+        return { mailbox: createMailboxView({ id, status: 'revoked' }) };
+      }
+    });
+
+    const result = await controller.revokeMailboxAuthorization(createContext(), 'mailbox-1');
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.mailbox.status, 'revoked');
+    assert.deepEqual(
+      calls.map(call => ({ id: call.id, userId: call.context.userId })),
+      [{ id: 'mailbox-1', userId: 'user-1' }]
+    );
+  });
+
+  it('deletes mailbox records with the current user context', async () => {
+    const calls: Array<{ context: CrmUserContext; id: string }> = [];
+    const controller = createMailboxController({
+      async deleteMailbox(id, context) {
+        calls.push({ context, id });
+
+        return { mailbox: createMailboxView({ id, status: 'revoked' }) };
+      }
+    });
+
+    const result = await controller.deleteMailbox(createContext(), 'mailbox-1');
+
+    assert.equal(result.code, '0000');
+    assert.equal(result.data.mailbox.id, 'mailbox-1');
+    assert.deepEqual(
+      calls.map(call => ({ id: call.id, userId: call.context.userId })),
+      [{ id: 'mailbox-1', userId: 'user-1' }]
+    );
+  });
+
   it('renews Gmail watch with the current user context', async () => {
     const calls: Array<{ id: string; context: CrmUserContext }> = [];
     const controller = createMailboxController({}, {
@@ -2679,6 +2719,12 @@ function createControllerStub(partial: CrmControllerServiceStub = {}): CrmContro
     },
     async resumeMailbox() {
       return { mailbox: createMailboxView({ status: 'active' }) };
+    },
+    async revokeMailboxAuthorization() {
+      return { mailbox: createMailboxView({ status: 'revoked' }) };
+    },
+    async deleteMailbox() {
+      return { mailbox: createMailboxView({ status: 'revoked' }) };
     },
     async listProductLines() {
       return {

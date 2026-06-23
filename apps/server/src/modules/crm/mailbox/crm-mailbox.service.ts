@@ -221,6 +221,68 @@ export class CrmMailboxService {
     return this.changeMailboxStatus(id, 'active', null, 'mailbox-resume', 'CRM 邮箱恢复', context);
   }
 
+  /** Revoke Google authorization while keeping the mailbox record reserved for the owner. */
+  async revokeMailboxAuthorization(id: string, context: CrmUserContext) {
+    const currentMailbox = await this.requireScopedMailbox(id, context);
+
+    if (currentMailbox.encryptedRefreshToken) {
+      await this.requireGmailOAuthFlow().revokeEncryptedRefreshToken(currentMailbox.encryptedRefreshToken);
+    }
+
+    const revokedAt = new Date();
+    const result = await this.mailboxRepository.revokeMailboxAuthorization({
+      mailboxId: currentMailbox.id,
+      organizationId: currentMailbox.organizationId,
+      ownerUserId: currentMailbox.ownerUserId,
+      revokedAt
+    });
+
+    if (!result) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    await this.recordMailboxLog(
+      'mailbox-revoke-authorization',
+      'CRM Gmail 授权已取消',
+      context,
+      result.mailbox,
+      currentMailbox.status,
+      result.mailbox.status
+    );
+
+    return { mailbox: toMailboxView(result.mailbox) };
+  }
+
+  /** Delete an unavailable mailbox record and release the Gmail address for rebinding. */
+  async deleteMailbox(id: string, context: CrmUserContext) {
+    const currentMailbox = await this.requireScopedMailbox(id, context);
+
+    if (currentMailbox.status !== 'revoked' && currentMailbox.status !== 'auth_expired') {
+      throw new BadRequestException('请先取消授权后再删除邮箱');
+    }
+
+    const result = await this.mailboxRepository.deleteMailbox({
+      mailboxId: currentMailbox.id,
+      organizationId: currentMailbox.organizationId,
+      ownerUserId: currentMailbox.ownerUserId
+    });
+
+    if (!result) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    await this.recordMailboxLog(
+      'mailbox-delete',
+      'CRM 邮箱已删除',
+      context,
+      result.mailbox,
+      currentMailbox.status,
+      currentMailbox.status
+    );
+
+    return { mailbox: toMailboxView(result.mailbox) };
+  }
+
   private async changeMailboxStatus(
     id: string,
     status: CrmMailboxStatus,

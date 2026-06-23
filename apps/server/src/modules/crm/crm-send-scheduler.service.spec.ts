@@ -187,7 +187,14 @@ describe('CrmSendSchedulerService', () => {
       now,
       country: 'US',
       city: 'New York',
-      timeZone: 'America/New_York'
+      timeZone: 'America/New_York',
+      sendRule: {
+        workdays: [1, 2, 3, 4, 5],
+        windows: [
+          { startMinute: 9 * 60, endMinute: 12 * 60 },
+          { startMinute: 14 * 60, endMinute: 18 * 60 }
+        ]
+      }
     });
     assert.deepEqual(store.updateCalls[0], {
       id: 'first-1',
@@ -372,6 +379,11 @@ function createGlobalConfig(input: Partial<CrmGlobalConfigRecord> = {}): CrmGlob
       step4Days: 14,
       step5Days: 21
     },
+    sendWorkdays: input.sendWorkdays ?? [1, 2, 3, 4, 5],
+    sendWindows: input.sendWindows ?? [
+      { startMinute: 9 * 60, endMinute: 12 * 60 },
+      { startMinute: 14 * 60, endMinute: 18 * 60 }
+    ],
     updatedAt: new Date(0)
   };
 }

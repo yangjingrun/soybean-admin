@@ -1,0 +1,3 @@
+ALTER TABLE "CrmGlobalConfig"
+ADD COLUMN "sendWorkdaysText" TEXT NOT NULL DEFAULT '1,2,3,4,5',
+ADD COLUMN "sendWindowsText" TEXT NOT NULL DEFAULT '09:00-12:00,14:00-18:00';

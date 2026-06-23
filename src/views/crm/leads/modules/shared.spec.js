@@ -30,6 +30,7 @@ describe('crm lead shared helpers', () => {
       country: '',
       city: '',
       address: '',
+      timeZone: '',
       customerType: '',
       contactFullName: '',
       contactTitle: '',
@@ -44,6 +45,7 @@ describe('crm lead shared helpers', () => {
         country: ' AE ',
         city: ' Dubai ',
         address: ' Office 12, Trade Center ',
+        timeZone: ' Asia/Dubai ',
         customerType: ' distributor ',
         contactFullName: '',
         contactTitle: ' ',
@@ -55,6 +57,7 @@ describe('crm lead shared helpers', () => {
         country: 'AE',
         city: 'Dubai',
         address: 'Office 12, Trade Center',
+        timeZone: 'Asia/Dubai',
         customerType: 'distributor'
       }
     );
@@ -67,6 +70,7 @@ describe('crm lead shared helpers', () => {
         country: '',
         city: '',
         address: '',
+        timeZone: '',
         customerType: '',
         contactFullName: ' Ali Hassan ',
         contactTitle: ' Buyer ',
@@ -78,6 +82,7 @@ describe('crm lead shared helpers', () => {
         country: '',
         city: '',
         address: '',
+        timeZone: '',
         customerType: '',
         contact: {
           fullName: 'Ali Hassan',
@@ -96,6 +101,7 @@ describe('crm lead shared helpers', () => {
         country: ' AE ',
         city: ' Dubai ',
         address: ' Office 12, Trade Center ',
+        timeZone: ' Asia/Dubai ',
         customerType: ' distributor '
       }),
       {
@@ -105,6 +111,7 @@ describe('crm lead shared helpers', () => {
         country: 'AE',
         city: 'Dubai',
         address: 'Office 12, Trade Center',
+        timeZone: 'Asia/Dubai',
         customerType: 'distributor'
       }
     );

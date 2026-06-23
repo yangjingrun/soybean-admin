@@ -7,6 +7,10 @@ import {
   defaultFollowUpDelayDays,
   defaultOwnerConcurrentSendLimit,
   defaultOwnerDailySendLimitMax,
+  defaultCrmSendWorkdays,
+  defaultCrmSendWindows,
+  normalizeCrmSendWindows,
+  normalizeCrmSendWorkdays,
   normalizeEmailVerificationCooldownDays,
   normalizeFollowUpDelayDays,
   normalizeOwnerConcurrentSendLimit,
@@ -22,6 +26,8 @@ export function createDefaultGlobalConfig(): CrmGlobalConfigRecord {
     ownerConcurrentSendLimit: defaultOwnerConcurrentSendLimit,
     ownerDailySendLimitMax: defaultOwnerDailySendLimitMax,
     followUpDelayDays: { ...defaultFollowUpDelayDays },
+    sendWorkdays: [...defaultCrmSendWorkdays],
+    sendWindows: defaultCrmSendWindows.map(window => ({ ...window })),
     updatedAt: new Date(0)
   };
 }
@@ -34,6 +40,8 @@ export function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalCon
     ownerConcurrentSendLimit: normalizeOwnerConcurrentSendLimit(record.ownerConcurrentSendLimit),
     ownerDailySendLimitMax: normalizeOwnerDailySendLimitMax(record.ownerDailySendLimitMax),
     followUpDelayDays: normalizeFollowUpDelayDays(record.followUpDelayDaysText),
+    sendWorkdays: normalizeCrmSendWorkdays(record.sendWorkdaysText),
+    sendWindows: normalizeCrmSendWindows(record.sendWindowsText),
     updatedAt: record.updatedAt
   };
 }

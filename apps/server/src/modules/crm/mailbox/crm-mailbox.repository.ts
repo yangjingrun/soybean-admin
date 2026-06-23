@@ -1,7 +1,11 @@
 import type {
   CrmMailboxAuthorizationExpiredInput,
   CrmMailboxAuthorizationExpiredRecord,
+  CrmMailboxAuthorizationRevokeInput,
+  CrmMailboxAuthorizationRevokeRecord,
   CrmMailboxCreateInput,
+  CrmMailboxDeleteInput,
+  CrmMailboxDeleteRecord,
   CrmMailboxHistoryAdvanceInput,
   CrmMailboxProvider,
   CrmMailboxRecord,
@@ -27,5 +31,9 @@ export interface CrmMailboxRepository {
   markMailboxAuthorizationExpired(
     input: CrmMailboxAuthorizationExpiredInput
   ): Promise<CrmMailboxAuthorizationExpiredRecord | null>;
+  revokeMailboxAuthorization(
+    input: CrmMailboxAuthorizationRevokeInput
+  ): Promise<CrmMailboxAuthorizationRevokeRecord | null>;
+  deleteMailbox(input: CrmMailboxDeleteInput): Promise<CrmMailboxDeleteRecord | null>;
   advanceMailboxHistoryId(input: CrmMailboxHistoryAdvanceInput): Promise<CrmMailboxRecord | null>;
 }

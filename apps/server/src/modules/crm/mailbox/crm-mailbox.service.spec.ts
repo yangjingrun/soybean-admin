@@ -108,6 +108,9 @@ describe('CrmMailboxService', () => {
           encryptedRefreshToken: 'encrypted-refresh-token',
           historyId: 'history-2'
         };
+      },
+      async revokeEncryptedRefreshToken() {
+        throw new Error('not used');
       }
     };
     const watch = {
@@ -143,6 +146,9 @@ describe('CrmMailboxService', () => {
         throw new Error('not used');
       },
       exchangeCodeForMailbox() {
+        throw new Error('not used');
+      },
+      revokeEncryptedRefreshToken() {
         throw new Error('not used');
       }
     };
@@ -185,6 +191,95 @@ describe('CrmMailboxService', () => {
     const service = new CrmMailboxService(repository);
 
     await assert.rejects(() => service.pauseMailbox('mailbox-1', createContext()), /邮箱不存在/);
+  });
+
+  it('revokes Gmail authorization and keeps the mailbox record reserved in the owner scope', async () => {
+    const currentMailbox = createMailbox({ encryptedRefreshToken: 'encrypted-refresh-token-1', status: 'active' });
+    let revokedToken: string | null = null;
+    const repository = createRepository({
+      async findMailboxById(args) {
+        assert.deepEqual(args, {
+          id: 'mailbox-1',
+          organizationId: 'org-1',
+          ownerUserId: 'user-1'
+        });
+        return currentMailbox;
+      },
+      async revokeMailboxAuthorization(input) {
+        assert.equal(input.mailboxId, 'mailbox-1');
+        assert.equal(input.organizationId, 'org-1');
+        assert.equal(input.ownerUserId, 'user-1');
+
+        return {
+          mailbox: createMailbox({
+            encryptedRefreshToken: null,
+            lastHistoryId: null,
+            pausedAt: input.revokedAt,
+            status: 'revoked',
+            watchExpiration: null
+          }),
+          pausedEnrollmentCount: 1,
+          resetMessageCount: 2
+        };
+      }
+    });
+    const service = new CrmMailboxService(repository, {
+      createAuthorizationUrl() {
+        throw new Error('not used');
+      },
+      verifyState() {
+        throw new Error('not used');
+      },
+      exchangeCodeForMailbox() {
+        throw new Error('not used');
+      },
+      async revokeEncryptedRefreshToken(token) {
+        revokedToken = token;
+      }
+    });
+
+    const result = await service.revokeMailboxAuthorization('mailbox-1', createContext());
+
+    assert.equal(revokedToken, 'encrypted-refresh-token-1');
+    assert.equal(result.mailbox.status, 'revoked');
+    assert.equal(result.mailbox.watchExpiration, null);
+  });
+
+  it('deletes only unavailable mailbox records so the address can be rebound', async () => {
+    const currentMailbox = createMailbox({ status: 'revoked' });
+    const repository = createRepository({
+      async findMailboxById() {
+        return currentMailbox;
+      },
+      async deleteMailbox(input) {
+        assert.equal(input.mailboxId, 'mailbox-1');
+        assert.equal(input.organizationId, 'org-1');
+        assert.equal(input.ownerUserId, 'user-1');
+
+        return {
+          mailbox: currentMailbox,
+          pausedEnrollmentCount: 0,
+          resetMessageCount: 0
+        };
+      }
+    });
+    const service = new CrmMailboxService(repository);
+
+    const result = await service.deleteMailbox('mailbox-1', createContext());
+
+    assert.equal(result.mailbox.id, 'mailbox-1');
+  });
+
+  it('requires active Gmail mailboxes to be canceled before deletion', async () => {
+    const service = new CrmMailboxService(
+      createRepository({
+        async findMailboxById() {
+          return createMailbox({ status: 'active' });
+        }
+      })
+    );
+
+    await assert.rejects(() => service.deleteMailbox('mailbox-1', createContext()), /请先取消授权后再删除邮箱/);
   });
 });
 
@@ -242,6 +337,8 @@ function createRepository(overrides: Partial<CrmMailboxRepository> = {}): CrmMai
     updateMailbox: notImplemented,
     listMailboxesForWatchRenewal: notImplemented,
     markMailboxAuthorizationExpired: notImplemented,
+    revokeMailboxAuthorization: notImplemented,
+    deleteMailbox: notImplemented,
     advanceMailboxHistoryId: notImplemented,
     ...overrides
   };
@@ -268,6 +365,9 @@ function createOAuthFlow(): CrmGmailOAuthFlowPort {
         encryptedRefreshToken: 'encrypted-refresh-token',
         historyId: 'history-2'
       };
+    },
+    async revokeEncryptedRefreshToken() {
+      throw new Error('not used');
     }
   };
 }

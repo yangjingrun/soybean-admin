@@ -259,6 +259,7 @@ export type CrmContactWhereInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionListRelationFilter;
   inboxThreads?: Prisma.CrmInboxThreadListRelationFilter;
   inboxMessages?: Prisma.CrmInboxMessageListRelationFilter;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventListRelationFilter;
 };
 
 export type CrmContactOrderByWithRelationInput = {
@@ -285,6 +286,7 @@ export type CrmContactOrderByWithRelationInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionOrderByRelationAggregateInput;
   inboxThreads?: Prisma.CrmInboxThreadOrderByRelationAggregateInput;
   inboxMessages?: Prisma.CrmInboxMessageOrderByRelationAggregateInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventOrderByRelationAggregateInput;
 };
 
 export type CrmContactWhereUniqueInput = Prisma.AtLeast<
@@ -316,6 +318,7 @@ export type CrmContactWhereUniqueInput = Prisma.AtLeast<
     messageDraftVersions?: Prisma.CrmMessageDraftVersionListRelationFilter;
     inboxThreads?: Prisma.CrmInboxThreadListRelationFilter;
     inboxMessages?: Prisma.CrmInboxMessageListRelationFilter;
+    emailOpenEvents?: Prisma.CrmEmailOpenEventListRelationFilter;
   },
   'id' | 'organizationId_ownerUserId_emailHash'
 >;
@@ -382,6 +385,7 @@ export type CrmContactCreateInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateInput = {
@@ -406,6 +410,7 @@ export type CrmContactUncheckedCreateInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUpdateInput = {
@@ -430,6 +435,7 @@ export type CrmContactUpdateInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateInput = {
@@ -454,6 +460,7 @@ export type CrmContactUncheckedUpdateInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactCreateManyInput = {
@@ -838,6 +845,32 @@ export type CrmContactUpdateOneRequiredWithoutMessagesNestedInput = {
   >;
 };
 
+export type CrmContactCreateNestedOneWithoutEmailOpenEventsInput = {
+  create?: Prisma.XOR<
+    Prisma.CrmContactCreateWithoutEmailOpenEventsInput,
+    Prisma.CrmContactUncheckedCreateWithoutEmailOpenEventsInput
+  >;
+  connectOrCreate?: Prisma.CrmContactCreateOrConnectWithoutEmailOpenEventsInput;
+  connect?: Prisma.CrmContactWhereUniqueInput;
+};
+
+export type CrmContactUpdateOneRequiredWithoutEmailOpenEventsNestedInput = {
+  create?: Prisma.XOR<
+    Prisma.CrmContactCreateWithoutEmailOpenEventsInput,
+    Prisma.CrmContactUncheckedCreateWithoutEmailOpenEventsInput
+  >;
+  connectOrCreate?: Prisma.CrmContactCreateOrConnectWithoutEmailOpenEventsInput;
+  upsert?: Prisma.CrmContactUpsertWithoutEmailOpenEventsInput;
+  connect?: Prisma.CrmContactWhereUniqueInput;
+  update?: Prisma.XOR<
+    Prisma.XOR<
+      Prisma.CrmContactUpdateToOneWithWhereWithoutEmailOpenEventsInput,
+      Prisma.CrmContactUpdateWithoutEmailOpenEventsInput
+    >,
+    Prisma.CrmContactUncheckedUpdateWithoutEmailOpenEventsInput
+  >;
+};
+
 export type CrmContactCreateNestedOneWithoutMessageDraftVersionsInput = {
   create?: Prisma.XOR<
     Prisma.CrmContactCreateWithoutMessageDraftVersionsInput,
@@ -937,6 +970,7 @@ export type CrmContactCreateWithoutOrganizationInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutOrganizationInput = {
@@ -960,6 +994,7 @@ export type CrmContactUncheckedCreateWithoutOrganizationInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutOrganizationInput = {
@@ -1044,6 +1079,7 @@ export type CrmContactCreateWithoutAccountInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutAccountInput = {
@@ -1067,6 +1103,7 @@ export type CrmContactUncheckedCreateWithoutAccountInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutAccountInput = {
@@ -1116,6 +1153,7 @@ export type CrmContactCreateWithoutEnrichmentHistoriesInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutEnrichmentHistoriesInput = {
@@ -1139,6 +1177,7 @@ export type CrmContactUncheckedCreateWithoutEnrichmentHistoriesInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutEnrichmentHistoriesInput = {
@@ -1190,6 +1229,7 @@ export type CrmContactUpdateWithoutEnrichmentHistoriesInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutEnrichmentHistoriesInput = {
@@ -1213,6 +1253,7 @@ export type CrmContactUncheckedUpdateWithoutEnrichmentHistoriesInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactCreateWithoutEventsInput = {
@@ -1236,6 +1277,7 @@ export type CrmContactCreateWithoutEventsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutEventsInput = {
@@ -1259,6 +1301,7 @@ export type CrmContactUncheckedCreateWithoutEventsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutEventsInput = {
@@ -1298,6 +1341,7 @@ export type CrmContactUpdateWithoutEventsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutEventsInput = {
@@ -1321,6 +1365,7 @@ export type CrmContactUncheckedUpdateWithoutEventsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactCreateWithoutEnrollmentsInput = {
@@ -1344,6 +1389,7 @@ export type CrmContactCreateWithoutEnrollmentsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutEnrollmentsInput = {
@@ -1367,6 +1413,7 @@ export type CrmContactUncheckedCreateWithoutEnrollmentsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutEnrollmentsInput = {
@@ -1418,6 +1465,7 @@ export type CrmContactUpdateWithoutEnrollmentsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutEnrollmentsInput = {
@@ -1441,6 +1489,7 @@ export type CrmContactUncheckedUpdateWithoutEnrollmentsInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactCreateWithoutMessagesInput = {
@@ -1464,6 +1513,7 @@ export type CrmContactCreateWithoutMessagesInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutMessagesInput = {
@@ -1487,6 +1537,7 @@ export type CrmContactUncheckedCreateWithoutMessagesInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutMessagesInput = {
@@ -1526,6 +1577,7 @@ export type CrmContactUpdateWithoutMessagesInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutMessagesInput = {
@@ -1546,6 +1598,131 @@ export type CrmContactUncheckedUpdateWithoutMessagesInput = {
   events?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutContactNestedInput;
   enrichmentHistories?: Prisma.CrmLeadEnrichmentHistoryUncheckedUpdateManyWithoutContactNestedInput;
   enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutContactNestedInput;
+  messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
+};
+
+export type CrmContactCreateWithoutEmailOpenEventsInput = {
+  id?: string;
+  ownerUserId: string;
+  fullName?: string | null;
+  title?: string | null;
+  email: string;
+  emailHash: string;
+  maskedEmail: string;
+  isPublicEmail?: boolean;
+  emailStatus?: string;
+  sourceTaskId?: string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  organization: Prisma.OrganizationCreateNestedOneWithoutCrmContactsInput;
+  account: Prisma.CrmAccountCreateNestedOneWithoutContactsInput;
+  events?: Prisma.CrmTimelineEventCreateNestedManyWithoutContactInput;
+  enrichmentHistories?: Prisma.CrmLeadEnrichmentHistoryCreateNestedManyWithoutContactInput;
+  enrollments?: Prisma.CrmSequenceEnrollmentCreateNestedManyWithoutContactInput;
+  messages?: Prisma.CrmMessageCreateNestedManyWithoutContactInput;
+  messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
+  inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
+  inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+};
+
+export type CrmContactUncheckedCreateWithoutEmailOpenEventsInput = {
+  id?: string;
+  organizationId: string;
+  accountId: string;
+  ownerUserId: string;
+  fullName?: string | null;
+  title?: string | null;
+  email: string;
+  emailHash: string;
+  maskedEmail: string;
+  isPublicEmail?: boolean;
+  emailStatus?: string;
+  sourceTaskId?: string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  events?: Prisma.CrmTimelineEventUncheckedCreateNestedManyWithoutContactInput;
+  enrichmentHistories?: Prisma.CrmLeadEnrichmentHistoryUncheckedCreateNestedManyWithoutContactInput;
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedCreateNestedManyWithoutContactInput;
+  messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutContactInput;
+  messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
+  inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
+  inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+};
+
+export type CrmContactCreateOrConnectWithoutEmailOpenEventsInput = {
+  where: Prisma.CrmContactWhereUniqueInput;
+  create: Prisma.XOR<
+    Prisma.CrmContactCreateWithoutEmailOpenEventsInput,
+    Prisma.CrmContactUncheckedCreateWithoutEmailOpenEventsInput
+  >;
+};
+
+export type CrmContactUpsertWithoutEmailOpenEventsInput = {
+  update: Prisma.XOR<
+    Prisma.CrmContactUpdateWithoutEmailOpenEventsInput,
+    Prisma.CrmContactUncheckedUpdateWithoutEmailOpenEventsInput
+  >;
+  create: Prisma.XOR<
+    Prisma.CrmContactCreateWithoutEmailOpenEventsInput,
+    Prisma.CrmContactUncheckedCreateWithoutEmailOpenEventsInput
+  >;
+  where?: Prisma.CrmContactWhereInput;
+};
+
+export type CrmContactUpdateToOneWithWhereWithoutEmailOpenEventsInput = {
+  where?: Prisma.CrmContactWhereInput;
+  data: Prisma.XOR<
+    Prisma.CrmContactUpdateWithoutEmailOpenEventsInput,
+    Prisma.CrmContactUncheckedUpdateWithoutEmailOpenEventsInput
+  >;
+};
+
+export type CrmContactUpdateWithoutEmailOpenEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string;
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  email?: Prisma.StringFieldUpdateOperationsInput | string;
+  emailHash?: Prisma.StringFieldUpdateOperationsInput | string;
+  maskedEmail?: Prisma.StringFieldUpdateOperationsInput | string;
+  isPublicEmail?: Prisma.BoolFieldUpdateOperationsInput | boolean;
+  emailStatus?: Prisma.StringFieldUpdateOperationsInput | string;
+  sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutCrmContactsNestedInput;
+  account?: Prisma.CrmAccountUpdateOneRequiredWithoutContactsNestedInput;
+  events?: Prisma.CrmTimelineEventUpdateManyWithoutContactNestedInput;
+  enrichmentHistories?: Prisma.CrmLeadEnrichmentHistoryUpdateManyWithoutContactNestedInput;
+  enrollments?: Prisma.CrmSequenceEnrollmentUpdateManyWithoutContactNestedInput;
+  messages?: Prisma.CrmMessageUpdateManyWithoutContactNestedInput;
+  messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
+  inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
+  inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+};
+
+export type CrmContactUncheckedUpdateWithoutEmailOpenEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string;
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string;
+  accountId?: Prisma.StringFieldUpdateOperationsInput | string;
+  ownerUserId?: Prisma.StringFieldUpdateOperationsInput | string;
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  email?: Prisma.StringFieldUpdateOperationsInput | string;
+  emailHash?: Prisma.StringFieldUpdateOperationsInput | string;
+  maskedEmail?: Prisma.StringFieldUpdateOperationsInput | string;
+  isPublicEmail?: Prisma.BoolFieldUpdateOperationsInput | boolean;
+  emailStatus?: Prisma.StringFieldUpdateOperationsInput | string;
+  sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+  events?: Prisma.CrmTimelineEventUncheckedUpdateManyWithoutContactNestedInput;
+  enrichmentHistories?: Prisma.CrmLeadEnrichmentHistoryUncheckedUpdateManyWithoutContactNestedInput;
+  enrollments?: Prisma.CrmSequenceEnrollmentUncheckedUpdateManyWithoutContactNestedInput;
+  messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutContactNestedInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
@@ -1572,6 +1749,7 @@ export type CrmContactCreateWithoutMessageDraftVersionsInput = {
   messages?: Prisma.CrmMessageCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutMessageDraftVersionsInput = {
@@ -1595,6 +1773,7 @@ export type CrmContactUncheckedCreateWithoutMessageDraftVersionsInput = {
   messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutMessageDraftVersionsInput = {
@@ -1646,6 +1825,7 @@ export type CrmContactUpdateWithoutMessageDraftVersionsInput = {
   messages?: Prisma.CrmMessageUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutMessageDraftVersionsInput = {
@@ -1669,6 +1849,7 @@ export type CrmContactUncheckedUpdateWithoutMessageDraftVersionsInput = {
   messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactCreateWithoutInboxThreadsInput = {
@@ -1692,6 +1873,7 @@ export type CrmContactCreateWithoutInboxThreadsInput = {
   messages?: Prisma.CrmMessageCreateNestedManyWithoutContactInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutInboxThreadsInput = {
@@ -1715,6 +1897,7 @@ export type CrmContactUncheckedCreateWithoutInboxThreadsInput = {
   messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutContactInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutInboxThreadsInput = {
@@ -1766,6 +1949,7 @@ export type CrmContactUpdateWithoutInboxThreadsInput = {
   messages?: Prisma.CrmMessageUpdateManyWithoutContactNestedInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutInboxThreadsInput = {
@@ -1789,6 +1973,7 @@ export type CrmContactUncheckedUpdateWithoutInboxThreadsInput = {
   messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutContactNestedInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactCreateWithoutInboxMessagesInput = {
@@ -1812,6 +1997,7 @@ export type CrmContactCreateWithoutInboxMessagesInput = {
   messages?: Prisma.CrmMessageCreateNestedManyWithoutContactInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactUncheckedCreateWithoutInboxMessagesInput = {
@@ -1835,6 +2021,7 @@ export type CrmContactUncheckedCreateWithoutInboxMessagesInput = {
   messages?: Prisma.CrmMessageUncheckedCreateNestedManyWithoutContactInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedCreateNestedManyWithoutContactInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedCreateNestedManyWithoutContactInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedCreateNestedManyWithoutContactInput;
 };
 
 export type CrmContactCreateOrConnectWithoutInboxMessagesInput = {
@@ -1886,6 +2073,7 @@ export type CrmContactUpdateWithoutInboxMessagesInput = {
   messages?: Prisma.CrmMessageUpdateManyWithoutContactNestedInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutInboxMessagesInput = {
@@ -1909,6 +2097,7 @@ export type CrmContactUncheckedUpdateWithoutInboxMessagesInput = {
   messages?: Prisma.CrmMessageUncheckedUpdateManyWithoutContactNestedInput;
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactCreateManyOrganizationInput = {
@@ -1948,6 +2137,7 @@ export type CrmContactUpdateWithoutOrganizationInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutOrganizationInput = {
@@ -1971,6 +2161,7 @@ export type CrmContactUncheckedUpdateWithoutOrganizationInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateManyWithoutOrganizationInput = {
@@ -2026,6 +2217,7 @@ export type CrmContactUpdateWithoutAccountInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateWithoutAccountInput = {
@@ -2049,6 +2241,7 @@ export type CrmContactUncheckedUpdateWithoutAccountInput = {
   messageDraftVersions?: Prisma.CrmMessageDraftVersionUncheckedUpdateManyWithoutContactNestedInput;
   inboxThreads?: Prisma.CrmInboxThreadUncheckedUpdateManyWithoutContactNestedInput;
   inboxMessages?: Prisma.CrmInboxMessageUncheckedUpdateManyWithoutContactNestedInput;
+  emailOpenEvents?: Prisma.CrmEmailOpenEventUncheckedUpdateManyWithoutContactNestedInput;
 };
 
 export type CrmContactUncheckedUpdateManyWithoutAccountInput = {
@@ -2079,6 +2272,7 @@ export type CrmContactCountOutputType = {
   messageDraftVersions: number;
   inboxThreads: number;
   inboxMessages: number;
+  emailOpenEvents: number;
 };
 
 export type CrmContactCountOutputTypeSelect<
@@ -2091,6 +2285,7 @@ export type CrmContactCountOutputTypeSelect<
   messageDraftVersions?: boolean | CrmContactCountOutputTypeCountMessageDraftVersionsArgs;
   inboxThreads?: boolean | CrmContactCountOutputTypeCountInboxThreadsArgs;
   inboxMessages?: boolean | CrmContactCountOutputTypeCountInboxMessagesArgs;
+  emailOpenEvents?: boolean | CrmContactCountOutputTypeCountEmailOpenEventsArgs;
 };
 
 /**
@@ -2168,6 +2363,15 @@ export type CrmContactCountOutputTypeCountInboxMessagesArgs<
   where?: Prisma.CrmInboxMessageWhereInput;
 };
 
+/**
+ * CrmContactCountOutputType without action
+ */
+export type CrmContactCountOutputTypeCountEmailOpenEventsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  where?: Prisma.CrmEmailOpenEventWhereInput;
+};
+
 export type CrmContactSelect<
   ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > = runtime.Types.Extensions.GetSelect<
@@ -2195,6 +2399,7 @@ export type CrmContactSelect<
     messageDraftVersions?: boolean | Prisma.CrmContact$messageDraftVersionsArgs<ExtArgs>;
     inboxThreads?: boolean | Prisma.CrmContact$inboxThreadsArgs<ExtArgs>;
     inboxMessages?: boolean | Prisma.CrmContact$inboxMessagesArgs<ExtArgs>;
+    emailOpenEvents?: boolean | Prisma.CrmContact$emailOpenEventsArgs<ExtArgs>;
     _count?: boolean | Prisma.CrmContactCountOutputTypeDefaultArgs<ExtArgs>;
   },
   ExtArgs['result']['crmContact']
@@ -2296,6 +2501,7 @@ export type CrmContactInclude<
   messageDraftVersions?: boolean | Prisma.CrmContact$messageDraftVersionsArgs<ExtArgs>;
   inboxThreads?: boolean | Prisma.CrmContact$inboxThreadsArgs<ExtArgs>;
   inboxMessages?: boolean | Prisma.CrmContact$inboxMessagesArgs<ExtArgs>;
+  emailOpenEvents?: boolean | Prisma.CrmContact$emailOpenEventsArgs<ExtArgs>;
   _count?: boolean | Prisma.CrmContactCountOutputTypeDefaultArgs<ExtArgs>;
 };
 export type CrmContactIncludeCreateManyAndReturn<
@@ -2325,6 +2531,7 @@ export type $CrmContactPayload<
     messageDraftVersions: Prisma.$CrmMessageDraftVersionPayload<ExtArgs>[];
     inboxThreads: Prisma.$CrmInboxThreadPayload<ExtArgs>[];
     inboxMessages: Prisma.$CrmInboxMessagePayload<ExtArgs>[];
+    emailOpenEvents: Prisma.$CrmEmailOpenEventPayload<ExtArgs>[];
   };
   scalars: runtime.Types.Extensions.GetPayloadResult<
     {
@@ -2872,6 +3079,11 @@ export interface Prisma__CrmContactClient<
     args?: Prisma.Subset<T, Prisma.CrmContact$inboxMessagesArgs<ExtArgs>>
   ): Prisma.PrismaPromise<
     runtime.Types.Result.GetResult<Prisma.$CrmInboxMessagePayload<ExtArgs>, T, 'findMany', GlobalOmitOptions> | Null
+  >;
+  emailOpenEvents<T extends Prisma.CrmContact$emailOpenEventsArgs<ExtArgs> = {}>(
+    args?: Prisma.Subset<T, Prisma.CrmContact$emailOpenEventsArgs<ExtArgs>>
+  ): Prisma.PrismaPromise<
+    runtime.Types.Result.GetResult<Prisma.$CrmEmailOpenEventPayload<ExtArgs>, T, 'findMany', GlobalOmitOptions> | Null
   >;
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -3531,6 +3743,32 @@ export type CrmContact$inboxMessagesArgs<
   take?: number;
   skip?: number;
   distinct?: Prisma.CrmInboxMessageScalarFieldEnum | Prisma.CrmInboxMessageScalarFieldEnum[];
+};
+
+/**
+ * CrmContact.emailOpenEvents
+ */
+export type CrmContact$emailOpenEventsArgs<
+  ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
+> = {
+  /**
+   * Select specific fields to fetch from the CrmEmailOpenEvent
+   */
+  select?: Prisma.CrmEmailOpenEventSelect<ExtArgs> | null;
+  /**
+   * Omit specific fields from the CrmEmailOpenEvent
+   */
+  omit?: Prisma.CrmEmailOpenEventOmit<ExtArgs> | null;
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CrmEmailOpenEventInclude<ExtArgs> | null;
+  where?: Prisma.CrmEmailOpenEventWhereInput;
+  orderBy?: Prisma.CrmEmailOpenEventOrderByWithRelationInput | Prisma.CrmEmailOpenEventOrderByWithRelationInput[];
+  cursor?: Prisma.CrmEmailOpenEventWhereUniqueInput;
+  take?: number;
+  skip?: number;
+  distinct?: Prisma.CrmEmailOpenEventScalarFieldEnum | Prisma.CrmEmailOpenEventScalarFieldEnum[];
 };
 
 /**

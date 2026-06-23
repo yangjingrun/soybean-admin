@@ -1,5 +1,9 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { encryptGmailSecret, type CrmGmailOAuthHttpResponse } from './crm-gmail-oauth-token.provider';
+import {
+  decryptGmailSecret,
+  encryptGmailSecret,
+  type CrmGmailOAuthHttpResponse
+} from './crm-gmail-oauth-token.provider';
 
 export interface CrmGmailOAuthFlowConfig {
   clientId: string;
@@ -11,6 +15,7 @@ export interface CrmGmailOAuthFlowConfig {
   tokenEndpoint?: string;
   profileEndpoint?: string;
   userinfoEndpoint?: string;
+  revocationEndpoint?: string;
   scopes?: string[];
   now?: () => Date;
   httpClient?: CrmGmailOAuthFlowHttpClient;
@@ -39,6 +44,7 @@ export interface CrmGmailOAuthFlowPort {
     historyId: string | null;
     encryptedRefreshToken: string;
   }>;
+  revokeEncryptedRefreshToken(encryptedRefreshToken: string): Promise<void>;
 }
 
 interface GmailOAuthCodeTokenResponse {
@@ -59,6 +65,7 @@ const authorizationEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
 const tokenEndpoint = 'https://oauth2.googleapis.com/token';
 const profileEndpoint = 'https://gmail.googleapis.com/gmail/v1/users/me/profile';
 const userinfoEndpoint = 'https://www.googleapis.com/oauth2/v3/userinfo';
+const revocationEndpoint = 'https://oauth2.googleapis.com/revoke';
 const stateMaxAgeMs = 15 * 60 * 1000;
 const defaultGmailScopes = [
   'https://www.googleapis.com/auth/gmail.modify',
@@ -89,10 +96,11 @@ export class FetchCrmGmailOAuthFlowHttpClient implements CrmGmailOAuthFlowHttpCl
       headers,
       body
     });
+    const responseText = await response.text();
 
     return {
       status: response.status,
-      body: await response.json()
+      body: parseOAuthResponseBody(responseText)
     };
   }
 
@@ -163,6 +171,28 @@ export class CrmGmailOAuthFlow implements CrmGmailOAuthFlowPort {
       historyId: profile.historyId,
       encryptedRefreshToken: encryptGmailSecret(tokenResponse.refreshToken, this.config.tokenEncryptionKey)
     };
+  }
+
+  /** Revokes a stored Gmail refresh token through Google's OAuth revocation endpoint. */
+  async revokeEncryptedRefreshToken(encryptedRefreshToken: string) {
+    const refreshToken = decryptGmailSecret(encryptedRefreshToken, this.config.tokenEncryptionKey);
+    const response = await this.httpClient.postForm(
+      this.config.revocationEndpoint ?? revocationEndpoint,
+      new URLSearchParams({ token: refreshToken }),
+      {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    );
+
+    if (response.status >= 200 && response.status < 300) {
+      return;
+    }
+
+    if (isInvalidTokenRevocationResponse(response)) {
+      return;
+    }
+
+    throw new Error(`Gmail OAuth token revocation failed with status ${response.status}`);
   }
 
   private async exchangeCode(code: string) {
@@ -300,4 +330,25 @@ export class CrmGmailOAuthFlow implements CrmGmailOAuthFlowPort {
   private canReadGmailProfile() {
     return this.getScopes().some(scope => gmailProfileScopes.has(scope));
   }
+}
+
+function parseOAuthResponseBody(responseText: string): unknown {
+  if (!responseText) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(responseText) as unknown;
+  } catch {
+    return responseText;
+  }
+}
+
+function isInvalidTokenRevocationResponse(response: CrmGmailOAuthHttpResponse) {
+  if (response.status !== 400) {
+    return false;
+  }
+
+  const body = response.body as { error?: unknown };
+  return body?.error === 'invalid_token';
 }

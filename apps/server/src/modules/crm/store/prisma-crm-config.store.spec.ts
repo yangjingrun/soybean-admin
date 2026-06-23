@@ -13,22 +13,39 @@ describe('PrismaCrmConfigStore', () => {
       ownerConcurrentSendLimit: 0,
       ownerDailySendLimitMax: 3000,
       followUpDelayDays: { step2Days: 0, step3Days: 8, step4Days: 120, step5Days: 30 },
+      sendWorkdays: [1, 2, 3, 4, 5],
+      sendWindows: [
+        { startMinute: 9 * 60, endMinute: 12 * 60 },
+        { startMinute: 14 * 60, endMinute: 18 * 60 }
+      ],
       updatedById: 'super-1',
       updatedByName: 'Super Admin'
     });
 
     assert.equal(current.emailVerificationCooldownDays, 30);
     assert.deepEqual(current.followUpDelayDays, { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 });
+    assert.deepEqual(current.sendWorkdays, [1, 2, 3, 4, 5]);
+    assert.deepEqual(current.sendWindows, [
+      { startMinute: 9 * 60, endMinute: 12 * 60 },
+      { startMinute: 14 * 60, endMinute: 18 * 60 }
+    ]);
     assert.equal(saved.emailVerificationCooldownDays, 365);
     assert.equal(saved.ownerConcurrentSendLimit, 5);
     assert.equal(saved.ownerDailySendLimitMax, 1000);
     assert.deepEqual(saved.followUpDelayDays, { step2Days: 3, step3Days: 8, step4Days: 90, step5Days: 30 });
+    assert.deepEqual(saved.sendWorkdays, [1, 2, 3, 4, 5]);
+    assert.deepEqual(saved.sendWindows, [
+      { startMinute: 9 * 60, endMinute: 12 * 60 },
+      { startMinute: 14 * 60, endMinute: 18 * 60 }
+    ]);
     assert.deepEqual(prisma.crmGlobalConfig.findUniqueCalls[0].where, { configKey: 'default' });
     assert.deepEqual(prisma.crmGlobalConfig.upsertCalls[0].where, { configKey: 'default' });
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.emailVerificationCooldownDays, 365);
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.ownerConcurrentSendLimit, 5);
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.ownerDailySendLimitMax, 1000);
     assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.followUpDelayDaysText, '3,8,90,30');
+    assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.sendWorkdaysText, '1,2,3,4,5');
+    assert.equal(prisma.crmGlobalConfig.upsertCalls[0].create.sendWindowsText, '09:00-12:00,14:00-18:00');
   });
 
   it('reads and saves organization CRM permission config', async () => {
@@ -58,6 +75,8 @@ interface GlobalConfigRecord {
   ownerConcurrentSendLimit: number;
   ownerDailySendLimitMax: number;
   followUpDelayDaysText: string;
+  sendWorkdaysText: string;
+  sendWindowsText: string;
   updatedById: string | null;
   updatedByName: string | null;
   updatedAt: Date;
@@ -90,6 +109,8 @@ function createGlobalConfig(input: Partial<GlobalConfigRecord> = {}): GlobalConf
     ownerConcurrentSendLimit: 5,
     ownerDailySendLimitMax: 200,
     followUpDelayDaysText: '3,7,14,21',
+    sendWorkdaysText: '1,2,3,4,5',
+    sendWindowsText: '09:00-12:00,14:00-18:00',
     updatedById: null,
     updatedByName: null,
     updatedAt: new Date('2026-06-18T09:00:00.000Z'),

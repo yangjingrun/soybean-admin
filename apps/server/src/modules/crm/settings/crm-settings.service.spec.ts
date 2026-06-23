@@ -27,7 +27,12 @@ describe('CrmSettingsService', () => {
           step3Days: 4,
           step4Days: 8,
           step5Days: 16
-        }
+        },
+        sendWorkdays: [1, 2, 3, 4, 5],
+        sendWindows: [
+          { startMinute: 9 * 60, endMinute: 12 * 60 },
+          { startMinute: 14 * 60, endMinute: 18 * 60 }
+        ]
       })
     });
     const logs = createLogRecorder();
@@ -44,7 +49,12 @@ describe('CrmSettingsService', () => {
           step3Days: 6,
           step4Days: 9,
           step5Days: 12
-        }
+        },
+        sendWorkdays: [1, 2, 3, 4, 5],
+        sendWindows: [
+          { startMinute: 9 * 60, endMinute: 12 * 60 },
+          { startMinute: 14 * 60, endMinute: 18 * 60 }
+        ]
       },
       createContext({ roles: ['R_SUPER'] })
     );
@@ -64,7 +74,12 @@ describe('CrmSettingsService', () => {
         step3Days: 6,
         step4Days: 9,
         step5Days: 12
-      }
+      },
+      sendWorkdays: [1, 2, 3, 4, 5],
+      sendWindows: [
+        { startMinute: 9 * 60, endMinute: 12 * 60 },
+        { startMinute: 14 * 60, endMinute: 18 * 60 }
+      ]
     });
   });
 
@@ -201,6 +216,11 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
       step4Days: 14,
       step5Days: 21
     },
+    sendWorkdays: input.sendWorkdays ?? [1, 2, 3, 4, 5],
+    sendWindows: input.sendWindows ?? [
+      { startMinute: 9 * 60, endMinute: 12 * 60 },
+      { startMinute: 14 * 60, endMinute: 18 * 60 }
+    ],
     updatedAt: input.updatedAt ?? new Date('2026-06-20T09:00:00.000Z'),
     updatedById: input.updatedById ?? null,
     updatedByName: input.updatedByName ?? null

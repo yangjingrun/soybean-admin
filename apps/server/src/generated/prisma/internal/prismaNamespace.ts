@@ -387,6 +387,7 @@ export const ModelName = {
   CrmSequencePolicy: 'CrmSequencePolicy',
   CrmSequenceEnrollment: 'CrmSequenceEnrollment',
   CrmMessage: 'CrmMessage',
+  CrmEmailOpenEvent: 'CrmEmailOpenEvent',
   CrmMessageDraftVersion: 'CrmMessageDraftVersion',
   CrmInboxThread: 'CrmInboxThread',
   CrmInboxMessage: 'CrmInboxMessage',
@@ -454,6 +455,7 @@ export type TypeMap<
       | 'crmSequencePolicy'
       | 'crmSequenceEnrollment'
       | 'crmMessage'
+      | 'crmEmailOpenEvent'
       | 'crmMessageDraftVersion'
       | 'crmInboxThread'
       | 'crmInboxMessage'
@@ -2402,6 +2404,80 @@ export type TypeMap<
         };
       };
     };
+    CrmEmailOpenEvent: {
+      payload: Prisma.$CrmEmailOpenEventPayload<ExtArgs>;
+      fields: Prisma.CrmEmailOpenEventFieldRefs;
+      operations: {
+        findUnique: {
+          args: Prisma.CrmEmailOpenEventFindUniqueArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload> | null;
+        };
+        findUniqueOrThrow: {
+          args: Prisma.CrmEmailOpenEventFindUniqueOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>;
+        };
+        findFirst: {
+          args: Prisma.CrmEmailOpenEventFindFirstArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload> | null;
+        };
+        findFirstOrThrow: {
+          args: Prisma.CrmEmailOpenEventFindFirstOrThrowArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>;
+        };
+        findMany: {
+          args: Prisma.CrmEmailOpenEventFindManyArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>[];
+        };
+        create: {
+          args: Prisma.CrmEmailOpenEventCreateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>;
+        };
+        createMany: {
+          args: Prisma.CrmEmailOpenEventCreateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        createManyAndReturn: {
+          args: Prisma.CrmEmailOpenEventCreateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>[];
+        };
+        delete: {
+          args: Prisma.CrmEmailOpenEventDeleteArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>;
+        };
+        update: {
+          args: Prisma.CrmEmailOpenEventUpdateArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>;
+        };
+        deleteMany: {
+          args: Prisma.CrmEmailOpenEventDeleteManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateMany: {
+          args: Prisma.CrmEmailOpenEventUpdateManyArgs<ExtArgs>;
+          result: BatchPayload;
+        };
+        updateManyAndReturn: {
+          args: Prisma.CrmEmailOpenEventUpdateManyAndReturnArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>[];
+        };
+        upsert: {
+          args: Prisma.CrmEmailOpenEventUpsertArgs<ExtArgs>;
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CrmEmailOpenEventPayload>;
+        };
+        aggregate: {
+          args: Prisma.CrmEmailOpenEventAggregateArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCrmEmailOpenEvent>;
+        };
+        groupBy: {
+          args: Prisma.CrmEmailOpenEventGroupByArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailOpenEventGroupByOutputType>[];
+        };
+        count: {
+          args: Prisma.CrmEmailOpenEventCountArgs<ExtArgs>;
+          result: runtime.Types.Utils.Optional<Prisma.CrmEmailOpenEventCountAggregateOutputType> | number;
+        };
+      };
+    };
     CrmMessageDraftVersion: {
       payload: Prisma.$CrmMessageDraftVersionPayload<ExtArgs>;
       fields: Prisma.CrmMessageDraftVersionFieldRefs;
@@ -4170,6 +4246,8 @@ export const CrmGlobalConfigScalarFieldEnum = {
   ownerConcurrentSendLimit: 'ownerConcurrentSendLimit',
   ownerDailySendLimitMax: 'ownerDailySendLimitMax',
   followUpDelayDaysText: 'followUpDelayDaysText',
+  sendWorkdaysText: 'sendWorkdaysText',
+  sendWindowsText: 'sendWindowsText',
   updatedById: 'updatedById',
   updatedByName: 'updatedByName',
   createdAt: 'createdAt',
@@ -4488,6 +4566,26 @@ export const CrmMessageScalarFieldEnum = {
 } as const;
 
 export type CrmMessageScalarFieldEnum = (typeof CrmMessageScalarFieldEnum)[keyof typeof CrmMessageScalarFieldEnum];
+
+export const CrmEmailOpenEventScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  ownerUserId: 'ownerUserId',
+  accountId: 'accountId',
+  contactId: 'contactId',
+  enrollmentId: 'enrollmentId',
+  messageId: 'messageId',
+  openCount: 'openCount',
+  firstOpenedAt: 'firstOpenedAt',
+  lastOpenedAt: 'lastOpenedAt',
+  lastUserAgent: 'lastUserAgent',
+  lastIpAddress: 'lastIpAddress',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const;
+
+export type CrmEmailOpenEventScalarFieldEnum =
+  (typeof CrmEmailOpenEventScalarFieldEnum)[keyof typeof CrmEmailOpenEventScalarFieldEnum];
 
 export const CrmMessageDraftVersionScalarFieldEnum = {
   id: 'id',
@@ -5226,6 +5324,7 @@ export type GlobalOmitConfig = {
   crmSequencePolicy?: Prisma.CrmSequencePolicyOmit;
   crmSequenceEnrollment?: Prisma.CrmSequenceEnrollmentOmit;
   crmMessage?: Prisma.CrmMessageOmit;
+  crmEmailOpenEvent?: Prisma.CrmEmailOpenEventOmit;
   crmMessageDraftVersion?: Prisma.CrmMessageDraftVersionOmit;
   crmInboxThread?: Prisma.CrmInboxThreadOmit;
   crmInboxMessage?: Prisma.CrmInboxMessageOmit;

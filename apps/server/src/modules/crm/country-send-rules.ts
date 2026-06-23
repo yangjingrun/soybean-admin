@@ -1,3 +1,5 @@
+import { defaultCrmSendWindows } from './crm-global-config';
+
 export type CrmSendAvailabilityReason =
   | 'within_window'
   | 'outside_window'
@@ -23,11 +25,6 @@ export interface CrmResolvedSendTimezone {
   timeZone: string | null;
   reason?: Extract<CrmSendAvailabilityReason, 'missing_timezone' | 'ambiguous_timezone'>;
 }
-
-export const defaultCrmSendWindows: CrmSendWindow[] = [
-  { startMinute: toMinuteOfDay(9, 30), endMinute: toMinuteOfDay(11, 30) },
-  { startMinute: toMinuteOfDay(14, 0), endMinute: toMinuteOfDay(16, 30) }
-];
 
 const mondayToFriday = [1, 2, 3, 4, 5];
 const sundayToThursday = [0, 1, 2, 3, 4];
@@ -203,8 +200,4 @@ export function resolveCrmSendTimezone(input: { country?: string | null; timeZon
     timeZone: null,
     reason: rule.requiresTimezone ? 'ambiguous_timezone' : 'missing_timezone'
   } satisfies CrmResolvedSendTimezone;
-}
-
-function toMinuteOfDay(hour: number, minute: number) {
-  return hour * 60 + minute;
 }
