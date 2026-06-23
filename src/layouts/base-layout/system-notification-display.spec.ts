@@ -13,11 +13,50 @@ describe('system notification display policy', () => {
     });
   });
 
-  it('silently reads failed task notifications that were already shown once', () => {
-    const policy = resolveSystemNotificationDisplayPolicy(createNotification({ type: 'task_failed', status: 'shown' }));
+  it('silently reads transient failed task notifications that were already shown once', () => {
+    const policy = resolveSystemNotificationDisplayPolicy(
+      createNotification({
+        type: 'task_failed',
+        status: 'shown',
+        content:
+          '大模型调用失败：Failed after 3 attempts. Last error: {"error":{"code":"model_cooldown","message":"All credentials for model gpt-5.4 are cooling down"}}'
+      })
+    );
 
     assert.deepEqual(policy, {
       mode: 'silent-read',
+      type: 'warning',
+      duration: 0
+    });
+  });
+
+  it('keeps action-required failed notifications visible until the user clicks view', () => {
+    const policy = resolveSystemNotificationDisplayPolicy(
+      createNotification({
+        type: 'crm_ai_draft_task_failed',
+        status: 'shown',
+        content: '部分 CRM AI 草稿生成失败，请回到邮件序列页查看。'
+      })
+    );
+
+    assert.deepEqual(policy, {
+      mode: 'popup',
+      type: 'warning',
+      duration: 0
+    });
+  });
+
+  it('keeps missing-configuration failures visible because the user must fix them', () => {
+    const policy = resolveSystemNotificationDisplayPolicy(
+      createNotification({
+        type: 'task_failed',
+        status: 'shown',
+        content: '请先配置个人模型通道'
+      })
+    );
+
+    assert.deepEqual(policy, {
+      mode: 'popup',
       type: 'warning',
       duration: 0
     });
@@ -46,7 +85,7 @@ function createNotification(
     module: 'ai-leads',
     type: 'task_failed',
     title: '采集任务失败',
-    content: '模型通道暂不可用',
+    content: '任务处理失败',
     targetType: 'aiLeadSearchTask',
     targetId: 'task-1',
     routePath: '/ai-leads?taskId=task-1',
