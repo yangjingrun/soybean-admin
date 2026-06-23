@@ -101,6 +101,7 @@ Serper 渠道规则：
 - requestBody 只放 Serper 可执行字段，不要加入中文括号、解释文字或非查询内容。
 - 时间范围默认 Any time，tbs 为 null 时不要写入 requestBody。
 - 只有近期展会、近期新闻、近期采购动态、新增代理、近期项目、招标等时效型查询，才使用 tbs。
+- 台湾、香港、新加坡、马来西亚等中文/华语市场，不要把淘宝、1688、Yahoo 拍卖、Ruten、Shopee、PChome、Momo、Amazon、eBay 这类平台招商页当成目标客户；Search 查询要优先官网、品牌代理页、目录页和明确的 B2B 站点。
 
 硬性规则：
 - 只输出一个合法 JSON 对象，不要 Markdown、注释或额外解释。
@@ -128,6 +129,7 @@ Serper 渠道规则：
 - 默认优先 importer > distributor/dealer/stockist > wholesaler > industrial supplier/MRO supplier > trading company。
 - 每类必须说明真实采购逻辑、官网识别特征、优先联系岗位、优先级和适合的 Serper 渠道。
 - supplier、local supplier 不能默认视为高价值客户；只有具备 Products、Brands、Catalog、Stock、Industries、Wholesale、Distribution、MRO、spare parts 等强 B2B 信号时才可提高优先级。
+- marketplace-only、auction-only、consumer-shop、pure listing 不是目标客户，必须降级或排除。
 
 Search 查询生成要求：
 - 输出 10-16 条 serperSearchQueries。

@@ -4013,6 +4013,9 @@ export const CrmAccountScalarFieldEnum = {
   websiteUrl: 'websiteUrl',
   domain: 'domain',
   country: 'country',
+  city: 'city',
+  address: 'address',
+  timeZone: 'timeZone',
   customerType: 'customerType',
   status: 'status',
   sourceTaskId: 'sourceTaskId',
@@ -4380,6 +4383,7 @@ export const CrmMessageScalarFieldEnum = {
   bullJobId: 'bullJobId',
   providerMessageId: 'providerMessageId',
   providerThreadId: 'providerThreadId',
+  recipientTimeZone: 'recipientTimeZone',
   metadata: 'metadata',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

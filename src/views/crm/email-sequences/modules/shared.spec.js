@@ -91,6 +91,8 @@ function createSequenceItem(overrides = {}) {
       websiteUrl: null,
       domain: 'abc.example',
       country: null,
+      city: null,
+      address: null,
       customerType: null,
       status: 'manual_review_pending',
       sourceTaskId: null,

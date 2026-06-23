@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
+import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { aiLeadsQueueConfigManagePermission, hasPermission, type PermissionCode } from '@soybean/shared';
 import { defaultAiModelConfigKey, defaultHunterConfigKey, defaultSerperConfigKey } from '@/constants/ai-gateway';
@@ -30,6 +31,7 @@ import {
 } from './modules/model-settings';
 
 const message = useMessage();
+const route = useRoute();
 const { t } = useI18n();
 const authStore = useAuthStore();
 
@@ -208,12 +210,22 @@ function handleSelectSettingsTab(tabKey: AiSettingsTabKey) {
   activeSettingsTab.value = tabKey;
 }
 
+/** Resolves the initial tab from the route query, falling back to the first visible tab. */
+function resolveInitialSettingsTab(): AiSettingsTabKey {
+  const queryTab = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab;
+  const matched = (Object.keys(tabVisibility.value) as AiSettingsTabKey[]).find(
+    key => key === queryTab && tabVisibility.value[key]
+  );
+
+  return matched ?? firstVisibleSettingsTab.value;
+}
+
 onMounted(() => {
   if (!canViewAnySettingsTab.value) {
     return;
   }
 
-  activeSettingsTab.value = firstVisibleSettingsTab.value;
+  activeSettingsTab.value = resolveInitialSettingsTab();
 
   void handleLoadModelConfig(false);
   void handleLoadSerperConfig(false);

@@ -335,7 +335,11 @@ describe('CrmSendWorkerService', () => {
       message: createMessage({ status: 'queued' }),
       mailbox: createMailbox({ status: 'active' })
     });
-    const worker = new CrmSendWorkerService(store, createGateway(new Error('gmail unavailable')), createAllowingAvailability());
+    const worker = new CrmSendWorkerService(
+      store,
+      createGateway(new Error('gmail unavailable')),
+      createAllowingAvailability()
+    );
 
     await assert.rejects(() => worker.processSendJob(createJob()), /gmail unavailable/);
     assert.equal(store.failed[0].reason, 'gmail unavailable');

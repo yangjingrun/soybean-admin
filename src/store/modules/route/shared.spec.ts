@@ -59,13 +59,16 @@ describe('route shared auth helpers', () => {
     const crmRoute = generatedRoutes.find(item => item.name === 'crm');
 
     assert.equal(crmRoute?.meta?.flattenChildrenInMenu, true);
-    assert.deepEqual(crmRoute?.children?.map(child => [child.name, child.meta?.order]), [
-      ['crm_email-sequences', 4],
-      ['crm_gmail-oauth-callback', undefined],
-      ['crm_inbox', 5],
-      ['crm_leads', 3],
-      ['crm_settings', 8]
-    ]);
+    assert.deepEqual(
+      crmRoute?.children?.map(child => [child.name, child.meta?.order]),
+      [
+        ['crm_email-sequences', 4],
+        ['crm_gmail-oauth-callback', undefined],
+        ['crm_inbox', 5],
+        ['crm_leads', 3],
+        ['crm_settings', 8]
+      ]
+    );
     assert.deepEqual(
       generatedRoutes
         .filter(item => ['ai-settings', 'ai-prompt-settings', 'manage'].includes(item.name))

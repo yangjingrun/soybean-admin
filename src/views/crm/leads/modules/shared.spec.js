@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import * as leadShared from './shared';
 import {
   buildLeadQueueStats,
   buildLeadSearchParams,
@@ -27,6 +28,8 @@ describe('crm lead shared helpers', () => {
       name: '',
       websiteUrl: '',
       country: '',
+      city: '',
+      address: '',
       customerType: '',
       contactFullName: '',
       contactTitle: '',
@@ -39,6 +42,8 @@ describe('crm lead shared helpers', () => {
         name: '  ABC Trading  ',
         websiteUrl: ' https://abc.example ',
         country: ' AE ',
+        city: ' Dubai ',
+        address: ' Office 12, Trade Center ',
         customerType: ' distributor ',
         contactFullName: '',
         contactTitle: ' ',
@@ -48,6 +53,8 @@ describe('crm lead shared helpers', () => {
         name: 'ABC Trading',
         websiteUrl: 'https://abc.example',
         country: 'AE',
+        city: 'Dubai',
+        address: 'Office 12, Trade Center',
         customerType: 'distributor'
       }
     );
@@ -58,6 +65,8 @@ describe('crm lead shared helpers', () => {
         name: 'ABC Trading',
         websiteUrl: '',
         country: '',
+        city: '',
+        address: '',
         customerType: '',
         contactFullName: ' Ali Hassan ',
         contactTitle: ' Buyer ',
@@ -67,12 +76,36 @@ describe('crm lead shared helpers', () => {
         name: 'ABC Trading',
         websiteUrl: '',
         country: '',
+        city: '',
+        address: '',
         customerType: '',
         contact: {
           fullName: 'Ali Hassan',
           title: 'Buyer',
           email: 'ali@example.com'
         }
+      }
+    );
+  });
+  it('builds trimmed account update payload with editable address fields', () => {
+    assert.deepEqual(
+      leadShared.buildLeadAccountUpdatePayload({
+        name: ' ABC Trading ',
+        normalizedName: ' abc trading ',
+        websiteUrl: ' https://abc.example ',
+        country: ' AE ',
+        city: ' Dubai ',
+        address: ' Office 12, Trade Center ',
+        customerType: ' distributor '
+      }),
+      {
+        name: 'ABC Trading',
+        normalizedName: 'abc trading',
+        websiteUrl: 'https://abc.example',
+        country: 'AE',
+        city: 'Dubai',
+        address: 'Office 12, Trade Center',
+        customerType: 'distributor'
       }
     );
   });
@@ -246,6 +279,8 @@ function createLeadRecord(input = {}) {
     websiteUrl: input.websiteUrl ?? null,
     domain: input.domain ?? null,
     country: input.country ?? null,
+    city: input.city ?? null,
+    address: input.address ?? null,
     customerType: input.customerType ?? null,
     status: input.status ?? 'candidate',
     sourceTaskId: input.sourceTaskId ?? null,

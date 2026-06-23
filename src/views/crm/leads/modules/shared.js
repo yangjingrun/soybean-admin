@@ -194,6 +194,8 @@ export function createDefaultLeadImportForm() {
     name: '',
     websiteUrl: '',
     country: '',
+    city: '',
+    address: '',
     customerType: '',
     contactFullName: '',
     contactTitle: '',
@@ -225,8 +227,22 @@ export function normalizeLeadImportPayload(formModel) {
     name: formModel.name.trim(),
     websiteUrl: formModel.websiteUrl.trim(),
     country: formModel.country.trim(),
+    city: formModel.city.trim(),
+    address: formModel.address.trim(),
     customerType: formModel.customerType.trim(),
     ...(hasContact ? { contact } : {})
+  };
+}
+/** Build a trimmed account profile update payload from the edit form. */
+export function buildLeadAccountUpdatePayload(formModel) {
+  return {
+    name: formModel.name.trim(),
+    normalizedName: formModel.normalizedName.trim(),
+    websiteUrl: formModel.websiteUrl?.trim(),
+    country: formModel.country?.trim(),
+    city: formModel.city?.trim(),
+    address: formModel.address?.trim(),
+    customerType: formModel.customerType?.trim()
   };
 }
 /** Build CRM lead list query params from pagination and current filters. */

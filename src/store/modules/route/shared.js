@@ -75,6 +75,10 @@ export function sortRoutesByOrder(routes) {
 export function getGlobalMenusByAuthRoutes(routes) {
   const menus = [];
   routes.forEach(route => {
+    if (route.meta?.flattenChildrenInMenu) {
+      menus.push(...getFlattenedGlobalMenusByRoute(route));
+      return;
+    }
     if (!route.meta?.hideInMenu) {
       const menu = getGlobalMenuByBaseRoute(route);
       if (route.children?.some(child => !child.meta?.hideInMenu)) {
@@ -84,6 +88,17 @@ export function getGlobalMenusByAuthRoutes(routes) {
     }
   });
   return menus;
+}
+/**
+ * Lift visible child routes to current menu level.
+ *
+ * @param route Route that only works as a path grouping container
+ */
+function getFlattenedGlobalMenusByRoute(route) {
+  if (!route.children?.length) {
+    return [];
+  }
+  return getGlobalMenusByAuthRoutes(route.children);
 }
 /**
  * Update locale of global menus

@@ -32,6 +32,9 @@ export type CrmAccountMinAggregateOutputType = {
   websiteUrl: string | null;
   domain: string | null;
   country: string | null;
+  city: string | null;
+  address: string | null;
+  timeZone: string | null;
   customerType: string | null;
   status: string | null;
   sourceTaskId: string | null;
@@ -51,6 +54,9 @@ export type CrmAccountMaxAggregateOutputType = {
   websiteUrl: string | null;
   domain: string | null;
   country: string | null;
+  city: string | null;
+  address: string | null;
+  timeZone: string | null;
   customerType: string | null;
   status: string | null;
   sourceTaskId: string | null;
@@ -70,6 +76,9 @@ export type CrmAccountCountAggregateOutputType = {
   websiteUrl: number;
   domain: number;
   country: number;
+  city: number;
+  address: number;
+  timeZone: number;
   customerType: number;
   status: number;
   sourceTaskId: number;
@@ -90,6 +99,9 @@ export type CrmAccountMinAggregateInputType = {
   websiteUrl?: true;
   domain?: true;
   country?: true;
+  city?: true;
+  address?: true;
+  timeZone?: true;
   customerType?: true;
   status?: true;
   sourceTaskId?: true;
@@ -109,6 +121,9 @@ export type CrmAccountMaxAggregateInputType = {
   websiteUrl?: true;
   domain?: true;
   country?: true;
+  city?: true;
+  address?: true;
+  timeZone?: true;
   customerType?: true;
   status?: true;
   sourceTaskId?: true;
@@ -128,6 +143,9 @@ export type CrmAccountCountAggregateInputType = {
   websiteUrl?: true;
   domain?: true;
   country?: true;
+  city?: true;
+  address?: true;
+  timeZone?: true;
   customerType?: true;
   status?: true;
   sourceTaskId?: true;
@@ -221,6 +239,9 @@ export type CrmAccountGroupByOutputType = {
   websiteUrl: string | null;
   domain: string | null;
   country: string | null;
+  city: string | null;
+  address: string | null;
+  timeZone: string | null;
   customerType: string | null;
   status: string;
   sourceTaskId: string | null;
@@ -258,6 +279,9 @@ export type CrmAccountWhereInput = {
   websiteUrl?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   domain?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   country?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  city?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  address?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  timeZone?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringFilter<'CrmAccount'> | string;
   sourceTaskId?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
@@ -286,6 +310,9 @@ export type CrmAccountOrderByWithRelationInput = {
   websiteUrl?: Prisma.SortOrderInput | Prisma.SortOrder;
   domain?: Prisma.SortOrderInput | Prisma.SortOrder;
   country?: Prisma.SortOrderInput | Prisma.SortOrder;
+  city?: Prisma.SortOrderInput | Prisma.SortOrder;
+  address?: Prisma.SortOrderInput | Prisma.SortOrder;
+  timeZone?: Prisma.SortOrderInput | Prisma.SortOrder;
   customerType?: Prisma.SortOrderInput | Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -319,6 +346,9 @@ export type CrmAccountWhereUniqueInput = Prisma.AtLeast<
     websiteUrl?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     domain?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     country?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+    city?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+    address?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+    timeZone?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     status?: Prisma.StringFilter<'CrmAccount'> | string;
     sourceTaskId?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
@@ -349,6 +379,9 @@ export type CrmAccountOrderByWithAggregationInput = {
   websiteUrl?: Prisma.SortOrderInput | Prisma.SortOrder;
   domain?: Prisma.SortOrderInput | Prisma.SortOrder;
   country?: Prisma.SortOrderInput | Prisma.SortOrder;
+  city?: Prisma.SortOrderInput | Prisma.SortOrder;
+  address?: Prisma.SortOrderInput | Prisma.SortOrder;
+  timeZone?: Prisma.SortOrderInput | Prisma.SortOrder;
   customerType?: Prisma.SortOrderInput | Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -374,6 +407,9 @@ export type CrmAccountScalarWhereWithAggregatesInput = {
   websiteUrl?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   domain?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   country?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
+  city?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
+  address?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
+  timeZone?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   customerType?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringWithAggregatesFilter<'CrmAccount'> | string;
   sourceTaskId?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
@@ -392,6 +428,9 @@ export type CrmAccountCreateInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -420,6 +459,9 @@ export type CrmAccountUncheckedCreateInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -446,6 +488,9 @@ export type CrmAccountUpdateInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -474,6 +519,9 @@ export type CrmAccountUncheckedUpdateInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -501,6 +549,9 @@ export type CrmAccountCreateManyInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -519,6 +570,9 @@ export type CrmAccountUpdateManyMutationInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -538,6 +592,9 @@ export type CrmAccountUncheckedUpdateManyInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -573,6 +630,9 @@ export type CrmAccountCountOrderByAggregateInput = {
   websiteUrl?: Prisma.SortOrder;
   domain?: Prisma.SortOrder;
   country?: Prisma.SortOrder;
+  city?: Prisma.SortOrder;
+  address?: Prisma.SortOrder;
+  timeZone?: Prisma.SortOrder;
   customerType?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrder;
@@ -592,6 +652,9 @@ export type CrmAccountMaxOrderByAggregateInput = {
   websiteUrl?: Prisma.SortOrder;
   domain?: Prisma.SortOrder;
   country?: Prisma.SortOrder;
+  city?: Prisma.SortOrder;
+  address?: Prisma.SortOrder;
+  timeZone?: Prisma.SortOrder;
   customerType?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrder;
@@ -611,6 +674,9 @@ export type CrmAccountMinOrderByAggregateInput = {
   websiteUrl?: Prisma.SortOrder;
   domain?: Prisma.SortOrder;
   country?: Prisma.SortOrder;
+  city?: Prisma.SortOrder;
+  address?: Prisma.SortOrder;
+  timeZone?: Prisma.SortOrder;
   customerType?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrder;
@@ -920,6 +986,9 @@ export type CrmAccountCreateWithoutOrganizationInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -946,6 +1015,9 @@ export type CrmAccountUncheckedCreateWithoutOrganizationInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1017,6 +1089,9 @@ export type CrmAccountScalarWhereInput = {
   websiteUrl?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   domain?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   country?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  city?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  address?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  timeZone?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringFilter<'CrmAccount'> | string;
   sourceTaskId?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
@@ -1035,6 +1110,9 @@ export type CrmAccountCreateWithoutContactsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1062,6 +1140,9 @@ export type CrmAccountUncheckedCreateWithoutContactsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1103,6 +1184,9 @@ export type CrmAccountUpdateWithoutContactsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1130,6 +1214,9 @@ export type CrmAccountUncheckedUpdateWithoutContactsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1155,6 +1242,9 @@ export type CrmAccountCreateWithoutEnrichmentHistoriesInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1182,6 +1272,9 @@ export type CrmAccountUncheckedCreateWithoutEnrichmentHistoriesInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1235,6 +1328,9 @@ export type CrmAccountUpdateWithoutEnrichmentHistoriesInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1262,6 +1358,9 @@ export type CrmAccountUncheckedUpdateWithoutEnrichmentHistoriesInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1287,6 +1386,9 @@ export type CrmAccountCreateWithoutEventsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1314,6 +1416,9 @@ export type CrmAccountUncheckedCreateWithoutEventsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1355,6 +1460,9 @@ export type CrmAccountUpdateWithoutEventsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1382,6 +1490,9 @@ export type CrmAccountUncheckedUpdateWithoutEventsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1407,6 +1518,9 @@ export type CrmAccountCreateWithoutEnrollmentsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1434,6 +1548,9 @@ export type CrmAccountUncheckedCreateWithoutEnrollmentsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1487,6 +1604,9 @@ export type CrmAccountUpdateWithoutEnrollmentsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1514,6 +1634,9 @@ export type CrmAccountUncheckedUpdateWithoutEnrollmentsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1539,6 +1662,9 @@ export type CrmAccountCreateWithoutMessagesInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1566,6 +1692,9 @@ export type CrmAccountUncheckedCreateWithoutMessagesInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1607,6 +1736,9 @@ export type CrmAccountUpdateWithoutMessagesInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1634,6 +1766,9 @@ export type CrmAccountUncheckedUpdateWithoutMessagesInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1659,6 +1794,9 @@ export type CrmAccountCreateWithoutMessageDraftVersionsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1686,6 +1824,9 @@ export type CrmAccountUncheckedCreateWithoutMessageDraftVersionsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1739,6 +1880,9 @@ export type CrmAccountUpdateWithoutMessageDraftVersionsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1766,6 +1910,9 @@ export type CrmAccountUncheckedUpdateWithoutMessageDraftVersionsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1791,6 +1938,9 @@ export type CrmAccountCreateWithoutInboxThreadsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1818,6 +1968,9 @@ export type CrmAccountUncheckedCreateWithoutInboxThreadsInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1871,6 +2024,9 @@ export type CrmAccountUpdateWithoutInboxThreadsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1898,6 +2054,9 @@ export type CrmAccountUncheckedUpdateWithoutInboxThreadsInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -1923,6 +2082,9 @@ export type CrmAccountCreateWithoutInboxMessagesInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -1950,6 +2112,9 @@ export type CrmAccountUncheckedCreateWithoutInboxMessagesInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -2003,6 +2168,9 @@ export type CrmAccountUpdateWithoutInboxMessagesInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -2030,6 +2198,9 @@ export type CrmAccountUncheckedUpdateWithoutInboxMessagesInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -2055,6 +2226,9 @@ export type CrmAccountCreateManyOrganizationInput = {
   websiteUrl?: string | null;
   domain?: string | null;
   country?: string | null;
+  city?: string | null;
+  address?: string | null;
+  timeZone?: string | null;
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
@@ -2073,6 +2247,9 @@ export type CrmAccountUpdateWithoutOrganizationInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -2099,6 +2276,9 @@ export type CrmAccountUncheckedUpdateWithoutOrganizationInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -2125,6 +2305,9 @@ export type CrmAccountUncheckedUpdateManyWithoutOrganizationInput = {
   websiteUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   domain?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
@@ -2259,6 +2442,9 @@ export type CrmAccountSelect<
     websiteUrl?: boolean;
     domain?: boolean;
     country?: boolean;
+    city?: boolean;
+    address?: boolean;
+    timeZone?: boolean;
     customerType?: boolean;
     status?: boolean;
     sourceTaskId?: boolean;
@@ -2293,6 +2479,9 @@ export type CrmAccountSelectCreateManyAndReturn<
     websiteUrl?: boolean;
     domain?: boolean;
     country?: boolean;
+    city?: boolean;
+    address?: boolean;
+    timeZone?: boolean;
     customerType?: boolean;
     status?: boolean;
     sourceTaskId?: boolean;
@@ -2318,6 +2507,9 @@ export type CrmAccountSelectUpdateManyAndReturn<
     websiteUrl?: boolean;
     domain?: boolean;
     country?: boolean;
+    city?: boolean;
+    address?: boolean;
+    timeZone?: boolean;
     customerType?: boolean;
     status?: boolean;
     sourceTaskId?: boolean;
@@ -2340,6 +2532,9 @@ export type CrmAccountSelectScalar = {
   websiteUrl?: boolean;
   domain?: boolean;
   country?: boolean;
+  city?: boolean;
+  address?: boolean;
+  timeZone?: boolean;
   customerType?: boolean;
   status?: boolean;
   sourceTaskId?: boolean;
@@ -2361,6 +2556,9 @@ export type CrmAccountOmit<
   | 'websiteUrl'
   | 'domain'
   | 'country'
+  | 'city'
+  | 'address'
+  | 'timeZone'
   | 'customerType'
   | 'status'
   | 'sourceTaskId'
@@ -2421,6 +2619,9 @@ export type $CrmAccountPayload<
       websiteUrl: string | null;
       domain: string | null;
       country: string | null;
+      city: string | null;
+      address: string | null;
+      timeZone: string | null;
       customerType: string | null;
       status: string;
       sourceTaskId: string | null;
@@ -2995,6 +3196,9 @@ export interface CrmAccountFieldRefs {
   readonly websiteUrl: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly domain: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly country: Prisma.FieldRef<'CrmAccount', 'String'>;
+  readonly city: Prisma.FieldRef<'CrmAccount', 'String'>;
+  readonly address: Prisma.FieldRef<'CrmAccount', 'String'>;
+  readonly timeZone: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly customerType: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly status: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly sourceTaskId: Prisma.FieldRef<'CrmAccount', 'String'>;

@@ -28,6 +28,32 @@ const maxSearchPages = 3;
 const maxPlacesPages = 2;
 const maxMapsPages = 2;
 const candidatePoolMultiplier = 1.5;
+const blockedLeadHostPatterns = [
+  /(^|\.)taobao\.com$/i,
+  /(^|\.)tmall\.com$/i,
+  /(^|\.)1688\.com$/i,
+  /(^|\.)alibaba\.com$/i,
+  /(^|\.)made-in-china\.com$/i,
+  /(^|\.)ruten\.com\.tw$/i,
+  /(^|\.)bid\.yahoo\.com$/i,
+  /(^|\.)shopee\.(?:com|tw|sg|my|ph|id|vn|th)$/i,
+  /(^|\.)pchome\.com\.tw$/i,
+  /(^|\.)momo\.com\.tw$/i,
+  /(^|\.)yahoo\.com$/i,
+  /(^|\.)ebay\./i,
+  /(^|\.)amazon\./i
+];
+const blockedLeadTextPatterns = [
+  /淘寶/i,
+  /淘宝/i,
+  /拍賣/i,
+  /拍卖/i,
+  /auction/i,
+  /marketplace/i,
+  /商城/i,
+  /賣場/i,
+  /卖场/i
+];
 
 export interface AiLeadSearchContext {
   user?: RequestUserContext | null;
@@ -840,7 +866,7 @@ function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
       const title = stringValue(record.title);
       const dedupeKey = getDomain(url) || title;
 
-      if (!dedupeKey) {
+      if (!dedupeKey || isBlockedLeadUrl(url, title)) {
         return null;
       }
 
@@ -903,4 +929,14 @@ function getDomain(url: string) {
   } catch {
     return '';
   }
+}
+
+/** Filters out marketplace and consumer platform results that are not real B2B targets. */
+function isBlockedLeadUrl(url: string, title: string) {
+  const normalizedHost = getDomain(url).toLowerCase();
+
+  return (
+    blockedLeadHostPatterns.some(pattern => pattern.test(normalizedHost)) ||
+    blockedLeadTextPatterns.some(pattern => pattern.test(title))
+  );
 }

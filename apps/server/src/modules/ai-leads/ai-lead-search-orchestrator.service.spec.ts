@@ -182,6 +182,86 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.match(executedKeys[1], /qdr:y/);
   });
 
+  it('filters marketplace and auction results out of search candidates', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'tw',
+              hl: 'zh',
+              location: 'Taiwan',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      {
+        organic: [
+          {
+            title: '日本進口 6203 軸承 - 淘寶',
+            link: 'https://guangtao.taobao.com/item.htm',
+            snippet: '平台商品頁'
+          },
+          {
+            title: '6203 Bearing Co., Ltd.',
+            link: 'https://www.bearing-example.com',
+            snippet: 'Official B2B bearing supplier'
+          },
+          {
+            title: '6203 軸承 - Yahoo 拍賣',
+            link: 'https://tw.bid.yahoo.com/item/123',
+            snippet: '拍賣平台'
+          }
+        ]
+      }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '找台湾轴承客户',
+        targetLeadCount: 10,
+        keywordPlan: {
+          resolvedProductKeywords: '6203 bearing',
+          resolvedTargetRegions: '台湾',
+          resolvedTargetCustomerProfile: '台湾 B2B 经销商',
+          resolvedTargetLeadCount: 10,
+          serperSearchQueries: [
+            {
+              requestBody: {
+                q: '6203 bearing Taiwan',
+                gl: 'tw',
+                hl: 'en',
+                location: 'Taiwan',
+                num: 10,
+                page: 1
+              },
+              priority: '高'
+            }
+          ],
+          serperPlacesQueries: []
+        }
+      },
+      { user: createUser() }
+    );
+
+    assert.equal(result.candidates.length, 1);
+    assert.equal(result.candidates[0].url, 'https://www.bearing-example.com');
+  });
+
   it('continues to the next Search page when the decision action is paginate', async () => {
     const aiGateway = createAiGateway([
       {

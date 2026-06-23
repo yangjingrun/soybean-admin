@@ -44,6 +44,30 @@ describe('route shared auth helpers', () => {
     assert.ok(route);
     assert.equal(hasRouteAccess(createUser(), route.meta), true);
   });
+  it('lifts CRM workflow pages to first-level menus', () => {
+    const crmRoute = generatedRoutes.find(item => item.name === 'crm');
+    assert.equal(crmRoute?.meta?.flattenChildrenInMenu, true);
+    assert.deepEqual(
+      crmRoute?.children?.map(child => [child.name, child.meta?.order]),
+      [
+        ['crm_email-sequences', 4],
+        ['crm_gmail-oauth-callback', undefined],
+        ['crm_inbox', 5],
+        ['crm_leads', 3],
+        ['crm_settings', 8]
+      ]
+    );
+    assert.deepEqual(
+      generatedRoutes
+        .filter(item => ['ai-settings', 'ai-prompt-settings', 'manage'].includes(item.name))
+        .map(item => [item.name, item.meta?.order]),
+      [
+        ['ai-prompt-settings', 7],
+        ['ai-settings', 6],
+        ['manage', 9]
+      ]
+    );
+  });
 });
 function createUser(input = {}) {
   return {

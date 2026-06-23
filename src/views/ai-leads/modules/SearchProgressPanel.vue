@@ -2,9 +2,11 @@
 import { computed, h } from 'vue';
 import { NProgress, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
+import { useRouterPush } from '@/hooks/common/router';
 import { getMetricDisplayText } from './search-progress';
 import type { LeadSearchProgressState } from './search-progress';
 import { buildAiLeadCandidateImportRows, type AiLeadCandidateImportRow } from './shared';
+import { resolveConfigHintTarget } from './config-hint';
 
 const props = defineProps<{
   state: LeadSearchProgressState;
@@ -16,6 +18,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   processCollectedLeads: [];
 }>();
+
+const { routerPushByKey } = useRouterPush();
+
+const errorConfigHint = computed(() => resolveConfigHintTarget(props.state.errorMessage));
+
+/** Jumps to the AI settings page and opens the tab that resolves the current error. */
+function handleGoConfig(tab: string) {
+  void routerPushByKey('ai-settings', { query: { tab } });
+}
 
 const statusTextMap: Record<LeadSearchProgressState['status'], string> = {
   idle: '等待开始',
@@ -63,6 +74,19 @@ const summaryItems = computed(() => {
 });
 const candidateRows = computed(() => buildAiLeadCandidateImportRows(props.state.result?.candidates ?? []));
 const showSourceColumn = computed(() => candidateRows.value.some(row => Boolean(row.candidate.sourceLabel?.trim())));
+const importedCount = computed(() => candidateRows.value.filter(row => row.importState.canImport).length);
+const skippedCount = computed(() => candidateRows.value.length - importedCount.value);
+const skippedRows = computed(() => candidateRows.value.filter(row => !row.importState.canImport));
+const crmNextStepTitle = computed(() =>
+  importedCount.value > 0 ? `已为你存入 ${importedCount.value} 个客户` : '本次没有可直接存入的客户'
+);
+const crmNextStepHint = computed(() => {
+  const skippedHint = skippedCount.value > 0 ? `另有 ${skippedCount.value} 个信息不全没存入。` : '';
+  return `${skippedHint}点右侧按钮去客户管理跟进、补联系人、发开发信。`;
+});
+const crmNextStepButtonText = computed(() =>
+  importedCount.value > 0 ? `去跟进 ${importedCount.value} 个客户 →` : '去客户管理 →'
+);
 const serperResultRows = computed(() =>
   (props.showSerperDetails ? (props.state.result?.serperResults ?? []) : []).map((item, index) => ({
     key: `${item.endpoint}-${index}`,
@@ -71,6 +95,29 @@ const serperResultRows = computed(() =>
     resultCode: formatJson(item.result)
   }))
 );
+const sourceColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
+  title: '来源',
+  key: 'sourceLabel',
+  width: 130,
+  render: row => {
+    const sourceLabel = row.candidate.sourceLabel?.trim();
+
+    if (!sourceLabel) {
+      return '-';
+    }
+
+    return h(
+      NTag,
+      {
+        size: 'small',
+        bordered: false,
+        type: sourceLabel.includes('本地') ? 'success' : 'info'
+      },
+      { default: () => sourceLabel }
+    );
+  }
+};
+
 const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(() => {
   const columns: DataTableColumns<AiLeadCandidateImportRow> = [
     {
@@ -121,7 +168,7 @@ const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(()
       render: row => row.candidate.phoneNumber || '-'
     },
     {
-      title: 'CRM 状态',
+      title: '处理结果',
       key: 'importState',
       minWidth: 170,
       render: row =>
@@ -131,9 +178,9 @@ const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(()
             {
               size: 'small',
               bordered: false,
-              type: row.importState.canImport ? 'success' : 'warning'
+              type: row.importState.canImport ? 'success' : 'default'
             },
-            { default: () => (row.importState.canImport ? '已入库' : '已过滤') }
+            { default: () => (row.importState.canImport ? '已存入' : '没存入') }
           ),
           h('span', { class: 'candidate-quality-text' }, getImportStateText(row))
         ])
@@ -141,32 +188,47 @@ const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(()
   ];
 
   if (showSourceColumn.value) {
-    columns.splice(5, 0, {
-      title: '来源',
-      key: 'sourceLabel',
-      width: 130,
-      render: row => {
-        const sourceLabel = row.candidate.sourceLabel?.trim();
-
-        if (!sourceLabel) {
-          return '-';
-        }
-
-        return h(
-          NTag,
-          {
-            size: 'small',
-            bordered: false,
-            type: sourceLabel.includes('本地') ? 'success' : 'info'
-          },
-          { default: () => sourceLabel }
-        );
-      }
-    });
+    columns.splice(5, 0, sourceColumn);
   }
 
   return columns;
 });
+
+const skippedColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(() => [
+  {
+    title: '线索名称',
+    key: 'title',
+    minWidth: 180,
+    ellipsis: { tooltip: true },
+    render: row => row.candidate.title || '-'
+  },
+  {
+    title: '网站',
+    key: 'website',
+    minWidth: 220,
+    ellipsis: { tooltip: true },
+    render: row =>
+      row.candidate.website
+        ? h(
+            'a',
+            {
+              class: 'candidate-link',
+              href: row.candidate.website,
+              rel: 'noopener noreferrer',
+              target: '_blank'
+            },
+            row.candidate.website
+          )
+        : '-'
+  },
+  {
+    title: '没存入原因',
+    key: 'reason',
+    minWidth: 200,
+    render: row =>
+      h(NTag, { size: 'small', bordered: false, type: 'warning' }, { default: () => getImportStateText(row) })
+  }
+]);
 
 function getStepIndex(index: number) {
   return String(index + 1).padStart(2, '0');
@@ -184,13 +246,22 @@ function getSerperResultTitle(item: Api.AiLeads.LeadSearchSerperResultView, inde
   return q ? `${getStepIndex(index)} ${item.endpoint} · ${q}` : `${getStepIndex(index)} ${item.endpoint}`;
 }
 
-/** Keeps CRM status copy user-facing and hides internal domain details after import. */
+const importSkipReasonText: Record<string, string> = {
+  缺少公司名: '没找到公司名',
+  缺少官网或域名: '没找到官网',
+  重复域名: '这家重复了',
+  候选质量偏低: '信息太少'
+};
+
+/** Keeps CRM status copy plain-language and hides internal domain details. */
 function getImportStateText(row: AiLeadCandidateImportRow) {
   if (row.importState.canImport) {
-    return '已进入 CRM 客户管理';
+    return '可以去跟进了';
   }
 
-  return row.importState.reasons.join('、') || '该线索暂未进入 CRM';
+  const reasons = row.importState.reasons.map(reason => importSkipReasonText[reason] ?? reason);
+
+  return reasons.join('、') || '信息不全';
 }
 </script>
 
@@ -226,17 +297,22 @@ function getImportStateText(row: AiLeadCandidateImportRow) {
     </section>
 
     <NAlert v-if="state.errorMessage" type="error" :bordered="false">
-      {{ state.errorMessage }}
+      <div class="error-hint">
+        <span class="error-hint__text">{{ state.errorMessage }}</span>
+        <NButton v-if="errorConfigHint" size="small" type="primary" @click="handleGoConfig(errorConfigHint.tab)">
+          {{ errorConfigHint.label }}
+        </NButton>
+      </div>
     </NAlert>
 
     <NAlert v-if="state.status === 'completed'" type="success" :bordered="false" class="crm-next-step-alert">
       <div class="crm-next-step">
         <div class="crm-next-step__copy">
-          <NText strong>可用线索已自动进入 CRM</NText>
-          <NText depth="3">下一步处理本次客户，补齐联系人、验证邮箱，并从可开发联系人创建开发信。</NText>
+          <NText strong>{{ crmNextStepTitle }}</NText>
+          <NText depth="3">{{ crmNextStepHint }}</NText>
         </div>
-        <NButton type="primary" size="small" :disabled="!processable" @click="emit('processCollectedLeads')">
-          处理本次客户
+        <NButton type="primary" :disabled="!processable" @click="emit('processCollectedLeads')">
+          {{ crmNextStepButtonText }}
         </NButton>
       </div>
     </NAlert>
@@ -276,17 +352,35 @@ function getImportStateText(row: AiLeadCandidateImportRow) {
     </NAlert>
 
     <section v-if="state.result" class="candidate-section">
-      <div class="section-title">候选客户</div>
-      <NDataTable
-        v-if="candidateRows.length"
-        size="small"
-        :columns="candidateColumns"
-        :data="candidateRows"
-        :bordered="false"
-        :pagination="{ pageSize: 8 }"
-        :row-key="row => row.importState.key"
-        scroll-x="1220"
-      />
+      <template v-if="skippedRows.length">
+        <div class="section-title">没存入的客户（{{ skippedRows.length }}）</div>
+        <NAlert type="warning" :bordered="false">
+          这些线索信息不全，没有进入客户管理。需要的话可手动补充后，在客户管理里新增。
+        </NAlert>
+        <NDataTable
+          size="small"
+          :columns="skippedColumns"
+          :data="skippedRows"
+          :bordered="false"
+          :pagination="skippedRows.length > 5 ? { pageSize: 5 } : false"
+          :row-key="row => row.importState.key"
+          scroll-x="640"
+        />
+      </template>
+
+      <NCollapse v-if="candidateRows.length" class="found-collapse">
+        <NCollapseItem :title="`查看本次找到的 ${candidateRows.length} 家`" name="found">
+          <NDataTable
+            size="small"
+            :columns="candidateColumns"
+            :data="candidateRows"
+            :bordered="false"
+            :pagination="{ pageSize: 8 }"
+            :row-key="row => row.importState.key"
+            scroll-x="1220"
+          />
+        </NCollapseItem>
+      </NCollapse>
       <NEmpty v-else description="暂未采集到候选客户" />
     </section>
 
@@ -507,6 +601,19 @@ function getImportStateText(row: AiLeadCandidateImportRow) {
 :deep(.candidate-quality-text) {
   color: var(--n-text-color-3);
   font-size: 12px;
+}
+
+.error-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.error-hint__text {
+  min-width: 0;
+  flex: 1;
 }
 
 .crm-next-step {
