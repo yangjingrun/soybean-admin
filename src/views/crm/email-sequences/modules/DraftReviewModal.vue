@@ -13,6 +13,7 @@ import {
   buildDraftVersionListItems,
   buildSequenceMessageTimelineItems,
   buildSequencePolicyReviewHints,
+  canRegenerateAiDraft,
   canGenerateNextSequenceDraft,
   isDraftBlockedBySequencePolicy,
   getMessageStatusView,
@@ -27,6 +28,7 @@ const props = defineProps<{
   item: Api.Crm.SequenceReviewItem | null;
   loading?: boolean;
   nextDraftGenerating?: boolean;
+  regenerating?: boolean;
   refreshing?: boolean;
   saving?: boolean;
   sendStarting?: boolean;
@@ -41,6 +43,7 @@ const emit = defineEmits<{
   approveDraft: [payload: DraftReviewApprovePayload];
   generateNextDraft: [];
   loadDraftVersions: [messageId: string | null];
+  regenerateDraft: [];
   refresh: [];
   restoreDraftVersion: [payload: { messageId: string; versionId: string }];
   saveDraft: [payload: DraftReviewSavePayload];
@@ -104,6 +107,7 @@ const isCurrentDraftBlockedByPolicy = computed(() =>
   Boolean(props.item && isDraftBlockedBySequencePolicy(props.item, currentMessage.value))
 );
 const canApprove = computed(() => canOperateSelectedDraft.value && !isCurrentDraftBlockedByPolicy.value);
+const canRegenerate = computed(() => Boolean(props.item && canRegenerateAiDraft(props.item, currentMessage.value)));
 const draftVersionItems = computed(() => buildDraftVersionListItems(props.versions ?? []));
 const selectedDraftVersionId = shallowRef<string | null>(null);
 const hoveredDraftVersionId = shallowRef<string | null>(null);
@@ -462,7 +466,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
           </div>
 
           <div class="review-flow">
-            <main class="review-main">
+            <div class="review-main">
               <div class="review-section">
                 <div class="section-heading">
                   <div>
@@ -488,35 +492,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
                   </NFormItem>
                 </NForm>
               </div>
-            </main>
-
-            <aside class="decision-panel">
-              <div>
-                <div class="section-title">当前处理</div>
-                <div class="decision-subtitle">{{ statusTip }}</div>
-              </div>
-              <div
-                class="decision-checks"
-                :class="{ 'decision-checks--flow': item.checklist.length > 1 }"
-                aria-label="处理顺序从下到上"
-              >
-                <div
-                  v-for="check in item.checklist"
-                  :key="check.key"
-                  class="decision-check"
-                  :class="{ 'decision-check--passed': check.passed, 'decision-check--warning': !check.passed }"
-                >
-                  <NTag :type="check.passed ? 'success' : 'warning'" :bordered="false" size="small">
-                    {{ check.passed ? '通过' : '确认' }}
-                  </NTag>
-                  <div class="decision-check-content">
-                    <div class="decision-check-title">{{ check.label }}</div>
-                    <div class="decision-check-message">{{ check.message }}</div>
-                  </div>
-                </div>
-                <NEmpty v-if="!item.checklist.length" description="暂无需要确认的审核项" size="small" />
-              </div>
-            </aside>
+            </div>
           </div>
 
           <NCollapse class="advanced-info">
@@ -601,7 +577,9 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               <NButton
                 type="error"
                 secondary
-                :disabled="loading || saving || approving || sendStarting || refreshing || nextDraftGenerating"
+                :disabled="
+                  loading || saving || approving || sendStarting || refreshing || nextDraftGenerating || regenerating
+                "
                 :loading="stopping"
               >
                 停止跟进
@@ -610,6 +588,24 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             停止后当前跟进不会继续发送，队列中的旧任务也会失效。
           </NPopconfirm>
           <NButton
+            v-if="canRegenerate"
+            :disabled="
+              loading ||
+              saving ||
+              approving ||
+              refreshing ||
+              sendStarting ||
+              stopping ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage
+            "
+            :loading="regenerating"
+            @click="emit('regenerateDraft')"
+          >
+            重新生成
+          </NButton>
+          <NButton
             v-if="canEdit"
             :disabled="
               loading ||
@@ -617,6 +613,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               refreshing ||
               sendStarting ||
               stopping ||
+              regenerating ||
               versionRestoring ||
               nextDraftGenerating ||
               !currentMessage
@@ -635,6 +632,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               refreshing ||
               sendStarting ||
               stopping ||
+              regenerating ||
               versionRestoring ||
               nextDraftGenerating ||
               !currentMessage ||
@@ -647,7 +645,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
           </NButton>
           <NButton
             v-if="canGenerateNextDraft"
-            :disabled="loading || saving || approving || refreshing || sendStarting || stopping"
+            :disabled="loading || saving || approving || refreshing || sendStarting || stopping || regenerating"
             :loading="nextDraftGenerating"
             @click="emit('generateNextDraft')"
           >
@@ -657,7 +655,14 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             v-if="canStartSend"
             type="primary"
             :disabled="
-              loading || saving || approving || refreshing || stopping || nextDraftGenerating || !currentMessage
+              loading ||
+              saving ||
+              approving ||
+              refreshing ||
+              stopping ||
+              regenerating ||
+              nextDraftGenerating ||
+              !currentMessage
             "
             :loading="sendStarting"
             @click="emit('startSend')"
@@ -673,8 +678,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 <style scoped>
 .review-workbench,
 .review-section,
-.review-main,
-.decision-panel {
+.review-main {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -740,111 +744,11 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 }
 
 .review-flow {
-  display: grid;
-  align-items: start;
-  gap: 16px;
-  grid-template-columns: minmax(520px, 1.5fr) minmax(300px, 0.82fr);
+  display: block;
 }
 
 .review-section {
   min-width: 0;
-}
-
-.decision-panel {
-  min-width: 0;
-  border: 1px solid var(--n-border-color);
-  border-radius: 8px;
-  background: var(--n-table-color);
-  padding: 14px;
-}
-
-.decision-subtitle {
-  margin-top: 4px;
-  color: var(--n-text-color-3);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.decision-checks {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.decision-checks--flow {
-  position: relative;
-  padding-left: 24px;
-}
-
-.decision-checks--flow::before {
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 8px;
-  width: 2px;
-  border-radius: 999px;
-  background: linear-gradient(to top, rgba(99, 102, 241, 0.78), rgba(99, 102, 241, 0.2));
-  content: '';
-}
-
-.decision-checks--flow::after {
-  position: absolute;
-  top: 4px;
-  left: 3px;
-  width: 0;
-  height: 0;
-  border-right: 6px solid transparent;
-  border-bottom: 8px solid rgba(99, 102, 241, 0.78);
-  border-left: 6px solid transparent;
-  content: '';
-}
-
-.decision-check {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  border-radius: 6px;
-  padding: 10px;
-}
-
-.decision-checks--flow .decision-check::before {
-  position: absolute;
-  top: 50%;
-  left: -21px;
-  z-index: 1;
-  width: 8px;
-  height: 8px;
-  border: 2px solid var(--n-color);
-  border-radius: 50%;
-  background: rgba(99, 102, 241, 0.78);
-  content: '';
-  transform: translateY(-50%);
-}
-
-.decision-check--passed {
-  background: rgba(82, 196, 26, 0.08);
-}
-
-.decision-check--warning {
-  background: rgba(250, 173, 20, 0.1);
-}
-
-.decision-check-content {
-  min-width: 0;
-}
-
-.decision-check-title {
-  color: var(--n-text-color);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.decision-check-message {
-  margin-top: 2px;
-  color: var(--n-text-color-2);
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .advanced-info {
@@ -917,12 +821,6 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-}
-
-@media (max-width: 1280px) {
-  .review-flow {
-    grid-template-columns: minmax(460px, 1.35fr) minmax(280px, 0.85fr);
-  }
 }
 
 @media (max-width: 900px) {

@@ -24,6 +24,7 @@ import {
   buildSequenceReviewFilterTags,
   formatSequenceBatchResultText,
   canGenerateNextSequenceDraft,
+  canRegenerateAiDraft,
   canApproveSequenceDraftInBatch,
   canCreateAiDraftTaskForSequence,
   canStopSequenceInBatch,
@@ -699,6 +700,69 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canGenerateNextSequenceDraft(reachedLastStep), false);
     assert.equal(canGenerateNextSequenceDraft(stopped), false);
     assert.equal(canGenerateNextSequenceDraft(forbidden), false);
+  });
+
+  it('allows regenerating one pending AI draft only when the current draft is still operable', () => {
+    const aiEnabledProductLine = {
+      id: 'product-line-1',
+      organizationId: 'org-1',
+      name: '轴承',
+      targetCustomerType: null,
+      coreSellingPoints: null,
+      moq: null,
+      leadTime: null,
+      paymentTerms: null,
+      certifications: null,
+      catalogUrl: null,
+      websiteUrl: null,
+      commonModelsText: null,
+      aiWritingConfig: {
+        enabled: true,
+        commonRequirements: 'Natural English',
+        forbiddenClaims: 'No fake claims',
+        productEmphasis: 'Stable stock',
+        steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+          stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
+          prompt: `Step ${stepIndex}`
+        }))
+      },
+      status: 'active',
+      createdById: 'user-1',
+      createdByName: 'Alice',
+      createdAt: '2026-06-19T01:00:00.000Z',
+      updatedAt: '2026-06-19T01:00:00.000Z'
+    } satisfies Api.Crm.ProductLineRecord;
+    const firstDraftPending = createSequenceItem({
+      enrollment: { status: 'stopped' },
+      messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const followUpPending = createSequenceItem({
+      enrollment: { status: 'sequence_running' },
+      messages: [createMessage({ id: 'message-2', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+    const pausedFollowUp = createSequenceItem({
+      enrollment: { status: 'paused' },
+      messages: [createMessage({ id: 'message-3', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+    const notAiDraft = createSequenceItem({
+      messages: [createMessage({ id: 'message-4', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    firstDraftPending.productLine = aiEnabledProductLine;
+    followUpPending.productLine = aiEnabledProductLine;
+    pausedFollowUp.productLine = aiEnabledProductLine;
+    notAiDraft.productLine = {
+      ...aiEnabledProductLine,
+      aiWritingConfig: null
+    };
+
+    assert.equal(canRegenerateAiDraft(firstDraftPending, firstDraftPending.messages[0]), true);
+    assert.equal(canRegenerateAiDraft(followUpPending, followUpPending.messages[0]), true);
+    assert.equal(canRegenerateAiDraft(pausedFollowUp, pausedFollowUp.messages[0]), false);
+    assert.equal(canRegenerateAiDraft(notAiDraft, notAiDraft.messages[0]), false);
+    assert.equal(
+      canRegenerateAiDraft(firstDraftPending, createMessage({ id: 'message-5', stepIndex: 1, status: 'sent' })),
+      false
+    );
   });
 
   it('summarizes selected rows for owner-only batch actions', () => {

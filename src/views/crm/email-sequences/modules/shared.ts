@@ -482,6 +482,23 @@ export function canCreateAiDraftTaskForSequence(item: Api.Crm.SequenceReviewItem
   return canGenerateNextSequenceDraft(item) && Boolean(item.productLine?.aiWritingConfig?.enabled);
 }
 
+/** Check whether the selected pending-review draft can be regenerated from the AI prompt. */
+export function canRegenerateAiDraft(item: Api.Crm.SequenceReviewItem, message: Api.Crm.MessageRecord | null) {
+  if (!item.canOperateDraft || !item.productLine?.aiWritingConfig?.enabled || !message) {
+    return false;
+  }
+
+  if (message.status !== 'draft_pending_review') {
+    return false;
+  }
+
+  if (message.stepIndex === 1) {
+    return true;
+  }
+
+  return ['ready_to_send', 'sequence_running'].includes(item.enrollment.status);
+}
+
 /** Check whether one selected row can be stopped by an owner-only batch action. */
 export function canStopSequenceInBatch(item: Api.Crm.SequenceReviewItem) {
   return (

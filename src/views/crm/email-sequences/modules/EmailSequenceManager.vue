@@ -26,6 +26,7 @@ const {
   currentItem,
   detailRefreshing,
   draftApproving,
+  draftRegenerating,
   draftSaving,
   draftVersionLoading,
   draftVersionRestoring,
@@ -45,6 +46,7 @@ const {
   handleCreateVisibleUpdate,
   handleDrawerVisibleUpdate,
   handleGenerateNextDraft,
+  handleRegenerateAiDraft,
   handlePageSizeUpdate,
   handlePageUpdate,
   handleRefreshCurrentSequence,
@@ -121,6 +123,7 @@ const {
       :item="currentItem"
       :loading="drawerLoading"
       :next-draft-generating="nextDraftGenerating"
+      :regenerating="draftRegenerating"
       :refreshing="detailRefreshing"
       :saving="draftSaving"
       :send-starting="sendStarting"
@@ -131,6 +134,7 @@ const {
       @approve-draft="handleApproveDraft"
       @generate-next-draft="handleGenerateNextDraft"
       @load-draft-versions="loadDraftVersions"
+      @regenerate-draft="handleRegenerateAiDraft"
       @refresh="handleRefreshCurrentSequence"
       @restore-draft-version="handleRestoreDraftVersion"
       @save-draft="handleSaveDraft"

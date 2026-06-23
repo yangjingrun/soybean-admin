@@ -6,12 +6,14 @@ import {
   fetchCrmMessageDraftVersions,
   fetchCrmSequenceReviewItem,
   generateCrmNextSequenceDraft,
+  regenerateCrmMessageAiDraft,
   restoreCrmMessageDraftVersion,
   startCrmFirstMessageSend,
   stopCrmSequenceEnrollment,
   updateCrmMessageDraft
 } from '@/service/api';
 import {
+  canRegenerateAiDraft,
   canGenerateNextSequenceDraft,
   getPendingReviewMessage,
   type DraftReviewApprovePayload,
@@ -32,6 +34,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
   const drawerLoading = shallowRef(false);
   const draftSaving = shallowRef(false);
   const draftApproving = shallowRef(false);
+  const draftRegenerating = shallowRef(false);
   const draftVersionLoading = shallowRef(false);
   const draftVersionRestoring = shallowRef(false);
   const detailRefreshing = shallowRef(false);
@@ -46,6 +49,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
   let latestDraftVersionRequestId = 0;
   let latestDraftVersionRestoreRequestId = 0;
   let latestNextDraftGenerateRequestId = 0;
+  let latestDraftRegenerateRequestId = 0;
 
   function openCreatedReviewItem(item: Api.Crm.SequenceReviewItem) {
     currentItem.value = item;
@@ -277,6 +281,48 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     }
   }
 
+  async function handleRegenerateAiDraft() {
+    const messageId = selectedMessageId.value;
+    const item = currentItem.value;
+
+    if (!messageId || !item) {
+      return;
+    }
+
+    const targetMessage = item.messages.find(messageRecord => messageRecord.id === messageId) ?? null;
+
+    if (!canRegenerateAiDraft(item, targetMessage)) {
+      return;
+    }
+
+    const enrollmentId = item.enrollment.id;
+    const requestId = latestDraftRegenerateRequestId + 1;
+    latestDraftRegenerateRequestId = requestId;
+    draftRegenerating.value = true;
+
+    try {
+      const { data, error } = await regenerateCrmMessageAiDraft(messageId);
+
+      if (error || requestId !== latestDraftRegenerateRequestId) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || selectedMessageId.value !== messageId || !currentItem.value) {
+        return;
+      }
+
+      message.success('AI 草稿已重新生成');
+      notifyCrmWorkbenchChanged();
+      currentItem.value = replaceReviewMessage(currentItem.value, data.message);
+      await loadDraftVersions(messageId);
+      await options.loadSequences();
+    } finally {
+      if (requestId === latestDraftRegenerateRequestId) {
+        draftRegenerating.value = false;
+      }
+    }
+  }
+
   async function handleGenerateNextDraft() {
     const enrollmentId = selectedEnrollmentId.value;
     const messageId = selectedMessageId.value;
@@ -427,6 +473,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
       latestDraftVersionRequestId += 1;
       latestDraftVersionRestoreRequestId += 1;
       latestNextDraftGenerateRequestId += 1;
+      latestDraftRegenerateRequestId += 1;
       selectedEnrollmentId.value = null;
       selectedMessageId.value = null;
       currentItem.value = null;
@@ -438,6 +485,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     currentItem,
     detailRefreshing,
     draftApproving,
+    draftRegenerating,
     draftSaving,
     draftVersionLoading,
     draftVersionRestoring,
@@ -447,6 +495,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     handleApproveDraft,
     handleDrawerVisibleUpdate,
     handleGenerateNextDraft,
+    handleRegenerateAiDraft,
     handleRefreshCurrentSequence,
     handleRestoreDraftVersion,
     handleSaveDraft,

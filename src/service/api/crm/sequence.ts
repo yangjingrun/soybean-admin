@@ -35,6 +35,14 @@ export function updateCrmMessageDraft(id: string, data: Api.Crm.MessageDraftPayl
   });
 }
 
+/** Regenerate one owner draft from the configured AI writing prompt. */
+export function regenerateCrmMessageAiDraft(id: string) {
+  return request<Api.Crm.MessageDraftUpdateResult>({
+    url: `/crm/messages/${id}/regenerate-ai-draft`,
+    method: 'post'
+  });
+}
+
 /** List saved version snapshots for one owner draft message. */
 export function fetchCrmMessageDraftVersions(id: string) {
   return request<Api.Crm.MessageDraftVersionListResult>({
