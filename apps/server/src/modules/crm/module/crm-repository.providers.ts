@@ -23,7 +23,8 @@ import {
   CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY,
   CRM_SEQUENCE_REPOSITORY,
   CRM_SETTINGS_REPOSITORY,
-  CRM_SUPPRESSION_REPOSITORY
+  CRM_SUPPRESSION_REPOSITORY,
+  CRM_TRACKING_REPOSITORY
 } from '../crm.tokens';
 import { PrismaCrmAccountStore } from '../store/prisma-crm-account.store';
 import { PrismaCrmAiDraftTaskSourceStore } from '../store/prisma-crm-ai-draft-task-source.store';
@@ -49,6 +50,7 @@ import { PrismaCrmSequencePolicyStore } from '../store/prisma-crm-sequence-polic
 import { PrismaCrmSequenceStore } from '../store/prisma-crm-sequence.store';
 import { PrismaCrmSettingsStore } from '../store/prisma-crm-settings.store';
 import { PrismaCrmSuppressionStore } from '../store/prisma-crm-suppression.store';
+import { PrismaCrmTrackingStore } from '../store/prisma-crm-tracking.store';
 
 export const crmRepositoryProviders: Provider[] = [
   {
@@ -146,5 +148,9 @@ export const crmRepositoryProviders: Provider[] = [
   {
     provide: CRM_DASHBOARD_REPOSITORY,
     useClass: PrismaCrmDashboardStore
+  },
+  {
+    provide: CRM_TRACKING_REPOSITORY,
+    useClass: PrismaCrmTrackingStore
   }
 ];

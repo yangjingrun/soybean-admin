@@ -4,6 +4,7 @@ import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import type { CrmSendAvailabilityService } from './crm-send-availability.service';
 import type { CrmSendWorkerRepository } from './crm-send-worker.repository';
 import { CrmSendWorkerService } from './crm-send-worker.service';
+import { CrmTrackingTokenService } from './tracking/crm-tracking-token.service';
 import type {
   CrmAccountRecord,
   CrmContactRecord,
@@ -73,6 +74,31 @@ describe('CrmSendWorkerService', () => {
         providerThreadId: 'mock-thread:enrollment-1'
       }
     });
+  });
+
+  it('adds email open tracking context when tracking config exists', async () => {
+    const store = createWorkerStore({
+      enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2 }),
+      message: createMessage({ status: 'queued' }),
+      mailbox: createMailbox({ status: 'active' })
+    });
+    const gateway = createGateway();
+    const appConfig = createTrackingAppConfig();
+    const tokenService = new CrmTrackingTokenService(appConfig);
+    const worker = new CrmSendWorkerService(
+      store,
+      gateway,
+      createAllowingAvailability(),
+      undefined,
+      appConfig,
+      tokenService
+    );
+
+    await worker.processSendJob(createJob({ runVersion: 2 }));
+
+    assert.match(gateway.calls[0].tracking?.openPixelUrl ?? '', /^https:\/\/crm\.example\.com\/crm\/tracking\/open\//);
+    const token = decodeURIComponent(gateway.calls[0].tracking?.openPixelUrl.split('/').at(-1) ?? '');
+    assert.equal(tokenService.verifyMessageToken(token), 'message-1');
   });
 
   it('sends queued follow-up messages and creates the next step draft', async () => {
@@ -570,6 +596,28 @@ function createNotificationRecorder() {
         records.push(input);
         return input;
       }
+    }
+  };
+}
+
+function createTrackingAppConfig() {
+  return {
+    config: {
+      nodeEnv: 'test',
+      isProduction: false,
+      serverRuntimeRole: 'all' as const,
+      port: 9528,
+      serverCorsOrigins: null,
+      databaseUrl: undefined,
+      redisUrl: 'redis://127.0.0.1:6379',
+      aiConfigSecretEncryptionKey: undefined,
+      authAccessTokenTtlSeconds: 7200,
+      authRefreshTokenTtlSeconds: 1209600,
+      authDevFixedTokenEnabled: false,
+      crmEnableMockEndpoints: false,
+      crmTrackingPublicBaseUrl: 'https://crm.example.com',
+      crmTrackingTokenSecret: 'tracking-secret',
+      crmGmailIntegrationEnv: {}
     }
   };
 }

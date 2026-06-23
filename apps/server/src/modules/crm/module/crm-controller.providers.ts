@@ -4,6 +4,7 @@ import { CrmInboxController } from '../controllers/crm-inbox.controller';
 import { CrmMailboxController } from '../controllers/crm-mailbox.controller';
 import { CrmSequenceController } from '../controllers/crm-sequence.controller';
 import { CrmSettingsController } from '../controllers/crm-settings.controller';
+import { CrmTrackingController } from '../tracking/crm-tracking.controller';
 
 export const crmControllers = [
   CrmAccountController,
@@ -11,5 +12,6 @@ export const crmControllers = [
   CrmSettingsController,
   CrmSequenceController,
   CrmInboxController,
-  CrmGmailWebhookController
+  CrmGmailWebhookController,
+  CrmTrackingController
 ];

@@ -187,6 +187,7 @@ model Organization {
   crmInboxMessages   CrmInboxMessage[]
   crmAiDraftTasks CrmAiDraftTask[]
   crmAiDraftTaskItems CrmAiDraftTaskItem[]
+  crmEmailOpenEvents CrmEmailOpenEvent[]
 
   @@index([status])
 }
@@ -221,6 +222,7 @@ model CrmAccount {
   messageDraftVersions CrmMessageDraftVersion[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
+  emailOpenEvents CrmEmailOpenEvent[]
 
   @@unique([organizationId, ownerUserId, domain])
   @@index([organizationId, ownerUserId, updatedAt])
@@ -279,6 +281,7 @@ model CrmContact {
   messageDraftVersions CrmMessageDraftVersion[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
+  emailOpenEvents CrmEmailOpenEvent[]
 
   @@unique([organizationId, ownerUserId, emailHash])
   @@index([organizationId, accountId])
@@ -669,6 +672,7 @@ model CrmSequenceEnrollment {
   messageDraftVersions CrmMessageDraftVersion[]
   inboxThreads CrmInboxThread[]
   inboxMessages CrmInboxMessage[]
+  emailOpenEvents CrmEmailOpenEvent[]
 
   @@index([organizationId, ownerUserId, status, updatedAt])
   @@index([organizationId, updatedAt])
@@ -708,6 +712,7 @@ model CrmMessage {
   enrollment   CrmSequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   mailbox      CrmMailbox?           @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
   draftVersions CrmMessageDraftVersion[]
+  openEvent    CrmEmailOpenEvent?
 
   @@unique([enrollmentId, stepIndex])
   @@index([organizationId, ownerUserId, status, updatedAt])
@@ -718,6 +723,33 @@ model CrmMessage {
   @@index([organizationId, bullJobId])
   @@index([organizationId, ownerUserId, mailboxId, providerThreadId])
   @@unique([organizationId, ownerUserId, mailboxId, providerMessageId])
+}
+
+model CrmEmailOpenEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+  ownerUserId    String
+  accountId      String
+  contactId      String
+  enrollmentId   String
+  messageId      String   @unique
+  openCount      Int      @default(1)
+  firstOpenedAt  DateTime
+  lastOpenedAt   DateTime
+  lastUserAgent  String?
+  lastIpAddress  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  account      CrmAccount            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enrollment   CrmSequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  message      CrmMessage            @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, ownerUserId, lastOpenedAt])
+  @@index([organizationId, accountId, lastOpenedAt])
+  @@index([organizationId, contactId, lastOpenedAt])
 }
 
 model CrmMessageDraftVersion {

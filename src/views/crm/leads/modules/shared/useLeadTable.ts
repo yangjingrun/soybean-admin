@@ -336,10 +336,11 @@ export function useLeadTable() {
     }
   }
 
-  async function handleCreateContact(payload: Api.Crm.LeadContactCreatePayload) {
+  async function handleCreateContact(payload: Api.Crm.LeadContactCreatePayload, done?: (success: boolean) => void) {
     const accountId = selectedLeadId.value;
 
     if (!accountId) {
+      done?.(false);
       return false;
     }
 
@@ -349,6 +350,7 @@ export function useLeadTable() {
       const { error } = await createCrmContact(accountId, payload);
 
       if (error) {
+        done?.(false);
         return false;
       }
 
@@ -360,19 +362,25 @@ export function useLeadTable() {
         await loadLeadDetail(accountId);
       }
 
+      done?.(true);
       return true;
     } finally {
       contactSubmitting.value = false;
     }
   }
 
-  async function handleUpdateContact(contactId: string, payload: Api.Crm.LeadContactUpdatePayload) {
+  async function handleUpdateContact(
+    contactId: string,
+    payload: Api.Crm.LeadContactUpdatePayload,
+    done?: (success: boolean) => void
+  ) {
     contactSubmitting.value = true;
 
     try {
       const { error } = await updateCrmContact(contactId, payload);
 
       if (error) {
+        done?.(false);
         return false;
       }
 
@@ -383,6 +391,7 @@ export function useLeadTable() {
         await loadLeadDetail(selectedLeadId.value);
       }
 
+      done?.(true);
       return true;
     } finally {
       contactSubmitting.value = false;

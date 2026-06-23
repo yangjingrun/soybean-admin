@@ -68,6 +68,20 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     await loadSequenceDetail(row.enrollment.id);
   }
 
+  /** Opens one sequence directly from a route focus query and selects the target message. */
+  async function openFocusedSequence(enrollmentId: string, messageId: string) {
+    latestDraftApproveRequestId += 1;
+    latestDraftSaveRequestId += 1;
+    latestDraftVersionRequestId += 1;
+    latestDraftVersionRestoreRequestId += 1;
+    selectedEnrollmentId.value = enrollmentId;
+    selectedMessageId.value = messageId;
+    currentItem.value = null;
+    draftVersions.value = [];
+    drawerVisible.value = true;
+    await loadSequenceDetail(enrollmentId);
+  }
+
   async function loadSequenceDetail(id: string) {
     const requestId = latestDetailRequestId + 1;
     latestDetailRequestId = requestId;
@@ -442,6 +456,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     nextDraftGenerating,
     openCreatedReviewItem,
     openDraftDrawer,
+    openFocusedSequence,
     sendStarting,
     sequenceStopping
   };

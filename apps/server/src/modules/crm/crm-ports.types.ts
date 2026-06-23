@@ -176,6 +176,9 @@ export interface CrmEmailSendGatewayInput {
   account: CrmAccountRecord;
   contact: CrmContactRecord;
   mailbox: CrmMailboxRecord;
+  tracking?: {
+    openPixelUrl: string;
+  } | null;
 }
 
 export interface CrmInboxReplySendGatewayInput {

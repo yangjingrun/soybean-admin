@@ -11,6 +11,8 @@ export interface AppConfig {
   authRefreshTokenTtlSeconds: number;
   authDevFixedTokenEnabled: boolean;
   crmEnableMockEndpoints: boolean;
+  crmTrackingPublicBaseUrl: string | undefined;
+  crmTrackingTokenSecret: string | undefined;
   crmGmailIntegrationEnv: {
     NODE_ENV?: string;
     CRM_GMAIL_OAUTH_CLIENT_ID?: string;
@@ -63,6 +65,8 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // Dev fixed tokens are never available in production, even if env is misconfigured.
     authDevFixedTokenEnabled: isProduction ? false : readBoolean(env.AUTH_DEV_FIXED_TOKEN_ENABLED, true),
     crmEnableMockEndpoints: isProduction ? false : readBoolean(env.CRM_ENABLE_MOCK_ENDPOINTS, false),
+    crmTrackingPublicBaseUrl: readOptionalString(env.CRM_TRACKING_PUBLIC_BASE_URL, 'CRM_TRACKING_PUBLIC_BASE_URL'),
+    crmTrackingTokenSecret: readOptionalString(env.CRM_TRACKING_TOKEN_SECRET, 'CRM_TRACKING_TOKEN_SECRET'),
     crmGmailIntegrationEnv: {
       NODE_ENV: nodeEnv,
       CRM_GMAIL_OAUTH_CLIENT_ID: env.CRM_GMAIL_OAUTH_CLIENT_ID,

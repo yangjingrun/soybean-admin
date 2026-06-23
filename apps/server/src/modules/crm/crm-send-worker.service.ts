@@ -1,10 +1,12 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { AppConfigService } from '../app-config/app-config.service';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { CrmGmailAuthorizationExpiredError } from './crm-email-send.gateway';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { CrmSendAvailabilityService } from './crm-send-availability.service';
 import type { CrmSendWorkerRepository } from './crm-send-worker.repository';
 import { CRM_EMAIL_SEND_GATEWAY, CRM_SEND_WORKER_REPOSITORY } from './crm.tokens';
+import { CrmTrackingTokenService } from './tracking/crm-tracking-token.service';
 import type {
   CrmEmailSendGateway,
   CrmEmailTemplateGroupRecord,
@@ -27,7 +29,13 @@ export class CrmSendWorkerService {
     @Inject(CrmSendAvailabilityService) private readonly availabilityService: CrmSendAvailabilityService,
     @Optional()
     @Inject(SystemNotificationService)
-    private readonly systemNotificationService?: SystemNotificationService
+    private readonly systemNotificationService?: SystemNotificationService,
+    @Optional()
+    @Inject(AppConfigService)
+    private readonly appConfigService?: AppConfigService,
+    @Optional()
+    @Inject(CrmTrackingTokenService)
+    private readonly trackingTokenService?: CrmTrackingTokenService
   ) {}
 
   /** Processes one queued CRM email with persisted guards before mock/real sending. */
@@ -72,7 +80,8 @@ export class CrmSendWorkerService {
         message: item.firstMessage,
         account: item.account,
         contact: item.contact,
-        mailbox: item.mailbox
+        mailbox: item.mailbox,
+        tracking: this.buildEmailOpenTrackingContext(item.firstMessage)
       });
       const sentAt = new Date();
       await this.store.completeFirstMessageSend({
@@ -141,6 +150,21 @@ export class CrmSendWorkerService {
       followUpDelayDays: context.followUpDelayDays,
       templateGroup: context.templateGroup
     });
+  }
+
+  private buildEmailOpenTrackingContext(message: CrmSendDeliveryClaimRecord['firstMessage']) {
+    const baseUrl = this.appConfigService?.config.crmTrackingPublicBaseUrl?.trim();
+
+    if (!baseUrl || !this.trackingTokenService) {
+      return null;
+    }
+
+    const token = this.trackingTokenService.signMessageId(message.id);
+    const openPixelUrl = new URL(`/crm/tracking/open/${encodeURIComponent(token)}`, baseUrl).toString();
+
+    return {
+      openPixelUrl
+    };
   }
 
   private async markMailboxAuthorizationExpired(

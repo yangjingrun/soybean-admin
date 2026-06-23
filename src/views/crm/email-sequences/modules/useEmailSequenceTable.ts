@@ -34,6 +34,7 @@ export function useEmailSequenceTable() {
   const batchDraftApproving = shallowRef(false);
   const batchNextDraftGenerating = shallowRef(false);
   const batchSequenceStopping = shallowRef(false);
+  const handledFocusKey = shallowRef('');
   let latestListRequestId = 0;
 
   const pagination = reactive({
@@ -96,6 +97,7 @@ export function useEmailSequenceTable() {
       return;
     }
 
+    void handleRouteFocus();
     void createFlow.loadCreateResources();
   });
 
@@ -107,6 +109,7 @@ export function useEmailSequenceTable() {
       applyRouteFilters();
       pagination.current = 1;
       void loadSequences();
+      void handleRouteFocus();
     }
   );
 
@@ -283,6 +286,31 @@ export function useEmailSequenceTable() {
 
   function handleCheckedRowKeysUpdate(keys: Array<string | number>) {
     checkedRowKeys.value = keys.map(String);
+  }
+
+  async function handleRouteFocus() {
+    const focus = getRouteQueryString(route.query.focus);
+
+    if (focus !== 'tracking-open') {
+      return;
+    }
+
+    const enrollmentId = getRouteQueryString(route.query.enrollmentId);
+    const messageId = getRouteQueryString(route.query.messageId);
+    const eventId = getRouteQueryString(route.query.eventId);
+
+    if (!enrollmentId || !messageId) {
+      return;
+    }
+
+    const focusKey = `${focus}:${enrollmentId}:${messageId}:${eventId}`;
+
+    if (handledFocusKey.value === focusKey) {
+      return;
+    }
+
+    handledFocusKey.value = focusKey;
+    await draftReviewFlow.openFocusedSequence(enrollmentId, messageId);
   }
 
   return {

@@ -39,6 +39,8 @@ import { CrmSettingsService } from '../settings/crm-settings.service';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { CrmSuppressionService } from '../suppression/crm-suppression.service';
 import { CrmEmailTemplateGroupService } from '../template-groups/crm-email-template-group.service';
+import { CrmTrackingService } from '../tracking/crm-tracking.service';
+import { CrmTrackingTokenService } from '../tracking/crm-tracking-token.service';
 
 export const crmBusinessDomainProviders = {
   lead: [CrmAccountService, CrmArchiveSlimmingService, CrmDashboardService, CrmGeoTimezoneService],
@@ -81,7 +83,8 @@ export const crmBusinessDomainProviders = {
     CrmGmailHistorySyncWorkerService
   ],
   inbox: [CrmInboxService, CrmAiReplyDraftService],
-  aiDraft: [CrmAiDraftService, CrmAiDraftTaskService, CrmAiDraftTaskWorkerService]
+  aiDraft: [CrmAiDraftService, CrmAiDraftTaskService, CrmAiDraftTaskWorkerService],
+  tracking: [CrmTrackingService, CrmTrackingTokenService]
 } as const satisfies Record<string, Provider[]>;
 
 export const crmDomainServices: Provider[] = [...Object.values(crmBusinessDomainProviders).flat(), CrmLoggerService];

@@ -75,6 +75,39 @@ describe('CrmGmailApiEmailSendGateway', () => {
     assert.match(mime, /^From: sales@gmail\.com\r\nTo: buyer@example\.com\r\nSubject: Re: Hello product\r\n/m);
   });
 
+  it('sends multipart message with tracking pixel when tracking context exists', async () => {
+    const httpClient = new FakeEmailSendHttpClient({
+      status: 200,
+      body: { id: 'gmail-message-1', threadId: 'gmail-thread-1' }
+    });
+    const gateway = createGateway(httpClient);
+
+    await gateway.sendPlainText({
+      enrollment: createEnrollment(),
+      message: createMessage({
+        subject: 'Hello <buyer>',
+        bodyText: 'Hi Ali,\n\nPlease review <catalog>.'
+      }),
+      account: createAccount(),
+      contact: createContact({ email: 'buyer@example.com' }),
+      mailbox: createMailbox({ emailAddress: 'sales@gmail.com' }),
+      tracking: {
+        openPixelUrl: 'https://crm.example.com/crm/tracking/open/token-1'
+      }
+    });
+
+    const requestBody = httpClient.calls[0]?.body as { raw?: unknown };
+    const mime = decodeBase64Url(String(requestBody.raw));
+    assert.match(mime, /Content-Type: multipart\/alternative; boundary="/);
+    assert.match(mime, /Content-Type: text\/plain; charset="UTF-8"/);
+    assert.match(mime, /Content-Type: text\/html; charset="UTF-8"/);
+    assert.match(mime, /Please review &lt;catalog&gt;\./);
+    assert.match(
+      mime,
+      /<img src="https:\/\/crm\.example\.com\/crm\/tracking\/open\/token-1" width="1" height="1" alt="" \/>/
+    );
+  });
+
   it('encodes non-ascii subjects as RFC 2047 headers', async () => {
     const httpClient = new FakeEmailSendHttpClient({
       status: 200,

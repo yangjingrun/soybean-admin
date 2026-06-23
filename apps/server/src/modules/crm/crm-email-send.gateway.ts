@@ -67,7 +67,8 @@ export class CrmGmailApiEmailSendGateway implements CrmEmailSendGateway {
       mailbox: input.mailbox,
       toEmail: input.contact.email,
       subject: input.message.subject,
-      bodyText: input.message.bodyText
+      bodyText: input.message.bodyText,
+      tracking: input.tracking
     });
   }
 
@@ -90,13 +91,15 @@ export class CrmGmailApiEmailSendGateway implements CrmEmailSendGateway {
     subject: string;
     bodyText: string;
     threadId?: string;
+    tracking?: CrmEmailSendGatewayInput['tracking'];
   }): Promise<CrmEmailSendGatewayResult> {
     const accessToken = await this.tokenProvider.getAccessToken(input.mailbox);
     const mime = buildPlainTextMime({
       fromEmail: input.mailbox.emailAddress,
       toEmail: input.toEmail,
       subject: input.subject,
-      bodyText: input.bodyText
+      bodyText: input.bodyText,
+      tracking: input.tracking
     });
     const requestBody: Record<string, string> = {
       raw: Buffer.from(mime, 'utf8').toString('base64url')
@@ -156,7 +159,23 @@ export class MockCrmEmailSendGateway implements CrmEmailSendGateway {
   }
 }
 
-function buildPlainTextMime(input: { fromEmail: string; toEmail: string; subject: string; bodyText: string }) {
+function buildPlainTextMime(input: {
+  fromEmail: string;
+  toEmail: string;
+  subject: string;
+  bodyText: string;
+  tracking?: CrmEmailSendGatewayInput['tracking'];
+}) {
+  if (input.tracking?.openPixelUrl) {
+    return buildTrackedMultipartMime({
+      fromEmail: input.fromEmail,
+      toEmail: input.toEmail,
+      subject: input.subject,
+      bodyText: input.bodyText,
+      tracking: input.tracking
+    });
+  }
+
   const lines = [
     `From: ${normalizeRequiredEmail(input.fromEmail, 'From email is missing')}`,
     `To: ${normalizeRequiredEmail(input.toEmail, 'To email is missing')}`,
@@ -169,6 +188,51 @@ function buildPlainTextMime(input: { fromEmail: string; toEmail: string; subject
   ];
 
   return lines.join('\r\n');
+}
+
+function buildTrackedMultipartMime(input: {
+  fromEmail: string;
+  toEmail: string;
+  subject: string;
+  bodyText: string;
+  tracking: NonNullable<CrmEmailSendGatewayInput['tracking']>;
+}) {
+  const boundary = `crm-open-tracking-${Buffer.from(input.tracking.openPixelUrl).toString('base64url').slice(0, 24)}`;
+  const htmlBody = buildTrackedHtmlBody(input.bodyText, input.tracking.openPixelUrl);
+  const lines = [
+    `From: ${normalizeRequiredEmail(input.fromEmail, 'From email is missing')}`,
+    `To: ${normalizeRequiredEmail(input.toEmail, 'To email is missing')}`,
+    `Subject: ${encodeHeaderValue(input.subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    normalizeBodyText(input.bodyText),
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    normalizeBodyText(htmlBody),
+    `--${boundary}--`,
+    ''
+  ];
+
+  return lines.join('\r\n');
+}
+
+function buildTrackedHtmlBody(bodyText: string, openPixelUrl: string) {
+  return [
+    '<!doctype html>',
+    '<html>',
+    '<body>',
+    `<div>${escapeHtml(bodyText).replace(/\n/g, '<br />')}</div>`,
+    `<img src="${escapeHtmlAttribute(openPixelUrl)}" width="1" height="1" alt="" />`,
+    '</body>',
+    '</html>'
+  ].join('\n');
 }
 
 function normalizeRequiredEmail(value: string, errorMessage: string) {
@@ -201,6 +265,19 @@ function normalizeBodyText(value: string) {
 
 function stripHeaderUnsafeChars(value: string) {
   return value.replace(/[\r\n]+/g, ' ');
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeHtmlAttribute(value: string) {
+  return escapeHtml(value);
 }
 
 function normalizeRequiredString(value: unknown, errorMessage: string) {
