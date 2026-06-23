@@ -9,6 +9,7 @@ import {
   resumeCrmMailbox,
   syncCrmMailboxNow
 } from '@/service/api';
+import { closePendingGmailOAuthTab, openGmailOAuthUrlInTab, openPendingGmailOAuthTab } from './mailbox-oauth-tab';
 import { buildMailboxSearchParams, createDefaultMailboxFilterModel } from './shared';
 
 /** Manage CRM mailbox list requests, authorization modal state and row operations. */
@@ -94,8 +95,10 @@ export function useMailboxTable() {
     });
   }
 
-  /** Create a Gmail OAuth URL and redirect to Google consent. */
+  /** Create a Gmail OAuth URL and open Google consent in a new browser tab. */
   async function redirectToGmailOAuth(options: { loadingTarget: 'modal' | 'row'; mailboxId?: string }) {
+    const pendingTab = openPendingGmailOAuthTab();
+
     if (options.loadingTarget === 'modal') {
       authorizeSubmitting.value = true;
     } else {
@@ -106,10 +109,19 @@ export function useMailboxTable() {
       const { data, error } = await createCrmGmailOAuthUrl();
 
       if (error) {
+        closePendingGmailOAuthTab(pendingTab);
         return;
       }
 
-      window.location.assign(data.authorizationUrl);
+      const opened = openGmailOAuthUrlInTab(data.authorizationUrl, pendingTab);
+
+      if (!opened) {
+        message.warning('浏览器拦截了 Google 授权页，请允许弹窗后重试');
+        return;
+      }
+
+      authorizeVisible.value = false;
+      message.success('已在新标签页打开 Google 授权页');
     } finally {
       if (options.loadingTarget === 'modal') {
         authorizeSubmitting.value = false;
