@@ -2,7 +2,6 @@
 import BulkAiDraftTaskDrawer from './BulkAiDraftTaskDrawer.vue';
 import DraftReviewModal from './DraftReviewModal.vue';
 import EmailSequenceTable from './EmailSequenceTable.vue';
-import EmailSequenceToolbar from './EmailSequenceToolbar.vue';
 import SequenceCreateModal from './SequenceCreateModal.vue';
 import { sequencePageGuide } from './shared';
 import { useEmailSequenceTable } from './useEmailSequenceTable';
@@ -33,7 +32,6 @@ const {
   draftVersions,
   drawerLoading,
   drawerVisible,
-  filterModel,
   handleAccountChange,
   handleApproveDraft,
   handleBatchApproveDrafts,
@@ -49,17 +47,14 @@ const {
   handleGenerateNextDraft,
   handlePageSizeUpdate,
   handlePageUpdate,
-  handleReset,
   handleRefreshCurrentSequence,
   handleReadAiDraftTask,
   handleRetryAiDraftTask,
   handleRestoreDraftVersion,
   handleSaveDraft,
-  handleSearch,
   handleStartSend,
   handleStopSequence,
   loadDraftVersions,
-  loadSequences,
   loading,
   mailboxSelectOptions,
   nextDraftGenerating,
@@ -82,14 +77,9 @@ const {
       {{ sequencePageGuide.description }}
     </NAlert>
 
-    <EmailSequenceToolbar
-      v-model:filter-model="filterModel"
-      :loading="loading"
-      @create="openCreateModal"
-      @refresh="loadSequences"
-      @reset="handleReset"
-      @search="handleSearch"
-    />
+    <NSpace justify="end">
+      <NButton type="primary" ghost @click="openCreateModal">生成首封开发信</NButton>
+    </NSpace>
 
     <EmailSequenceTable
       :ai-draft-task-creating="aiDraftTaskCreating"

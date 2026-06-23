@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import FilterPanel from './modules/FilterPanel.vue';
 import LeadDetailDrawer from './modules/LeadDetailDrawer.vue';
 import LeadImportModal from './modules/LeadImportModal.vue';
 import LeadStats from './modules/LeadStats.vue';
@@ -26,10 +25,8 @@ const {
   handleImportVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
-  handleReset,
   handleRefreshAccountEnrichment,
   handleRestoreLead,
-  handleSearch,
   handleUpdateContact,
   handleUpdateStatus,
   handleVerifyContactEmail,
@@ -56,13 +53,9 @@ const {
       {{ crmLeadPageGuide.description }}
     </NAlert>
 
-    <FilterPanel
-      v-model="filterModel"
-      :loading="loading"
-      @add="openImportModal"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
+    <NSpace justify="end">
+      <NButton type="primary" ghost @click="openImportModal">新增客户</NButton>
+    </NSpace>
 
     <NAlert v-if="filterModel.sourceTaskId" type="info" :bordered="false">
       正在处理本次 AI 采集客户。优先补齐联系人、验证邮箱，再从可开发客户创建开发信。

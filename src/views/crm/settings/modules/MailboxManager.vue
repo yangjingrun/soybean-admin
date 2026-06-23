@@ -12,7 +12,6 @@ import DefaultEmailTemplateCard from './DefaultEmailTemplateCard.vue';
 import EmailTemplateManager from './EmailTemplateManager.vue';
 import GlobalConfigCard from './GlobalConfigCard.vue';
 import MailboxTable from './MailboxTable.vue';
-import MailboxToolbar from './MailboxToolbar.vue';
 import OrganizationPermissionCard from './OrganizationPermissionCard.vue';
 import PersonaProfileManager from './PersonaProfileManager.vue';
 import ProductLineManager from './ProductLineManager.vue';
@@ -27,18 +26,14 @@ const authStore = useAuthStore();
 const {
   authorizeSubmitting,
   authorizeVisible,
-  filterModel,
   handleAuthorizeMailbox,
   handleAuthorizeVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
   handleReauthorizeMailbox,
   handleRenewMailboxWatch,
-  handleReset,
-  handleSearch,
   handleSyncMailboxNow,
   handleToggleMailbox,
-  loadMailboxes,
   loading,
   openAuthorizeModal,
   operatingMailboxId,
@@ -85,50 +80,67 @@ function handleSelectSettingsSection(key: CrmSettingsOverviewKey) {
 
     <section v-show="activeSettingsKey === 'mailboxConnection'" class="settings-section">
       <NCard :bordered="false" size="small" class="card-wrapper" title="邮箱账号">
-        <NSpace vertical :size="12">
-          <MailboxToolbar
-            v-model="filterModel"
-            :authorizing="authorizeSubmitting"
-            :loading="loading"
-            @add="openAuthorizeModal"
-            @refresh="loadMailboxes"
-            @reset="handleReset"
-            @search="handleSearch"
-          />
+        <template #header-extra>
+          <NButton size="small" type="primary" :loading="authorizeSubmitting" @click="openAuthorizeModal">
+            新增授权
+          </NButton>
+        </template>
 
-          <MailboxTable
-            :records="records"
-            :loading="loading"
-            :operating-mailbox-id="operatingMailboxId"
-            :page="pagination.current"
-            :page-size="pagination.size"
-            :total="pagination.total"
-            @reauthorize="handleReauthorizeMailbox"
-            @renew-watch="handleRenewMailboxWatch"
-            @sync-now="handleSyncMailboxNow"
-            @toggle="handleToggleMailbox"
-            @update-page="handlePageUpdate"
-            @update-page-size="handlePageSizeUpdate"
-          />
-        </NSpace>
+        <MailboxTable
+          :records="records"
+          :loading="loading"
+          :operating-mailbox-id="operatingMailboxId"
+          :page="pagination.current"
+          :page-size="pagination.size"
+          :total="pagination.total"
+          @reauthorize="handleReauthorizeMailbox"
+          @renew-watch="handleRenewMailboxWatch"
+          @sync-now="handleSyncMailboxNow"
+          @toggle="handleToggleMailbox"
+          @update-page="handlePageUpdate"
+          @update-page-size="handlePageSizeUpdate"
+        />
       </NCard>
     </section>
 
     <section v-show="activeSettingsKey === 'writingProfile'" class="settings-section">
       <NSpace vertical :size="12">
+        <NText depth="3">下面这些资料，系统会用来自动帮你写开发信。</NText>
+
         <DefaultEmailTemplateCard
           :loading="templateDefaultsLoading"
           :template-defaults="templateDefaults"
           @refresh="loadTemplateDefaults"
         />
-        <ProductLineManager v-if="tabVisibility.assets" />
-        <PersonaProfileManager v-if="tabVisibility.assets" />
-        <EmailTemplateManager v-if="tabVisibility.assets" />
+
+        <template v-if="tabVisibility.assets">
+          <div class="writing-block">
+            <NText depth="3" class="writing-block__intro">我卖什么 · 系统写信时用这里的卖点介绍你的产品</NText>
+            <ProductLineManager />
+          </div>
+
+          <div class="writing-block">
+            <NText depth="3" class="writing-block__intro">写给谁 · 不同岗位关心的点不同，系统按角色调整话术</NText>
+            <PersonaProfileManager />
+          </div>
+
+          <NCollapse>
+            <NCollapseItem name="templates" title="开发信模板库（进阶 · 默认模板已够用，需要多套话术再展开）">
+              <EmailTemplateManager />
+            </NCollapseItem>
+          </NCollapse>
+        </template>
       </NSpace>
     </section>
 
     <section v-show="activeSettingsKey === 'sendPace'" class="settings-section">
       <NSpace vertical :size="12">
+        <NText depth="3">
+          跟进按默认{{
+            templateDefaults ? ` ${templateDefaults.templateGroup.steps.length} 步序列` : '多步序列'
+          }}推进（封数在「写信资料」里调整）；这里设置每天发多少、新老客户怎么分。
+        </NText>
+
         <SendPreferenceCard />
         <SequencePolicyManager v-if="tabVisibility.rules" />
         <OrganizationPermissionCard v-if="canManageOrganization" />
@@ -163,5 +175,16 @@ function handleSelectSettingsSection(key: CrmSettingsOverviewKey) {
 <style scoped>
 .settings-section {
   min-width: 0;
+}
+
+.writing-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.writing-block__intro {
+  font-size: 13px;
 }
 </style>

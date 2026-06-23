@@ -1,24 +1,19 @@
 <script setup lang="ts">
 import EmailTemplateFormModal from './EmailTemplateFormModal.vue';
 import EmailTemplateTable from './EmailTemplateTable.vue';
-import EmailTemplateToolbar from './EmailTemplateToolbar.vue';
 import { useEmailTemplateTable } from './useEmailTemplateTable';
 
 const {
   canManage,
   editingTemplateId,
-  filterModel,
   formModel,
   formVisible,
   handleArchiveEmailTemplate,
   handleFormVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
-  handleReset,
-  handleSearch,
   handleSetDefaultEmailTemplate,
   handleSubmitEmailTemplate,
-  loadEmailTemplates,
   loading,
   openCreateModal,
   openEditModal,
@@ -30,33 +25,25 @@ const {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="邮件模板库">
-    <NSpace vertical :size="12">
-      <EmailTemplateToolbar
-        v-model="filterModel"
-        :can-manage="canManage"
-        :loading="loading"
-        @add="openCreateModal"
-        @refresh="loadEmailTemplates"
-        @reset="handleReset"
-        @search="handleSearch"
-      />
+  <NCard :bordered="false" size="small" class="card-wrapper">
+    <template #header-extra>
+      <NButton v-if="canManage" size="small" type="primary" @click="openCreateModal">新增模板</NButton>
+    </template>
 
-      <EmailTemplateTable
-        :records="records"
-        :can-manage="canManage"
-        :loading="loading"
-        :operating-template-id="operatingTemplateId"
-        :page="pagination.current"
-        :page-size="pagination.size"
-        :total="pagination.total"
-        @archive="handleArchiveEmailTemplate"
-        @edit="openEditModal"
-        @set-default="handleSetDefaultEmailTemplate"
-        @update-page="handlePageUpdate"
-        @update-page-size="handlePageSizeUpdate"
-      />
-    </NSpace>
+    <EmailTemplateTable
+      :records="records"
+      :can-manage="canManage"
+      :loading="loading"
+      :operating-template-id="operatingTemplateId"
+      :page="pagination.current"
+      :page-size="pagination.size"
+      :total="pagination.total"
+      @archive="handleArchiveEmailTemplate"
+      @edit="openEditModal"
+      @set-default="handleSetDefaultEmailTemplate"
+      @update-page="handlePageUpdate"
+      @update-page-size="handlePageSizeUpdate"
+    />
   </NCard>
 
   <EmailTemplateFormModal

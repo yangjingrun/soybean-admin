@@ -10,7 +10,6 @@ import {
 import { useAppStore } from '@/store/modules/app';
 import { defaultTransform, useNaivePaginatedTable } from '@/hooks/common/table';
 import OrganizationOperateDrawer from './modules/OrganizationOperateDrawer.vue';
-import OrganizationSearch from './modules/OrganizationSearch.vue';
 import {
   buildSystemOrganizationSearchParams,
   createDefaultOrganizationFilterModel,
@@ -34,7 +33,7 @@ const editingData = shallowRef<Api.SystemOrganization.OrganizationListItem | nul
 const submitting = shallowRef(false);
 const statusOperatingId = shallowRef<string | null>(null);
 
-const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagination } = useNaivePaginatedTable({
+const { columns, columnChecks, data, getData, loading, mobilePagination } = useNaivePaginatedTable({
   api: () => fetchSystemOrganizations(searchParams.value),
   transform: response => defaultTransform(response),
   onPaginationParamsChange: params => {
@@ -147,21 +146,6 @@ function handleEdit(row: Api.SystemOrganization.OrganizationListItem) {
   drawerVisible.value = true;
 }
 
-async function handleSearch() {
-  searchParams.value = buildSystemOrganizationSearchParams({
-    current: 1,
-    size: searchParams.value.size,
-    filterModel: filterModel.value
-  });
-
-  await getDataByPage();
-}
-
-async function handleReset() {
-  filterModel.value = createDefaultOrganizationFilterModel();
-  await handleSearch();
-}
-
 async function handleSubmit(payload: Api.SystemOrganization.OrganizationOperatePayload) {
   submitting.value = true;
 
@@ -214,7 +198,6 @@ async function handleUpdateStatus(
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <OrganizationSearch v-model="filterModel" :loading="loading" @search="handleSearch" @reset="handleReset" />
     <NCard title="组织管理" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
         <NSpace :size="8">

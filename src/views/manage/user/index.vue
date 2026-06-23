@@ -12,7 +12,6 @@ import { useAppStore } from '@/store/modules/app';
 import { defaultTransform, useNaivePaginatedTable } from '@/hooks/common/table';
 import TemporaryPasswordModal from './modules/TemporaryPasswordModal.vue';
 import UserOperateModal from './modules/UserOperateModal.vue';
-import UserSearch from './modules/UserSearch.vue';
 import {
   buildSystemUserSearchParams,
   createDefaultUserFilterModel,
@@ -42,7 +41,7 @@ const resetOperatingId = shallowRef<string | null>(null);
 const temporaryPasswordVisible = shallowRef(false);
 const temporaryPasswordInfo = shallowRef<{ userName: string; password: string } | null>(null);
 
-const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagination } = useNaivePaginatedTable({
+const { columns, columnChecks, data, getData, loading, mobilePagination } = useNaivePaginatedTable({
   api: () => fetchSystemUsers(searchParams.value),
   transform: response => defaultTransform(response),
   onPaginationParamsChange: params => {
@@ -220,21 +219,6 @@ function handleEdit(row: Api.SystemUser.UserListItem) {
   operateModalVisible.value = true;
 }
 
-async function handleSearch() {
-  searchParams.value = buildSystemUserSearchParams({
-    current: 1,
-    size: searchParams.value.size,
-    filterModel: filterModel.value
-  });
-
-  await getDataByPage();
-}
-
-async function handleReset() {
-  filterModel.value = createDefaultUserFilterModel();
-  await handleSearch();
-}
-
 async function handleSubmit(payload: Api.SystemUser.UserCreatePayload | Api.SystemUser.UserUpdatePayload) {
   submitting.value = true;
 
@@ -322,7 +306,6 @@ async function handleCopyUserName(userName: string) {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <UserSearch v-model="filterModel" :loading="loading" @search="handleSearch" @reset="handleReset" />
     <NCard title="用户管理" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
         <NSpace :size="8">

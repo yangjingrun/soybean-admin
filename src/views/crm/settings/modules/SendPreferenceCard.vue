@@ -98,6 +98,8 @@ async function saveSendPreference() {
 <template>
   <NCard :bordered="false" size="small" class="card-wrapper" title="我的发送偏好">
     <NSpace vertical :size="12">
+      <NText depth="3">这里决定每天最多发多少封，以及发送里新客户首封和老客户跟进各占多少。</NText>
+
       <NForm :model="formModel" label-placement="top" size="small">
         <div class="send-preference-fields">
           <NFormItem label="每日最多进入发送队列" class="send-preference-field send-preference-field--limit">
@@ -124,7 +126,7 @@ async function saveSendPreference() {
             </NInputNumber>
           </NFormItem>
 
-          <NFormItem label="首封开发信占比" class="send-preference-field">
+          <NFormItem label="首封开发信占比（自动）" class="send-preference-field">
             <NInputNumber
               :value="firstTouchSharePercent"
               :show-button="false"
@@ -136,6 +138,11 @@ async function saveSendPreference() {
           </NFormItem>
         </div>
       </NForm>
+
+      <NText depth="3" class="send-preference-summary">
+        每天最多 {{ formModel.dailySendLimit }} 封 · 老客户跟进 {{ formModel.followUpSharePercent }}% · 新客户首封
+        {{ firstTouchSharePercent ?? '—' }}%（自动 = 100 − 跟进占比）
+      </NText>
 
       <div class="send-preference-footer">
         <NText depth="3" class="send-preference-note">平台硬上限：每日 {{ formModel.ownerDailySendLimitMax }} 封</NText>
@@ -178,6 +185,10 @@ async function saveSendPreference() {
 
 .send-preference-note {
   font-size: 12px;
+}
+
+.send-preference-summary {
+  font-size: 13px;
 }
 
 @media (max-width: 640px) {

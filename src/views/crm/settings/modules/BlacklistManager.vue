@@ -1,18 +1,13 @@
 <script setup lang="ts">
 import BlacklistTable from './BlacklistTable.vue';
-import BlacklistToolbar from './BlacklistToolbar.vue';
 import { useBlacklistTable } from './useBlacklistTable';
 
 const {
   canRemove,
-  filterModel,
   handlePageSizeUpdate,
   handlePageUpdate,
   handleRemoveBlacklistEntry,
   handleRemoveModalVisibleUpdate,
-  handleReset,
-  handleSearch,
-  loadBlacklistEntries,
   loading,
   openRemoveModal,
   pagination,
@@ -30,14 +25,6 @@ const {
       <NAlert type="warning" :bordered="false">
         客户退订后会进入组织级黑名单，发送前和 worker claim 阶段都会拦截。解除黑名单必须填写原因并记录审计日志。
       </NAlert>
-
-      <BlacklistToolbar
-        v-model="filterModel"
-        :loading="loading"
-        @refresh="loadBlacklistEntries"
-        @reset="handleReset"
-        @search="handleSearch"
-      />
 
       <BlacklistTable
         :records="records"

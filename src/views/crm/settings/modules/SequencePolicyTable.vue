@@ -22,6 +22,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  add: [];
   archive: [record: Api.Crm.SequencePolicyRecord];
   edit: [record: Api.Crm.SequencePolicyRecord];
   setDefault: [record: Api.Crm.SequencePolicyRecord];
@@ -201,7 +202,11 @@ const columns = computed<DataTableColumns<Api.Crm.SequencePolicyRecord>>(() => {
       remote
     >
       <template #empty>
-        <NEmpty description="暂无序列策略" />
+        <NEmpty description="还没有自定义序列策略，默认按 5 步跟进已经够用">
+          <template v-if="canManage" #extra>
+            <NButton size="small" type="primary" @click="emit('add')">新建策略</NButton>
+          </template>
+        </NEmpty>
       </template>
     </NDataTable>
 

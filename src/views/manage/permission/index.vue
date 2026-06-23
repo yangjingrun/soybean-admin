@@ -3,7 +3,6 @@ import { computed, onMounted, reactive, ref, shallowRef } from 'vue';
 import type { PaginationProps } from 'naive-ui';
 import { fetchSystemRoles, updateSystemRolePermissions } from '@/service/api/system-role';
 import RolePermissionPanel from '../role/modules/RolePermissionPanel.vue';
-import RoleSearch from '../role/modules/RoleSearch.vue';
 import RoleTable from '../role/modules/RoleTable.vue';
 import { buildSystemRoleSearchParams, createDefaultRoleFilterModel } from '../role/modules/shared';
 
@@ -99,22 +98,11 @@ async function handleSavePermissions(role: Api.SystemRole.RoleListItem, permissi
   }
 }
 
-async function handleSearch() {
-  pagination.page = 1;
-  await fetchRoles();
-}
-
-async function handleReset() {
-  filterModel.value = createDefaultRoleFilterModel();
-  await handleSearch();
-}
-
 onMounted(fetchRoles);
 </script>
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <RoleSearch v-model="filterModel" :loading="loading" @search="handleSearch" @reset="handleReset" />
     <div class="permission-layout">
       <RoleTable
         :records="records"

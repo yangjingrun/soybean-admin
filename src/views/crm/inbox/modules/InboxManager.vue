@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import InboxFilterPanel from './InboxFilterPanel.vue';
 import InboxStats from './InboxStats.vue';
 import InboxThreadDrawer from './InboxThreadDrawer.vue';
 import InboxThreadTable from './InboxThreadTable.vue';
@@ -13,22 +12,17 @@ const {
   detailVisible,
   draftPolishing,
   draftSaving,
-  filterModel,
   handleConfirmUnsubscribe,
   handleDetailVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
   handlePolishReplyDraft,
-  handleReset,
   handleRestorePolishSnapshot,
   handleSaveReplyDraft,
   handleSendReply,
-  handleSearch,
   handleUpdateStatus,
   loadThreadDetail,
   loading,
-  mailboxLoading,
-  mailboxOptions,
   openThreadDetail,
   pagination,
   pendingTotal,
@@ -46,15 +40,6 @@ const {
     <NAlert type="info" :bordered="false" :title="inboxPageGuide.title">
       {{ inboxPageGuide.description }}
     </NAlert>
-
-    <InboxFilterPanel
-      v-model="filterModel"
-      :loading="loading"
-      :mailbox-loading="mailboxLoading"
-      :mailbox-options="mailboxOptions"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
 
     <InboxStats :records="records" :pending-total="pendingTotal" :total="pagination.total" />
 

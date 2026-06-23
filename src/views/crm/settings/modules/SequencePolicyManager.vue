@@ -1,24 +1,19 @@
 <script setup lang="ts">
 import SequencePolicyFormModal from './SequencePolicyFormModal.vue';
 import SequencePolicyTable from './SequencePolicyTable.vue';
-import SequencePolicyToolbar from './SequencePolicyToolbar.vue';
 import { useSequencePolicyTable } from './useSequencePolicyTable';
 
 const {
   canManage,
   editingPolicyId,
-  filterModel,
   formModel,
   formVisible,
   handleArchiveSequencePolicy,
   handleFormVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
-  handleReset,
-  handleSearch,
   handleSetDefaultSequencePolicy,
   handleSubmitSequencePolicy,
-  loadSequencePolicies,
   loading,
   openCreateModal,
   openEditModal,
@@ -31,16 +26,14 @@ const {
 
 <template>
   <NCard :bordered="false" size="small" class="card-wrapper" title="序列策略库">
+    <template #header-extra>
+      <NButton v-if="canManage" size="small" type="primary" @click="openCreateModal">新建策略</NButton>
+    </template>
+
     <NSpace vertical :size="12">
-      <SequencePolicyToolbar
-        v-model="filterModel"
-        :can-manage="canManage"
-        :loading="loading"
-        @add="openCreateModal"
-        @refresh="loadSequencePolicies"
-        @reset="handleReset"
-        @search="handleSearch"
-      />
+      <NText depth="3">
+        序列策略 = 自定义跟进节奏（每封间隔几天、是否同线程等）。默认按 5 步跟进已经够用，想自定义再新建。
+      </NText>
 
       <SequencePolicyTable
         :records="records"
@@ -50,6 +43,7 @@ const {
         :page="pagination.current"
         :page-size="pagination.size"
         :total="pagination.total"
+        @add="openCreateModal"
         @archive="handleArchiveSequencePolicy"
         @edit="openEditModal"
         @set-default="handleSetDefaultSequencePolicy"

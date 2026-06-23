@@ -2,13 +2,11 @@
 import ProductLineFormDrawer from './ProductLineFormDrawer.vue';
 import ProductLinePromptVersionDrawer from './ProductLinePromptVersionDrawer.vue';
 import ProductLineTable from './ProductLineTable.vue';
-import ProductLineToolbar from './ProductLineToolbar.vue';
 import { useProductLineTable } from './useProductLineTable';
 
 const {
   editingProductLineId,
   editingProductLineRecord,
-  filterModel,
   formModel,
   formVisible,
   handleArchiveProductLine,
@@ -17,12 +15,9 @@ const {
   handlePageUpdate,
   handlePromptHistoryVisibleUpdate,
   handlePromptVersionRestored,
-  handleReset,
-  handleSearch,
   handleSubmitProductLine,
   canManage,
   canManageAiWritingConfig,
-  loadProductLines,
   loading,
   openCreateModal,
   openEditModal,
@@ -37,31 +32,23 @@ const {
 
 <template>
   <NCard :bordered="false" size="small" class="card-wrapper" title="产品线资料">
-    <NSpace vertical :size="12">
-      <ProductLineToolbar
-        v-model="filterModel"
-        :can-manage="canManage"
-        :loading="loading"
-        @add="openCreateModal"
-        @refresh="loadProductLines"
-        @reset="handleReset"
-        @search="handleSearch"
-      />
+    <template #header-extra>
+      <NButton v-if="canManage" size="small" type="primary" @click="openCreateModal">新增产品线</NButton>
+    </template>
 
-      <ProductLineTable
-        :records="records"
-        :can-manage="canManage"
-        :loading="loading"
-        :operating-product-line-id="operatingProductLineId"
-        :page="pagination.current"
-        :page-size="pagination.size"
-        :total="pagination.total"
-        @archive="handleArchiveProductLine"
-        @edit="openEditModal"
-        @update-page="handlePageUpdate"
-        @update-page-size="handlePageSizeUpdate"
-      />
-    </NSpace>
+    <ProductLineTable
+      :records="records"
+      :can-manage="canManage"
+      :loading="loading"
+      :operating-product-line-id="operatingProductLineId"
+      :page="pagination.current"
+      :page-size="pagination.size"
+      :total="pagination.total"
+      @archive="handleArchiveProductLine"
+      @edit="openEditModal"
+      @update-page="handlePageUpdate"
+      @update-page-size="handlePageSizeUpdate"
+    />
   </NCard>
 
   <ProductLineFormDrawer

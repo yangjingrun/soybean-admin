@@ -10,7 +10,8 @@ export interface SystemNotificationDisplayPolicy {
 
 const taskFailureTypes = new Set(['task_failed', 'crm_ai_draft_task_failed']);
 const transientFailurePattern = /model_cooldown|cooling down|rate limit|timeout|timed out|temporarily|稍后|冷却/i;
-const actionRequiredFailurePattern = /请.*(查看|回到|配置|处理|审核|重试)|未配置|配置不完整|不可用|失败项|需要.*(查看|处理|配置|审核|重试)/i;
+const actionRequiredFailurePattern =
+  /请.*(查看|回到|配置|处理|审核|重试)|未配置|配置不完整|不可用|失败项|需要.*(查看|处理|配置|审核|重试)/i;
 
 /** Resolves how noisy one notification should be in the global popup layer. */
 export function resolveSystemNotificationDisplayPolicy(

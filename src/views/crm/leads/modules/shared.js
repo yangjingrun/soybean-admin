@@ -196,6 +196,7 @@ export function createDefaultLeadImportForm() {
     country: '',
     city: '',
     address: '',
+    timeZone: '',
     customerType: '',
     contactFullName: '',
     contactTitle: '',
@@ -229,6 +230,7 @@ export function normalizeLeadImportPayload(formModel) {
     country: formModel.country.trim(),
     city: formModel.city.trim(),
     address: formModel.address.trim(),
+    timeZone: formModel.timeZone.trim(),
     customerType: formModel.customerType.trim(),
     ...(hasContact ? { contact } : {})
   };
@@ -242,6 +244,7 @@ export function buildLeadAccountUpdatePayload(formModel) {
     country: formModel.country?.trim(),
     city: formModel.city?.trim(),
     address: formModel.address?.trim(),
+    timeZone: formModel.timeZone?.trim(),
     customerType: formModel.customerType?.trim()
   };
 }

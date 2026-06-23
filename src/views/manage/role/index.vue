@@ -9,7 +9,6 @@ import {
 } from '@/service/api/system-role';
 import RoleOperateModal from './modules/RoleOperateModal.vue';
 import RolePermissionPanel from './modules/RolePermissionPanel.vue';
-import RoleSearch from './modules/RoleSearch.vue';
 import RoleTable from './modules/RoleTable.vue';
 import { buildSystemRoleSearchParams, createDefaultRoleFilterModel } from './modules/shared';
 
@@ -156,22 +155,11 @@ async function handleSavePermissions(role: Api.SystemRole.RoleListItem, permissi
   }
 }
 
-async function handleSearch() {
-  pagination.page = 1;
-  await fetchRoles();
-}
-
-async function handleReset() {
-  filterModel.value = createDefaultRoleFilterModel();
-  await handleSearch();
-}
-
 onMounted(fetchRoles);
 </script>
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <RoleSearch v-model="filterModel" :loading="loading" @search="handleSearch" @reset="handleReset" />
     <div class="role-layout">
       <RoleTable
         :records="records"

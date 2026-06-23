@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { onMounted, reactive, shallowRef } from 'vue';
-import { fetchSystemLogDetail, fetchSystemLogUsers, fetchSystemLogs } from '@/service/api';
-import FilterPanel from './modules/FilterPanel.vue';
+import { fetchSystemLogDetail, fetchSystemLogs } from '@/service/api';
 import LogDetailDrawer from './modules/LogDetailDrawer.vue';
 import LogTable from './modules/LogTable.vue';
 import { buildSystemLogSearchParams, createDefaultFilterModel } from './modules/shared';
 
 const records = shallowRef<Api.SystemLog.SystemLogRecord[]>([]);
-const users = shallowRef<Api.SystemLog.SystemLogUser[]>([]);
 const selectedLog = shallowRef<Api.SystemLog.SystemLogRecord | null>(null);
 
 const loading = shallowRef(false);
@@ -23,7 +21,6 @@ const pagination = reactive({
 const filterModel = reactive<Api.SystemLog.SystemLogFilterModel>(createDefaultFilterModel());
 
 onMounted(() => {
-  void loadUsers();
   void loadLogs();
 });
 
@@ -51,28 +48,6 @@ async function loadLogs() {
   } finally {
     loading.value = false;
   }
-}
-
-/** Load users for the user filter. */
-async function loadUsers() {
-  const { data, error } = await fetchSystemLogUsers();
-
-  if (error) {
-    return;
-  }
-
-  users.value = data;
-}
-
-function handleSearch() {
-  pagination.current = 1;
-  void loadLogs();
-}
-
-function handleReset() {
-  Object.assign(filterModel, createDefaultFilterModel());
-  pagination.current = 1;
-  void loadLogs();
 }
 
 function handlePageUpdate(page: number) {
@@ -107,8 +82,6 @@ async function handleViewDetail(record: Api.SystemLog.SystemLogRecord) {
 
 <template>
   <NSpace vertical :size="12">
-    <FilterPanel v-model="filterModel" :users="users" :loading="loading" @search="handleSearch" @reset="handleReset" />
-
     <LogTable
       :records="records"
       :loading="loading"

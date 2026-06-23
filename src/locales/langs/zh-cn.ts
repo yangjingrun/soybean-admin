@@ -239,7 +239,7 @@ const local: App.I18n.Schema = {
     500: '服务器错误',
     'iframe-page': '外链页面',
     'ai-leads': 'AI获客',
-    'ai-settings': '模型配置',
+    'ai-settings': 'AI 配置',
     'ai-prompt-settings': '提示词配置',
     crm: 'CRM',
     crm_leads: '客户管理',
@@ -257,7 +257,7 @@ const local: App.I18n.Schema = {
   },
   page: {
     aiSettings: {
-      title: '我的模型通道',
+      title: 'AI 配置',
       description:
         '配置当前账号发起业务 AI 请求使用的模型通道；未配置个人 API Key 时，业务 AI 请求不会使用平台 Key 兜底。',
       providers: {
