@@ -150,6 +150,7 @@ declare namespace Api {
       contactTitle?: string;
       customerType?: string;
       region?: string;
+      regionKeywords?: string;
       status?: CrmAccountStatus;
       sourceTaskId?: string;
       updatedFrom?: string;

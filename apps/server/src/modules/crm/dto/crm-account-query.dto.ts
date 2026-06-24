@@ -48,6 +48,12 @@ export class CrmAccountQueryDto {
   region?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  @Transform(trimOptionalString)
+  regionKeywords?: string;
+
+  @IsOptional()
   @IsIn(crmAccountStatuses)
   @Transform(trimOptionalString)
   status?: CrmAccountStatus;

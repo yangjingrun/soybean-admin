@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { filterLeadRegionOption, leadRegionCascaderOptions } from './lead-region-options';
 import { leadStatusOptions } from './shared';
 
-defineProps<{
+const props = defineProps<{
   model: Api.Crm.LeadFilterModel;
   loading?: boolean;
 }>();
@@ -11,6 +12,10 @@ const emit = defineEmits<{
   reset: [];
   search: [];
 }>();
+
+function handleRegionUpdate(value: string | number | null) {
+  props.model.region = typeof value === 'string' ? value : '';
+}
 </script>
 
 <template>
@@ -42,7 +47,16 @@ const emit = defineEmits<{
           />
         </NFormItemGi>
         <NFormItemGi label="地区">
-          <NInput v-model:value="model.region" clearable placeholder="国家 / 城市" @keyup.enter="emit('search')" />
+          <NCascader
+            :value="model.region || null"
+            clearable
+            filterable
+            :filter="filterLeadRegionOption"
+            :options="leadRegionCascaderOptions"
+            placeholder="国家 / 地区 / 城市"
+            show-path
+            @update:value="handleRegionUpdate"
+          />
         </NFormItemGi>
         <NFormItemGi label="状态">
           <NSelect

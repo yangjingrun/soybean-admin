@@ -123,18 +123,20 @@ export function toAccountListWhere(args: {
   contactTitle?: string;
   customerType?: string;
   region?: string;
+  regionKeywords?: string[];
   status?: CrmAccountStatus;
   sourceTaskId?: string;
   updatedFrom?: Date;
   updatedTo?: Date;
 }): Prisma.CrmAccountWhereInput {
   const keywordFilter = args.keyword ? toAccountKeywordFilter(args.keyword) : undefined;
-  const regionFilter: Prisma.CrmAccountWhereInput[] | undefined = args.region
-    ? [
-        { country: { contains: args.region, mode: 'insensitive' } },
-        { city: { contains: args.region, mode: 'insensitive' } },
-        { address: { contains: args.region, mode: 'insensitive' } }
-      ]
+  const regionKeywords = normalizeAccountRegionKeywords(args);
+  const regionFilter: Prisma.CrmAccountWhereInput[] | undefined = regionKeywords.length
+    ? regionKeywords.flatMap(region => [
+        { country: { contains: region, mode: 'insensitive' } },
+        { city: { contains: region, mode: 'insensitive' } },
+        { address: { contains: region, mode: 'insensitive' } }
+      ])
     : undefined;
   const andFilters: Prisma.CrmAccountWhereInput[] = [
     ...(keywordFilter ? [{ OR: keywordFilter }] : []),
@@ -155,6 +157,16 @@ export function toAccountListWhere(args: {
       : {}),
     ...(andFilters.length ? { AND: andFilters } : {})
   };
+}
+
+function normalizeAccountRegionKeywords(args: { region?: string; regionKeywords?: string[] }) {
+  return Array.from(
+    new Set(
+      [...(args.regionKeywords ?? []), args.region]
+        .map(item => item?.trim())
+        .filter((item): item is string => Boolean(item))
+    )
+  );
 }
 
 /** Builds the Prisma mailbox list scope and optional UI filters. */

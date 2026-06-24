@@ -33,6 +33,7 @@ describe('CrmAccountService', () => {
         contactTitle: ' buyer ',
         customerType: ' distributor ',
         region: ' Riyadh ',
+        regionKeywords: ' 台湾, 台灣, Taiwan, ,台湾 ',
         updatedFrom: '2026-06-01T00:00:00.000Z',
         updatedTo: '2026-06-24T23:59:59.999Z'
       }
@@ -45,6 +46,7 @@ describe('CrmAccountService', () => {
       contactTitle: 'buyer',
       customerType: 'distributor',
       region: 'Riyadh',
+      regionKeywords: ['台湾', '台灣', 'Taiwan'],
       updatedFrom: new Date('2026-06-01T00:00:00.000Z'),
       updatedTo: new Date('2026-06-24T23:59:59.999Z'),
       skip: 0,

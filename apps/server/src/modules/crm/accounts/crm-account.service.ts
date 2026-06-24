@@ -256,6 +256,7 @@ export class CrmAccountService {
       contactTitle?: string;
       customerType?: string;
       region?: string;
+      regionKeywords?: string;
       status?: CrmAccountStatus;
       sourceTaskId?: string;
       updatedFrom?: string;
@@ -268,6 +269,7 @@ export class CrmAccountService {
     const contactTitle = normalizeNullableString(query.contactTitle);
     const customerType = normalizeNullableString(query.customerType);
     const region = normalizeNullableString(query.region);
+    const regionKeywords = normalizeRegionKeywords(query.regionKeywords);
     const sourceTaskId = normalizeNullableString(query.sourceTaskId);
     const updatedFrom = normalizeDate(query.updatedFrom, 'updatedFrom');
     const updatedTo = normalizeDate(query.updatedTo, 'updatedTo');
@@ -278,6 +280,7 @@ export class CrmAccountService {
       ...(contactTitle ? { contactTitle } : {}),
       ...(customerType ? { customerType } : {}),
       ...(region ? { region } : {}),
+      ...(regionKeywords.length ? { regionKeywords } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(sourceTaskId ? { sourceTaskId } : {}),
       ...(updatedFrom ? { updatedFrom } : {}),
@@ -1297,6 +1300,21 @@ function normalizeDate(value: string | undefined, field: string) {
   }
 
   return date;
+}
+
+function normalizeRegionKeywords(value: string | undefined) {
+  if (!value) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .split(',')
+        .map(item => normalizeNullableString(item))
+        .filter((item): item is string => Boolean(item))
+    )
+  ).slice(0, 20);
 }
 
 function toEmailStatusText(status: CrmEmailStatus) {

@@ -360,6 +360,7 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
     contactTitle?: string;
     customerType?: string;
     region?: string;
+    regionKeywords?: string[];
     status?: CrmAccountStatus;
     sourceTaskId?: string;
     updatedFrom?: Date;

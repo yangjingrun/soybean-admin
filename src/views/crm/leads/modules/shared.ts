@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { getLeadRegionKeywords } from './lead-region-options';
 
 export const leadStatusOptions = [
   { label: '候选线索', value: 'candidate' },
@@ -336,7 +337,13 @@ export function buildLeadSearchParams(options: {
   const region = filterModel.region?.trim();
 
   if (region) {
-    params.region = region;
+    const regionKeywords = getLeadRegionKeywords(region);
+
+    if (regionKeywords.length) {
+      params.regionKeywords = regionKeywords.join(',');
+    } else {
+      params.region = region;
+    }
   }
 
   if (filterModel.status) {

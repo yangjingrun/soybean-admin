@@ -2,6 +2,7 @@
 import { computed, h } from 'vue';
 import { NButton, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
+import { formatLeadCountryDisplay } from './lead-region-options';
 import { formatLeadDate, getLeadNextAction, getWebsiteHref, leadStatusLabelMap, leadStatusTagTypeMap } from './shared';
 
 const props = defineProps<{
@@ -49,7 +50,8 @@ function renderWebsite(row: Api.Crm.LeadRecord) {
 }
 
 function renderRegion(row: Api.Crm.LeadRecord) {
-  const regionText = [row.country, row.city].filter(Boolean).join(' / ');
+  const country = formatLeadCountryDisplay(row.country);
+  const regionText = [country, row.city].filter(Boolean).join(' / ');
 
   return h('div', { class: 'lead-stack-cell' }, [
     h('span', { class: regionText ? 'lead-primary-text' : 'lead-empty-text' }, regionText || '-'),
@@ -238,20 +240,15 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
 
 .lead-official-link {
   align-self: flex-start;
-  border: 1px solid rgba(var(--primary-color), 0.28);
-  border-radius: 4px;
-  background: rgba(var(--primary-color), 0.08);
   color: rgb(var(--primary-color));
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  padding: 4px 8px;
-  text-decoration: none;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .lead-official-link:hover {
-  border-color: rgba(var(--primary-color), 0.45);
-  background: rgba(var(--primary-color), 0.14);
+  color: rgb(var(--primary-color) / 0.82);
 }
 
 .table-pagination {

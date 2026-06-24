@@ -91,6 +91,7 @@ describe('PrismaCrmAccountStore', () => {
         contactTitle: 'buyer',
         customerType: 'distributor',
         region: 'Riyadh',
+        regionKeywords: ['台湾', 'Taiwan'],
         updatedFrom,
         updatedTo
       });
@@ -104,6 +105,12 @@ describe('PrismaCrmAccountStore', () => {
         AND: [
           {
             OR: [
+              { country: { contains: '台湾', mode: 'insensitive' } },
+              { city: { contains: '台湾', mode: 'insensitive' } },
+              { address: { contains: '台湾', mode: 'insensitive' } },
+              { country: { contains: 'Taiwan', mode: 'insensitive' } },
+              { city: { contains: 'Taiwan', mode: 'insensitive' } },
+              { address: { contains: 'Taiwan', mode: 'insensitive' } },
               { country: { contains: 'Riyadh', mode: 'insensitive' } },
               { city: { contains: 'Riyadh', mode: 'insensitive' } },
               { address: { contains: 'Riyadh', mode: 'insensitive' } }
