@@ -128,7 +128,15 @@ watch(
 
 <style scoped>
 .prompt-editor {
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.prompt-editor :deep(.n-card__content) {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
 }
 
 .prompt-editor__header {
@@ -235,6 +243,16 @@ watch(
 }
 
 @media (max-width: 960px) {
+  .prompt-editor {
+    height: auto;
+    overflow: visible;
+  }
+
+  .prompt-editor :deep(.n-card__content) {
+    height: auto;
+    overflow: visible;
+  }
+
   .prompt-editor__body {
     grid-template-columns: 1fr;
   }

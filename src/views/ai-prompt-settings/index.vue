@@ -99,15 +99,18 @@ watch(
 
   display: grid;
   grid-template-columns: minmax(236px, 268px) minmax(560px, 1fr) minmax(316px, 348px);
-  align-items: start;
+  align-items: stretch;
   gap: 14px;
-  min-height: calc(100vh - 168px);
+  height: calc(100vh - 168px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .prompt-workbench__nav,
 .prompt-workbench__side {
-  position: sticky;
-  top: 12px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .prompt-workbench__side {
@@ -118,11 +121,14 @@ watch(
 @media (max-width: 1280px) {
   .prompt-workbench {
     grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
   }
 
   .prompt-workbench__nav,
   .prompt-workbench__side {
-    position: static;
+    height: auto;
+    overflow: visible;
   }
 
   .prompt-workbench__side {

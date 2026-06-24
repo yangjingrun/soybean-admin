@@ -224,6 +224,17 @@ async function copyLatestTestRun() {
 </template>
 
 <style scoped>
+.publish-panel {
+  height: 100%;
+  overflow: hidden;
+}
+
+.publish-panel :deep(.n-card__content) {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+}
+
 .publish-panel__content {
   display: grid;
   gap: 14px;

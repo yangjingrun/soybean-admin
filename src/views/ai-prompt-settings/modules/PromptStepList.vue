@@ -67,7 +67,7 @@ const stepCount = computed(() => props.steps.length);
 
 <style scoped>
 .prompt-step-panel {
-  height: calc(100vh - 168px);
+  height: 100%;
   overflow: hidden;
 }
 
