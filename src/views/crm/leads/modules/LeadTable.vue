@@ -9,7 +9,6 @@ import {
   canCreateSequenceFromLeadContact,
   formatLeadDate,
   getWebsiteHref,
-  formatLeadWebsiteDisplay,
   leadEmailStatusLabelMap,
   leadEmailStatusTagTypeMap,
   leadStatusLabelMap,
@@ -48,9 +47,8 @@ const emit = defineEmits<{
 }>();
 
 function renderCompany(row: Api.Crm.LeadRecord) {
-  const websiteText = formatLeadWebsiteDisplay(row);
   const href = row.websiteUrl || row.domain ? getWebsiteHref(row.websiteUrl || row.domain || '') : '';
-  const nameNode = href
+  const companyNode = href
     ? h(
         'a',
         {
@@ -58,30 +56,13 @@ function renderCompany(row: Api.Crm.LeadRecord) {
           href,
           target: '_blank',
           rel: 'noreferrer',
-          title: `打开官网：${websiteText}`
+          title: `打开官网：${row.name}`
         },
-        [row.name, h('span', { class: 'lead-link-icon' }, '↗')]
+        row.name
       )
     : h('span', { class: 'lead-company-name' }, row.name);
-  const websiteNode = href
-    ? h(
-        'a',
-        {
-          class: 'lead-official-link',
-          href,
-          target: '_blank',
-          rel: 'noreferrer',
-          title: `打开官网：${websiteText}`
-        },
-        websiteText
-      )
-    : h('span', { class: 'lead-empty-text' }, '暂无官网');
 
-  return h('div', { class: 'lead-company-cell' }, [
-    nameNode,
-    websiteNode,
-    row.normalizedName ? h('span', { class: 'lead-company-id' }, row.normalizedName) : null
-  ]);
+  return h('div', { class: 'lead-company-cell' }, companyNode);
 }
 
 function renderContactSummary(row: Api.Crm.LeadRecord) {
@@ -628,16 +609,13 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   font-weight: 500;
 }
 
-:deep(.lead-company-link),
-:deep(.lead-official-link) {
+:deep(.lead-company-link) {
   align-self: flex-start;
   text-decoration: none;
 }
 
 :deep(.lead-company-name),
 :deep(.lead-company-link),
-:deep(.lead-official-link),
-:deep(.lead-company-id),
 :deep(.lead-primary-text),
 :deep(.lead-secondary-text),
 :deep(.lead-empty-text) {
@@ -646,28 +624,14 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   word-break: break-word;
 }
 
-:deep(.lead-company-id),
 :deep(.lead-secondary-text),
 :deep(.lead-empty-text) {
   color: var(--n-text-color-3);
   font-size: 12px;
 }
 
-:deep(.lead-official-link) {
-  align-self: flex-start;
-  color: rgb(var(--primary-color));
-  font-weight: 500;
-}
-
-:deep(.lead-company-link:hover),
-:deep(.lead-official-link:hover) {
+:deep(.lead-company-link:hover) {
   color: rgb(var(--primary-color) / 0.82);
-}
-
-:deep(.lead-link-icon) {
-  margin-left: 4px;
-  color: rgb(var(--primary-color));
-  font-size: 12px;
 }
 
 .table-pagination {
