@@ -656,6 +656,11 @@ export function getCurrentSequenceMessage(item: Api.Crm.SequenceReviewItem) {
   );
 }
 
+/** Return the message id that should be selected when opening a sequence detail drawer. */
+export function getDefaultSequenceReviewMessageId(item: Api.Crm.SequenceReviewItem | null) {
+  return item ? (getCurrentSequenceMessage(item)?.id ?? null) : null;
+}
+
 function containsLink(text: string) {
   return /\b(?:https?:\/\/|www\.)\S+/i.test(text);
 }
@@ -777,6 +782,7 @@ export function getSequenceChecklistSummary(item: Api.Crm.SequenceReviewItem) {
 export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): SequenceSendAuditSummary {
   const checklist = getSequenceChecklistSummary(item);
   const failedMessages = getFailedSequenceMessages(item.messages);
+  const currentMessage = getCurrentSequenceMessage(item);
 
   if (failedMessages.length > 0) {
     return {
@@ -786,6 +792,34 @@ export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): S
       failedMessageCount: failedMessages.length,
       passedCheckCount: checklist.passedCount,
       tagType: 'error',
+      totalCheckCount: checklist.total
+    };
+  }
+
+  if (currentMessage?.status === 'queued') {
+    return {
+      label: '发送中',
+      description: `第 ${currentMessage.stepIndex} 封正在发送，等待系统回写结果`,
+      failedCheckCount: checklist.failedCount,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'info',
+      totalCheckCount: checklist.total
+    };
+  }
+
+  if (
+    currentMessage?.status === 'draft_ready' &&
+    currentMessage.scheduledAt &&
+    item.enrollment.status === 'sequence_running'
+  ) {
+    return {
+      label: '已排期',
+      description: `第 ${currentMessage.stepIndex} 封已确认，等待系统按计划发送`,
+      failedCheckCount: checklist.failedCount,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'info',
       totalCheckCount: checklist.total
     };
   }

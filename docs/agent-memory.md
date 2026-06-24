@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-24 CRM 首封发送后列表进度要推进到下一封待处理邮件
+
+- 场景：CRM 首封开发信发送成功后，系统自动生成第二封并进入 `draft_ready` 待发送；开发信任务列表需要展示当前正在流转的邮件。
+- 坑点：发送完成事务如果只把 `CrmSequenceEnrollment.currentStep` 写成刚发出的首封 step，详情弹窗可通过 `messages` 看到第二封待发送，但列表“跟进进度”会继续显示 `第 1 / 5 封`；同时列表“发送条件”如果无条件展示首封 checklist，会把已排期的后续邮件误显示成“需确认”。
+- 正确做法：发送完成时若创建或复用 `nextMessage`，把 enrollment 的 `currentStep` 推进到 `nextMessage.stepIndex`；列表发送条件摘要中，失败优先，其次对当前 `queued`/`draft_ready + scheduledAt` 邮件展示“发送中/已排期”，再展示草稿审核 checklist。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm-sequence-send-state.store.ts`、`src/views/crm/email-sequences/modules/shared.ts`。
+- 验证方式：运行 `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts` 和 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm-send-worker.store.spec.ts`，确认首封发送后列表进度为下一封，已排期后续邮件不再显示旧 checklist 警告。
+
 ### 2026-06-24 CRM 后续开发信默认自动进入发送池，客户回复后才停发
 
 - 场景：CRM 序列邮件发送成功后，需要自动推进下一封跟进邮件；用户期望首封发送后第二封按调度时间自动排队，不再需要人工确认。

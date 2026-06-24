@@ -282,6 +282,7 @@ describe('PrismaCrmSendWorkerStore', () => {
     });
 
     assert.equal(result?.nextMessage?.stepIndex, 2);
+    assert.deepEqual(prisma.crmSequenceEnrollment.updateManyAndReturnCalls[0].data, { currentStep: 2 });
     assert.equal(prisma.crmMessage.createCalls.length, 1);
     assert.deepEqual(prisma.crmMessage.createCalls[0].data, {
       organizationId: 'org-1',

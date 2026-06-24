@@ -10,6 +10,7 @@ import {
   createDefaultSequenceCreateForm,
   createDefaultSequenceFilterModel,
   getCurrentSequenceMessage,
+  getDefaultSequenceReviewMessageId,
   getFailedSequenceMessages,
   getMaxSequenceMessageStep,
   getMessageStatusView,
@@ -459,6 +460,24 @@ describe('email sequence review shared helpers', () => {
     assert.equal(getNextScheduledReviewMessage(messages)?.id, 'message-3');
   });
 
+  it('uses the row current message as the default detail selection', () => {
+    const item = createSequenceItem({
+      firstMessage: createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({
+          id: 'message-2',
+          stepIndex: 2,
+          status: 'draft_ready',
+          scheduledAt: '2026-06-20T06:00:00.000Z'
+        })
+      ],
+      enrollment: { status: 'sequence_running', currentStep: 2 }
+    });
+
+    assert.equal(getDefaultSequenceReviewMessageId(item), 'message-2');
+  });
+
   it('displays scheduled ready running messages separately from queued messages', () => {
     const scheduledReady = createMessage({
       id: 'message-2',
@@ -580,6 +599,29 @@ describe('email sequence review shared helpers', () => {
     assert.equal(getSequenceSendAuditSummary(warning).tagType, 'warning');
     assert.equal(getSequenceSendAuditSummary(passed).label, '1 项通过');
     assert.equal(getSequenceSendAuditSummary(passed).tagType, 'success');
+  });
+
+  it('shows scheduled current follow-up instead of stale checklist warnings', () => {
+    const item = createSequenceItem({
+      firstMessage: createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({
+          id: 'message-2',
+          stepIndex: 2,
+          status: 'draft_ready',
+          scheduledAt: '2026-06-20T06:00:00.000Z'
+        })
+      ],
+      enrollment: { status: 'sequence_running', currentStep: 2 },
+      checklist: [
+        { key: 'mailbox', label: '邮箱', passed: true, message: '邮箱可用' },
+        { key: 'risk', label: '风险', passed: false, message: '公共邮箱需确认' }
+      ]
+    });
+
+    assert.equal(getSequenceSendAuditSummary(item).label, '已排期');
+    assert.equal(getSequenceSendAuditSummary(item).tagType, 'info');
   });
 
   it('describes the next sequence action from current message and enrollment state', () => {

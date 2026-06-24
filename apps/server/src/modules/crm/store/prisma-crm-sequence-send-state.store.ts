@@ -692,6 +692,7 @@ export class PrismaCrmSequenceSendStateStore {
         return null;
       }
 
+      const nextCurrentStep = input.nextMessage?.stepIndex ?? targetMessage.stepIndex;
       const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
         where: {
           id: input.enrollmentId,
@@ -700,7 +701,7 @@ export class PrismaCrmSequenceSendStateStore {
           runVersion: input.runVersion,
           status: 'sequence_running'
         },
-        data: { currentStep: targetMessage.stepIndex },
+        data: { currentStep: nextCurrentStep },
         limit: 1
       });
       const enrollment = enrollments[0];

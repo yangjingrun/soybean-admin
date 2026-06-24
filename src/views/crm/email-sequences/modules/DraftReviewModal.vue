@@ -16,6 +16,7 @@ import {
   canRegenerateAiDraft,
   canGenerateNextSequenceDraft,
   canOperateSelectedSequenceDraft,
+  getDefaultSequenceReviewMessageId,
   canResumeSequence,
   canRetryFirstMessageSend,
   canReturnFirstMessageToEdit,
@@ -314,14 +315,19 @@ const statusTip = computed(() => {
 });
 
 watch(
-  () => [props.item?.enrollment.id, reviewMessages.value.map(item => item.id).join('|')] as const,
-  () => {
+  () => [props.show, props.item?.enrollment.id, reviewMessages.value.map(item => item.id).join('|')] as const,
+  ([show], previous) => {
+    if (!show) return;
+
+    const opened = previous?.[0] !== true;
+    const previousEnrollmentId = previous?.[1];
+    const enrollmentChanged = props.item?.enrollment.id !== previousEnrollmentId;
     const stillExists = reviewMessages.value.some(item => item.id === selectedMessageId.value);
-    selectedMessageId.value = stillExists
-      ? selectedMessageId.value
-      : (reviewMessages.value.find(item => item.status === 'draft_pending_review')?.id ??
-        reviewMessages.value[0]?.id ??
-        null);
+
+    selectedMessageId.value =
+      opened || enrollmentChanged || !stillExists
+        ? getDefaultSequenceReviewMessageId(props.item)
+        : selectedMessageId.value;
   },
   { immediate: true }
 );
