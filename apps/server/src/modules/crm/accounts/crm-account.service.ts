@@ -11,7 +11,12 @@ import { createPageResult } from '../../../shared/pagination';
 import { AiGatewayService } from '../../ai-gateway/ai-gateway.service';
 import { HunterClient } from '../../ai-gateway/hunter-client.service';
 import { normalizeEmailVerificationCooldownDays } from '../crm-global-config';
-import { CRM_ACCOUNT_REPOSITORY, CRM_EMAIL_DNS_RESOLVER, CRM_SETTINGS_REPOSITORY } from '../crm.tokens';
+import {
+  CRM_ACCOUNT_REPOSITORY,
+  CRM_EMAIL_DNS_RESOLVER,
+  CRM_EMAIL_SMTP_VERIFIER,
+  CRM_SETTINGS_REPOSITORY
+} from '../crm.tokens';
 import type {
   CrmAccountRecord,
   CrmAccountStatus,
@@ -37,6 +42,7 @@ import {
 } from '../shared/crm-email-utils';
 import { selectBestHunterContact } from '../shared/crm-hunter-contact-picker';
 import { CrmLoggerService } from '../shared/crm-logger.service';
+import type { CrmEmailSmtpVerifier } from '../shared/crm-smtp-email-verifier';
 import {
   normalizeCrmDomain,
   normalizeCrmName,
@@ -93,7 +99,10 @@ export class CrmAccountService {
     private readonly hunterClient?: Pick<HunterClient, 'domainSearch'>,
     @Optional()
     @Inject(CrmGeoTimezoneService)
-    private readonly geoTimezoneService?: Pick<CrmGeoTimezoneService, 'resolveCustomerTimeZone'>
+    private readonly geoTimezoneService?: Pick<CrmGeoTimezoneService, 'resolveCustomerTimeZone'>,
+    @Optional()
+    @Inject(CRM_EMAIL_SMTP_VERIFIER)
+    private readonly smtpVerifier?: CrmEmailSmtpVerifier
   ) {
     this.dnsResolver = dnsResolver ?? { resolveMx };
   }
@@ -792,10 +801,22 @@ export class CrmAccountService {
       throw new NotFoundException('联系人不存在');
     }
 
+    const detail = await this.accountRepository.getAccountDetail({
+      id: contact.accountId,
+      organizationId: context.organizationId,
+      ...createCrmOwnerFilter(context)
+    });
+
+    if (!detail) {
+      throw new NotFoundException('线索不存在');
+    }
+
     const verification = await this.verifyEmailWithCache(contact.email, context);
     const result = await this.applyContactEmailVerification(contact, verification, context);
+    const account = await this.applyImportedContactAccountStatus(detail.account, result.contact);
 
     return {
+      account: toAccountView(account),
       contact: toContactView(result.contact),
       event: toTimelineEventView(result.event)
     };
@@ -1125,6 +1146,19 @@ export class CrmAccountService {
       const mxRecords = await this.dnsResolver.resolveMx(parsedEmail.domain);
 
       if (mxRecords.length > 0) {
+        const smtpVerification = await this.smtpVerifier?.verifyRecipient({
+          email,
+          mxRecords
+        });
+
+        if (smtpVerification) {
+          return {
+            status: smtpVerification.status,
+            domain: parsedEmail.domain,
+            reason: smtpVerification.reason
+          };
+        }
+
         return {
           status: 'valid',
           domain: parsedEmail.domain,

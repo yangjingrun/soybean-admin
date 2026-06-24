@@ -293,6 +293,7 @@ export function useLeadTable() {
 
       message.success('邮箱验证已完成');
       notifyCrmWorkbenchChanged();
+      await loadLeads();
 
       // Only refresh the drawer if the user is still viewing this contact's account.
       if (detailVisible.value && selectedLeadId.value === accountId) {

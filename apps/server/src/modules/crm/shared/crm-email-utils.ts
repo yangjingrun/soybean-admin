@@ -13,8 +13,13 @@ const publicEmailPrefixes = new Set([
   'support'
 ]);
 
+export interface CrmEmailMxRecord {
+  exchange: string;
+  priority: number;
+}
+
 export interface CrmEmailDnsResolver {
-  resolveMx(domain: string): Promise<unknown[]>;
+  resolveMx(domain: string): Promise<CrmEmailMxRecord[]>;
 }
 
 /** Normalize a candidate email for storage and verification. */

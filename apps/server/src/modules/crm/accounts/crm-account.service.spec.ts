@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { CrmAccountRecord, CrmContactRecord, CrmTimelineEventCreateInput } from '../crm.types';
+import type { CrmAccountRecord, CrmContactRecord, CrmTimelineEventCreateInput, CrmUserContext } from '../crm.types';
 import { CrmAccountService } from './crm-account.service';
 
 describe('CrmAccountService', () => {
@@ -264,6 +264,68 @@ describe('CrmAccountService', () => {
     assert.equal('timeZone' in result.records[0], false);
     assert.equal((result.records[0] as { city?: string }).city, 'Dubai');
     assert.equal((result.records[0] as { address?: string }).address, 'JAFZA South');
+  });
+
+  it('marks contact email invalid when SMTP recipient is rejected after MX lookup', async () => {
+    const contact = createContact({ email: 'missing@abc.example' });
+    const updateCalls: Array<CrmContactRecord['emailStatus']> = [];
+    const accountStatusCalls: Array<CrmAccountRecord['status']> = [];
+    const service = new CrmAccountService(
+      createEmailVerificationRepository(contact, updateCalls, accountStatusCalls) as never,
+      createGlobalConfigRepository() as never,
+      {
+        async resolveMx() {
+          return [{ exchange: 'mx.abc.example', priority: 10 }];
+        }
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        async verifyRecipient() {
+          return { status: 'invalid', reason: 'smtp_recipient_rejected' };
+        }
+      } as never
+    );
+
+    const result = await service.verifyContactEmail(contact.id, createContext());
+
+    assert.equal(result.contact.emailStatus, 'invalid');
+    assert.equal(result.account.status, 'invalid');
+    assert.deepEqual(updateCalls, ['invalid']);
+    assert.deepEqual(accountStatusCalls, ['invalid']);
+  });
+
+  it('marks contact email unreachable when SMTP probing is temporarily unavailable', async () => {
+    const contact = createContact({ email: 'alice@abc.example' });
+    const updateCalls: Array<CrmContactRecord['emailStatus']> = [];
+    const accountStatusCalls: Array<CrmAccountRecord['status']> = [];
+    const service = new CrmAccountService(
+      createEmailVerificationRepository(contact, updateCalls, accountStatusCalls) as never,
+      createGlobalConfigRepository() as never,
+      {
+        async resolveMx() {
+          return [{ exchange: 'mx.abc.example', priority: 10 }];
+        }
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        async verifyRecipient() {
+          return { status: 'unreachable', reason: 'smtp_temporary_failure' };
+        }
+      } as never
+    );
+
+    const result = await service.verifyContactEmail(contact.id, createContext());
+
+    assert.equal(result.contact.emailStatus, 'unreachable');
+    assert.equal(result.account.status, 'manual_review_pending');
+    assert.deepEqual(updateCalls, ['unreachable']);
+    assert.deepEqual(accountStatusCalls, ['manual_review_pending']);
   });
 
   it('updates editable account profile fields and records a timeline event', async () => {
@@ -848,5 +910,92 @@ function createContact(overrides: Partial<CrmContactRecord>): CrmContactRecord {
     createdAt: new Date('2026-06-21T00:00:00Z'),
     updatedAt: new Date('2026-06-21T00:00:00Z'),
     ...overrides
+  };
+}
+
+function createContext(): CrmUserContext {
+  return {
+    userId: 'u-1',
+    userName: 'Sales',
+    roles: ['R_USER'],
+    organizationId: 'org-1',
+    organizationRole: 'member'
+  };
+}
+
+function createGlobalConfigRepository() {
+  return {
+    async getGlobalConfig() {
+      return {
+        configKey: 'default',
+        emailVerificationCooldownDays: 30,
+        ownerConcurrentSendLimit: 5,
+        ownerDailySendLimitMax: 200,
+        followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 },
+        updatedAt: new Date('2026-06-21T00:00:00Z')
+      };
+    }
+  };
+}
+
+function createEmailVerificationRepository(
+  contact: CrmContactRecord,
+  updateCalls: Array<CrmContactRecord['emailStatus']>,
+  accountStatusCalls: Array<CrmAccountRecord['status']>
+) {
+  const account = createAccount({ id: contact.accountId, status: 'email_verification_pending' });
+
+  return {
+    async findContactById() {
+      return contact;
+    },
+    async getAccountDetail() {
+      return {
+        account,
+        contacts: [contact],
+        enrichmentHistories: [],
+        timelineEvents: []
+      };
+    },
+    async updateAccount(_id: string, input: Partial<CrmAccountRecord>) {
+      if (input.status) {
+        accountStatusCalls.push(input.status);
+      }
+
+      return {
+        ...account,
+        ...input
+      };
+    },
+    async updateContactEmailStatus(_id: string, emailStatus: CrmContactRecord['emailStatus']) {
+      updateCalls.push(emailStatus);
+
+      return {
+        ...contact,
+        emailStatus
+      };
+    },
+    async findEmailVerificationCache() {
+      return null;
+    },
+    async upsertEmailVerificationCache() {
+      return {
+        id: 'cache-1',
+        emailHash: 'hash',
+        maskedEmail: contact.maskedEmail,
+        domain: 'abc.example',
+        status: updateCalls[0] ?? 'valid',
+        reason: 'smtp_recipient_accepted',
+        verifiedAt: new Date('2026-06-21T00:00:00Z'),
+        expiresAt: new Date('2026-07-21T00:00:00Z'),
+        checkedById: 'u-1',
+        checkedByName: 'Sales',
+        createdAt: new Date('2026-06-21T00:00:00Z'),
+        updatedAt: new Date('2026-06-21T00:00:00Z')
+      };
+    },
+    async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+      return createTimelineEvent(input);
+    }
   };
 }

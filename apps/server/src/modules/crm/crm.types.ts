@@ -40,7 +40,10 @@ export type CrmEmailVerificationReason =
   | 'invalid_format'
   | 'no_mx'
   | 'dns_temporary_failure'
-  | 'public_email';
+  | 'public_email'
+  | 'smtp_recipient_accepted'
+  | 'smtp_recipient_rejected'
+  | 'smtp_temporary_failure';
 
 export const crmMailboxStatuses = ['active', 'paused', 'auth_expired', 'revoked'] as const;
 export const crmMailboxWarmupStages = ['new', 'warming', 'ready'] as const;

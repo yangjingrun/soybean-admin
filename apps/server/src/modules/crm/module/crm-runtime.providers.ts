@@ -13,12 +13,14 @@ import {
   CRM_AI_DRAFT_TASK_QUEUE,
   CRM_EMAIL_DNS_RESOLVER,
   CRM_EMAIL_SEND_GATEWAY,
+  CRM_EMAIL_SMTP_VERIFIER,
   CRM_GMAIL_HISTORY_GATEWAY,
   CRM_GMAIL_HISTORY_SYNC_QUEUE,
   CRM_GMAIL_OAUTH_FLOW,
   CRM_GMAIL_WATCH_GATEWAY,
   CRM_SEND_QUEUE
 } from '../crm.tokens';
+import { CrmSmtpEmailVerifier } from '../shared/crm-smtp-email-verifier';
 
 export const crmIntegrationServices: Provider[] = [];
 
@@ -75,5 +77,9 @@ export const crmIntegrationProviders: Provider[] = [
   {
     provide: CRM_EMAIL_DNS_RESOLVER,
     useValue: { resolveMx }
+  },
+  {
+    provide: CRM_EMAIL_SMTP_VERIFIER,
+    useClass: CrmSmtpEmailVerifier
   }
 ];

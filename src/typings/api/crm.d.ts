@@ -282,6 +282,7 @@ declare namespace Api {
     }
 
     interface LeadContactEmailVerifyResult {
+      account: LeadRecord;
       contact: LeadContact;
       event: LeadTimelineEvent;
     }
