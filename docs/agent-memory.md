@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-24 CRM 邮件打开追踪像素接口必须显式公开
+
+- 场景：CRM 邮件打开追踪通过邮件里的 1x1 图片请求 `GET /crm/tracking/open/:token`，请求来自客户邮箱客户端，不会携带系统登录 token。
+- 坑点：只新增 Controller 路由但不加 `@Public()` 时，会被全局 `AuthGuard` 拦截为 401，Cloudflare 隧道和后端端口都正常也无法记录打开。
+- 正确做法：追踪像素、Gmail Pub/Sub push、健康检查这类外部回调或公开探测接口，按现有模式在 handler 上显式加 `@Public()`；鉴权仍由 token/HMAC 等业务校验负责。
+- 相关文件：`apps/server/src/modules/crm/tracking/crm-tracking.controller.ts`、`apps/server/src/modules/auth/auth.guard.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/tracking/crm-tracking.controller.spec.ts apps/server/src/modules/crm/tracking/crm-tracking.service.spec.ts apps/server/src/modules/crm/tracking/crm-tracking-token.service.spec.ts`，并通过公网隧道请求无效 token 确认返回 `200 image/gif` 而不是登录 401。
+
 ### 2026-06-23 CRM 客户时区优先查 GeoNames 字典，新增可选依赖放构造函数末尾
 
 - 场景：CRM 导入 AI 获客或手动客户时，需要用 `country + city` 判断客户 IANA 时区，城市可能是阿拉伯语等小语种名称。

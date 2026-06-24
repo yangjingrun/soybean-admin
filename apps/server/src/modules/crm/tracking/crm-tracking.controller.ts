@@ -1,4 +1,5 @@
 import { Controller, Get, Headers, Inject, Ip, Param, Header } from '@nestjs/common';
+import { Public } from '../../auth/auth.decorators';
 import { CrmTrackingService } from './crm-tracking.service';
 import { CrmTrackingTokenService } from './crm-tracking-token.service';
 
@@ -12,6 +13,7 @@ export class CrmTrackingController {
   ) {}
 
   @Get('open/:token')
+  @Public()
   @Header('Content-Type', 'image/gif')
   @Header('Cache-Control', 'no-store, no-cache, max-age=0')
   async open(@Param('token') token: string, @Headers('user-agent') userAgent?: string, @Ip() ipAddress?: string) {
