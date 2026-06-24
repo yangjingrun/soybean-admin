@@ -323,6 +323,8 @@ export class PrismaCrmInboxStore implements CrmInboxRepository {
     keyword?: string;
     status?: CrmInboxThreadStatus;
     mailboxId?: string;
+    accountId?: string;
+    contactId?: string;
     skip: number;
     take: number;
   }): Promise<{ records: CrmInboxThreadListRecord[]; total: number }> {

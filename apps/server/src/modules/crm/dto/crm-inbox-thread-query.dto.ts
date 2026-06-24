@@ -21,4 +21,12 @@ export class CrmInboxThreadQueryDto {
   @IsOptional()
   @IsString()
   mailboxId?: string;
+
+  @IsOptional()
+  @IsString()
+  accountId?: string;
+
+  @IsOptional()
+  @IsString()
+  contactId?: string;
 }

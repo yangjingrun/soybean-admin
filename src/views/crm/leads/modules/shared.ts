@@ -84,6 +84,15 @@ export interface LeadEmailProgressView {
   tagType: NaiveUI.ThemeColor;
 }
 
+export interface LeadSequenceTarget {
+  accountId: string;
+  accountName: string;
+  contactId: string;
+  contactName: string;
+  contactTitle: string;
+  maskedEmail: string;
+}
+
 export type LeadRowContactView =
   | {
       type: 'empty';
@@ -494,6 +503,43 @@ export function buildLeadRowContactView(
 /** Contacts that opted out or failed verification should not start new outreach. */
 export function canCreateSequenceFromLeadContact(contact: Api.Crm.LeadContact) {
   return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
+}
+
+/** Build the readonly target shown before creating first-email drafts from the customer page. */
+export function buildLeadSequenceTarget(
+  contact: Api.Crm.LeadContact,
+  account: Pick<Api.Crm.LeadRecord, 'id' | 'name'> | null | undefined
+): LeadSequenceTarget {
+  return {
+    accountId: contact.accountId,
+    accountName: account?.name || '当前客户',
+    contactId: contact.id,
+    contactName: contact.fullName || contact.maskedEmail || contact.email,
+    contactTitle: contact.title || '-',
+    maskedEmail: contact.maskedEmail || contact.email
+  };
+}
+
+/** Collect selectable primary contacts from checked customer rows. */
+export function buildLeadSequenceTargetsFromCheckedRows(
+  records: Api.Crm.LeadRecord[],
+  checkedRowKeys: string[]
+): LeadSequenceTarget[] {
+  const checkedSet = new Set(checkedRowKeys);
+
+  return records.reduce<LeadSequenceTarget[]>((targets, record) => {
+    if (
+      !checkedSet.has(record.id) ||
+      !record.primaryContact ||
+      !canCreateSequenceFromLeadContact(record.primaryContact)
+    ) {
+      return targets;
+    }
+
+    targets.push(buildLeadSequenceTarget(record.primaryContact, record));
+
+    return targets;
+  }, []);
 }
 
 /** Describe the next human action for one lead status. */

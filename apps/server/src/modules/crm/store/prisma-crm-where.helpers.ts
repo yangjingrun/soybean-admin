@@ -362,6 +362,8 @@ export function toInboxThreadListWhere(args: {
   keyword?: string;
   status?: CrmInboxThreadStatus;
   mailboxId?: string;
+  accountId?: string;
+  contactId?: string;
 }): Prisma.CrmInboxThreadWhereInput {
   const keywordFilter = args.keyword ? toInboxThreadKeywordFilter(args.keyword) : undefined;
 
@@ -370,6 +372,8 @@ export function toInboxThreadListWhere(args: {
     ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
     ...(args.status ? { status: args.status } : {}),
     ...(args.mailboxId ? { mailboxId: args.mailboxId } : {}),
+    ...(args.accountId ? { accountId: args.accountId } : {}),
+    ...(args.contactId ? { contactId: args.contactId } : {}),
     ...(keywordFilter ? { OR: keywordFilter } : {})
   };
 }

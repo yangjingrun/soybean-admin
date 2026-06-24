@@ -1216,6 +1216,8 @@ declare namespace Api {
       keyword?: string;
       status?: InboxThreadStatus;
       mailboxId?: string;
+      accountId?: string;
+      contactId?: string;
     }
 
     interface SequenceReviewFilterModel {

@@ -2,6 +2,7 @@
 import { computed, h, reactive, shallowRef, watch } from 'vue';
 import { NButton, NPopconfirm, NSpace, NTag, useMessage } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
+import LeadInboxPanel from './LeadInboxPanel.vue';
 import {
   buildLeadEmailProgressView,
   createDefaultLeadNoteForm,
@@ -15,7 +16,6 @@ import {
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
   getLeadNextAction,
-  getWebsiteHref,
   leadEnrichmentProviderLabelMap,
   leadEnrichmentStatusLabelMap,
   leadEnrichmentStatusTagTypeMap,
@@ -128,7 +128,6 @@ const selectedContact = computed(
 const selectedContactProgress = computed(() =>
   selectedContact.value ? buildLeadEmailProgressView(selectedContact.value) : null
 );
-const websiteHref = computed(() => (account.value?.websiteUrl ? getWebsiteHref(account.value.websiteUrl) : ''));
 const nextAction = computed(() => (account.value ? getLeadNextAction(account.value.status) : null));
 const latestHunterHistory = computed(
   () => enrichmentHistories.value.find(history => history.provider === 'hunter') ?? null
@@ -144,13 +143,6 @@ const archivedMatchCount = computed(() =>
   archivedMatchGroups.value.reduce((total, group) => total + group.matches.length, 0)
 );
 const contactModalTitle = computed(() => (contactEditingId.value ? '编辑联系人' : '新增联系人'));
-const latestTimelineEvent = computed(() => timelineEvents.value[0] ?? null);
-const latestReplyEvent = computed(
-  () =>
-    timelineEvents.value.find(event =>
-      ['customer_reply', 'customer_replied', 'customer_unsubscribed', 'email_bounced'].includes(event.eventType)
-    ) ?? null
-);
 const communicationHealth = computed(() => {
   const status = account.value?.status;
 
@@ -600,30 +592,6 @@ function handleSelectCommunicationContact(contactId: string) {
 
     <NSpin :show="loading">
       <NSpace v-if="account" vertical :size="14" class="communication-content">
-        <div class="lead-summary communication-summary">
-          <NSpace align="center" :size="8">
-            <span class="lead-summary-domain">{{ formatLeadText(account.domain) }}</span>
-          </NSpace>
-          <NInput v-if="accountEditing" v-model:value="accountForm.name" size="small" placeholder="输入客户名称" />
-          <div v-else class="lead-summary-title">{{ account.name }}</div>
-          <NInput
-            v-if="accountEditing"
-            v-model:value="accountForm.websiteUrl"
-            size="small"
-            placeholder="输入官网链接或域名"
-          />
-          <a
-            v-else-if="account.websiteUrl"
-            class="lead-summary-link"
-            :href="websiteHref"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ account.websiteUrl }}
-          </a>
-          <span v-else class="lead-secondary-text">暂无官网</span>
-        </div>
-
         <div class="communication-metrics">
           <div v-for="metric in statusMetrics" :key="metric.key" class="communication-metric">
             <span class="metric-label">{{ metric.label }}</span>
@@ -763,22 +731,11 @@ function handleSelectCommunicationContact(contactId: string) {
           </NTabPane>
 
           <NTabPane name="inbox" tab="邮件往来">
-            <div class="communication-workspace">
-              <div class="drawer-section">
-                <div class="section-title">邮件动态</div>
-                <NAlert v-if="latestReplyEvent" type="info" :bordered="false">
-                  最近邮件事件：{{ formatLeadTimelineTitle(latestReplyEvent) }} ·
-                  {{ formatLeadDate(latestReplyEvent.createdAt) }}
-                </NAlert>
-                <NEmpty v-else description="暂无客户回复事件" />
-              </div>
-              <div class="drawer-section side-action-panel">
-                <div class="section-title">回复处理</div>
-                <NText depth="3" class="section-subtitle">
-                  客户回复正文和 AI 润色回复会在接入聚合接口后直接显示在这里；当前可从收件箱进入同一处理流程。
-                </NText>
-              </div>
-            </div>
+            <LeadInboxPanel
+              :account-id="account.id"
+              :active="activeTabModel === 'inbox'"
+              :contact-id="selectedContact?.id"
+            />
           </NTabPane>
 
           <NTabPane name="schedule" tab="调度">
@@ -1114,10 +1071,6 @@ function handleSelectCommunicationContact(contactId: string) {
   padding-right: 2px;
 }
 
-.communication-summary {
-  padding-bottom: 8px;
-}
-
 .communication-metrics {
   display: grid;
   gap: 10px;
@@ -1207,25 +1160,12 @@ function handleSelectCommunicationContact(contactId: string) {
   white-space: nowrap;
 }
 
-.lead-summary,
 .drawer-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.lead-summary {
-  border-bottom: 1px solid var(--n-divider-color);
-  padding-bottom: 14px;
-}
-
-.lead-summary-title {
-  color: var(--n-text-color);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.lead-summary-domain,
 .lead-secondary-text {
   color: var(--n-text-color-3);
   font-size: 12px;
@@ -1236,15 +1176,6 @@ function handleSelectCommunicationContact(contactId: string) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.lead-summary-link {
-  color: rgb(var(--primary-color));
-  text-decoration: none;
-}
-
-.lead-summary-link:hover {
-  text-decoration: underline;
 }
 
 .lead-contact-modal {

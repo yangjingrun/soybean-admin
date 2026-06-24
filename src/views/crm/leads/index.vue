@@ -2,6 +2,7 @@
 import LeadDetailDrawer from './modules/LeadDetailDrawer.vue';
 import LeadFilterPanel from './modules/LeadFilterPanel.vue';
 import LeadImportModal from './modules/LeadImportModal.vue';
+import LeadSequenceCreateModal from './modules/LeadSequenceCreateModal.vue';
 import LeadStats from './modules/LeadStats.vue';
 import LeadTable from './modules/LeadTable.vue';
 import { useLeadTable } from './modules/shared/useLeadTable';
@@ -20,8 +21,12 @@ const {
   expandedLeadLoadingIds,
   expandedRowKeys,
   filterModel,
+  checkedLeadRowKeys,
+  checkedLeadSequenceTargets,
   handleArchiveLead,
+  handleCheckedLeadRowKeysUpdate,
   handleUpdateAccount,
+  handleCreateSequencesFromTargets,
   handleCreateSequenceFromContact,
   handleCreateContact,
   handleCreateNote,
@@ -33,10 +38,12 @@ const {
   handleImportVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
+  handleOpenBatchSequenceCreateModal,
   handleRefreshAccountEnrichment,
   handleReset,
   handleRestoreLead,
   handleSearch,
+  handleSequenceCreateVisibleUpdate,
   handleUpdateContact,
   handleUpdateStatus,
   handleVerifyContactEmail,
@@ -53,6 +60,14 @@ const {
   pagination,
   refreshingEnrichmentProvider,
   records,
+  sequenceCreateForm,
+  sequenceCreateSubmitting,
+  sequenceCreateVisible,
+  sequenceMailboxSelectOptions,
+  sequencePolicySelectOptions,
+  sequenceProductLineSelectOptions,
+  sequenceResourceLoading,
+  sequenceTargets,
   statusSubmitting,
   verifyingContactIds
 } = useLeadTable();
@@ -76,6 +91,8 @@ const {
 
     <LeadTable
       :records="records"
+      :checked-row-keys="checkedLeadRowKeys"
+      :checked-sequence-target-count="checkedLeadSequenceTargets.length"
       :loading="loading"
       :archive-operating-id="archiveOperatingId"
       :expanded-lead-details="expandedLeadDetails"
@@ -88,9 +105,11 @@ const {
       :verifying-contact-ids="verifyingContactIds"
       @open-communication="openLeadDetail"
       @archive="handleArchiveLead"
+      @batch-create-sequence="handleOpenBatchSequenceCreateModal"
       @create-sequence="handleCreateSequenceFromContact"
       @load-expanded-contacts="loadExpandedLeadDetail"
       @restore="handleRestoreLead"
+      @update-checked-row-keys="handleCheckedLeadRowKeysUpdate"
       @update-expanded-row-keys="handleExpandedRowKeysUpdate"
       @update-page="handlePageUpdate"
       @update-page-size="handlePageSizeUpdate"
@@ -130,6 +149,19 @@ const {
       :submitting="importSubmitting"
       @update:visible="handleImportVisibleUpdate"
       @submit="handleImportLead"
+    />
+
+    <LeadSequenceCreateModal
+      v-model:show="sequenceCreateVisible"
+      v-model:form-model="sequenceCreateForm"
+      :targets="sequenceTargets"
+      :loading="sequenceResourceLoading"
+      :mailbox-options="sequenceMailboxSelectOptions"
+      :product-line-options="sequenceProductLineSelectOptions"
+      :sequence-policy-options="sequencePolicySelectOptions"
+      :submitting="sequenceCreateSubmitting"
+      @update:show="handleSequenceCreateVisibleUpdate"
+      @submit="handleCreateSequencesFromTargets"
     />
   </NSpace>
 </template>

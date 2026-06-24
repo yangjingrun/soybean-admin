@@ -18,6 +18,8 @@ import {
 } from './shared';
 
 const props = defineProps<{
+  checkedRowKeys?: string[];
+  checkedSequenceTargetCount?: number;
   records: Api.Crm.LeadRecord[];
   loading?: boolean;
   archiveOperatingId?: string | null;
@@ -33,10 +35,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   archive: [record: Api.Crm.LeadRecord];
+  batchCreateSequence: [];
   createSequence: [contact: Api.Crm.LeadContact];
   loadExpandedContacts: [accountId: string];
   restore: [record: Api.Crm.LeadRecord];
   openCommunication: [record: Api.Crm.LeadRecord, tab: LeadCommunicationTab, contactId?: string];
+  updateCheckedRowKeys: [keys: string[]];
   updateExpandedRowKeys: [keys: string[]];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
@@ -358,7 +362,16 @@ function handleExpandedRowKeysUpdate(keys: DataTableRowKey[]) {
   emit('updateExpandedRowKeys', keys.map(String));
 }
 
+function handleCheckedRowKeysUpdate(keys: DataTableRowKey[]) {
+  emit('updateCheckedRowKeys', keys.map(String));
+}
+
 function handleMoreAction(key: string | number, row: Api.Crm.LeadRecord) {
+  if (key === 'createSequence' && row.primaryContact) {
+    emit('createSequence', row.primaryContact);
+    return;
+  }
+
   if (key === 'restore') {
     emit('restore', row);
     return;
@@ -374,7 +387,13 @@ const hasMultipleContactRows = computed(() =>
 );
 
 const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
+  const selectionColumn: DataTableColumns<Api.Crm.LeadRecord>[number] = {
+    type: 'selection',
+    width: 44,
+    disabled: row => !row.primaryContact || !canCreateSequenceFromLeadContact(row.primaryContact)
+  };
   const tableColumns: DataTableColumns<Api.Crm.LeadRecord> = [
+    selectionColumn,
     {
       key: 'name',
       title: '公司 / 官网',
@@ -480,6 +499,11 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                 {
                   options: [
                     {
+                      label: '生成开发信',
+                      key: 'createSequence',
+                      disabled: !row.primaryContact || !canCreateSequenceFromLeadContact(row.primaryContact)
+                    },
+                    {
                       label: row.status === 'archived' ? '重新开发' : '暂不开发',
                       key: row.status === 'archived' ? 'restore' : 'archive',
                       disabled: props.archiveOperatingId === row.id
@@ -526,15 +550,29 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 <template>
   <NCard :bordered="false" size="small" class="card-wrapper" title="客户开发台">
     <NSpace vertical :size="12">
+      <div class="table-toolbar">
+        <span class="lead-secondary-text">已选 {{ checkedSequenceTargetCount ?? 0 }} 个可生成联系人</span>
+        <NButton
+          size="small"
+          type="primary"
+          :disabled="!checkedSequenceTargetCount"
+          @click="emit('batchCreateSequence')"
+        >
+          批量生成开发信
+        </NButton>
+      </div>
+
       <NDataTable
         :columns="columns"
         :data="records"
+        :checked-row-keys="checkedRowKeys"
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
         :scroll-x="1720"
         size="small"
         remote
+        @update:checked-row-keys="handleCheckedRowKeysUpdate"
         @update:expanded-row-keys="handleExpandedRowKeysUpdate"
       >
         <template #empty>
@@ -609,6 +647,13 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 .table-pagination {
   display: flex;
   justify-content: flex-end;
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .lead-expanded-panel {

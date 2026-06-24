@@ -7,6 +7,8 @@ import {
   buildLeadEmailProgressView,
   buildLeadExpandedContactView,
   buildLeadRowContactView,
+  buildLeadSequenceTarget,
+  buildLeadSequenceTargetsFromCheckedRows,
   canCreateSequenceFromLeadContact,
   crmLeadPageGuide,
   formatLeadProgressTime,
@@ -432,6 +434,32 @@ describe('crm lead shared helpers', () => {
     assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'invalid' })), false);
     assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unreachable' })), false);
     assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unsubscribed' })), false);
+  });
+
+  it('builds first-email generation targets from contacts and checked rows', () => {
+    const validContact = createLeadContact({ id: 'contact-1', accountId: 'lead-1', emailStatus: 'valid' });
+    const invalidContact = createLeadContact({ id: 'contact-2', accountId: 'lead-2', emailStatus: 'invalid' });
+
+    assert.deepEqual(buildLeadSequenceTarget(validContact, createLeadRecord({ id: 'lead-1', name: 'ABC Trading' })), {
+      accountId: 'lead-1',
+      accountName: 'ABC Trading',
+      contactId: 'contact-1',
+      contactName: 'Alex Buyer',
+      contactTitle: 'Buyer',
+      maskedEmail: 'a***@example.com'
+    });
+
+    assert.deepEqual(
+      buildLeadSequenceTargetsFromCheckedRows(
+        [
+          createLeadRecord({ id: 'lead-1', name: 'ABC Trading', primaryContact: validContact }),
+          createLeadRecord({ id: 'lead-2', name: 'Invalid Lead', primaryContact: invalidContact }),
+          createLeadRecord({ id: 'lead-3', name: 'No Contact', primaryContact: null })
+        ],
+        ['lead-1', 'lead-2', 'lead-3']
+      ),
+      [buildLeadSequenceTarget(validContact, createLeadRecord({ id: 'lead-1', name: 'ABC Trading' }))]
+    );
   });
 
   it('builds province/state region keyword params from cascader filters', () => {

@@ -101,12 +101,16 @@ export class CrmInboxService {
       keyword?: string;
       status?: CrmInboxThreadStatus;
       mailboxId?: string;
+      accountId?: string;
+      contactId?: string;
     } = {}
   ) {
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
     const mailboxId = normalizeNullableString(query.mailboxId);
+    const accountId = normalizeNullableString(query.accountId);
+    const contactId = normalizeNullableString(query.contactId);
     const organizationConfig = await this.settingsRepository.getOrganizationConfig(context.organizationId);
     const result = await this.inboxRepository.listInboxThreads({
       organizationId: context.organizationId,
@@ -114,6 +118,8 @@ export class CrmInboxService {
       ...(keyword ? { keyword } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(mailboxId ? { mailboxId } : {}),
+      ...(accountId ? { accountId } : {}),
+      ...(contactId ? { contactId } : {}),
       skip: (current - 1) * size,
       take: size
     });

@@ -14,6 +14,8 @@ describe('PrismaCrmInboxStore', () => {
       keyword: 'reply',
       status: 'pending',
       mailboxId: 'mailbox-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
       skip: 0,
       take: 20
     });
@@ -26,6 +28,8 @@ describe('PrismaCrmInboxStore', () => {
       ownerUserId: 'user-1',
       status: 'pending',
       mailboxId: 'mailbox-1',
+      accountId: 'account-1',
+      contactId: 'contact-1',
       OR: [
         { subject: { contains: 'reply', mode: 'insensitive' } },
         { account: { name: { contains: 'reply', mode: 'insensitive' } } },
