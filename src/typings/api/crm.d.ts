@@ -62,6 +62,8 @@ declare namespace Api {
 
     type MessageStatus = 'draft_pending_review' | 'draft_ready' | 'queued' | 'sent' | 'failed' | 'skipped';
 
+    type ContactEmailProgressStatus = MessageStatus | 'not_generated' | 'replied';
+
     type MessageThreadMode = 'new_subject' | 'same_thread';
 
     type InboxThreadStatus = 'pending' | 'handled' | 'archived';
@@ -104,6 +106,12 @@ declare namespace Api {
       maskedEmail: string;
       isPublicEmail: boolean;
       emailStatus: CrmEmailStatus;
+      emailProgressStatus: ContactEmailProgressStatus;
+      emailProgressLabel: string;
+      emailProgressAt: string | null;
+      emailProgressMessageId: string | null;
+      emailProgressStepIndex: number | null;
+      emailProgressTotalSteps: number | null;
       sourceTaskId: string | null;
       createdAt: string;
       updatedAt: string;

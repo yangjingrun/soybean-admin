@@ -3,12 +3,13 @@ import { computed, h } from 'vue';
 import { NButton, NDataTable, NDropdown, NEmpty, NSpace, NSpin, NTag } from 'naive-ui';
 import type { DataTableColumns, DataTableRowKey } from 'naive-ui';
 import {
+  buildLeadEmailProgressView,
   buildLeadExpandedContactView,
   buildLeadRowContactView,
   canCreateSequenceFromLeadContact,
   formatLeadDate,
-  getLeadNextAction,
   getWebsiteHref,
+  formatLeadWebsiteDisplay,
   leadEmailStatusLabelMap,
   leadEmailStatusTagTypeMap,
   leadStatusLabelMap,
@@ -35,7 +36,7 @@ const emit = defineEmits<{
   createSequence: [contact: Api.Crm.LeadContact];
   loadExpandedContacts: [accountId: string];
   restore: [record: Api.Crm.LeadRecord];
-  openCommunication: [record: Api.Crm.LeadRecord, tab: LeadCommunicationTab];
+  openCommunication: [record: Api.Crm.LeadRecord, tab: LeadCommunicationTab, contactId?: string];
   updateExpandedRowKeys: [keys: string[]];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
@@ -43,53 +44,39 @@ const emit = defineEmits<{
 }>();
 
 function renderCompany(row: Api.Crm.LeadRecord) {
-  return h('div', { class: 'lead-company-cell' }, [
-    h('span', { class: 'lead-company-name' }, row.name),
-    h('span', { class: 'lead-company-id' }, row.normalizedName)
-  ]);
-}
-
-function renderWebsite(row: Api.Crm.LeadRecord) {
-  const websiteNode = row.websiteUrl
+  const websiteText = formatLeadWebsiteDisplay(row);
+  const href = row.websiteUrl || row.domain ? getWebsiteHref(row.websiteUrl || row.domain || '') : '';
+  const nameNode = href
+    ? h(
+        'a',
+        {
+          class: 'lead-company-link',
+          href,
+          target: '_blank',
+          rel: 'noreferrer',
+          title: `打开官网：${websiteText}`
+        },
+        [row.name, h('span', { class: 'lead-link-icon' }, '↗')]
+      )
+    : h('span', { class: 'lead-company-name' }, row.name);
+  const websiteNode = href
     ? h(
         'a',
         {
           class: 'lead-official-link',
-          href: getWebsiteHref(row.websiteUrl),
+          href,
           target: '_blank',
           rel: 'noreferrer',
-          title: row.websiteUrl
+          title: `打开官网：${websiteText}`
         },
-        '官网'
+        websiteText
       )
-    : h('span', { class: 'lead-empty-text' }, '-');
+    : h('span', { class: 'lead-empty-text' }, '暂无官网');
 
-  return h('div', { class: 'lead-stack-cell' }, [websiteNode]);
-}
-
-function renderRegion(row: Api.Crm.LeadRecord) {
-  const regionText = [row.country, row.city].filter(Boolean).join(' / ');
-
-  return h('div', { class: 'lead-stack-cell' }, [
-    h('span', { class: regionText ? 'lead-primary-text' : 'lead-empty-text' }, regionText || '-'),
-    h('span', { class: 'lead-secondary-text' }, row.customerType || '-')
-  ]);
-}
-
-function renderNextAction(row: Api.Crm.LeadRecord) {
-  const action = getLeadNextAction(row.status);
-
-  return h('div', { class: 'lead-stack-cell' }, [
-    h(
-      NTag,
-      {
-        bordered: false,
-        size: 'small',
-        type: action.type
-      },
-      { default: () => action.label }
-    ),
-    h('span', { class: 'lead-secondary-text' }, action.description)
+  return h('div', { class: 'lead-company-cell' }, [
+    nameNode,
+    websiteNode,
+    row.normalizedName ? h('span', { class: 'lead-company-id' }, row.normalizedName) : null
   ]);
 }
 
@@ -136,6 +123,36 @@ function renderContactSummary(row: Api.Crm.LeadRecord) {
       },
       { default: () => leadEmailStatusLabelMap[view.primaryContact.emailStatus] }
     )
+  ]);
+}
+
+function renderEmailProgress(contact: Api.Crm.LeadContact | null) {
+  if (!contact) {
+    return h('span', { class: 'lead-empty-text' }, '-');
+  }
+
+  const progress = buildLeadEmailProgressView(contact);
+
+  return h('div', { class: 'lead-stack-cell' }, [
+    h(
+      NTag,
+      {
+        bordered: false,
+        size: 'small',
+        type: progress.tagType
+      },
+      { default: () => progress.label }
+    ),
+    h('span', { class: 'lead-secondary-text' }, progress.timeText)
+  ]);
+}
+
+function renderRecentInteraction(row: Api.Crm.LeadRecord) {
+  const contactProgressAt = row.primaryContact?.emailProgressAt;
+
+  return h('div', { class: 'lead-stack-cell' }, [
+    h('span', { class: 'lead-primary-text' }, contactProgressAt ? '邮箱进度更新' : '客户资料更新'),
+    h('span', { class: 'lead-secondary-text' }, formatLeadDate(contactProgressAt || row.updatedAt))
   ]);
 }
 
@@ -191,19 +208,66 @@ const expandedContactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>((
       )
   },
   {
+    key: 'emailProgress',
+    title: '邮箱进度',
+    minWidth: 190,
+    render: row => renderEmailProgress(row)
+  },
+  {
     key: 'operate',
     title: '操作',
-    width: 130,
+    width: 240,
     fixed: 'right',
     render: row =>
       h(
         NSpace,
         {
           size: 8,
-          justify: 'center'
+          justify: 'center',
+          wrap: true
         },
         {
           default: () => [
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'primary',
+                onClick: () => openContactCommunication(row, 'profile')
+              },
+              { default: () => '详情' }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'success',
+                onClick: () => openContactCommunication(row, 'sequence')
+              },
+              { default: () => '进度' }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'info',
+                onClick: () => openContactCommunication(row, 'inbox')
+              },
+              { default: () => '邮件' }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                text: true,
+                type: 'primary',
+                onClick: () => openContactCommunication(row, 'schedule')
+              },
+              { default: () => '调度' }
+            ),
             h(
               NButton,
               {
@@ -232,6 +296,16 @@ const expandedContactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>((
       )
   }
 ]);
+
+function openContactCommunication(contact: Api.Crm.LeadContact, tab: LeadCommunicationTab) {
+  const record = props.records.find(item => item.id === contact.accountId);
+
+  if (!record) {
+    return;
+  }
+
+  emit('openCommunication', record, tab, contact.id);
+}
 
 function renderExpandedContacts(row: Api.Crm.LeadRecord) {
   const view = buildLeadExpandedContactView({
@@ -274,7 +348,7 @@ function renderExpandedContacts(row: Api.Crm.LeadRecord) {
       columns: expandedContactColumns.value,
       data: view.contacts,
       rowKey: (contact: Api.Crm.LeadContact) => contact.id,
-      scrollX: 760,
+      scrollX: 980,
       size: 'small'
     })
   ]);
@@ -285,11 +359,6 @@ function handleExpandedRowKeysUpdate(keys: DataTableRowKey[]) {
 }
 
 function handleMoreAction(key: string | number, row: Api.Crm.LeadRecord) {
-  if (key === 'schedule') {
-    emit('openCommunication', row, 'schedule');
-    return;
-  }
-
   if (key === 'restore') {
     emit('restore', row);
     return;
@@ -308,7 +377,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   const tableColumns: DataTableColumns<Api.Crm.LeadRecord> = [
     {
       key: 'name',
-      title: '公司名',
+      title: '公司 / 官网',
       minWidth: 260,
       render: row => renderCompany(row)
     },
@@ -319,20 +388,8 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
       render: row => renderContactSummary(row)
     },
     {
-      key: 'website',
-      title: '官网',
-      width: 90,
-      render: row => renderWebsite(row)
-    },
-    {
-      key: 'region',
-      title: '地区 / 客户类型',
-      minWidth: 160,
-      render: row => renderRegion(row)
-    },
-    {
       key: 'status',
-      title: '状态',
+      title: '客户阶段',
       width: 150,
       render: row =>
         h(
@@ -346,10 +403,16 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         )
     },
     {
-      key: 'nextAction',
-      title: '下一步',
+      key: 'emailProgress',
+      title: '邮箱进度',
       minWidth: 190,
-      render: row => renderNextAction(row)
+      render: row => renderEmailProgress(row.primaryContact)
+    },
+    {
+      key: 'latestInteraction',
+      title: '最近互动',
+      minWidth: 160,
+      render: row => renderRecentInteraction(row)
     },
     {
       key: 'updatedAt',
@@ -360,14 +423,15 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'operate',
       title: '操作',
-      width: 220,
+      width: 260,
       fixed: 'right',
       render: row =>
         h(
           NSpace,
           {
             size: 8,
-            justify: 'center'
+            justify: 'center',
+            wrap: true
           },
           {
             default: () => [
@@ -377,7 +441,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                   size: 'small',
                   text: true,
                   type: 'primary',
-                  onClick: () => emit('openCommunication', row, 'profile')
+                  onClick: () => emit('openCommunication', row, 'profile', row.primaryContact?.id)
                 },
                 { default: () => '详情' }
               ),
@@ -387,7 +451,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                   size: 'small',
                   text: true,
                   type: 'success',
-                  onClick: () => emit('openCommunication', row, 'sequence')
+                  onClick: () => emit('openCommunication', row, 'sequence', row.primaryContact?.id)
                 },
                 { default: () => '进度' }
               ),
@@ -397,15 +461,24 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                   size: 'small',
                   text: true,
                   type: 'info',
-                  onClick: () => emit('openCommunication', row, 'inbox')
+                  onClick: () => emit('openCommunication', row, 'inbox', row.primaryContact?.id)
                 },
                 { default: () => '邮件' }
+              ),
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  text: true,
+                  type: 'primary',
+                  onClick: () => emit('openCommunication', row, 'schedule', row.primaryContact?.id)
+                },
+                { default: () => '调度' }
               ),
               h(
                 NDropdown,
                 {
                   options: [
-                    { label: '调度', key: 'schedule' },
                     {
                       label: row.status === 'archived' ? '重新开发' : '暂不开发',
                       key: row.status === 'archived' ? 'restore' : 'archive',
@@ -451,7 +524,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="客户管理">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="客户开发台">
     <NSpace vertical :size="12">
       <NDataTable
         :columns="columns"
@@ -459,7 +532,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1660"
+        :scroll-x="1720"
         size="small"
         remote
         @update:expanded-row-keys="handleExpandedRowKeysUpdate"
@@ -497,9 +570,16 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 }
 
 .lead-company-name,
+.lead-company-link,
 .lead-primary-text {
   color: var(--n-text-color);
   font-weight: 500;
+}
+
+.lead-company-link,
+.lead-official-link {
+  align-self: flex-start;
+  text-decoration: none;
 }
 
 .lead-company-id,
@@ -513,13 +593,17 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   align-self: flex-start;
   color: rgb(var(--primary-color));
   font-weight: 500;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
 }
 
+.lead-company-link:hover,
 .lead-official-link:hover {
   color: rgb(var(--primary-color) / 0.82);
+}
+
+.lead-link-icon {
+  margin-left: 4px;
+  color: rgb(var(--primary-color));
+  font-size: 12px;
 }
 
 .table-pagination {

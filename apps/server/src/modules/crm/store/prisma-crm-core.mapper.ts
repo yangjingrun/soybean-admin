@@ -43,7 +43,13 @@ export function toBlacklistRecord(record: CrmBlacklistModel): CrmBlacklistRecord
 export function toContactRecord(record: CrmContactModel): CrmContactRecord {
   return {
     ...record,
-    emailStatus: record.emailStatus as CrmContactRecord['emailStatus']
+    emailStatus: record.emailStatus as CrmContactRecord['emailStatus'],
+    emailProgressStatus: 'not_generated',
+    emailProgressLabel: '首封待生成',
+    emailProgressAt: null,
+    emailProgressMessageId: null,
+    emailProgressStepIndex: null,
+    emailProgressTotalSteps: null
   };
 }
 

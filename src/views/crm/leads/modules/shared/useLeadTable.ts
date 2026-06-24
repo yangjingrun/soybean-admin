@@ -34,6 +34,7 @@ export function useLeadTable() {
   const loading = shallowRef(false);
   const detailVisible = shallowRef(false);
   const detailActiveTab = shallowRef<LeadCommunicationTab>('overview');
+  const detailActiveContactId = shallowRef<string | null>(null);
   const detailLoading = shallowRef(false);
   const importVisible = shallowRef(false);
   const importSubmitting = shallowRef(false);
@@ -161,9 +162,10 @@ export function useLeadTable() {
   }
 
   /** Open the unified customer communication modal on the requested tab. */
-  function openLeadDetail(record: Api.Crm.LeadRecord, activeTab: LeadCommunicationTab = 'overview') {
+  function openLeadDetail(record: Api.Crm.LeadRecord, activeTab: LeadCommunicationTab = 'overview', contactId?: string) {
     selectedLeadId.value = record.id;
     detailActiveTab.value = activeTab;
+    detailActiveContactId.value = contactId ?? record.primaryContact?.id ?? null;
     leadDetail.value = null;
     detailVisible.value = true;
     void loadLeadDetail(record.id);
@@ -222,6 +224,7 @@ export function useLeadTable() {
     if (!show) {
       selectedLeadId.value = null;
       detailActiveTab.value = 'overview';
+      detailActiveContactId.value = null;
       leadDetail.value = null;
       detailLoading.value = false;
       latestDetailRequestId += 1;
@@ -625,6 +628,7 @@ export function useLeadTable() {
     contactDeletingId,
     contactSubmitting,
     detailActiveTab,
+    detailActiveContactId,
     detailLoading,
     detailVisible,
     expandedLeadDetails,

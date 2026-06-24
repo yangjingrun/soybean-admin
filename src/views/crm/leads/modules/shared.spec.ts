@@ -4,10 +4,12 @@ import * as leadShared from './shared';
 import {
   buildLeadQueueStats,
   buildLeadSearchParams,
+  buildLeadEmailProgressView,
   buildLeadExpandedContactView,
   buildLeadRowContactView,
   canCreateSequenceFromLeadContact,
   crmLeadPageGuide,
+  formatLeadProgressTime,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
   getLeadNextAction,
@@ -21,9 +23,9 @@ import {
 
 describe('crm lead shared helpers', () => {
   it('uses plain business wording for AI leads handoff', () => {
-    assert.equal(crmLeadPageGuide.title, '客户管理承接 AI 获客结果');
-    assert.match(crmLeadPageGuide.description, /可开发客户创建开发任务/);
-    assert.match(crmLeadPageGuide.description, /暂不开发客户/);
+    assert.equal(crmLeadPageGuide.title, '客户开发台承接 AI 获客结果');
+    assert.match(crmLeadPageGuide.description, /邮箱进度和调度信息/);
+    assert.match(crmLeadPageGuide.description, /以联系人推进触达/);
     assert.equal(leadStatusLabelMap.archived, '暂不开发');
     assert.equal(leadStatusLabelMap.sequence_running, '开发中');
   });
@@ -252,6 +254,11 @@ describe('crm lead shared helpers', () => {
       description: '沉淀客户关系和后续机会',
       type: 'success'
     });
+    assert.deepEqual(getLeadNextAction('followed_up'), {
+      label: '继续跟进',
+      description: '按沟通结果推进后续动作',
+      type: 'success'
+    });
     assert.deepEqual(getLeadNextAction('invalid'), {
       label: '暂不开发',
       description: '移出日常开发队列',
@@ -280,6 +287,39 @@ describe('crm lead shared helpers', () => {
       'kr.misumi-ec.com'
     );
     assert.equal(formatLeadWebsiteDisplay({ websiteUrl: null, domain: null }), '-');
+  });
+
+  it('formats contact email progress with full datetime text', () => {
+    assert.equal(formatLeadProgressTime('2026-06-24T08:20:00.000Z'), '2026-06-24 16:20:00');
+    assert.equal(formatLeadProgressTime(null), '-');
+    assert.deepEqual(
+      buildLeadEmailProgressView(
+        createLeadContact({
+          emailProgressStatus: 'draft_ready',
+          emailProgressLabel: '第 1/5 封已排期',
+          emailProgressAt: '2026-06-24T08:20:00.000Z'
+        })
+      ),
+      {
+        label: '第 1/5 封已排期',
+        timeText: '2026-06-24 16:20:00',
+        tagType: 'info'
+      }
+    );
+    assert.deepEqual(
+      buildLeadEmailProgressView(
+        createLeadContact({
+          emailProgressStatus: 'replied',
+          emailProgressLabel: '客户已回复',
+          emailProgressAt: '2026-06-24T07:58:12.000Z'
+        })
+      ),
+      {
+        label: '客户已回复',
+        timeText: '2026-06-24 15:58:12',
+        tagType: 'warning'
+      }
+    );
   });
 
   it('builds lead search params from field filters', () => {
@@ -467,6 +507,12 @@ function createLeadContact(input: Partial<Api.Crm.LeadContact> = {}): Api.Crm.Le
     maskedEmail: input.maskedEmail ?? 'a***@example.com',
     isPublicEmail: input.isPublicEmail ?? false,
     emailStatus: input.emailStatus ?? 'unchecked',
+    emailProgressStatus: input.emailProgressStatus ?? 'not_generated',
+    emailProgressLabel: input.emailProgressLabel ?? '首封待生成',
+    emailProgressAt: input.emailProgressAt ?? null,
+    emailProgressMessageId: input.emailProgressMessageId ?? null,
+    emailProgressStepIndex: input.emailProgressStepIndex ?? null,
+    emailProgressTotalSteps: input.emailProgressTotalSteps ?? null,
     sourceTaskId: input.sourceTaskId ?? null,
     createdAt: input.createdAt ?? '2026-06-19T00:00:00.000Z',
     updatedAt: input.updatedAt ?? '2026-06-19T00:00:00.000Z'

@@ -23,6 +23,7 @@ import type {
   CrmArchivedFingerprintLookupInput,
   CrmArchivedFingerprintUpsertInput,
   CrmContactCreateInput,
+  CrmContactRecord,
   CrmContactUpdateInput,
   CrmEmailStatus,
   CrmEmailVerificationCacheUpsertInput,
@@ -43,6 +44,34 @@ type PrismaAccountListRecord = Prisma.CrmAccountGetPayload<{
     contacts: true;
   };
 }>;
+
+type ContactEmailProgress = Pick<
+  CrmContactRecord,
+  | 'emailProgressStatus'
+  | 'emailProgressLabel'
+  | 'emailProgressAt'
+  | 'emailProgressMessageId'
+  | 'emailProgressStepIndex'
+  | 'emailProgressTotalSteps'
+>;
+
+type ContactProgressMessageRow = {
+  id: string;
+  contactId: string;
+  status: string;
+  stepIndex: number;
+  scheduledAt: Date | null;
+  sentAt: Date | null;
+  updatedAt: Date;
+  enrollment: {
+    totalSteps: number;
+  } | null;
+};
+
+type ContactProgressThreadRow = {
+  contactId: string;
+  lastInboundAt: Date;
+};
 
 @Injectable()
 export class PrismaCrmAccountStore implements CrmAccountRepository {
@@ -401,9 +430,13 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
       }),
       this.prisma.crmAccount.count({ where })
     ]);
+    const progressByContactId = await this.getContactEmailProgressMap({
+      organizationId: args.organizationId,
+      contactIds: records.flatMap(record => record.contacts.map(contact => contact.id))
+    });
 
     return {
-      records: records.map(toAccountListRecord),
+      records: records.map(record => toAccountListRecord(record, progressByContactId)),
       total
     };
   }
@@ -448,13 +481,80 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
         }
       })
     ]);
+    const progressByContactId = await this.getContactEmailProgressMap({
+      organizationId: args.organizationId,
+      contactIds: contacts.map(contact => contact.id)
+    });
 
     return {
       account: toAccountRecord(account),
-      contacts: contacts.map(toContactRecord),
+      contacts: contacts.map(contact => withContactEmailProgress(toContactRecord(contact), progressByContactId)),
       enrichmentHistories: enrichmentHistories.map(toLeadEnrichmentHistoryRecord),
       timelineEvents: timelineEvents.map(toTimelineEventRecord)
     };
+  }
+
+  private async getContactEmailProgressMap(input: { organizationId: string; contactIds: string[] }) {
+    const contactIds = toUniqueValues(input.contactIds);
+    const progressByContactId = new Map<string, ContactEmailProgress>();
+
+    if (contactIds.length === 0) {
+      return progressByContactId;
+    }
+
+    const [messages, threads] = await Promise.all([
+      this.prisma.crmMessage.findMany({
+        where: {
+          organizationId: input.organizationId,
+          contactId: { in: contactIds }
+        },
+        select: {
+          id: true,
+          contactId: true,
+          status: true,
+          stepIndex: true,
+          scheduledAt: true,
+          sentAt: true,
+          updatedAt: true,
+          enrollment: {
+            select: {
+              totalSteps: true
+            }
+          }
+        },
+        orderBy: [{ updatedAt: 'desc' }]
+      }),
+      this.prisma.crmInboxThread.findMany({
+        where: {
+          organizationId: input.organizationId,
+          contactId: { in: contactIds }
+        },
+        select: {
+          contactId: true,
+          lastInboundAt: true
+        },
+        orderBy: {
+          lastInboundAt: 'desc'
+        }
+      })
+    ]);
+    const messagesByContactId = groupByContactId(messages);
+    const latestThreadByContactId = new Map<string, ContactProgressThreadRow>();
+
+    for (const thread of threads) {
+      if (!latestThreadByContactId.has(thread.contactId)) {
+        latestThreadByContactId.set(thread.contactId, thread);
+      }
+    }
+
+    for (const contactId of contactIds) {
+      progressByContactId.set(
+        contactId,
+        buildContactEmailProgress(messagesByContactId.get(contactId) ?? [], latestThreadByContactId.get(contactId))
+      );
+    }
+
+    return progressByContactId;
   }
 
   async createTimelineEvent(input: CrmTimelineEventCreateInput) {
@@ -479,12 +579,118 @@ function toUniqueValues(values: string[]) {
   return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)));
 }
 
-function toAccountListRecord(record: PrismaAccountListRecord): CrmAccountListRecord {
+function toAccountListRecord(
+  record: PrismaAccountListRecord,
+  progressByContactId: Map<string, ContactEmailProgress>
+): CrmAccountListRecord {
   const { _count, contacts, ...account } = record;
 
   return {
     ...toAccountRecord(account),
     contactCount: _count.contacts,
-    primaryContact: contacts[0] ? toContactRecord(contacts[0]) : null
+    primaryContact: contacts[0] ? withContactEmailProgress(toContactRecord(contacts[0]), progressByContactId) : null
   };
+}
+
+function withContactEmailProgress(
+  contact: CrmContactRecord,
+  progressByContactId: Map<string, ContactEmailProgress>
+): CrmContactRecord {
+  const progress = progressByContactId.get(contact.id);
+
+  if (!progress) return contact;
+
+  return {
+    ...contact,
+    ...progress
+  };
+}
+
+function groupByContactId(messages: ContactProgressMessageRow[]) {
+  const grouped = new Map<string, ContactProgressMessageRow[]>();
+
+  for (const message of messages) {
+    grouped.set(message.contactId, [...(grouped.get(message.contactId) ?? []), message]);
+  }
+
+  return grouped;
+}
+
+function buildContactEmailProgress(
+  messages: ContactProgressMessageRow[],
+  latestThread?: ContactProgressThreadRow
+): ContactEmailProgress {
+  if (latestThread) {
+    return {
+      emailProgressStatus: 'replied',
+      emailProgressLabel: '客户已回复',
+      emailProgressAt: latestThread.lastInboundAt,
+      emailProgressMessageId: null,
+      emailProgressStepIndex: null,
+      emailProgressTotalSteps: null
+    };
+  }
+
+  const message =
+    pickLatestMessage(messages, ['failed']) ??
+    pickNextScheduledMessage(messages) ??
+    pickLatestMessage(messages, ['draft_pending_review']) ??
+    pickLatestMessage(messages, ['sent']) ??
+    pickLatestMessage(messages, ['skipped']);
+
+  if (!message) {
+    return {
+      emailProgressStatus: 'not_generated',
+      emailProgressLabel: '首封待生成',
+      emailProgressAt: null,
+      emailProgressMessageId: null,
+      emailProgressStepIndex: null,
+      emailProgressTotalSteps: null
+    };
+  }
+
+  const status = message.status as ContactEmailProgress['emailProgressStatus'];
+  const totalSteps = message.enrollment?.totalSteps ?? null;
+
+  return {
+    emailProgressStatus: status,
+    emailProgressLabel: formatContactEmailProgressLabel(status, message.stepIndex, totalSteps),
+    emailProgressAt: getMessageProgressTime(message),
+    emailProgressMessageId: message.id,
+    emailProgressStepIndex: message.stepIndex,
+    emailProgressTotalSteps: totalSteps
+  };
+}
+
+function pickLatestMessage(messages: ContactProgressMessageRow[], statuses: string[]) {
+  return messages
+    .filter(message => statuses.includes(message.status))
+    .sort((left, right) => getMessageProgressTime(right).getTime() - getMessageProgressTime(left).getTime())[0];
+}
+
+function pickNextScheduledMessage(messages: ContactProgressMessageRow[]) {
+  return messages
+    .filter(message => ['draft_ready', 'queued'].includes(message.status))
+    .sort((left, right) => getMessageProgressTime(left).getTime() - getMessageProgressTime(right).getTime())[0];
+}
+
+function getMessageProgressTime(message: ContactProgressMessageRow) {
+  return message.scheduledAt ?? message.sentAt ?? message.updatedAt;
+}
+
+function formatContactEmailProgressLabel(
+  status: ContactEmailProgress['emailProgressStatus'],
+  stepIndex: number,
+  totalSteps: number | null
+) {
+  const stepText = totalSteps ? `第 ${stepIndex}/${totalSteps} 封` : `第 ${stepIndex} 封`;
+
+  if (status === 'draft_pending_review') return `${stepText}待确认`;
+  if (status === 'draft_ready') return `${stepText}已排期`;
+  if (status === 'queued') return `${stepText}发送中`;
+  if (status === 'sent') return `${stepText}已发送`;
+  if (status === 'failed') return `${stepText}发送失败`;
+  if (status === 'skipped') return `${stepText}已跳过`;
+
+  return '首封待生成';
 }

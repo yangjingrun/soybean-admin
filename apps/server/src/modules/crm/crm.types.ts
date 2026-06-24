@@ -102,6 +102,7 @@ export type CrmMessageStatus = (typeof crmMessageStatuses)[number];
 export type CrmMessageThreadMode = (typeof crmMessageThreadModes)[number];
 export type CrmInboxThreadStatus = (typeof crmInboxThreadStatuses)[number];
 export type CrmInboxMessageType = (typeof crmInboxMessageTypes)[number];
+export type CrmContactEmailProgressStatus = CrmMessageStatus | 'not_generated' | 'replied';
 export type CrmGmailHistoryMessageDirection = 'inbound' | 'outbound';
 export type CrmGmailHistoryLabelChangeType = 'labels_added' | 'labels_removed' | 'message_deleted';
 
@@ -164,6 +165,12 @@ export interface CrmContactRecord {
   isPublicEmail: boolean;
   emailStatus: CrmEmailStatus;
   sourceTaskId: string | null;
+  emailProgressStatus: CrmContactEmailProgressStatus;
+  emailProgressLabel: string;
+  emailProgressAt: Date | null;
+  emailProgressMessageId: string | null;
+  emailProgressStepIndex: number | null;
+  emailProgressTotalSteps: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -130,6 +130,12 @@ function createSequenceItem(
       maskedEmail: 'a***@example.com',
       isPublicEmail: false,
       emailStatus: 'valid',
+      emailProgressStatus: 'not_generated',
+      emailProgressLabel: '首封待生成',
+      emailProgressAt: null,
+      emailProgressMessageId: null,
+      emailProgressStepIndex: null,
+      emailProgressTotalSteps: null,
       sourceTaskId: null,
       createdAt: '2026-06-19T01:00:00.000Z',
       updatedAt: '2026-06-19T01:00:00.000Z'

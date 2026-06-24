@@ -45,6 +45,7 @@ export function toAccountListView(record: CrmAccountListRecord) {
 export function toContactView(record: CrmContactRecord) {
   return {
     ...record,
+    emailProgressAt: record.emailProgressAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   };

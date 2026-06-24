@@ -48,7 +48,7 @@ export function useCrmRegionCascader() {
 
   function clearRegionSearch() {}
 
-  function handleRegionDropdownShow() {}
+  function handleRegionDropdownShow(_show: boolean) {}
 
   return {
     clearRegionSearch,

@@ -11,6 +11,7 @@ const {
   accountSubmitting,
   contactDeletingId,
   contactSubmitting,
+  detailActiveContactId,
   detailActiveTab,
   detailLoading,
   detailVisible,
@@ -99,6 +100,7 @@ const {
     <LeadDetailDrawer
       :show="detailVisible"
       :active-tab="detailActiveTab"
+      :active-contact-id="detailActiveContactId"
       :detail="leadDetail"
       :loading="detailLoading"
       :account-submitting="accountSubmitting"

@@ -3,6 +3,7 @@ import { computed, h, reactive, shallowRef, watch } from 'vue';
 import { NButton, NPopconfirm, NSpace, NTag, useMessage } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
+  buildLeadEmailProgressView,
   createDefaultLeadNoteForm,
   createDefaultLeadStatusForm,
   buildLeadAccountUpdatePayload,
@@ -31,6 +32,7 @@ import {
 const props = defineProps<{
   show: boolean;
   activeTab?: LeadCommunicationTab;
+  activeContactId?: string | null;
   detail: Api.Crm.LeadDetail | null;
   loading?: boolean;
   accountSubmitting?: boolean;
@@ -119,6 +121,13 @@ const contacts = computed(() => props.detail?.contacts ?? []);
 const enrichmentHistories = computed(() => props.detail?.enrichmentHistories ?? []);
 const timelineEvents = computed(() => props.detail?.timelineEvents ?? []);
 const primaryContact = computed(() => contacts.value[0] ?? null);
+const selectedContactId = shallowRef<string | null>(null);
+const selectedContact = computed(
+  () => contacts.value.find(contact => contact.id === selectedContactId.value) ?? primaryContact.value
+);
+const selectedContactProgress = computed(() =>
+  selectedContact.value ? buildLeadEmailProgressView(selectedContact.value) : null
+);
 const websiteHref = computed(() => (account.value?.websiteUrl ? getWebsiteHref(account.value.websiteUrl) : ''));
 const nextAction = computed(() => (account.value ? getLeadNextAction(account.value.status) : null));
 const latestHunterHistory = computed(
@@ -165,14 +174,14 @@ const statusMetrics = computed<CommunicationMetric[]>(() => [
   {
     key: 'contact',
     label: '主联系人',
-    value: primaryContact.value?.fullName || primaryContact.value?.maskedEmail || '-',
-    description: primaryContact.value?.title || primaryContact.value?.maskedEmail || ''
+    value: selectedContact.value?.fullName || selectedContact.value?.maskedEmail || '-',
+    description: selectedContact.value?.title || selectedContact.value?.maskedEmail || ''
   },
   {
     key: 'latest',
-    label: '最近动态',
-    value: latestTimelineEvent.value ? formatLeadTimelineTitle(latestTimelineEvent.value) : '-',
-    description: latestTimelineEvent.value ? formatLeadDate(latestTimelineEvent.value.createdAt) : ''
+    label: '邮箱进度',
+    value: selectedContactProgress.value?.label ?? '首封待生成',
+    description: selectedContactProgress.value?.timeText ?? ''
   },
   {
     key: 'health',
@@ -183,17 +192,25 @@ const statusMetrics = computed<CommunicationMetric[]>(() => [
   }
 ]);
 const sequenceSummary = computed(() => {
+  const progress = selectedContactProgress.value;
+
+  if (progress) return `${selectedContact.value?.fullName || selectedContact.value?.maskedEmail || '当前联系人'}：${progress.label}${progress.timeText === '-' ? '' : ` · ${progress.timeText}`}`;
+
   const status = account.value?.status;
 
   if (status === 'sequence_running') return '客户正在开发信序列中，建议查看邮件任务确认当前待发送邮件和调度。';
   if (status === 'replied_pending') return '客户已经回复，后续未发送邮件应已停止，优先处理回复。';
   if (status === 'ready') return '客户已可触达，可以从联系人创建开发信任务。';
-  if (status === 'followed_up') return '客户已完成阶段性跟进，可结合邮件往来判断下一步。';
+  if (status === 'followed_up') return '客户已完成阶段性跟进，可结合邮件往来判断后续动作。';
   if (status === 'archived') return '客户已暂不开发，不会继续进入发送队列。';
 
   return nextAction.value?.description ?? '暂无开发信进度。';
 });
 const scheduleSummary = computed(() => {
+  const progress = selectedContactProgress.value;
+
+  if (progress) return `${selectedContact.value?.fullName || selectedContact.value?.maskedEmail || '当前联系人'}：${progress.label}${progress.timeText === '-' ? '' : ` · ${progress.timeText}`}`;
+
   const status = account.value?.status;
 
   if (status === 'sequence_running') return '调度详情需要读取当前开发信任务，建议从开发信任务列表进入同一客户沟通弹窗。';
@@ -248,6 +265,27 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
         },
         { default: () => leadEmailStatusLabelMap[row.emailStatus] }
       )
+  },
+  {
+    key: 'emailProgress',
+    title: '邮箱进度',
+    minWidth: 180,
+    render: row => {
+      const progress = buildLeadEmailProgressView(row);
+
+      return h('div', { class: 'lead-contact-cell' }, [
+        h(
+          NTag,
+          {
+            bordered: false,
+            size: 'small',
+            type: progress.tagType
+          },
+          { default: () => progress.label }
+        ),
+        h('span', { class: 'lead-secondary-text' }, progress.timeText)
+      ]);
+    }
   },
   {
     key: 'operate',
@@ -323,6 +361,17 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
       )
   }
 ]);
+
+watch(
+  [() => props.activeContactId, () => contacts.value.map(contact => contact.id).join(',')],
+  ([activeContactId]) => {
+    selectedContactId.value =
+      activeContactId && contacts.value.some(contact => contact.id === activeContactId)
+        ? activeContactId
+        : (contacts.value[0]?.id ?? null);
+  },
+  { immediate: true }
+);
 
 watch(
   () => props.detail?.account,
@@ -508,6 +557,10 @@ function handleSubmitContact() {
     }
   });
 }
+
+function handleSelectCommunicationContact(contactId: string) {
+  selectedContactId.value = contactId;
+}
 </script>
 
 <template>
@@ -523,16 +576,19 @@ function handleSubmitContact() {
       <div class="communication-header">
         <div class="communication-heading">
           <NSpace align="center" :size="8" wrap>
-            <span class="modal-title">客户沟通</span>
+            <span class="modal-title">客户沟通{{ account ? ` · ${account.name}` : '' }}</span>
             <NTag v-if="account" :type="leadStatusTagTypeMap[account.status]" :bordered="false" size="small">
               {{ leadStatusLabelMap[account.status] }}
+            </NTag>
+            <NTag v-if="contacts.length" type="info" :bordered="false" size="small">
+              {{ contacts.length }} 个联系人
             </NTag>
             <NTag v-if="communicationHealth.label !== '-'" :type="communicationHealth.type" :bordered="false" size="small">
               {{ communicationHealth.label }}
             </NTag>
           </NSpace>
           <div v-if="account" class="modal-subtitle">
-            {{ account.name }} · {{ formatLeadText(primaryContact?.maskedEmail) }} ·
+            {{ formatLeadText(account.websiteUrl || account.domain) }} · {{ formatLeadText(selectedContact?.maskedEmail) }} ·
             {{ formatLeadText(account.city || account.country) }} · {{ formatLeadText(account.timeZone) }}
           </div>
         </div>
@@ -619,20 +675,29 @@ function handleSubmitContact() {
               <div class="drawer-section">
                 <div class="section-title">当前状态</div>
                 <NDescriptions :column="1" label-placement="left" bordered size="small">
-                  <NDescriptionsItem label="下一步">{{ nextAction?.label ?? '-' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="当前动作">{{ nextAction?.label ?? '-' }}</NDescriptionsItem>
                   <NDescriptionsItem label="说明">{{ nextAction?.description ?? '-' }}</NDescriptionsItem>
                   <NDescriptionsItem label="主联系人">
-                    {{ primaryContact?.fullName || primaryContact?.maskedEmail || '-' }}
+                    {{ selectedContact?.fullName || selectedContact?.maskedEmail || '-' }}
                   </NDescriptionsItem>
                   <NDescriptionsItem label="邮箱状态">
                     <NTag
-                      v-if="primaryContact"
-                      :type="leadEmailStatusTagTypeMap[primaryContact.emailStatus]"
+                      v-if="selectedContact"
+                      :type="leadEmailStatusTagTypeMap[selectedContact.emailStatus]"
                       :bordered="false"
                       size="small"
                     >
-                      {{ leadEmailStatusLabelMap[primaryContact.emailStatus] }}
+                      {{ leadEmailStatusLabelMap[selectedContact.emailStatus] }}
                     </NTag>
+                    <span v-else>-</span>
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="邮箱进度">
+                    <NSpace v-if="selectedContactProgress" align="center" :size="8" wrap>
+                      <NTag :type="selectedContactProgress.tagType" :bordered="false" size="small">
+                        {{ selectedContactProgress.label }}
+                      </NTag>
+                      <span class="lead-secondary-text">{{ selectedContactProgress.timeText }}</span>
+                    </NSpace>
                     <span v-else>-</span>
                   </NDescriptionsItem>
                 </NDescriptions>
@@ -662,11 +727,20 @@ function handleSubmitContact() {
                 <NAlert type="info" :bordered="false">{{ sequenceSummary }}</NAlert>
                 <NDescriptions :column="1" label-placement="left" bordered size="small">
                   <NDescriptionsItem label="客户状态">{{ leadStatusLabelMap[account.status] }}</NDescriptionsItem>
-                  <NDescriptionsItem label="主联系人">
-                    {{ primaryContact?.fullName || primaryContact?.maskedEmail || '-' }}
+                  <NDescriptionsItem label="当前联系人">
+                    {{ selectedContact?.fullName || selectedContact?.maskedEmail || '-' }}
                   </NDescriptionsItem>
                   <NDescriptionsItem label="联系人邮箱">
-                    {{ formatLeadText(primaryContact?.maskedEmail) }}
+                    {{ formatLeadText(selectedContact?.maskedEmail) }}
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="邮箱进度">
+                    <NSpace v-if="selectedContactProgress" align="center" :size="8" wrap>
+                      <NTag :type="selectedContactProgress.tagType" :bordered="false" size="small">
+                        {{ selectedContactProgress.label }}
+                      </NTag>
+                      <span class="lead-secondary-text">{{ selectedContactProgress.timeText }}</span>
+                    </NSpace>
+                    <span v-else>-</span>
                   </NDescriptionsItem>
                   <NDescriptionsItem label="最近更新时间">{{ formatLeadDate(account.updatedAt) }}</NDescriptionsItem>
                 </NDescriptions>
@@ -676,8 +750,8 @@ function handleSubmitContact() {
                 <NButton
                   type="primary"
                   secondary
-                  :disabled="!primaryContact || !canCreateSequenceFromLeadContact(primaryContact)"
-                  @click="primaryContact && emit('createSequence', primaryContact)"
+                  :disabled="!selectedContact || !canCreateSequenceFromLeadContact(selectedContact)"
+                  @click="selectedContact && emit('createSequence', selectedContact)"
                 >
                   创建开发信
                 </NButton>
@@ -708,22 +782,61 @@ function handleSubmitContact() {
           </NTabPane>
 
           <NTabPane name="schedule" tab="调度">
-            <div class="communication-workspace">
+            <div class="communication-workspace schedule-workspace">
+              <div class="drawer-section contact-selector-panel">
+                <div class="section-title">联系人</div>
+                <div class="contact-selector-list">
+                  <button
+                    v-for="contact in contacts"
+                    :key="contact.id"
+                    class="contact-selector-item"
+                    :class="{ 'contact-selector-item--active': selectedContact?.id === contact.id }"
+                    type="button"
+                    @click="handleSelectCommunicationContact(contact.id)"
+                  >
+                    <span class="contact-selector-name">{{ contact.fullName || contact.maskedEmail }}</span>
+                    <span class="lead-secondary-text">{{ contact.title || contact.maskedEmail }}</span>
+                    <NTag :type="buildLeadEmailProgressView(contact).tagType" :bordered="false" size="small">
+                      {{ buildLeadEmailProgressView(contact).label }}
+                    </NTag>
+                  </button>
+                </div>
+              </div>
               <div class="drawer-section">
                 <div class="section-title">邮件调度</div>
                 <NAlert type="info" :bordered="false">{{ scheduleSummary }}</NAlert>
-                <NDescriptions :column="1" label-placement="left" bordered size="small">
-                  <NDescriptionsItem label="客户时区">{{ formatLeadText(account.timeZone) }}</NDescriptionsItem>
-                  <NDescriptionsItem label="地区">{{ [account.country, account.city].filter(Boolean).join(' / ') || '-' }}</NDescriptionsItem>
-                  <NDescriptionsItem label="发送口径">按客户时区、全局发送窗口和同邮箱错峰计算</NDescriptionsItem>
-                  <NDescriptionsItem label="停止条件">客户回复或确认退订后跳过后续待发送邮件</NDescriptionsItem>
-                </NDescriptions>
+                <NTimeline>
+                  <NTimelineItem
+                    title="当前邮箱进度"
+                    :content="selectedContactProgress?.label ?? '首封待生成'"
+                    :time="selectedContactProgress?.timeText === '-' ? undefined : selectedContactProgress?.timeText"
+                    :type="selectedContact?.emailProgressStatus === 'failed' ? 'error' : 'info'"
+                  />
+                  <NTimelineItem
+                    title="后续调度规则"
+                    content="按客户时区、全局发送窗口和同邮箱错峰计算"
+                    type="default"
+                  />
+                  <NTimelineItem
+                    title="停止条件"
+                    content="客户回复或确认退订后跳过后续待发送邮件"
+                    type="warning"
+                  />
+                </NTimeline>
               </div>
               <div class="drawer-section side-action-panel">
-                <div class="section-title">排查信息</div>
-                <NText depth="3" class="section-subtitle">
-                  后续接入后展示 scheduledAt、sentAt、message.status、bullJobId、runVersion 和发送条件。
-                </NText>
+                <div class="section-title">调度信息</div>
+                <NDescriptions :column="1" label-placement="left" bordered size="small">
+                  <NDescriptionsItem label="当前联系人">
+                    {{ selectedContact?.fullName || selectedContact?.maskedEmail || '-' }}
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="联系人邮箱">{{ formatLeadText(selectedContact?.maskedEmail) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="客户时区">{{ formatLeadText(account.timeZone) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="地区">{{ [account.country, account.city].filter(Boolean).join(' / ') || '-' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="消息 ID">
+                    {{ formatLeadText(selectedContact?.emailProgressMessageId) }}
+                  </NDescriptionsItem>
+                </NDescriptions>
               </div>
             </div>
           </NTabPane>
@@ -866,7 +979,7 @@ function handleSubmitContact() {
                   :columns="contactColumns"
                   :data="contacts"
                   :row-key="row => row.id"
-                  :scroll-x="760"
+                  :scroll-x="940"
                   size="small"
                 >
                   <template #empty>
@@ -969,6 +1082,7 @@ function handleSubmitContact() {
 .communication-content,
 .drawer-section,
 .profile-tab-content,
+.contact-selector-list,
 .side-action-panel {
   display: flex;
   flex-direction: column;
@@ -1054,8 +1168,43 @@ function handleSubmitContact() {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
 }
 
+.schedule-workspace {
+  grid-template-columns: 240px minmax(0, 1fr) minmax(280px, 0.36fr);
+}
+
 .profile-tab-content {
   gap: 14px;
+}
+
+.contact-selector-list {
+  gap: 8px;
+}
+
+.contact-selector-item {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background: var(--n-color);
+  cursor: pointer;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.contact-selector-item--active {
+  border-color: rgb(var(--primary-color));
+  background: rgb(var(--primary-color) / 0.07);
+}
+
+.contact-selector-name {
+  overflow: hidden;
+  color: var(--n-text-color);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lead-summary,

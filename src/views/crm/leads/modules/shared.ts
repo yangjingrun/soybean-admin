@@ -19,8 +19,8 @@ export const leadStatusOptions = [
 ] satisfies Array<{ label: string; value: Api.Crm.CrmAccountStatus }>;
 
 export const crmLeadPageGuide = {
-  title: '客户管理承接 AI 获客结果',
-  description: '先补齐联系人和邮箱验证；可开发客户创建开发任务，暂不开发客户会保留历史记录但移出日常跟进。'
+  title: '客户开发台承接 AI 获客结果',
+  description: '以公司管理客户、以联系人推进触达；可开发联系人生成开发信后，可直接查看邮箱进度和调度信息。'
 };
 
 export const leadStatusLabelMap: Record<Api.Crm.CrmAccountStatus, string> = {
@@ -76,6 +76,12 @@ export type LeadExpandedContactStatus = 'idle' | 'loading' | 'loaded' | 'error';
 export interface LeadExpandedContactView {
   status: LeadExpandedContactStatus;
   contacts: Api.Crm.LeadContact[];
+}
+
+export interface LeadEmailProgressView {
+  label: string;
+  timeText: string;
+  tagType: NaiveUI.ThemeColor;
 }
 
 export type LeadRowContactView =
@@ -148,7 +154,7 @@ const leadNextActionMap: Record<Api.Crm.CrmAccountStatus, LeadNextAction> = {
   },
   followed_up: {
     label: '继续跟进',
-    description: '按沟通结果推进下一步',
+    description: '按沟通结果推进后续动作',
     type: 'success'
   },
   opportunity: {
@@ -199,6 +205,17 @@ export const leadEmailStatusTagTypeMap: Record<Api.Crm.CrmEmailStatus, NaiveUI.T
   risky: 'warning',
   unreachable: 'error',
   unsubscribed: 'error'
+};
+
+const leadEmailProgressTagTypeMap: Record<Api.Crm.ContactEmailProgressStatus, NaiveUI.ThemeColor> = {
+  not_generated: 'default',
+  draft_pending_review: 'warning',
+  draft_ready: 'info',
+  queued: 'primary',
+  sent: 'success',
+  failed: 'error',
+  skipped: 'default',
+  replied: 'warning'
 };
 
 export const leadEnrichmentProviderLabelMap: Record<Api.Crm.LeadEnrichmentProvider, string> = {
@@ -487,6 +504,20 @@ export function getLeadNextAction(status: Api.Crm.CrmAccountStatus) {
 /** Format backend ISO datetime for the lead table. */
 export function formatLeadDate(value: string) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
+}
+
+/** Format nullable backend ISO datetime for email progress displays. */
+export function formatLeadProgressTime(value: string | null | undefined) {
+  return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+}
+
+/** Build the contact-level email progress view shown by the customer table and modal. */
+export function buildLeadEmailProgressView(contact: Api.Crm.LeadContact): LeadEmailProgressView {
+  return {
+    label: contact.emailProgressLabel || '首封待生成',
+    timeText: formatLeadProgressTime(contact.emailProgressAt),
+    tagType: leadEmailProgressTagTypeMap[contact.emailProgressStatus] ?? 'default'
+  };
 }
 
 /** Format optional backend text for compact descriptions. */

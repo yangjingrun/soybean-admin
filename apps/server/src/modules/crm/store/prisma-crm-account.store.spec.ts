@@ -152,6 +152,38 @@ describe('PrismaCrmAccountStore', () => {
       });
     });
 
+    it('adds primary contact email progress to listed accounts', async () => {
+      const scheduledAt = new Date('2026-06-24T08:20:00.000Z');
+      const prisma = createPrisma({
+        messages: [
+          createPrismaMessage({
+            id: 'message-1',
+            status: 'draft_ready',
+            stepIndex: 1,
+            scheduledAt,
+            enrollment: { totalSteps: 5 }
+          })
+        ]
+      });
+      const store = new PrismaCrmAccountStore(prisma as never);
+
+      const result = await store.listAccounts({
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        skip: 0,
+        take: 20
+      });
+
+      assert.deepEqual(prisma.crmMessage.findManyCalls[0].where, {
+        organizationId: 'org-1',
+        contactId: { in: ['contact-1'] }
+      });
+      assert.equal(result.records[0].primaryContact?.emailProgressStatus, 'draft_ready');
+      assert.equal(result.records[0].primaryContact?.emailProgressLabel, '第 1/5 封已排期');
+      assert.equal(result.records[0].primaryContact?.emailProgressAt, scheduledAt);
+      assert.equal(result.records[0].primaryContact?.emailProgressMessageId, 'message-1');
+    });
+
     it('returns the existing account when concurrent create hits a unique conflict', async () => {
       const prisma = createPrisma();
       const store = new PrismaCrmAccountStore(prisma as never);
@@ -387,6 +419,32 @@ describe('PrismaCrmAccountStore', () => {
       });
     });
 
+    it('adds contact email progress to account detail and prioritizes customer replies', async () => {
+      const lastInboundAt = new Date('2026-06-24T07:58:12.000Z');
+      const prisma = createPrisma({
+        messages: [
+          createPrismaMessage({
+            id: 'message-queued',
+            status: 'queued',
+            scheduledAt: new Date('2026-06-24T08:20:00.000Z')
+          })
+        ],
+        inboxThreads: [createPrismaInboxThread({ lastInboundAt })]
+      });
+      const store = new PrismaCrmAccountStore(prisma as never);
+
+      const detail = await store.getAccountDetail({
+        id: 'account-1',
+        organizationId: 'org-1',
+        ownerUserId: 'user-1'
+      });
+
+      assert.equal(detail?.contacts[0].emailProgressStatus, 'replied');
+      assert.equal(detail?.contacts[0].emailProgressLabel, '客户已回复');
+      assert.equal(detail?.contacts[0].emailProgressAt, lastInboundAt);
+      assert.equal(detail?.contacts[0].emailProgressMessageId, null);
+    });
+
     it('loads contacts with organization and optional owner scope', async () => {
       const prisma = createPrisma();
       const store = new PrismaCrmAccountStore(prisma as never);
@@ -428,6 +486,8 @@ function createPrisma(
     archivedFingerprintResults?: ReturnType<typeof createPrismaArchivedFingerprint>[];
     contact?: ReturnType<typeof createPrismaContact> | null;
     enrichmentHistories?: ReturnType<typeof createPrismaLeadEnrichmentHistory>[];
+    inboxThreads?: ReturnType<typeof createPrismaInboxThread>[];
+    messages?: ReturnType<typeof createPrismaMessage>[];
     timelineEvents?: ReturnType<typeof createPrismaTimelineEvent>[];
   } = {}
 ) {
@@ -436,6 +496,8 @@ function createPrisma(
   const emailVerificationCache = createPrismaEmailVerificationCache();
   const archivedFingerprint = createPrismaArchivedFingerprint();
   const enrichmentHistories = options.enrichmentHistories ?? [];
+  const messages = options.messages ?? [];
+  const inboxThreads = options.inboxThreads ?? [];
   const timelineEvents = options.timelineEvents ?? [
     createPrismaTimelineEvent({
       id: 'timeline-new',
@@ -578,6 +640,36 @@ function createPrisma(
         return { ...createPrismaLeadEnrichmentHistory(), ...args.create, ...args.update };
       }
     },
+    crmMessage: {
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        select: Record<string, unknown>;
+        orderBy: Array<Record<string, unknown>>;
+      }>,
+      async findMany(args: {
+        where: Record<string, unknown>;
+        select: Record<string, unknown>;
+        orderBy: Array<Record<string, unknown>>;
+      }) {
+        this.findManyCalls.push(args);
+        return messages;
+      }
+    },
+    crmInboxThread: {
+      findManyCalls: [] as Array<{
+        where: Record<string, unknown>;
+        select: Record<string, unknown>;
+        orderBy: Record<string, unknown>;
+      }>,
+      async findMany(args: {
+        where: Record<string, unknown>;
+        select: Record<string, unknown>;
+        orderBy: Record<string, unknown>;
+      }) {
+        this.findManyCalls.push(args);
+        return inboxThreads;
+      }
+    },
     crmTimelineEvent: {
       findManyCalls: [] as Array<{ where: Record<string, unknown>; orderBy: Record<string, unknown> }>,
       async findMany(args: { where: Record<string, unknown>; orderBy: Record<string, unknown> }) {
@@ -661,6 +753,30 @@ function createPrismaEmailVerificationCache(input: Record<string, unknown> = {})
     checkedByName: 'Alice',
     createdAt: new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: new Date('2026-06-18T09:00:00.000Z'),
+    ...input
+  };
+}
+
+function createPrismaMessage(input: Record<string, unknown> = {}) {
+  return {
+    id: 'message-1',
+    contactId: 'contact-1',
+    status: 'draft_ready',
+    stepIndex: 1,
+    scheduledAt: new Date('2026-06-24T08:20:00.000Z'),
+    sentAt: null,
+    updatedAt: new Date('2026-06-24T08:00:00.000Z'),
+    enrollment: {
+      totalSteps: 5
+    },
+    ...input
+  };
+}
+
+function createPrismaInboxThread(input: Record<string, unknown> = {}) {
+  return {
+    contactId: 'contact-1',
+    lastInboundAt: new Date('2026-06-24T07:58:12.000Z'),
     ...input
   };
 }
