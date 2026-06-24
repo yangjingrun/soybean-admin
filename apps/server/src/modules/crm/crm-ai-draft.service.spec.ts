@@ -8,7 +8,17 @@ import type { CrmProductLineAiWritingConfig } from './crm.types';
 describe('CrmAiDraftService', () => {
   it('generates AI draft and returns metadata snapshot', async () => {
     const calls: Array<{ input: unknown; context: unknown }> = [];
+    const promptKeys: string[] = [];
     const service = new CrmAiDraftService({
+      async getPrompt(promptKey: string) {
+        promptKeys.push(promptKey);
+        return {
+          promptKey,
+          title: `Prompt ${promptKey}`,
+          systemPrompt: `System prompt for ${promptKey}`,
+          updatedAt: '2026-06-24T00:00:00.000Z'
+        };
+      },
       async generateText(input: unknown, context: unknown) {
         calls.push({ input, context });
 
@@ -17,7 +27,12 @@ describe('CrmAiDraftService', () => {
             subject: 'Bearing supply option',
             bodyText: 'Hi Alex, ...',
             reason: 'Focused on sourcing angle.',
-            riskNotes: ['产品交期未配置']
+            riskNotes: ['产品交期未配置'],
+            usedAngles: ['sourcing reliability'],
+            usedFacts: ['account.name'],
+            nextReviewHints: ['确认职位'],
+            qualityFlags: [],
+            polishChanges: []
           }),
           finishReason: 'stop',
           usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 }
@@ -33,15 +48,93 @@ describe('CrmAiDraftService', () => {
     assert.equal(result.metadata.snapshot.productLineId, 'line-1');
     assert.equal(result.metadata.snapshot.stepIndex, 1);
     assert.equal(result.metadata.snapshot.writingConfig.steps.length, 5);
+    assert.deepEqual(result.metadata.snapshot.usedFacts, ['account.name']);
+    assert.deepEqual(result.metadata.snapshot.usedAngles, ['sourcing reliability']);
+    assert.deepEqual(result.metadata.snapshot.nextReviewHints, ['确认职位']);
+    assert.equal(
+      (result.metadata.snapshot.selectedModules as Array<{ promptKey: string }> | undefined)?.some(
+        item => item.promptKey === 'crm_outreach_base_rules'
+      ),
+      true
+    );
+    assert.equal(
+      (result.metadata.snapshot.publicFacts as Array<{ id: string }> | undefined)?.some(item => item.id === 'account.name'),
+      true
+    );
     assert.ok(firstCall);
+    assert.equal(promptKeys.includes('crm_outreach_base_rules'), true);
     assert.equal((firstCall.input as { modelConfigKey?: string }).modelConfigKey, 'default');
+    assert.equal((firstCall.input as { maxOutputTokens?: number }).maxOutputTokens, 1600);
     assert.equal((firstCall.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
+    assert.match((firstCall.input as { systemPrompt?: string }).systemPrompt || '', /System prompt for crm_outreach_base_rules/);
     assert.match((firstCall.input as { prompt?: string }).prompt || '', /Base draft to customize/);
     assert.match((firstCall.input as { prompt?: string }).prompt || '', /Matched persona/);
   });
 
+  it('loads the dedicated polish prompt modules when one-pass polish is enabled', async () => {
+    const calls: Array<{ input: unknown; context: unknown }> = [];
+    const promptKeys: string[] = [];
+    const service = new CrmAiDraftService({
+      async getPrompt(promptKey: string) {
+        promptKeys.push(promptKey);
+        return {
+          promptKey,
+          title: `Prompt ${promptKey}`,
+          systemPrompt: `System prompt for ${promptKey}`,
+          updatedAt: '2026-06-24T00:00:00.000Z'
+        };
+      },
+      async generateText(input: unknown, context: unknown) {
+        calls.push({ input, context });
+
+        const isPolishCall = calls.length === 2;
+
+        return {
+          text: JSON.stringify({
+            subject: isPolishCall ? 'Bearing stock fit?' : 'Bearing supply option',
+            bodyText: isPolishCall ? 'Hi Alex, does stable 6204 stock matter for Q3?' : 'Hi Alex, ...',
+            reason: 'Focused on sourcing angle.',
+            riskNotes: [],
+            usedAngles: ['sourcing reliability'],
+            usedFacts: ['account.name'],
+            nextReviewHints: ['确认职位'],
+            qualityFlags: [],
+            polishChanges: isPolishCall ? ['Removed generic intro.'] : []
+          }),
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 }
+        };
+      }
+    } as never);
+
+    const result = await service.generateDraft(
+      createPromptInput({
+        ...createWritingConfig(),
+        polishPolicy: 'always'
+      }),
+      createContext()
+    );
+    const polishCall = calls[1];
+
+    assert.equal(result.subject, 'Bearing stock fit?');
+    assert.deepEqual(result.metadata.snapshot.polishChanges, ['Removed generic intro.']);
+    assert.equal(promptKeys.includes('crm_outreach_ai_polish'), true);
+    assert.equal(promptKeys.includes('crm_outreach_public_source_grounding'), true);
+    assert.equal(promptKeys.includes('crm_outreach_deliverability_guard'), true);
+    assert.equal(promptKeys.includes('crm_outreach_output_contract'), true);
+    assert.match((polishCall.input as { systemPrompt?: string }).systemPrompt || '', /System prompt for crm_outreach_ai_polish/);
+  });
+
   it('rejects invalid AI JSON output', async () => {
     const service = new CrmAiDraftService({
+      async getPrompt(promptKey: string) {
+        return {
+          promptKey,
+          title: promptKey,
+          systemPrompt: 'prompt',
+          updatedAt: '2026-06-24T00:00:00.000Z'
+        };
+      },
       async generateText() {
         return {
           text: 'not json',
@@ -86,7 +179,7 @@ describe('CrmAiDraftService', () => {
   });
 });
 
-function createPromptInput(): CrmAiDraftPromptInput {
+function createPromptInput(writingConfig: CrmProductLineAiWritingConfig = createWritingConfig()): CrmAiDraftPromptInput {
   return {
     account: { name: 'ABC Trading', country: 'AE', domain: 'abc.example', customerType: 'distributor' },
     contact: { fullName: 'Alex', title: 'Buyer', maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
@@ -103,7 +196,7 @@ function createPromptInput(): CrmAiDraftPromptInput {
       websiteUrl: null,
       commonModelsText: '6204'
     },
-    writingConfig: createWritingConfig(),
+    writingConfig,
     stepIndex: 1 as const,
     previousMessages: [],
     senderName: 'Alice',

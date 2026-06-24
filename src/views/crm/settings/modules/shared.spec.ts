@@ -310,6 +310,11 @@ describe('crm settings shared helpers', () => {
     const config = createDefaultProductLineAiWritingConfig();
 
     assert.equal(config.enabled, false);
+    assert.equal(config.sequenceStrategy, 'core_3_step');
+    assert.equal(config.languagePolicy, 'account_locale_or_english');
+    assert.equal(config.tone, 'consultative');
+    assert.equal(config.ctaPreference, 'low_friction_question');
+    assert.equal(config.polishPolicy, 'auto_when_flagged');
     assert.equal(config.steps.length, 5);
     assert.deepEqual(
       config.steps.map(step => step.stepIndex),
@@ -323,6 +328,8 @@ describe('crm settings shared helpers', () => {
     config.commonRequirements = '  Natural English  ';
     config.forbiddenClaims = '  No fake certificates  ';
     config.productEmphasis = '  Stock models  ';
+    config.proofAssets = '  GCC distributor proof  ';
+    config.regionNotes = '  Saudi buyers ask about stock  ';
     config.steps[0].prompt = '  Step 1  ';
     config.steps[1].prompt = '  Step 2  ';
     config.steps[2].prompt = '  Step 3  ';
@@ -332,6 +339,8 @@ describe('crm settings shared helpers', () => {
     const normalized = normalizeProductLineAiWritingConfig(config);
 
     assert.equal(normalized?.commonRequirements, 'Natural English');
+    assert.equal(normalized?.proofAssets, 'GCC distributor proof');
+    assert.equal(normalized?.regionNotes, 'Saudi buyers ask about stock');
     assert.equal(normalized?.steps[4].prompt, 'Step 5');
     assert.equal(validateProductLineAiWritingConfig(config), null);
   });
@@ -394,6 +403,13 @@ describe('crm settings shared helpers', () => {
       commonRequirements: 'Natural English',
       forbiddenClaims: 'No fake certificates',
       productEmphasis: 'Stock models',
+      sequenceStrategyLabel: '3 封核心 + 可选转介绍/退出',
+      languagePolicyLabel: '客户语言优先，否则英文',
+      toneLabel: '顾问式',
+      ctaPreferenceLabel: '低摩擦问题',
+      polishPolicyLabel: '命中风险时润色',
+      proofAssets: '',
+      regionNotes: '',
       steps: [
         { stepIndex: 1, prompt: 'Step 1', preview: 'Step 1' },
         { stepIndex: 2, prompt: 'Follow up with inventory models', preview: 'Follow up with inventory models' },
@@ -408,6 +424,7 @@ describe('crm settings shared helpers', () => {
     const versionConfig = createEnabledAiWritingConfig();
     const currentConfig = createEnabledAiWritingConfig();
     currentConfig.commonRequirements = 'Short and direct';
+    currentConfig.proofAssets = 'ISO 9001';
     currentConfig.steps[1].prompt = 'Mention attached catalog';
 
     assert.deepEqual(buildProductLineAiPromptVersionDiffItems(versionConfig, currentConfig), [
@@ -416,6 +433,12 @@ describe('crm settings shared helpers', () => {
         label: '通用要求',
         versionValue: 'Natural English',
         currentValue: 'Short and direct'
+      },
+      {
+        key: 'proofAssets',
+        label: '证据素材',
+        versionValue: '',
+        currentValue: 'ISO 9001'
       },
       {
         key: 'step-2',

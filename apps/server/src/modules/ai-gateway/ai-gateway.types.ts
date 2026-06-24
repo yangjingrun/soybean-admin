@@ -98,7 +98,8 @@ export interface AiPromptStepSummary {
   promptKey: string;
   title: string;
   usage: string;
-  channel: 'search_places' | 'maps' | 'analysis' | 'email';
+  channel: 'search_places' | 'maps' | 'analysis' | 'email' | 'crm_email';
+  group?: string;
   published: AiPromptRecord | null;
   draft: AiPromptVersionRecord | null;
   latestTestRun: AiPromptTestRunRecord | null;

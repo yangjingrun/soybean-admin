@@ -162,7 +162,7 @@ async function copyLatestTestRun() {
           v-model:value="testInput"
           type="textarea"
           :autosize="{ minRows: 3, maxRows: 5 }"
-          placeholder="填写一条测试获客需求"
+          placeholder="填写测试上下文，例如获客需求或 CRM 客户/产品线 JSON"
         />
         <NButton block secondary :loading="testing" :disabled="!canTest" @click="emit('test')">运行测试</NButton>
         <div v-if="latestTestRun" class="publish-panel__test-result">

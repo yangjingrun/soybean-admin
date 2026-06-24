@@ -5,6 +5,10 @@ import type {
   CrmProductLineAiWritingStepConfig
 } from './crm.types';
 import type { CrmAiDraftOutput, CrmAiDraftPrompt, CrmAiDraftPromptInput } from './crm-ai-draft.types';
+import { buildCrmAiWritingContext } from './ai-writing/crm-ai-writing-context';
+import { resolveCrmAiWritingModules } from './ai-writing/crm-ai-writing-module-resolver';
+import { composeCrmAiWritingPrompt } from './ai-writing/crm-ai-writing-prompt-composer';
+import type { CrmAiWritingContext, CrmAiWritingSelectedModule } from './ai-writing/crm-ai-writing-module.types';
 
 const stepIndexes: CrmAiWritingStepIndex[] = [1, 2, 3, 4, 5];
 
@@ -21,6 +25,7 @@ export function normalizeCrmProductLineAiWritingConfig(value: unknown): CrmProdu
     commonRequirements: normalizeString(record.commonRequirements),
     forbiddenClaims: normalizeString(record.forbiddenClaims),
     productEmphasis: normalizeString(record.productEmphasis),
+    ...normalizeOptionalAiWritingStyle(record),
     steps: stepIndexes.map(stepIndex => {
       const step = steps.find(item => Number(item?.stepIndex) === stepIndex);
 
@@ -30,6 +35,39 @@ export function normalizeCrmProductLineAiWritingConfig(value: unknown): CrmProdu
       };
     })
   };
+}
+
+function normalizeOptionalAiWritingStyle(record: Partial<CrmProductLineAiWritingConfig>) {
+  return {
+    ...pickStringUnion(record.sequenceStrategy, ['core_3_step', 'full_5_step'], 'sequenceStrategy'),
+    ...pickStringUnion(
+      record.languagePolicy,
+      ['account_locale_or_english', 'english', 'local_language'],
+      'languagePolicy'
+    ),
+    ...pickStringUnion(record.tone, ['consultative', 'direct', 'formal'], 'tone'),
+    ...pickStringUnion(
+      record.ctaPreference,
+      ['low_friction_question', 'meeting', 'quote', 'referral'],
+      'ctaPreference'
+    ),
+    ...pickStringUnion(record.polishPolicy, ['auto_when_flagged', 'always', 'off'], 'polishPolicy'),
+    ...pickTrimmedOptional(record.proofAssets, 'proofAssets'),
+    ...pickTrimmedOptional(record.regionNotes, 'regionNotes')
+  };
+}
+
+function pickStringUnion<Key extends keyof CrmProductLineAiWritingConfig>(
+  value: unknown,
+  allowed: string[],
+  key: Key
+) {
+  return typeof value === 'string' && allowed.includes(value) ? { [key]: value } : {};
+}
+
+function pickTrimmedOptional<Key extends keyof CrmProductLineAiWritingConfig>(value: unknown, key: Key) {
+  const normalized = normalizeString(value);
+  return normalized ? { [key]: normalized } : {};
 }
 
 /** Returns an enabled complete config or throws a user-facing business error. */
@@ -54,68 +92,30 @@ export function requireEnabledCrmProductLineAiWritingConfig(value: unknown): Crm
 }
 
 /** Builds strict model instructions and a structured CRM context prompt. */
-export function buildCrmAiDraftPrompt(input: CrmAiDraftPromptInput): CrmAiDraftPrompt {
+export function buildCrmAiDraftPrompt(
+  input: CrmAiDraftPromptInput,
+  options: { selectedModules?: CrmAiWritingSelectedModule[]; writingContext?: CrmAiWritingContext } = {}
+): CrmAiDraftPrompt {
   const config = requireEnabledCrmProductLineAiWritingConfig(input.writingConfig);
-  const stepPrompt = getStepConfig(config, input.stepIndex).prompt;
   const riskNotes = collectCrmAiDraftRiskNotes(input);
-  const templateLanguage = normalizeString(input.templateLanguage) || 'en';
-  const previousMessages = input.previousMessages.length
-    ? input.previousMessages
-        .map(
-          message =>
-            `Step ${message.stepIndex}\nSubject: ${message.subject || '(same thread)'}\nBody:\n${message.bodyText}`
-        )
-        .join('\n\n')
-    : 'No previous messages.';
-  const personaContext = input.persona
-    ? JSON.stringify(
-        {
-          label: input.persona.label,
-          focusText: input.persona.focusText,
-          draftFocusText: input.persona.draftFocusText,
-          painPoints: input.persona.painPoints,
-          avoidText: input.persona.avoidText
-        },
-        null,
-        2
-      )
-    : 'No matched persona.';
+  const selectedModules =
+    options.selectedModules ??
+    resolveCrmAiWritingModules({
+      stepIndex: input.stepIndex,
+      contactTitle: input.contact.title,
+      account: input.account,
+      previousMessages: input.previousMessages
+    });
+  const writingContext = options.writingContext ?? buildCrmAiWritingContext({ ...input, writingConfig: config });
 
-  return {
-    systemPrompt: [
-      'You customize an existing B2B outbound email draft for human review.',
-      'Keep the same output language as the base draft unless the input explicitly requires another language.',
-      'Start from the base draft structure and wording, then tailor it with the provided CRM facts, matched persona, and step goal.',
-      'Return only one valid JSON object with subject, bodyText, reason, and riskNotes.',
-      'Do not wrap JSON in Markdown.',
-      'Never invent price, MOQ, lead time, certifications, customer references, exclusive claims, or compliance claims.',
-      'Use missing fields as missing; do not create fake personalization.',
-      'Do not mix languages inside one email unless the base draft already mixes languages.'
-    ].join('\n'),
-    userPrompt: [
-      `Step ${input.stepIndex} of 5.`,
-      'Do not repeat previous emails. Change the angle according to the step prompt.',
-      `Template language:\n${templateLanguage}`,
-      '',
-      `Common requirements:\n${config.commonRequirements}`,
-      `Forbidden claims:\n${config.forbiddenClaims}`,
-      `Product emphasis:\n${config.productEmphasis}`,
-      `Step prompt:\n${stepPrompt}`,
-      '',
-      `Base draft to customize:\n${JSON.stringify(input.baseDraft, null, 2)}`,
-      `Matched persona:\n${personaContext}`,
-      '',
-      `Account:\n${JSON.stringify(input.account, null, 2)}`,
-      `Contact:\n${JSON.stringify(input.contact, null, 2)}`,
-      `Product line:\n${JSON.stringify(input.productLine, null, 2)}`,
-      `Sender:\n${input.senderName || 'Sales team'}`,
-      '',
-      `Previous messages:\n${previousMessages}`,
-      '',
-      `Known risk notes to include if still relevant:\n${riskNotes.join('\n') || 'None'}`
-    ].join('\n'),
+  getStepConfig(config, input.stepIndex);
+
+  return composeCrmAiWritingPrompt({
+    input: { ...input, writingConfig: config },
+    selectedModules,
+    writingContext,
     riskNotes
-  };
+  });
 }
 
 /** Collects deterministic review notes when CRM context is too thin for confident personalization. */
@@ -147,9 +147,7 @@ export function parseCrmAiDraftOutput(text: string): CrmAiDraftOutput {
   const subject = normalizeString(record.subject);
   const bodyText = normalizeString(record.bodyText);
   const reason = normalizeString(record.reason);
-  const riskNotes = Array.isArray(record.riskNotes)
-    ? record.riskNotes.map(item => normalizeString(item)).filter(Boolean)
-    : [];
+  const riskNotes = normalizeStringArray(record.riskNotes);
 
   if (!bodyText) throw new BadRequestException('AI 返回正文不能为空');
 
@@ -157,7 +155,12 @@ export function parseCrmAiDraftOutput(text: string): CrmAiDraftOutput {
     subject,
     bodyText,
     reason,
-    riskNotes
+    riskNotes,
+    usedAngles: normalizeStringArray(record.usedAngles),
+    usedFacts: normalizeStringArray(record.usedFacts),
+    nextReviewHints: normalizeStringArray(record.nextReviewHints),
+    qualityFlags: normalizeStringArray(record.qualityFlags),
+    polishChanges: normalizeStringArray(record.polishChanges)
   };
 }
 
@@ -176,4 +179,8 @@ function getStepConfig(
 
 function normalizeString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map(item => normalizeString(item)).filter(Boolean) : [];
 }

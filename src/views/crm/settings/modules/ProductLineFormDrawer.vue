@@ -3,7 +3,15 @@ import { computed, reactive, ref, watch } from 'vue';
 import { useMessage, type FormInst, type FormRules } from 'naive-ui';
 import { hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
-import { normalizeProductLinePayload, validateProductLineAiWritingConfig } from './shared';
+import {
+  normalizeProductLinePayload,
+  productLineAiCtaPreferenceOptions,
+  productLineAiLanguagePolicyOptions,
+  productLineAiPolishPolicyOptions,
+  productLineAiSequenceStrategyOptions,
+  productLineAiToneOptions,
+  validateProductLineAiWritingConfig
+} from './shared';
 
 const visible = defineModel<boolean>('visible', { required: true });
 const formModel = defineModel<Api.Crm.ProductLineFormModel>('modelValue', {
@@ -207,6 +215,80 @@ async function handleSubmit() {
                       :autosize="{ minRows: 2, maxRows: 4 }"
                       :disabled="isAiWritingConfigReadonly"
                       placeholder="例如：优先强调库存型号、快速报价、稳定交付"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24 m:12">
+                  <NFormItem label="序列策略">
+                    <NSelect
+                      v-model:value="formModel.aiWritingConfig.sequenceStrategy"
+                      :options="productLineAiSequenceStrategyOptions"
+                      :disabled="isAiWritingConfigReadonly"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24 m:12">
+                  <NFormItem label="语言策略">
+                    <NSelect
+                      v-model:value="formModel.aiWritingConfig.languagePolicy"
+                      :options="productLineAiLanguagePolicyOptions"
+                      :disabled="isAiWritingConfigReadonly"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24 m:8">
+                  <NFormItem label="语气">
+                    <NSelect
+                      v-model:value="formModel.aiWritingConfig.tone"
+                      :options="productLineAiToneOptions"
+                      :disabled="isAiWritingConfigReadonly"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24 m:8">
+                  <NFormItem label="CTA">
+                    <NSelect
+                      v-model:value="formModel.aiWritingConfig.ctaPreference"
+                      :options="productLineAiCtaPreferenceOptions"
+                      :disabled="isAiWritingConfigReadonly"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24 m:8">
+                  <NFormItem label="润色">
+                    <NSelect
+                      v-model:value="formModel.aiWritingConfig.polishPolicy"
+                      :options="productLineAiPolishPolicyOptions"
+                      :disabled="isAiWritingConfigReadonly"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24">
+                  <NFormItem label="证据素材">
+                    <NInput
+                      v-model:value="formModel.aiWritingConfig.proofAssets"
+                      type="textarea"
+                      :autosize="{ minRows: 2, maxRows: 4 }"
+                      :disabled="isAiWritingConfigReadonly"
+                      placeholder="例如：可公开使用的客户类型、认证、交付记录或案例素材；不要写未确认事实"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24">
+                  <NFormItem label="地区备注">
+                    <NInput
+                      v-model:value="formModel.aiWritingConfig.regionNotes"
+                      type="textarea"
+                      :autosize="{ minRows: 2, maxRows: 4 }"
+                      :disabled="isAiWritingConfigReadonly"
+                      placeholder="例如：特定地区常见采购关注点、表达偏好或需避开的说法"
                     />
                   </NFormItem>
                 </NGi>

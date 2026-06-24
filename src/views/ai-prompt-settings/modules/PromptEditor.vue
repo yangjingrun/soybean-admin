@@ -21,7 +21,7 @@ const activeTab = shallowRef<'prompt' | 'default'>('prompt');
 const editorInputRef = useTemplateRef<InputInst>('editorInput');
 const anchors = computed(() => buildPromptSectionAnchors(systemPrompt.value));
 const selectedTitle = computed(() => props.detail?.title || '提示词配置');
-const selectedUsage = computed(() => props.detail?.usage || '维护 AI 获客内置业务步骤的系统提示词。');
+const selectedUsage = computed(() => props.detail?.usage || '维护 AI 业务内置步骤的系统提示词。');
 const selectedPromptKey = computed(() => props.detail?.promptKey || '-');
 const defaultPromptPreview = computed(() => props.detail?.defaultPrompt.systemPrompt || '');
 
@@ -65,7 +65,7 @@ watch(
     <NSpin :show="loading">
       <div class="prompt-editor__header">
         <div class="prompt-editor__title-group">
-          <div class="prompt-editor__eyebrow">AI 获客提示词</div>
+          <div class="prompt-editor__eyebrow">AI 业务提示词</div>
           <h2 class="prompt-editor__title">{{ selectedTitle }}</h2>
           <p class="prompt-editor__desc">{{ selectedUsage }}</p>
           <div class="prompt-editor__meta">

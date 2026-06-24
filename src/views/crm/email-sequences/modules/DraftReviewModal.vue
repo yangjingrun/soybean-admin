@@ -8,6 +8,9 @@ import SequenceMessageTimeline from './SequenceMessageTimeline.vue';
 import {
   formatNullableText,
   formatSequenceDate,
+  buildAiDraftPromptSnapshotRows,
+  buildAiDraftReviewTags,
+  buildAiDraftSummaryRows,
   buildDraftReviewOperationPayload,
   buildDraftVersionDiffSummary,
   buildDraftVersionListItems,
@@ -22,6 +25,8 @@ import {
   canReturnFirstMessageToEdit,
   isDraftBlockedBySequencePolicy,
   getMessageStatusView,
+  type AiDraftDescriptionRow,
+  type AiDraftReviewTag,
   type DraftReviewApprovePayload,
   type DraftReviewSavePayload,
   sequenceStatusLabelMap,
@@ -66,18 +71,6 @@ const emit = defineEmits<{
 type AiDraftDisplayInfo = Api.Crm.AiDraftMetadata & {
   qualityNotes?: string[];
 };
-
-interface AiDraftDescriptionRow {
-  key: string;
-  label: string;
-  value: string;
-}
-
-interface AiDraftReviewTag {
-  key: string;
-  label: string;
-  type: NaiveUI.ThemeColor;
-}
 
 const message = useMessage();
 const modalVisible = computed({
@@ -164,84 +157,11 @@ const policyReviewHints = computed(() =>
   props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
 );
 const aiDraftInfo = computed<AiDraftDisplayInfo | null>(() => currentMessage.value?.aiDraft ?? null);
-const aiDraftSnapshot = computed(() => aiDraftInfo.value?.snapshot ?? null);
-const aiDraftGeneratedAtText = computed(() => {
-  const generatedAt = aiDraftSnapshot.value?.generatedAt;
-
-  return generatedAt ? formatSequenceDate(generatedAt) : '-';
-});
-const aiDraftSummaryRows = computed<AiDraftDescriptionRow[]>(() => {
-  const snapshot = aiDraftSnapshot.value;
-
-  if (!snapshot) return [];
-
-  return [
-    {
-      key: 'product-line',
-      label: '产品线',
-      value: formatNullableText(snapshot.productLineName)
-    },
-    {
-      key: 'step',
-      label: 'Step',
-      value: `第 ${snapshot.stepIndex} 封`
-    },
-    {
-      key: 'generated-at',
-      label: '生成时间',
-      value: aiDraftGeneratedAtText.value
-    },
-    {
-      key: 'reason',
-      label: '生成说明',
-      value: aiDraftInfo.value?.reason || snapshot.reason || '请人工复核后确认。'
-    }
-  ];
-});
-const aiDraftPromptSnapshotRows = computed<AiDraftDescriptionRow[]>(() => {
-  const snapshot = aiDraftSnapshot.value;
-
-  if (!snapshot) return [];
-
-  const writingConfig = snapshot.writingConfig;
-
-  return [
-    {
-      key: 'common-requirements',
-      label: '通用要求',
-      value: formatPromptSnapshotText(writingConfig.commonRequirements)
-    },
-    {
-      key: 'forbidden-claims',
-      label: '禁止内容',
-      value: formatPromptSnapshotText(writingConfig.forbiddenClaims)
-    },
-    {
-      key: 'product-emphasis',
-      label: '产品重点',
-      value: formatPromptSnapshotText(writingConfig.productEmphasis)
-    },
-    {
-      key: 'step-prompt',
-      label: `Step ${snapshot.stepIndex} Prompt`,
-      value: formatPromptSnapshotText(findAiDraftStepPrompt(writingConfig.steps, snapshot.stepIndex))
-    }
-  ];
-});
-const aiDraftReviewTags = computed<AiDraftReviewTag[]>(() => {
-  const riskTags = (aiDraftInfo.value?.riskNotes ?? aiDraftSnapshot.value?.riskNotes ?? []).map((note, index) => ({
-    key: `risk-${index}-${note}`,
-    label: `风险：${note}`,
-    type: 'warning' as const
-  }));
-  const qualityTags = (aiDraftInfo.value?.qualityNotes ?? []).map((note, index) => ({
-    key: `quality-${index}-${note}`,
-    label: `质量：${note}`,
-    type: 'warning' as const
-  }));
-
-  return [...riskTags, ...qualityTags];
-});
+const aiDraftSummaryRows = computed<AiDraftDescriptionRow[]>(() => buildAiDraftSummaryRows(aiDraftInfo.value));
+const aiDraftPromptSnapshotRows = computed<AiDraftDescriptionRow[]>(() =>
+  buildAiDraftPromptSnapshotRows(aiDraftInfo.value)
+);
+const aiDraftReviewTags = computed<AiDraftReviewTag[]>(() => buildAiDraftReviewTags(aiDraftInfo.value));
 const personaMatchMethodLabelMap: Record<Api.Crm.PersonaMatchMethod, string> = {
   title: '职位关键词',
   customer_type: '客户类型关键词',
@@ -419,15 +339,6 @@ function handleRestoreVersion(versionId: string) {
   emit('restoreDraftVersion', { messageId, versionId });
 }
 
-/** Keep prompt snapshot blanks compact while preserving actual prompt line breaks. */
-function formatPromptSnapshotText(value: string | null | undefined) {
-  return value?.trim() || '-';
-}
-
-/** Find the prompt used for the selected step from the immutable AI snapshot. */
-function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] | undefined, stepIndex: number) {
-  return steps?.find(step => step.stepIndex === stepIndex)?.prompt ?? '';
-}
 </script>
 
 <template>

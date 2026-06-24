@@ -4,6 +4,9 @@ import {
   buildDraftReviewOperationPayload,
   buildDraftVersionDiffSummary,
   buildDraftVersionListItems,
+  buildAiDraftPromptSnapshotRows,
+  buildAiDraftReviewTags,
+  buildAiDraftSummaryRows,
   buildSequenceMessageTimelineItems,
   buildSequenceReviewSearchParams,
   buildSequencePolicyReviewHints,
@@ -191,7 +194,75 @@ function createSequencePolicy(overrides: Partial<Api.Crm.SequencePolicyRecord> =
   };
 }
 
+function createAiDraftMetadata(): Api.Crm.AiDraftMetadata {
+  return {
+    generated: true,
+    reason: 'Focused on sourcing.',
+    riskNotes: ['产品交期未配置'],
+    snapshot: {
+      productLineId: 'line-1',
+      productLineName: 'Bearings',
+      stepIndex: 1,
+      writingConfig: {
+        enabled: true,
+        commonRequirements: 'Natural English',
+        forbiddenClaims: 'No fake claims',
+        productEmphasis: 'Stable stock',
+        steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+          stepIndex: stepIndex as Api.Crm.AiWritingStepIndex,
+          prompt: `Step ${stepIndex}`
+        }))
+      },
+      reason: 'Focused on sourcing.',
+      riskNotes: ['产品交期未配置'],
+      selectedModules: [
+        {
+          promptKey: 'crm_outreach_base_rules',
+          title: 'Base rules',
+          reason: 'Required'
+        }
+      ],
+      publicFacts: [{ id: 'account.name', label: 'Account name', value: 'ABC Trading', source: 'account' }],
+      usedFacts: ['account.name'],
+      nextReviewHints: ['确认职位'],
+      qualityFlags: ['主题可再缩短'],
+      polishChanges: ['删除模板开头'],
+      generatedAt: '2026-06-24T00:00:00.000Z'
+    }
+  };
+}
+
 describe('email sequence review shared helpers', () => {
+  it('builds AI draft rows for selected modules, facts, review hints and quality flags', () => {
+    const aiDraft = createAiDraftMetadata();
+
+    assert.deepEqual(buildAiDraftSummaryRows(aiDraft), [
+      { key: 'product-line', label: '产品线', value: 'Bearings' },
+      { key: 'step', label: 'Step', value: '第 1 封' },
+      { key: 'generated-at', label: '生成时间', value: '2026-06-24 08:00:00' },
+      { key: 'reason', label: '生成说明', value: 'Focused on sourcing.' }
+    ]);
+    assert.deepEqual(buildAiDraftReviewTags(aiDraft), [
+      { key: 'risk-0-产品交期未配置', label: '风险：产品交期未配置', type: 'warning' },
+      { key: 'quality-0-主题可再缩短', label: '质量：主题可再缩短', type: 'warning' }
+    ]);
+    assert.deepEqual(
+      buildAiDraftPromptSnapshotRows(aiDraft).map(row => row.key),
+      [
+        'common-requirements',
+        'forbidden-claims',
+        'product-emphasis',
+        'step-prompt',
+        'selected-modules',
+        'public-facts',
+        'used-facts',
+        'review-hints',
+        'quality-flags',
+        'polish-changes'
+      ]
+    );
+  });
+
   it('uses business wording for development email follow-up', () => {
     assert.equal(sequencePageGuide.title, '开发信任务承接可开发客户');
     assert.match(sequencePageGuide.description, /确认邮件内容/);

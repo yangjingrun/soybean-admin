@@ -49,6 +49,32 @@ describe('ai-prompt-validator', () => {
     assert.equal(findItem(result, 'prompt-required-rules')?.status, 'fail');
     assert.match(findItem(result, 'prompt-required-rules')?.message || '', /serperMapsQueries/);
   });
+
+  it('checks required CRM outreach prompt text rules', () => {
+    const result = validateAiPromptText(
+      'crm_outreach_ai_polish',
+      [
+        '只输出一个合法 JSON 对象',
+        '不编造事实',
+        '只使用公开/CRM 已提供事实',
+        'follow-up 必须增加新价值',
+        'subject line 避免 spam/clickbait',
+        'ai_polish 只能润色表达，不能新增事实、承诺或 CTA'
+      ].join('\n')
+    );
+
+    assert.equal(result.ok, true);
+    assert.equal(findItem(result, 'prompt-required-rules')?.status, 'pass');
+  });
+
+  it('fails CRM outreach prompt text when grounding and polish rules are missing', () => {
+    const result = validateAiPromptText('crm_outreach_ai_polish', '帮我把开发信写自然一点');
+
+    assert.equal(result.ok, false);
+    assert.equal(findItem(result, 'prompt-required-rules')?.status, 'fail');
+    assert.match(findItem(result, 'prompt-required-rules')?.message || '', /不编造事实/);
+    assert.match(findItem(result, 'prompt-required-rules')?.message || '', /不能新增事实、承诺或 CTA/);
+  });
 });
 
 function findItem(result: AiPromptValidationResult, key: string) {

@@ -534,6 +534,27 @@ declare namespace Api {
       forbiddenClaims: string;
       productEmphasis: string;
       steps: ProductLineAiWritingStepConfig[];
+      sequenceStrategy?: 'core_3_step' | 'full_5_step';
+      languagePolicy?: 'account_locale_or_english' | 'english' | 'local_language';
+      tone?: 'consultative' | 'direct' | 'formal';
+      ctaPreference?: 'low_friction_question' | 'meeting' | 'quote' | 'referral';
+      polishPolicy?: 'auto_when_flagged' | 'always' | 'off';
+      proofAssets?: string;
+      regionNotes?: string;
+    }
+
+    interface AiDraftSelectedModuleSnapshot {
+      promptKey: string;
+      title: string;
+      reason: string;
+      updatedAt?: string | null;
+    }
+
+    interface AiDraftPublicFactSnapshot {
+      id: string;
+      label: string;
+      value: string;
+      source: 'account' | 'contact' | 'product_line' | 'persona' | 'previous_message' | 'base_draft';
     }
 
     interface AiDraftSnapshot {
@@ -543,6 +564,13 @@ declare namespace Api {
       writingConfig: ProductLineAiWritingConfig;
       reason: string;
       riskNotes: string[];
+      selectedModules?: AiDraftSelectedModuleSnapshot[];
+      publicFacts?: AiDraftPublicFactSnapshot[];
+      usedAngles?: string[];
+      usedFacts?: string[];
+      nextReviewHints?: string[];
+      qualityFlags?: string[];
+      polishChanges?: string[];
       generatedAt: string;
     }
 

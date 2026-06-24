@@ -118,6 +118,18 @@ export interface SequenceMessageTimelineItem {
   title: string;
 }
 
+export interface AiDraftDescriptionRow {
+  key: string;
+  label: string;
+  value: string;
+}
+
+export interface AiDraftReviewTag {
+  key: string;
+  label: string;
+  type: NaiveUI.ThemeColor;
+}
+
 export interface DraftVersionListItem {
   createdAtText: string;
   editorName: string;
@@ -339,6 +351,73 @@ export function formatNullableText(value: string | null | undefined) {
   return value || '-';
 }
 
+/** Builds the top AI draft summary rows shown in review panels. */
+export function buildAiDraftSummaryRows(aiDraft: Api.Crm.AiDraftMetadata | null | undefined): AiDraftDescriptionRow[] {
+  const snapshot = aiDraft?.snapshot;
+  if (!snapshot) return [];
+
+  return [
+    { key: 'product-line', label: '产品线', value: formatNullableText(snapshot.productLineName) },
+    { key: 'step', label: 'Step', value: `第 ${snapshot.stepIndex} 封` },
+    { key: 'generated-at', label: '生成时间', value: snapshot.generatedAt ? formatSequenceDate(snapshot.generatedAt) : '-' },
+    { key: 'reason', label: '生成说明', value: aiDraft?.reason || snapshot.reason || '请人工复核后确认。' }
+  ];
+}
+
+/** Builds risk and quality tags from current and snapshot metadata. */
+export function buildAiDraftReviewTags(
+  aiDraft: (Api.Crm.AiDraftMetadata & { qualityNotes?: string[] }) | null | undefined
+): AiDraftReviewTag[] {
+  const riskNotes = aiDraft?.riskNotes ?? aiDraft?.snapshot?.riskNotes ?? [];
+  const qualityNotes = [...(aiDraft?.qualityNotes ?? []), ...(aiDraft?.snapshot?.qualityFlags ?? [])];
+
+  return [
+    ...riskNotes.map((note, index) => ({
+      key: `risk-${index}-${note}`,
+      label: `风险：${note}`,
+      type: 'warning' as const
+    })),
+    ...qualityNotes.map((note, index) => ({
+      key: `quality-${index}-${note}`,
+      label: `质量：${note}`,
+      type: 'warning' as const
+    }))
+  ];
+}
+
+/** Builds immutable prompt and module snapshot rows for AI draft review. */
+export function buildAiDraftPromptSnapshotRows(
+  aiDraft: Api.Crm.AiDraftMetadata | null | undefined
+): AiDraftDescriptionRow[] {
+  const snapshot = aiDraft?.snapshot;
+  if (!snapshot) return [];
+
+  const writingConfig = snapshot.writingConfig;
+  const rows: AiDraftDescriptionRow[] = [
+    { key: 'common-requirements', label: '通用要求', value: formatPromptSnapshotText(writingConfig.commonRequirements) },
+    { key: 'forbidden-claims', label: '禁止内容', value: formatPromptSnapshotText(writingConfig.forbiddenClaims) },
+    { key: 'product-emphasis', label: '产品重点', value: formatPromptSnapshotText(writingConfig.productEmphasis) },
+    {
+      key: 'step-prompt',
+      label: `Step ${snapshot.stepIndex} Prompt`,
+      value: formatPromptSnapshotText(findAiDraftStepPrompt(writingConfig.steps, snapshot.stepIndex))
+    }
+  ];
+
+  pushSnapshotRow(rows, 'selected-modules', '全局方法论模块', snapshot.selectedModules, modules =>
+    modules.map(module => `${module.promptKey}｜${module.title}｜${module.reason}`).join('\n')
+  );
+  pushSnapshotRow(rows, 'public-facts', 'Source Facts', snapshot.publicFacts, facts =>
+    facts.map(fact => `${fact.id} [${fact.source}] ${fact.label}: ${fact.value}`).join('\n')
+  );
+  pushSnapshotRow(rows, 'used-facts', 'Used Facts', snapshot.usedFacts, values => values.join('\n'));
+  pushSnapshotRow(rows, 'review-hints', '人工复核提示', snapshot.nextReviewHints, values => values.join('\n'));
+  pushSnapshotRow(rows, 'quality-flags', '质量标记', snapshot.qualityFlags, values => values.join('\n'));
+  pushSnapshotRow(rows, 'polish-changes', '润色变更', snapshot.polishChanges, values => values.join('\n'));
+
+  return rows;
+}
+
 /** Display scheduled ready follow-ups with user-facing send wording without changing backend status. */
 export function getMessageStatusView(
   message: Api.Crm.MessageRecord,
@@ -355,6 +434,30 @@ export function getMessageStatusView(
     label: messageStatusLabelMap[message.status],
     tagType: messageStatusTagTypeMap[message.status]
   };
+}
+
+function formatPromptSnapshotText(value: string | null | undefined) {
+  return value?.trim() || '-';
+}
+
+function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] | undefined, stepIndex: number) {
+  return steps?.find(step => step.stepIndex === stepIndex)?.prompt ?? '';
+}
+
+function pushSnapshotRow<T>(
+  rows: AiDraftDescriptionRow[],
+  key: string,
+  label: string,
+  value: T[] | undefined,
+  format: (value: T[]) => string
+) {
+  if (!value?.length) return;
+
+  rows.push({
+    key,
+    label,
+    value: format(value)
+  });
 }
 
 /** Build the save event payload from the currently selected draft. */

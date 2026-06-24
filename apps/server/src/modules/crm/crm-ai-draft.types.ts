@@ -9,6 +9,8 @@ import type { PersonaProfile } from './crm-email-template-renderer';
 export interface CrmAiDraftPromptAccount {
   name: string;
   country: string | null;
+  city?: string | null;
+  timeZone?: string | null;
   domain: string | null;
   customerType: string | null;
 }
@@ -69,6 +71,11 @@ export interface CrmAiDraftOutput {
   bodyText: string;
   reason: string;
   riskNotes: string[];
+  usedAngles: string[];
+  usedFacts: string[];
+  nextReviewHints: string[];
+  qualityFlags: string[];
+  polishChanges: string[];
 }
 
 export interface CrmAiDraftGenerateResult extends CrmAiDraftOutput {

@@ -23,6 +23,66 @@ export const aiPromptDefinitions = [
     promptKey: 'lead_email_generate',
     title: '开发信生成',
     usage: 'AI获客后续步骤，根据客户证据生成开发信。'
+  },
+  {
+    promptKey: 'crm_outreach_base_rules',
+    title: 'CRM 开发信基础规则',
+    usage: 'CRM 写信方法论：定义事实边界、个性化原则、单 CTA 和人工审核要求。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_cold_email_core',
+    title: '冷邮件核心方法',
+    usage: 'CRM 写信方法论：吸收 Hunter / Snov.io / cold-email 的相关性、短邮件和低摩擦 CTA 原则。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_sequence_strategy',
+    title: '序列跟进策略',
+    usage: 'CRM 写信方法论：定义 1-5 封开发信的角度、同线程跟进和每封新增价值。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_role_persona',
+    title: '职位画像',
+    usage: 'CRM 写信方法论：根据联系人职位选择 Founder、Sales、Procurement、Operations、Marketing 等沟通角度。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_region_localization',
+    title: '地区本地化',
+    usage: 'CRM 写信方法论：根据国家、城市、时区和语言策略调整表达，不盲目翻译行业术语。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_public_source_grounding',
+    title: '公开资料事实约束',
+    usage: 'CRM 写信方法论：只使用 CRM 和公开来源已提供事实，缺失事实时写风险提醒。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_subject_line',
+    title: '主题行规则',
+    usage: 'CRM 写信方法论：生成短、自然、低垃圾邮件风险的主题行。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_deliverability_guard',
+    title: '送达率保护',
+    usage: 'CRM 写信方法论：避免 spam/clickbait、高压销售和无价值跟进语句。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_ai_polish',
+    title: 'AI 味润色',
+    usage: 'CRM 写信方法论：只做最小表达润色，删除 AI-isms，不新增事实、承诺或 CTA。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_output_contract',
+    title: '输出结构契约',
+    usage: 'CRM 写信方法论：约束模型只输出严格 JSON，并返回 usedFacts、qualityFlags 等审核字段。',
+    group: 'crm_outreach'
   }
 ] as const;
 
@@ -30,12 +90,22 @@ export type AiPromptKey = (typeof aiPromptDefinitions)[number]['promptKey'];
 
 export const aiPromptKeys = aiPromptDefinitions.map(item => item.promptKey);
 
-export const aiPromptChannels: Record<AiPromptKey, 'search_places' | 'maps' | 'analysis' | 'email'> = {
+export const aiPromptChannels: Record<AiPromptKey, 'search_places' | 'maps' | 'analysis' | 'email' | 'crm_email'> = {
   lead_keyword_optimize: 'search_places',
   lead_maps_keyword_optimize: 'maps',
   lead_search_result_decide: 'analysis',
   lead_match_analyze: 'analysis',
-  lead_email_generate: 'email'
+  lead_email_generate: 'email',
+  crm_outreach_base_rules: 'crm_email',
+  crm_outreach_cold_email_core: 'crm_email',
+  crm_outreach_sequence_strategy: 'crm_email',
+  crm_outreach_role_persona: 'crm_email',
+  crm_outreach_region_localization: 'crm_email',
+  crm_outreach_public_source_grounding: 'crm_email',
+  crm_outreach_subject_line: 'crm_email',
+  crm_outreach_deliverability_guard: 'crm_email',
+  crm_outreach_ai_polish: 'crm_email',
+  crm_outreach_output_contract: 'crm_email'
 };
 
 export const aiPromptOutputTopLevelFields: Record<AiPromptKey, string[]> = {
@@ -64,7 +134,17 @@ export const aiPromptOutputTopLevelFields: Record<AiPromptKey, string[]> = {
   ],
   lead_search_result_decide: [],
   lead_match_analyze: [],
-  lead_email_generate: []
+  lead_email_generate: [],
+  crm_outreach_base_rules: [],
+  crm_outreach_cold_email_core: [],
+  crm_outreach_sequence_strategy: [],
+  crm_outreach_role_persona: [],
+  crm_outreach_region_localization: [],
+  crm_outreach_public_source_grounding: [],
+  crm_outreach_subject_line: [],
+  crm_outreach_deliverability_guard: [],
+  crm_outreach_ai_polish: [],
+  crm_outreach_output_contract: []
 };
 
 export const aiPromptRequiredTextRules: Record<AiPromptKey, string[]> = {
@@ -83,8 +163,82 @@ export const aiPromptRequiredTextRules: Record<AiPromptKey, string[]> = {
   ],
   lead_search_result_decide: ['只输出一个合法 JSON 对象'],
   lead_match_analyze: ['只输出一个合法 JSON 对象'],
-  lead_email_generate: ['开发信']
+  lead_email_generate: ['开发信'],
+  crm_outreach_base_rules: [
+    '只输出一个合法 JSON 对象',
+    '不编造事实',
+    '只使用公开/CRM 已提供事实'
+  ],
+  crm_outreach_cold_email_core: [
+    '只输出一个合法 JSON 对象',
+    '不编造事实',
+    '只使用公开/CRM 已提供事实'
+  ],
+  crm_outreach_sequence_strategy: [
+    '只输出一个合法 JSON 对象',
+    'follow-up 必须增加新价值'
+  ],
+  crm_outreach_role_persona: [
+    '只输出一个合法 JSON 对象',
+    '只使用公开/CRM 已提供事实'
+  ],
+  crm_outreach_region_localization: [
+    '只输出一个合法 JSON 对象',
+    '只使用公开/CRM 已提供事实'
+  ],
+  crm_outreach_public_source_grounding: [
+    '只输出一个合法 JSON 对象',
+    '不编造事实',
+    '只使用公开/CRM 已提供事实'
+  ],
+  crm_outreach_subject_line: [
+    '只输出一个合法 JSON 对象',
+    'subject line 避免 spam/clickbait'
+  ],
+  crm_outreach_deliverability_guard: [
+    '只输出一个合法 JSON 对象',
+    'subject line 避免 spam/clickbait',
+    'follow-up 必须增加新价值'
+  ],
+  crm_outreach_ai_polish: [
+    '只输出一个合法 JSON 对象',
+    '不编造事实',
+    '只使用公开/CRM 已提供事实',
+    'follow-up 必须增加新价值',
+    'subject line 避免 spam/clickbait',
+    'ai_polish 只能润色表达，不能新增事实、承诺或 CTA'
+  ],
+  crm_outreach_output_contract: [
+    '只输出一个合法 JSON 对象',
+    '不编造事实',
+    '只使用公开/CRM 已提供事实'
+  ]
 };
+
+const crmOutreachDefaultPromptRules = `
+你是 CRM AI 开发信方法论模块。你只服务 B2B 开发信草稿生成、跟进改写和人工审核提示。
+
+硬性规则：
+- 只输出一个合法 JSON 对象，不要 Markdown、注释或额外解释。
+- 不编造事实，不新增没有出现在 CRM、产品线配置、公开来源事实或历史邮件里的公司、数字、认证、客户案例、价格、交期或承诺。
+- 只使用公开/CRM 已提供事实；事实不足时写通用但相关的问题，并把不确定点放入 riskNotes。
+- follow-up 必须增加新价值，不写 just checking in、bumping this up、did you see my last email 这类无价值跟进。
+- subject line 避免 spam/clickbait，保持短、自然、像内部邮件。
+- ai_polish 只能润色表达，不能新增事实、承诺或 CTA。
+
+输出 JSON 字段：
+{
+  "subject": "string",
+  "bodyText": "string",
+  "reason": "string",
+  "riskNotes": ["string"],
+  "usedAngles": ["string"],
+  "usedFacts": ["fact id"],
+  "nextReviewHints": ["string"],
+  "qualityFlags": ["string"],
+  "polishChanges": ["string"]
+}
+`.trim();
 
 /** Built-in prompt drafts used before a super admin saves an override. */
 export const defaultAiPromptSystemPrompts: Partial<Record<AiPromptKey, string>> = {
@@ -424,6 +578,39 @@ export const defaultSerperApiBase = 'https://google.serper.dev';
 export const defaultHunterConfigKey = 'default';
 export const defaultHunterApiBase = 'https://api.hunter.io/v2';
 export const defaultAiTemperature = 0.2;
+
+Object.assign(defaultAiPromptSystemPrompts, {
+  crm_outreach_base_rules: `${crmOutreachDefaultPromptRules}
+
+模块重点：建立基础事实边界、短邮件原则、单一低摩擦 CTA 和人工审核提示。`,
+  crm_outreach_cold_email_core: `${crmOutreachDefaultPromptRules}
+
+模块重点：相关性来自真实职位/公司/地区/产品事实；开场要连接到可能存在的业务问题，不只填姓名变量。`,
+  crm_outreach_sequence_strategy: `${crmOutreachDefaultPromptRules}
+
+模块重点：第 1 封做相关性开场；第 2 封换价值角度；第 3 封在有证据时用可信度；第 4 封转介绍；第 5 封礼貌退出。`,
+  crm_outreach_role_persona: `${crmOutreachDefaultPromptRules}
+
+模块重点：Founder/CEO 关注增长、风险、成本和供应稳定；Sales/BD 关注 pipeline；Procurement/Sourcing 关注价格、交期、MOQ 和替代供应商；未知职位只做 fit-check。`,
+  crm_outreach_region_localization: `${crmOutreachDefaultPromptRules}
+
+模块重点：根据 country、city、timeZone 和 languagePolicy 调整语气；不盲目翻译产品名，行业英文术语可保留。`,
+  crm_outreach_public_source_grounding: `${crmOutreachDefaultPromptRules}
+
+模块重点：所有 usedFacts 只能引用上下文给出的 fact id；引用不到依据的内容必须放入 riskNotes。`,
+  crm_outreach_subject_line: `${crmOutreachDefaultPromptRules}
+
+模块重点：主题 2-6 个词优先，避免夸张、紧迫感、全大写、符号堆砌和点击诱导。`,
+  crm_outreach_deliverability_guard: `${crmOutreachDefaultPromptRules}
+
+模块重点：避免群发感、过度营销词、强会议邀约和多 CTA；跟进要像真人写的短消息。`,
+  crm_outreach_ai_polish: `${crmOutreachDefaultPromptRules}
+
+模块重点：删除 I hope this email finds you well、I came across your profile、My name is 等 AI 味开头；保留自然句子，最多做一次最小润色。`,
+  crm_outreach_output_contract: `${crmOutreachDefaultPromptRules}
+
+模块重点：严格输出 subject、bodyText、reason、riskNotes、usedAngles、usedFacts、nextReviewHints、qualityFlags、polishChanges。`
+} satisfies Partial<Record<AiPromptKey, string>>);
 
 export const leadKeywordOptimizePromptKey = 'lead_keyword_optimize';
 export const leadMapsKeywordOptimizePromptKey = 'lead_maps_keyword_optimize';

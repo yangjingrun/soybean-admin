@@ -26,6 +26,36 @@ import type {
 } from './ai-gateway.types';
 
 describe('AiGatewayService', () => {
+  it('lists CRM outreach prompt modules in the workbench', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    const steps = await service.listPromptWorkbenchSteps();
+    const crmSteps = steps.filter(step => step.group === 'crm_outreach');
+
+    assert.deepEqual(
+      crmSteps.map(step => step.promptKey),
+      [
+        'crm_outreach_base_rules',
+        'crm_outreach_cold_email_core',
+        'crm_outreach_sequence_strategy',
+        'crm_outreach_role_persona',
+        'crm_outreach_region_localization',
+        'crm_outreach_public_source_grounding',
+        'crm_outreach_subject_line',
+        'crm_outreach_deliverability_guard',
+        'crm_outreach_ai_polish',
+        'crm_outreach_output_contract'
+      ]
+    );
+    assert.equal(crmSteps.every(step => step.channel === 'crm_email'), true);
+  });
+
   it('trims model config and delegates generation to the text generator', async () => {
     let captured: AiTextGenerateParams | null = null;
     const generator: AiTextGenerator = {

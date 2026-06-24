@@ -609,6 +609,7 @@ export class AiGatewayService {
       title: definition.title,
       usage: definition.usage,
       channel: aiPromptChannels[normalizedKey as keyof typeof aiPromptChannels],
+      group: 'group' in definition ? definition.group : undefined,
       published,
       draft,
       latestTestRun

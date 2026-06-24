@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildPromptSectionAnchors,
+  groupPromptWorkbenchSteps,
   formatLatestPromptTestRunForCopy,
   resolvePromptPublishBlockReason,
   resolvePromptValidationSection,
@@ -11,6 +12,38 @@ import {
 } from './shared';
 
 describe('ai prompt settings shared helpers', () => {
+  it('groups prompt workbench steps by AI lead and CRM outreach methodology', () => {
+    const groups = groupPromptWorkbenchSteps([
+      createPromptStep({ promptKey: 'lead_keyword_optimize', title: '关键词优化', group: undefined }),
+      createPromptStep({
+        promptKey: 'crm_outreach_base_rules',
+        title: '基础规则',
+        channel: 'crm_email',
+        group: 'crm_outreach'
+      })
+    ]);
+
+    assert.deepEqual(
+      groups.map(group => ({
+        key: group.key,
+        title: group.title,
+        promptKeys: group.steps.map(step => step.promptKey)
+      })),
+      [
+        {
+          key: 'ai_leads',
+          title: 'AI 获客',
+          promptKeys: ['lead_keyword_optimize']
+        },
+        {
+          key: 'crm_outreach',
+          title: 'CRM 写信方法论',
+          promptKeys: ['crm_outreach_base_rules']
+        }
+      ]
+    );
+  });
+
   it('prioritizes draft and failed test states in step status labels', () => {
     assert.deepEqual(
       resolvePromptStepStatus({
@@ -233,3 +266,18 @@ searchExecutionRules
     );
   });
 });
+
+function createPromptStep(
+  overrides: Partial<Api.AiGateway.AiPromptStepSummary> = {}
+): Api.AiGateway.AiPromptStepSummary {
+  return {
+    promptKey: 'lead_maps_keyword_optimize',
+    title: '地图关键词优化',
+    usage: '',
+    channel: 'maps',
+    published: null,
+    draft: null,
+    latestTestRun: null,
+    ...overrides
+  };
+}

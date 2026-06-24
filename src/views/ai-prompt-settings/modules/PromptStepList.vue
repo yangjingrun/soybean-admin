@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { resolvePromptStepStatus } from './shared';
+import { groupPromptWorkbenchSteps, resolvePromptStepStatus } from './shared';
 
 const props = defineProps<{
   steps: Api.AiGateway.AiPromptStepSummary[];
@@ -13,12 +13,16 @@ const emit = defineEmits<{
   select: [promptKey: string];
 }>();
 
-const displaySteps = computed(() =>
-  props.steps.map(step => ({
-    ...step,
-    statusView: resolvePromptStepStatus(step)
+const groupedSteps = computed(() =>
+  groupPromptWorkbenchSteps(props.steps).map(group => ({
+    ...group,
+    steps: group.steps.map(step => ({
+      ...step,
+      statusView: resolvePromptStepStatus(step)
+    }))
   }))
 );
+const stepCount = computed(() => props.steps.length);
 </script>
 
 <template>
@@ -26,33 +30,36 @@ const displaySteps = computed(() =>
     <div class="prompt-step-panel__header">
       <div>
         <NText strong>内置业务步骤</NText>
-        <p class="prompt-step-panel__subtitle">{{ displaySteps.length }} 个提示词节点</p>
+        <p class="prompt-step-panel__subtitle">{{ stepCount }} 个提示词节点</p>
       </div>
       <NButton size="tiny" quaternary :loading="loading" @click="emit('reload')">刷新</NButton>
     </div>
 
     <NScrollbar class="prompt-step-panel__scroll">
       <div class="prompt-step-list">
-        <button
-          v-for="step in displaySteps"
-          :key="step.promptKey"
-          type="button"
-          class="prompt-step-row"
-          :class="{ 'prompt-step-row--active': step.promptKey === selectedPromptKey }"
-          @click="emit('select', step.promptKey)"
-        >
-          <span class="prompt-step-row__marker" />
-          <span class="prompt-step-row__main">
-            <span class="prompt-step-row__title">{{ step.title }}</span>
-            <span class="prompt-step-row__key">{{ step.promptKey }}</span>
-          </span>
-          <span class="prompt-step-row__meta">
-            <NTag size="small" :bordered="false">{{ step.channel }}</NTag>
-            <NTag size="small" :type="step.statusView.type" :bordered="false">
-              {{ step.statusView.label }}
-            </NTag>
-          </span>
-        </button>
+        <div v-for="group in groupedSteps" :key="group.key" class="prompt-step-group">
+          <div class="prompt-step-group__title">{{ group.title }}</div>
+          <button
+            v-for="step in group.steps"
+            :key="step.promptKey"
+            type="button"
+            class="prompt-step-row"
+            :class="{ 'prompt-step-row--active': step.promptKey === selectedPromptKey }"
+            @click="emit('select', step.promptKey)"
+          >
+            <span class="prompt-step-row__marker" />
+            <span class="prompt-step-row__main">
+              <span class="prompt-step-row__title">{{ step.title }}</span>
+              <span class="prompt-step-row__key">{{ step.promptKey }}</span>
+            </span>
+            <span class="prompt-step-row__meta">
+              <NTag size="small" :bordered="false">{{ step.channel }}</NTag>
+              <NTag size="small" :type="step.statusView.type" :bordered="false">
+                {{ step.statusView.label }}
+              </NTag>
+            </span>
+          </button>
+        </div>
       </div>
     </NScrollbar>
   </NCard>
@@ -84,7 +91,20 @@ const displaySteps = computed(() =>
 
 .prompt-step-list {
   display: grid;
+  gap: 12px;
+}
+
+.prompt-step-group {
+  display: grid;
   gap: 6px;
+}
+
+.prompt-step-group__title {
+  padding: 2px 4px;
+  color: var(--prompt-workbench-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .prompt-step-row {

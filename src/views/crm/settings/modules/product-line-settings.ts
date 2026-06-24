@@ -34,6 +34,13 @@ export interface ProductLineAiWritingConfigSummary {
   commonRequirements: string;
   forbiddenClaims: string;
   productEmphasis: string;
+  sequenceStrategyLabel: string;
+  languagePolicyLabel: string;
+  toneLabel: string;
+  ctaPreferenceLabel: string;
+  polishPolicyLabel: string;
+  proofAssets: string;
+  regionNotes: string;
   steps: ProductLineAiWritingStepSummary[];
 }
 
@@ -43,6 +50,36 @@ export interface ProductLineAiPromptVersionDiffItem {
   versionValue: string;
   currentValue: string;
 }
+
+export const productLineAiSequenceStrategyOptions = [
+  { label: '3 封核心 + 可选转介绍/退出', value: 'core_3_step' },
+  { label: '完整 5 封序列', value: 'full_5_step' }
+] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['sequenceStrategy']> }>;
+
+export const productLineAiLanguagePolicyOptions = [
+  { label: '客户语言优先，否则英文', value: 'account_locale_or_english' },
+  { label: '固定英文', value: 'english' },
+  { label: '尽量使用当地语言', value: 'local_language' }
+] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['languagePolicy']> }>;
+
+export const productLineAiToneOptions = [
+  { label: '顾问式', value: 'consultative' },
+  { label: '直接', value: 'direct' },
+  { label: '正式', value: 'formal' }
+] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['tone']> }>;
+
+export const productLineAiCtaPreferenceOptions = [
+  { label: '低摩擦问题', value: 'low_friction_question' },
+  { label: '会议', value: 'meeting' },
+  { label: '报价', value: 'quote' },
+  { label: '转介绍', value: 'referral' }
+] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['ctaPreference']> }>;
+
+export const productLineAiPolishPolicyOptions = [
+  { label: '命中风险时润色', value: 'auto_when_flagged' },
+  { label: '总是润色', value: 'always' },
+  { label: '关闭润色', value: 'off' }
+] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['polishPolicy']> }>;
 /** Create an empty product line form model. */
 export function createDefaultProductLineForm(): Api.Crm.ProductLineFormModel {
   return {
@@ -67,6 +104,13 @@ export function createDefaultProductLineAiWritingConfig(): Api.Crm.ProductLineAi
     commonRequirements: '',
     forbiddenClaims: '',
     productEmphasis: '',
+    sequenceStrategy: 'core_3_step',
+    languagePolicy: 'account_locale_or_english',
+    tone: 'consultative',
+    ctaPreference: 'low_friction_question',
+    polishPolicy: 'auto_when_flagged',
+    proofAssets: '',
+    regionNotes: '',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as Api.Crm.AiWritingStepIndex,
       prompt: ''
@@ -153,6 +197,13 @@ export function normalizeProductLineAiWritingConfig(
     commonRequirements: config.commonRequirements.trim(),
     forbiddenClaims: config.forbiddenClaims.trim(),
     productEmphasis: config.productEmphasis.trim(),
+    sequenceStrategy: normalizeSelectValue(config.sequenceStrategy, 'core_3_step'),
+    languagePolicy: normalizeSelectValue(config.languagePolicy, 'account_locale_or_english'),
+    tone: normalizeSelectValue(config.tone, 'consultative'),
+    ctaPreference: normalizeSelectValue(config.ctaPreference, 'low_friction_question'),
+    polishPolicy: normalizeSelectValue(config.polishPolicy, 'auto_when_flagged'),
+    proofAssets: config.proofAssets?.trim() ?? '',
+    regionNotes: config.regionNotes?.trim() ?? '',
     steps: [1, 2, 3, 4, 5].map(stepIndex => {
       const step = config.steps.find(item => item.stepIndex === stepIndex);
 
@@ -224,6 +275,13 @@ export function summarizeProductLineAiWritingConfig(
     commonRequirements: normalized.commonRequirements,
     forbiddenClaims: normalized.forbiddenClaims,
     productEmphasis: normalized.productEmphasis,
+    sequenceStrategyLabel: findOptionLabel(productLineAiSequenceStrategyOptions, normalized.sequenceStrategy),
+    languagePolicyLabel: findOptionLabel(productLineAiLanguagePolicyOptions, normalized.languagePolicy),
+    toneLabel: findOptionLabel(productLineAiToneOptions, normalized.tone),
+    ctaPreferenceLabel: findOptionLabel(productLineAiCtaPreferenceOptions, normalized.ctaPreference),
+    polishPolicyLabel: findOptionLabel(productLineAiPolishPolicyOptions, normalized.polishPolicy),
+    proofAssets: normalized.proofAssets ?? '',
+    regionNotes: normalized.regionNotes ?? '',
     steps: normalized.steps.map(step => ({
       stepIndex: step.stepIndex,
       prompt: step.prompt,
@@ -269,6 +327,49 @@ export function buildProductLineAiPromptVersionDiffItems(
     versionSummary.productEmphasis,
     currentSummary.productEmphasis
   );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'sequenceStrategy',
+    '序列策略',
+    versionSummary.sequenceStrategyLabel,
+    currentSummary.sequenceStrategyLabel
+  );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'languagePolicy',
+    '语言策略',
+    versionSummary.languagePolicyLabel,
+    currentSummary.languagePolicyLabel
+  );
+  pushProductLinePromptDiffItem(diffItems, 'tone', '语气', versionSummary.toneLabel, currentSummary.toneLabel);
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'ctaPreference',
+    'CTA 风格',
+    versionSummary.ctaPreferenceLabel,
+    currentSummary.ctaPreferenceLabel
+  );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'polishPolicy',
+    '二次润色',
+    versionSummary.polishPolicyLabel,
+    currentSummary.polishPolicyLabel
+  );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'proofAssets',
+    '证据素材',
+    versionSummary.proofAssets,
+    currentSummary.proofAssets
+  );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'regionNotes',
+    '地区备注',
+    versionSummary.regionNotes,
+    currentSummary.regionNotes
+  );
 
   versionSummary.steps.forEach(versionStep => {
     const currentStep = currentSummary.steps.find(step => step.stepIndex === versionStep.stepIndex);
@@ -286,6 +387,14 @@ export function buildProductLineAiPromptVersionDiffItems(
 
 function createProductLinePromptPreview(prompt: string) {
   return prompt.length > 80 ? `${prompt.slice(0, 80)}...` : prompt;
+}
+
+function normalizeSelectValue<T extends string>(value: T | undefined, fallback: T) {
+  return value ?? fallback;
+}
+
+function findOptionLabel<T extends string>(options: Array<{ label: string; value: T }>, value: T | undefined) {
+  return options.find(option => option.value === value)?.label ?? '';
 }
 
 function pushProductLinePromptDiffItem(

@@ -468,6 +468,13 @@ export interface CrmProductLineAiWritingConfig {
   forbiddenClaims: string;
   productEmphasis: string;
   steps: CrmProductLineAiWritingStepConfig[];
+  sequenceStrategy?: 'core_3_step' | 'full_5_step';
+  languagePolicy?: 'account_locale_or_english' | 'english' | 'local_language';
+  tone?: 'consultative' | 'direct' | 'formal';
+  ctaPreference?: 'low_friction_question' | 'meeting' | 'quote' | 'referral';
+  polishPolicy?: 'auto_when_flagged' | 'always' | 'off';
+  proofAssets?: string;
+  regionNotes?: string;
 }
 
 export interface CrmProductLineAiPromptVersionRecord {
@@ -489,6 +496,13 @@ export interface CrmAiDraftSnapshot {
   writingConfig: CrmProductLineAiWritingConfig;
   reason: string;
   riskNotes: string[];
+  selectedModules?: unknown[];
+  publicFacts?: unknown[];
+  usedAngles?: string[];
+  usedFacts?: string[];
+  nextReviewHints?: string[];
+  qualityFlags?: string[];
+  polishChanges?: string[];
   generatedAt: string;
 }
 

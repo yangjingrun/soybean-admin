@@ -13,7 +13,8 @@ import {
 import { resolvePromptPublishBlockReason } from './shared';
 import type { PromptFocusSectionRequest, PromptSectionKey } from './shared';
 
-const defaultTestInput = '我是河北卖轴承的，想找纽约周边有门店和电话的轴承经销商';
+const defaultTestInput =
+  '测试上下文：河北轴承供应商，目标客户 ABC Trading，国家 SA，城市 Riyadh，联系人 Sourcing Manager，产品线 Bearings，目标是生成第 1 封开发信。';
 
 /** Owns prompt workbench state and backend actions for the route view. */
 export function usePromptSettingsPage() {

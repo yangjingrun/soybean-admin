@@ -3,7 +3,23 @@ export interface PromptStepStatusView {
   type: 'default' | 'info' | 'success' | 'warning' | 'error';
 }
 
-export type PromptSectionKey = 'role' | 'channel' | 'keyword' | 'hard-rules' | 'output';
+export interface PromptStepGroupView {
+  key: 'ai_leads' | 'crm_outreach';
+  title: string;
+  steps: Api.AiGateway.AiPromptStepSummary[];
+}
+
+export type PromptSectionKey =
+  | 'role'
+  | 'channel'
+  | 'keyword'
+  | 'hard-rules'
+  | 'output'
+  | 'crm-base'
+  | 'crm-sequence'
+  | 'crm-persona'
+  | 'crm-region'
+  | 'crm-source';
 
 export interface PromptValidationSummary {
   ok: boolean;
@@ -60,6 +76,31 @@ const promptSectionMatchers: Array<{
     key: 'output',
     label: '输出结构',
     patterns: [/输出 JSON/u, /输出结构/u]
+  },
+  {
+    key: 'crm-base',
+    label: '基础规则',
+    patterns: [/基础规则/u, /硬性规则/u]
+  },
+  {
+    key: 'crm-sequence',
+    label: '序列策略',
+    patterns: [/序列策略/u, /第 1 封/u, /follow-up/u]
+  },
+  {
+    key: 'crm-persona',
+    label: '职位画像',
+    patterns: [/职位画像/u, /Founder|CEO|Procurement|Sourcing/u]
+  },
+  {
+    key: 'crm-region',
+    label: '地区本地化',
+    patterns: [/地区本地化/u, /languagePolicy/u]
+  },
+  {
+    key: 'crm-source',
+    label: '公开资料',
+    patterns: [/公开资料/u, /source facts/u, /usedFacts/u]
   }
 ];
 
@@ -73,6 +114,27 @@ const validationItemSectionMap: Partial<Record<Api.AiGateway.AiPromptValidationI
   'maps-query-count': 'hard-rules',
   'maps-query-syntax': 'channel'
 };
+
+/** Groups prompt modules by the business workflow shown in the workbench. */
+export function groupPromptWorkbenchSteps(steps: Api.AiGateway.AiPromptStepSummary[]): PromptStepGroupView[] {
+  const aiLeadSteps = steps.filter(step => step.group !== 'crm_outreach');
+  const crmOutreachSteps = steps.filter(step => step.group === 'crm_outreach');
+
+  const groups: PromptStepGroupView[] = [
+    {
+      key: 'ai_leads',
+      title: 'AI 获客',
+      steps: aiLeadSteps
+    },
+    {
+      key: 'crm_outreach',
+      title: 'CRM 写信方法论',
+      steps: crmOutreachSteps
+    }
+  ];
+
+  return groups.filter(group => group.steps.length > 0);
+}
 
 /** Resolves the compact status badge shown in the built-in prompt step list. */
 export function resolvePromptStepStatus(step: Api.AiGateway.AiPromptStepSummary): PromptStepStatusView {

@@ -20,6 +20,26 @@ describe('crm-ai-draft-prompt', () => {
     assert.equal(config?.steps[1].prompt, 'Step 2 prompt');
   });
 
+  it('normalizes optional product-line AI writing style fields without requiring old configs to have them', () => {
+    const legacy = normalizeCrmProductLineAiWritingConfig(createWritingConfig());
+    const styled = normalizeCrmProductLineAiWritingConfig(
+      createWritingConfig({
+        sequenceStrategy: 'core_3_step',
+        languagePolicy: 'english',
+        tone: 'direct',
+        ctaPreference: 'quote',
+        polishPolicy: 'always',
+        proofAssets: '  ISO certificate and GCC distributor export history  ',
+        regionNotes: '  Saudi buyers often ask about stock availability.  '
+      })
+    );
+
+    assert.equal(legacy?.sequenceStrategy, undefined);
+    assert.equal(styled?.sequenceStrategy, 'core_3_step');
+    assert.equal(styled?.proofAssets, 'ISO certificate and GCC distributor export history');
+    assert.equal(styled?.regionNotes, 'Saudi buyers often ask about stock availability.');
+  });
+
   it('rejects enabled AI writing config with missing step prompt', () => {
     const config = createWritingConfig({
       steps: [
@@ -148,12 +168,22 @@ describe('crm-ai-draft-prompt', () => {
         subject: 'Bearing supply option',
         bodyText: 'Hi Alex, ...',
         reason: 'Focused on sourcing.',
-        riskNotes: ['产品交期未配置']
+        riskNotes: ['产品交期未配置'],
+        usedAngles: ['sourcing reliability'],
+        usedFacts: ['account.name'],
+        nextReviewHints: ['确认联系人职位'],
+        qualityFlags: ['主题可再缩短'],
+        polishChanges: ['删除模板开头']
       })
     );
 
     assert.equal(output.subject, 'Bearing supply option');
     assert.equal(output.riskNotes[0], '产品交期未配置');
+    assert.deepEqual(output.usedAngles, ['sourcing reliability']);
+    assert.deepEqual(output.usedFacts, ['account.name']);
+    assert.deepEqual(output.nextReviewHints, ['确认联系人职位']);
+    assert.deepEqual(output.qualityFlags, ['主题可再缩短']);
+    assert.deepEqual(output.polishChanges, ['删除模板开头']);
   });
 
   it('rejects markdown wrapped or incomplete AI JSON output', () => {
