@@ -17,8 +17,8 @@ describe('CrmGeoCatalogService', () => {
     const countries = await service.listCountries();
 
     assert.deepEqual(countries, [
-      { code: 'SA', label: 'Saudi Arabia', cityCount: 3 },
-      { code: 'US', label: 'United States', cityCount: 8 }
+      { code: 'SA', label: '沙特阿拉伯', cityCount: 3 },
+      { code: 'US', label: '美国', cityCount: 8 }
     ]);
   });
 
@@ -76,6 +76,41 @@ describe('CrmGeoCatalogService', () => {
       take: 30
     });
   });
+
+  it('searches cities across countries when country code is omitted', async () => {
+    const calls: unknown[] = [];
+    const service = new CrmGeoCatalogService(
+      createPrisma({
+        calls,
+        countryGroups: [],
+        cityRows: [
+          {
+            geonameId: 5128581,
+            countryCode: 'US',
+            name: 'New York',
+            asciiName: 'New York',
+            timeZone: 'America/New_York'
+          }
+        ]
+      }) as never
+    );
+
+    const cities = await service.listCities({ keyword: ' york ', limit: 5 });
+
+    assert.deepEqual(cities, [
+      {
+        name: 'New York',
+        asciiName: 'New York',
+        countryCode: 'US',
+        timeZone: 'America/New_York'
+      }
+    ]);
+    assert.deepEqual(calls[0], {
+      countryCode: undefined,
+      keyword: 'york',
+      take: 15
+    });
+  });
 });
 
 function createPrisma(input: {
@@ -93,10 +128,10 @@ function createPrisma(input: {
           }
         }));
       },
-      async findMany(args: { where: { countryCode: string }; take: number }) {
+      async findMany(args: { where: { countryCode?: string }; take: number }) {
         input.calls?.push({
           countryCode: args.where.countryCode,
-          keyword: 'OR' in args.where ? 'riy' : undefined,
+          keyword: 'OR' in args.where ? normalizeFirstKeyword(args.where.OR) : undefined,
           take: args.take
         });
 
@@ -104,4 +139,11 @@ function createPrisma(input: {
       }
     }
   };
+}
+
+function normalizeFirstKeyword(orClause: unknown) {
+  const [first] = Array.isArray(orClause) ? orClause : [];
+  const contains = first?.name?.contains;
+
+  return typeof contains === 'string' ? contains : undefined;
 }

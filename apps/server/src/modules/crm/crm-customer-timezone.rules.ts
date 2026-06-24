@@ -1,3 +1,5 @@
+import { resolveMappedCountryCode } from '../../shared/country-name-map';
+
 interface CrmCustomerTimeZoneInput {
   country?: string | null;
   city?: string | null;
@@ -170,7 +172,7 @@ for (const rule of Object.values(countryRules)) {
  * a GeoNames or latitude/longitude resolver when higher global coverage is needed.
  */
 export function resolveCrmCustomerTimeZone(input: CrmCustomerTimeZoneInput) {
-  const countryRule = countryAliasIndex.get(normalizeRuleKey(input.country));
+  const countryRule = countryAliasIndex.get(normalizeRuleKey(input.country)) ?? resolveCountryRuleByMappedCode(input.country);
 
   if (!countryRule) {
     return null;
@@ -193,7 +195,13 @@ export function resolveCrmCustomerCountryCode(country?: string | null) {
     return normalizedCountry.toUpperCase();
   }
 
-  return countryAliasIndex.get(normalizedCountry)?.code ?? null;
+  return countryAliasIndex.get(normalizedCountry)?.code ?? resolveMappedCountryCode(country) ?? null;
+}
+
+function resolveCountryRuleByMappedCode(country?: string | null) {
+  const mappedCode = resolveMappedCountryCode(country);
+
+  return mappedCode ? countryRules[mappedCode] : undefined;
 }
 
 function normalizeRuleKey(value?: string | null) {

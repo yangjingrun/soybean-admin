@@ -1,16 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { getMappedCountryZhNameByCode } from '../../../shared/country-name-map';
 import { normalizeGeoNameKey } from './geonames-timezone-import';
 
 interface ListCitiesInput {
-  countryCode: string;
+  countryCode?: string;
   keyword?: string;
   limit?: number;
 }
 
 const defaultCityLimit = 80;
-const maxCityLimit = 100;
-const countryDisplayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+const maxCityLimit = 5000;
+const countryDisplayNames = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
 
 @Injectable()
 export class CrmGeoCatalogService {
@@ -31,7 +32,7 @@ export class CrmGeoCatalogService {
     return groups
       .map(group => ({
         code: group.countryCode,
-        label: countryDisplayNames.of(group.countryCode) ?? group.countryCode,
+        label: getMappedCountryZhNameByCode(group.countryCode) ?? countryDisplayNames.of(group.countryCode) ?? group.countryCode,
         cityCount: group._count.countryCode
       }))
       .sort((left, right) => left.label.localeCompare(right.label));
@@ -39,14 +40,18 @@ export class CrmGeoCatalogService {
 
   /** List selectable cities for one country, optionally matching alternate local names. */
   async listCities(input: ListCitiesInput) {
-    const countryCode = input.countryCode.trim().toUpperCase();
+    const countryCode = input.countryCode?.trim().toUpperCase();
     const keyword = input.keyword?.trim();
     const limit = normalizeCityLimit(input.limit);
     const normalizedKeyword = normalizeGeoNameKey(keyword);
 
+    if (!countryCode && !keyword) {
+      return [];
+    }
+
     const rows = await this.prisma.crmGeoCityName.findMany({
       where: {
-        countryCode,
+        ...(countryCode ? { countryCode } : {}),
         ...(keyword
           ? {
               OR: [

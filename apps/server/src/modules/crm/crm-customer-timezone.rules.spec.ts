@@ -21,7 +21,9 @@ describe('resolveCrmCustomerTimeZone', () => {
       [{ country: 'IN', city: 'Delhi' }, 'Asia/Kolkata'],
       [{ country: 'JP', city: 'Tokyo' }, 'Asia/Tokyo'],
       [{ country: 'KR', city: 'Seoul' }, 'Asia/Seoul'],
-      [{ country: 'CN', city: 'Shenzhen' }, 'Asia/Shanghai']
+      [{ country: 'CN', city: 'Shenzhen' }, 'Asia/Shanghai'],
+      [{ country: '沙特阿拉伯', city: 'Jeddah' }, 'Asia/Riyadh'],
+      [{ country: '美国', city: 'Los Angeles' }, 'America/Los_Angeles']
     ] as const;
 
     for (const [input, expected] of cases) {

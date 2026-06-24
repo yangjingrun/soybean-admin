@@ -1,4 +1,5 @@
 import type { SerperRequestBody } from '../ai-gateway/serper-client.service';
+import { normalizeCountryToMappedZhName } from '../../shared/country-name-map';
 
 interface CandidateCountryLike {
   country?: unknown;
@@ -26,15 +27,15 @@ export function resolveSerperRequestCountry(requestBody: Pick<SerperRequestBody,
   const gl = requestBody.gl?.trim();
 
   if (gl && /^[a-z]{2}$/i.test(gl)) {
-    return gl.toUpperCase();
+    return normalizeCountryToMappedZhName(gl);
   }
 
-  return requestBody.location?.trim();
+  return normalizeCountryToMappedZhName(requestBody.location);
 }
 
 /** Build an import patch only when the candidate already has country data. */
 export function buildCandidateCountryPatch(candidate: CandidateCountryLike) {
   const country = typeof candidate.country === 'string' ? candidate.country.trim() : '';
 
-  return country ? { country } : {};
+  return country ? { country: normalizeCountryToMappedZhName(country) } : {};
 }

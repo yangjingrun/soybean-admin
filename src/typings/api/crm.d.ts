@@ -181,7 +181,7 @@ declare namespace Api {
     }
 
     interface GeoCitySearchParams {
-      countryCode: string;
+      countryCode?: string;
       keyword?: string;
       limit?: number;
     }

@@ -1,4 +1,5 @@
 import { defaultCrmSendWindows } from './crm-global-config';
+import { resolveMappedCountryCode } from '../../shared/country-name-map';
 
 export type CrmSendAvailabilityReason =
   | 'within_window'
@@ -172,7 +173,9 @@ export const crmCountrySendRules: Record<string, CrmCountrySendRule> = {
 
 /** Normalizes user/account country input into the ISO alpha-2 style used by local send rules. */
 export function normalizeCrmSendCountry(country?: string | null) {
-  return country?.trim().toUpperCase() ?? '';
+  const mappedCode = resolveMappedCountryCode(country);
+
+  return mappedCode ?? country?.trim().toUpperCase() ?? '';
 }
 
 /** Returns the configured rule for a country, or the project default rule for unknown countries. */

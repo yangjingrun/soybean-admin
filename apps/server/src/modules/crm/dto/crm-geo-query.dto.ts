@@ -15,10 +15,11 @@ function normalizeCountryCode({ value }: { value: unknown }) {
 }
 
 export class CrmGeoCityQueryDto {
+  @IsOptional()
   @IsString()
   @Length(2, 2)
   @Transform(normalizeCountryCode)
-  countryCode!: string;
+  countryCode?: string;
 
   @IsOptional()
   @IsString()
@@ -30,6 +31,6 @@ export class CrmGeoCityQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(5000)
   limit?: number;
 }

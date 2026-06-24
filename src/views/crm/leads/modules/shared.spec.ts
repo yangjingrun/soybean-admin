@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatLeadCountryDisplay } from './lead-region-options';
 import * as leadShared from './shared';
 import {
   buildLeadQueueStats,
@@ -304,7 +303,7 @@ describe('crm lead shared helpers', () => {
     assert.ok(params.updatedTo);
   });
 
-  it('builds mapped region keyword params from cascader filters', () => {
+  it('builds country region keyword params from cascader filters', () => {
     const params = buildLeadSearchParams({
       current: 1,
       size: 10,
@@ -312,7 +311,7 @@ describe('crm lead shared helpers', () => {
         keyword: '',
         contactTitle: '',
         customerType: '',
-        region: 'region:tw',
+        region: 'country:TW:%E5%8F%B0%E6%B9%BE',
         status: null,
         sourceTaskId: null,
         updatedAtRange: null
@@ -320,15 +319,26 @@ describe('crm lead shared helpers', () => {
     });
 
     assert.equal(params.region, undefined);
-    assert.match(params.regionKeywords ?? '', /台湾/);
-    assert.match(params.regionKeywords ?? '', /台灣/);
-    assert.match(params.regionKeywords ?? '', /Taiwan/);
+    assert.equal(params.regionKeywords, '台湾');
   });
 
-  it('formats AI lead country names in Chinese when an alias is known', () => {
-    assert.equal(formatLeadCountryDisplay('US'), '美国');
-    assert.equal(formatLeadCountryDisplay('Saudi Arabia'), '沙特阿拉伯');
-    assert.equal(formatLeadCountryDisplay('Unknownland'), 'Unknownland');
+  it('builds city region keyword params from cascader filters', () => {
+    const params = buildLeadSearchParams({
+      current: 1,
+      size: 10,
+      filterModel: {
+        keyword: '',
+        contactTitle: '',
+        customerType: '',
+        region: 'city:US:Los%20Angeles:Los%20Angeles',
+        status: null,
+        sourceTaskId: null,
+        updatedAtRange: null
+      }
+    });
+
+    assert.equal(params.region, undefined);
+    assert.equal(params.regionKeywords, 'Los Angeles');
   });
 });
 

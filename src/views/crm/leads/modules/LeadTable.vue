@@ -2,7 +2,6 @@
 import { computed, h } from 'vue';
 import { NButton, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { formatLeadCountryDisplay } from './lead-region-options';
 import { formatLeadDate, getLeadNextAction, getWebsiteHref, leadStatusLabelMap, leadStatusTagTypeMap } from './shared';
 
 const props = defineProps<{
@@ -50,8 +49,7 @@ function renderWebsite(row: Api.Crm.LeadRecord) {
 }
 
 function renderRegion(row: Api.Crm.LeadRecord) {
-  const country = formatLeadCountryDisplay(row.country);
-  const regionText = [country, row.city].filter(Boolean).join(' / ');
+  const regionText = [row.country, row.city].filter(Boolean).join(' / ');
 
   return h('div', { class: 'lead-stack-cell' }, [
     h('span', { class: regionText ? 'lead-primary-text' : 'lead-empty-text' }, regionText || '-'),

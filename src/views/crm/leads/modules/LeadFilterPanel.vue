@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { filterLeadRegionOption, leadRegionCascaderOptions } from './lead-region-options';
+import CrmRegionCascader from '@/components/common/crm-region-cascader.vue';
 import { leadStatusOptions } from './shared';
 
 const props = defineProps<{
@@ -13,9 +13,6 @@ const emit = defineEmits<{
   search: [];
 }>();
 
-function handleRegionUpdate(value: string | number | null) {
-  props.model.region = typeof value === 'string' ? value : '';
-}
 </script>
 
 <template>
@@ -47,16 +44,7 @@ function handleRegionUpdate(value: string | number | null) {
           />
         </NFormItemGi>
         <NFormItemGi label="地区">
-          <NCascader
-            :value="model.region || null"
-            clearable
-            filterable
-            :filter="filterLeadRegionOption"
-            :options="leadRegionCascaderOptions"
-            placeholder="国家 / 地区 / 城市"
-            show-path
-            @update:value="handleRegionUpdate"
-          />
+          <CrmRegionCascader v-model="model.region" />
         </NFormItemGi>
         <NFormItemGi label="状态">
           <NSelect

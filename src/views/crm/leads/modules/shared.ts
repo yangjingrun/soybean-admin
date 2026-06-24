@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { getLeadRegionKeywords } from './lead-region-options';
+import { getCrmRegionKeywords } from '@/utils/crm-region-cascader';
 
 export const leadStatusOptions = [
   { label: '候选线索', value: 'candidate' },
@@ -337,7 +337,7 @@ export function buildLeadSearchParams(options: {
   const region = filterModel.region?.trim();
 
   if (region) {
-    const regionKeywords = getLeadRegionKeywords(region);
+    const regionKeywords = getCrmRegionKeywords(region);
 
     if (regionKeywords.length) {
       params.regionKeywords = regionKeywords.join(',');
