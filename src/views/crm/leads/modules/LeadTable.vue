@@ -169,13 +169,12 @@ function formatContactPreview(contact: Api.Crm.LeadContact) {
 }
 
 function renderContactIdentity(contact: Api.Crm.LeadContact) {
+  const contactEmail = contact.maskedEmail || contact.email;
+
   return h('div', { class: 'lead-contact-cell' }, [
     h('span', { class: 'lead-primary-text' }, contact.fullName || '-'),
-    h(
-      'span',
-      { class: 'lead-secondary-text' },
-      [contact.title, contact.maskedEmail || contact.email].filter(Boolean).join(' / ')
-    )
+    contact.title ? h('span', { class: 'lead-secondary-text' }, contact.title) : null,
+    contactEmail ? h('span', { class: 'lead-secondary-text' }, contactEmail) : null
   ]);
 }
 
@@ -397,13 +396,13 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'name',
       title: '公司 / 官网',
-      minWidth: 260,
+      width: 220,
       render: row => renderCompany(row)
     },
     {
       key: 'contacts',
       title: '联系人',
-      minWidth: 260,
+      width: 220,
       render: row => renderContactSummary(row)
     },
     {
@@ -424,13 +423,13 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'emailProgress',
       title: '邮箱进度',
-      minWidth: 190,
+      width: 150,
       render: row => renderEmailProgress(row.primaryContact)
     },
     {
       key: 'latestInteraction',
       title: '最近互动',
-      minWidth: 160,
+      width: 150,
       render: row => renderRecentInteraction(row)
     },
     {
@@ -569,7 +568,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1720"
+        :scroll-x="1420"
         size="small"
         remote
         @update:checked-row-keys="handleCheckedRowKeysUpdate"
@@ -596,49 +595,76 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 </template>
 
 <style scoped>
-.lead-company-cell,
-.lead-stack-cell,
-.lead-contact-cell,
-.lead-contact-summary {
+:deep(.lead-company-cell),
+:deep(.lead-stack-cell),
+:deep(.lead-contact-cell),
+:deep(.lead-contact-summary) {
   display: flex;
+  align-items: flex-start;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
   line-height: 1.35;
+  white-space: normal;
 }
 
-.lead-company-name,
-.lead-company-link,
-.lead-primary-text {
+:deep(.lead-company-cell) {
+  max-width: 200px;
+}
+
+:deep(.lead-contact-cell),
+:deep(.lead-contact-summary) {
+  max-width: 200px;
+}
+
+:deep(.lead-stack-cell) {
+  max-width: 140px;
+}
+
+:deep(.lead-company-name),
+:deep(.lead-company-link),
+:deep(.lead-primary-text) {
   color: var(--n-text-color);
   font-weight: 500;
 }
 
-.lead-company-link,
-.lead-official-link {
+:deep(.lead-company-link),
+:deep(.lead-official-link) {
   align-self: flex-start;
   text-decoration: none;
 }
 
-.lead-company-id,
-.lead-secondary-text,
-.lead-empty-text {
+:deep(.lead-company-name),
+:deep(.lead-company-link),
+:deep(.lead-official-link),
+:deep(.lead-company-id),
+:deep(.lead-primary-text),
+:deep(.lead-secondary-text),
+:deep(.lead-empty-text) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+:deep(.lead-company-id),
+:deep(.lead-secondary-text),
+:deep(.lead-empty-text) {
   color: var(--n-text-color-3);
   font-size: 12px;
 }
 
-.lead-official-link {
+:deep(.lead-official-link) {
   align-self: flex-start;
   color: rgb(var(--primary-color));
   font-weight: 500;
 }
 
-.lead-company-link:hover,
-.lead-official-link:hover {
+:deep(.lead-company-link:hover),
+:deep(.lead-official-link:hover) {
   color: rgb(var(--primary-color) / 0.82);
 }
 
-.lead-link-icon {
+:deep(.lead-link-icon) {
   margin-left: 4px;
   color: rgb(var(--primary-color));
   font-size: 12px;

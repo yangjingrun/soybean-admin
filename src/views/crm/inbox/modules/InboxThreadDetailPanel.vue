@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, shallowRef, useTemplateRef } from 'vue';
 import {
   buildInboxReplyDraftMetadataItems,
   findPendingUnsubscribeReviewMessage,
@@ -60,6 +60,9 @@ const draftMetadataItems = computed(() =>
   isReplyDraftSyncedWithInputs.value ? buildInboxReplyDraftMetadataItems(replyDraft.value?.metadata) : []
 );
 const pendingUnsubscribeMessage = computed(() => findPendingUnsubscribeReviewMessage(messages.value));
+const messageListRef = useTemplateRef<HTMLElement>('messageList');
+const activeMessageId = shallowRef<string | null>(null);
+const isMessageAnchorExpanded = shallowRef(true);
 const replyTopicModel = computed({
   get: () => props.replyTopic,
   set: value => emit('update:replyTopic', value)
@@ -99,12 +102,73 @@ const inboxMessageTimelineTypeMap: Record<Api.Crm.InboxMessageRecord['messageTyp
   unsubscribe_hint: 'warning',
   unsubscribe_review_pending: 'warning'
 };
+const messageAnchorItems = computed(() =>
+  messages.value.map((item, index) => ({
+    id: item.id,
+    label: `${index + 1}. ${inboxMessageDirectionLabelMap[item.direction]}`,
+    time: formatInboxMessageTime(item)
+  }))
+);
+const currentMessageAnchorId = computed(() => {
+  const activeId = activeMessageId.value;
+
+  if (activeId && messageAnchorItems.value.some(item => item.id === activeId)) {
+    return activeId;
+  }
+
+  return messageAnchorItems.value[0]?.id ?? null;
+});
 
 /** Match the timeline dot to the email direction and current message risk. */
 function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTimelineType {
   if (message.direction === 'outbound') return 'success';
 
   return inboxMessageTimelineTypeMap[message.messageType];
+}
+
+/** Find rendered message cards inside the scroll container. */
+function getMessageAnchorTargets() {
+  return Array.from(messageListRef.value?.querySelectorAll<HTMLElement>('.message-item[data-message-id]') ?? []);
+}
+
+/** Scroll the mail body list to one message without moving the whole page. */
+function scrollToMessage(messageId: string) {
+  const listEl = messageListRef.value;
+  const targetEl = getMessageAnchorTargets().find(item => item.dataset.messageId === messageId);
+
+  if (!listEl || !targetEl) return;
+
+  const listRect = listEl.getBoundingClientRect();
+  const targetRect = targetEl.getBoundingClientRect();
+
+  activeMessageId.value = messageId;
+  listEl.scrollTo({
+    top: listEl.scrollTop + targetRect.top - listRect.top - 14,
+    behavior: 'smooth'
+  });
+}
+
+/** Keep the floating directory synced when users scroll the mail body manually. */
+function handleMessageListScroll() {
+  const listEl = messageListRef.value;
+  const targets = getMessageAnchorTargets();
+
+  if (!listEl || !targets.length) return;
+
+  const listTop = listEl.getBoundingClientRect().top;
+  let currentTarget = targets[0] ?? null;
+  let currentDistance = Number.POSITIVE_INFINITY;
+
+  for (const item of targets) {
+    const distance = Math.abs(item.getBoundingClientRect().top - listTop - 14);
+
+    if (distance < currentDistance) {
+      currentDistance = distance;
+      currentTarget = item;
+    }
+  }
+
+  activeMessageId.value = currentTarget?.dataset.messageId ?? null;
 }
 </script>
 
@@ -165,40 +229,78 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
           <div class="mail-thread-pane">
             <div class="drawer-section">
               <div class="section-title">邮件正文</div>
-              <NTimeline v-if="messages.length" class="message-list" size="medium">
-                <NTimelineItem
-                  v-for="item in messages"
-                  :key="item.id"
-                  :type="getMessageTimelineType(item)"
-                  :line-type="item.direction === 'outbound' ? 'dashed' : 'default'"
+              <div v-if="messages.length" class="message-list-shell">
+                <div
+                  v-if="messageAnchorItems.length > 1"
+                  class="message-anchor-nav"
+                  :class="{ 'message-anchor-nav--collapsed': !isMessageAnchorExpanded }"
+                  aria-label="邮件目录"
                 >
-                  <template #header>
-                    <div class="message-header">
-                      <NSpace align="center" :size="8">
-                        <NTag :type="inboxMessageDirectionTagTypeMap[item.direction]" :bordered="false" size="small">
-                          {{ inboxMessageDirectionLabelMap[item.direction] }}
-                        </NTag>
-                        <NTag
-                          v-if="shouldShowInboxMessageTypeTag(item)"
-                          :type="inboxMessageTypeTagTypeMap[item.messageType]"
-                          :bordered="false"
-                          size="small"
-                        >
-                          {{ inboxMessageTypeLabelMap[item.messageType] }}
-                        </NTag>
-                        <span class="message-time">{{ formatInboxMessageTime(item) }}</span>
-                      </NSpace>
-                    </div>
-                  </template>
+                  <button
+                    class="message-anchor-toggle"
+                    type="button"
+                    @click="isMessageAnchorExpanded = !isMessageAnchorExpanded"
+                  >
+                    <span>目录</span>
+                    <span>{{ isMessageAnchorExpanded ? '收起' : '展开' }}</span>
+                  </button>
 
-                  <div class="message-item" :class="`message-item--${item.direction}`">
-                    <div class="message-subject">{{ item.subject }}</div>
-                    <div class="message-body">
-                      {{ formatInboxMessageBody(item.bodyText) }}
-                    </div>
+                  <div v-show="isMessageAnchorExpanded" class="message-anchor-list">
+                    <button
+                      v-for="item in messageAnchorItems"
+                      :key="item.id"
+                      class="message-anchor-item"
+                      :class="{ 'message-anchor-item--active': currentMessageAnchorId === item.id }"
+                      type="button"
+                      @click="scrollToMessage(item.id)"
+                    >
+                      <span class="message-anchor-label">{{ item.label }}</span>
+                      <span class="message-anchor-time">{{ item.time }}</span>
+                    </button>
                   </div>
-                </NTimelineItem>
-              </NTimeline>
+                </div>
+
+                <div ref="messageList" class="message-list" @scroll.passive="handleMessageListScroll">
+                  <NTimeline size="medium">
+                    <NTimelineItem
+                      v-for="item in messages"
+                      :key="item.id"
+                      :type="getMessageTimelineType(item)"
+                      :line-type="item.direction === 'outbound' ? 'dashed' : 'default'"
+                    >
+                      <template #header>
+                        <div class="message-header">
+                          <NSpace align="center" :size="8">
+                            <NTag
+                              :type="inboxMessageDirectionTagTypeMap[item.direction]"
+                              :bordered="false"
+                              size="small"
+                            >
+                              {{ inboxMessageDirectionLabelMap[item.direction] }}
+                            </NTag>
+                            <NTag
+                              v-if="shouldShowInboxMessageTypeTag(item)"
+                              :type="inboxMessageTypeTagTypeMap[item.messageType]"
+                              :bordered="false"
+                              size="small"
+                            >
+                              {{ inboxMessageTypeLabelMap[item.messageType] }}
+                            </NTag>
+                            <span class="message-time">{{ formatInboxMessageTime(item) }}</span>
+                          </NSpace>
+                        </div>
+                      </template>
+
+                      <div class="message-item" :class="`message-item--${item.direction}`" :data-message-id="item.id">
+                        <div class="message-subject">{{ item.subject }}</div>
+                        <div class="message-body">
+                          {{ formatInboxMessageBody(item.bodyText) }}
+                        </div>
+                      </div>
+                    </NTimelineItem>
+                  </NTimeline>
+                </div>
+              </div>
               <NEmpty v-else :description="canReadBody ? '暂无邮件正文' : '当前账号不可查看邮件正文'" />
             </div>
           </div>
@@ -449,9 +551,104 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   flex: 1;
 }
 
+.message-list-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.message-anchor-nav {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 2;
+  box-sizing: border-box;
+  max-height: calc(100% - 24px);
+  width: 142px;
+  overflow: auto;
+  border: 1px solid rgb(var(--primary-color) / 0.14);
+  border-radius: 8px;
+  background: rgb(var(--container-bg-color) / 0.94);
+  box-shadow: 0 8px 24px rgb(31 34 37 / 0.08);
+  padding: 6px;
+}
+
+.message-anchor-nav--collapsed {
+  width: 82px;
+}
+
+.message-anchor-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--base-text-color) / 0.56);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 6px;
+}
+
+.message-anchor-toggle:hover {
+  background: rgb(var(--primary-color) / 0.07);
+}
+
+.message-anchor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.message-anchor-item {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  text-align: left;
+}
+
+.message-anchor-item:hover,
+.message-anchor-item--active {
+  background: rgb(var(--primary-color) / 0.09);
+}
+
+.message-anchor-item--active .message-anchor-label {
+  color: rgb(var(--primary-color));
+  font-weight: 600;
+}
+
+.message-anchor-label,
+.message-anchor-time {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-anchor-label {
+  color: rgb(var(--base-text-color) / 0.78);
+  font-size: 12px;
+}
+
+.message-anchor-time {
+  color: rgb(var(--base-text-color) / 0.46);
+  font-size: 11px;
+}
+
 .message-list {
   box-sizing: border-box;
-  flex: 1;
+  height: 100%;
   max-width: 100%;
   min-width: 0;
   min-height: 0;
@@ -533,6 +730,18 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
     grid-template-columns: 1fr;
     max-height: none;
     overflow: auto;
+  }
+
+  .message-list-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .message-anchor-nav {
+    position: static;
+    width: 100%;
+    max-height: none;
   }
 }
 </style>
