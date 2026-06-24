@@ -2,6 +2,7 @@
 import BulkAiDraftTaskDrawer from './BulkAiDraftTaskDrawer.vue';
 import DraftReviewModal from './DraftReviewModal.vue';
 import EmailSequenceTable from './EmailSequenceTable.vue';
+import SequenceFilterPanel from './SequenceFilterPanel.vue';
 import SequenceCreateModal from './SequenceCreateModal.vue';
 import { useEmailSequenceTable } from './useEmailSequenceTable';
 
@@ -32,6 +33,7 @@ const {
   draftVersions,
   drawerLoading,
   drawerVisible,
+  filterModel,
   handleAccountChange,
   handleApproveDraft,
   handleBatchApproveDrafts,
@@ -50,19 +52,20 @@ const {
   handleRetryFirstMessageSend,
   handlePageSizeUpdate,
   handlePageUpdate,
+  handleReset,
   handleRefreshCurrentSequence,
   handleReturnFirstMessageToEdit,
   handleReadAiDraftTask,
   handleRetryAiDraftTask,
   handleRestoreDraftVersion,
   handleSaveDraft,
+  handleSearch,
   handleStartSend,
   handleStopSequence,
   loadDraftVersions,
   loading,
   mailboxSelectOptions,
   nextDraftGenerating,
-  openCreateModal,
   openDraftDrawer,
   pagination,
   productLineSelectOptions,
@@ -80,9 +83,7 @@ const {
 
 <template>
   <NSpace vertical :size="12">
-    <NSpace justify="end">
-      <NButton type="primary" ghost @click="openCreateModal">创建开发任务</NButton>
-    </NSpace>
+    <SequenceFilterPanel :model="filterModel" :loading="loading" @reset="handleReset" @search="handleSearch" />
 
     <EmailSequenceTable
       :ai-draft-task-creating="aiDraftTaskCreating"
