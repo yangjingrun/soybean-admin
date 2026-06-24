@@ -48,6 +48,7 @@ const {
 <style scoped>
 .inbox-detail-page {
   box-sizing: border-box;
+  display: flex;
   height: calc(100vh - var(--soy-header-height) - var(--soy-tab-height) - var(--soy-footer-height));
   min-height: 0;
   overflow: hidden;

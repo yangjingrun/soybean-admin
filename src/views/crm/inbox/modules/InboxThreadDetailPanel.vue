@@ -140,7 +140,7 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
     </template>
 
     <NSpin :show="loading">
-      <NSpace v-if="thread && account" vertical :size="14" class="panel-content">
+      <div v-if="thread && account" class="panel-content">
         <NAlert
           v-if="pendingUnsubscribeMessage && detail?.canOperate"
           type="warning"
@@ -328,7 +328,7 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
             </div>
           </div>
         </div>
-      </NSpace>
+      </div>
       <NEmpty v-else description="请选择回复线程" />
     </NSpin>
   </NCard>
@@ -346,6 +346,8 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
 
 .inbox-reply-panel :deep(.n-card__content) {
   flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
   height: 0;
   min-height: 0;
   overflow: hidden;
@@ -353,6 +355,9 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
 
 .inbox-reply-panel :deep(.n-spin-container),
 .inbox-reply-panel :deep(.n-spin-content) {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -399,6 +404,7 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
 }
 
 .panel-content {
+  flex: 1 1 0;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -421,7 +427,8 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.95fr);
   gap: 18px;
-  height: 100%;
+  flex: 1 1 0;
+  height: auto;
   min-height: 0;
   overflow: hidden;
 }
