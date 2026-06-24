@@ -6,6 +6,7 @@ export interface CrmRegionCascaderOption extends CascaderOption {
   keywords: string[];
   nodeType: 'country' | 'city';
   countryCode: string;
+  flag?: string;
   cityName?: string;
   asciiName?: string | null;
   isLeaf?: boolean;
@@ -22,6 +23,7 @@ export function createCrmCountryRegionOption(country: Api.Crm.GeoCountryOption):
     keywords: [country.label, country.code],
     nodeType: 'country',
     countryCode: country.code,
+    flag: createCountryFlag(country.code),
     isLeaf: false
   };
 }
@@ -109,6 +111,21 @@ function formatCountryLabel(countryCode: string) {
 
 function formatCityLabel(city: Api.Crm.GeoCityOption) {
   return city.asciiName && city.asciiName !== city.name ? `${city.name} / ${city.asciiName}` : city.name;
+}
+
+/** Convert an ISO 3166-1 alpha-2 country code to its regional indicator flag. */
+function createCountryFlag(countryCode: string) {
+  const normalizedCode = countryCode.trim().toUpperCase();
+
+  if (!/^[A-Z]{2}$/.test(normalizedCode)) {
+    return '';
+  }
+
+  const regionalIndicatorOffset = 127397;
+
+  return Array.from(normalizedCode)
+    .map(char => String.fromCodePoint(char.charCodeAt(0) + regionalIndicatorOffset))
+    .join('');
 }
 
 function normalizeRegionText(value: string) {

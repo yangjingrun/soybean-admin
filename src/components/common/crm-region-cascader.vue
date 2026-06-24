@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, type CSSProperties } from 'vue';
+import { computed, h, type CSSProperties, type VNodeChild } from 'vue';
+import type { CascaderOption } from 'naive-ui';
 import { useCrmRegionCascader } from '@/hooks/business/crm-region-cascader';
+import type { CrmRegionCascaderOption } from '@/utils/crm-region-cascader';
 
 defineOptions({ name: 'CrmRegionCascader' });
 
@@ -46,6 +48,20 @@ function handleRegionUpdate(value: string | number | null) {
   emit('update:modelValue', typeof value === 'string' ? value : '');
   clearRegionSearch();
 }
+
+function renderRegionLabel(option: CascaderOption): VNodeChild {
+  const regionOption = option as CrmRegionCascaderOption;
+  const label = String(regionOption.label ?? '');
+
+  if (regionOption.nodeType !== 'country' || !regionOption.flag) {
+    return label;
+  }
+
+  return h('span', { class: 'crm-region-cascader-country-label' }, [
+    h('span', { class: 'crm-region-cascader-country-label__flag' }, regionOption.flag),
+    h('span', { class: 'crm-region-cascader-country-label__text' }, label)
+  ]);
+}
 </script>
 
 <template>
@@ -62,8 +78,32 @@ function handleRegionUpdate(value: string | number | null) {
     :menu-props="dropdownMenuProps"
     :options="regionOptions"
     :placeholder="placeholder"
+    :render-label="renderRegionLabel"
     show-path
     @update:show="handleRegionDropdownShow"
     @update:value="handleRegionUpdate"
   />
 </template>
+
+<style scoped>
+:global(.crm-region-cascader-country-label) {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  vertical-align: middle;
+}
+
+:global(.crm-region-cascader-country-label__flag) {
+  flex: 0 0 auto;
+  width: 20px;
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+}
+
+:global(.crm-region-cascader-country-label__text) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
