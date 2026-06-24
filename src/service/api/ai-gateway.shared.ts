@@ -1,6 +1,16 @@
 import type { CustomAxiosRequestConfig } from '@sa/axios';
 
 export const aiGatewayGenerateTextTimeout = 120 * 1000;
+export const aiPromptWorkbenchRequestTimeout = 0;
+
+/** Build a prompt workbench request config without inheriting the common 10s API timeout. */
+export function buildAiPromptWorkbenchRequestConfig(config: CustomAxiosRequestConfig): CustomAxiosRequestConfig {
+  return {
+    ...config,
+    // Prompt workbench actions may call an LLM; let the backend return the business result.
+    timeout: aiPromptWorkbenchRequestTimeout
+  };
+}
 
 /** Build the request config for reading one code-level built-in prompt draft. */
 export function buildGetDefaultAiPromptRequestConfig(promptKey: string): CustomAxiosRequestConfig {

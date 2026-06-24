@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  aiPromptWorkbenchRequestTimeout,
+  buildAiPromptWorkbenchRequestConfig,
   aiGatewayGenerateTextTimeout,
   buildGetDefaultAiPromptRequestConfig,
   buildGenerateAiTextRequestConfig,
@@ -10,6 +12,24 @@ import {
 } from './ai-gateway.shared';
 
 describe('ai gateway api helpers', () => {
+  it('disables the common 10s timeout for prompt workbench requests', () => {
+    const payload = {
+      promptKey: 'crm_outreach_base_rules',
+      systemPrompt: 'CRM outreach prompt'
+    };
+    const config = buildAiPromptWorkbenchRequestConfig({
+      url: '/ai-gateway/prompt-workbench/drafts/test',
+      method: 'post',
+      data: payload
+    });
+
+    assert.equal(config.timeout, aiPromptWorkbenchRequestTimeout);
+    assert.equal(config.timeout, 0);
+    assert.equal(config.url, '/ai-gateway/prompt-workbench/drafts/test');
+    assert.equal(config.method, 'post');
+    assert.deepEqual(config.data, payload);
+  });
+
   it('uses a longer request timeout for text generation', () => {
     const payload = {
       systemPrompt: '你是外贸获客助手',
