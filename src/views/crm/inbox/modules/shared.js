@@ -38,6 +38,17 @@ export const inboxMessageTypeTagTypeMap = {
   unsubscribe_hint: 'warning',
   unsubscribe_review_pending: 'warning'
 };
+const inboxHtmlEntityMap = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&#x27;': "'",
+  '&#x2F;': '/',
+  '&#47;': '/'
+};
 /** Create the default inbox filter object for initial load and reset. */
 export function createDefaultInboxFilterModel() {
   return {
@@ -115,9 +126,42 @@ export function formatInboxDate(value) {
 export function formatInboxText(value) {
   return value || '-';
 }
+/** Decode common HTML entities from stored email text before showing it in the drawer. */
+function decodeInboxHtmlEntities(value) {
+  let decoded = value;
+
+  // Some quoted raw emails arrive double-escaped, so decode a small fixed number of passes.
+  for (let index = 0; index < 2; index += 1) {
+    const nextValue = decoded
+      .replace(/&nbsp;|&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&#x2F;|&#47;/g, token => inboxHtmlEntityMap[token] ?? token)
+      .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
+
+    if (nextValue === decoded) {
+      return nextValue;
+    }
+
+    decoded = nextValue;
+  }
+
+  return decoded;
+}
+/** Normalize email body spacing so quoted content stays readable in the timeline card. */
+export function formatInboxMessageBody(value) {
+  return decodeInboxHtmlEntities(value)
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 /** Use received time for inbound messages and sent time for outbound messages. */
 export function formatInboxMessageTime(message) {
   return formatInboxDate(message.receivedAt || message.sentAt || message.createdAt);
+}
+/** Only special inbound types need an extra type tag; normal customer replies already have the direction tag. */
+export function shouldShowInboxMessageTypeTag(message) {
+  return message.direction === 'inbound' && message.messageType !== 'customer_reply';
 }
 /** Find the latest inbound message that still needs unsubscribe confirmation. */
 export function findPendingUnsubscribeReviewMessage(messages) {

@@ -39,8 +39,6 @@ export function useInboxTable() {
   const draftPolishing = shallowRef(false);
   const draftSaving = shallowRef(false);
   const replySending = shallowRef(false);
-  const statusSubmitting = shallowRef(false);
-  const statusOperating = shallowRef<Api.Crm.InboxThreadStatus | null>(null);
   const unsubscribeConfirming = shallowRef(false);
   const selectedThreadId = shallowRef<string | null>(null);
   const pendingTotal = shallowRef(0);
@@ -141,7 +139,11 @@ export function useInboxTable() {
     mailboxLoading.value = true;
 
     try {
-      const { data, error } = await fetchCrmMailboxes({ current: 1, size: 100, status: 'active' });
+      const { data, error } = await fetchCrmMailboxes({
+        current: 1,
+        size: 100,
+        status: 'active'
+      });
 
       if (error || requestId !== latestMailboxRequestId) {
         return;
@@ -190,7 +192,8 @@ export function useInboxTable() {
     replyBody.value = '';
     replyPolishUndoSnapshot.value = null;
     detailVisible.value = true;
-    void loadThreadDetail(record.id);
+    detailLoading.value = true;
+    void openHandledThreadDetail(record);
   }
 
   function handleDetailVisibleUpdate(show: boolean) {
@@ -207,26 +210,24 @@ export function useInboxTable() {
     }
   }
 
-  /** Update one thread status, then refresh list and matching open detail. */
-  async function handleUpdateStatus(status: Api.Crm.InboxThreadStatus) {
-    const threadId = selectedThreadId.value;
-
-    if (!threadId) {
+  /** Opening a pending thread means the reply has been read and handled by the owner. */
+  async function markPendingThreadHandledOnOpen(record: Api.Crm.InboxThreadRecord) {
+    if (record.status !== 'pending') {
       return;
     }
 
-    statusSubmitting.value = true;
-    statusOperating.value = status;
+    const threadId = record.id;
+    const { data, error } = await updateCrmInboxThreadStatus(threadId, {
+      status: 'handled'
+    });
 
-    try {
-      const { data, error } = await updateCrmInboxThreadStatus(threadId, { status });
+    if (error) {
+      return;
+    }
 
-      if (error || selectedThreadId.value !== threadId) {
-        return;
-      }
+    notifyCrmWorkbenchChanged();
 
-      message.success('客户回信状态已更新');
-      notifyCrmWorkbenchChanged();
+    if (selectedThreadId.value === threadId) {
       currentDetail.value = currentDetail.value
         ? {
             ...currentDetail.value,
@@ -234,14 +235,17 @@ export function useInboxTable() {
             thread: data.thread
           }
         : currentDetail.value;
-      await loadThreads();
+    }
 
-      if (detailVisible.value && selectedThreadId.value === threadId) {
-        await loadThreadDetail(threadId);
-      }
-    } finally {
-      statusSubmitting.value = false;
-      statusOperating.value = null;
+    await loadThreads();
+  }
+
+  /** Mark a pending row handled first, then load the detail with the final read state. */
+  async function openHandledThreadDetail(record: Api.Crm.InboxThreadRecord) {
+    await markPendingThreadHandledOnOpen(record);
+
+    if (selectedThreadId.value === record.id) {
+      await loadThreadDetail(record.id);
     }
   }
 
@@ -278,7 +282,9 @@ export function useInboxTable() {
 
     draftPolishing.value = true;
     try {
-      const { data, error } = await polishCrmInboxReplyDraft(threadId, { topic });
+      const { data, error } = await polishCrmInboxReplyDraft(threadId, {
+        topic
+      });
 
       if (error || selectedThreadId.value !== threadId) {
         return;
@@ -335,7 +341,10 @@ export function useInboxTable() {
 
     draftSaving.value = true;
     try {
-      const { data, error } = await saveCrmInboxReplyDraft(threadId, { topic, bodyText });
+      const { data, error } = await saveCrmInboxReplyDraft(threadId, {
+        topic,
+        bodyText
+      });
 
       if (error || selectedThreadId.value !== threadId) {
         return;
@@ -371,7 +380,7 @@ export function useInboxTable() {
 
     replySending.value = true;
     try {
-      const { data, error } = await replyCrmInboxThread(threadId, replyPayloadResult.payload);
+      const { error } = await replyCrmInboxThread(threadId, replyPayloadResult.payload);
 
       if (error || selectedThreadId.value !== threadId) {
         return;
@@ -379,11 +388,9 @@ export function useInboxTable() {
 
       message.success('回复已发送');
       notifyCrmWorkbenchChanged();
-      currentDetail.value = data;
-      syncReplyDraftFromDetail(data);
       replyPolishUndoSnapshot.value = null;
-      // 发送会改变线程消息、状态和列表统计，两个视图都重新拉取。
-      await Promise.all([loadThreadDetail(threadId), loadThreads()]);
+      handleDetailVisibleUpdate(false);
+      await loadThreads();
     } finally {
       replySending.value = false;
     }
@@ -460,7 +467,6 @@ export function useInboxTable() {
     handleSaveReplyDraft,
     handleSendReply,
     handleSearch,
-    handleUpdateStatus,
     loadThreadDetail,
     loadThreads,
     loading,
@@ -473,8 +479,6 @@ export function useInboxTable() {
     replyBody,
     replySending,
     replyTopic,
-    statusOperating,
-    statusSubmitting,
     unsubscribeConfirming
   };
 }

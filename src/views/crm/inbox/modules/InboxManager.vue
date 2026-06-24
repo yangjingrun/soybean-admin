@@ -19,7 +19,6 @@ const {
   handleRestorePolishSnapshot,
   handleSaveReplyDraft,
   handleSendReply,
-  handleUpdateStatus,
   loadThreadDetail,
   loading,
   openThreadDetail,
@@ -29,7 +28,6 @@ const {
   replyBody,
   replySending,
   replyTopic,
-  statusSubmitting,
   unsubscribeConfirming
 } = useInboxTable();
 </script>
@@ -59,7 +57,6 @@ const {
       :draft-saving="draftSaving"
       :loading="detailLoading"
       :reply-sending="replySending"
-      :status-submitting="statusSubmitting"
       :unsubscribe-confirming="unsubscribeConfirming"
       @update:show="handleDetailVisibleUpdate"
       @confirm-unsubscribe="handleConfirmUnsubscribe"
@@ -68,7 +65,6 @@ const {
       @restore-polish="handleRestorePolishSnapshot"
       @save-reply-draft="handleSaveReplyDraft"
       @send-reply="handleSendReply"
-      @submit-status="handleUpdateStatus"
     />
   </NSpace>
 </template>

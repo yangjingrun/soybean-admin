@@ -6,6 +6,7 @@ import {
   canRestoreInboxReplyPolishSnapshot,
   createInboxReplyPolishSnapshot,
   findPendingUnsubscribeReviewMessage,
+  formatInboxMessageBody,
   inboxPageGuide,
   inboxMessageTypeLabelMap,
   inboxMessageTypeTagTypeMap,
@@ -122,6 +123,15 @@ describe('crm inbox shared helpers', () => {
       ok: true,
       payload: { bodyText: 'Thanks' }
     });
+  });
+
+  it('formats inbox message bodies for drawer display', () => {
+    assert.equal(
+      formatInboxMessageBody(
+        'Hi&nbsp;陈思远,\r\n\r\n\r\nI&amp;nbsp;noticed&amp;nbsp;深圳智拓&amp;nbsp;in&amp;nbsp;中国\r\n&lt;yjr0196@gmail.com&gt;\r\n'
+      ),
+      'Hi 陈思远,\n\nI noticed 深圳智拓 in 中国\n<yjr0196@gmail.com>'
+    );
   });
 
   it('creates an undo snapshot that can only restore the same inbox thread', () => {

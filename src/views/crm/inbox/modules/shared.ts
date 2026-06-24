@@ -71,6 +71,18 @@ export const inboxMessageTypeTagTypeMap: Record<InboxMessageType, NaiveUI.ThemeC
   unsubscribe_review_pending: 'warning'
 };
 
+const inboxHtmlEntityMap: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&#x27;': "'",
+  '&#x2F;': '/',
+  '&#47;': '/'
+};
+
 /** Create the default inbox filter object for initial load and reset. */
 export function createDefaultInboxFilterModel(): Api.Crm.InboxThreadFilterModel {
   return {
@@ -176,9 +188,45 @@ export function formatInboxText(value: string | null | undefined) {
   return value || '-';
 }
 
+/** Decode common HTML entities from stored email text before showing it in the drawer. */
+function decodeInboxHtmlEntities(value: string) {
+  let decoded = value;
+
+  // Some quoted raw emails arrive double-escaped, so decode a small fixed number of passes.
+  for (let index = 0; index < 2; index += 1) {
+    const nextValue = decoded
+      .replace(/&nbsp;|&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&#x2F;|&#47;/g, token => inboxHtmlEntityMap[token] ?? token)
+      .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 16)));
+
+    if (nextValue === decoded) {
+      return nextValue;
+    }
+
+    decoded = nextValue;
+  }
+
+  return decoded;
+}
+
+/** Normalize email body spacing so quoted content stays readable in the timeline card. */
+export function formatInboxMessageBody(value: string) {
+  return decodeInboxHtmlEntities(value)
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /** Use received time for inbound messages and sent time for outbound messages. */
 export function formatInboxMessageTime(message: Api.Crm.InboxMessageRecord) {
   return formatInboxDate(message.receivedAt || message.sentAt || message.createdAt);
+}
+
+/** Only special inbound types need an extra type tag; normal customer replies already have the direction tag. */
+export function shouldShowInboxMessageTypeTag(message: Api.Crm.InboxMessageRecord) {
+  return message.direction === 'inbound' && message.messageType !== 'customer_reply';
 }
 
 /** Find the latest inbound message that still needs unsubscribe confirmation. */

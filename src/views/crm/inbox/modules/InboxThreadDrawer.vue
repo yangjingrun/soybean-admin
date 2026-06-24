@@ -4,6 +4,7 @@ import {
   buildInboxReplyDraftMetadataItems,
   findPendingUnsubscribeReviewMessage,
   formatInboxDate,
+  formatInboxMessageBody,
   formatInboxMessageTime,
   formatInboxText,
   inboxMessageDirectionLabelMap,
@@ -11,7 +12,8 @@ import {
   inboxMessageTypeLabelMap,
   inboxMessageTypeTagTypeMap,
   inboxThreadStatusLabelMap,
-  inboxThreadStatusTagTypeMap
+  inboxThreadStatusTagTypeMap,
+  shouldShowInboxMessageTypeTag
 } from './shared';
 
 const props = defineProps<{
@@ -24,7 +26,6 @@ const props = defineProps<{
   replySending?: boolean;
   replyTopic: string;
   show: boolean;
-  statusSubmitting?: boolean;
   unsubscribeConfirming?: boolean;
 }>();
 
@@ -35,7 +36,6 @@ const emit = defineEmits<{
   restorePolish: [];
   saveReplyDraft: [];
   sendReply: [];
-  submitStatus: [status: Api.Crm.InboxThreadStatus];
   'update:replyBody': [body: string];
   'update:replyTopic': [topic: string];
   'update:show': [show: boolean];
@@ -96,19 +96,6 @@ const sendDisabled = computed(() =>
     !canEditDraft.value || !props.replyTopic.trim() || !props.replyBody.trim() || props.loading || props.replySending
   )
 );
-const statusActions = [
-  { label: '标记待处理回信', value: 'pending' },
-  { label: '标记已处理', value: 'handled' },
-  { label: '标记已忽略', value: 'archived' }
-] satisfies Array<{ label: string; value: Api.Crm.InboxThreadStatus }>;
-const statusDropdownOptions = computed(() =>
-  statusActions.map(item => ({
-    key: item.value,
-    label: item.label,
-    disabled: isStatusDisabled(item.value)
-  }))
-);
-
 type MessageTimelineType = 'default' | 'success' | 'error' | 'warning' | 'info';
 
 const inboxMessageTimelineTypeMap: Record<Api.Crm.InboxMessageRecord['messageType'], MessageTimelineType> = {
@@ -124,22 +111,6 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
 
   return inboxMessageTimelineTypeMap[message.messageType];
 }
-
-/** Check whether a status action should be unavailable for the current detail. */
-function isStatusDisabled(status: Api.Crm.InboxThreadStatus) {
-  return Boolean(
-    props.loading || props.statusSubmitting || !props.detail?.canOperate || thread.value?.status === status
-  );
-}
-
-/** Submit status changes from the compact footer dropdown. */
-function handleStatusSelect(key: string | number) {
-  if (typeof key !== 'string' || !['pending', 'handled', 'archived'].includes(key)) {
-    return;
-  }
-
-  emit('submitStatus', key as Api.Crm.InboxThreadStatus);
-}
 </script>
 
 <template>
@@ -147,6 +118,7 @@ function handleStatusSelect(key: string | number) {
     v-model:show="modalVisible"
     preset="card"
     class="inbox-reply-modal"
+    style="width: min(1360px, 96vw); max-width: calc(100vw - 24px)"
     :bordered="false"
     :segmented="{ content: true, footer: true }"
   >
@@ -169,7 +141,6 @@ function handleStatusSelect(key: string | number) {
         </div>
         <NSpace align="center" :size="8">
           <NButton size="tiny" :loading="loading" @click="emit('reload')">刷新</NButton>
-          <NButton size="tiny" quaternary @click="modalVisible = false">关闭</NButton>
         </NSpace>
       </div>
     </template>
@@ -214,7 +185,7 @@ function handleStatusSelect(key: string | number) {
                           {{ inboxMessageDirectionLabelMap[item.direction] }}
                         </NTag>
                         <NTag
-                          v-if="item.direction === 'inbound'"
+                          v-if="shouldShowInboxMessageTypeTag(item)"
                           :type="inboxMessageTypeTagTypeMap[item.messageType]"
                           :bordered="false"
                           size="small"
@@ -228,7 +199,9 @@ function handleStatusSelect(key: string | number) {
 
                   <div class="message-item" :class="`message-item--${item.direction}`">
                     <div class="message-subject">{{ item.subject }}</div>
-                    <div class="message-body">{{ item.bodyText }}</div>
+                    <div class="message-body">
+                      {{ formatInboxMessageBody(item.bodyText) }}
+                    </div>
                   </div>
                 </NTimelineItem>
               </NTimeline>
@@ -363,11 +336,6 @@ function handleStatusSelect(key: string | number) {
           >
             发送回复
           </NButton>
-          <NDropdown :options="statusDropdownOptions" trigger="click" @select="handleStatusSelect">
-            <NButton :disabled="loading || statusSubmitting || !detail?.canOperate" :loading="statusSubmitting">
-              状态操作
-            </NButton>
-          </NDropdown>
         </NSpace>
       </NSpace>
     </template>
@@ -376,7 +344,8 @@ function handleStatusSelect(key: string | number) {
 
 <style scoped>
 .inbox-reply-modal {
-  width: min(1180px, 92vw);
+  max-width: calc(100vw - 32px);
+  width: min(1360px, 96vw);
 }
 
 .modal-header,
@@ -386,6 +355,7 @@ function handleStatusSelect(key: string | number) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .modal-heading,
@@ -395,6 +365,7 @@ function handleStatusSelect(key: string | number) {
 .reply-draft-section {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .modal-heading {
@@ -419,40 +390,63 @@ function handleStatusSelect(key: string | number) {
 .modal-subtitle {
   color: var(--n-text-color-3);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .reply-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.95fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.95fr);
   gap: 18px;
-  max-height: calc(86vh - 170px);
-  min-height: 520px;
+  height: min(620px, calc(86vh - 170px));
+  min-height: 0;
+  overflow: hidden;
 }
 
 .mail-thread-pane,
 .reply-draft-pane {
   min-height: 0;
+  min-width: 0;
   overflow: auto;
   padding-right: 2px;
 }
 
 .message-list {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
   background-color: rgb(var(--layout-bg-color));
   padding: 14px 14px 2px;
-  overflow: hidden;
 }
 
 .message-list :deep(.n-timeline-item-content__title) {
+  min-width: 0;
   margin-bottom: 6px;
+}
+
+.message-list :deep(.n-timeline-item) {
+  min-width: 0;
+}
+
+.message-list :deep(.n-timeline-item-content) {
+  min-width: 0;
+  width: auto;
 }
 
 .message-list :deep(.n-timeline-item-content__content) {
   min-width: 0;
+  width: auto;
+}
+
+.message-header,
+.message-item {
+  width: 100%;
 }
 
 .message-item {
+  box-sizing: border-box;
   position: relative;
   overflow: hidden;
   border: 1px solid var(--n-border-color);
@@ -487,14 +481,17 @@ function handleStatusSelect(key: string | number) {
 .message-body {
   color: rgb(var(--base-text-color) / 0.82);
   line-height: 1.7;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 @media (max-width: 960px) {
   .reply-workspace {
+    height: auto;
     grid-template-columns: 1fr;
     max-height: calc(88vh - 170px);
+    overflow: auto;
   }
 }
 </style>
