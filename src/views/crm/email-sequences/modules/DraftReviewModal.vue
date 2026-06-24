@@ -15,6 +15,7 @@ import {
   buildSequencePolicyReviewHints,
   canRegenerateAiDraft,
   canGenerateNextSequenceDraft,
+  canOperateSelectedSequenceDraft,
   isDraftBlockedBySequencePolicy,
   getMessageStatusView,
   type DraftReviewApprovePayload,
@@ -92,13 +93,8 @@ const currentMessageStatusView = computed(() =>
   currentMessage.value && props.item ? getMessageStatusView(currentMessage.value, props.item.enrollment.status) : null
 );
 const isFirstMessageSelected = computed(() => currentMessage.value?.stepIndex === 1);
-const operableFollowUpEnrollmentStatuses: Api.Crm.SequenceEnrollmentStatus[] = ['ready_to_send', 'sequence_running'];
 const canOperateSelectedDraft = computed(() =>
-  Boolean(
-    props.item?.canOperateDraft &&
-    currentMessage.value?.status === 'draft_pending_review' &&
-    (isFirstMessageSelected.value || operableFollowUpEnrollmentStatuses.includes(props.item.enrollment.status))
-  )
+  props.item ? canOperateSelectedSequenceDraft(props.item, currentMessage.value) : false
 );
 const canEdit = computed(() => {
   return canOperateSelectedDraft.value;

@@ -15,6 +15,7 @@ import {
 import {
   canRegenerateAiDraft,
   canGenerateNextSequenceDraft,
+  canOperateSelectedSequenceDraft,
   getPendingReviewMessage,
   type DraftReviewApprovePayload,
   type DraftReviewSavePayload
@@ -127,7 +128,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     const enrollmentId = currentItem.value.enrollment.id;
     const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === messageId);
 
-    if (targetMessage?.status !== 'draft_pending_review') {
+    if (!canOperateSelectedSequenceDraft(currentItem.value, targetMessage ?? null)) {
       return;
     }
 
@@ -198,7 +199,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
 
     const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === payload.messageId);
 
-    if (targetMessage?.status !== 'draft_pending_review') {
+    if (!canOperateSelectedSequenceDraft(currentItem.value, targetMessage ?? null)) {
       return;
     }
 
@@ -243,7 +244,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     const enrollmentId = currentItem.value.enrollment.id;
     const targetMessage = currentItem.value.messages.find(messageRecord => messageRecord.id === messageId);
 
-    if (targetMessage?.status !== 'draft_pending_review') {
+    if (!canOperateSelectedSequenceDraft(currentItem.value, targetMessage ?? null)) {
       return;
     }
 

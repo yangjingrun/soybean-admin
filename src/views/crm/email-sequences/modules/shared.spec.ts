@@ -25,6 +25,7 @@ import {
   formatSequenceBatchResultText,
   canGenerateNextSequenceDraft,
   canRegenerateAiDraft,
+  canOperateSelectedSequenceDraft,
   canApproveSequenceDraftInBatch,
   canCreateAiDraftTaskForSequence,
   canStopSequenceInBatch,
@@ -733,7 +734,7 @@ describe('email sequence review shared helpers', () => {
       updatedAt: '2026-06-19T01:00:00.000Z'
     } satisfies Api.Crm.ProductLineRecord;
     const firstDraftPending = createSequenceItem({
-      enrollment: { status: 'stopped' },
+      enrollment: { status: 'draft_review_pending' },
       messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'draft_pending_review' })]
     });
     const followUpPending = createSequenceItem({
@@ -747,9 +748,14 @@ describe('email sequence review shared helpers', () => {
     const notAiDraft = createSequenceItem({
       messages: [createMessage({ id: 'message-4', stepIndex: 1, status: 'draft_pending_review' })]
     });
+    const stoppedFirstDraft = createSequenceItem({
+      enrollment: { status: 'stopped' },
+      messages: [createMessage({ id: 'message-6', stepIndex: 1, status: 'draft_pending_review' })]
+    });
     firstDraftPending.productLine = aiEnabledProductLine;
     followUpPending.productLine = aiEnabledProductLine;
     pausedFollowUp.productLine = aiEnabledProductLine;
+    stoppedFirstDraft.productLine = aiEnabledProductLine;
     notAiDraft.productLine = {
       ...aiEnabledProductLine,
       aiWritingConfig: null
@@ -758,11 +764,36 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canRegenerateAiDraft(firstDraftPending, firstDraftPending.messages[0]), true);
     assert.equal(canRegenerateAiDraft(followUpPending, followUpPending.messages[0]), true);
     assert.equal(canRegenerateAiDraft(pausedFollowUp, pausedFollowUp.messages[0]), false);
+    assert.equal(canRegenerateAiDraft(stoppedFirstDraft, stoppedFirstDraft.messages[0]), false);
     assert.equal(canRegenerateAiDraft(notAiDraft, notAiDraft.messages[0]), false);
     assert.equal(
       canRegenerateAiDraft(firstDraftPending, createMessage({ id: 'message-5', stepIndex: 1, status: 'sent' })),
       false
     );
+  });
+
+  it('allows detail modal draft operations only while the sequence status matches the selected draft step', () => {
+    const firstDraftPending = createSequenceItem({
+      enrollment: { status: 'draft_review_pending' },
+      messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const stoppedFirstDraft = createSequenceItem({
+      enrollment: { status: 'stopped' },
+      messages: [createMessage({ id: 'message-2', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const runningFollowUp = createSequenceItem({
+      enrollment: { status: 'sequence_running' },
+      messages: [createMessage({ id: 'message-3', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+    const pausedFollowUp = createSequenceItem({
+      enrollment: { status: 'paused' },
+      messages: [createMessage({ id: 'message-4', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+
+    assert.equal(canOperateSelectedSequenceDraft(firstDraftPending, firstDraftPending.messages[0]), true);
+    assert.equal(canOperateSelectedSequenceDraft(stoppedFirstDraft, stoppedFirstDraft.messages[0]), false);
+    assert.equal(canOperateSelectedSequenceDraft(runningFollowUp, runningFollowUp.messages[0]), true);
+    assert.equal(canOperateSelectedSequenceDraft(pausedFollowUp, pausedFollowUp.messages[0]), false);
   });
 
   it('summarizes selected rows for owner-only batch actions', () => {
