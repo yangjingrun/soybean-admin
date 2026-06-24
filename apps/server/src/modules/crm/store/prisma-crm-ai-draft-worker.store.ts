@@ -71,6 +71,18 @@ export class PrismaCrmAiDraftWorkerStore implements CrmAiDraftWorkerRepository {
     return this.sequenceReviewStore.listSequenceReviewItemsByIds(...args);
   }
 
+  listMailboxSendScheduleTimes(
+    ...args: Parameters<PrismaCrmSequenceStore['listMailboxSendScheduleTimes']>
+  ): ReturnType<PrismaCrmSequenceStore['listMailboxSendScheduleTimes']> {
+    return this.sequenceStore.listMailboxSendScheduleTimes(...args);
+  }
+
+  createFirstOutreachDraftBundle(
+    ...args: Parameters<PrismaCrmSequenceReviewStore['createFirstOutreachDraftBundle']>
+  ): ReturnType<PrismaCrmSequenceReviewStore['createFirstOutreachDraftBundle']> {
+    return this.sequenceReviewStore.createFirstOutreachDraftBundle(...args);
+  }
+
   createFollowUpDraftBundle(
     ...args: Parameters<PrismaCrmSequenceStore['createFollowUpDraftBundle']>
   ): ReturnType<PrismaCrmSequenceStore['createFollowUpDraftBundle']> {

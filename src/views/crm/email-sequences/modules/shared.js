@@ -65,14 +65,23 @@ export const sequenceBatchResultTagTypeMap = {
   skipped: 'warning',
   failed: 'error'
 };
+export const sequenceCreatedAtScopeLabelMap = {
+  today: '今天',
+  yesterday: '昨天',
+  last_3_days: '最近三天',
+  last_7_days: '最近一周',
+  last_30_days: '最近一月'
+};
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel() {
   return {
     keyword: '',
+    currentStep: null,
     status: null,
     todoType: null,
     messageStatus: null,
-    dateScope: null
+    dateScope: null,
+    createdAtScope: null
   };
 }
 /** Create an empty sequence review creation form. The first message is generated immediately; follow-ups are created later. */
@@ -96,6 +105,9 @@ export function buildSequenceReviewSearchParams(options) {
   if (keyword) {
     params.keyword = keyword;
   }
+  if (filterModel.currentStep) {
+    params.currentStep = filterModel.currentStep;
+  }
   if (filterModel.status) {
     params.status = filterModel.status;
   }
@@ -108,6 +120,9 @@ export function buildSequenceReviewSearchParams(options) {
   if (filterModel.dateScope) {
     params.dateScope = filterModel.dateScope;
   }
+  if (filterModel.createdAtScope) {
+    params.createdAtScope = filterModel.createdAtScope;
+  }
   return params;
 }
 /** Build compact active-filter tags so workbench jumps explain why this queue is shown. */
@@ -115,7 +130,10 @@ export function buildSequenceReviewFilterTags(filterModel) {
   const tags = [];
   const keyword = filterModel.keyword.trim();
   if (keyword) {
-    tags.push({ key: 'keyword', label: `关键词：${keyword}` });
+    tags.push({ key: 'keyword', label: `公司域名：${keyword}` });
+  }
+  if (filterModel.currentStep) {
+    tags.push({ key: 'currentStep', label: `跟进进度：第 ${filterModel.currentStep} 封` });
   }
   if (filterModel.status) {
     tags.push({ key: 'status', label: `状态：${sequenceStatusLabelMap[filterModel.status]}` });
@@ -129,6 +147,12 @@ export function buildSequenceReviewFilterTags(filterModel) {
   }
   if (filterModel.dateScope === 'today') {
     tags.push({ key: 'dateScope', label: '时间：今天' });
+  }
+  if (filterModel.createdAtScope) {
+    tags.push({
+      key: 'createdAtScope',
+      label: `创建时间：${sequenceCreatedAtScopeLabelMap[filterModel.createdAtScope]}`
+    });
   }
   return tags;
 }
@@ -435,6 +459,10 @@ export function getCurrentSequenceMessage(item) {
     item.firstMessage
   );
 }
+/** Return the message id that should be selected when opening a sequence detail drawer. */
+export function getDefaultSequenceReviewMessageId(item) {
+  return item ? (getCurrentSequenceMessage(item)?.id ?? null) : null;
+}
 function containsLink(text) {
   return /\b(?:https?:\/\/|www\.)\S+/i.test(text);
 }
@@ -521,6 +549,18 @@ export function getSequenceChecklistSummary(item) {
 export function getSequenceSendAuditSummary(item) {
   const checklist = getSequenceChecklistSummary(item);
   const failedMessages = getFailedSequenceMessages(item.messages);
+  const currentMessage = getCurrentSequenceMessage(item);
+  if (isFirstOutreachGenerating(item)) {
+    return {
+      label: '后台生成中',
+      description: '系统正在生成首封开发信，完成后会进入发送计划',
+      failedCheckCount: 0,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'info',
+      totalCheckCount: checklist.total
+    };
+  }
   if (failedMessages.length > 0) {
     return {
       label: '发送失败',
@@ -529,6 +569,32 @@ export function getSequenceSendAuditSummary(item) {
       failedMessageCount: failedMessages.length,
       passedCheckCount: checklist.passedCount,
       tagType: 'error',
+      totalCheckCount: checklist.total
+    };
+  }
+  if (currentMessage?.status === 'queued') {
+    return {
+      label: '发送中',
+      description: `第 ${currentMessage.stepIndex} 封正在发送，等待系统回写结果`,
+      failedCheckCount: checklist.failedCount,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'info',
+      totalCheckCount: checklist.total
+    };
+  }
+  if (
+    currentMessage?.status === 'draft_ready' &&
+    currentMessage.scheduledAt &&
+    item.enrollment.status === 'sequence_running'
+  ) {
+    return {
+      label: '已排期',
+      description: `第 ${currentMessage.stepIndex} 封已确认，等待系统按计划发送`,
+      failedCheckCount: checklist.failedCount,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'info',
       totalCheckCount: checklist.total
     };
   }
@@ -567,6 +633,14 @@ export function getSequenceSendAuditSummary(item) {
 /** Describe the next expected user or system action for one sequence row. */
 export function getSequenceNextAction(item) {
   const currentMessage = getCurrentSequenceMessage(item);
+  if (isFirstOutreachGenerating(item)) {
+    return {
+      label: '后台生成中',
+      description: '系统正在生成首封开发信，完成后会进入发送计划',
+      buttonLabel: '查看',
+      tagType: 'info'
+    };
+  }
   if (currentMessage?.status === 'draft_pending_review') {
     return {
       label: '确认发送',
@@ -665,6 +739,10 @@ export function getSequenceNextAction(item) {
     buttonLabel: '查看',
     tagType: 'default'
   };
+}
+/** Check whether a placeholder sequence is waiting for its first AI email. */
+export function isFirstOutreachGenerating(item) {
+  return item.enrollment.status === 'draft_review_pending' && !item.firstMessage && item.messages.length === 0;
 }
 /** Format backend sequence progress as a compact table label. */
 export function getSequenceProgressText(progress) {

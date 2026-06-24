@@ -18,6 +18,7 @@ import type { CrmAiDraftWorkerRepository } from './crm-ai-draft-worker.repositor
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
 import { buildPersonaMatch } from './crm-persona-match';
 import { CRM_AI_DRAFT_WORKER_REPOSITORY } from './crm.tokens';
+import { CrmSendAvailabilityService } from './crm-send-availability.service';
 import type {
   CrmAiWritingStepIndex,
   CrmMessageStatus,
@@ -25,6 +26,8 @@ import type {
   CrmSequenceEnrollmentStatus,
   CrmSequenceReviewRecord
 } from './crm.types';
+import { generateFirstDraft, getSequencePolicyStep } from './sequence/crm-sequence-review-creation.service';
+import { resolveCrmSequenceScheduledAt } from './sequence/crm-sequence-send-schedule-time';
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 
 const nextDraftEnrollmentStatuses: CrmSequenceEnrollmentStatus[] = ['ready_to_send', 'sequence_running'];
@@ -45,7 +48,10 @@ export class CrmAiDraftTaskWorkerService {
     private readonly aiDraftService: CrmAiDraftService,
     @Optional()
     @Inject(SystemNotificationService)
-    private readonly notificationService?: SystemNotificationService
+    private readonly notificationService?: SystemNotificationService,
+    @Optional()
+    @Inject(CrmSendAvailabilityService)
+    private readonly availabilityService?: CrmSendAvailabilityService
   ) {}
 
   /** Processes one bulk AI draft task without touching Gmail or the send queue. */
@@ -183,6 +189,10 @@ export class CrmAiDraftTaskWorkerService {
   }
 
   private async generateItemDraft(task: CrmAiDraftTaskRecord, item: CrmAiDraftTaskItemRecord) {
+    if (isFirstOutreachTaskItem(item)) {
+      return this.generateFirstOutreachDraft(task, item);
+    }
+
     const reviewItem = await this.store.getSequenceReviewItem({
       id: item.enrollmentId,
       organizationId: task.organizationId,
@@ -326,6 +336,202 @@ export class CrmAiDraftTaskWorkerService {
       message: bundle.message,
       aiDraft: draft.metadata
     };
+  }
+
+  private async generateFirstOutreachDraft(task: CrmAiDraftTaskRecord, item: CrmAiDraftTaskItemRecord) {
+    const reviewItem = await this.store.getSequenceReviewItem({
+      id: item.enrollmentId,
+      organizationId: task.organizationId,
+      ownerUserId: task.ownerUserId
+    });
+
+    if (!reviewItem) {
+      await this.skipItem(task, item, '邮件序列不存在或无权操作');
+      return undefined;
+    }
+
+    const skipMessage = await this.getFirstOutreachSkipMessage(reviewItem);
+
+    if (skipMessage) {
+      await this.skipItem(task, item, skipMessage);
+      return undefined;
+    }
+
+    const productLine = reviewItem.productLine as CrmProductLineRecord;
+    const writingConfig = requireEnabledCrmProductLineAiWritingConfig(productLine.aiWritingConfig);
+    const [globalConfig, defaultTemplateGroup, personaProfiles, mailboxScheduleTimes] = await Promise.all([
+      this.store.getGlobalConfig(),
+      this.store.findDefaultEmailTemplateGroup(task.organizationId),
+      this.store.listActivePersonaProfiles(task.organizationId),
+      this.store.listMailboxSendScheduleTimes({
+        organizationId: task.organizationId,
+        mailboxId: reviewItem.mailbox!.id
+      })
+    ]);
+    const personaMatch = buildPersonaMatch(personaProfiles, reviewItem.account, reviewItem.contact);
+    const ownerContext = toTaskOwnerContext(task);
+    const fallbackDraft = generateFirstDraft({
+      account: reviewItem.account,
+      contact: reviewItem.contact,
+      productLine,
+      context: ownerContext,
+      personaProfile: personaMatch.templatePersona,
+      templateGroup: defaultTemplateGroup
+    });
+    const draft = await this.aiDraftService.generateDraft(
+      {
+        account: {
+          name: reviewItem.account.name,
+          country: reviewItem.account.country,
+          domain: reviewItem.account.domain,
+          customerType: reviewItem.account.customerType
+        },
+        contact: {
+          fullName: reviewItem.contact.fullName,
+          title: reviewItem.contact.title,
+          maskedEmail: reviewItem.contact.maskedEmail,
+          emailStatus: reviewItem.contact.emailStatus
+        },
+        productLine: {
+          id: productLine.id,
+          name: productLine.name,
+          targetCustomerType: productLine.targetCustomerType,
+          coreSellingPoints: productLine.coreSellingPoints,
+          moq: productLine.moq,
+          leadTime: productLine.leadTime,
+          paymentTerms: productLine.paymentTerms,
+          certifications: productLine.certifications,
+          catalogUrl: productLine.catalogUrl,
+          websiteUrl: productLine.websiteUrl,
+          commonModelsText: productLine.commonModelsText
+        },
+        writingConfig,
+        stepIndex: 1,
+        previousMessages: [],
+        senderName: task.ownerUserName,
+        templateLanguage: defaultTemplateGroup?.language ?? null,
+        baseDraft: {
+          subject: fallbackDraft.subject,
+          bodyText: fallbackDraft.bodyText
+        },
+        persona: personaMatch.templatePersona
+          ? {
+              label: personaMatch.templatePersona.label,
+              focusText: personaMatch.templatePersona.focusText,
+              draftFocusText: personaMatch.templatePersona.draftFocusText,
+              painPoints: personaMatch.templatePersona.painPoints,
+              avoidText: personaMatch.templatePersona.avoidText
+            }
+          : null
+      },
+      ownerContext
+    );
+    const scheduledAt = resolveCrmSequenceScheduledAt({
+      availabilityService: this.requireAvailabilityService(),
+      account: reviewItem.account,
+      globalConfig,
+      mailboxScheduleTimes
+    });
+    const bundle = await this.store.createFirstOutreachDraftBundle({
+      enrollmentId: reviewItem.enrollment.id,
+      organizationId: task.organizationId,
+      ownerUserId: task.ownerUserId,
+      expectedEnrollmentStatus: 'draft_review_pending',
+      taskGuard: {
+        taskId: task.id,
+        runVersion: task.runVersion,
+        status: 'running'
+      },
+      message: {
+        organizationId: task.organizationId,
+        ownerUserId: task.ownerUserId,
+        accountId: reviewItem.account.id,
+        contactId: reviewItem.contact.id,
+        mailboxId: reviewItem.mailbox!.id,
+        stepIndex: 1,
+        threadMode: getSequencePolicyStep(reviewItem.policy ?? null, 1)?.threadMode ?? 'new_subject',
+        subject: draft.subject || fallbackDraft.subject,
+        bodyText: draft.bodyText,
+        status: 'draft_ready',
+        scheduledAt,
+        metadata: createAiDraftMessageMetadata(draft.metadata)
+      },
+      timelineEvent: {
+        organizationId: task.organizationId,
+        accountId: reviewItem.account.id,
+        contactId: reviewItem.contact.id,
+        ownerUserId: task.ownerUserId,
+        eventType: 'message_send_scheduled',
+        title: '首封开发信已生成并等待发送',
+        content: draft.subject || fallbackDraft.subject,
+        metadata: {
+          productLineId: productLine.id,
+          mailboxId: reviewItem.mailbox!.id,
+          policyId: reviewItem.policy?.id ?? null,
+          personaProfileId: personaMatch.persona?.id ?? null,
+          personaProfileName: personaMatch.persona?.name ?? null,
+          personaMatchMethod: personaMatch.matchMethod,
+          personaMatchedKeywords: personaMatch.matchedKeywords,
+          personaFallbackReason: personaMatch.fallbackReason,
+          aiDraft: draft.metadata
+        }
+      },
+      nextEnrollmentStatus: 'sequence_running',
+      accountStatus: 'sequence_running'
+    });
+
+    if (!bundle) {
+      return null;
+    }
+
+    return {
+      message: bundle.message,
+      aiDraft: draft.metadata
+    };
+  }
+
+  private async getFirstOutreachSkipMessage(item: CrmSequenceReviewRecord) {
+    if (item.enrollment.status !== 'draft_review_pending') {
+      return '当前序列状态不能生成首封开发信';
+    }
+
+    if (item.messages.length > 0) {
+      return '首封开发信已生成，请刷新后查看';
+    }
+
+    if (item.contact.emailStatus === 'unsubscribed') {
+      return '联系人已退订，不能继续开发';
+    }
+
+    const blacklistEntries = await this.store.listBlacklistEntriesByEmailHashes({
+      organizationId: item.enrollment.organizationId,
+      emailHashes: [item.contact.emailHash]
+    });
+
+    if (blacklistEntries.length > 0) {
+      return '该邮箱已在组织黑名单中，不能继续开发';
+    }
+
+    if (!item.mailbox || item.mailbox.status !== 'active') {
+      return '发送邮箱未启用';
+    }
+
+    if (!item.productLine || item.productLine.status !== 'active' || !item.productLine.aiWritingConfig?.enabled) {
+      return '产品资料未启用 AI 写信';
+    }
+
+    try {
+      const writingConfig = requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
+      const firstStep = writingConfig.steps.find(step => step.stepIndex === 1);
+
+      if (!firstStep?.prompt) {
+        return '产品资料缺少第 1 封 AI 写信提示词';
+      }
+    } catch (error) {
+      return error instanceof Error ? error.message : '产品资料 AI 写信配置不完整';
+    }
+
+    return null;
   }
 
   private async getItemSkipMessage(item: CrmSequenceReviewRecord) {
@@ -609,6 +815,14 @@ export class CrmAiDraftTaskWorkerService {
       status: 'running' as const
     };
   }
+
+  private requireAvailabilityService() {
+    if (!this.availabilityService) {
+      throw new Error('CRM send availability service is not initialized');
+    }
+
+    return this.availabilityService;
+  }
 }
 
 async function runWithConcurrency<T>(items: T[], concurrency: number, handler: (item: T) => Promise<void>) {
@@ -643,6 +857,10 @@ function toAiWritingStepIndex(value: number): CrmAiWritingStepIndex {
   }
 
   return value as CrmAiWritingStepIndex;
+}
+
+function isFirstOutreachTaskItem(item: CrmAiDraftTaskItemRecord) {
+  return item.metadata?.kind === 'first_outreach';
 }
 
 /** Restores the request user snapshot required by the AI gateway from the persisted task owner. */

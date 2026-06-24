@@ -11,6 +11,7 @@ import { isOrganizationAdmin } from '../../../shared/permission-policy';
 import { SystemLogService } from '../../system-log/system-log.service';
 import type { SystemLogRecorder } from '../../system-log/system-log.types';
 import { SystemNotificationService } from '../../system-notification/system-notification.service';
+import { CRM_ACCOUNT_REPOSITORY, CRM_MAILBOX_REPOSITORY, CRM_SETTINGS_REPOSITORY } from '../crm.tokens';
 import { crmAiDraftActiveTaskStatuses } from '../crm-ai-draft-task-state';
 import {
   CRM_AI_DRAFT_TASK_QUEUE,
@@ -24,9 +25,17 @@ import type {
   CrmAiDraftTaskCreateItemInput,
   CrmAiDraftTaskQueuePort,
   CrmAiDraftTaskRecord,
+  CrmAccountRecord,
+  CrmContactRecord,
   CrmSequenceReviewRecord,
   CrmUserContext
 } from '../crm.types';
+import type { CrmAccountRepository } from '../accounts/crm-account.repository';
+import type { CrmMailboxRepository } from '../mailbox/crm-mailbox.repository';
+import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
+import { createCrmOwnerFilter } from '../shared/crm-scope';
+import { CrmSequenceEligibilityService } from '../sequence/crm-sequence-eligibility.service';
+import { buildSequenceName } from '../sequence/crm-sequence-review-creation.service';
 import type { CrmAiDraftTaskRepository, CrmAiDraftTaskSourceRepository } from './crm-ai-draft-task.repository';
 import {
   countAiDraftTaskItemRecords,
@@ -46,6 +55,18 @@ export interface CreateAiDraftTaskInput {
   enrollmentIds: string[];
 }
 
+export interface FirstOutreachAiDraftTaskTargetInput {
+  accountId: string;
+  contactId: string;
+}
+
+export interface CreateFirstOutreachAiDraftTaskInput {
+  targets: FirstOutreachAiDraftTaskTargetInput[];
+  productLineId?: string | null;
+  mailboxId?: string | null;
+  policyId?: string | null;
+}
+
 export interface AiDraftTaskListQuery {
   current?: number;
   size?: number;
@@ -56,6 +77,11 @@ export class CrmAiDraftTaskService {
   constructor(
     @Inject(CRM_AI_DRAFT_TASK_REPOSITORY) private readonly repository: CrmAiDraftTaskRepository,
     @Inject(CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY) private readonly sourceRepository: CrmAiDraftTaskSourceRepository,
+    @Inject(CRM_ACCOUNT_REPOSITORY) private readonly accountRepository: CrmAccountRepository,
+    @Inject(CRM_SETTINGS_REPOSITORY) private readonly settingsRepository: CrmSettingsRepository,
+    @Inject(CRM_MAILBOX_REPOSITORY) private readonly mailboxRepository: CrmMailboxRepository,
+    @Inject(CrmSequenceEligibilityService)
+    private readonly sequenceEligibilityService: CrmSequenceEligibilityService,
     @Inject(CrmSettingsService)
     private readonly settingsService: CrmSettingsService,
     @Optional()
@@ -155,6 +181,89 @@ export class CrmAiDraftTaskService {
     };
   }
 
+  /** Creates placeholder sequences and queues first outreach AI generation in the background. */
+  async createFirstOutreachAiDraftTask(input: CreateFirstOutreachAiDraftTaskInput, context: CrmUserContext) {
+    const targets = normalizeFirstOutreachTargets(input.targets, 200);
+
+    if (!input.mailboxId) {
+      throw new BadRequestException('请选择发送邮箱');
+    }
+
+    const [productLine, mailbox, selectedPolicy, defaultPolicy] = await Promise.all([
+      input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
+      this.requireOwnedActiveMailbox(input.mailboxId, context),
+      input.policyId ? this.requireActiveSequencePolicy(input.policyId, context) : Promise.resolve(null),
+      input.policyId ? Promise.resolve(null) : this.settingsRepository.findDefaultSequencePolicy(context.organizationId)
+    ]);
+    const policy = selectedPolicy ?? defaultPolicy;
+    const targetDetails: Array<{ account: CrmAccountRecord; contact: CrmContactRecord }> = [];
+
+    for (const target of targets) {
+      const detail = await this.requireScopedAccountAndContact(target.accountId, target.contactId, context);
+      await this.sequenceEligibilityService.assertCanCreateSequenceReview({
+        account: detail.account,
+        contact: detail.contact,
+        policy,
+        context
+      });
+      targetDetails.push(detail);
+    }
+
+    const createResult = await this.repository.createFirstOutreachAiDraftTask({
+      organizationId: context.organizationId,
+      organizationRole: context.organizationRole,
+      ownerUserId: context.userId,
+      ownerUserName: context.userName,
+      requestedCount: targetDetails.length,
+      accountStatus: 'sequence_running',
+      enrollments: targetDetails.map(({ account, contact }) => ({
+        enrollment: {
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          accountId: account.id,
+          contactId: contact.id,
+          productLineId: productLine?.id ?? null,
+          mailboxId: mailbox.id,
+          policyId: policy?.id ?? null,
+          name: buildSequenceName(account, contact),
+          status: 'draft_review_pending',
+          currentStep: 1,
+          totalSteps: 5,
+          runVersion: 1,
+          createdById: context.userId,
+          createdByName: context.userName
+        },
+        item: {
+          accountId: account.id,
+          contactId: contact.id,
+          productLineId: productLine?.id ?? null,
+          messageId: null
+        }
+      }))
+    });
+    const task = createResult.task;
+
+    if (!task) {
+      throw new BadRequestException(toAiDraftTaskCreateLimitMessage(createResult.limitReason));
+    }
+
+    const queuedTask = await this.enqueueAiDraftTaskIfPossible(task);
+    const savedItems = await this.repository.listAiDraftTaskItems({
+      taskId: task.id
+    });
+
+    await this.recordCrmLog('first-outreach-ai-draft-task-create', 'CRM 首封开发信后台生成任务创建', context, {
+      taskId: task.id,
+      requestedCount: task.requestedCount,
+      enrollmentIds: createResult.enrollmentIds ?? []
+    });
+
+    return {
+      task: toAiDraftTaskView(queuedTask),
+      items: savedItems.map(toAiDraftTaskItemView)
+    };
+  }
+
   /** Returns the owner user's current active or unread AI draft task. */
   async getCurrentAiDraftTask(context: CrmUserContext) {
     const task = await this.repository.findCurrentAiDraftTaskForUser({
@@ -167,6 +276,80 @@ export class CrmAiDraftTaskService {
     }
 
     return this.toAiDraftTaskDetail(task);
+  }
+
+  private async requireScopedAccountAndContact(accountId: string, contactId: string, context: CrmUserContext) {
+    const detail = await this.accountRepository.getAccountDetail({
+      id: accountId,
+      organizationId: context.organizationId,
+      ...createCrmOwnerFilter(context)
+    });
+    const contact = detail?.contacts.find(item => item.id === contactId) ?? null;
+
+    if (!detail) {
+      throw new NotFoundException('线索不存在');
+    }
+
+    if (!contact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    return {
+      account: detail.account,
+      contact
+    };
+  }
+
+  private async requireActiveProductLine(id: string, context: CrmUserContext) {
+    const productLine = await this.settingsRepository.findProductLineById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!productLine) {
+      throw new NotFoundException('产品资料不存在');
+    }
+
+    if (productLine.status !== 'active') {
+      throw new BadRequestException('产品资料已归档');
+    }
+
+    return productLine;
+  }
+
+  private async requireActiveSequencePolicy(id: string, context: CrmUserContext) {
+    const policy = await this.settingsRepository.findSequencePolicyById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!policy) {
+      throw new NotFoundException('序列策略不存在');
+    }
+
+    if (policy.status !== 'active') {
+      throw new BadRequestException('序列策略已归档');
+    }
+
+    return policy;
+  }
+
+  private async requireOwnedActiveMailbox(id: string, context: CrmUserContext) {
+    const mailbox = await this.mailboxRepository.findMailboxById({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!mailbox) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    if (mailbox.status !== 'active') {
+      throw new BadRequestException('邮箱未启用');
+    }
+
+    return mailbox;
   }
 
   /** Lists AI draft tasks with organization-wide read scope for admins. */
@@ -583,4 +766,37 @@ export class CrmAiDraftTaskService {
       metadata
     });
   }
+}
+
+function normalizeFirstOutreachTargets(value: FirstOutreachAiDraftTaskTargetInput[], maxSize: number) {
+  if (!Array.isArray(value)) {
+    throw new BadRequestException('请选择可生成开发信的联系人');
+  }
+
+  const seenKeys = new Set<string>();
+  const targets: FirstOutreachAiDraftTaskTargetInput[] = [];
+
+  for (const item of value) {
+    const accountId = typeof item?.accountId === 'string' ? item.accountId.trim() : '';
+    const contactId = typeof item?.contactId === 'string' ? item.contactId.trim() : '';
+
+    if (!accountId || !contactId) continue;
+
+    const key = `${accountId}:${contactId}`;
+
+    if (seenKeys.has(key)) continue;
+
+    seenKeys.add(key);
+    targets.push({ accountId, contactId });
+  }
+
+  if (targets.length === 0) {
+    throw new BadRequestException('请选择可生成开发信的联系人');
+  }
+
+  if (targets.length > maxSize) {
+    throw new BadRequestException(`一次最多选择 ${maxSize} 个联系人`);
+  }
+
+  return targets;
 }

@@ -81,6 +81,14 @@ export function createCrmAiDraftTask(data) {
     data
   });
 }
+/** Create one background CRM AI draft task for first outreach emails. */
+export function createCrmFirstOutreachAiDraftTask(data) {
+  return request({
+    url: '/crm/ai-draft-tasks/first-outreach',
+    method: 'post',
+    data
+  });
+}
 /** Read the current active or unread CRM AI draft task for the owner. */
 export function fetchCurrentCrmAiDraftTask() {
   return request({

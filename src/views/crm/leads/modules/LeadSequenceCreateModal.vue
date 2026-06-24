@@ -88,7 +88,7 @@ const modalTitle = computed(() => (props.targets.length > 1 ? '批量生成开�
       <NSpace justify="end">
         <NButton @click="show = false">取消</NButton>
         <NButton type="primary" :loading="submitting" @click="emit('submit')">
-          确认生成 {{ targets.length }} 封
+          确认并后台生成 {{ targets.length }} 封
         </NButton>
       </NSpace>
     </template>

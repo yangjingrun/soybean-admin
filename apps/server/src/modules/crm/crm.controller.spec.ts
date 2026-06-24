@@ -1195,9 +1195,11 @@ describe('CRM split controllers', () => {
     const listed = await controller.listSequenceReviewItems(createContext(), {
       current: 1,
       size: 20,
+      currentStep: 2,
       status: 'draft_review_pending',
       messageStatus: 'sent',
-      dateScope: 'today'
+      dateScope: 'today',
+      createdAtScope: 'last_7_days'
     });
     const detail = await controller.getSequenceReviewItem(createContext(), 'enrollment-1');
 
@@ -1215,9 +1217,11 @@ describe('CRM split controllers', () => {
     assert.deepEqual(calls[1].payload, {
       current: 1,
       size: 20,
+      currentStep: 2,
       status: 'draft_review_pending',
       messageStatus: 'sent',
-      dateScope: 'today'
+      dateScope: 'today',
+      createdAtScope: 'last_7_days'
     });
   });
 

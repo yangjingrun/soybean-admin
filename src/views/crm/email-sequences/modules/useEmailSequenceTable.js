@@ -48,10 +48,10 @@ export function useEmailSequenceTable() {
     loadSequences
   });
   const createFlow = useSequenceCreateFlow({
-    async onCreated(item) {
-      draftReviewFlow.openCreatedReviewItem(item);
+    async onSubmitted() {
       pagination.current = 1;
       await loadSequences();
+      await loadCurrentAiDraftTask();
     }
   });
   const {
@@ -105,14 +105,20 @@ export function useEmailSequenceTable() {
     const todoType = getRouteQueryString(route.query.todoType);
     const messageStatus = getRouteQueryString(route.query.messageStatus);
     const dateScope = getRouteQueryString(route.query.dateScope);
+    const createdAtScope = getRouteQueryString(route.query.createdAtScope);
+    const currentStep = getRouteQueryNumber(route.query.currentStep);
+    filterModel.currentStep = null;
     filterModel.status = null;
     filterModel.todoType = null;
     filterModel.messageStatus = null;
     filterModel.dateScope = null;
+    filterModel.createdAtScope = null;
+    if (currentStep) filterModel.currentStep = currentStep;
     if (isSequenceEnrollmentStatus(status)) filterModel.status = status;
     if (isSequenceReviewTodoType(todoType)) filterModel.todoType = todoType;
     if (isMessageStatus(messageStatus)) filterModel.messageStatus = messageStatus;
     if (dateScope === 'today') filterModel.dateScope = dateScope;
+    if (isSequenceReviewCreatedAtScope(createdAtScope)) filterModel.createdAtScope = createdAtScope;
   }
   /** Load review items with backend pagination and ignore stale responses. */
   async function loadSequences() {
@@ -346,6 +352,11 @@ function getRouteQueryString(value) {
   if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
   return '';
 }
+function getRouteQueryNumber(value) {
+  const rawValue = getRouteQueryString(value);
+  const parsedValue = Number(rawValue);
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
+}
 function isSequenceEnrollmentStatus(value) {
   return [
     'draft_review_pending',
@@ -369,4 +380,7 @@ function isSequenceReviewTodoType(value) {
 }
 function isMessageStatus(value) {
   return ['draft_pending_review', 'draft_ready', 'queued', 'sent', 'failed', 'skipped'].includes(value);
+}
+function isSequenceReviewCreatedAtScope(value) {
+  return ['today', 'yesterday', 'last_3_days', 'last_7_days', 'last_30_days'].includes(value);
 }

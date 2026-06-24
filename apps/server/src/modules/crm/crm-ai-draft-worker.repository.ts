@@ -10,6 +10,8 @@ import type {
 import type {
   CrmBlacklistRecord,
   CrmEmailTemplateGroupRecord,
+  CrmFirstOutreachDraftBundleCreateInput,
+  CrmFirstOutreachDraftBundleRecord,
   CrmFollowUpDraftBundleCreateInput,
   CrmFollowUpDraftBundleRecord,
   CrmGlobalConfigRecord,
@@ -41,6 +43,10 @@ export interface CrmAiDraftWorkerRepository {
     organizationId: string;
     ownerUserId?: string;
   }): Promise<CrmSequenceReviewRecord | null>;
+  listMailboxSendScheduleTimes(args: { organizationId: string; mailboxId: string }): Promise<Date[]>;
+  createFirstOutreachDraftBundle(
+    input: CrmFirstOutreachDraftBundleCreateInput
+  ): Promise<CrmFirstOutreachDraftBundleRecord | null>;
   createFollowUpDraftBundle(input: CrmFollowUpDraftBundleCreateInput): Promise<CrmFollowUpDraftBundleRecord | null>;
   listBlacklistEntriesByEmailHashes(args: {
     organizationId: string;

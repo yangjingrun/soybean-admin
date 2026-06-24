@@ -1,47 +1,17 @@
 import { computed, onMounted, reactive, shallowRef, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useMessage } from 'naive-ui';
-import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
-import {
-  confirmCrmInboxMessageUnsubscribe,
-  fetchCrmInboxThreadDetail,
-  fetchCrmInboxThreads,
-  fetchCrmMailboxes,
-  polishCrmInboxReplyDraft,
-  replyCrmInboxThread,
-  saveCrmInboxReplyDraft,
-  updateCrmInboxThreadStatus
-} from '@/service/api';
-import {
-  buildInboxPendingCountParams,
-  buildInboxReplySubmitPayload,
-  buildInboxThreadSearchParams,
-  canRestoreInboxReplyPolishSnapshot,
-  createInboxReplyPolishSnapshot,
-  createDefaultInboxFilterModel
-} from '../shared';
-/** Manage CRM inbox thread list, stats, mailbox filters and drawer operations. */
+import { useRoute, useRouter } from 'vue-router';
+import { fetchCrmInboxThreads, fetchCrmMailboxes } from '@/service/api';
+import { buildInboxPendingCountParams, buildInboxThreadSearchParams, createDefaultInboxFilterModel } from '../shared';
+/** Manage CRM inbox thread list, stats, mailbox filters and detail navigation. */
 export function useInboxTable() {
   const route = useRoute();
-  const message = useMessage();
+  const router = useRouter();
   const records = shallowRef([]);
   const mailboxRecords = shallowRef([]);
-  const currentDetail = shallowRef(null);
   const loading = shallowRef(false);
   const mailboxLoading = shallowRef(false);
-  const detailVisible = shallowRef(false);
-  const detailLoading = shallowRef(false);
-  const replyTopic = shallowRef('');
-  const replyBody = shallowRef('');
-  const replyPolishUndoSnapshot = shallowRef(null);
-  const draftPolishing = shallowRef(false);
-  const draftSaving = shallowRef(false);
-  const replySending = shallowRef(false);
-  const unsubscribeConfirming = shallowRef(false);
-  const selectedThreadId = shallowRef(null);
   const pendingTotal = shallowRef(0);
   let latestListRequestId = 0;
-  let latestDetailRequestId = 0;
   let latestMailboxRequestId = 0;
   const pagination = reactive({
     current: 1,
@@ -50,13 +20,10 @@ export function useInboxTable() {
   });
   const filterModel = reactive(createDefaultInboxFilterModel());
   const mailboxOptions = computed(() =>
-    mailboxRecords.value.map((mailbox) => ({
+    mailboxRecords.value.map(mailbox => ({
       label: mailbox.maskedEmail,
       value: mailbox.id
     }))
-  );
-  const canRestorePolishSnapshot = computed(() =>
-    canRestoreInboxReplyPolishSnapshot(replyPolishUndoSnapshot.value, selectedThreadId.value)
   );
   onMounted(() => {
     applyRouteFilters();
@@ -136,226 +103,9 @@ export function useInboxTable() {
       }
     }
   }
-  /** Load the currently selected thread detail and ignore stale drawer responses. */
-  async function loadThreadDetail(id = selectedThreadId.value) {
-    if (!id) {
-      return;
-    }
-    const requestId = latestDetailRequestId + 1;
-    latestDetailRequestId = requestId;
-    detailLoading.value = true;
-    try {
-      const { data, error } = await fetchCrmInboxThreadDetail(id);
-      if (error || requestId !== latestDetailRequestId || selectedThreadId.value !== id) {
-        return;
-      }
-      currentDetail.value = data;
-      syncReplyDraftFromDetail(data);
-      replyPolishUndoSnapshot.value = null;
-    } finally {
-      if (requestId === latestDetailRequestId) {
-        detailLoading.value = false;
-      }
-    }
-  }
-  /** Open detail drawer for one thread and start a fresh detail request. */
+  /** Open the standalone detail page for one thread. */
   function openThreadDetail(record) {
-    selectedThreadId.value = record.id;
-    currentDetail.value = null;
-    replyTopic.value = '';
-    replyBody.value = '';
-    replyPolishUndoSnapshot.value = null;
-    detailVisible.value = true;
-    detailLoading.value = true;
-    void openHandledThreadDetail(record);
-  }
-  function handleDetailVisibleUpdate(show) {
-    detailVisible.value = show;
-    if (!show) {
-      latestDetailRequestId += 1;
-      selectedThreadId.value = null;
-      currentDetail.value = null;
-      replyTopic.value = '';
-      replyBody.value = '';
-      replyPolishUndoSnapshot.value = null;
-      detailLoading.value = false;
-    }
-  }
-  /** Opening a pending thread means the reply has been read and handled by the owner. */
-  async function markPendingThreadHandledOnOpen(record) {
-    if (record.status !== 'pending') {
-      return;
-    }
-    const threadId = record.id;
-    const { data, error } = await updateCrmInboxThreadStatus(threadId, {
-      status: 'handled'
-    });
-    if (error) {
-      return;
-    }
-    notifyCrmWorkbenchChanged();
-    if (selectedThreadId.value === threadId) {
-      currentDetail.value = currentDetail.value
-        ? {
-            ...currentDetail.value,
-            account: data.account,
-            thread: data.thread
-          }
-        : currentDetail.value;
-    }
-    await loadThreads();
-  }
-  /** Mark a pending row handled first, then load the detail with the final read state. */
-  async function openHandledThreadDetail(record) {
-    await markPendingThreadHandledOnOpen(record);
-    if (selectedThreadId.value === record.id) {
-      await loadThreadDetail(record.id);
-    }
-  }
-  /** Sync editable draft inputs from the owner-visible backend reply draft. */
-  function syncReplyDraftFromDetail(detail) {
-    replyTopic.value = detail.replyDraft?.topic ?? '';
-    replyBody.value = detail.replyDraft?.bodyText ?? '';
-  }
-  /** Ask AI to polish the user's reply topic into a local draft without sending Gmail. */
-  async function handlePolishReplyDraft() {
-    const threadId = selectedThreadId.value;
-    const topic = replyTopic.value.trim();
-    if (!threadId || draftPolishing.value) {
-      return;
-    }
-    if (!currentDetail.value?.canOperate) {
-      message.warning('当前账号不可润色该回复草稿');
-      return;
-    }
-    if (!topic) {
-      message.warning('请先填写回复主题或要点');
-      return;
-    }
-    const undoSnapshot = createInboxReplyPolishSnapshot({
-      threadId,
-      topic: replyTopic.value,
-      bodyText: replyBody.value
-    });
-    draftPolishing.value = true;
-    try {
-      const { data, error } = await polishCrmInboxReplyDraft(threadId, {
-        topic
-      });
-      if (error || selectedThreadId.value !== threadId) {
-        return;
-      }
-      message.success('AI 润色回复草稿已生成');
-      currentDetail.value = data;
-      syncReplyDraftFromDetail(data);
-      replyPolishUndoSnapshot.value = undoSnapshot;
-      await loadThreads();
-    } finally {
-      draftPolishing.value = false;
-    }
-  }
-  /** Restore the local draft fields to the state before the latest AI polish. */
-  function handleRestorePolishSnapshot() {
-    const snapshot = replyPolishUndoSnapshot.value;
-    if (!snapshot || !canRestoreInboxReplyPolishSnapshot(snapshot, selectedThreadId.value)) {
-      return;
-    }
-    replyTopic.value = snapshot.topic;
-    replyBody.value = snapshot.bodyText;
-    replyPolishUndoSnapshot.value = null;
-    message.success('已撤回到润色前草稿');
-  }
-  /** Save the locally edited reply draft without triggering Gmail sending. */
-  async function handleSaveReplyDraft() {
-    const threadId = selectedThreadId.value;
-    const topic = replyTopic.value.trim();
-    const bodyText = replyBody.value.trim();
-    if (!threadId || draftSaving.value) {
-      return;
-    }
-    if (!currentDetail.value?.canOperate) {
-      message.warning('当前账号不可保存该回复草稿');
-      return;
-    }
-    if (!topic) {
-      message.warning('请先填写回复主题或要点');
-      return;
-    }
-    if (!bodyText) {
-      message.warning('回复草稿正文不能为空');
-      return;
-    }
-    draftSaving.value = true;
-    try {
-      const { data, error } = await saveCrmInboxReplyDraft(threadId, {
-        topic,
-        bodyText
-      });
-      if (error || selectedThreadId.value !== threadId) {
-        return;
-      }
-      message.success('回复草稿已保存');
-      currentDetail.value = data;
-      syncReplyDraftFromDetail(data);
-      replyPolishUndoSnapshot.value = null;
-    } finally {
-      draftSaving.value = false;
-    }
-  }
-  /** Send the current reply body through the bound mailbox, then refresh detail and list. */
-  async function handleSendReply() {
-    const threadId = selectedThreadId.value;
-    if (!threadId || replySending.value) {
-      return;
-    }
-    const replyPayloadResult = buildInboxReplySubmitPayload({
-      canOperate: Boolean(currentDetail.value?.canOperate),
-      topic: replyTopic.value,
-      bodyText: replyBody.value
-    });
-    if (!replyPayloadResult.ok) {
-      message.warning(replyPayloadResult.message);
-      return;
-    }
-    replySending.value = true;
-    try {
-      const { error } = await replyCrmInboxThread(threadId, replyPayloadResult.payload);
-      if (error || selectedThreadId.value !== threadId) {
-        return;
-      }
-      message.success('回复已发送');
-      notifyCrmWorkbenchChanged();
-      replyPolishUndoSnapshot.value = null;
-      handleDetailVisibleUpdate(false);
-      await loadThreads();
-    } finally {
-      replySending.value = false;
-    }
-  }
-  /** Confirm a weak unsubscribe signal before applying blacklist side effects. */
-  async function handleConfirmUnsubscribe(messageId) {
-    const threadId = selectedThreadId.value;
-    if (!threadId || unsubscribeConfirming.value) {
-      return;
-    }
-    if (!currentDetail.value?.canOperate) {
-      message.warning('当前账号不可确认不再联系');
-      return;
-    }
-    unsubscribeConfirming.value = true;
-    try {
-      const { data, error } = await confirmCrmInboxMessageUnsubscribe(messageId);
-      if (error || selectedThreadId.value !== threadId) {
-        return;
-      }
-      message.success('已加入不再联系名单');
-      notifyCrmWorkbenchChanged();
-      currentDetail.value = data;
-      syncReplyDraftFromDetail(data);
-      await loadThreads();
-    } finally {
-      unsubscribeConfirming.value = false;
-    }
+    void router.push(`/crm/inbox/detail/${record.id}`);
   }
   function handleSearch() {
     pagination.current = 1;
@@ -376,24 +126,11 @@ export function useInboxTable() {
     void loadThreads();
   }
   return {
-    currentDetail,
-    detailLoading,
-    detailVisible,
-    draftPolishing,
-    draftSaving,
     filterModel,
-    canRestorePolishSnapshot,
-    handleDetailVisibleUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
-    handlePolishReplyDraft,
-    handleConfirmUnsubscribe,
     handleReset,
-    handleRestorePolishSnapshot,
-    handleSaveReplyDraft,
-    handleSendReply,
     handleSearch,
-    loadThreadDetail,
     loadThreads,
     loading,
     mailboxLoading,
@@ -401,11 +138,7 @@ export function useInboxTable() {
     openThreadDetail,
     pagination,
     pendingTotal,
-    records,
-    replyBody,
-    replySending,
-    replyTopic,
-    unsubscribeConfirming
+    records
   };
 }
 function getRouteQueryString(value) {

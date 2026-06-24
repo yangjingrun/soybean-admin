@@ -17,8 +17,8 @@ export const leadStatusOptions = [
   { label: '暂不开发', value: 'archived' }
 ];
 export const crmLeadPageGuide = {
-  title: '客户管理承接 AI 获客结果',
-  description: '先补齐联系人和邮箱验证；可开发客户创建开发任务，暂不开发客户会保留历史记录但移出日常跟进。'
+  title: '客户开发台承接 AI 获客结果',
+  description: '以公司管理客户、以联系人推进触达；可开发联系人生成开发信后，可直接查看邮箱进度和调度信息。'
 };
 export const leadStatusLabelMap = {
   candidate: '候选线索',
@@ -99,7 +99,7 @@ const leadNextActionMap = {
   },
   followed_up: {
     label: '继续跟进',
-    description: '按沟通结果推进下一步',
+    description: '按沟通结果推进后续动作',
     type: 'success'
   },
   opportunity: {
@@ -148,6 +148,16 @@ export const leadEmailStatusTagTypeMap = {
   risky: 'warning',
   unreachable: 'error',
   unsubscribed: 'error'
+};
+const leadEmailProgressTagTypeMap = {
+  not_generated: 'default',
+  draft_pending_review: 'warning',
+  draft_ready: 'info',
+  queued: 'primary',
+  sent: 'success',
+  failed: 'error',
+  skipped: 'default',
+  replied: 'warning'
 };
 export const leadEnrichmentProviderLabelMap = {
   hunter: 'Hunter',
@@ -369,6 +379,36 @@ export function buildLeadRowContactView(record) {
 export function canCreateSequenceFromLeadContact(contact) {
   return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
 }
+/** First outreach can only start from ready leads that have not entered a sequence. */
+export function canCreateSequenceFromLeadAccountContact(account, contact) {
+  return account.status === 'ready' && canCreateSequenceFromLeadContact(contact);
+}
+/** Check whether a visible customer row can be selected for first-email generation. */
+export function canCreateSequenceFromLeadRecord(record) {
+  return Boolean(record.primaryContact && canCreateSequenceFromLeadAccountContact(record, record.primaryContact));
+}
+/** Build the readonly target shown before creating first-email drafts from the customer page. */
+export function buildLeadSequenceTarget(contact, account) {
+  return {
+    accountId: contact.accountId,
+    accountName: account?.name || '当前客户',
+    contactId: contact.id,
+    contactName: contact.fullName || contact.maskedEmail || contact.email,
+    contactTitle: contact.title || '-',
+    maskedEmail: contact.maskedEmail || contact.email
+  };
+}
+/** Collect selectable primary contacts from checked customer rows. */
+export function buildLeadSequenceTargetsFromCheckedRows(records, checkedRowKeys) {
+  const checkedSet = new Set(checkedRowKeys);
+  return records.reduce((targets, record) => {
+    if (!checkedSet.has(record.id) || !canCreateSequenceFromLeadRecord(record)) {
+      return targets;
+    }
+    targets.push(buildLeadSequenceTarget(record.primaryContact, record));
+    return targets;
+  }, []);
+}
 /** Describe the next human action for one lead status. */
 export function getLeadNextAction(status) {
   return leadNextActionMap[status];
@@ -377,6 +417,29 @@ export function getLeadNextAction(status) {
 export function formatLeadDate(value) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
 }
+/** Format nullable backend ISO datetime for email progress displays. */
+export function formatLeadProgressTime(value) {
+  return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+}
+/** Build the contact-level email progress view shown by the customer table and modal. */
+export function buildLeadEmailProgressView(contact) {
+  return {
+    label: contact.emailProgressLabel || '首封待生成',
+    timeText: formatLeadProgressTime(contact.emailProgressAt),
+    tagType: leadEmailProgressTagTypeMap[contact.emailProgressStatus] ?? 'default'
+  };
+}
+export function patchLeadEmailProgressForContacts(source, patch) {
+  const contactIdSet = new Set(patch.contactIds);
+  if (sourceIsLeadDetail(source)) {
+    return {
+      ...source,
+      account: patchLeadRecordPrimaryContact(source.account, contactIdSet, patch),
+      contacts: source.contacts.map(contact => patchLeadContact(contact, contactIdSet, patch))
+    };
+  }
+  return patchLeadRecordPrimaryContact(source, contactIdSet, patch);
+}
 /** Format optional backend text for compact descriptions. */
 export function formatLeadText(value) {
   return value || '-';
@@ -384,6 +447,29 @@ export function formatLeadText(value) {
 /** Read the timeline label from known event types, falling back to the backend title. */
 export function formatLeadTimelineTitle(event) {
   return event.title || leadTimelineEventLabelMap[event.eventType] || event.eventType;
+}
+function patchLeadRecordPrimaryContact(record, contactIdSet, patch) {
+  if (!record.primaryContact || !contactIdSet.has(record.primaryContact.id)) {
+    return record;
+  }
+  return {
+    ...record,
+    primaryContact: patchLeadContact(record.primaryContact, contactIdSet, patch)
+  };
+}
+function patchLeadContact(contact, contactIdSet, patch) {
+  if (!contactIdSet.has(contact.id)) {
+    return contact;
+  }
+  return {
+    ...contact,
+    emailProgressStatus: patch.status,
+    emailProgressLabel: patch.label,
+    emailProgressAt: patch.at
+  };
+}
+function sourceIsLeadDetail(source) {
+  return 'account' in source && 'contacts' in source;
 }
 /** Read only the backend archived-fingerprint reminder event from account timeline. */
 export function getArchivedFingerprintMatchEvents(events) {

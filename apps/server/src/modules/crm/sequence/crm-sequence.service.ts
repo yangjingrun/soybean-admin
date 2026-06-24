@@ -48,23 +48,28 @@ export class CrmSequenceService {
       current?: number | string;
       size?: number | string;
       keyword?: string;
+      currentStep?: number | string;
       status?: CrmSequenceEnrollmentStatus;
       todoType?: CrmSequenceReviewTodoType;
       messageStatus?: CrmMessageStatus;
       dateScope?: 'today';
+      createdAtScope?: 'today' | 'yesterday' | 'last_3_days' | 'last_7_days' | 'last_30_days';
     } = {}
   ) {
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
+    const currentStep = normalizePositiveInteger(query.currentStep, 0);
     const result = await this.sequenceRepository.listSequenceReviewItems({
       organizationId: context.organizationId,
       ...createCrmOwnerFilter(context),
       ...(keyword ? { keyword } : {}),
+      ...(currentStep ? { currentStep } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.todoType ? { todoType: query.todoType } : {}),
       ...(query.messageStatus ? { messageStatus: query.messageStatus } : {}),
       ...(query.dateScope ? { dateScope: query.dateScope } : {}),
+      ...(query.createdAtScope ? { createdAtScope: query.createdAtScope } : {}),
       skip: (current - 1) * size,
       take: size
     });

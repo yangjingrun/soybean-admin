@@ -2,6 +2,8 @@ import { Inject } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import type {
+  CrmFirstOutreachDraftBundleCreateInput,
+  CrmFirstOutreachDraftBundleRecord,
   CrmFollowUpDraftBundleCreateInput,
   CrmFollowUpDraftBundleRecord,
   CrmMessageStatus,
@@ -115,6 +117,88 @@ export class PrismaCrmSequenceReviewStore {
     });
   }
 
+  async createFirstOutreachDraftBundle(
+    input: CrmFirstOutreachDraftBundleCreateInput
+  ): Promise<CrmFirstOutreachDraftBundleRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const task = await tx.crmAiDraftTask.findFirst({
+        where: {
+          id: input.taskGuard.taskId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          runVersion: input.taskGuard.runVersion,
+          status: toStatusWhere(input.taskGuard.status)
+        }
+      });
+
+      if (!task) {
+        return null;
+      }
+
+      const enrollment = await tx.crmSequenceEnrollment.findFirst({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: input.expectedEnrollmentStatus
+        }
+      });
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const existingMessage = await tx.crmMessage.findFirst({
+        where: {
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          stepIndex: input.message.stepIndex
+        }
+      });
+
+      if (existingMessage) {
+        return null;
+      }
+
+      const message = await tx.crmMessage.create({
+        data: {
+          ...input.message,
+          enrollmentId: enrollment.id
+        } as Prisma.CrmMessageUncheckedCreateInput
+      });
+      const updatedEnrollment = await tx.crmSequenceEnrollment.update({
+        where: { id: enrollment.id },
+        data: {
+          status: input.nextEnrollmentStatus,
+          currentStep: input.message.stepIndex
+        }
+      });
+      const account = await tx.crmAccount.update({
+        where: { id: enrollment.accountId },
+        data: { status: input.accountStatus }
+      });
+      const metadata = input.timelineEvent.metadata as Record<string, unknown>;
+      const event = await tx.crmTimelineEvent.create({
+        data: {
+          ...input.timelineEvent,
+          metadata: {
+            ...metadata,
+            enrollmentId: enrollment.id,
+            messageId: message.id
+          }
+        } as Prisma.CrmTimelineEventUncheckedCreateInput
+      });
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(updatedEnrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
   async createFollowUpDraftBundle(
     input: CrmFollowUpDraftBundleCreateInput
   ): Promise<CrmFollowUpDraftBundleRecord | null> {
@@ -193,10 +277,12 @@ export class PrismaCrmSequenceReviewStore {
     organizationId: string;
     ownerUserId?: string;
     keyword?: string;
+    currentStep?: number;
     status?: CrmSequenceEnrollmentStatus;
     todoType?: CrmSequenceReviewTodoType;
     messageStatus?: CrmMessageStatus;
     dateScope?: 'today';
+    createdAtScope?: 'today' | 'yesterday' | 'last_3_days' | 'last_7_days' | 'last_30_days';
     now?: Date;
     skip: number;
     take: number;

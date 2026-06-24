@@ -1,38 +1,24 @@
 import { computed, onMounted, shallowRef } from 'vue';
-import { fetchCrmGeoCities, fetchCrmGeoCountries } from '@/service/api';
-import { createCrmCityRegionOption, filterCrmRegionOption } from '@/utils/crm-region-cascader';
-import {
-  hasCachedCrmRegionOptions,
-  loadCachedCrmRegionOptions,
-  searchCachedCrmRegionCities
-} from './crm-region-cascader-cache';
-const cityFetchLimit = 5000;
-const citySearchLimit = 80;
-const citySearchDebounceMs = 260;
-/** Load CRM geography options for reusable country/city cascader filters. */
+import { fetchCrmGeoCountries } from '@/service/api';
+import { filterCrmRegionOption } from '@/utils/crm-region-cascader';
+import { loadCachedCrmRegionOptions } from './crm-region-cascader-cache';
+/** Load CRM geography options for reusable country/province/state cascader filters. */
 export function useCrmRegionCascader() {
   const regionOptions = shallowRef([]);
-  const searchRegionOptions = shallowRef([]);
   const regionLoading = shallowRef(false);
-  const displayRegionOptions = computed(() =>
-    searchRegionOptions.value.length ? searchRegionOptions.value : regionOptions.value
-  );
+  const displayRegionOptions = computed(() => regionOptions.value);
   let latestCountryRequestId = 0;
-  let latestCitySearchRequestId = 0;
-  let latestCitySearchPattern = '';
-  let citySearchTimer = null;
   onMounted(() => {
     void loadCountries();
   });
-  /** Load all persisted countries once per browser session and share them across component instances. */
+  /** Load persisted countries once per browser session and attach local admin1 children. */
   async function loadCountries() {
     const requestId = latestCountryRequestId + 1;
     latestCountryRequestId = requestId;
     regionLoading.value = true;
     try {
       const options = await loadCachedCrmRegionOptions({
-        loadCountries: fetchCountries,
-        loadCities: fetchCountryCities
+        loadCountries: fetchCountries
       });
       if (requestId !== latestCountryRequestId) {
         return;
@@ -49,77 +35,10 @@ export function useCrmRegionCascader() {
     }
   }
   function handleRegionFilter(pattern, option, path = []) {
-    if (!hasCachedCrmRegionOptions()) {
-      queueCitySearch(pattern);
-    }
     return filterCrmRegionOption(pattern, option, path);
   }
-  function queueCitySearch(pattern) {
-    const searchPattern = pattern.trim();
-    if (!shouldSearchRemoteCity(searchPattern) || searchPattern === latestCitySearchPattern) {
-      return;
-    }
-    latestCitySearchPattern = searchPattern;
-    if (citySearchTimer) {
-      clearTimeout(citySearchTimer);
-    }
-    citySearchTimer = setTimeout(() => {
-      void searchCities(searchPattern);
-    }, citySearchDebounceMs);
-  }
-  async function searchCities(keyword) {
-    const requestId = latestCitySearchRequestId + 1;
-    latestCitySearchRequestId = requestId;
-    let data;
-    try {
-      data = await searchCachedCrmRegionCities(keyword, fetchCitySearchResults);
-    } catch {
-      return;
-    }
-    if (requestId !== latestCitySearchRequestId) {
-      return;
-    }
-    mergeSearchOptions(keyword, data);
-  }
-  /** Build a temporary search tree without mutating the fully loadable country tree. */
-  function mergeSearchOptions(keyword, cities) {
-    const countryOptions = new Map(regionOptions.value.map(option => [option.countryCode, option]));
-    const searchCountryOptions = new Map();
-    regionOptions.value
-      .filter(option => filterCrmRegionOption(keyword, option))
-      .forEach(option => {
-        searchCountryOptions.set(option.countryCode, {
-          ...option,
-          children: []
-        });
-      });
-    cities.forEach(city => {
-      const countryOption = countryOptions.get(city.countryCode);
-      if (!countryOption) {
-        return;
-      }
-      const cityOption = createCrmCityRegionOption(city);
-      const searchCountryOption = searchCountryOptions.get(city.countryCode) ?? {
-        ...countryOption,
-        children: []
-      };
-      const children = searchCountryOption.children ?? [];
-      if (!children.some(child => child.value === cityOption.value)) {
-        searchCountryOption.children = [...children, cityOption];
-      }
-      searchCountryOptions.set(city.countryCode, searchCountryOption);
-    });
-    searchRegionOptions.value = Array.from(searchCountryOptions.values());
-  }
-  function clearRegionSearch() {
-    searchRegionOptions.value = [];
-    latestCitySearchPattern = '';
-  }
-  function handleRegionDropdownShow(show) {
-    if (!show) {
-      clearRegionSearch();
-    }
-  }
+  function clearRegionSearch() {}
+  function handleRegionDropdownShow(_show) {}
   return {
     clearRegionSearch,
     filterCrmRegionOption: handleRegionFilter,
@@ -128,33 +47,10 @@ export function useCrmRegionCascader() {
     regionOptions: displayRegionOptions
   };
 }
-function shouldSearchRemoteCity(pattern) {
-  return pattern.length >= 2 || /[\u4e00-\u9fff]/.test(pattern);
-}
 async function fetchCountries() {
   const { data, error } = await fetchCrmGeoCountries();
   if (error || !data) {
     throw new Error('Failed to load CRM geo countries');
-  }
-  return data;
-}
-async function fetchCountryCities(countryCode) {
-  const { data, error } = await fetchCrmGeoCities({
-    countryCode,
-    limit: cityFetchLimit
-  });
-  if (error || !data) {
-    throw new Error(`Failed to load CRM geo cities for ${countryCode}`);
-  }
-  return data;
-}
-async function fetchCitySearchResults(keyword) {
-  const { data, error } = await fetchCrmGeoCities({
-    keyword,
-    limit: citySearchLimit
-  });
-  if (error || !data) {
-    throw new Error('Failed to search CRM geo cities');
   }
   return data;
 }

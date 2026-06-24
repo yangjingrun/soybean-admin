@@ -12,6 +12,9 @@ export function setupElegantRouter() {
         const moduleReg = modules.join('|');
         return `/login/:module(${moduleReg})?`;
       }
+      if (key === 'crm_inbox-detail') {
+        return '/crm/inbox/detail/:id';
+      }
       return routePath;
     },
     onRouteMetaGen(routeName) {
@@ -58,6 +61,10 @@ export function setupElegantRouter() {
       if (key === 'crm_inbox') {
         meta.icon = 'mdi:inbox-full-outline';
         meta.order = 5;
+      }
+      if (key === 'crm_inbox-detail') {
+        meta.hideInMenu = true;
+        meta.activeMenu = 'crm_inbox';
       }
       if (key === 'crm_settings') {
         meta.icon = 'mdi:cog-outline';

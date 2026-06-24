@@ -100,7 +100,7 @@ const selectedProductLineAiWritingStatus = computed(() =>
     <template #footer>
       <NSpace justify="end">
         <NButton @click="show = false">取消</NButton>
-        <NButton type="primary" :loading="submitting" @click="emit('submit')">确认并安排发送</NButton>
+        <NButton type="primary" :loading="submitting" @click="emit('submit')">确认并后台生成</NButton>
       </NSpace>
     </template>
   </NModal>

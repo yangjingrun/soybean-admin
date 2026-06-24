@@ -10,7 +10,6 @@ import {
   getNextScheduledReviewMessage,
   getSequenceNextAction,
   getSequenceProgressText,
-  getSequenceSendAuditSummary,
   sequenceBatchResultDisplayKey,
   summarizeSequenceBatchSelection
 } from './shared';
@@ -72,7 +71,7 @@ const batchSelectionSummary = computed(() => {
 
   return summarizeSequenceBatchSelection(selectedRecords);
 });
-const tableScrollX = computed(() => (recentBatchResultItems.value.length > 0 ? 1770 : 1530));
+const tableScrollX = computed(() => (recentBatchResultItems.value.length > 0 ? 1470 : 1230));
 
 const sequenceCellStyle = {
   display: 'flex',
@@ -90,6 +89,18 @@ const sequenceSecondaryTextStyle = {
   fontSize: '12px',
   lineHeight: '16px'
 };
+
+/** Render email progress with the same tag plus time layout as the lead list. */
+function renderSequenceEmailProgress(row: Api.Crm.SequenceReviewItem) {
+  const status = getSequenceNextAction(row);
+  const nextMessage = getNextScheduledReviewMessage(row.messages);
+  const scheduledAtText = nextMessage?.scheduledAt ? formatSequenceDate(nextMessage.scheduledAt) : '-';
+
+  return h('div', { class: 'sequence-cell', style: sequenceCellStyle }, [
+    h(NTag, { bordered: false, size: 'small', type: status.tagType }, { default: () => status.label }),
+    h('span', { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle }, scheduledAtText)
+  ]);
+}
 
 const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
   const tableColumns: DataTableColumns<Api.Crm.SequenceReviewItem> = [
@@ -137,71 +148,34 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
       }
     },
     {
-      key: 'sendStatus',
-      title: '发送状态',
-      width: 120,
-      render: row => {
-        const status = getSequenceNextAction(row);
-
-        return h(NTag, { bordered: false, size: 'small', type: status.tagType }, { default: () => status.label });
-      }
-    },
-    {
-      key: 'sendAudit',
-      title: '发送条件',
-      width: 130,
-      render: row => {
-        const summary = getSequenceSendAuditSummary(row);
-
-        return h(NTag, { bordered: false, size: 'small', type: summary.tagType }, { default: () => summary.label });
-      }
+      key: 'emailProgress',
+      title: '邮箱进度',
+      width: 170,
+      render: row => renderSequenceEmailProgress(row)
     }
   ];
 
   if (recentBatchResultItems.value.length > 0) {
-    tableColumns.push(
-      {
-        key: 'batchNextDraftResult',
-        title: '最近生成结果',
-        minWidth: 220,
-        render: row => {
-          const result = recentBatchResultMap.value.get(row.enrollment.id);
-
-          if (!result) {
-            return '-';
-          }
-
-          return h('div', { class: 'sequence-cell', style: sequenceCellStyle }, [
-            h('div', { class: 'sequence-result-line' }, [
-              h(NTag, { bordered: false, size: 'small', type: result.tagType }, { default: () => result.statusLabel }),
-              result.stepText
-                ? h('span', { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle }, result.stepText)
-                : null
-            ]),
-            h('span', { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle }, result.message)
-          ]);
-        }
-      },
-      {
-        key: 'nextScheduledAt',
-        title: '计划发送时间',
-        width: 170,
-        render: row => {
-          const nextMessage = getNextScheduledReviewMessage(row.messages);
-
-          return nextMessage?.scheduledAt ? formatSequenceDate(nextMessage.scheduledAt) : '-';
-        }
-      }
-    );
-  } else {
     tableColumns.push({
-      key: 'nextScheduledAt',
-      title: '计划发送时间',
-      width: 170,
+      key: 'batchNextDraftResult',
+      title: '最近生成结果',
+      minWidth: 220,
       render: row => {
-        const nextMessage = getNextScheduledReviewMessage(row.messages);
+        const result = recentBatchResultMap.value.get(row.enrollment.id);
 
-        return nextMessage?.scheduledAt ? formatSequenceDate(nextMessage.scheduledAt) : '-';
+        if (!result) {
+          return '-';
+        }
+
+        return h('div', { class: 'sequence-cell', style: sequenceCellStyle }, [
+          h('div', { class: 'sequence-result-line' }, [
+            h(NTag, { bordered: false, size: 'small', type: result.tagType }, { default: () => result.statusLabel }),
+            result.stepText
+              ? h('span', { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle }, result.stepText)
+              : null
+          ]),
+          h('span', { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle }, result.message)
+        ]);
       }
     });
   }

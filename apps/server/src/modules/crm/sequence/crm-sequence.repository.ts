@@ -27,10 +27,12 @@ export interface CrmSequenceRepository {
     organizationId: string;
     ownerUserId?: string;
     keyword?: string;
+    currentStep?: number;
     status?: CrmSequenceEnrollmentStatus;
     todoType?: CrmSequenceReviewTodoType;
     messageStatus?: CrmMessageStatus;
     dateScope?: 'today';
+    createdAtScope?: 'today' | 'yesterday' | 'last_3_days' | 'last_7_days' | 'last_30_days';
     now?: Date;
     skip: number;
     take: number;

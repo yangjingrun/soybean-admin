@@ -20,6 +20,7 @@ import {
   getSequenceNextAction,
   getSequenceProgressText,
   getSequenceSendAuditSummary,
+  isFirstOutreachGenerating,
   shouldQueueFirstMessageAfterApproval,
   buildSequenceBatchResultDisplayItems,
   buildSequenceBatchResultDisplayMap,
@@ -224,13 +225,27 @@ describe('email sequence review shared helpers', () => {
     assert.equal(createDefaultSequenceCreateForm().policyId, null);
   });
 
+  it('labels placeholder first outreach sequences as background generation', () => {
+    const item = createSequenceItem({
+      firstMessage: null,
+      messages: [],
+      enrollment: { status: 'draft_review_pending' }
+    });
+
+    assert.equal(isFirstOutreachGenerating(item), true);
+    assert.equal(getSequenceNextAction(item).label, '后台生成中');
+    assert.equal(getSequenceSendAuditSummary(item).label, '后台生成中');
+  });
+
   it('builds sequence review search params with status and todo filters', () => {
     const filterModel = createDefaultSequenceFilterModel();
     filterModel.keyword = ' ABC ';
+    filterModel.currentStep = 2;
     filterModel.status = 'sequence_running';
     filterModel.todoType = 'can_generate_next';
     filterModel.messageStatus = 'sent';
     filterModel.dateScope = 'today';
+    filterModel.createdAtScope = 'last_7_days';
 
     assert.deepEqual(
       buildSequenceReviewSearchParams({
@@ -242,28 +257,36 @@ describe('email sequence review shared helpers', () => {
         current: 2,
         size: 50,
         keyword: 'ABC',
+        currentStep: 2,
         status: 'sequence_running',
         todoType: 'can_generate_next',
         messageStatus: 'sent',
-        dateScope: 'today'
+        dateScope: 'today',
+        createdAtScope: 'last_7_days'
       }
     );
+    assert.equal(createDefaultSequenceFilterModel().currentStep, null);
     assert.equal(createDefaultSequenceFilterModel().todoType, null);
     assert.equal(createDefaultSequenceFilterModel().messageStatus, null);
+    assert.equal(createDefaultSequenceFilterModel().createdAtScope, null);
   });
 
   it('builds user-facing filter tags for workbench route context', () => {
     const filterModel = createDefaultSequenceFilterModel();
     filterModel.keyword = ' ABC ';
+    filterModel.currentStep = 3;
     filterModel.todoType = 'draft_review_pending';
     filterModel.messageStatus = 'sent';
     filterModel.dateScope = 'today';
+    filterModel.createdAtScope = 'last_30_days';
 
     assert.deepEqual(buildSequenceReviewFilterTags(filterModel), [
-      { key: 'keyword', label: '关键词：ABC' },
+      { key: 'keyword', label: '公司域名：ABC' },
+      { key: 'currentStep', label: '跟进进度：第 3 封' },
       { key: 'todoType', label: '待办：待确认发送' },
       { key: 'messageStatus', label: '邮件：已发送' },
-      { key: 'dateScope', label: '时间：今天' }
+      { key: 'dateScope', label: '时间：今天' },
+      { key: 'createdAtScope', label: '创建时间：最近一月' }
     ]);
   });
 

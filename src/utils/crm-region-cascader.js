@@ -12,7 +12,24 @@ export function createCrmCountryRegionOption(country) {
     isLeaf: false
   };
 }
-/** Convert one persisted GeoNames city row into a leaf cascader city node. */
+/** Convert one GeoNames admin1 row into a province/state-level cascader node. */
+export function createCrmAdmin1RegionOption(region) {
+  return {
+    label: formatAdmin1Label(region),
+    value: createAdmin1RegionValue(region.countryCode, region.code, region.name, region.asciiName, region.displayName),
+    keywords: Array.from(
+      new Set([region.displayName, region.name, region.asciiName, region.code].filter(item => Boolean(item)))
+    ),
+    nodeType: 'admin1',
+    countryCode: region.countryCode,
+    admin1Code: region.code,
+    displayName: region.displayName,
+    regionName: region.name,
+    asciiName: region.asciiName,
+    isLeaf: true
+  };
+}
+/** Convert one persisted GeoNames city row into a legacy leaf cascader city node. */
 export function createCrmCityRegionOption(city) {
   return {
     label: formatCityLabel(city),
@@ -49,6 +66,9 @@ export function getCrmRegionKeywords(value) {
   if (isCityRegionValue(value)) {
     return readCityRegionKeywords(value);
   }
+  if (isAdmin1RegionValue(value)) {
+    return readAdmin1RegionKeywords(value);
+  }
   return [];
 }
 function createCountryRegionValue(countryCode, label) {
@@ -57,11 +77,17 @@ function createCountryRegionValue(countryCode, label) {
 function createCityRegionValue(countryCode, cityName, asciiName, displayName) {
   return `city:${countryCode.toUpperCase()}:${encodeURIComponent(cityName)}:${encodeURIComponent(asciiName ?? '')}:${encodeURIComponent(displayName ?? '')}`;
 }
+function createAdmin1RegionValue(countryCode, admin1Code, regionName, asciiName, displayName) {
+  return `admin1:${countryCode.toUpperCase()}:${encodeURIComponent(admin1Code)}:${encodeURIComponent(regionName)}:${encodeURIComponent(asciiName ?? '')}:${encodeURIComponent(displayName ?? '')}`;
+}
 function isCountryRegionValue(value) {
   return value.startsWith('country:');
 }
 function isCityRegionValue(value) {
   return value.startsWith('city:');
+}
+function isAdmin1RegionValue(value) {
+  return value.startsWith('admin1:');
 }
 function readCountryRegionKeywords(value) {
   const [, countryCode, encodedLabel] = value.split(':');
@@ -70,6 +96,13 @@ function readCountryRegionKeywords(value) {
 }
 function readCityRegionKeywords(value) {
   const [, , encodedName, encodedAsciiName, encodedDisplayName] = value.split(':');
+  const name = decodeURIComponent(encodedName ?? '').trim();
+  const asciiName = decodeURIComponent(encodedAsciiName ?? '').trim();
+  const displayName = decodeURIComponent(encodedDisplayName ?? '').trim();
+  return Array.from(new Set([displayName, name, asciiName].filter(Boolean)));
+}
+function readAdmin1RegionKeywords(value) {
+  const [, , , encodedName, encodedAsciiName, encodedDisplayName] = value.split(':');
   const name = decodeURIComponent(encodedName ?? '').trim();
   const asciiName = decodeURIComponent(encodedAsciiName ?? '').trim();
   const displayName = decodeURIComponent(encodedDisplayName ?? '').trim();
@@ -99,6 +132,12 @@ function formatCountryDisplayName(displayNames, normalizedCode) {
 function formatCityLabel(city) {
   const primaryName = city.displayName || city.name;
   const secondaryNames = [city.name, city.asciiName].filter(item => Boolean(item && item !== primaryName));
+  const uniqueSecondaryNames = Array.from(new Set(secondaryNames));
+  return uniqueSecondaryNames.length ? `${primaryName} / ${uniqueSecondaryNames.join(' / ')}` : primaryName;
+}
+function formatAdmin1Label(region) {
+  const primaryName = region.displayName || region.name;
+  const secondaryNames = [region.name, region.asciiName].filter(item => Boolean(item && item !== primaryName));
   const uniqueSecondaryNames = Array.from(new Set(secondaryNames));
   return uniqueSecondaryNames.length ? `${primaryName} / ${uniqueSecondaryNames.join(' / ')}` : primaryName;
 }

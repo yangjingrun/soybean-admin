@@ -2,7 +2,7 @@ import { computed, reactive, shallowRef } from 'vue';
 import { useMessage } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
-  createCrmSequenceReviewItem,
+  createCrmFirstOutreachAiDraftTask,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
   fetchCrmMailboxes,
@@ -10,7 +10,7 @@ import {
   fetchCrmSequencePolicies
 } from '@/service/api';
 import { isMailboxAvailableForSequence } from '../../settings/modules/shared';
-import { createDefaultSequenceCreateForm, normalizeSequenceCreatePayload } from './shared';
+import { createDefaultSequenceCreateForm } from './shared';
 /** Manage the create-first-draft modal resources and account/contact prefill flow. */
 export function useSequenceCreateFlow(options) {
   const message = useMessage();
@@ -154,14 +154,24 @@ export function useSequenceCreateFlow(options) {
     }
     createSubmitting.value = true;
     try {
-      const { data, error } = await createCrmSequenceReviewItem(normalizeSequenceCreatePayload(createForm));
+      const { error } = await createCrmFirstOutreachAiDraftTask({
+        targets: [
+          {
+            accountId: createForm.accountId,
+            contactId: createForm.contactId
+          }
+        ],
+        ...(createForm.productLineId ? { productLineId: createForm.productLineId } : {}),
+        mailboxId: createForm.mailboxId,
+        ...(createForm.policyId ? { policyId: createForm.policyId } : {})
+      });
       if (error) {
         return;
       }
-      message.success('首封开发信已安排发送');
+      message.success('已提交后台生成，完成后会进入发送计划');
       notifyCrmWorkbenchChanged();
       createVisible.value = false;
-      await options.onCreated(data.item);
+      await options.onSubmitted();
     } finally {
       createSubmitting.value = false;
     }

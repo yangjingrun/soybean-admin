@@ -42,7 +42,7 @@ export interface SequenceReviewCreateInput {
   policyId?: string | null;
 }
 
-interface GeneratedDraft {
+export interface GeneratedDraft {
   subject: string;
   bodyText: string;
   aiDraft?: CrmAiDraftMetadata | null;
@@ -392,12 +392,12 @@ export class CrmSequenceReviewCreationService {
   }
 }
 
-function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {
+export function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {
   return aiDraft ? { aiDraft } : null;
 }
 
 /** Builds a conservative first-touch draft from verified CRM fields only. */
-function generateFirstDraft(options: {
+export function generateFirstDraft(options: {
   account: CrmAccountRecord;
   contact: CrmContactRecord;
   productLine: CrmProductLineRecord | null;
@@ -457,12 +457,12 @@ function generateFirstDraft(options: {
   };
 }
 
-function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord) {
+export function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord) {
   const contactLabel = contact.fullName || contact.title || contact.maskedEmail;
 
   return `${account.name} - ${contactLabel}`;
 }
 
-function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex: number) {
+export function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex: number) {
   return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
 }

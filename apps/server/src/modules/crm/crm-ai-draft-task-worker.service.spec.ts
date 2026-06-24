@@ -9,7 +9,9 @@ import type { CrmAiDraftWorkerRepository } from './crm-ai-draft-worker.repositor
 import type {
   CrmAccountRecord,
   CrmContactRecord,
+  CrmFirstOutreachDraftBundleCreateInput,
   CrmFollowUpDraftBundleCreateInput,
+  CrmMailboxRecord,
   CrmMessageRecord,
   CrmProductLineRecord,
   CrmSequenceEnrollmentRecord,
@@ -83,6 +85,48 @@ describe('CrmAiDraftTaskQueueService', () => {
 });
 
 describe('CrmAiDraftTaskWorkerService', () => {
+  it('generates the first outreach email into a queued placeholder sequence', async () => {
+    const store = createWorkerStore({
+      items: [
+        createTaskItem({
+          stepIndex: 1,
+          metadata: { kind: 'first_outreach' }
+        })
+      ],
+      reviewItem: createReviewItem({
+        enrollment: createEnrollment({ status: 'draft_review_pending' }),
+        firstMessage: null,
+        messages: [],
+        mailbox: createMailbox()
+      })
+    });
+    const aiDraftService = createAiDraftService();
+    const worker = new CrmAiDraftTaskWorkerService(
+      store as never,
+      aiDraftService as never,
+      undefined,
+      createAvailabilityService() as never
+    );
+
+    await worker.processTaskJob(createJob());
+
+    assert.equal(aiDraftService.calls.length, 1);
+    assert.equal(aiDraftService.calls[0].input.stepIndex, 1);
+    assert.deepEqual(aiDraftService.calls[0].input.previousMessages, []);
+    assert.equal(store.firstOutreachBundles.length, 1);
+    assert.deepEqual(store.firstOutreachBundles[0].taskGuard, {
+      taskId: 'task-1',
+      runVersion: 1,
+      status: 'running'
+    });
+    assert.equal(store.firstOutreachBundles[0].message.status, 'draft_ready');
+    assert.equal(store.firstOutreachBundles[0].message.subject, 'AI subject');
+    assert.equal(store.firstOutreachBundles[0].nextEnrollmentStatus, 'sequence_running');
+    assert.equal(store.firstOutreachBundles[0].accountStatus, 'sequence_running');
+    assert.equal(store.itemUpdates.at(-1)?.patch.status, 'succeeded');
+    assert.equal(store.task.status, 'completed');
+  });
+
   it('generates one eligible local follow-up draft and completes the task with notification', async () => {
     const store = createWorkerStore();
     const aiDraftService = createAiDraftService();
@@ -104,7 +148,7 @@ describe('CrmAiDraftTaskWorkerService', () => {
       runVersion: 1,
       status: 'running'
     });
-    assert.equal(store.followUpBundles[0].message.status, 'draft_pending_review');
+    assert.equal(store.followUpBundles[0].message.status, 'draft_ready');
     assert.equal(store.followUpBundles[0].message.subject, 'AI subject');
     assert.equal(store.followUpBundles[0].message.bodyText, 'AI body');
     assert.equal(store.itemUpdates.at(-1)?.patch.status, 'succeeded');
@@ -286,12 +330,15 @@ function createWorkerStore(
     items?: CrmAiDraftTaskItemRecord[];
     reviewItem?: CrmSequenceReviewRecord | null;
     followUpBundleResult?: 'default' | null;
+    firstOutreachBundleResult?: 'default' | null;
   } = {}
 ) {
   const task = input.task ?? createTask();
   const items = input.items ?? [createTaskItem()];
   const reviewItem = input.reviewItem === undefined ? createReviewItem() : input.reviewItem;
   const followUpBundleResult = input.followUpBundleResult === undefined ? 'default' : input.followUpBundleResult;
+  const firstOutreachBundleResult =
+    input.firstOutreachBundleResult === undefined ? 'default' : input.firstOutreachBundleResult;
   const taskUpdates: Array<{
     patch: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTask']>[1];
     guard?: Parameters<CrmAiDraftWorkerRepository['updateAiDraftTask']>[2];
@@ -303,6 +350,7 @@ function createWorkerStore(
   }> = [];
   const reviewLookups: Parameters<CrmAiDraftWorkerRepository['getSequenceReviewItem']>[0][] = [];
   const followUpBundles: CrmFollowUpDraftBundleCreateInput[] = [];
+  const firstOutreachBundles: CrmFirstOutreachDraftBundleCreateInput[] = [];
 
   return {
     task,
@@ -311,6 +359,7 @@ function createWorkerStore(
     itemUpdates,
     reviewLookups,
     followUpBundles,
+    firstOutreachBundles,
     sendQueueCalls: 0,
     async findAiDraftTaskById(args: Parameters<CrmAiDraftWorkerRepository['findAiDraftTaskById']>[0]) {
       if (args.id !== task.id || args.organizationId !== task.organizationId || args.ownerUserId !== task.ownerUserId) {
@@ -367,6 +416,9 @@ function createWorkerStore(
     ) {
       return [];
     },
+    async listMailboxSendScheduleTimes() {
+      return [];
+    },
     async getGlobalConfig() {
       return {
         followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 }
@@ -409,6 +461,30 @@ function createWorkerStore(
           status: bundleInput.message.status,
           providerThreadId: bundleInput.message.providerThreadId
         }),
+        event: { id: 'event-1' }
+      };
+    },
+    async createFirstOutreachDraftBundle(bundleInput: CrmFirstOutreachDraftBundleCreateInput) {
+      firstOutreachBundles.push(bundleInput);
+
+      if (firstOutreachBundleResult === null) {
+        return null;
+      }
+
+      return {
+        enrollment: {
+          ...(reviewItem?.enrollment ?? createEnrollment()),
+          status: bundleInput.nextEnrollmentStatus
+        },
+        message: createMessage({
+          id: 'generated-message-1',
+          stepIndex: bundleInput.message.stepIndex,
+          subject: bundleInput.message.subject,
+          bodyText: bundleInput.message.bodyText,
+          status: bundleInput.message.status,
+          scheduledAt: bundleInput.message.scheduledAt
+        }),
+        account: createAccount({ status: bundleInput.accountStatus }),
         event: { id: 'event-1' }
       };
     },
@@ -466,6 +542,19 @@ function createNotificationRecorder() {
       async create(input: { type: string; targetId: string }) {
         records.push(input);
       }
+    }
+  };
+}
+
+function createAvailabilityService() {
+  return {
+    evaluate() {
+      return {
+        canSend: true,
+        nextAvailableAt: null,
+        timeZone: 'Asia/Shanghai',
+        reason: null
+      };
     }
   };
 }
@@ -649,7 +738,42 @@ function createContact(input: Partial<CrmContactRecord> = {}): CrmContactRecord 
     maskedEmail: input.maskedEmail ?? 'a***@abc.example',
     isPublicEmail: input.isPublicEmail ?? false,
     emailStatus: input.emailStatus ?? 'valid',
+    emailProgressStatus: input.emailProgressStatus ?? 'not_generated',
+    emailProgressLabel: input.emailProgressLabel ?? '首封待生成',
+    emailProgressAt: input.emailProgressAt ?? null,
+    emailProgressMessageId: input.emailProgressMessageId ?? null,
+    emailProgressStepIndex: input.emailProgressStepIndex ?? null,
+    emailProgressTotalSteps: input.emailProgressTotalSteps ?? null,
     sourceTaskId: input.sourceTaskId ?? null,
+    createdAt: input.createdAt ?? now,
+    updatedAt: input.updatedAt ?? now
+  };
+}
+
+function createMailbox(input: Partial<CrmMailboxRecord> = {}): CrmMailboxRecord {
+  const now = new Date('2026-06-20T00:00:00.000Z');
+
+  return {
+    id: input.id ?? 'mailbox-1',
+    organizationId: input.organizationId ?? 'org-1',
+    ownerUserId: input.ownerUserId ?? 'user-1',
+    ownerUserName: input.ownerUserName ?? 'Alice',
+    provider: input.provider ?? 'gmail',
+    emailAddress: input.emailAddress ?? 'alice@example.com',
+    emailHash: input.emailHash ?? 'mailbox-hash-1',
+    maskedEmail: input.maskedEmail ?? 'a***@example.com',
+    status: input.status ?? 'active',
+    dailyLimit: input.dailyLimit ?? 50,
+    hourlyLimit: input.hourlyLimit ?? 10,
+    warmupStage: input.warmupStage ?? 'ready',
+    encryptedRefreshToken: input.encryptedRefreshToken ?? null,
+    watchExpiration: input.watchExpiration ?? null,
+    lastHistoryId: input.lastHistoryId ?? null,
+    syncIssueType: input.syncIssueType ?? null,
+    syncIssueAt: input.syncIssueAt ?? null,
+    syncIssueMessage: input.syncIssueMessage ?? null,
+    authorizedAt: input.authorizedAt ?? now,
+    pausedAt: input.pausedAt ?? null,
     createdAt: input.createdAt ?? now,
     updatedAt: input.updatedAt ?? now
   };

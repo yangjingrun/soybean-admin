@@ -7,12 +7,17 @@ import type {
   CrmAiDraftTaskListInput,
   CrmAiDraftTaskRecord,
   CrmAiDraftTaskUpdateGuard,
-  CrmAiDraftTaskUpdateInput
+  CrmAiDraftTaskUpdateInput,
+  CrmFirstOutreachAiDraftTaskCreateInput,
+  CrmFirstOutreachAiDraftTaskCreateResult
 } from '../crm-ai-draft-task.types';
 import type { CrmBlacklistRecord, CrmSequenceReviewRecord } from '../crm.types';
 
 export interface CrmAiDraftTaskRepository {
   createAiDraftTask(input: CrmAiDraftTaskCreateInput): Promise<CrmAiDraftTaskCreateResult>;
+  createFirstOutreachAiDraftTask(
+    input: CrmFirstOutreachAiDraftTaskCreateInput
+  ): Promise<CrmFirstOutreachAiDraftTaskCreateResult>;
   findCurrentAiDraftTaskForUser(input: {
     organizationId: string;
     ownerUserId: string;

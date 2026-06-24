@@ -1,19 +1,25 @@
 <script setup lang="ts">
 /* eslint-disable vue/no-mutating-props */
-import { sequenceStatusOptions, sequenceTodoTypeOptions } from './shared';
+import FilterPanel from '@/components/common/filter-panel.vue';
+import { sequenceCreatedAtScopeLabelMap } from './shared';
 
-const sequenceMessageStatusOptions = [
-  { label: '待确认发送', value: 'draft_pending_review' },
-  { label: '等待发送', value: 'draft_ready' },
-  { label: '发送中', value: 'queued' },
-  { label: '已发送', value: 'sent' },
-  { label: '发送失败', value: 'failed' },
-  { label: '已跳过', value: 'skipped' }
-] satisfies Array<{ label: string; value: Api.Crm.MessageStatus }>;
+const sequenceProgressOptions = Array.from({ length: 5 }, (_, index) => {
+  const step = index + 1;
 
-const sequenceDateScopeOptions = [{ label: '今天', value: 'today' }] satisfies Array<{
+  return {
+    label: `第 ${step} 封`,
+    value: step
+  };
+});
+
+const sequenceCreatedAtScopes = Object.keys(sequenceCreatedAtScopeLabelMap) as Api.Crm.SequenceReviewCreatedAtScope[];
+
+const sequenceCreatedAtScopeOptions = sequenceCreatedAtScopes.map(value => ({
+  label: sequenceCreatedAtScopeLabelMap[value],
+  value
+})) satisfies Array<{
   label: string;
-  value: NonNullable<Api.Crm.SequenceReviewFilterModel['dateScope']>;
+  value: Api.Crm.SequenceReviewCreatedAtScope;
 }>;
 
 defineProps<{
@@ -28,53 +34,24 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper">
-    <NForm :model="model" label-placement="left" label-width="72">
-      <NGrid responsive="screen" item-responsive :x-gap="12" :y-gap="12" cols="1 s:2 m:3 l:4 xl:5">
-        <NFormItemGi label="公司">
-          <NInput
-            v-model:value="model.keyword"
-            clearable
-            placeholder="公司名 / 域名 / 联系人"
-            @keyup.enter="emit('search')"
-          />
-        </NFormItemGi>
-        <NFormItemGi label="任务状态">
-          <NSelect v-model:value="model.status" clearable :options="sequenceStatusOptions" placeholder="全部状态" />
-        </NFormItemGi>
-        <NFormItemGi label="待办类型">
-          <NSelect v-model:value="model.todoType" clearable :options="sequenceTodoTypeOptions" placeholder="全部待办" />
-        </NFormItemGi>
-        <NFormItemGi label="邮件状态">
-          <NSelect
-            v-model:value="model.messageStatus"
-            clearable
-            :options="sequenceMessageStatusOptions"
-            placeholder="全部邮件"
-          />
-        </NFormItemGi>
-        <NFormItemGi label="时间">
-          <NSelect
-            v-model:value="model.dateScope"
-            clearable
-            :options="sequenceDateScopeOptions"
-            placeholder="全部时间"
-          />
-        </NFormItemGi>
-      </NGrid>
-    </NForm>
-    <div class="sequence-filter-actions">
-      <NSpace :size="8">
-        <NButton :loading="loading" type="primary" @click="emit('search')">查询</NButton>
-        <NButton :disabled="loading" @click="emit('reset')">重置</NButton>
-      </NSpace>
-    </div>
-  </NCard>
+  <FilterPanel :model="model" cols="1 s:2 m:3 l:4 xl:5">
+    <NFormItemGi label="公司域名">
+      <NInput v-model:value="model.keyword" clearable placeholder="公司名 / 域名" @keyup.enter="emit('search')" />
+    </NFormItemGi>
+    <NFormItemGi label="跟进进度">
+      <NSelect v-model:value="model.currentStep" clearable :options="sequenceProgressOptions" placeholder="全部进度" />
+    </NFormItemGi>
+    <NFormItemGi label="创建时间">
+      <NSelect
+        v-model:value="model.createdAtScope"
+        clearable
+        :options="sequenceCreatedAtScopeOptions"
+        placeholder="全部时间"
+      />
+    </NFormItemGi>
+    <template #actions>
+      <NButton :loading="loading" type="primary" @click="emit('search')">查询</NButton>
+      <NButton :disabled="loading" @click="emit('reset')">重置</NButton>
+    </template>
+  </FilterPanel>
 </template>
-
-<style scoped>
-.sequence-filter-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-</style>

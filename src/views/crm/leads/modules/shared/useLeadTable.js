@@ -1,14 +1,18 @@
-import { onMounted, reactive, shallowRef, watch } from 'vue';
+import { computed, h, onMounted, reactive, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useDialog, useMessage } from 'naive-ui';
+import { NButton, useDialog, useMessage, useNotification } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   archiveCrmAccount,
   createCrmContact,
   createCrmAccountNote,
+  createCrmFirstOutreachAiDraftTask,
   deleteCrmContact,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
+  fetchCrmMailboxes,
+  fetchCrmProductLines,
+  fetchCrmSequencePolicies,
   importCrmLead,
   refreshCrmAccountEnrichment,
   restoreCrmAccount,
@@ -17,16 +21,30 @@ import {
   updateCrmAccountStatus,
   verifyCrmContactEmail
 } from '@/service/api';
-import { buildLeadSearchParams, createDefaultLeadFilterModel, createDefaultLeadImportForm } from '../shared';
+import { createDefaultSequenceCreateForm } from '../../../email-sequences/modules/shared';
+import { isMailboxAvailableForSequence } from '../../../settings/modules/shared';
+import {
+  buildLeadSequenceTarget,
+  buildLeadSequenceTargetsFromCheckedRows,
+  buildLeadSearchParams,
+  canCreateSequenceFromLeadAccountContact,
+  createDefaultLeadFilterModel,
+  createDefaultLeadImportForm,
+  patchLeadEmailProgressForContacts
+} from '../shared';
 /** Manage CRM lead list request state, pagination and current-page derived stats. */
 export function useLeadTable() {
   const dialog = useDialog();
   const message = useMessage();
+  const notification = useNotification();
   const route = useRoute();
   const router = useRouter();
   const records = shallowRef([]);
+  const checkedLeadRowKeys = shallowRef([]);
   const loading = shallowRef(false);
   const detailVisible = shallowRef(false);
+  const detailActiveTab = shallowRef('overview');
+  const detailActiveContactId = shallowRef(null);
   const detailLoading = shallowRef(false);
   const importVisible = shallowRef(false);
   const importSubmitting = shallowRef(false);
@@ -40,6 +58,13 @@ export function useLeadTable() {
   const archiveOperatingId = shallowRef(null);
   const verifyingContactIds = shallowRef([]);
   const refreshingEnrichmentProvider = shallowRef(null);
+  const sequenceCreateVisible = shallowRef(false);
+  const sequenceCreateSubmitting = shallowRef(false);
+  const sequenceResourceLoading = shallowRef(false);
+  const sequenceTargets = shallowRef([]);
+  const sequenceMailboxOptions = shallowRef([]);
+  const sequenceProductLineOptions = shallowRef([]);
+  const sequencePolicyOptions = shallowRef([]);
   const expandedRowKeys = shallowRef([]);
   const expandedLeadDetails = shallowRef({});
   const expandedLeadLoadingIds = shallowRef([]);
@@ -53,6 +78,31 @@ export function useLeadTable() {
   });
   const filterModel = reactive(createDefaultLeadFilterModel());
   const importForm = reactive(createDefaultLeadImportForm());
+  const sequenceCreateForm = reactive(createDefaultSequenceCreateForm());
+  const checkedLeadSequenceTargets = computed(() =>
+    buildLeadSequenceTargetsFromCheckedRows(records.value, checkedLeadRowKeys.value)
+  );
+  const sequenceMailboxSelectOptions = computed(() =>
+    sequenceMailboxOptions.value
+      .filter(mailbox => isMailboxAvailableForSequence(mailbox))
+      .map(mailbox => ({
+        label: mailbox.maskedEmail,
+        value: mailbox.id
+      }))
+  );
+  const sequenceProductLineSelectOptions = computed(() =>
+    sequenceProductLineOptions.value.map(productLine => ({
+      label: productLine.name,
+      value: productLine.id,
+      aiWritingConfig: productLine.aiWritingConfig
+    }))
+  );
+  const sequencePolicySelectOptions = computed(() =>
+    sequencePolicyOptions.value.map(policy => ({
+      label: `${policy.name}${policy.isDefault ? ' · 默认' : ''}`,
+      value: policy.id
+    }))
+  );
   onMounted(() => {
     applyRouteFilters();
     void loadLeads();
@@ -102,13 +152,14 @@ export function useLeadTable() {
       pagination.size = data.size;
       pagination.total = data.total;
       syncExpandedRowsWithVisibleRecords(data.records);
+      checkedLeadRowKeys.value = checkedLeadRowKeys.value.filter(id => data.records.some(record => record.id === id));
     } finally {
       if (requestId === latestRequestId) {
         loading.value = false;
       }
     }
   }
-  /** Load detail for the selected lead and ignore stale drawer requests. */
+  /** Load detail for the selected lead and ignore stale communication-modal requests. */
   async function loadLeadDetail(id = selectedLeadId.value) {
     if (!id) {
       return;
@@ -121,7 +172,7 @@ export function useLeadTable() {
       if (error) {
         return;
       }
-      // The drawer may have switched to another lead while this request was in flight.
+      // The modal may have switched to another lead while this request was in flight.
       if (requestId !== latestDetailRequestId || selectedLeadId.value !== id) {
         return;
       }
@@ -132,9 +183,11 @@ export function useLeadTable() {
       }
     }
   }
-  /** Open detail drawer for one lead and start a fresh detail request. */
-  function openLeadDetail(record) {
+  /** Open the unified customer communication modal on the requested tab. */
+  function openLeadDetail(record, activeTab = 'overview', contactId) {
     selectedLeadId.value = record.id;
+    detailActiveTab.value = activeTab;
+    detailActiveContactId.value = contactId ?? record.primaryContact?.id ?? null;
     leadDetail.value = null;
     detailVisible.value = true;
     void loadLeadDetail(record.id);
@@ -180,10 +233,15 @@ export function useLeadTable() {
     detailVisible.value = show;
     if (!show) {
       selectedLeadId.value = null;
+      detailActiveTab.value = 'overview';
+      detailActiveContactId.value = null;
       leadDetail.value = null;
       detailLoading.value = false;
       latestDetailRequestId += 1;
     }
+  }
+  function handleDetailActiveTabUpdate(tab) {
+    detailActiveTab.value = tab;
   }
   function openImportModal() {
     Object.assign(importForm, createDefaultLeadImportForm());
@@ -233,6 +291,7 @@ export function useLeadTable() {
       }
       message.success('邮箱验证已完成');
       notifyCrmWorkbenchChanged();
+      await loadLeads();
       // Only refresh the drawer if the user is still viewing this contact's account.
       if (detailVisible.value && selectedLeadId.value === accountId) {
         await loadLeadDetail(accountId);
@@ -265,15 +324,94 @@ export function useLeadTable() {
       refreshingEnrichmentProvider.value = null;
     }
   }
-  /** Continue from a lead contact into the sequence review creation flow with the contact preselected. */
-  async function handleCreateSequenceFromContact(contact) {
-    await router.push({
-      path: '/crm/email-sequences',
-      query: {
-        accountId: contact.accountId,
-        contactId: contact.id
+  /** Open first-email generation modal for one contact in the customer workspace. */
+  function handleCreateSequenceFromContact(contact) {
+    if (!canOpenSequenceForContact(contact)) {
+      message.warning('只有未开发客户可以生成开发信');
+      return;
+    }
+    openSequenceCreateModal([buildLeadSequenceTarget(contact, findCachedLeadAccount(contact.accountId))]);
+  }
+  /** Open first-email generation modal for selected visible customer rows. */
+  function handleOpenBatchSequenceCreateModal() {
+    if (!checkedLeadSequenceTargets.value.length) {
+      message.warning('请先勾选可生成开发信的客户');
+      return;
+    }
+    openSequenceCreateModal(checkedLeadSequenceTargets.value);
+  }
+  function handleCheckedLeadRowKeysUpdate(keys) {
+    checkedLeadRowKeys.value = keys;
+  }
+  function handleSequenceCreateVisibleUpdate(show) {
+    sequenceCreateVisible.value = show;
+    if (!show) {
+      sequenceTargets.value = [];
+      Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+    }
+  }
+  /** Load sending resources needed by first-email generation. */
+  async function loadSequenceCreateResources() {
+    sequenceResourceLoading.value = true;
+    try {
+      const [mailboxes, productLines, sequencePolicies] = await Promise.all([
+        fetchCrmMailboxes({ current: 1, size: 100, status: 'active' }),
+        fetchCrmProductLines({ current: 1, size: 100, status: 'active' }),
+        fetchCrmSequencePolicies({ current: 1, size: 100, status: 'active' })
+      ]);
+      if (!mailboxes.error) sequenceMailboxOptions.value = mailboxes.data.records;
+      if (!productLines.error) sequenceProductLineOptions.value = productLines.data.records;
+      if (!sequencePolicies.error) sequencePolicyOptions.value = sequencePolicies.data.records;
+    } finally {
+      sequenceResourceLoading.value = false;
+    }
+  }
+  /** Create first-email drafts for selected contacts without leaving the customer page. */
+  async function handleCreateSequencesFromTargets() {
+    if (!sequenceTargets.value.length) {
+      return;
+    }
+    if (!sequenceCreateForm.mailboxId) {
+      message.warning('请选择发送邮箱');
+      return;
+    }
+    const submittedTargets = [...sequenceTargets.value];
+    const progressPatch = {
+      at: new Date().toISOString(),
+      contactIds: submittedTargets.map(target => target.contactId),
+      label: '正在生成中',
+      status: 'draft_pending_review'
+    };
+    sequenceCreateSubmitting.value = true;
+    try {
+      const { error } = await createCrmFirstOutreachAiDraftTask({
+        targets: submittedTargets.map(target => ({
+          accountId: target.accountId,
+          contactId: target.contactId
+        })),
+        ...(sequenceCreateForm.productLineId ? { productLineId: sequenceCreateForm.productLineId } : {}),
+        mailboxId: sequenceCreateForm.mailboxId,
+        ...(sequenceCreateForm.policyId ? { policyId: sequenceCreateForm.policyId } : {})
+      });
+      if (error) {
+        return;
       }
-    });
+      patchVisibleLeadEmailProgress(progressPatch);
+      showFirstOutreachProgressNotification(submittedTargets.length);
+      notifyCrmWorkbenchChanged();
+      checkedLeadRowKeys.value = [];
+      sequenceCreateVisible.value = false;
+      sequenceTargets.value = [];
+      Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+      await loadLeads();
+      patchVisibleLeadEmailProgress(progressPatch);
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+        patchVisibleLeadEmailProgress(progressPatch);
+      }
+    } finally {
+      sequenceCreateSubmitting.value = false;
+    }
   }
   async function handleCreateNote(payload) {
     const id = selectedLeadId.value;
@@ -486,6 +624,8 @@ export function useLeadTable() {
     accountSubmitting,
     contactDeletingId,
     contactSubmitting,
+    detailActiveTab,
+    detailActiveContactId,
     detailLoading,
     detailVisible,
     expandedLeadDetails,
@@ -493,22 +633,29 @@ export function useLeadTable() {
     expandedLeadLoadingIds,
     expandedRowKeys,
     filterModel,
+    checkedLeadRowKeys,
+    checkedLeadSequenceTargets,
     handleArchiveLead,
     handleUpdateAccount,
+    handleCheckedLeadRowKeysUpdate,
+    handleCreateSequencesFromTargets,
     handleImportLead,
     handleImportVisibleUpdate,
     handleCreateSequenceFromContact,
     handleCreateContact,
     handleCreateNote,
     handleDeleteContact,
+    handleDetailActiveTabUpdate,
     handleDetailVisibleUpdate,
     handleExpandedRowKeysUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
+    handleOpenBatchSequenceCreateModal,
     handleReset,
     handleRestoreLead,
     handleRefreshAccountEnrichment,
     handleSearch,
+    handleSequenceCreateVisibleUpdate,
     handleUpdateContact,
     handleUpdateStatus,
     handleVerifyContactEmail,
@@ -526,6 +673,14 @@ export function useLeadTable() {
     records,
     openLeadDetail,
     openImportModal,
+    sequenceCreateForm,
+    sequenceCreateSubmitting,
+    sequenceCreateVisible,
+    sequenceMailboxSelectOptions,
+    sequencePolicySelectOptions,
+    sequenceProductLineSelectOptions,
+    sequenceResourceLoading,
+    sequenceTargets,
     statusSubmitting,
     verifyingContactIds
   };
@@ -550,6 +705,62 @@ export function useLeadTable() {
       }
     }
     return null;
+  }
+  function findCachedLeadAccount(accountId) {
+    const record = records.value.find(item => item.id === accountId);
+    if (record) {
+      return record;
+    }
+    if (leadDetail.value?.account.id === accountId) {
+      return leadDetail.value.account;
+    }
+    return Object.values(expandedLeadDetails.value).find(detail => detail.account.id === accountId)?.account ?? null;
+  }
+  function canOpenSequenceForContact(contact) {
+    const account = findCachedLeadAccount(contact.accountId);
+    return account ? canCreateSequenceFromLeadAccountContact(account, contact) : false;
+  }
+  function openSequenceCreateModal(targets) {
+    sequenceTargets.value = targets;
+    Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+    sequenceCreateVisible.value = true;
+    void loadSequenceCreateResources();
+  }
+  /** Keep the visible customer table and open drawers aligned with submitted background generation. */
+  function patchVisibleLeadEmailProgress(patch) {
+    records.value = records.value.map(record => patchLeadEmailProgressForContacts(record, patch));
+    if (leadDetail.value) {
+      leadDetail.value = patchLeadEmailProgressForContacts(leadDetail.value, patch);
+    }
+    expandedLeadDetails.value = Object.fromEntries(
+      Object.entries(expandedLeadDetails.value).map(([id, detail]) => [
+        id,
+        patchLeadEmailProgressForContacts(detail, patch)
+      ])
+    );
+  }
+  /** Guide first-time users to the persisted AI draft task progress entry. */
+  function showFirstOutreachProgressNotification(count) {
+    const notice = notification.info({
+      title: '批量开发信生成中',
+      content: `已提交后台生成 ${count} 封开发信。客户开发台邮箱进度已标记为“正在生成中”，也可到邮箱调度查看任务进度。`,
+      meta: '系统通知',
+      duration: 0,
+      keepAliveOnHover: true,
+      action: () =>
+        h(
+          NButton,
+          {
+            size: 'small',
+            type: 'primary',
+            onClick: () => {
+              notice.destroy();
+              void router.push('/crm/email-sequences');
+            }
+          },
+          { default: () => '查看' }
+        )
+    });
   }
 }
 function getRouteQueryString(value) {

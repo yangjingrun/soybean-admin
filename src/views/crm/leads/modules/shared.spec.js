@@ -1,28 +1,34 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import * as leadShared from './shared.js';
+import * as leadShared from './shared';
 import {
   buildLeadQueueStats,
   buildLeadSearchParams,
+  buildLeadEmailProgressView,
   buildLeadExpandedContactView,
   buildLeadRowContactView,
+  buildLeadSequenceTarget,
+  buildLeadSequenceTargetsFromCheckedRows,
+  canCreateSequenceFromLeadRecord,
   canCreateSequenceFromLeadContact,
   crmLeadPageGuide,
+  formatLeadProgressTime,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
   getLeadNextAction,
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
   leadStatusLabelMap,
+  patchLeadEmailProgressForContacts,
   readArchivedFingerprintMatches,
   createDefaultLeadImportForm,
   normalizeLeadImportPayload
-} from './shared.js';
+} from './shared';
 describe('crm lead shared helpers', () => {
   it('uses plain business wording for AI leads handoff', () => {
-    assert.equal(crmLeadPageGuide.title, '客户管理承接 AI 获客结果');
-    assert.match(crmLeadPageGuide.description, /可开发客户创建开发任务/);
-    assert.match(crmLeadPageGuide.description, /暂不开发客户/);
+    assert.equal(crmLeadPageGuide.title, '客户开发台承接 AI 获客结果');
+    assert.match(crmLeadPageGuide.description, /邮箱进度和调度信息/);
+    assert.match(crmLeadPageGuide.description, /以联系人推进触达/);
     assert.equal(leadStatusLabelMap.archived, '暂不开发');
     assert.equal(leadStatusLabelMap.sequence_running, '开发中');
   });
@@ -204,6 +210,37 @@ describe('crm lead shared helpers', () => {
       ]
     );
   });
+  it('only treats ready untouched leads as sequence creation targets', () => {
+    const contact = createLeadContact({ emailStatus: 'valid' });
+    const readyLead = createLeadRecord({
+      id: 'lead-ready',
+      status: 'ready',
+      contactCount: 1,
+      primaryContact: { ...contact, id: 'contact-ready', accountId: 'lead-ready' }
+    });
+    const pausedLead = createLeadRecord({
+      id: 'lead-paused',
+      status: 'paused',
+      contactCount: 1,
+      primaryContact: { ...contact, id: 'contact-paused', accountId: 'lead-paused' }
+    });
+    const followedLead = createLeadRecord({
+      id: 'lead-followed',
+      status: 'followed_up',
+      contactCount: 1,
+      primaryContact: { ...contact, id: 'contact-followed', accountId: 'lead-followed' }
+    });
+    assert.equal(canCreateSequenceFromLeadRecord(readyLead), true);
+    assert.equal(canCreateSequenceFromLeadRecord(pausedLead), false);
+    assert.equal(canCreateSequenceFromLeadRecord(followedLead), false);
+    assert.deepEqual(
+      buildLeadSequenceTargetsFromCheckedRows(
+        [readyLead, pausedLead, followedLead],
+        ['lead-ready', 'lead-paused', 'lead-followed']
+      ).map(target => target.accountId),
+      ['lead-ready']
+    );
+  });
   it('maps lead statuses to queue-oriented next actions', () => {
     assert.deepEqual(getLeadNextAction('candidate'), {
       label: '人工复核',
@@ -240,6 +277,11 @@ describe('crm lead shared helpers', () => {
       description: '沉淀客户关系和后续机会',
       type: 'success'
     });
+    assert.deepEqual(getLeadNextAction('followed_up'), {
+      label: '继续跟进',
+      description: '按沟通结果推进后续动作',
+      type: 'success'
+    });
     assert.deepEqual(getLeadNextAction('invalid'), {
       label: '暂不开发',
       description: '移出日常开发队列',
@@ -267,6 +309,63 @@ describe('crm lead shared helpers', () => {
       'kr.misumi-ec.com'
     );
     assert.equal(formatLeadWebsiteDisplay({ websiteUrl: null, domain: null }), '-');
+  });
+  it('formats contact email progress with full datetime text', () => {
+    assert.equal(formatLeadProgressTime('2026-06-24T08:20:00.000Z'), '2026-06-24 16:20:00');
+    assert.equal(formatLeadProgressTime(null), '-');
+    assert.deepEqual(
+      buildLeadEmailProgressView(
+        createLeadContact({
+          emailProgressStatus: 'draft_ready',
+          emailProgressLabel: '第 1/5 封已排期',
+          emailProgressAt: '2026-06-24T08:20:00.000Z'
+        })
+      ),
+      {
+        label: '第 1/5 封已排期',
+        timeText: '2026-06-24 16:20:00',
+        tagType: 'info'
+      }
+    );
+    assert.deepEqual(
+      buildLeadEmailProgressView(
+        createLeadContact({
+          emailProgressStatus: 'replied',
+          emailProgressLabel: '客户已回复',
+          emailProgressAt: '2026-06-24T07:58:12.000Z'
+        })
+      ),
+      {
+        label: '客户已回复',
+        timeText: '2026-06-24 15:58:12',
+        tagType: 'warning'
+      }
+    );
+  });
+  it('patches visible lead email progress after background draft generation starts', () => {
+    const targetContact = createLeadContact({ id: 'contact-1', accountId: 'lead-1' });
+    const untouchedContact = createLeadContact({ id: 'contact-2', accountId: 'lead-1' });
+    const patch = {
+      at: '2026-06-24T10:00:00.000Z',
+      contactIds: ['contact-1'],
+      label: '正在生成中',
+      status: 'draft_pending_review'
+    };
+    const record = createLeadRecord({ primaryContact: targetContact });
+    const detail = {
+      account: record,
+      contacts: [targetContact, untouchedContact],
+      enrichmentHistories: [],
+      timelineEvents: []
+    };
+    const patchedRecord = patchLeadEmailProgressForContacts(record, patch);
+    const patchedDetail = patchLeadEmailProgressForContacts(detail, patch);
+    assert.equal(patchedRecord.primaryContact?.emailProgressLabel, '正在生成中');
+    assert.equal(patchedRecord.primaryContact?.emailProgressStatus, 'draft_pending_review');
+    assert.equal(patchedRecord.primaryContact?.emailProgressAt, '2026-06-24T10:00:00.000Z');
+    assert.equal(patchedDetail.contacts[0]?.emailProgressLabel, '正在生成中');
+    assert.equal(patchedDetail.contacts[1]?.emailProgressLabel, '首封待生成');
+    assert.equal(buildLeadEmailProgressView(patchedDetail.contacts[0]).label, '正在生成中');
   });
   it('builds lead search params from field filters', () => {
     const params = buildLeadSearchParams({
@@ -371,7 +470,30 @@ describe('crm lead shared helpers', () => {
     assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unreachable' })), false);
     assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unsubscribed' })), false);
   });
-  it('builds city region keyword params from cascader filters', () => {
+  it('builds first-email generation targets from contacts and checked rows', () => {
+    const validContact = createLeadContact({ id: 'contact-1', accountId: 'lead-1', emailStatus: 'valid' });
+    const invalidContact = createLeadContact({ id: 'contact-2', accountId: 'lead-2', emailStatus: 'invalid' });
+    assert.deepEqual(buildLeadSequenceTarget(validContact, createLeadRecord({ id: 'lead-1', name: 'ABC Trading' })), {
+      accountId: 'lead-1',
+      accountName: 'ABC Trading',
+      contactId: 'contact-1',
+      contactName: 'Alex Buyer',
+      contactTitle: 'Buyer',
+      maskedEmail: 'a***@example.com'
+    });
+    assert.deepEqual(
+      buildLeadSequenceTargetsFromCheckedRows(
+        [
+          createLeadRecord({ id: 'lead-1', name: 'ABC Trading', status: 'ready', primaryContact: validContact }),
+          createLeadRecord({ id: 'lead-2', name: 'Invalid Lead', status: 'ready', primaryContact: invalidContact }),
+          createLeadRecord({ id: 'lead-3', name: 'No Contact', status: 'ready', primaryContact: null })
+        ],
+        ['lead-1', 'lead-2', 'lead-3']
+      ),
+      [buildLeadSequenceTarget(validContact, createLeadRecord({ id: 'lead-1', name: 'ABC Trading' }))]
+    );
+  });
+  it('builds province/state region keyword params from cascader filters', () => {
     const params = buildLeadSearchParams({
       current: 1,
       size: 10,
@@ -379,14 +501,14 @@ describe('crm lead shared helpers', () => {
         keyword: '',
         contactTitle: '',
         customerType: '',
-        region: 'city:US:Los%20Angeles:Los%20Angeles',
+        region: 'admin1:US:CA:California::%E5%8A%A0%E5%88%A9%E7%A6%8F%E5%B0%BC%E4%BA%9A%E5%B7%9E',
         status: null,
         sourceTaskId: null,
         updatedAtRange: null
       }
     });
     assert.equal(params.region, undefined);
-    assert.equal(params.regionKeywords, 'Los Angeles');
+    assert.equal(params.regionKeywords, '加利福尼亚州,California');
   });
 });
 function createTimelineEvent(input = {}) {
@@ -440,6 +562,12 @@ function createLeadContact(input = {}) {
     maskedEmail: input.maskedEmail ?? 'a***@example.com',
     isPublicEmail: input.isPublicEmail ?? false,
     emailStatus: input.emailStatus ?? 'unchecked',
+    emailProgressStatus: input.emailProgressStatus ?? 'not_generated',
+    emailProgressLabel: input.emailProgressLabel ?? '首封待生成',
+    emailProgressAt: input.emailProgressAt ?? null,
+    emailProgressMessageId: input.emailProgressMessageId ?? null,
+    emailProgressStepIndex: input.emailProgressStepIndex ?? null,
+    emailProgressTotalSteps: input.emailProgressTotalSteps ?? null,
     sourceTaskId: input.sourceTaskId ?? null,
     createdAt: input.createdAt ?? '2026-06-19T00:00:00.000Z',
     updatedAt: input.updatedAt ?? '2026-06-19T00:00:00.000Z'

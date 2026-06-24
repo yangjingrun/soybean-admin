@@ -189,14 +189,24 @@ export const sequenceBatchResultTagTypeMap: Record<Api.Crm.SequenceBatchItemStat
   failed: 'error'
 };
 
+export const sequenceCreatedAtScopeLabelMap: Record<Api.Crm.SequenceReviewCreatedAtScope, string> = {
+  today: '今天',
+  yesterday: '昨天',
+  last_3_days: '最近三天',
+  last_7_days: '最近一周',
+  last_30_days: '最近一月'
+};
+
 /** Create the default sequence review filter object for initial load and reset. */
 export function createDefaultSequenceFilterModel(): Api.Crm.SequenceReviewFilterModel {
   return {
     keyword: '',
+    currentStep: null,
     status: null,
     todoType: null,
     messageStatus: null,
-    dateScope: null
+    dateScope: null,
+    createdAtScope: null
   };
 }
 
@@ -228,6 +238,10 @@ export function buildSequenceReviewSearchParams(options: {
     params.keyword = keyword;
   }
 
+  if (filterModel.currentStep) {
+    params.currentStep = filterModel.currentStep;
+  }
+
   if (filterModel.status) {
     params.status = filterModel.status;
   }
@@ -244,6 +258,10 @@ export function buildSequenceReviewSearchParams(options: {
     params.dateScope = filterModel.dateScope;
   }
 
+  if (filterModel.createdAtScope) {
+    params.createdAtScope = filterModel.createdAtScope;
+  }
+
   return params;
 }
 
@@ -255,7 +273,11 @@ export function buildSequenceReviewFilterTags(
   const keyword = filterModel.keyword.trim();
 
   if (keyword) {
-    tags.push({ key: 'keyword', label: `关键词：${keyword}` });
+    tags.push({ key: 'keyword', label: `公司域名：${keyword}` });
+  }
+
+  if (filterModel.currentStep) {
+    tags.push({ key: 'currentStep', label: `跟进进度：第 ${filterModel.currentStep} 封` });
   }
 
   if (filterModel.status) {
@@ -273,6 +295,13 @@ export function buildSequenceReviewFilterTags(
 
   if (filterModel.dateScope === 'today') {
     tags.push({ key: 'dateScope', label: '时间：今天' });
+  }
+
+  if (filterModel.createdAtScope) {
+    tags.push({
+      key: 'createdAtScope',
+      label: `创建时间：${sequenceCreatedAtScopeLabelMap[filterModel.createdAtScope]}`
+    });
   }
 
   return tags;
@@ -784,6 +813,18 @@ export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): S
   const failedMessages = getFailedSequenceMessages(item.messages);
   const currentMessage = getCurrentSequenceMessage(item);
 
+  if (isFirstOutreachGenerating(item)) {
+    return {
+      label: '后台生成中',
+      description: '系统正在生成首封开发信，完成后会进入发送计划',
+      failedCheckCount: 0,
+      failedMessageCount: 0,
+      passedCheckCount: checklist.passedCount,
+      tagType: 'info',
+      totalCheckCount: checklist.total
+    };
+  }
+
   if (failedMessages.length > 0) {
     return {
       label: '发送失败',
@@ -862,6 +903,15 @@ export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): S
 /** Describe the next expected user or system action for one sequence row. */
 export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): SequenceNextActionView {
   const currentMessage = getCurrentSequenceMessage(item);
+
+  if (isFirstOutreachGenerating(item)) {
+    return {
+      label: '后台生成中',
+      description: '系统正在生成首封开发信，完成后会进入发送计划',
+      buttonLabel: '查看',
+      tagType: 'info'
+    };
+  }
 
   if (currentMessage?.status === 'draft_pending_review') {
     return {
@@ -972,6 +1022,11 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
     buttonLabel: '查看',
     tagType: 'default'
   };
+}
+
+/** Check whether a placeholder sequence is waiting for its first AI email. */
+export function isFirstOutreachGenerating(item: Api.Crm.SequenceReviewItem) {
+  return item.enrollment.status === 'draft_review_pending' && !item.firstMessage && item.messages.length === 0;
 }
 
 /** Format backend sequence progress as a compact table label. */

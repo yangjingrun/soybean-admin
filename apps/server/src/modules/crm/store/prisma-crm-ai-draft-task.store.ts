@@ -22,6 +22,7 @@ import type {
   CrmAiDraftTaskCreateInput,
   CrmAiDraftTaskItemUpdateGuard,
   CrmAiDraftTaskItemUpdateInput,
+  CrmFirstOutreachAiDraftTaskCreateInput,
   CrmAiDraftTaskUpdateGuard,
   CrmAiDraftTaskUpdateInput
 } from '../crm.types';
@@ -40,6 +41,113 @@ export class PrismaCrmAiDraftTaskStore implements CrmAiDraftTaskRepository {
       });
     } catch (error) {
       // Serializable conflicts mean another creator won the same capacity window.
+      if (isPrismaConcurrentTaskCreateConflict(error)) {
+        return {
+          task: null,
+          limitReason: 'concurrent_create_conflict' as const
+        };
+      }
+
+      throw error;
+    }
+  }
+
+  async createFirstOutreachAiDraftTask(input: CrmFirstOutreachAiDraftTaskCreateInput) {
+    try {
+      return await this.prisma.$transaction(
+        async tx => {
+          const configRecord = await tx.crmAiDraftQueueConfig.findUnique({
+            where: { configKey: crmAiDraftQueueConfigKey }
+          });
+          const config = configRecord ? toAiDraftQueueConfigRecord(configRecord) : createDefaultAiDraftQueueConfig();
+          const [activeUserTaskCount, activeOrgTaskCount] = await Promise.all([
+            tx.crmAiDraftTask.count({
+              where: {
+                organizationId: input.organizationId,
+                ownerUserId: input.ownerUserId,
+                status: { in: crmAiDraftActiveTaskStatuses }
+              }
+            }),
+            tx.crmAiDraftTask.count({
+              where: {
+                organizationId: input.organizationId,
+                status: { in: crmAiDraftActiveTaskStatuses }
+              }
+            })
+          ]);
+
+          if (activeUserTaskCount >= config.maxActiveTasksPerUser) {
+            return { task: null, limitReason: 'user_active_limit' as const };
+          }
+
+          if (activeOrgTaskCount >= config.maxActiveTasksPerOrg) {
+            return { task: null, limitReason: 'organization_active_limit' as const };
+          }
+
+          const enrollmentIds: string[] = [];
+
+          for (const item of input.enrollments) {
+            const enrollment = await tx.crmSequenceEnrollment.create({
+              data: item.enrollment as Prisma.CrmSequenceEnrollmentUncheckedCreateInput
+            });
+            enrollmentIds.push(enrollment.id);
+          }
+
+          await tx.crmAccount.updateMany({
+            where: {
+              id: { in: input.enrollments.map(item => item.enrollment.accountId) },
+              organizationId: input.organizationId,
+              ownerUserId: input.ownerUserId
+            },
+            data: { status: input.accountStatus }
+          });
+
+          const effectiveConcurrency = normalizeCrmAiDraftItemConcurrency(
+            config.itemConcurrency,
+            config.maxItemConcurrency
+          );
+          const maxAttempts = normalizeCrmAiDraftMaxAttempts(config.maxAttempts);
+          const task = await tx.crmAiDraftTask.create({
+            data: {
+              organizationId: input.organizationId,
+              organizationRole: input.organizationRole ?? null,
+              ownerUserId: input.ownerUserId,
+              ownerUserName: input.ownerUserName ?? null,
+              status: 'queued',
+              requestedCount: input.requestedCount,
+              pendingCount: input.enrollments.length,
+              effectiveConcurrency,
+              maxAttempts
+            } as Prisma.CrmAiDraftTaskUncheckedCreateInput
+          });
+
+          await tx.crmAiDraftTaskItem.createMany({
+            data: input.enrollments.map((item, index) => ({
+              taskId: task.id,
+              organizationId: input.organizationId,
+              ownerUserId: input.ownerUserId,
+              enrollmentId: enrollmentIds[index],
+              messageId: null,
+              contactId: item.item.contactId ?? null,
+              accountId: item.item.accountId ?? null,
+              productLineId: item.item.productLineId ?? null,
+              stepIndex: 1,
+              status: 'pending',
+              maxAttempts,
+              metadata: toNullableJsonInput({ kind: 'first_outreach' })
+            })) as Prisma.CrmAiDraftTaskItemCreateManyInput[]
+          });
+
+          return {
+            task: toAiDraftTaskRecord(task),
+            enrollmentIds
+          };
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        }
+      );
+    } catch (error) {
       if (isPrismaConcurrentTaskCreateConflict(error)) {
         return {
           task: null,

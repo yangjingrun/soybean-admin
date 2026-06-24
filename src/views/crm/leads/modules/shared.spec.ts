@@ -19,6 +19,7 @@ import {
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
   leadStatusLabelMap,
+  patchLeadEmailProgressForContacts,
   readArchivedFingerprintMatches,
   createDefaultLeadImportForm,
   normalizeLeadImportPayload
@@ -246,11 +247,10 @@ describe('crm lead shared helpers', () => {
     assert.equal(canCreateSequenceFromLeadRecord(pausedLead), false);
     assert.equal(canCreateSequenceFromLeadRecord(followedLead), false);
     assert.deepEqual(
-      buildLeadSequenceTargetsFromCheckedRows([readyLead, pausedLead, followedLead], [
-        'lead-ready',
-        'lead-paused',
-        'lead-followed'
-      ]).map(target => target.accountId),
+      buildLeadSequenceTargetsFromCheckedRows(
+        [readyLead, pausedLead, followedLead],
+        ['lead-ready', 'lead-paused', 'lead-followed']
+      ).map(target => target.accountId),
       ['lead-ready']
     );
   });
@@ -357,6 +357,34 @@ describe('crm lead shared helpers', () => {
         tagType: 'warning'
       }
     );
+  });
+
+  it('patches visible lead email progress after background draft generation starts', () => {
+    const targetContact = createLeadContact({ id: 'contact-1', accountId: 'lead-1' });
+    const untouchedContact = createLeadContact({ id: 'contact-2', accountId: 'lead-1' });
+    const patch = {
+      at: '2026-06-24T10:00:00.000Z',
+      contactIds: ['contact-1'],
+      label: '正在生成中',
+      status: 'draft_pending_review' as const
+    };
+    const record = createLeadRecord({ primaryContact: targetContact });
+    const detail: Api.Crm.LeadDetail = {
+      account: record,
+      contacts: [targetContact, untouchedContact],
+      enrichmentHistories: [],
+      timelineEvents: []
+    };
+
+    const patchedRecord = patchLeadEmailProgressForContacts(record, patch);
+    const patchedDetail = patchLeadEmailProgressForContacts(detail, patch);
+
+    assert.equal(patchedRecord.primaryContact?.emailProgressLabel, '正在生成中');
+    assert.equal(patchedRecord.primaryContact?.emailProgressStatus, 'draft_pending_review');
+    assert.equal(patchedRecord.primaryContact?.emailProgressAt, '2026-06-24T10:00:00.000Z');
+    assert.equal(patchedDetail.contacts[0]?.emailProgressLabel, '正在生成中');
+    assert.equal(patchedDetail.contacts[1]?.emailProgressLabel, '首封待生成');
+    assert.equal(buildLeadEmailProgressView(patchedDetail.contacts[0]!).label, '正在生成中');
   });
 
   it('builds lead search params from field filters', () => {

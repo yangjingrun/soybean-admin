@@ -93,6 +93,15 @@ export function createCrmAiDraftTask(data: Api.Crm.CreateAiDraftTaskPayload) {
   });
 }
 
+/** Create one background CRM AI draft task for first outreach emails. */
+export function createCrmFirstOutreachAiDraftTask(data: Api.Crm.CreateFirstOutreachAiDraftTaskPayload) {
+  return request<Api.Crm.AiDraftTaskDetail>({
+    url: '/crm/ai-draft-tasks/first-outreach',
+    method: 'post',
+    data
+  });
+}
+
 /** Read the current active or unread CRM AI draft task for the owner. */
 export function fetchCurrentCrmAiDraftTask() {
   return request<Api.Crm.AiDraftTaskDetail | null>({

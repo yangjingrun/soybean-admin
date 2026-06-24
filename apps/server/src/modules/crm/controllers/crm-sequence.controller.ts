@@ -7,6 +7,7 @@ import { CrmControllerBase } from '../crm-controller.helpers';
 import type { CrmUserContext } from '../crm.types';
 import { BatchCrmSequenceReviewItemsDto } from '../dto/batch-crm-sequence-review-items.dto';
 import { CreateCrmAiDraftTaskDto } from '../dto/create-crm-ai-draft-task.dto';
+import { CreateCrmFirstOutreachAiDraftTaskDto } from '../dto/create-crm-first-outreach-ai-draft-task.dto';
 import { CreateCrmSequenceReviewItemDto } from '../dto/create-crm-sequence-review-item.dto';
 import { CrmAiDraftTaskQueryDto } from '../dto/crm-ai-draft-task-query.dto';
 import { CrmSequenceReviewQueryDto } from '../dto/crm-sequence-review-query.dto';
@@ -84,6 +85,14 @@ export class CrmSequenceController extends CrmControllerBase {
     @Body() dto: CreateCrmAiDraftTaskDto
   ) {
     return ok(await this.aiDraftTaskService.createAiDraftTask(dto, this.requireUserContext(context)));
+  }
+
+  @Post('ai-draft-tasks/first-outreach')
+  async createFirstOutreachAiDraftTask(
+    @CurrentContext() context: CrmUserContext | null = null,
+    @Body() dto: CreateCrmFirstOutreachAiDraftTaskDto
+  ) {
+    return ok(await this.aiDraftTaskService.createFirstOutreachAiDraftTask(dto, this.requireUserContext(context)));
   }
 
   @Get('ai-draft-tasks/current')

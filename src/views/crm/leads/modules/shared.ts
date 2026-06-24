@@ -84,6 +84,13 @@ export interface LeadEmailProgressView {
   tagType: NaiveUI.ThemeColor;
 }
 
+export interface LeadEmailProgressPatch {
+  at: string;
+  contactIds: string[];
+  label: string;
+  status: Api.Crm.ContactEmailProgressStatus;
+}
+
 export interface LeadSequenceTarget {
   accountId: string;
   accountName: string;
@@ -515,9 +522,7 @@ export function canCreateSequenceFromLeadAccountContact(
 
 /** Check whether a visible customer row can be selected for first-email generation. */
 export function canCreateSequenceFromLeadRecord(record: Api.Crm.LeadRecord) {
-  return Boolean(
-    record.primaryContact && canCreateSequenceFromLeadAccountContact(record, record.primaryContact)
-  );
+  return Boolean(record.primaryContact && canCreateSequenceFromLeadAccountContact(record, record.primaryContact));
 }
 
 /** Build the readonly target shown before creating first-email drafts from the customer page. */
@@ -577,6 +582,32 @@ export function buildLeadEmailProgressView(contact: Api.Crm.LeadContact): LeadEm
   };
 }
 
+/** Patch visible contacts after submitting background first-email generation. */
+export function patchLeadEmailProgressForContacts(
+  source: Api.Crm.LeadRecord,
+  patch: LeadEmailProgressPatch
+): Api.Crm.LeadRecord;
+export function patchLeadEmailProgressForContacts(
+  source: Api.Crm.LeadDetail,
+  patch: LeadEmailProgressPatch
+): Api.Crm.LeadDetail;
+export function patchLeadEmailProgressForContacts(
+  source: Api.Crm.LeadRecord | Api.Crm.LeadDetail,
+  patch: LeadEmailProgressPatch
+) {
+  const contactIdSet = new Set(patch.contactIds);
+
+  if (sourceIsLeadDetail(source)) {
+    return {
+      ...source,
+      account: patchLeadRecordPrimaryContact(source.account, contactIdSet, patch),
+      contacts: source.contacts.map(contact => patchLeadContact(contact, contactIdSet, patch))
+    };
+  }
+
+  return patchLeadRecordPrimaryContact(source, contactIdSet, patch);
+}
+
 /** Format optional backend text for compact descriptions. */
 export function formatLeadText(value: string | null | undefined) {
   return value || '-';
@@ -585,6 +616,42 @@ export function formatLeadText(value: string | null | undefined) {
 /** Read the timeline label from known event types, falling back to the backend title. */
 export function formatLeadTimelineTitle(event: Api.Crm.LeadTimelineEvent) {
   return event.title || leadTimelineEventLabelMap[event.eventType] || event.eventType;
+}
+
+function patchLeadRecordPrimaryContact(
+  record: Api.Crm.LeadRecord,
+  contactIdSet: Set<string>,
+  patch: LeadEmailProgressPatch
+) {
+  if (!record.primaryContact || !contactIdSet.has(record.primaryContact.id)) {
+    return record;
+  }
+
+  return {
+    ...record,
+    primaryContact: patchLeadContact(record.primaryContact, contactIdSet, patch)
+  };
+}
+
+function patchLeadContact(
+  contact: Api.Crm.LeadContact,
+  contactIdSet: Set<string>,
+  patch: LeadEmailProgressPatch
+): Api.Crm.LeadContact {
+  if (!contactIdSet.has(contact.id)) {
+    return contact;
+  }
+
+  return {
+    ...contact,
+    emailProgressStatus: patch.status,
+    emailProgressLabel: patch.label,
+    emailProgressAt: patch.at
+  };
+}
+
+function sourceIsLeadDetail(source: Api.Crm.LeadRecord | Api.Crm.LeadDetail): source is Api.Crm.LeadDetail {
+  return 'account' in source && 'contacts' in source;
 }
 
 /** Read only the backend archived-fingerprint reminder event from account timeline. */

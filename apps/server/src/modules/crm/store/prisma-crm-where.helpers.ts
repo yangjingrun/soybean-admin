@@ -275,10 +275,12 @@ export function toSequenceEnrollmentListWhere(args: {
   organizationId: string;
   ownerUserId?: string;
   keyword?: string;
+  currentStep?: number;
   status?: CrmSequenceEnrollmentStatus;
   todoType?: CrmSequenceReviewTodoType;
   messageStatus?: CrmMessageStatus;
   dateScope?: 'today';
+  createdAtScope?: 'today' | 'yesterday' | 'last_3_days' | 'last_7_days' | 'last_30_days';
   now?: Date;
 }): Prisma.CrmSequenceEnrollmentWhereInput {
   const keywordFilter = args.keyword ? toSequenceEnrollmentKeywordFilter(args.keyword) : undefined;
@@ -289,10 +291,36 @@ export function toSequenceEnrollmentListWhere(args: {
   return {
     organizationId: args.organizationId,
     ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
+    ...(args.currentStep ? { currentStep: args.currentStep } : {}),
     ...(args.status ? { status: args.status } : {}),
+    ...(args.createdAtScope
+      ? { createdAt: toSequenceCreatedAtRange(args.createdAtScope, args.now ?? new Date()) }
+      : {}),
     ...(keywordFilter ? { OR: keywordFilter } : {}),
     ...(andFilters.length > 0 ? { AND: andFilters } : {})
   };
+}
+
+/** Converts UI quick ranges into CRM business-day based enrollment creation windows. */
+export function toSequenceCreatedAtRange(
+  scope: 'today' | 'yesterday' | 'last_3_days' | 'last_7_days' | 'last_30_days',
+  now = new Date()
+) {
+  const todayStart = startOfCrmBusinessDay(now);
+  const tomorrowStart = addCrmBusinessDays(todayStart, 1);
+
+  if (scope === 'yesterday') {
+    return toDateRange(addCrmBusinessDays(todayStart, -1), todayStart);
+  }
+
+  const startOffsetMap = {
+    today: 0,
+    last_3_days: -2,
+    last_7_days: -6,
+    last_30_days: -29
+  } satisfies Record<Exclude<typeof scope, 'yesterday'>, number>;
+
+  return toDateRange(addCrmBusinessDays(todayStart, startOffsetMap[scope]), tomorrowStart);
 }
 
 export function toSequenceEnrollmentMessageWhere(

@@ -17,6 +17,16 @@ describe('crm region cascader component', () => {
     assert.match(componentSource, /display:\s*none/);
     assert.match(componentSource, /:render-prefix="renderEmptyRegionPrefix"/);
   });
+  it('keeps compact option spacing after checkbox prefixes are removed', () => {
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option\)/);
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option--show-prefix/);
+    assert.match(componentSource, /padding-left:\s*8px/);
+  });
+  it('keeps filtered search menu height consistent with the default cascader menu', () => {
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-base-select-menu \.n-scrollbar/);
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-base-select-menu-option-wrapper/);
+    assert.match(componentSource, /max-height:\s*var\(--n-menu-height\)/);
+  });
   it('selects country nodes when clicking the rendered country label', () => {
     assert.match(componentSource, /function handleRegionLabelClick/);
     assert.match(componentSource, /option\.nodeType !== 'country'/);

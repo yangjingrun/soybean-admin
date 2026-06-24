@@ -133,15 +133,6 @@ function renderEmailProgress(contact: Api.Crm.LeadContact | null) {
   ]);
 }
 
-function renderRecentInteraction(row: Api.Crm.LeadRecord) {
-  const contactProgressAt = row.primaryContact?.emailProgressAt;
-
-  return h('div', { class: 'lead-stack-cell' }, [
-    h('span', { class: 'lead-primary-text' }, contactProgressAt ? '邮箱进度更新' : '客户资料更新'),
-    h('span', { class: 'lead-secondary-text' }, formatLeadDate(contactProgressAt || row.updatedAt))
-  ]);
-}
-
 function canCreateSequenceFromExpandedContact(contact: Api.Crm.LeadContact) {
   const account = props.records.find(record => record.id === contact.accountId);
 
@@ -415,12 +406,6 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
       render: row => renderEmailProgress(row.primaryContact)
     },
     {
-      key: 'latestInteraction',
-      title: '最近互动',
-      width: 150,
-      render: row => renderRecentInteraction(row)
-    },
-    {
       key: 'updatedAt',
       title: '更新时间',
       width: 180,
@@ -535,7 +520,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="客户开发台">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="">
     <NSpace vertical :size="12">
       <div class="table-toolbar">
         <span class="lead-secondary-text">已选 {{ checkedSequenceTargetCount ?? 0 }} 个可生成联系人</span>
@@ -556,7 +541,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1420"
+        :scroll-x="1270"
         size="small"
         remote
         @update:checked-row-keys="handleCheckedRowKeysUpdate"

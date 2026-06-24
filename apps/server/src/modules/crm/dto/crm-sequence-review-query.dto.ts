@@ -11,6 +11,8 @@ import {
 
 const crmSequenceReviewDateScopes = ['today'] as const;
 type CrmSequenceReviewDateScope = (typeof crmSequenceReviewDateScopes)[number];
+const crmSequenceReviewCreatedAtScopes = ['today', 'yesterday', 'last_3_days', 'last_7_days', 'last_30_days'] as const;
+type CrmSequenceReviewCreatedAtScope = (typeof crmSequenceReviewCreatedAtScopes)[number];
 
 function trimOptionalString({ value }: { value: unknown }) {
   if (typeof value !== 'string') return value;
@@ -40,6 +42,13 @@ export class CrmSequenceReviewQueryDto {
   keyword?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(99)
+  currentStep?: number;
+
+  @IsOptional()
   @IsIn(crmSequenceEnrollmentStatuses)
   @Transform(trimOptionalString)
   status?: CrmSequenceEnrollmentStatus;
@@ -58,4 +67,9 @@ export class CrmSequenceReviewQueryDto {
   @IsIn(crmSequenceReviewDateScopes)
   @Transform(trimOptionalString)
   dateScope?: CrmSequenceReviewDateScope;
+
+  @IsOptional()
+  @IsIn(crmSequenceReviewCreatedAtScopes)
+  @Transform(trimOptionalString)
+  createdAtScope?: CrmSequenceReviewCreatedAtScope;
 }

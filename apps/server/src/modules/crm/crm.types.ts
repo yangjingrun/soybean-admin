@@ -1234,6 +1234,29 @@ export interface CrmFollowUpDraftBundleRecord {
   event: CrmTimelineEventRecord;
 }
 
+export interface CrmFirstOutreachDraftBundleCreateInput {
+  enrollmentId: string;
+  organizationId: string;
+  ownerUserId: string;
+  expectedEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  taskGuard: {
+    taskId: string;
+    runVersion: number;
+    status: CrmAiDraftTaskStatus | CrmAiDraftTaskStatus[];
+  };
+  message: Omit<CrmMessageCreateInput, 'enrollmentId'>;
+  timelineEvent: CrmTimelineEventCreateInput;
+  nextEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  accountStatus: CrmAccountStatus;
+}
+
+export interface CrmFirstOutreachDraftBundleRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
 export interface CrmMessageDraftUpdateGuard {
   status: CrmMessageStatus;
 }

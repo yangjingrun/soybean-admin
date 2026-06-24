@@ -22,6 +22,7 @@ export interface CrmAiDraftTaskResultSummary {
 }
 
 export interface CrmAiDraftTaskItemMetadata {
+  kind?: 'first_outreach' | 'follow_up';
   generatedMessageId?: string | null;
   aiDraft?: unknown | null;
   nextRetryAt?: string | null;
@@ -128,6 +129,25 @@ export interface CrmAiDraftTaskCreateInput {
   items: CrmAiDraftTaskCreateItemInput[];
 }
 
+export interface CrmFirstOutreachAiDraftTaskEnrollmentInput {
+  enrollment: import('./crm.types').CrmSequenceEnrollmentCreateInput;
+  item: Omit<CrmAiDraftTaskCreateItemInput, 'enrollmentId' | 'stepIndex' | 'status' | 'metadata'>;
+}
+
+export interface CrmFirstOutreachAiDraftTaskCreateInput {
+  organizationId: string;
+  organizationRole?: string | null;
+  ownerUserId: string;
+  ownerUserName?: string | null;
+  requestedCount: number;
+  enrollments: CrmFirstOutreachAiDraftTaskEnrollmentInput[];
+  accountStatus: import('./crm.types').CrmAccountStatus;
+}
+
+export interface CrmFirstOutreachAiDraftTaskCreateResult extends CrmAiDraftTaskCreateResult {
+  enrollmentIds?: string[];
+}
+
 export type CrmAiDraftTaskCreateLimitReason =
   | 'user_active_limit'
   | 'organization_active_limit'
@@ -206,6 +226,9 @@ export interface CrmAiDraftTaskQueuePort {
 
 export interface CrmAiDraftTaskStore {
   createAiDraftTask(input: CrmAiDraftTaskCreateInput): Promise<CrmAiDraftTaskCreateResult>;
+  createFirstOutreachAiDraftTask(
+    input: CrmFirstOutreachAiDraftTaskCreateInput
+  ): Promise<CrmFirstOutreachAiDraftTaskCreateResult>;
   countActiveAiDraftTasksForUser(input: { organizationId: string; ownerUserId: string }): Promise<number>;
   countActiveAiDraftTasksForOrg(input: { organizationId: string }): Promise<number>;
   findCurrentAiDraftTaskForUser(input: {

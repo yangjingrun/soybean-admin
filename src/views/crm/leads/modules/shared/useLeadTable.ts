@@ -1,12 +1,12 @@
-import { computed, onMounted, reactive, shallowRef, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useDialog, useMessage } from 'naive-ui';
+import { computed, h, onMounted, reactive, shallowRef, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { NButton, useDialog, useMessage, useNotification } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   archiveCrmAccount,
   createCrmContact,
   createCrmAccountNote,
-  createCrmSequenceReviewItem,
+  createCrmFirstOutreachAiDraftTask,
   deleteCrmContact,
   fetchCrmAccountDetail,
   fetchCrmAccounts,
@@ -21,7 +21,7 @@ import {
   updateCrmAccountStatus,
   verifyCrmContactEmail
 } from '@/service/api';
-import { createDefaultSequenceCreateForm, normalizeSequenceCreatePayload } from '../../../email-sequences/modules/shared';
+import { createDefaultSequenceCreateForm } from '../../../email-sequences/modules/shared';
 import { isMailboxAvailableForSequence } from '../../../settings/modules/shared';
 import {
   buildLeadSequenceTarget,
@@ -30,7 +30,9 @@ import {
   canCreateSequenceFromLeadAccountContact,
   createDefaultLeadFilterModel,
   createDefaultLeadImportForm,
+  patchLeadEmailProgressForContacts,
   type LeadCommunicationTab,
+  type LeadEmailProgressPatch,
   type LeadSequenceTarget
 } from '../shared';
 
@@ -38,7 +40,9 @@ import {
 export function useLeadTable() {
   const dialog = useDialog();
   const message = useMessage();
+  const notification = useNotification();
   const route = useRoute();
+  const router = useRouter();
   const records = shallowRef<Api.Crm.LeadRecord[]>([]);
   const checkedLeadRowKeys = shallowRef<string[]>([]);
   const loading = shallowRef(false);
@@ -85,10 +89,12 @@ export function useLeadTable() {
     buildLeadSequenceTargetsFromCheckedRows(records.value, checkedLeadRowKeys.value)
   );
   const sequenceMailboxSelectOptions = computed(() =>
-    sequenceMailboxOptions.value.filter(mailbox => isMailboxAvailableForSequence(mailbox)).map(mailbox => ({
-      label: mailbox.maskedEmail,
-      value: mailbox.id
-    }))
+    sequenceMailboxOptions.value
+      .filter(mailbox => isMailboxAvailableForSequence(mailbox))
+      .map(mailbox => ({
+        label: mailbox.maskedEmail,
+        value: mailbox.id
+      }))
   );
   const sequenceProductLineSelectOptions = computed(() =>
     sequenceProductLineOptions.value.map(productLine => ({
@@ -203,7 +209,11 @@ export function useLeadTable() {
   }
 
   /** Open the unified customer communication modal on the requested tab. */
-  function openLeadDetail(record: Api.Crm.LeadRecord, activeTab: LeadCommunicationTab = 'overview', contactId?: string) {
+  function openLeadDetail(
+    record: Api.Crm.LeadRecord,
+    activeTab: LeadCommunicationTab = 'overview',
+    contactId?: string
+  ) {
     selectedLeadId.value = record.id;
     detailActiveTab.value = activeTab;
     detailActiveContactId.value = contactId ?? record.primaryContact?.id ?? null;
@@ -444,44 +454,44 @@ export function useLeadTable() {
       return;
     }
 
+    const submittedTargets = [...sequenceTargets.value];
+    const progressPatch: LeadEmailProgressPatch = {
+      at: new Date().toISOString(),
+      contactIds: submittedTargets.map(target => target.contactId),
+      label: '正在生成中',
+      status: 'draft_pending_review'
+    };
+
     sequenceCreateSubmitting.value = true;
 
     try {
-      let successCount = 0;
-      let failedCount = 0;
+      const { error } = await createCrmFirstOutreachAiDraftTask({
+        targets: submittedTargets.map(target => ({
+          accountId: target.accountId,
+          contactId: target.contactId
+        })),
+        ...(sequenceCreateForm.productLineId ? { productLineId: sequenceCreateForm.productLineId } : {}),
+        mailboxId: sequenceCreateForm.mailboxId,
+        ...(sequenceCreateForm.policyId ? { policyId: sequenceCreateForm.policyId } : {})
+      });
 
-      for (const target of sequenceTargets.value) {
-        const { error } = await createCrmSequenceReviewItem(
-          normalizeSequenceCreatePayload({
-            ...sequenceCreateForm,
-            accountId: target.accountId,
-            contactId: target.contactId
-          })
-        );
-
-        if (error) {
-          failedCount += 1;
-        } else {
-          successCount += 1;
-        }
+      if (error) {
+        return;
       }
 
-      if (successCount > 0) {
-        message.success(`已生成 ${successCount} 封开发信草稿`);
-        notifyCrmWorkbenchChanged();
-        checkedLeadRowKeys.value = [];
-        sequenceCreateVisible.value = false;
-        sequenceTargets.value = [];
-        Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
-        await loadLeads();
+      patchVisibleLeadEmailProgress(progressPatch);
+      showFirstOutreachProgressNotification(submittedTargets.length);
+      notifyCrmWorkbenchChanged();
+      checkedLeadRowKeys.value = [];
+      sequenceCreateVisible.value = false;
+      sequenceTargets.value = [];
+      Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+      await loadLeads();
+      patchVisibleLeadEmailProgress(progressPatch);
 
-        if (detailVisible.value && selectedLeadId.value) {
-          await loadLeadDetail(selectedLeadId.value);
-        }
-      }
-
-      if (failedCount > 0) {
-        message.warning(`有 ${failedCount} 个联系人生成失败，请稍后查看或重试`);
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+        patchVisibleLeadEmailProgress(progressPatch);
       }
     } finally {
       sequenceCreateSubmitting.value = false;
@@ -879,6 +889,46 @@ export function useLeadTable() {
     Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
     sequenceCreateVisible.value = true;
     void loadSequenceCreateResources();
+  }
+
+  /** Keep the visible customer table and open drawers aligned with submitted background generation. */
+  function patchVisibleLeadEmailProgress(patch: LeadEmailProgressPatch) {
+    records.value = records.value.map(record => patchLeadEmailProgressForContacts(record, patch));
+
+    if (leadDetail.value) {
+      leadDetail.value = patchLeadEmailProgressForContacts(leadDetail.value, patch);
+    }
+
+    expandedLeadDetails.value = Object.fromEntries(
+      Object.entries(expandedLeadDetails.value).map(([id, detail]) => [
+        id,
+        patchLeadEmailProgressForContacts(detail, patch)
+      ])
+    );
+  }
+
+  /** Guide first-time users to the persisted AI draft task progress entry. */
+  function showFirstOutreachProgressNotification(count: number) {
+    const notice = notification.info({
+      title: '批量开发信生成中',
+      content: `已提交后台生成 ${count} 封开发信。客户开发台邮箱进度已标记为“正在生成中”，也可到邮箱调度查看任务进度。`,
+      meta: '系统通知',
+      duration: 0,
+      keepAliveOnHover: true,
+      action: () =>
+        h(
+          NButton,
+          {
+            size: 'small',
+            type: 'primary',
+            onClick: () => {
+              notice.destroy();
+              void router.push('/crm/email-sequences');
+            }
+          },
+          { default: () => '查看' }
+        )
+    });
   }
 }
 

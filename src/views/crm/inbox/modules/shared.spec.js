@@ -10,10 +10,8 @@ import {
   inboxPageGuide,
   inboxMessageTypeLabelMap,
   inboxMessageTypeTagTypeMap,
-  inboxThreadStatusLabelMap,
-  shouldShowInboxMessageTypeTag
+  inboxThreadStatusLabelMap
 } from './shared';
-
 describe('crm inbox shared helpers', () => {
   function createMessage(overrides = {}) {
     return {
@@ -124,14 +122,6 @@ describe('crm inbox shared helpers', () => {
         'Hi&nbsp;陈思远,\r\n\r\n\r\nI&amp;nbsp;noticed&amp;nbsp;深圳智拓&amp;nbsp;in&amp;nbsp;中国\r\n&lt;yjr0196@gmail.com&gt;\r\n'
       ),
       'Hi 陈思远,\n\nI noticed 深圳智拓 in 中国\n<yjr0196@gmail.com>'
-    );
-  });
-  it('only shows the extra type tag for special inbound messages', () => {
-    assert.equal(shouldShowInboxMessageTypeTag(createMessage()), false);
-    assert.equal(shouldShowInboxMessageTypeTag(createMessage({ messageType: 'unsubscribe_review_pending' })), true);
-    assert.equal(
-      shouldShowInboxMessageTypeTag(createMessage({ direction: 'outbound', messageType: 'unsubscribe_hint' })),
-      false
     );
   });
   it('creates an undo snapshot that can only restore the same inbox thread', () => {

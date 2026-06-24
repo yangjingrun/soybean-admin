@@ -129,21 +129,17 @@ export function formatInboxText(value) {
 /** Decode common HTML entities from stored email text before showing it in the drawer. */
 function decodeInboxHtmlEntities(value) {
   let decoded = value;
-
   // Some quoted raw emails arrive double-escaped, so decode a small fixed number of passes.
   for (let index = 0; index < 2; index += 1) {
     const nextValue = decoded
       .replace(/&nbsp;|&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&#x2F;|&#47;/g, token => inboxHtmlEntityMap[token] ?? token)
       .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
       .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
-
     if (nextValue === decoded) {
       return nextValue;
     }
-
     decoded = nextValue;
   }
-
   return decoded;
 }
 /** Normalize email body spacing so quoted content stays readable in the timeline card. */

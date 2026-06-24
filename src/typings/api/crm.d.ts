@@ -645,6 +645,16 @@ declare namespace Api {
       enrollmentIds: string[];
     }
 
+    interface CreateFirstOutreachAiDraftTaskPayload {
+      targets: Array<{
+        accountId: string;
+        contactId: string;
+      }>;
+      productLineId?: string;
+      mailboxId: string;
+      policyId?: string;
+    }
+
     type AiDraftTaskList = Api.Common.PaginatingQueryRecord<AiDraftTaskRecord>;
 
     interface AiDraftQueueConfigRecord {
@@ -1206,11 +1216,15 @@ declare namespace Api {
 
     interface SequenceReviewSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
+      currentStep?: number;
       status?: SequenceEnrollmentStatus;
       todoType?: SequenceReviewTodoType;
       messageStatus?: MessageStatus;
       dateScope?: 'today';
+      createdAtScope?: SequenceReviewCreatedAtScope;
     }
+
+    type SequenceReviewCreatedAtScope = 'today' | 'yesterday' | 'last_3_days' | 'last_7_days' | 'last_30_days';
 
     interface InboxThreadSearchParams extends Api.Common.CommonSearchParams {
       keyword?: string;
@@ -1222,10 +1236,12 @@ declare namespace Api {
 
     interface SequenceReviewFilterModel {
       keyword: string;
+      currentStep: number | null;
       status: SequenceEnrollmentStatus | null;
       todoType: SequenceReviewTodoType | null;
       messageStatus: MessageStatus | null;
       dateScope: 'today' | null;
+      createdAtScope: SequenceReviewCreatedAtScope | null;
     }
 
     interface InboxThreadFilterModel {
