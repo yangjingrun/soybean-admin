@@ -88,98 +88,47 @@ async function copyLatestTestRun() {
 
 <template>
   <NCard :bordered="false" class="card-wrapper publish-panel">
-    <div class="publish-panel__content">
-      <div class="publish-panel__top">
-        <div>
-          <div class="publish-panel__eyebrow">发布闸口</div>
-          <NText strong>测试与发布检查</NText>
-          <p class="publish-panel__desc">{{ validationSummary.label }}</p>
+    <NScrollbar class="publish-panel__scroll">
+      <div class="publish-panel__content">
+        <div class="publish-panel__top">
+          <div>
+            <div class="publish-panel__eyebrow">发布闸口</div>
+            <NText strong>测试与发布检查</NText>
+            <p class="publish-panel__desc">{{ validationSummary.label }}</p>
+          </div>
+          <NTag :type="validationSummary.ok ? 'success' : 'warning'" :bordered="false">
+            {{ validationSummary.ok ? '可发布' : '待检查' }}
+          </NTag>
         </div>
-        <NTag :type="validationSummary.ok ? 'success' : 'warning'" :bordered="false">
-          {{ validationSummary.ok ? '可发布' : '待检查' }}
-        </NTag>
-      </div>
 
-      <div class="publish-panel__stats">
-        <div class="publish-panel__stat publish-panel__stat--pass">
-          <span>{{ validationSummary.passCount }}</span>
-          <small>通过</small>
-        </div>
-        <div class="publish-panel__stat publish-panel__stat--warn">
-          <span>{{ validationSummary.warnCount }}</span>
-          <small>预警</small>
-        </div>
-        <div class="publish-panel__stat publish-panel__stat--fail">
-          <span>{{ validationSummary.failCount }}</span>
-          <small>失败</small>
-        </div>
-      </div>
-
-      <NAlert v-if="isDirty" type="warning" :bordered="false">当前内容有未保存修改，发布前需要先保存草稿。</NAlert>
-
-      <section class="publish-panel__section">
-        <div class="publish-panel__section-title">
-          <NText strong>规则校验</NText>
-          <NButton size="tiny" :loading="validating" :disabled="!canValidate" @click="emit('validate')">
-            重新校验
-          </NButton>
-        </div>
-        <NEmpty v-if="!validationResult" description="尚未校验" size="small" />
-        <div v-else class="publish-panel__check-list">
-          <div
-            v-for="item in validationItems"
-            :key="item.key"
-            class="publish-panel__check"
-            :class="`publish-panel__check--${item.status}`"
-          >
-            <NTag size="small" :type="statusTypeMap[item.status]" :bordered="false">
-              {{ statusLabelMap[item.status] }}
-            </NTag>
-            <div class="publish-panel__check-body">
-              <div class="publish-panel__check-title">{{ item.label }}</div>
-              <div class="publish-panel__check-message">{{ item.message }}</div>
-            </div>
-            <NButton
-              v-if="item.target"
-              size="tiny"
-              text
-              type="primary"
-              class="publish-panel__check-action"
-              @click="emit('focusSection', item.target.key)"
-            >
-              定位
-            </NButton>
+        <div class="publish-panel__stats">
+          <div class="publish-panel__stat publish-panel__stat--pass">
+            <span>{{ validationSummary.passCount }}</span>
+            <small>通过</small>
+          </div>
+          <div class="publish-panel__stat publish-panel__stat--warn">
+            <span>{{ validationSummary.warnCount }}</span>
+            <small>预警</small>
+          </div>
+          <div class="publish-panel__stat publish-panel__stat--fail">
+            <span>{{ validationSummary.failCount }}</span>
+            <small>失败</small>
           </div>
         </div>
-      </section>
 
-      <section class="publish-panel__section">
-        <div class="publish-panel__section-title">
-          <NText strong>测试样例</NText>
-          <NText depth="3" class="publish-panel__section-note">运行后更新最近输出</NText>
-        </div>
-        <NInput
-          v-model:value="testInput"
-          type="textarea"
-          :autosize="{ minRows: 3, maxRows: 5 }"
-          placeholder="填写测试上下文，例如获客需求或 CRM 客户/产品线 JSON"
-        />
-        <NButton block secondary :loading="testing" :disabled="!canTest" @click="emit('test')">运行测试</NButton>
-        <div v-if="latestTestRun" class="publish-panel__test-result">
-          <NSpace align="center" justify="space-between">
-            <NText strong>最近测试</NText>
-            <NSpace align="center" :size="8">
-              <NButton size="tiny" tertiary :disabled="!latestTestRunCopyText" @click="copyLatestTestRun">复制</NButton>
-              <NTag size="small" :type="latestTestRun.success ? 'success' : 'error'" :bordered="false">
-                {{ latestTestRun.success ? '通过' : '失败' }}
-              </NTag>
-            </NSpace>
-          </NSpace>
-          <NAlert v-if="latestFailureGuide" type="error" :bordered="false">{{ latestFailureGuide }}</NAlert>
-          <NText v-if="latestTestRun.errorMessage" type="error">{{ latestTestRun.errorMessage }}</NText>
-          <div v-if="latestValidationIssues.length > 0" class="publish-panel__check-list">
+        <NAlert v-if="isDirty" type="warning" :bordered="false">当前内容有未保存修改，发布前需要先保存草稿。</NAlert>
+
+        <section class="publish-panel__section">
+          <div class="publish-panel__section-title">
+            <NText strong>规则校验</NText>
+            <NButton size="tiny" :loading="validating" :disabled="!canValidate" @click="emit('validate')">
+              重新校验
+            </NButton>
+          </div>
+          <NEmpty v-if="!validationResult" description="尚未校验" size="small" />
+          <div v-else class="publish-panel__check-list">
             <div
-              v-for="item in latestValidationIssues"
+              v-for="item in validationItems"
               :key="item.key"
               class="publish-panel__check"
               :class="`publish-panel__check--${item.status}`"
@@ -203,23 +152,78 @@ async function copyLatestTestRun() {
               </NButton>
             </div>
           </div>
-          <pre v-if="latestOutput" class="publish-panel__output">{{ latestOutput }}</pre>
-        </div>
-      </section>
+        </section>
 
-      <section class="publish-panel__section">
-        <NInput v-model:value="changeNote" placeholder="变更说明，例如：收紧 Maps q 规则" />
-        <NSpace :size="8" justify="end">
-          <NButton :loading="savingDraft" :disabled="!canSaveDraft" @click="emit('saveDraft')">保存草稿</NButton>
-          <NButton type="primary" :loading="publishing" :disabled="publishing" @click="emit('publish')">
-            发布全局版本
-          </NButton>
-        </NSpace>
-        <NText depth="3" class="publish-panel__publish-hint" :type="canPublish ? 'success' : 'warning'">
-          {{ publishReadinessHint }}
-        </NText>
-      </section>
-    </div>
+        <section class="publish-panel__section">
+          <div class="publish-panel__section-title">
+            <NText strong>测试样例</NText>
+            <NText depth="3" class="publish-panel__section-note">运行后更新最近输出</NText>
+          </div>
+          <NInput
+            v-model:value="testInput"
+            type="textarea"
+            :autosize="{ minRows: 3, maxRows: 5 }"
+            placeholder="填写测试上下文，例如获客需求或 CRM 客户/产品线 JSON"
+          />
+          <NButton block secondary :loading="testing" :disabled="!canTest" @click="emit('test')">运行测试</NButton>
+          <div v-if="latestTestRun" class="publish-panel__test-result">
+            <NSpace align="center" justify="space-between">
+              <NText strong>最近测试</NText>
+              <NSpace align="center" :size="8">
+                <NButton size="tiny" tertiary :disabled="!latestTestRunCopyText" @click="copyLatestTestRun">
+                  复制
+                </NButton>
+                <NTag size="small" :type="latestTestRun.success ? 'success' : 'error'" :bordered="false">
+                  {{ latestTestRun.success ? '通过' : '失败' }}
+                </NTag>
+              </NSpace>
+            </NSpace>
+            <NAlert v-if="latestFailureGuide" type="error" :bordered="false">{{ latestFailureGuide }}</NAlert>
+            <NText v-if="latestTestRun.errorMessage" type="error">{{ latestTestRun.errorMessage }}</NText>
+            <div v-if="latestValidationIssues.length > 0" class="publish-panel__check-list">
+              <div
+                v-for="item in latestValidationIssues"
+                :key="item.key"
+                class="publish-panel__check"
+                :class="`publish-panel__check--${item.status}`"
+              >
+                <NTag size="small" :type="statusTypeMap[item.status]" :bordered="false">
+                  {{ statusLabelMap[item.status] }}
+                </NTag>
+                <div class="publish-panel__check-body">
+                  <div class="publish-panel__check-title">{{ item.label }}</div>
+                  <div class="publish-panel__check-message">{{ item.message }}</div>
+                </div>
+                <NButton
+                  v-if="item.target"
+                  size="tiny"
+                  text
+                  type="primary"
+                  class="publish-panel__check-action"
+                  @click="emit('focusSection', item.target.key)"
+                >
+                  定位
+                </NButton>
+              </div>
+            </div>
+            <pre v-if="latestOutput" class="publish-panel__output">{{ latestOutput }}</pre>
+          </div>
+        </section>
+
+        <section class="publish-panel__section">
+          <NInput v-model:value="changeNote" placeholder="变更说明，例如：收紧 Maps q 规则" />
+          <NSpace :size="8" justify="end">
+            <NButton :loading="savingDraft" :disabled="!canSaveDraft" @click="emit('saveDraft')">保存草稿</NButton>
+            <NButton type="primary" :loading="publishing" :disabled="publishing" @click="emit('publish')">
+              发布全局版本
+            </NButton>
+          </NSpace>
+          <NText depth="3" class="publish-panel__publish-hint" :type="canPublish ? 'success' : 'warning'">
+            {{ publishReadinessHint }}
+          </NText>
+        </section>
+      </div>
+    </NScrollbar>
   </NCard>
 </template>
 
@@ -229,10 +233,27 @@ async function copyLatestTestRun() {
   overflow: hidden;
 }
 
-.publish-panel :deep(.n-card__content) {
+.publish-panel :deep(.n-card-content) {
+  display: flex;
   box-sizing: border-box;
   height: 100%;
-  overflow: auto;
+  max-height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.publish-panel__scroll {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.publish-panel__scroll :deep(.n-scrollbar-container) {
+  height: 100%;
+  max-height: 100%;
 }
 
 .publish-panel__content {

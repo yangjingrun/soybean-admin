@@ -106,6 +106,10 @@ watch(
   overflow: hidden;
 }
 
+.prompt-workbench > * {
+  min-height: 0;
+}
+
 .prompt-workbench__nav,
 .prompt-workbench__side {
   height: 100%;
@@ -115,6 +119,7 @@ watch(
 
 .prompt-workbench__side {
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   gap: 12px;
 }
 

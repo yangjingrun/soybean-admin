@@ -62,67 +62,69 @@ watch(
 
 <template>
   <NCard :bordered="false" class="card-wrapper prompt-editor">
-    <NSpin :show="loading">
-      <div class="prompt-editor__header">
-        <div class="prompt-editor__title-group">
-          <div class="prompt-editor__eyebrow">AI 业务提示词</div>
-          <h2 class="prompt-editor__title">{{ selectedTitle }}</h2>
-          <p class="prompt-editor__desc">{{ selectedUsage }}</p>
-          <div class="prompt-editor__meta">
-            <span>{{ selectedPromptKey }}</span>
-            <span>{{ props.detail?.channel || '-' }}</span>
+    <NScrollbar class="prompt-editor__scroll">
+      <NSpin :show="loading">
+        <div class="prompt-editor__header">
+          <div class="prompt-editor__title-group">
+            <div class="prompt-editor__eyebrow">AI 业务提示词</div>
+            <h2 class="prompt-editor__title">{{ selectedTitle }}</h2>
+            <p class="prompt-editor__desc">{{ selectedUsage }}</p>
+            <div class="prompt-editor__meta">
+              <span>{{ selectedPromptKey }}</span>
+              <span>{{ props.detail?.channel || '-' }}</span>
+            </div>
           </div>
+          <NSpace :size="8" class="prompt-editor__actions">
+            <NTooltip>
+              <template #trigger>
+                <NBadge :value="versionCount" :max="99" :show-zero="false">
+                  <NButton size="small" circle secondary aria-label="打开版本记录" @click="emit('openVersions')">
+                    <template #icon>
+                      <SvgIcon icon="material-symbols:history" />
+                    </template>
+                  </NButton>
+                </NBadge>
+              </template>
+              版本记录
+            </NTooltip>
+            <NTag type="warning" :bordered="false">仅超级管理员</NTag>
+            <NButton size="small" @click="emit('useDefault')">恢复默认</NButton>
+          </NSpace>
         </div>
-        <NSpace :size="8" class="prompt-editor__actions">
-          <NTooltip>
-            <template #trigger>
-              <NBadge :value="versionCount" :max="99" :show-zero="false">
-                <NButton size="small" circle secondary aria-label="打开版本记录" @click="emit('openVersions')">
-                  <template #icon>
-                    <SvgIcon icon="material-symbols:history" />
-                  </template>
-                </NButton>
-              </NBadge>
-            </template>
-            版本记录
-          </NTooltip>
-          <NTag type="warning" :bordered="false">仅超级管理员</NTag>
-          <NButton size="small" @click="emit('useDefault')">恢复默认</NButton>
-        </NSpace>
-      </div>
 
-      <NTabs v-model:value="activeTab" size="small" type="line" animated>
-        <NTabPane name="prompt" tab="系统提示词">
-          <div class="prompt-editor__body">
-            <aside class="prompt-editor__anchors">
-              <NText depth="3" class="prompt-editor__anchor-title">段落定位</NText>
-              <NButton
-                v-for="anchor in anchors"
-                :key="anchor.key"
-                size="tiny"
-                quaternary
-                class="prompt-editor__anchor"
-                @click="handleAnchorClick(anchor)"
-              >
-                {{ anchor.label }}
-                <span>L{{ anchor.line }}</span>
-              </NButton>
-            </aside>
-            <NInput
-              ref="editorInput"
-              v-model:value="systemPrompt"
-              type="textarea"
-              class="prompt-editor__textarea"
-              :autosize="{ minRows: 26, maxRows: 34 }"
-              placeholder="写入模型必须遵守的固定规则"
-            />
-          </div>
-        </NTabPane>
-        <NTabPane name="default" tab="默认模板">
-          <pre class="prompt-editor__preview">{{ defaultPromptPreview }}</pre>
-        </NTabPane>
-      </NTabs>
-    </NSpin>
+        <NTabs v-model:value="activeTab" size="small" type="line" animated>
+          <NTabPane name="prompt" tab="系统提示词">
+            <div class="prompt-editor__body">
+              <aside class="prompt-editor__anchors">
+                <NText depth="3" class="prompt-editor__anchor-title">段落定位</NText>
+                <NButton
+                  v-for="anchor in anchors"
+                  :key="anchor.key"
+                  size="tiny"
+                  quaternary
+                  class="prompt-editor__anchor"
+                  @click="handleAnchorClick(anchor)"
+                >
+                  {{ anchor.label }}
+                  <span>L{{ anchor.line }}</span>
+                </NButton>
+              </aside>
+              <NInput
+                ref="editorInput"
+                v-model:value="systemPrompt"
+                type="textarea"
+                class="prompt-editor__textarea"
+                :autosize="{ minRows: 26, maxRows: 34 }"
+                placeholder="写入模型必须遵守的固定规则"
+              />
+            </div>
+          </NTabPane>
+          <NTabPane name="default" tab="默认模板">
+            <pre class="prompt-editor__preview">{{ defaultPromptPreview }}</pre>
+          </NTabPane>
+        </NTabs>
+      </NSpin>
+    </NScrollbar>
   </NCard>
 </template>
 
@@ -133,10 +135,32 @@ watch(
   overflow: hidden;
 }
 
-.prompt-editor :deep(.n-card__content) {
+.prompt-editor :deep(.n-card-content) {
+  display: flex;
   box-sizing: border-box;
   height: 100%;
-  overflow: auto;
+  max-height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.prompt-editor__scroll,
+.prompt-editor :deep(.n-spin-container),
+.prompt-editor :deep(.n-spin-content) {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+
+.prompt-editor__scroll {
+  flex: 1;
+  overflow: hidden;
+}
+
+.prompt-editor__scroll :deep(.n-scrollbar-container) {
+  height: 100%;
+  max-height: 100%;
 }
 
 .prompt-editor__header {
@@ -248,7 +272,7 @@ watch(
     overflow: visible;
   }
 
-  .prompt-editor :deep(.n-card__content) {
+  .prompt-editor :deep(.n-card-content) {
     height: auto;
     overflow: visible;
   }
