@@ -61,7 +61,7 @@ export class CrmAiDraftService {
         ...firstOutput,
         qualityFlags: [...new Set([...firstOutput.qualityFlags, ...quality.qualityFlags])]
       },
-      shouldPolish: quality.shouldPolish
+      qualityTriggeredPolish: quality.shouldPolish
     });
     const riskNotes = [...new Set([...prompt.riskNotes, ...output.riskNotes])];
     const qualityFlags = [...new Set(output.qualityFlags)];
@@ -104,11 +104,11 @@ export class CrmAiDraftService {
     context: RequestUserContext;
     selectedModules: Array<{ promptKey: string; title: string; systemPrompt?: string }>;
     firstOutput: CrmAiDraftOutput;
-    shouldPolish: boolean;
+    qualityTriggeredPolish: boolean;
   }): Promise<CrmAiDraftOutput> {
-    const policy = input.input.writingConfig.polishPolicy ?? 'auto_when_flagged';
+    const policy = input.input.writingConfig.polishPolicy ?? 'always';
 
-    if (policy === 'off' || (policy === 'auto_when_flagged' && !input.shouldPolish)) {
+    if (policy === 'off' || (policy === 'auto_when_flagged' && !input.qualityTriggeredPolish)) {
       return input.firstOutput;
     }
 

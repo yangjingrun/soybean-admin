@@ -394,7 +394,7 @@ describe('crm settings shared helpers', () => {
       languagePolicyLabel: '系统内置',
       toneLabel: '系统内置',
       ctaPreferenceLabel: '系统内置',
-      polishPolicyLabel: '系统内置',
+      polishPolicyLabel: '系统内置（每次去 AI 味润色）',
       proofAssets: '',
       regionNotes: '',
       steps: [

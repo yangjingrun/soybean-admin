@@ -73,8 +73,8 @@ export const productLineAiCtaPreferenceOptions = [
 ] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['ctaPreference']> }>;
 
 export const productLineAiPolishPolicyOptions = [
-  { label: '命中风险时润色', value: 'auto_when_flagged' },
-  { label: '总是润色', value: 'always' },
+  { label: '每次去 AI 味润色', value: 'always' },
+  { label: '仅命中风险时润色', value: 'auto_when_flagged' },
   { label: '关闭润色', value: 'off' }
 ] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['polishPolicy']> }>;
 /** Create an empty product line form model. */
@@ -261,7 +261,7 @@ export function summarizeProductLineAiWritingConfig(
     languagePolicyLabel: findOptionLabel(productLineAiLanguagePolicyOptions, normalized.languagePolicy),
     toneLabel: findOptionLabel(productLineAiToneOptions, normalized.tone),
     ctaPreferenceLabel: findOptionLabel(productLineAiCtaPreferenceOptions, normalized.ctaPreference),
-    polishPolicyLabel: findOptionLabel(productLineAiPolishPolicyOptions, normalized.polishPolicy),
+    polishPolicyLabel: findOptionLabel(productLineAiPolishPolicyOptions, normalized.polishPolicy, '系统内置（每次去 AI 味润色）'),
     proofAssets: normalized.proofAssets ?? '',
     regionNotes: normalized.regionNotes ?? '',
     steps: normalized.steps.map(step => ({
@@ -362,8 +362,12 @@ function assignOptionalSelectValue<Key extends keyof Api.Crm.ProductLineAiWritin
   config[key] = value;
 }
 
-function findOptionLabel<T extends string>(options: Array<{ label: string; value: T }>, value: T | undefined) {
-  return options.find(option => option.value === value)?.label ?? '系统内置';
+function findOptionLabel<T extends string>(
+  options: Array<{ label: string; value: T }>,
+  value: T | undefined,
+  emptyLabel = '系统内置'
+) {
+  return options.find(option => option.value === value)?.label ?? emptyLabel;
 }
 
 function pushProductLinePromptDiffItem(

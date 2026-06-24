@@ -74,9 +74,10 @@ describe('CrmAiDraftService', () => {
     );
     assert.match((firstCall.input as { prompt?: string }).prompt || '', /Base draft to customize/);
     assert.match((firstCall.input as { prompt?: string }).prompt || '', /Matched persona/);
+    assert.equal(calls.length, 2);
   });
 
-  it('loads the dedicated polish prompt modules when one-pass polish is enabled', async () => {
+  it('loads the dedicated polish prompt modules by default', async () => {
     const calls: Array<{ input: unknown; context: unknown }> = [];
     const promptKeys: string[] = [];
     const service = new CrmAiDraftService({
@@ -112,13 +113,7 @@ describe('CrmAiDraftService', () => {
       }
     } as never);
 
-    const result = await service.generateDraft(
-      createPromptInput({
-        ...createWritingConfig(),
-        polishPolicy: 'always'
-      }),
-      createContext()
-    );
+    const result = await service.generateDraft(createPromptInput(), createContext());
     const polishCall = calls[1];
 
     assert.equal(result.subject, 'Bearing stock fit?');
@@ -131,6 +126,50 @@ describe('CrmAiDraftService', () => {
       (polishCall.input as { systemPrompt?: string }).systemPrompt || '',
       /System prompt for crm_outreach_ai_polish/
     );
+  });
+
+  it('skips one-pass polish only when explicitly disabled', async () => {
+    const calls: Array<{ input: unknown; context: unknown }> = [];
+    const service = new CrmAiDraftService({
+      async getPrompt(promptKey: string) {
+        return {
+          promptKey,
+          title: `Prompt ${promptKey}`,
+          systemPrompt: `System prompt for ${promptKey}`,
+          updatedAt: '2026-06-24T00:00:00.000Z'
+        };
+      },
+      async generateText(input: unknown, context: unknown) {
+        calls.push({ input, context });
+
+        return {
+          text: JSON.stringify({
+            subject: 'Bearing supply option',
+            bodyText: 'Hi Alex, ...',
+            reason: 'Focused on sourcing angle.',
+            riskNotes: [],
+            usedAngles: ['sourcing reliability'],
+            usedFacts: ['account.name'],
+            nextReviewHints: ['确认职位'],
+            qualityFlags: [],
+            polishChanges: []
+          }),
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 }
+        };
+      }
+    } as never);
+
+    const result = await service.generateDraft(
+      createPromptInput({
+        ...createWritingConfig(),
+        polishPolicy: 'off'
+      }),
+      createContext()
+    );
+
+    assert.equal(result.subject, 'Bearing supply option');
+    assert.equal(calls.length, 1);
   });
 
   it('rejects invalid AI JSON output', async () => {
