@@ -113,7 +113,7 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
     :bordered="false"
     class="card-wrapper inbox-reply-panel"
     size="small"
-    :segmented="{ content: true, footer: true }"
+    :segmented="{ content: true }"
   >
     <template #header>
       <div class="panel-header">
@@ -296,6 +296,34 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
                   草稿更新时间 {{ formatInboxDate(replyDraft.updatedAt) }}
                   <template v-if="replyDraft.updatedByName">· {{ replyDraft.updatedByName }}</template>
                 </NText>
+
+                <div class="reply-action-row">
+                  <NText v-if="detail && !detail.canOperate" depth="3">当前账号不可操作该回复</NText>
+                  <span v-else />
+
+                  <NSpace justify="end">
+                    <NButton @click="emit('back')">返回列表</NButton>
+                    <NButton
+                      v-if="canEditDraft"
+                      type="primary"
+                      secondary
+                      :disabled="saveDisabled"
+                      :loading="draftSaving"
+                      @click="emit('saveReplyDraft')"
+                    >
+                      保存草稿
+                    </NButton>
+                    <NButton
+                      v-if="canEditDraft"
+                      type="primary"
+                      :disabled="sendDisabled"
+                      :loading="replySending"
+                      @click="emit('sendReply')"
+                    >
+                      发送回复
+                    </NButton>
+                  </NSpace>
+                </div>
               </NSpace>
             </div>
           </div>
@@ -303,36 +331,6 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
       </NSpace>
       <NEmpty v-else description="请选择回复线程" />
     </NSpin>
-
-    <template #footer>
-      <NSpace justify="space-between" align="center" class="panel-footer">
-        <NText v-if="detail && !detail.canOperate" depth="3">当前账号不可操作该回复</NText>
-        <span v-else />
-
-        <NSpace justify="end">
-          <NButton @click="emit('back')">返回列表</NButton>
-          <NButton
-            v-if="canEditDraft"
-            type="primary"
-            secondary
-            :disabled="saveDisabled"
-            :loading="draftSaving"
-            @click="emit('saveReplyDraft')"
-          >
-            保存草稿
-          </NButton>
-          <NButton
-            v-if="canEditDraft"
-            type="primary"
-            :disabled="sendDisabled"
-            :loading="replySending"
-            @click="emit('sendReply')"
-          >
-            发送回复
-          </NButton>
-        </NSpace>
-      </NSpace>
-    </template>
   </NCard>
 </template>
 
@@ -340,7 +338,7 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
 .inbox-reply-panel {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 230px);
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   width: 100%;
@@ -353,10 +351,6 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   overflow: hidden;
 }
 
-.inbox-reply-panel :deep(.n-card__footer) {
-  flex: 0 0 auto;
-}
-
 .inbox-reply-panel :deep(.n-spin-container),
 .inbox-reply-panel :deep(.n-spin-content) {
   height: 100%;
@@ -365,13 +359,21 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
 }
 
 .panel-header,
-.panel-footer,
+.reply-action-row,
 .section-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
+}
+
+.reply-action-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: 8px;
+  background: rgb(var(--layout-bg-color));
 }
 
 .panel-heading,
