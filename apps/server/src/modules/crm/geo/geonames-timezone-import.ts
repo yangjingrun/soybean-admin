@@ -14,6 +14,16 @@ export interface CrmGeoCityNameImportRow {
   isShort: boolean;
 }
 
+export interface CrmGeoCityImportBase {
+  geonameId: number;
+  countryCode: string;
+  asciiName: string | null;
+  timeZone: string;
+  population: number;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 const geonamesCityColumn = {
   geonameId: 0,
   name: 1,
@@ -25,6 +35,14 @@ const geonamesCityColumn = {
   population: 14,
   timeZone: 17
 } as const;
+const geonamesAlternateNameColumn = {
+  geonameId: 1,
+  languageCode: 2,
+  name: 3,
+  isPreferred: 4,
+  isShort: 5
+} as const;
+const chineseLanguageCodes = new Set(['zh', 'zh-cn', 'zh-hans', 'zh-hant', 'zh-tw', 'zh-hk', 'zh-mo', 'cmn', 'yue']);
 
 /**
  * Normalize external place names into stable lookup keys while preserving non-Latin scripts.
@@ -42,39 +60,89 @@ export function normalizeGeoNameKey(value?: string | null) {
 
 /** Build searchable city name rows from one tab-separated GeoNames cities file line. */
 export function buildGeoCityNameRowsFromCityLine(line: string): CrmGeoCityNameImportRow[] {
+  const base = buildGeoCityImportBaseFromCityLine(line);
+
+  if (!base) {
+    return [];
+  }
+
+  const columns = line.split('\t');
+  const rows: CrmGeoCityNameImportRow[] = [];
+  const seen = new Set<string>();
+
+  addNameRow(rows, seen, createBaseImportRow(base), columns[geonamesCityColumn.name], 'name');
+  addNameRow(rows, seen, createBaseImportRow(base), base.asciiName, 'ascii');
+
+  for (const name of (columns[geonamesCityColumn.alternateNames] ?? '').split(',')) {
+    addNameRow(rows, seen, createBaseImportRow(base), name, 'alternate');
+  }
+
+  return rows;
+}
+
+/** Build the reusable city base fields from one GeoNames cities file line. */
+export function buildGeoCityImportBaseFromCityLine(line: string): CrmGeoCityImportBase | null {
   const columns = line.split('\t');
   const geonameId = Number.parseInt(columns[geonamesCityColumn.geonameId] ?? '', 10);
   const countryCode = (columns[geonamesCityColumn.countryCode] ?? '').trim().toUpperCase();
   const timeZone = (columns[geonamesCityColumn.timeZone] ?? '').trim();
 
   if (!Number.isFinite(geonameId) || !countryCode || !timeZone) {
-    return [];
+    return null;
   }
 
-  const asciiName = normalizeNullableText(columns[geonamesCityColumn.asciiName]);
-  const base = {
+  return {
     geonameId,
     countryCode,
-    asciiName,
+    asciiName: normalizeNullableText(columns[geonamesCityColumn.asciiName]),
     timeZone,
     population: normalizeInteger(columns[geonamesCityColumn.population]),
     latitude: normalizeFloat(columns[geonamesCityColumn.latitude]),
-    longitude: normalizeFloat(columns[geonamesCityColumn.longitude]),
+    longitude: normalizeFloat(columns[geonamesCityColumn.longitude])
+  };
+}
+
+/** Build a trusted Chinese city alias row from one GeoNames alternateNamesV2 file line. */
+export function buildChineseGeoCityNameRowFromAlternateLine(
+  line: string,
+  baseByGeonameId: ReadonlyMap<number, CrmGeoCityImportBase>
+): CrmGeoCityNameImportRow | null {
+  const columns = line.split('\t');
+  const geonameId = Number.parseInt(columns[geonamesAlternateNameColumn.geonameId] ?? '', 10);
+  const languageCode = normalizeNullableText(columns[geonamesAlternateNameColumn.languageCode])?.toLowerCase() ?? null;
+  const name = normalizeNullableText(columns[geonamesAlternateNameColumn.name]);
+  const base = baseByGeonameId.get(geonameId);
+
+  if (!base || !name || !languageCode || !chineseLanguageCodes.has(languageCode)) {
+    return null;
+  }
+
+  const normalizedName = normalizeGeoNameKey(name);
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  return {
+    ...createBaseImportRow(base),
+    name,
+    normalizedName,
+    nameSource: 'alternate',
+    languageCode,
+    isPreferred: columns[geonamesAlternateNameColumn.isPreferred] === '1',
+    isShort: columns[geonamesAlternateNameColumn.isShort] === '1'
+  };
+}
+
+function createBaseImportRow(
+  base: CrmGeoCityImportBase
+): Omit<CrmGeoCityNameImportRow, 'name' | 'normalizedName' | 'nameSource'> {
+  return {
+    ...base,
     languageCode: null,
     isPreferred: false,
     isShort: false
-  } satisfies Omit<CrmGeoCityNameImportRow, 'name' | 'normalizedName' | 'nameSource'>;
-  const rows: CrmGeoCityNameImportRow[] = [];
-  const seen = new Set<string>();
-
-  addNameRow(rows, seen, base, columns[geonamesCityColumn.name], 'name');
-  addNameRow(rows, seen, base, asciiName, 'ascii');
-
-  for (const name of (columns[geonamesCityColumn.alternateNames] ?? '').split(',')) {
-    addNameRow(rows, seen, base, name, 'alternate');
-  }
-
-  return rows;
+  };
 }
 
 function addNameRow(

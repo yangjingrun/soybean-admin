@@ -56,7 +56,7 @@ export class CrmGeoCatalogService {
       .map(group => ({
         code: group.countryCode,
         label: getMappedCountryZhNameByCode(group.countryCode) ?? countryDisplayNames.of(group.countryCode) ?? group.countryCode,
-        cityCount: group._count.countryCode
+        cityCount: group['_count'].countryCode
       }))
       .sort((left, right) => left.label.localeCompare(right.label));
   }
@@ -176,5 +176,5 @@ function normalizeCityLimit(limit?: number) {
 function isChineseCityName(row: { name: string; languageCode?: string | null }) {
   const languageCode = row.languageCode?.toLowerCase();
 
-  return Boolean((languageCode && chineseLanguageCodes.has(languageCode)) || /\p{Script=Han}/u.test(row.name));
+  return Boolean(languageCode && chineseLanguageCodes.has(languageCode));
 }

@@ -4,7 +4,10 @@ import { createInterface } from 'node:readline';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client';
 import {
+  buildChineseGeoCityNameRowFromAlternateLine,
+  buildGeoCityImportBaseFromCityLine,
   buildGeoCityNameRowsFromCityLine,
+  type CrmGeoCityImportBase,
   type CrmGeoCityNameImportRow
 } from '../modules/crm/geo/geonames-timezone-import';
 import { loadAppConfig } from '../modules/app-config/app-config.loader';
@@ -13,6 +16,7 @@ const defaultBatchSize = 2000;
 
 interface ImportOptions {
   citiesFile: string;
+  alternateNamesFile: string | null;
   batchSize: number;
   dryRun: boolean;
 }
@@ -29,6 +33,7 @@ async function main() {
         {
           dryRun: options.dryRun,
           citiesFile: options.citiesFile,
+          alternateNamesFile: options.alternateNamesFile,
           summary
         },
         null,
@@ -54,6 +59,7 @@ function createPrismaClient() {
 
 async function parseOptions(args: string[]): Promise<ImportOptions> {
   const citiesFile = getOptionValue(args, '--cities') ?? process.env.GEONAMES_CITIES_FILE;
+  const alternateNamesFile = getOptionValue(args, '--alternate-names') ?? process.env.GEONAMES_ALTERNATE_NAMES_FILE ?? null;
   const batchSizeValue = getOptionValue(args, '--batch-size');
   const batchSize = batchSizeValue ? Number.parseInt(batchSizeValue, 10) : defaultBatchSize;
 
@@ -62,6 +68,9 @@ async function parseOptions(args: string[]): Promise<ImportOptions> {
   }
 
   await access(citiesFile);
+  if (alternateNamesFile) {
+    await access(alternateNamesFile);
+  }
 
   if (!Number.isInteger(batchSize) || batchSize <= 0) {
     throw new Error('--batch-size must be a positive integer');
@@ -69,6 +78,7 @@ async function parseOptions(args: string[]): Promise<ImportOptions> {
 
   return {
     citiesFile,
+    alternateNamesFile,
     batchSize,
     dryRun: args.includes('--dry-run')
   };
@@ -79,8 +89,10 @@ async function importGeoNamesCityTimeZones(prisma: PrismaClient | null, options:
     input: createReadStream(options.citiesFile, { encoding: 'utf8' }),
     crlfDelay: Number.POSITIVE_INFINITY
   });
+  const cityBaseByGeonameId = new Map<number, CrmGeoCityImportBase>();
   let cityLineCount = 0;
   let cityNameCount = 0;
+  let chineseAlternateNameCount = 0;
   let batch: CrmGeoCityNameImportRow[] = [];
 
   if (!options.dryRun) {
@@ -89,10 +101,15 @@ async function importGeoNamesCityTimeZones(prisma: PrismaClient | null, options:
   }
 
   for await (const line of rows) {
+    const cityBase = buildGeoCityImportBaseFromCityLine(line);
     const cityRows = buildGeoCityNameRowsFromCityLine(line);
 
     if (cityRows.length === 0) {
       continue;
+    }
+
+    if (cityBase) {
+      cityBaseByGeonameId.set(cityBase.geonameId, cityBase);
     }
 
     cityLineCount += 1;
@@ -106,10 +123,37 @@ async function importGeoNamesCityTimeZones(prisma: PrismaClient | null, options:
   }
 
   await flushBatch(prisma, batch, options.dryRun);
+  batch = [];
+
+  if (options.alternateNamesFile) {
+    const alternateRows = createInterface({
+      input: createReadStream(options.alternateNamesFile, { encoding: 'utf8' }),
+      crlfDelay: Number.POSITIVE_INFINITY
+    });
+
+    for await (const line of alternateRows) {
+      const row = buildChineseGeoCityNameRowFromAlternateLine(line, cityBaseByGeonameId);
+
+      if (!row) {
+        continue;
+      }
+
+      chineseAlternateNameCount += 1;
+      batch.push(row);
+
+      if (batch.length >= options.batchSize) {
+        await flushBatch(prisma, batch, options.dryRun);
+        batch = [];
+      }
+    }
+
+    await flushBatch(prisma, batch, options.dryRun);
+  }
 
   return {
     cityLineCount,
-    cityNameCount
+    cityNameCount,
+    chineseAlternateNameCount
   };
 }
 

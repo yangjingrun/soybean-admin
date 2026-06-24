@@ -123,6 +123,72 @@ describe('CrmGeoCatalogService', () => {
       take: 15
     });
   });
+
+  it('ignores untagged Chinese aliases when choosing city display names', async () => {
+    const service = new CrmGeoCatalogService(
+      createPrisma({
+        countryGroups: [],
+        cityRows: [
+          {
+            geonameId: 1795565,
+            countryCode: 'CN',
+            name: 'Shenzhen',
+            asciiName: 'Shenzhen',
+            timeZone: 'Asia/Shanghai'
+          },
+          {
+            geonameId: 1815286,
+            countryCode: 'CN',
+            name: 'Chengdu',
+            asciiName: 'Chengdu',
+            timeZone: 'Asia/Shanghai'
+          }
+        ],
+        localizedRows: [
+          {
+            geonameId: 1795565,
+            name: '宝安',
+            languageCode: null,
+            isPreferred: false,
+            isShort: false
+          },
+          {
+            geonameId: 1795565,
+            name: '深圳',
+            languageCode: 'zh',
+            isPreferred: true,
+            isShort: false
+          },
+          {
+            geonameId: 1815286,
+            name: '天府',
+            languageCode: null,
+            isPreferred: false,
+            isShort: false
+          }
+        ]
+      }) as never
+    );
+
+    const cities = await service.listCities({ countryCode: 'CN', limit: 2 });
+
+    assert.deepEqual(cities, [
+      {
+        name: 'Shenzhen',
+        asciiName: 'Shenzhen',
+        displayName: '深圳',
+        countryCode: 'CN',
+        timeZone: 'Asia/Shanghai'
+      },
+      {
+        name: 'Chengdu',
+        asciiName: 'Chengdu',
+        displayName: null,
+        countryCode: 'CN',
+        timeZone: 'Asia/Shanghai'
+      }
+    ]);
+  });
 });
 
 function createPrisma(input: {

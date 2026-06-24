@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-24 CRM GeoNames 城市中文展示必须使用带语言标记的别名
+
+- 场景：CRM 地区级联筛选展示国家/城市，城市数据来自 GeoNames `cities*.txt` 和可选 `alternateNamesV2.txt`。
+- 坑点：`cities*.txt` 的 alternate names 字段没有语言和首选标记，里面会混入历史名、区名、机场别名等；如果仅凭“包含汉字”选中文展示名，会把深圳显示成“宝安”、成都显示成“天府”。
+- 正确做法：`cities*.txt` 自带 alternate names 只用于搜索匹配；城市展示中文名只使用 `alternateNamesV2.txt` 中带 `zh/zh-CN/zh-Hans/zh-Hant/zh-TW/zh-HK/zh-MO/cmn/yue` 语言标记的行。导入时用 `--alternate-names` 追加可信中文别名，目录服务无语言标记时返回 `displayName: null`。
+- 相关文件：`apps/server/src/modules/crm/geo/geonames-timezone-import.ts`、`apps/server/src/scripts/import-geonames-timezones.ts`、`apps/server/src/modules/crm/geo/crm-geo-catalog.service.ts`、`docs/geonames-timezone-import.md`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/geo/geonames-timezone-import.spec.ts apps/server/src/modules/crm/geo/crm-geo-catalog.service.spec.ts`，确认无语言标记的“宝安/天府”不会作为展示名，带 `zh` 的“深圳”可以作为展示名。
+
 ### 2026-06-24 CRM 邮件打开追踪像素接口必须显式公开
 
 - 场景：CRM 邮件打开追踪通过邮件里的 1x1 图片请求 `GET /crm/tracking/open/:token`，请求来自客户邮箱客户端，不会携带系统登录 token。
