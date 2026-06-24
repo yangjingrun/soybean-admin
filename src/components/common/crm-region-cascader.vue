@@ -38,15 +38,24 @@ const dropdownStyle = {
   '--n-menu-height': 'min(72vh, 560px)'
 } as CSSProperties;
 const dropdownMenuProps = {
+  class: 'crm-region-cascader-menu',
   style: dropdownStyle
 };
 const filterDropdownMenuProps = {
+  class: 'crm-region-cascader-menu',
   style: dropdownStyle
 };
 
 function handleRegionUpdate(value: string | number | null) {
   emit('update:modelValue', typeof value === 'string' ? value : '');
   clearRegionSearch();
+}
+
+function getRegionColumnStyle(): CSSProperties {
+  return {
+    width: 'max-content',
+    minWidth: '220px'
+  };
 }
 
 function renderRegionLabel(option: CascaderOption): VNodeChild {
@@ -75,6 +84,7 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
     filterable
     :filter-menu-props="filterDropdownMenuProps"
     :filter="filterCrmRegionOption"
+    :get-column-style="getRegionColumnStyle"
     :menu-props="dropdownMenuProps"
     :options="regionOptions"
     :placeholder="placeholder"
@@ -88,10 +98,10 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
 <style scoped>
 :global(.crm-region-cascader-country-label) {
   display: inline-flex;
-  max-width: 100%;
   align-items: center;
   gap: 8px;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 :global(.crm-region-cascader-country-label__flag) {
@@ -103,7 +113,23 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
 }
 
 :global(.crm-region-cascader-country-label__text) {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+:global(.crm-region-cascader-menu .n-cascader-submenu) {
+  width: max-content;
+}
+
+:global(.crm-region-cascader-menu .n-cascader-option) {
+  width: max-content;
+  min-width: 100%;
+}
+
+:global(.crm-region-cascader-menu .n-cascader-option__label) {
+  flex: 0 0 auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 </style>

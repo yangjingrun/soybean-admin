@@ -176,6 +176,7 @@ declare namespace Api {
     interface GeoCityOption {
       name: string;
       asciiName: string | null;
+      displayName: string | null;
       countryCode: string;
       timeZone: string;
     }

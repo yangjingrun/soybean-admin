@@ -12,6 +12,29 @@ interface ListCitiesInput {
 const defaultCityLimit = 80;
 const maxCityLimit = 5000;
 const countryDisplayNames = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
+const chineseLanguageCodes = new Set([
+  'zh',
+  'zh-cn',
+  'zh-hans',
+  'zh-hant',
+  'zh-tw',
+  'zh-hk',
+  'zh-mo',
+  'cmn',
+  'yue'
+]);
+
+interface CityNameRow {
+  geonameId: number;
+  countryCode: string;
+  name: string;
+  asciiName: string | null;
+  timeZone: string;
+  nameSource?: string;
+  languageCode?: string | null;
+  isPreferred?: boolean;
+  isShort?: boolean;
+}
 
 @Injectable()
 export class CrmGeoCatalogService {
@@ -78,7 +101,7 @@ export class CrmGeoCatalogService {
     });
 
     const seen = new Set<number>();
-    const cities: Array<{ name: string; asciiName: string | null; countryCode: string; timeZone: string }> = [];
+    const cityRows: CityNameRow[] = [];
 
     for (const row of rows) {
       if (seen.has(row.geonameId)) {
@@ -86,19 +109,59 @@ export class CrmGeoCatalogService {
       }
 
       seen.add(row.geonameId);
-      cities.push({
-        name: row.name,
-        asciiName: row.asciiName,
-        countryCode: row.countryCode,
-        timeZone: row.timeZone
-      });
+      cityRows.push(row);
 
-      if (cities.length >= limit) {
+      if (cityRows.length >= limit) {
         break;
       }
     }
 
-    return cities;
+    const localizedCityNames = await this.loadLocalizedCityNames(cityRows);
+
+    return cityRows.map(row => ({
+      name: row.name,
+      asciiName: row.asciiName,
+      displayName: localizedCityNames.get(row.geonameId) ?? null,
+      countryCode: row.countryCode,
+      timeZone: row.timeZone
+    }));
+  }
+
+  private async loadLocalizedCityNames(cityRows: CityNameRow[]) {
+    const geonameIds = Array.from(new Set(cityRows.map(row => row.geonameId)));
+
+    if (geonameIds.length === 0) {
+      return new Map<number, string>();
+    }
+
+    const localizedRows = await this.prisma.crmGeoCityName.findMany({
+      where: {
+        geonameId: {
+          in: geonameIds
+        },
+        nameSource: 'alternate'
+      },
+      orderBy: [{ isPreferred: 'desc' }, { isShort: 'asc' }, { name: 'asc' }],
+      take: geonameIds.length * 20,
+      select: {
+        geonameId: true,
+        name: true,
+        languageCode: true,
+        isPreferred: true,
+        isShort: true
+      }
+    });
+    const localizedNames = new Map<number, string>();
+
+    for (const row of localizedRows) {
+      if (localizedNames.has(row.geonameId) || !isChineseCityName(row)) {
+        continue;
+      }
+
+      localizedNames.set(row.geonameId, row.name);
+    }
+
+    return localizedNames;
   }
 }
 
@@ -108,4 +171,10 @@ function normalizeCityLimit(limit?: number) {
   }
 
   return Math.min(Math.max(limit, 1), maxCityLimit);
+}
+
+function isChineseCityName(row: { name: string; languageCode?: string | null }) {
+  const languageCode = row.languageCode?.toLowerCase();
+
+  return Boolean((languageCode && chineseLanguageCodes.has(languageCode)) || /\p{Script=Han}/u.test(row.name));
 }

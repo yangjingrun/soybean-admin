@@ -50,6 +50,15 @@ describe('CrmGeoCatalogService', () => {
             asciiName: 'Jeddah',
             timeZone: 'Asia/Riyadh'
           }
+        ],
+        localizedRows: [
+          {
+            geonameId: 108410,
+            name: '利雅得',
+            languageCode: 'zh',
+            isPreferred: true,
+            isShort: false
+          }
         ]
       }) as never
     );
@@ -60,12 +69,14 @@ describe('CrmGeoCatalogService', () => {
       {
         name: 'Riyadh',
         asciiName: 'Riyadh',
+        displayName: '利雅得',
         countryCode: 'SA',
         timeZone: 'Asia/Riyadh'
       },
       {
         name: 'Jeddah',
         asciiName: 'Jeddah',
+        displayName: null,
         countryCode: 'SA',
         timeZone: 'Asia/Riyadh'
       }
@@ -101,6 +112,7 @@ describe('CrmGeoCatalogService', () => {
       {
         name: 'New York',
         asciiName: 'New York',
+        displayName: null,
         countryCode: 'US',
         timeZone: 'America/New_York'
       }
@@ -116,6 +128,13 @@ describe('CrmGeoCatalogService', () => {
 function createPrisma(input: {
   countryGroups: Array<{ countryCode: string; count: number }>;
   cityRows: Array<{ geonameId: number; countryCode: string; name: string; asciiName: string | null; timeZone: string }>;
+  localizedRows?: Array<{
+    geonameId: number;
+    name: string;
+    languageCode: string | null;
+    isPreferred: boolean;
+    isShort: boolean;
+  }>;
   calls?: unknown[];
 }) {
   return {
@@ -128,7 +147,11 @@ function createPrisma(input: {
           }
         }));
       },
-      async findMany(args: { where: { countryCode?: string }; take: number }) {
+      async findMany(args: { where: { countryCode?: string; geonameId?: { in: number[] } }; take: number }) {
+        if (args.where.geonameId) {
+          return input.localizedRows ?? [];
+        }
+
         input.calls?.push({
           countryCode: args.where.countryCode,
           keyword: 'OR' in args.where ? normalizeFirstKeyword(args.where.OR) : undefined,

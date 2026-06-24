@@ -7,6 +7,7 @@ export interface CrmRegionCascaderOption extends CascaderOption {
   nodeType: 'country' | 'city';
   countryCode: string;
   flag?: string;
+  displayName?: string | null;
   cityName?: string;
   asciiName?: string | null;
   isLeaf?: boolean;
@@ -32,10 +33,13 @@ export function createCrmCountryRegionOption(country: Api.Crm.GeoCountryOption):
 export function createCrmCityRegionOption(city: Api.Crm.GeoCityOption): CrmRegionCascaderOption {
   return {
     label: formatCityLabel(city),
-    value: createCityRegionValue(city.countryCode, city.name, city.asciiName),
-    keywords: [city.name, city.asciiName].filter((item): item is string => Boolean(item)),
+    value: createCityRegionValue(city.countryCode, city.name, city.asciiName, city.displayName),
+    keywords: Array.from(
+      new Set([city.displayName, city.name, city.asciiName].filter((item): item is string => Boolean(item)))
+    ),
     nodeType: 'city',
     countryCode: city.countryCode,
+    displayName: city.displayName,
     cityName: city.name,
     asciiName: city.asciiName,
     isLeaf: true
@@ -78,8 +82,8 @@ function createCountryRegionValue(countryCode: string, label: string) {
   return `country:${countryCode.toUpperCase()}:${encodeURIComponent(label)}`;
 }
 
-function createCityRegionValue(countryCode: string, cityName: string, asciiName: string | null) {
-  return `city:${countryCode.toUpperCase()}:${encodeURIComponent(cityName)}:${encodeURIComponent(asciiName ?? '')}`;
+function createCityRegionValue(countryCode: string, cityName: string, asciiName: string | null, displayName: string | null) {
+  return `city:${countryCode.toUpperCase()}:${encodeURIComponent(cityName)}:${encodeURIComponent(asciiName ?? '')}:${encodeURIComponent(displayName ?? '')}`;
 }
 
 function isCountryRegionValue(value: string) {
@@ -98,11 +102,12 @@ function readCountryRegionKeywords(value: string) {
 }
 
 function readCityRegionKeywords(value: string) {
-  const [, , encodedName, encodedAsciiName] = value.split(':');
+  const [, , encodedName, encodedAsciiName, encodedDisplayName] = value.split(':');
   const name = decodeURIComponent(encodedName ?? '').trim();
   const asciiName = decodeURIComponent(encodedAsciiName ?? '').trim();
+  const displayName = decodeURIComponent(encodedDisplayName ?? '').trim();
 
-  return Array.from(new Set([name, asciiName].filter(Boolean)));
+  return Array.from(new Set([displayName, name, asciiName].filter(Boolean)));
 }
 
 function formatCountryLabel(countryCode: string) {
@@ -110,7 +115,13 @@ function formatCountryLabel(countryCode: string) {
 }
 
 function formatCityLabel(city: Api.Crm.GeoCityOption) {
-  return city.asciiName && city.asciiName !== city.name ? `${city.name} / ${city.asciiName}` : city.name;
+  const primaryName = city.displayName || city.name;
+  const secondaryNames = [city.name, city.asciiName].filter(
+    (item): item is string => Boolean(item && item !== primaryName)
+  );
+  const uniqueSecondaryNames = Array.from(new Set(secondaryNames));
+
+  return uniqueSecondaryNames.length ? `${primaryName} / ${uniqueSecondaryNames.join(' / ')}` : primaryName;
 }
 
 /** Convert an ISO 3166-1 alpha-2 country code to its regional indicator flag. */

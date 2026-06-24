@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createCrmCountryRegionOption } from './crm-region-cascader';
+import { createCrmCityRegionOption, createCrmCountryRegionOption, getCrmRegionKeywords } from './crm-region-cascader';
 
 describe('crm region cascader helpers', () => {
   it('adds regional indicator flag to country options', () => {
@@ -22,5 +22,19 @@ describe('crm region cascader helpers', () => {
     });
 
     assert.equal(option.flag, '');
+  });
+
+  it('uses localized city display names without losing original keywords', () => {
+    const option = createCrmCityRegionOption({
+      name: 'New York',
+      asciiName: 'New York',
+      displayName: '纽约',
+      countryCode: 'US',
+      timeZone: 'America/New_York'
+    });
+
+    assert.equal(option.label, '纽约 / New York');
+    assert.deepEqual(option.keywords, ['纽约', 'New York']);
+    assert.deepEqual(getCrmRegionKeywords(String(option.value)), ['纽约', 'New York']);
   });
 });
