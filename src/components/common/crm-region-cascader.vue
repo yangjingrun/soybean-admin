@@ -76,7 +76,6 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
 <template>
   <NCascader
     :value="cascaderValue"
-    cascade
     clearable
     :disabled="cascaderDisabled"
     expand-trigger="hover"

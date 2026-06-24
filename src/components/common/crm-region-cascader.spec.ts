@@ -8,4 +8,8 @@ describe('crm region cascader component', () => {
   it('keeps country nodes selectable while filtering', () => {
     assert.doesNotMatch(componentSource, /check-strategy="child"/);
   });
+
+  it('does not enable checkbox-style cascade selection', () => {
+    assert.doesNotMatch(componentSource, /<NCascader[\s\S]*\n\s+cascade\b/);
+  });
 });
