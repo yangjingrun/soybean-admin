@@ -251,6 +251,7 @@ const local: App.I18n.Schema = {
     'crm_gmail-oauth-callback': 'Gmail OAuth Callback',
     'crm_email-sequences': 'Mailbox Scheduling',
     crm_inbox: 'Customer Replies',
+    'crm_inbox-detail': 'Customer Reply Detail',
     crm_settings: 'CRM Settings',
     manage: 'System Manage',
     manage_organization: 'Organization Manage',

@@ -120,6 +120,17 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'crm_inbox-detail',
+        path: '/crm/inbox/detail/:id',
+        component: 'view.crm_inbox-detail',
+        meta: {
+          title: 'crm_inbox-detail',
+          i18nKey: 'route.crm_inbox-detail',
+          hideInMenu: true,
+          activeMenu: 'crm_inbox'
+        }
+      },
+      {
         name: 'crm_leads',
         path: '/crm/leads',
         component: 'view.crm_leads',

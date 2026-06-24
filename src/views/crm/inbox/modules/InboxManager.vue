@@ -1,34 +1,16 @@
 <script setup lang="ts">
 import InboxStats from './InboxStats.vue';
-import InboxThreadDrawer from './InboxThreadDrawer.vue';
 import InboxThreadTable from './InboxThreadTable.vue';
 import { useInboxTable } from './shared/useInboxTable';
 
 const {
-  currentDetail,
-  canRestorePolishSnapshot,
-  detailLoading,
-  detailVisible,
-  draftPolishing,
-  draftSaving,
-  handleConfirmUnsubscribe,
-  handleDetailVisibleUpdate,
   handlePageSizeUpdate,
   handlePageUpdate,
-  handlePolishReplyDraft,
-  handleRestorePolishSnapshot,
-  handleSaveReplyDraft,
-  handleSendReply,
-  loadThreadDetail,
   loading,
   openThreadDetail,
   pagination,
   pendingTotal,
-  records,
-  replyBody,
-  replySending,
-  replyTopic,
-  unsubscribeConfirming
+  records
 } = useInboxTable();
 </script>
 
@@ -45,26 +27,6 @@ const {
       @view="openThreadDetail"
       @update-page="handlePageUpdate"
       @update-page-size="handlePageSizeUpdate"
-    />
-
-    <InboxThreadDrawer
-      v-model:reply-body="replyBody"
-      v-model:reply-topic="replyTopic"
-      :show="detailVisible"
-      :can-restore-polish="canRestorePolishSnapshot"
-      :detail="currentDetail"
-      :draft-polishing="draftPolishing"
-      :draft-saving="draftSaving"
-      :loading="detailLoading"
-      :reply-sending="replySending"
-      :unsubscribe-confirming="unsubscribeConfirming"
-      @update:show="handleDetailVisibleUpdate"
-      @confirm-unsubscribe="handleConfirmUnsubscribe"
-      @reload="loadThreadDetail()"
-      @polish-reply-draft="handlePolishReplyDraft"
-      @restore-polish="handleRestorePolishSnapshot"
-      @save-reply-draft="handleSaveReplyDraft"
-      @send-reply="handleSendReply"
     />
   </NSpace>
 </template>

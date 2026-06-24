@@ -25,11 +25,11 @@ const props = defineProps<{
   replyBody: string;
   replySending?: boolean;
   replyTopic: string;
-  show: boolean;
   unsubscribeConfirming?: boolean;
 }>();
 
 const emit = defineEmits<{
+  back: [];
   confirmUnsubscribe: [messageId: string];
   reload: [];
   polishReplyDraft: [];
@@ -38,13 +38,8 @@ const emit = defineEmits<{
   sendReply: [];
   'update:replyBody': [body: string];
   'update:replyTopic': [topic: string];
-  'update:show': [show: boolean];
 }>();
 
-const modalVisible = computed({
-  get: () => props.show,
-  set: value => emit('update:show', value)
-});
 const thread = computed(() => props.detail?.thread ?? null);
 const account = computed(() => props.detail?.account ?? null);
 const contact = computed(() => props.detail?.contact ?? null);
@@ -114,19 +109,17 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
 </script>
 
 <template>
-  <NModal
-    v-model:show="modalVisible"
-    preset="card"
-    class="inbox-reply-modal"
-    style="width: min(1360px, 96vw); max-width: calc(100vw - 24px)"
+  <NCard
     :bordered="false"
+    class="card-wrapper inbox-reply-panel"
+    size="small"
     :segmented="{ content: true, footer: true }"
   >
     <template #header>
-      <div class="modal-header">
-        <div class="modal-heading">
+      <div class="panel-header">
+        <div class="panel-heading">
           <NSpace align="center" :size="8">
-            <span class="modal-title">处理客户回复</span>
+            <span class="panel-title">处理客户回复</span>
             <NTag v-if="thread" :type="inboxThreadStatusTagTypeMap[thread.status]" :bordered="false" size="small">
               {{ inboxThreadStatusLabelMap[thread.status] }}
             </NTag>
@@ -134,19 +127,20 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
               未读 {{ thread.unreadCount }}
             </NTag>
           </NSpace>
-          <div v-if="thread" class="modal-subtitle">
+          <div v-if="thread" class="panel-subtitle">
             {{ thread.subject }} · 最近回复 {{ formatInboxDate(thread.lastInboundAt) }} · 共
             {{ thread.messageCount }} 封
           </div>
         </div>
         <NSpace align="center" :size="8">
+          <NButton size="tiny" secondary @click="emit('back')">返回列表</NButton>
           <NButton size="tiny" :loading="loading" @click="emit('reload')">刷新</NButton>
         </NSpace>
       </div>
     </template>
 
     <NSpin :show="loading">
-      <NSpace v-if="thread && account" vertical :size="14" class="modal-content">
+      <NSpace v-if="thread && account" vertical :size="14" class="panel-content">
         <NAlert
           v-if="pendingUnsubscribeMessage && detail?.canOperate"
           type="warning"
@@ -311,12 +305,12 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
     </NSpin>
 
     <template #footer>
-      <NSpace justify="space-between" align="center" class="modal-footer">
+      <NSpace justify="space-between" align="center" class="panel-footer">
         <NText v-if="detail && !detail.canOperate" depth="3">当前账号不可操作该回复</NText>
         <span v-else />
 
         <NSpace justify="end">
-          <NButton @click="modalVisible = false">关闭</NButton>
+          <NButton @click="emit('back')">返回列表</NButton>
           <NButton
             v-if="canEditDraft"
             type="primary"
@@ -339,17 +333,39 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
         </NSpace>
       </NSpace>
     </template>
-  </NModal>
+  </NCard>
 </template>
 
 <style scoped>
-.inbox-reply-modal {
-  max-width: calc(100vw - 32px);
-  width: min(1360px, 96vw);
+.inbox-reply-panel {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 230px);
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
 }
 
-.modal-header,
-.modal-footer,
+.inbox-reply-panel :deep(.n-card__content) {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.inbox-reply-panel :deep(.n-card__footer) {
+  flex: 0 0 auto;
+}
+
+.inbox-reply-panel :deep(.n-spin-container),
+.inbox-reply-panel :deep(.n-spin-content) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-header,
+.panel-footer,
 .section-title-row {
   display: flex;
   align-items: center;
@@ -358,8 +374,8 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   min-width: 0;
 }
 
-.modal-heading,
-.modal-content,
+.panel-heading,
+.panel-content,
 .drawer-section,
 .message-header,
 .reply-draft-section {
@@ -368,11 +384,11 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   min-width: 0;
 }
 
-.modal-heading {
+.panel-heading {
   gap: 6px;
 }
 
-.modal-content,
+.panel-content,
 .drawer-section,
 .reply-draft-section {
   display: flex;
@@ -380,14 +396,20 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   gap: 8px;
 }
 
-.modal-title {
+.panel-content {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-title {
   color: var(--n-text-color);
   font-size: 18px;
   font-weight: 600;
   line-height: 1.35;
 }
 
-.modal-subtitle {
+.panel-subtitle {
   color: var(--n-text-color-3);
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -397,7 +419,7 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.95fr);
   gap: 18px;
-  height: min(620px, calc(86vh - 170px));
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -410,11 +432,21 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   padding-right: 2px;
 }
 
+.mail-thread-pane {
+  display: flex;
+}
+
+.mail-thread-pane > .drawer-section {
+  flex: 1;
+}
+
 .message-list {
   box-sizing: border-box;
+  flex: 1;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  overflow: auto;
   border: 1px solid var(--n-border-color);
   border-radius: 8px;
   background-color: rgb(var(--layout-bg-color));
@@ -490,7 +522,7 @@ function getMessageTimelineType(message: Api.Crm.InboxMessageRecord): MessageTim
   .reply-workspace {
     height: auto;
     grid-template-columns: 1fr;
-    max-height: calc(88vh - 170px);
+    max-height: none;
     overflow: auto;
   }
 }

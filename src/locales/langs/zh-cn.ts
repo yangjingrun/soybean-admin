@@ -246,6 +246,7 @@ const local: App.I18n.Schema = {
     'crm_gmail-oauth-callback': 'Gmail授权回调',
     'crm_email-sequences': '邮箱调度',
     crm_inbox: '客户回信',
+    'crm_inbox-detail': '客户回信详情',
     crm_settings: 'CRM配置',
     manage: '系统管理',
     manage_organization: '组织管理',
