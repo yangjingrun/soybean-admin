@@ -2,14 +2,7 @@
 import { computed, h } from 'vue';
 import { NButton, NSpace, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import {
-  formatLeadDate,
-  formatLeadWebsiteDisplay,
-  getLeadNextAction,
-  getWebsiteHref,
-  leadStatusLabelMap,
-  leadStatusTagTypeMap
-} from './shared';
+import { formatLeadDate, getLeadNextAction, getWebsiteHref, leadStatusLabelMap, leadStatusTagTypeMap } from './shared';
 
 const props = defineProps<{
   records: Api.Crm.LeadRecord[];
@@ -37,21 +30,20 @@ function renderCompany(row: Api.Crm.LeadRecord) {
 }
 
 function renderWebsite(row: Api.Crm.LeadRecord) {
-  const displayText = formatLeadWebsiteDisplay(row);
   const websiteNode =
-    row.websiteUrl && displayText !== '-'
+    row.websiteUrl
       ? h(
           'a',
           {
-            class: 'lead-website-link',
+            class: 'lead-official-link',
             href: getWebsiteHref(row.websiteUrl),
             target: '_blank',
             rel: 'noreferrer',
             title: row.websiteUrl
           },
-          displayText
+          '官网'
         )
-      : h('span', { class: displayText === '-' ? 'lead-empty-text' : 'lead-primary-text' }, displayText);
+      : h('span', { class: 'lead-empty-text' }, '-');
 
   return h('div', { class: 'lead-stack-cell' }, [websiteNode]);
 }
@@ -92,7 +84,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
   {
     key: 'website',
     title: '官网',
-    minWidth: 260,
+    width: 90,
     render: row => renderWebsite(row)
   },
   {
@@ -244,16 +236,22 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => [
   font-size: 12px;
 }
 
-.lead-website-link {
+.lead-official-link {
+  align-self: flex-start;
+  border: 1px solid rgba(var(--primary-color), 0.28);
+  border-radius: 4px;
+  background: rgba(var(--primary-color), 0.08);
   color: rgb(var(--primary-color));
-  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 8px;
   text-decoration: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.lead-website-link:hover {
-  text-decoration: underline;
+.lead-official-link:hover {
+  border-color: rgba(var(--primary-color), 0.45);
+  background: rgba(var(--primary-color), 0.14);
 }
 
 .table-pagination {

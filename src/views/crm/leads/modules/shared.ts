@@ -227,8 +227,12 @@ const archivedFingerprintMatchedEventType = 'archived_fingerprint_matched';
 export function createDefaultLeadFilterModel(): Api.Crm.LeadFilterModel {
   return {
     keyword: '',
+    contactTitle: '',
+    customerType: '',
+    region: '',
     status: null,
-    sourceTaskId: null
+    sourceTaskId: null,
+    updatedAtRange: null
   };
 }
 
@@ -317,8 +321,32 @@ export function buildLeadSearchParams(options: {
     params.keyword = keyword;
   }
 
+  const contactTitle = filterModel.contactTitle?.trim();
+
+  if (contactTitle) {
+    params.contactTitle = contactTitle;
+  }
+
+  const customerType = filterModel.customerType?.trim();
+
+  if (customerType) {
+    params.customerType = customerType;
+  }
+
+  const region = filterModel.region?.trim();
+
+  if (region) {
+    params.region = region;
+  }
+
   if (filterModel.status) {
     params.status = filterModel.status;
+  }
+
+  if (filterModel.updatedAtRange) {
+    const [start, end] = filterModel.updatedAtRange;
+    params.updatedFrom = dayjs(start).startOf('day').toISOString();
+    params.updatedTo = dayjs(end).endOf('day').toISOString();
   }
 
   const sourceTaskId = filterModel.sourceTaskId?.trim();

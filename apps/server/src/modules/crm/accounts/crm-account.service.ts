@@ -253,20 +253,35 @@ export class CrmAccountService {
       current?: number | string;
       size?: number | string;
       keyword?: string;
+      contactTitle?: string;
+      customerType?: string;
+      region?: string;
       status?: CrmAccountStatus;
       sourceTaskId?: string;
+      updatedFrom?: string;
+      updatedTo?: string;
     } = {}
   ) {
     const current = normalizePositiveInteger(query.current, defaultPage);
     const size = Math.min(normalizePositiveInteger(query.size, defaultPageSize), maxPageSize);
     const keyword = normalizeNullableString(query.keyword);
+    const contactTitle = normalizeNullableString(query.contactTitle);
+    const customerType = normalizeNullableString(query.customerType);
+    const region = normalizeNullableString(query.region);
     const sourceTaskId = normalizeNullableString(query.sourceTaskId);
+    const updatedFrom = normalizeDate(query.updatedFrom, 'updatedFrom');
+    const updatedTo = normalizeDate(query.updatedTo, 'updatedTo');
     const result = await this.accountRepository.listAccounts({
       organizationId: context.organizationId,
       ...createCrmOwnerFilter(context),
       ...(keyword ? { keyword } : {}),
+      ...(contactTitle ? { contactTitle } : {}),
+      ...(customerType ? { customerType } : {}),
+      ...(region ? { region } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(sourceTaskId ? { sourceTaskId } : {}),
+      ...(updatedFrom ? { updatedFrom } : {}),
+      ...(updatedTo ? { updatedTo } : {}),
       skip: (current - 1) * size,
       take: size
     });
@@ -1269,6 +1284,19 @@ function isEmailVerificationCacheFresh(verifiedAt: Date, cooldownDays: number, n
 
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+/** Normalize optional list date filters from the frontend ISO range. */
+function normalizeDate(value: string | undefined, field: string) {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException(`${field} 不是有效时间`);
+  }
+
+  return date;
 }
 
 function toEmailStatusText(status: CrmEmailStatus) {

@@ -30,6 +30,24 @@ export class CrmAccountQueryDto {
   keyword?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  @Transform(trimOptionalString)
+  contactTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  @Transform(trimOptionalString)
+  customerType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Transform(trimOptionalString)
+  region?: string;
+
+  @IsOptional()
   @IsIn(crmAccountStatuses)
   @Transform(trimOptionalString)
   status?: CrmAccountStatus;
@@ -39,4 +57,16 @@ export class CrmAccountQueryDto {
   @MaxLength(80)
   @Transform(trimOptionalString)
   sourceTaskId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Transform(trimOptionalString)
+  updatedFrom?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Transform(trimOptionalString)
+  updatedTo?: string;
 }

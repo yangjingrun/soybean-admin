@@ -61,14 +61,54 @@ describe('PrismaCrmAccountStore', () => {
         organizationId: 'org-1',
         ownerUserId: 'user-1',
         status: 'ready',
-        OR: [
-          { name: { contains: 'bearing', mode: 'insensitive' } },
-          { domain: { contains: 'bearing', mode: 'insensitive' } },
-          { websiteUrl: { contains: 'bearing', mode: 'insensitive' } },
-          { country: { contains: 'bearing', mode: 'insensitive' } },
-          { city: { contains: 'bearing', mode: 'insensitive' } },
-          { address: { contains: 'bearing', mode: 'insensitive' } },
-          { customerType: { contains: 'bearing', mode: 'insensitive' } }
+        AND: [
+          {
+            OR: [
+              { name: { contains: 'bearing', mode: 'insensitive' } },
+              { domain: { contains: 'bearing', mode: 'insensitive' } },
+              { websiteUrl: { contains: 'bearing', mode: 'insensitive' } },
+              { country: { contains: 'bearing', mode: 'insensitive' } },
+              { city: { contains: 'bearing', mode: 'insensitive' } },
+              { address: { contains: 'bearing', mode: 'insensitive' } },
+              { customerType: { contains: 'bearing', mode: 'insensitive' } }
+            ]
+          }
+        ]
+      });
+    });
+
+    it('builds field account filters for CRM lead filter panel', async () => {
+      const prisma = createPrisma();
+      const store = new PrismaCrmAccountStore(prisma as never);
+      const updatedFrom = new Date('2026-06-01T00:00:00.000Z');
+      const updatedTo = new Date('2026-06-24T23:59:59.999Z');
+
+      await store.listAccounts({
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        skip: 0,
+        take: 20,
+        contactTitle: 'buyer',
+        customerType: 'distributor',
+        region: 'Riyadh',
+        updatedFrom,
+        updatedTo
+      });
+
+      assert.deepEqual(prisma.crmAccount.findManyCalls[0].where, {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        customerType: { contains: 'distributor', mode: 'insensitive' },
+        contacts: { some: { title: { contains: 'buyer', mode: 'insensitive' } } },
+        updatedAt: { gte: updatedFrom, lte: updatedTo },
+        AND: [
+          {
+            OR: [
+              { country: { contains: 'Riyadh', mode: 'insensitive' } },
+              { city: { contains: 'Riyadh', mode: 'insensitive' } },
+              { address: { contains: 'Riyadh', mode: 'insensitive' } }
+            ]
+          }
         ]
       });
     });

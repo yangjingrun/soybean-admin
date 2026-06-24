@@ -2,7 +2,6 @@
 import InboxStats from './InboxStats.vue';
 import InboxThreadDrawer from './InboxThreadDrawer.vue';
 import InboxThreadTable from './InboxThreadTable.vue';
-import { inboxPageGuide } from './shared';
 import { useInboxTable } from './shared/useInboxTable';
 
 const {
@@ -37,10 +36,6 @@ const {
 
 <template>
   <NSpace vertical :size="12">
-    <NAlert type="info" :bordered="false" :title="inboxPageGuide.title">
-      {{ inboxPageGuide.description }}
-    </NAlert>
-
     <InboxStats :records="records" :pending-total="pendingTotal" :total="pagination.total" />
 
     <InboxThreadTable

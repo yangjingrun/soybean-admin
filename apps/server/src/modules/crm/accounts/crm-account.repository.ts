@@ -52,8 +52,13 @@ export interface CrmAccountRepository {
     organizationId: string;
     ownerUserId?: string;
     keyword?: string;
+    contactTitle?: string;
+    customerType?: string;
+    region?: string;
     status?: CrmAccountStatus;
     sourceTaskId?: string;
+    updatedFrom?: Date;
+    updatedTo?: Date;
     skip: number;
     take: number;
   }): Promise<{ records: CrmAccountRecord[]; total: number }>;

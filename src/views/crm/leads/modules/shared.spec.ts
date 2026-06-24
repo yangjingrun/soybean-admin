@@ -129,8 +129,12 @@ describe('crm lead shared helpers', () => {
         size: 20,
         filterModel: {
           keyword: ' bearing ',
+          contactTitle: '',
+          customerType: '',
+          region: '',
           status: 'missing_contact',
-          sourceTaskId: ' task-1 '
+          sourceTaskId: ' task-1 ',
+          updatedAtRange: null
         }
       }),
       {
@@ -273,6 +277,30 @@ describe('crm lead shared helpers', () => {
       'kr.misumi-ec.com'
     );
     assert.equal(formatLeadWebsiteDisplay({ websiteUrl: null, domain: null }), '-');
+  });
+
+  it('builds lead search params from field filters', () => {
+    const params = buildLeadSearchParams({
+      current: 1,
+      size: 10,
+      filterModel: {
+        keyword: ' ABC ',
+        contactTitle: ' buyer ',
+        customerType: ' distributor ',
+        region: ' Riyadh ',
+        status: 'ready',
+        sourceTaskId: null,
+        updatedAtRange: [Date.UTC(2026, 5, 1), Date.UTC(2026, 5, 24)]
+      }
+    });
+
+    assert.equal(params.keyword, 'ABC');
+    assert.equal(params.contactTitle, 'buyer');
+    assert.equal(params.customerType, 'distributor');
+    assert.equal(params.region, 'Riyadh');
+    assert.equal(params.status, 'ready');
+    assert.ok(params.updatedFrom);
+    assert.ok(params.updatedTo);
   });
 });
 

@@ -120,6 +120,11 @@ describe('CRM split controllers', () => {
       current: 1,
       size: 20,
       keyword: 'abc',
+      contactTitle: 'buyer',
+      customerType: 'distributor',
+      region: 'Riyadh',
+      updatedFrom: '2026-06-01T00:00:00.000Z',
+      updatedTo: '2026-06-24T23:59:59.999Z',
       status: 'ready' as const
     };
     const result = await controller.listAccounts(createContext(), query);

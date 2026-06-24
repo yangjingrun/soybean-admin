@@ -120,17 +120,40 @@ export function toAccountListWhere(args: {
   organizationId: string;
   ownerUserId?: string;
   keyword?: string;
+  contactTitle?: string;
+  customerType?: string;
+  region?: string;
   status?: CrmAccountStatus;
   sourceTaskId?: string;
+  updatedFrom?: Date;
+  updatedTo?: Date;
 }): Prisma.CrmAccountWhereInput {
   const keywordFilter = args.keyword ? toAccountKeywordFilter(args.keyword) : undefined;
+  const regionFilter: Prisma.CrmAccountWhereInput[] | undefined = args.region
+    ? [
+        { country: { contains: args.region, mode: 'insensitive' } },
+        { city: { contains: args.region, mode: 'insensitive' } },
+        { address: { contains: args.region, mode: 'insensitive' } }
+      ]
+    : undefined;
+  const andFilters: Prisma.CrmAccountWhereInput[] = [
+    ...(keywordFilter ? [{ OR: keywordFilter }] : []),
+    ...(regionFilter ? [{ OR: regionFilter }] : [])
+  ];
 
   return {
     organizationId: args.organizationId,
     ...(args.ownerUserId ? { ownerUserId: args.ownerUserId } : {}),
     ...(args.status ? { status: args.status } : {}),
     ...(args.sourceTaskId ? { sourceTaskId: args.sourceTaskId } : {}),
-    ...(keywordFilter ? { OR: keywordFilter } : {})
+    ...(args.customerType ? { customerType: { contains: args.customerType, mode: 'insensitive' } } : {}),
+    ...(args.contactTitle
+      ? { contacts: { some: { title: { contains: args.contactTitle, mode: 'insensitive' } } } }
+      : {}),
+    ...(args.updatedFrom || args.updatedTo
+      ? { updatedAt: { ...(args.updatedFrom ? { gte: args.updatedFrom } : {}), ...(args.updatedTo ? { lte: args.updatedTo } : {}) } }
+      : {}),
+    ...(andFilters.length ? { AND: andFilters } : {})
   };
 }
 

@@ -4,7 +4,7 @@ import type { CrmAccountRecord, CrmContactRecord, CrmTimelineEventCreateInput } 
 import { CrmAccountService } from './crm-account.service';
 
 describe('CrmAccountService', () => {
-  it('passes source task filter to scoped account listing', async () => {
+  it('passes lead filters to scoped account listing', async () => {
     const listCalls: unknown[] = [];
     const service = new CrmAccountService(
       {
@@ -26,13 +26,27 @@ describe('CrmAccountService', () => {
         organizationId: 'org-1',
         organizationRole: 'member'
       },
-      { current: 1, size: 20, sourceTaskId: ' task-1 ' }
+      {
+        current: 1,
+        size: 20,
+        sourceTaskId: ' task-1 ',
+        contactTitle: ' buyer ',
+        customerType: ' distributor ',
+        region: ' Riyadh ',
+        updatedFrom: '2026-06-01T00:00:00.000Z',
+        updatedTo: '2026-06-24T23:59:59.999Z'
+      }
     );
 
     assert.deepEqual(listCalls[0], {
       organizationId: 'org-1',
       ownerUserId: 'user-1',
       sourceTaskId: 'task-1',
+      contactTitle: 'buyer',
+      customerType: 'distributor',
+      region: 'Riyadh',
+      updatedFrom: new Date('2026-06-01T00:00:00.000Z'),
+      updatedTo: new Date('2026-06-24T23:59:59.999Z'),
       skip: 0,
       take: 20
     });

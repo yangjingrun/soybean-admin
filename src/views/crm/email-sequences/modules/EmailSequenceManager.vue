@@ -3,7 +3,6 @@ import BulkAiDraftTaskDrawer from './BulkAiDraftTaskDrawer.vue';
 import DraftReviewModal from './DraftReviewModal.vue';
 import EmailSequenceTable from './EmailSequenceTable.vue';
 import SequenceCreateModal from './SequenceCreateModal.vue';
-import { sequencePageGuide } from './shared';
 import { useEmailSequenceTable } from './useEmailSequenceTable';
 
 const {
@@ -75,10 +74,6 @@ const {
 
 <template>
   <NSpace vertical :size="12">
-    <NAlert type="info" :bordered="false" :title="sequencePageGuide.title">
-      {{ sequencePageGuide.description }}
-    </NAlert>
-
     <NSpace justify="end">
       <NButton type="primary" ghost @click="openCreateModal">生成首封开发信</NButton>
     </NSpace>
