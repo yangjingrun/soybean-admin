@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type CSSProperties } from 'vue';
 import { useCrmRegionCascader } from '@/hooks/business/crm-region-cascader';
 
 defineOptions({ name: 'CrmRegionCascader' });
@@ -31,6 +31,16 @@ const {
 
 const cascaderValue = computed(() => props.modelValue || null);
 const cascaderDisabled = computed(() => props.disabled || regionLoading.value);
+const dropdownStyle = {
+  // 国家-地区-城市层级较长，放大弹层高度减少滚动成本。
+  '--n-menu-height': 'min(72vh, 560px)'
+} as CSSProperties;
+const dropdownMenuProps = {
+  style: dropdownStyle
+};
+const filterDropdownMenuProps = {
+  style: dropdownStyle
+};
 
 function handleRegionUpdate(value: string | number | null) {
   emit('update:modelValue', typeof value === 'string' ? value : '');
@@ -47,7 +57,9 @@ function handleRegionUpdate(value: string | number | null) {
     :disabled="cascaderDisabled"
     expand-trigger="hover"
     filterable
+    :filter-menu-props="filterDropdownMenuProps"
     :filter="filterCrmRegionOption"
+    :menu-props="dropdownMenuProps"
     :options="regionOptions"
     :placeholder="placeholder"
     show-path
