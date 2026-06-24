@@ -9,6 +9,7 @@ import {
   buildLeadRowContactView,
   buildLeadSequenceTarget,
   buildLeadSequenceTargetsFromCheckedRows,
+  canCreateSequenceFromLeadRecord,
   canCreateSequenceFromLeadContact,
   crmLeadPageGuide,
   formatLeadProgressTime,
@@ -217,6 +218,40 @@ describe('crm lead shared helpers', () => {
         ['可开发', 1],
         ['跟进中', 2]
       ]
+    );
+  });
+
+  it('only treats ready untouched leads as sequence creation targets', () => {
+    const contact = createLeadContact({ emailStatus: 'valid' });
+    const readyLead = createLeadRecord({
+      id: 'lead-ready',
+      status: 'ready',
+      contactCount: 1,
+      primaryContact: { ...contact, id: 'contact-ready', accountId: 'lead-ready' }
+    });
+    const pausedLead = createLeadRecord({
+      id: 'lead-paused',
+      status: 'paused',
+      contactCount: 1,
+      primaryContact: { ...contact, id: 'contact-paused', accountId: 'lead-paused' }
+    });
+    const followedLead = createLeadRecord({
+      id: 'lead-followed',
+      status: 'followed_up',
+      contactCount: 1,
+      primaryContact: { ...contact, id: 'contact-followed', accountId: 'lead-followed' }
+    });
+
+    assert.equal(canCreateSequenceFromLeadRecord(readyLead), true);
+    assert.equal(canCreateSequenceFromLeadRecord(pausedLead), false);
+    assert.equal(canCreateSequenceFromLeadRecord(followedLead), false);
+    assert.deepEqual(
+      buildLeadSequenceTargetsFromCheckedRows([readyLead, pausedLead, followedLead], [
+        'lead-ready',
+        'lead-paused',
+        'lead-followed'
+      ]).map(target => target.accountId),
+      ['lead-ready']
     );
   });
 
@@ -452,9 +487,9 @@ describe('crm lead shared helpers', () => {
     assert.deepEqual(
       buildLeadSequenceTargetsFromCheckedRows(
         [
-          createLeadRecord({ id: 'lead-1', name: 'ABC Trading', primaryContact: validContact }),
-          createLeadRecord({ id: 'lead-2', name: 'Invalid Lead', primaryContact: invalidContact }),
-          createLeadRecord({ id: 'lead-3', name: 'No Contact', primaryContact: null })
+          createLeadRecord({ id: 'lead-1', name: 'ABC Trading', status: 'ready', primaryContact: validContact }),
+          createLeadRecord({ id: 'lead-2', name: 'Invalid Lead', status: 'ready', primaryContact: invalidContact }),
+          createLeadRecord({ id: 'lead-3', name: 'No Contact', status: 'ready', primaryContact: null })
         ],
         ['lead-1', 'lead-2', 'lead-3']
       ),

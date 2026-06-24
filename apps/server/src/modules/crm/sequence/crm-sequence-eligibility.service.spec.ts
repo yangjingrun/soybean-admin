@@ -34,6 +34,37 @@ describe('CrmSequenceEligibilityService', () => {
     assert.equal(sequenceRepository.accountChecks.length, 0);
   });
 
+  it('only allows ready undeveloped accounts to start first outreach', async () => {
+    const sequenceRepository = createSequenceRepository();
+    const service = createService({
+      sequenceRepository
+    });
+
+    await assert.rejects(
+      () =>
+        service.assertCanCreateSequenceReview({
+          account: createAccount({ status: 'paused' }),
+          contact: createContact(),
+          policy: null,
+          context: createContext()
+        }),
+      /未开发/
+    );
+
+    await assert.rejects(
+      () =>
+        service.assertCanCreateSequenceReview({
+          account: createAccount({ status: 'followed_up' }),
+          contact: createContact(),
+          policy: null,
+          context: createContext()
+        }),
+      /未开发/
+    );
+    assert.equal(sequenceRepository.contactChecks.length, 0);
+    assert.equal(sequenceRepository.accountChecks.length, 0);
+  });
+
   it('rejects organization-blacklisted contacts before active sequence checks', async () => {
     const sequenceRepository = createSequenceRepository();
     const service = createService({
@@ -44,7 +75,7 @@ describe('CrmSequenceEligibilityService', () => {
     await assert.rejects(
       () =>
         service.assertCanCreateSequenceReview({
-          account: createAccount(),
+          account: createAccount({ status: 'ready' }),
           contact: createContact(),
           policy: null,
           context: createContext()
@@ -63,7 +94,7 @@ describe('CrmSequenceEligibilityService', () => {
     });
 
     await service.assertCanCreateSequenceReview({
-      account: createAccount(),
+      account: createAccount({ status: 'ready' }),
       contact: createContact(),
       policy: null,
       context: createContext()
@@ -101,7 +132,7 @@ describe('CrmSequenceEligibilityService', () => {
     await assert.rejects(
       () =>
         service.assertCanCreateSequenceReview({
-          account: createAccount(),
+          account: createAccount({ status: 'ready' }),
           contact: createContact(),
           policy: null,
           context: createContext()
@@ -119,7 +150,7 @@ describe('CrmSequenceEligibilityService', () => {
     await assert.rejects(
       () =>
         service.assertCanCreateSequenceReview({
-          account: createAccount(),
+          account: createAccount({ status: 'ready' }),
           contact: createContact(),
           policy: null,
           context: createContext()
@@ -128,7 +159,7 @@ describe('CrmSequenceEligibilityService', () => {
     );
 
     await service.assertCanCreateSequenceReview({
-      account: createAccount(),
+      account: createAccount({ status: 'ready' }),
       contact: createContact(),
       policy: createSequencePolicy({ sameCompanyContactStrategy: 'allow_multiple_contacts' }),
       context: createContext()

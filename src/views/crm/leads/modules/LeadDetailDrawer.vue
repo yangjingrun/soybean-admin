@@ -8,7 +8,7 @@ import {
   createDefaultLeadNoteForm,
   createDefaultLeadStatusForm,
   buildLeadAccountUpdatePayload,
-  canCreateSequenceFromLeadContact,
+  canCreateSequenceFromLeadAccountContact,
   formatArchivedFingerprintTypeLabel,
   formatLeadDate,
   formatLeadProgressTime,
@@ -135,6 +135,11 @@ const selectedContact = computed(
 const selectedContactProgress = computed(() =>
   selectedContact.value ? buildLeadEmailProgressView(selectedContact.value) : null
 );
+const canCreateSequenceFromSelectedContact = computed(() =>
+  Boolean(
+    account.value && selectedContact.value && canCreateSequenceFromLeadAccountContact(account.value, selectedContact.value)
+  )
+);
 const nextAction = computed(() => (account.value ? getLeadNextAction(account.value.status) : null));
 const latestHunterHistory = computed(
   () => enrichmentHistories.value.find(history => history.provider === 'hunter') ?? null
@@ -146,6 +151,10 @@ const archivedMatchGroups = computed(() =>
     matches: readArchivedFingerprintMatches(event)
   }))
 );
+
+function canCreateSequenceFromDetailContact(contact: Api.Crm.LeadContact) {
+  return account.value ? canCreateSequenceFromLeadAccountContact(account.value, contact) : false;
+}
 const archivedMatchCount = computed(() =>
   archivedMatchGroups.value.reduce((total, group) => total + group.matches.length, 0)
 );
@@ -403,7 +412,7 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
                 size: 'small',
                 text: true,
                 type: 'success',
-                disabled: !canCreateSequenceFromLeadContact(row),
+                disabled: !canCreateSequenceFromDetailContact(row),
                 onClick: () => emit('createSequence', row)
               },
               { default: () => '开发信' }
@@ -778,7 +787,7 @@ function handleSelectCommunicationContact(contactId: string) {
                 <NButton
                   type="primary"
                   secondary
-                  :disabled="!selectedContact || !canCreateSequenceFromLeadContact(selectedContact)"
+                  :disabled="!canCreateSequenceFromSelectedContact"
                   @click="selectedContact && emit('createSequence', selectedContact)"
                 >
                   创建开发信

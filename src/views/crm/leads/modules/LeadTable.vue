@@ -6,7 +6,8 @@ import {
   buildLeadEmailProgressView,
   buildLeadExpandedContactView,
   buildLeadRowContactView,
-  canCreateSequenceFromLeadContact,
+  canCreateSequenceFromLeadAccountContact,
+  canCreateSequenceFromLeadRecord,
   formatLeadDate,
   getWebsiteHref,
   leadEmailStatusLabelMap,
@@ -141,6 +142,12 @@ function renderRecentInteraction(row: Api.Crm.LeadRecord) {
   ]);
 }
 
+function canCreateSequenceFromExpandedContact(contact: Api.Crm.LeadContact) {
+  const account = props.records.find(record => record.id === contact.accountId);
+
+  return account ? canCreateSequenceFromLeadAccountContact(account, contact) : false;
+}
+
 function isContactVerifying(contactId: string) {
   return props.verifyingContactIds?.includes(contactId) ?? false;
 }
@@ -270,7 +277,7 @@ const expandedContactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>((
                 size: 'small',
                 text: true,
                 type: 'success',
-                disabled: !canCreateSequenceFromLeadContact(row),
+                disabled: !canCreateSequenceFromExpandedContact(row),
                 onClick: () => emit('createSequence', row)
               },
               { default: () => '开发信' }
@@ -370,7 +377,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   const selectionColumn: DataTableColumns<Api.Crm.LeadRecord>[number] = {
     type: 'selection',
     width: 44,
-    disabled: row => !row.primaryContact || !canCreateSequenceFromLeadContact(row.primaryContact)
+    disabled: row => !canCreateSequenceFromLeadRecord(row)
   };
   const tableColumns: DataTableColumns<Api.Crm.LeadRecord> = [
     selectionColumn,
@@ -481,7 +488,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                     {
                       label: '生成开发信',
                       key: 'createSequence',
-                      disabled: !row.primaryContact || !canCreateSequenceFromLeadContact(row.primaryContact)
+                      disabled: !canCreateSequenceFromLeadRecord(row)
                     },
                     {
                       label: row.status === 'archived' ? '重新开发' : '暂不开发',

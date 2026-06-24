@@ -58,8 +58,8 @@ export class CrmSequenceEligibilityService {
   }
 
   private assertOwnerCanDevelop(account: CrmAccountRecord, contact: CrmContactRecord, context: CrmUserContext) {
-    if (account.status === 'archived' || account.status === 'blocked') {
-      throw new BadRequestException('当前线索不可开发');
+    if (account.status !== 'ready') {
+      throw new BadRequestException('只有未开发客户可以生成开发信');
     }
 
     if (account.ownerUserId !== context.userId || contact.ownerUserId !== context.userId) {

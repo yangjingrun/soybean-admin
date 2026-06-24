@@ -27,7 +27,7 @@ import {
   buildLeadSequenceTarget,
   buildLeadSequenceTargetsFromCheckedRows,
   buildLeadSearchParams,
-  canCreateSequenceFromLeadContact,
+  canCreateSequenceFromLeadAccountContact,
   createDefaultLeadFilterModel,
   createDefaultLeadImportForm,
   type LeadCommunicationTab,
@@ -384,7 +384,7 @@ export function useLeadTable() {
   /** Open first-email generation modal for one contact in the customer workspace. */
   function handleCreateSequenceFromContact(contact: Api.Crm.LeadContact) {
     if (!canOpenSequenceForContact(contact)) {
-      message.warning('当前联系人邮箱状态不适合生成开发信');
+      message.warning('只有未开发客户可以生成开发信');
       return;
     }
 
@@ -869,7 +869,9 @@ export function useLeadTable() {
   }
 
   function canOpenSequenceForContact(contact: Api.Crm.LeadContact) {
-    return canCreateSequenceFromLeadContact(contact);
+    const account = findCachedLeadAccount(contact.accountId);
+
+    return account ? canCreateSequenceFromLeadAccountContact(account, contact) : false;
   }
 
   function openSequenceCreateModal(targets: LeadSequenceTarget[]) {

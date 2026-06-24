@@ -505,6 +505,21 @@ export function canCreateSequenceFromLeadContact(contact: Api.Crm.LeadContact) {
   return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
 }
 
+/** First outreach can only start from ready leads that have not entered a sequence. */
+export function canCreateSequenceFromLeadAccountContact(
+  account: Pick<Api.Crm.LeadRecord, 'status'>,
+  contact: Api.Crm.LeadContact
+) {
+  return account.status === 'ready' && canCreateSequenceFromLeadContact(contact);
+}
+
+/** Check whether a visible customer row can be selected for first-email generation. */
+export function canCreateSequenceFromLeadRecord(record: Api.Crm.LeadRecord) {
+  return Boolean(
+    record.primaryContact && canCreateSequenceFromLeadAccountContact(record, record.primaryContact)
+  );
+}
+
 /** Build the readonly target shown before creating first-email drafts from the customer page. */
 export function buildLeadSequenceTarget(
   contact: Api.Crm.LeadContact,
@@ -528,15 +543,11 @@ export function buildLeadSequenceTargetsFromCheckedRows(
   const checkedSet = new Set(checkedRowKeys);
 
   return records.reduce<LeadSequenceTarget[]>((targets, record) => {
-    if (
-      !checkedSet.has(record.id) ||
-      !record.primaryContact ||
-      !canCreateSequenceFromLeadContact(record.primaryContact)
-    ) {
+    if (!checkedSet.has(record.id) || !canCreateSequenceFromLeadRecord(record)) {
       return targets;
     }
 
-    targets.push(buildLeadSequenceTarget(record.primaryContact, record));
+    targets.push(buildLeadSequenceTarget(record.primaryContact!, record));
 
     return targets;
   }, []);
