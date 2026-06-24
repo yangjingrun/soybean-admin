@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, type CSSProperties, type VNodeChild } from 'vue';
+import { computed, h, shallowRef, type CSSProperties, type VNodeChild } from 'vue';
 import type { CascaderOption } from 'naive-ui';
 import { useCrmRegionCascader } from '@/hooks/business/crm-region-cascader';
 import type { CrmRegionCascaderOption } from '@/utils/crm-region-cascader';
@@ -33,6 +33,7 @@ const {
 
 const cascaderValue = computed(() => props.modelValue || null);
 const cascaderDisabled = computed(() => props.disabled || regionLoading.value);
+const cascaderShow = shallowRef(false);
 const dropdownStyle = {
   // 国家-地区-城市层级较长，放大弹层高度减少滚动成本。
   '--n-menu-height': 'min(72vh, 560px)'
@@ -51,6 +52,21 @@ function handleRegionUpdate(value: string | number | null) {
   clearRegionSearch();
 }
 
+function handleRegionShowUpdate(show: boolean) {
+  cascaderShow.value = show;
+  handleRegionDropdownShow(show);
+}
+
+function handleRegionLabelClick(event: MouseEvent, option: CrmRegionCascaderOption) {
+  if (option.nodeType !== 'country') {
+    return;
+  }
+
+  event.stopPropagation();
+  handleRegionUpdate(option.value);
+  cascaderShow.value = false;
+}
+
 function getRegionColumnStyle(): CSSProperties {
   return {
     width: 'max-content',
@@ -62,14 +78,25 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
   const regionOption = option as CrmRegionCascaderOption;
   const label = String(regionOption.label ?? '');
 
-  if (regionOption.nodeType !== 'country' || !regionOption.flag) {
+  if (regionOption.nodeType !== 'country') {
     return label;
   }
 
-  return h('span', { class: 'crm-region-cascader-country-label' }, [
-    h('span', { class: 'crm-region-cascader-country-label__flag' }, regionOption.flag),
-    h('span', { class: 'crm-region-cascader-country-label__text' }, label)
-  ]);
+  return h(
+    'span',
+    {
+      class: 'crm-region-cascader-country-label',
+      onClick: (event: MouseEvent) => handleRegionLabelClick(event, regionOption)
+    },
+    [
+      h('span', { class: 'crm-region-cascader-country-label__flag' }, regionOption.flag ?? ''),
+      h('span', { class: 'crm-region-cascader-country-label__text' }, label)
+    ]
+  );
+}
+
+function renderEmptyRegionPrefix() {
+  return null;
 }
 </script>
 
@@ -89,8 +116,10 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
     :options="regionOptions"
     :placeholder="placeholder"
     :render-label="renderRegionLabel"
+    :render-prefix="renderEmptyRegionPrefix"
     show-path
-    @update:show="handleRegionDropdownShow"
+    :show="cascaderShow"
+    @update:show="handleRegionShowUpdate"
     @update:value="handleRegionUpdate"
   />
 </template>
@@ -124,9 +153,18 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
 :global(.crm-region-cascader-menu .n-cascader-option) {
   width: max-content;
   min-width: 100%;
+  padding-left: 8px;
+}
+
+:global(.crm-region-cascader-menu .n-cascader-option--show-prefix) {
+  padding-left: 8px;
 }
 
 :global(.crm-region-cascader-menu .n-cascader-option__prefix) {
+  display: none;
+}
+
+:global(.crm-region-cascader-menu .n-cascader-option .n-checkbox) {
   display: none;
 }
 

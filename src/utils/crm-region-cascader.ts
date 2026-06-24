@@ -15,13 +15,14 @@ export interface CrmRegionCascaderOption extends CascaderOption {
 }
 
 const countryDisplayNamesZh = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
+const countryDisplayNamesEn = new Intl.DisplayNames(['en-US'], { type: 'region' });
 
 /** Convert one persisted GeoNames country row into a remote cascader country node. */
 export function createCrmCountryRegionOption(country: Api.Crm.GeoCountryOption): CrmRegionCascaderOption {
   return {
     label: country.label,
     value: createCountryRegionValue(country.code, country.label),
-    keywords: [country.label, country.code],
+    keywords: createCountryRegionKeywords(country.code, country.label),
     nodeType: 'country',
     countryCode: country.code,
     flag: createCountryFlag(country.code),
@@ -111,7 +112,29 @@ function readCityRegionKeywords(value: string) {
 }
 
 function formatCountryLabel(countryCode: string) {
-  return countryDisplayNamesZh.of(countryCode.toUpperCase()) ?? countryCode.toUpperCase();
+  const normalizedCode = countryCode.trim().toUpperCase();
+
+  return formatCountryDisplayName(countryDisplayNamesZh, normalizedCode) ?? normalizedCode;
+}
+
+/** Build country search aliases from API label, ISO code and localized region names. */
+function createCountryRegionKeywords(countryCode: string, label: string) {
+  const normalizedCode = countryCode.trim().toUpperCase();
+
+  return Array.from(
+    new Set(
+      [
+        label,
+        normalizedCode,
+        formatCountryDisplayName(countryDisplayNamesZh, normalizedCode),
+        formatCountryDisplayName(countryDisplayNamesEn, normalizedCode)
+      ].filter((item): item is string => Boolean(item))
+    )
+  );
+}
+
+function formatCountryDisplayName(displayNames: Intl.DisplayNames, normalizedCode: string) {
+  return /^[A-Z]{2}$/.test(normalizedCode) ? displayNames.of(normalizedCode) : null;
 }
 
 function formatCityLabel(city: Api.Crm.GeoCityOption) {

@@ -17,6 +17,22 @@ describe('crm region cascader component', () => {
 
   it('hides checkbox prefixes if Naive UI renders them from cached state', () => {
     assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option__prefix/);
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option \.n-checkbox/);
     assert.match(componentSource, /display:\s*none/);
+    assert.match(componentSource, /:render-prefix="renderEmptyRegionPrefix"/);
+  });
+
+  it('keeps compact option spacing after checkbox prefixes are removed', () => {
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option\)/);
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option--show-prefix/);
+    assert.match(componentSource, /padding-left:\s*8px/);
+  });
+
+  it('selects country nodes when clicking the rendered country label', () => {
+    assert.match(componentSource, /function handleRegionLabelClick/);
+    assert.match(componentSource, /option\.nodeType !== 'country'/);
+    assert.match(componentSource, /event\.stopPropagation\(\)/);
+    assert.match(componentSource, /handleRegionUpdate\(option\.value\)/);
+    assert.match(componentSource, /onClick: \(event: MouseEvent\) => handleRegionLabelClick/);
   });
 });

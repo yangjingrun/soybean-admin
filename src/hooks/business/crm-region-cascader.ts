@@ -102,13 +102,22 @@ export function useCrmRegionCascader() {
       return;
     }
 
-    mergeCityOptions(data);
+    mergeSearchOptions(keyword, data);
   }
 
-  /** Build a temporary city-search tree without mutating the fully loadable country tree. */
-  function mergeCityOptions(cities: Api.Crm.GeoCityOption[]) {
+  /** Build a temporary search tree without mutating the fully loadable country tree. */
+  function mergeSearchOptions(keyword: string, cities: Api.Crm.GeoCityOption[]) {
     const countryOptions = new Map(regionOptions.value.map(option => [option.countryCode, option]));
     const searchCountryOptions = new Map<string, CrmRegionCascaderOption>();
+
+    regionOptions.value
+      .filter(option => filterCrmRegionOption(keyword, option))
+      .forEach(option => {
+        searchCountryOptions.set(option.countryCode, {
+          ...option,
+          children: []
+        });
+      });
 
     cities.forEach(city => {
       const countryOption = countryOptions.get(city.countryCode);

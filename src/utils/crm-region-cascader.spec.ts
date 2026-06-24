@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createCrmCityRegionOption, createCrmCountryRegionOption, getCrmRegionKeywords } from './crm-region-cascader';
+import {
+  createCrmCityRegionOption,
+  createCrmCountryRegionOption,
+  filterCrmRegionOption,
+  getCrmRegionKeywords
+} from './crm-region-cascader';
 
 describe('crm region cascader helpers', () => {
   it('adds regional indicator flag to country options', () => {
@@ -12,6 +17,18 @@ describe('crm region cascader helpers', () => {
 
     assert.equal(option.flag, '🇺🇸');
     assert.equal(option.label, '美国');
+  });
+
+  it('matches country options by localized names and ISO code', () => {
+    const option = createCrmCountryRegionOption({
+      code: 'US',
+      label: '美国',
+      cityCount: 120
+    });
+
+    assert.equal(filterCrmRegionOption('美国', option), true);
+    assert.equal(filterCrmRegionOption('United States', option), true);
+    assert.equal(filterCrmRegionOption('US', option), true);
   });
 
   it('keeps invalid country codes without a flag', () => {
