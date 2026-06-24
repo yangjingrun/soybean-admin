@@ -146,11 +146,11 @@ function isContactVerifying(contactId: string) {
 }
 
 function formatContactPreview(contact: Api.Crm.LeadContact) {
-  return [contact.fullName || contact.maskedEmail || contact.email, contact.title].filter(Boolean).join(' / ');
+  return [contact.fullName || contact.email, contact.title].filter(Boolean).join(' / ');
 }
 
 function renderContactIdentity(contact: Api.Crm.LeadContact) {
-  const contactEmail = contact.maskedEmail || contact.email;
+  const contactEmail = contact.email;
 
   return h('div', { class: 'lead-contact-cell' }, [
     h('span', { class: 'lead-primary-text' }, contact.fullName || '-'),
@@ -174,7 +174,7 @@ const expandedContactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>((
     key: 'email',
     title: '邮箱',
     minWidth: 200,
-    render: row => row.maskedEmail || row.email
+    render: row => row.email
   },
   {
     key: 'emailStatus',
