@@ -3,15 +3,18 @@ import type { CascaderOption } from 'naive-ui';
 import { fetchCrmGeoCities, fetchCrmGeoCountries } from '@/service/api';
 import {
   createCrmCityRegionOption,
-  createCrmCountryRegionOption,
   filterCrmRegionOption,
   type CrmRegionCascaderOption
 } from '@/utils/crm-region-cascader';
+import {
+  hasCachedCrmRegionOptions,
+  loadCachedCrmRegionOptions,
+  searchCachedCrmRegionCities
+} from './crm-region-cascader-cache';
 
 const cityFetchLimit = 5000;
 const citySearchLimit = 80;
 const citySearchDebounceMs = 260;
-const cityLoadConcurrency = 4;
 /** Load CRM geography options for reusable country/city cascader filters. */
 export function useCrmRegionCascader() {
   const regionOptions = shallowRef<CrmRegionCascaderOption[]>([]);
@@ -29,21 +32,27 @@ export function useCrmRegionCascader() {
     void loadCountries();
   });
 
-  /** Load all persisted countries once; cities are loaded lazily per country. */
+  /** Load all persisted countries once per browser session and share them across component instances. */
   async function loadCountries() {
     const requestId = latestCountryRequestId + 1;
     latestCountryRequestId = requestId;
     regionLoading.value = true;
 
     try {
-      const { data, error } = await fetchCrmGeoCountries();
+      const options = await loadCachedCrmRegionOptions({
+        loadCountries: fetchCountries,
+        loadCities: fetchCountryCities
+      });
 
-      if (error || !data || requestId !== latestCountryRequestId) {
+      if (requestId !== latestCountryRequestId) {
         return;
       }
 
-      regionOptions.value = data.map(createCrmCountryRegionOption);
-      await loadAllCountryCities(regionOptions.value);
+      regionOptions.value = options;
+    } catch {
+      if (requestId === latestCountryRequestId) {
+        regionOptions.value = [];
+      }
     } finally {
       if (requestId === latestCountryRequestId) {
         regionLoading.value = false;
@@ -51,42 +60,10 @@ export function useCrmRegionCascader() {
     }
   }
 
-  /** Load every country's city children so hover expansion can stay native and immediate. */
-  async function loadCountryCities(regionOption: CrmRegionCascaderOption) {
-    const { data, error } = await fetchCrmGeoCities({
-      countryCode: regionOption.countryCode,
-      limit: cityFetchLimit
-    });
-
-    if (error || !data) {
-      return;
-    }
-
-    regionOption.children = data.map(createCrmCityRegionOption);
-  }
-
-  async function loadAllCountryCities(countryOptions: CrmRegionCascaderOption[]) {
-    let cursor = 0;
-
-    async function runWorker() {
-      while (cursor < countryOptions.length) {
-        const option = countryOptions[cursor];
-        cursor += 1;
-
-        if (option) {
-          await loadCountryCities(option);
-        }
-      }
-    }
-
-    await Promise.all(
-      Array.from({ length: Math.min(cityLoadConcurrency, countryOptions.length) }, () => runWorker())
-    );
-    regionOptions.value = [...countryOptions];
-  }
-
   function handleRegionFilter(pattern: string, option: CascaderOption, path: CascaderOption[] = []) {
-    queueCitySearch(pattern);
+    if (!hasCachedCrmRegionOptions()) {
+      queueCitySearch(pattern);
+    }
 
     return filterCrmRegionOption(pattern, option, path);
   }
@@ -113,12 +90,15 @@ export function useCrmRegionCascader() {
     const requestId = latestCitySearchRequestId + 1;
     latestCitySearchRequestId = requestId;
 
-    const { data, error } = await fetchCrmGeoCities({
-      keyword,
-      limit: citySearchLimit
-    });
+    let data: Api.Crm.GeoCityOption[];
 
-    if (error || !data || requestId !== latestCitySearchRequestId) {
+    try {
+      data = await searchCachedCrmRegionCities(keyword, fetchCitySearchResults);
+    } catch {
+      return;
+    }
+
+    if (requestId !== latestCitySearchRequestId) {
       return;
     }
 
@@ -178,4 +158,40 @@ export function useCrmRegionCascader() {
 
 function shouldSearchRemoteCity(pattern: string) {
   return pattern.length >= 2 || /[\u4e00-\u9fff]/.test(pattern);
+}
+
+async function fetchCountries() {
+  const { data, error } = await fetchCrmGeoCountries();
+
+  if (error || !data) {
+    throw new Error('Failed to load CRM geo countries');
+  }
+
+  return data;
+}
+
+async function fetchCountryCities(countryCode: string) {
+  const { data, error } = await fetchCrmGeoCities({
+    countryCode,
+    limit: cityFetchLimit
+  });
+
+  if (error || !data) {
+    throw new Error(`Failed to load CRM geo cities for ${countryCode}`);
+  }
+
+  return data;
+}
+
+async function fetchCitySearchResults(keyword: string) {
+  const { data, error } = await fetchCrmGeoCities({
+    keyword,
+    limit: citySearchLimit
+  });
+
+  if (error || !data) {
+    throw new Error('Failed to search CRM geo cities');
+  }
+
+  return data;
 }
