@@ -33,8 +33,14 @@ describe('crm-ai-writing-module-resolver', () => {
       previousMessages: [{ stepIndex: 1, subject: 'Bearing fit', bodyText: 'First note.' }]
     });
 
-    assert.equal(modules.some(item => item.promptKey === 'crm_outreach_role_persona'), true);
-    assert.equal(modules.some(item => item.promptKey === 'crm_outreach_region_localization'), true);
+    assert.equal(
+      modules.some(item => item.promptKey === 'crm_outreach_role_persona'),
+      true
+    );
+    assert.equal(
+      modules.some(item => item.promptKey === 'crm_outreach_region_localization'),
+      true
+    );
     assert.match(modules.find(item => item.promptKey === 'crm_outreach_role_persona')?.reason || '', /procurement/i);
     assert.match(modules.find(item => item.promptKey === 'crm_outreach_sequence_strategy')?.reason || '', /follow-up/i);
   });
@@ -47,7 +53,10 @@ describe('crm-ai-writing-module-resolver', () => {
       previousMessages: []
     });
 
-    assert.equal(modules.some(item => item.promptKey === 'crm_outreach_role_persona'), true);
+    assert.equal(
+      modules.some(item => item.promptKey === 'crm_outreach_role_persona'),
+      true
+    );
     assert.match(modules.find(item => item.promptKey === 'crm_outreach_role_persona')?.reason || '', /unknown/i);
   });
 });

@@ -25,7 +25,6 @@ export interface CrmAiReplyDraftPromptProductLine {
   catalogUrl: string | null;
   websiteUrl: string | null;
   commonModelsText: string | null;
-  forbiddenClaims: string;
 }
 
 export interface CrmAiReplyDraftPromptMessage {

@@ -310,11 +310,11 @@ describe('crm settings shared helpers', () => {
     const config = createDefaultProductLineAiWritingConfig();
 
     assert.equal(config.enabled, false);
-    assert.equal(config.sequenceStrategy, 'core_3_step');
-    assert.equal(config.languagePolicy, 'account_locale_or_english');
-    assert.equal(config.tone, 'consultative');
-    assert.equal(config.ctaPreference, 'low_friction_question');
-    assert.equal(config.polishPolicy, 'auto_when_flagged');
+    assert.equal(config.sequenceStrategy, undefined);
+    assert.equal(config.languagePolicy, undefined);
+    assert.equal(config.tone, undefined);
+    assert.equal(config.ctaPreference, undefined);
+    assert.equal(config.polishPolicy, undefined);
     assert.equal(config.steps.length, 5);
     assert.deepEqual(
       config.steps.map(step => step.stepIndex),
@@ -325,9 +325,6 @@ describe('crm settings shared helpers', () => {
   it('normalizes enabled product line AI writing config with five trimmed step prompts', () => {
     const config = createDefaultProductLineAiWritingConfig();
     config.enabled = true;
-    config.commonRequirements = '  Natural English  ';
-    config.forbiddenClaims = '  No fake certificates  ';
-    config.productEmphasis = '  Stock models  ';
     config.proofAssets = '  GCC distributor proof  ';
     config.regionNotes = '  Saudi buyers ask about stock  ';
     config.steps[0].prompt = '  Step 1  ';
@@ -338,42 +335,36 @@ describe('crm settings shared helpers', () => {
 
     const normalized = normalizeProductLineAiWritingConfig(config);
 
-    assert.equal(normalized?.commonRequirements, 'Natural English');
+    assert.equal('commonRequirements' in (normalized ?? {}), false);
+    assert.equal('forbiddenClaims' in (normalized ?? {}), false);
+    assert.equal('productEmphasis' in (normalized ?? {}), false);
     assert.equal(normalized?.proofAssets, 'GCC distributor proof');
     assert.equal(normalized?.regionNotes, 'Saudi buyers ask about stock');
     assert.equal(normalized?.steps[4].prompt, 'Step 5');
     assert.equal(validateProductLineAiWritingConfig(config), null);
   });
 
-  it('rejects enabled product line AI writing config with empty step prompt', () => {
+  it('allows enabled product line AI writing config to use system built-in step prompts', () => {
     const config = createDefaultProductLineAiWritingConfig();
     config.enabled = true;
-    config.commonRequirements = 'Natural English';
-    config.forbiddenClaims = 'No fake certificates';
-    config.productEmphasis = 'Stock models';
     config.steps.forEach(step => {
       step.prompt = `Step ${step.stepIndex}`;
     });
     config.steps[2].prompt = '';
 
-    assert.equal(validateProductLineAiWritingConfig(config), '请填写第 3 封 AI 写信提示词');
+    assert.equal(validateProductLineAiWritingConfig(config), null);
+    assert.equal(normalizeProductLineAiWritingConfig(config)?.steps[2].prompt, '');
   });
 
   it('labels product line AI writing status for sequence creation hints', () => {
     const disabledConfig = createDefaultProductLineAiWritingConfig();
     const enabledConfig = createDefaultProductLineAiWritingConfig();
     enabledConfig.enabled = true;
-    enabledConfig.commonRequirements = 'Natural English';
-    enabledConfig.forbiddenClaims = 'No fake certificates';
-    enabledConfig.productEmphasis = 'Stock models';
     enabledConfig.steps.forEach(step => {
       step.prompt = `Step ${step.stepIndex}`;
     });
     const incompleteConfig = createDefaultProductLineAiWritingConfig();
     incompleteConfig.enabled = true;
-    incompleteConfig.commonRequirements = 'Natural English';
-    incompleteConfig.forbiddenClaims = 'No fake certificates';
-    incompleteConfig.productEmphasis = 'Stock models';
 
     assert.deepEqual(getProductLineAiWritingStatus(enabledConfig), {
       key: 'enabled',
@@ -386,28 +377,24 @@ describe('crm settings shared helpers', () => {
       tagType: 'default'
     });
     assert.deepEqual(getProductLineAiWritingStatus(incompleteConfig), {
-      key: 'incomplete',
-      label: '配置不完整',
-      tagType: 'warning'
+      key: 'enabled',
+      label: '已开启 AI 写信',
+      tagType: 'success'
     });
     assert.equal(getProductLineAiWritingStatus(null).label, '配置不完整');
   });
 
   it('summarizes product line AI writing config for prompt version history', () => {
     const config = createEnabledAiWritingConfig();
-    config.commonRequirements = '  Natural English  ';
     config.steps[1].prompt = '  Follow up with inventory models  ';
 
     assert.deepEqual(summarizeProductLineAiWritingConfig(config), {
       enabledLabel: '已开启',
-      commonRequirements: 'Natural English',
-      forbiddenClaims: 'No fake certificates',
-      productEmphasis: 'Stock models',
-      sequenceStrategyLabel: '3 封核心 + 可选转介绍/退出',
-      languagePolicyLabel: '客户语言优先，否则英文',
-      toneLabel: '顾问式',
-      ctaPreferenceLabel: '低摩擦问题',
-      polishPolicyLabel: '命中风险时润色',
+      sequenceStrategyLabel: '系统内置',
+      languagePolicyLabel: '系统内置',
+      toneLabel: '系统内置',
+      ctaPreferenceLabel: '系统内置',
+      polishPolicyLabel: '系统内置',
       proofAssets: '',
       regionNotes: '',
       steps: [
@@ -423,17 +410,10 @@ describe('crm settings shared helpers', () => {
   it('builds prompt version diff items against the current form config', () => {
     const versionConfig = createEnabledAiWritingConfig();
     const currentConfig = createEnabledAiWritingConfig();
-    currentConfig.commonRequirements = 'Short and direct';
     currentConfig.proofAssets = 'ISO 9001';
     currentConfig.steps[1].prompt = 'Mention attached catalog';
 
     assert.deepEqual(buildProductLineAiPromptVersionDiffItems(versionConfig, currentConfig), [
-      {
-        key: 'commonRequirements',
-        label: '通用要求',
-        versionValue: 'Natural English',
-        currentValue: 'Short and direct'
-      },
       {
         key: 'proofAssets',
         label: '证据素材',
@@ -1246,9 +1226,6 @@ function createEmailTemplateGroup(): Api.Crm.EmailTemplateGroupRecord {
 function createEnabledAiWritingConfig(): Api.Crm.ProductLineAiWritingConfig {
   return {
     enabled: true,
-    commonRequirements: 'Natural English',
-    forbiddenClaims: 'No fake certificates',
-    productEmphasis: 'Stock models',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as Api.Crm.AiWritingStepIndex,
       prompt: `Step ${stepIndex}`

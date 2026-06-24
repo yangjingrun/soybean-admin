@@ -31,9 +31,6 @@ export interface ProductLineAiWritingStepSummary {
 
 export interface ProductLineAiWritingConfigSummary {
   enabledLabel: string;
-  commonRequirements: string;
-  forbiddenClaims: string;
-  productEmphasis: string;
   sequenceStrategyLabel: string;
   languagePolicyLabel: string;
   toneLabel: string;
@@ -97,18 +94,10 @@ export function createDefaultProductLineForm(): Api.Crm.ProductLineFormModel {
   };
 }
 
-/** Create a disabled five-step product-line AI writing config. */
+/** Create a disabled, system-default product-line AI writing config. */
 export function createDefaultProductLineAiWritingConfig(): Api.Crm.ProductLineAiWritingConfig {
   return {
     enabled: false,
-    commonRequirements: '',
-    forbiddenClaims: '',
-    productEmphasis: '',
-    sequenceStrategy: 'core_3_step',
-    languagePolicy: 'account_locale_or_english',
-    tone: 'consultative',
-    ctaPreference: 'low_friction_question',
-    polishPolicy: 'auto_when_flagged',
     proofAssets: '',
     regionNotes: '',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
@@ -192,16 +181,8 @@ export function normalizeProductLineAiWritingConfig(
 ): Api.Crm.ProductLineAiWritingConfig | null {
   if (!config) return null;
 
-  return {
+  const normalized: Api.Crm.ProductLineAiWritingConfig = {
     enabled: Boolean(config.enabled),
-    commonRequirements: config.commonRequirements.trim(),
-    forbiddenClaims: config.forbiddenClaims.trim(),
-    productEmphasis: config.productEmphasis.trim(),
-    sequenceStrategy: normalizeSelectValue(config.sequenceStrategy, 'core_3_step'),
-    languagePolicy: normalizeSelectValue(config.languagePolicy, 'account_locale_or_english'),
-    tone: normalizeSelectValue(config.tone, 'consultative'),
-    ctaPreference: normalizeSelectValue(config.ctaPreference, 'low_friction_question'),
-    polishPolicy: normalizeSelectValue(config.polishPolicy, 'auto_when_flagged'),
     proofAssets: config.proofAssets?.trim() ?? '',
     regionNotes: config.regionNotes?.trim() ?? '',
     steps: [1, 2, 3, 4, 5].map(stepIndex => {
@@ -213,6 +194,15 @@ export function normalizeProductLineAiWritingConfig(
       };
     })
   };
+
+  // Empty select values mean the backend should use its built-in prompt defaults.
+  assignOptionalSelectValue(normalized, 'sequenceStrategy', config.sequenceStrategy);
+  assignOptionalSelectValue(normalized, 'languagePolicy', config.languagePolicy);
+  assignOptionalSelectValue(normalized, 'tone', config.tone);
+  assignOptionalSelectValue(normalized, 'ctaPreference', config.ctaPreference);
+  assignOptionalSelectValue(normalized, 'polishPolicy', config.polishPolicy);
+
+  return normalized;
 }
 
 /** Validate enabled product-line AI writing config before submit. */
@@ -220,13 +210,8 @@ export function validateProductLineAiWritingConfig(config: Api.Crm.ProductLineAi
   const normalized = normalizeProductLineAiWritingConfig(config);
 
   if (!normalized?.enabled) return null;
-  if (!normalized.commonRequirements) return '请填写 AI 写信通用要求';
-  if (!normalized.forbiddenClaims) return '请填写 AI 写信禁止内容';
-  if (!normalized.productEmphasis) return '请填写 AI 写信产品重点';
 
-  const emptyStep = normalized.steps.find(step => !step.prompt);
-
-  return emptyStep ? `请填写第 ${emptyStep.stepIndex} 封 AI 写信提示词` : null;
+  return null;
 }
 
 /** Get the display status of a product-line AI writing config. */
@@ -272,9 +257,6 @@ export function summarizeProductLineAiWritingConfig(
 
   return {
     enabledLabel: normalized.enabled ? '已开启' : '未开启',
-    commonRequirements: normalized.commonRequirements,
-    forbiddenClaims: normalized.forbiddenClaims,
-    productEmphasis: normalized.productEmphasis,
     sequenceStrategyLabel: findOptionLabel(productLineAiSequenceStrategyOptions, normalized.sequenceStrategy),
     languagePolicyLabel: findOptionLabel(productLineAiLanguagePolicyOptions, normalized.languagePolicy),
     toneLabel: findOptionLabel(productLineAiToneOptions, normalized.tone),
@@ -305,27 +287,6 @@ export function buildProductLineAiPromptVersionDiffItems(
     '启用状态',
     versionSummary.enabledLabel,
     currentSummary.enabledLabel
-  );
-  pushProductLinePromptDiffItem(
-    diffItems,
-    'commonRequirements',
-    '通用要求',
-    versionSummary.commonRequirements,
-    currentSummary.commonRequirements
-  );
-  pushProductLinePromptDiffItem(
-    diffItems,
-    'forbiddenClaims',
-    '禁止内容',
-    versionSummary.forbiddenClaims,
-    currentSummary.forbiddenClaims
-  );
-  pushProductLinePromptDiffItem(
-    diffItems,
-    'productEmphasis',
-    '产品重点',
-    versionSummary.productEmphasis,
-    currentSummary.productEmphasis
   );
   pushProductLinePromptDiffItem(
     diffItems,
@@ -386,15 +347,23 @@ export function buildProductLineAiPromptVersionDiffItems(
 }
 
 function createProductLinePromptPreview(prompt: string) {
+  if (!prompt) return '系统内置';
+
   return prompt.length > 80 ? `${prompt.slice(0, 80)}...` : prompt;
 }
 
-function normalizeSelectValue<T extends string>(value: T | undefined, fallback: T) {
-  return value ?? fallback;
+function assignOptionalSelectValue<Key extends keyof Api.Crm.ProductLineAiWritingConfig>(
+  config: Api.Crm.ProductLineAiWritingConfig,
+  key: Key,
+  value: Api.Crm.ProductLineAiWritingConfig[Key]
+) {
+  if (!value) return;
+
+  config[key] = value;
 }
 
 function findOptionLabel<T extends string>(options: Array<{ label: string; value: T }>, value: T | undefined) {
-  return options.find(option => option.value === value)?.label ?? '';
+  return options.find(option => option.value === value)?.label ?? '系统内置';
 }
 
 function pushProductLinePromptDiffItem(

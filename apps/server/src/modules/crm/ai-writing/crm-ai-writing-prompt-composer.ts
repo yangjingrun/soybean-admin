@@ -32,16 +32,16 @@ export function composeCrmAiWritingPrompt(composerInput: CrmAiWritingPromptCompo
     ].join('\n'),
     userPrompt: [
       `Step ${input.stepIndex} of 5.`,
-      input.stepIndex > 1 ? 'Change the angle according to the step prompt and previous messages.' : 'Use a relevant first-touch opening.',
+      input.stepIndex > 1
+        ? 'Change the angle according to the step prompt and previous messages.'
+        : 'Use a relevant first-touch opening.',
       'Do not repeat previous emails.',
       `Template language:\n${normalizeString(input.templateLanguage) || 'en'}`,
       `Sender:\n${input.senderName || 'Sales team'}`,
       '',
+      'Null product-line writing config values mean: use the system built-in guidance from the selected global modules.',
       `Product-line writing config:\n${JSON.stringify(
         {
-          commonRequirements: input.writingConfig.commonRequirements,
-          forbiddenClaims: input.writingConfig.forbiddenClaims,
-          productEmphasis: input.writingConfig.productEmphasis,
           sequenceStrategy: input.writingConfig.sequenceStrategy ?? null,
           languagePolicy: input.writingConfig.languagePolicy ?? null,
           tone: input.writingConfig.tone ?? null,
@@ -80,7 +80,7 @@ export function composeCrmAiWritingPrompt(composerInput: CrmAiWritingPromptCompo
 }
 
 function getStepPrompt(input: CrmAiDraftPromptInput) {
-  return input.writingConfig.steps.find(step => step.stepIndex === input.stepIndex)?.prompt ?? '';
+  return input.writingConfig.steps.find(step => step.stepIndex === input.stepIndex)?.prompt || null;
 }
 
 function normalizeString(value: unknown) {

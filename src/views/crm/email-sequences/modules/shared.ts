@@ -359,7 +359,11 @@ export function buildAiDraftSummaryRows(aiDraft: Api.Crm.AiDraftMetadata | null 
   return [
     { key: 'product-line', label: '产品线', value: formatNullableText(snapshot.productLineName) },
     { key: 'step', label: 'Step', value: `第 ${snapshot.stepIndex} 封` },
-    { key: 'generated-at', label: '生成时间', value: snapshot.generatedAt ? formatSequenceDate(snapshot.generatedAt) : '-' },
+    {
+      key: 'generated-at',
+      label: '生成时间',
+      value: snapshot.generatedAt ? formatSequenceDate(snapshot.generatedAt) : '-'
+    },
     { key: 'reason', label: '生成说明', value: aiDraft?.reason || snapshot.reason || '请人工复核后确认。' }
   ];
 }
@@ -394,9 +398,6 @@ export function buildAiDraftPromptSnapshotRows(
 
   const writingConfig = snapshot.writingConfig;
   const rows: AiDraftDescriptionRow[] = [
-    { key: 'common-requirements', label: '通用要求', value: formatPromptSnapshotText(writingConfig.commonRequirements) },
-    { key: 'forbidden-claims', label: '禁止内容', value: formatPromptSnapshotText(writingConfig.forbiddenClaims) },
-    { key: 'product-emphasis', label: '产品重点', value: formatPromptSnapshotText(writingConfig.productEmphasis) },
     {
       key: 'step-prompt',
       label: `Step ${snapshot.stepIndex} Prompt`,

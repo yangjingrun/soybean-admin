@@ -77,7 +77,7 @@ export const crmMessageStatuses = [
   'skipped'
 ] as const;
 export const crmMessageThreadModes = ['new_subject', 'same_thread'] as const;
-export const crmInboxThreadStatuses = ['pending', 'handled', 'archived'] as const;
+export const crmInboxThreadStatuses = ['pending', 'bounced', 'handled', 'archived'] as const;
 export const crmInboxMessageTypes = [
   'customer_reply',
   'bounce',
@@ -464,9 +464,6 @@ export interface CrmProductLineAiWritingStepConfig {
 
 export interface CrmProductLineAiWritingConfig {
   enabled: boolean;
-  commonRequirements: string;
-  forbiddenClaims: string;
-  productEmphasis: string;
   steps: CrmProductLineAiWritingStepConfig[];
   sequenceStrategy?: 'core_3_step' | 'full_5_step';
   languagePolicy?: 'account_locale_or_english' | 'english' | 'local_language';

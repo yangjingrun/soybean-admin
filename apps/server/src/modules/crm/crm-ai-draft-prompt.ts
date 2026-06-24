@@ -1,9 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import type {
-  CrmAiWritingStepIndex,
-  CrmProductLineAiWritingConfig,
-  CrmProductLineAiWritingStepConfig
-} from './crm.types';
+import type { CrmAiWritingStepIndex, CrmProductLineAiWritingConfig } from './crm.types';
 import type { CrmAiDraftOutput, CrmAiDraftPrompt, CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import { buildCrmAiWritingContext } from './ai-writing/crm-ai-writing-context';
 import { resolveCrmAiWritingModules } from './ai-writing/crm-ai-writing-module-resolver';
@@ -22,9 +18,6 @@ export function normalizeCrmProductLineAiWritingConfig(value: unknown): CrmProdu
 
   return {
     enabled,
-    commonRequirements: normalizeString(record.commonRequirements),
-    forbiddenClaims: normalizeString(record.forbiddenClaims),
-    productEmphasis: normalizeString(record.productEmphasis),
     ...normalizeOptionalAiWritingStyle(record),
     steps: stepIndexes.map(stepIndex => {
       const step = steps.find(item => Number(item?.stepIndex) === stepIndex);
@@ -57,11 +50,7 @@ function normalizeOptionalAiWritingStyle(record: Partial<CrmProductLineAiWriting
   };
 }
 
-function pickStringUnion<Key extends keyof CrmProductLineAiWritingConfig>(
-  value: unknown,
-  allowed: string[],
-  key: Key
-) {
+function pickStringUnion<Key extends keyof CrmProductLineAiWritingConfig>(value: unknown, allowed: string[], key: Key) {
   return typeof value === 'string' && allowed.includes(value) ? { [key]: value } : {};
 }
 
@@ -70,22 +59,12 @@ function pickTrimmedOptional<Key extends keyof CrmProductLineAiWritingConfig>(va
   return normalized ? { [key]: normalized } : {};
 }
 
-/** Returns an enabled complete config or throws a user-facing business error. */
+/** Returns an enabled config; empty prompts intentionally fall back to built-in rules. */
 export function requireEnabledCrmProductLineAiWritingConfig(value: unknown): CrmProductLineAiWritingConfig {
   const config = normalizeCrmProductLineAiWritingConfig(value);
 
   if (!config?.enabled) {
     throw new BadRequestException('产品线未启用 AI 写信配置');
-  }
-
-  if (!config.commonRequirements) throw new BadRequestException('AI 写信通用要求不能为空');
-  if (!config.forbiddenClaims) throw new BadRequestException('AI 写信禁止内容不能为空');
-  if (!config.productEmphasis) throw new BadRequestException('AI 写信产品重点不能为空');
-
-  for (const step of config.steps) {
-    if (!step.prompt) {
-      throw new BadRequestException(`AI 写信第 ${step.stepIndex} 封提示词不能为空`);
-    }
   }
 
   return config;
@@ -107,8 +86,6 @@ export function buildCrmAiDraftPrompt(
       previousMessages: input.previousMessages
     });
   const writingContext = options.writingContext ?? buildCrmAiWritingContext({ ...input, writingConfig: config });
-
-  getStepConfig(config, input.stepIndex);
 
   return composeCrmAiWritingPrompt({
     input: { ...input, writingConfig: config },
@@ -162,19 +139,6 @@ export function parseCrmAiDraftOutput(text: string): CrmAiDraftOutput {
     qualityFlags: normalizeStringArray(record.qualityFlags),
     polishChanges: normalizeStringArray(record.polishChanges)
   };
-}
-
-function getStepConfig(
-  config: CrmProductLineAiWritingConfig,
-  stepIndex: CrmAiWritingStepIndex
-): CrmProductLineAiWritingStepConfig {
-  const step = config.steps.find(item => item.stepIndex === stepIndex);
-
-  if (!step) {
-    throw new BadRequestException(`AI 写信第 ${stepIndex} 封提示词不能为空`);
-  }
-
-  return step;
 }
 
 function normalizeString(value: unknown) {

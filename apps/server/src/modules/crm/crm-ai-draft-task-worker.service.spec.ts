@@ -807,9 +807,6 @@ function createProductLine(input: Partial<CrmProductLineRecord> = {}): CrmProduc
 function createAiWritingConfig(): NonNullable<CrmProductLineRecord['aiWritingConfig']> {
   return {
     enabled: true,
-    commonRequirements: 'Keep it concise.',
-    forbiddenClaims: 'Do not invent prices.',
-    productEmphasis: 'Focus on stable supply.',
     steps: [
       { stepIndex: 1, prompt: 'First touch.' },
       { stepIndex: 2, prompt: 'Follow up with a new angle.' },

@@ -205,9 +205,6 @@ function createAiDraftMetadata(): Api.Crm.AiDraftMetadata {
       stepIndex: 1,
       writingConfig: {
         enabled: true,
-        commonRequirements: 'Natural English',
-        forbiddenClaims: 'No fake claims',
-        productEmphasis: 'Stable stock',
         steps: [1, 2, 3, 4, 5].map(stepIndex => ({
           stepIndex: stepIndex as Api.Crm.AiWritingStepIndex,
           prompt: `Step ${stepIndex}`
@@ -249,9 +246,6 @@ describe('email sequence review shared helpers', () => {
     assert.deepEqual(
       buildAiDraftPromptSnapshotRows(aiDraft).map(row => row.key),
       [
-        'common-requirements',
-        'forbidden-claims',
-        'product-emphasis',
         'step-prompt',
         'selected-modules',
         'public-facts',
@@ -914,9 +908,6 @@ describe('email sequence review shared helpers', () => {
       commonModelsText: null,
       aiWritingConfig: {
         enabled: true,
-        commonRequirements: 'Natural English',
-        forbiddenClaims: 'No fake claims',
-        productEmphasis: 'Stable stock',
         steps: [1, 2, 3, 4, 5].map(stepIndex => ({
           stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
           prompt: `Step ${stepIndex}`

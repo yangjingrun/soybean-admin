@@ -58,7 +58,9 @@ describe('CrmAiDraftService', () => {
       true
     );
     assert.equal(
-      (result.metadata.snapshot.publicFacts as Array<{ id: string }> | undefined)?.some(item => item.id === 'account.name'),
+      (result.metadata.snapshot.publicFacts as Array<{ id: string }> | undefined)?.some(
+        item => item.id === 'account.name'
+      ),
       true
     );
     assert.ok(firstCall);
@@ -66,7 +68,10 @@ describe('CrmAiDraftService', () => {
     assert.equal((firstCall.input as { modelConfigKey?: string }).modelConfigKey, 'default');
     assert.equal((firstCall.input as { maxOutputTokens?: number }).maxOutputTokens, 1600);
     assert.equal((firstCall.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
-    assert.match((firstCall.input as { systemPrompt?: string }).systemPrompt || '', /System prompt for crm_outreach_base_rules/);
+    assert.match(
+      (firstCall.input as { systemPrompt?: string }).systemPrompt || '',
+      /System prompt for crm_outreach_base_rules/
+    );
     assert.match((firstCall.input as { prompt?: string }).prompt || '', /Base draft to customize/);
     assert.match((firstCall.input as { prompt?: string }).prompt || '', /Matched persona/);
   });
@@ -122,7 +127,10 @@ describe('CrmAiDraftService', () => {
     assert.equal(promptKeys.includes('crm_outreach_public_source_grounding'), true);
     assert.equal(promptKeys.includes('crm_outreach_deliverability_guard'), true);
     assert.equal(promptKeys.includes('crm_outreach_output_contract'), true);
-    assert.match((polishCall.input as { systemPrompt?: string }).systemPrompt || '', /System prompt for crm_outreach_ai_polish/);
+    assert.match(
+      (polishCall.input as { systemPrompt?: string }).systemPrompt || '',
+      /System prompt for crm_outreach_ai_polish/
+    );
   });
 
   it('rejects invalid AI JSON output', async () => {
@@ -179,7 +187,9 @@ describe('CrmAiDraftService', () => {
   });
 });
 
-function createPromptInput(writingConfig: CrmProductLineAiWritingConfig = createWritingConfig()): CrmAiDraftPromptInput {
+function createPromptInput(
+  writingConfig: CrmProductLineAiWritingConfig = createWritingConfig()
+): CrmAiDraftPromptInput {
   return {
     account: { name: 'ABC Trading', country: 'AE', domain: 'abc.example', customerType: 'distributor' },
     contact: { fullName: 'Alex', title: 'Buyer', maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
@@ -229,9 +239,6 @@ function createContext(): RequestUserContext {
 function createWritingConfig(): CrmProductLineAiWritingConfig {
   return {
     enabled: true,
-    commonRequirements: 'Natural English.',
-    forbiddenClaims: 'No fake claims.',
-    productEmphasis: 'Stock models.',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: `Step ${stepIndex} prompt`

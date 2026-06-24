@@ -177,7 +177,9 @@ function composePolishSystemPrompt(modules: CrmAiWritingSelectedModule[]) {
     'Do not add facts, promises, CTA intents, riskNotes, usedFacts, or review hints.',
     '',
     modules
-      .map(module => [`## ${module.title} (${module.promptKey})`, `Reason: ${module.reason}`, module.systemPrompt || ''].join('\n'))
+      .map(module =>
+        [`## ${module.title} (${module.promptKey})`, `Reason: ${module.reason}`, module.systemPrompt || ''].join('\n')
+      )
       .join('\n\n')
   ].join('\n');
 }

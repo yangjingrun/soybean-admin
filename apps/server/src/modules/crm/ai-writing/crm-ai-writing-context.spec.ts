@@ -59,7 +59,10 @@ describe('crm-ai-writing-context', () => {
     });
     const context = buildCrmAiWritingContext(input);
 
-    assert.equal(context.publicFacts.some(item => item.id === 'contact.title'), false);
+    assert.equal(
+      context.publicFacts.some(item => item.id === 'contact.title'),
+      false
+    );
     assert.deepEqual(context.reviewNotes, ['联系人职位缺失', '客户地区信息缺失', '产品核心卖点缺失']);
   });
 
@@ -70,8 +73,14 @@ describe('crm-ai-writing-context', () => {
       })
     );
 
-    assert.deepEqual(context.previousMessages.map(item => item.factId), ['previous_message.step_1']);
-    assert.equal(context.publicFacts.some(item => item.id === 'previous_message.step_1'), true);
+    assert.deepEqual(
+      context.previousMessages.map(item => item.factId),
+      ['previous_message.step_1']
+    );
+    assert.equal(
+      context.publicFacts.some(item => item.id === 'previous_message.step_1'),
+      true
+    );
     assert.equal(context.publicFacts.find(item => item.id === 'previous_message.step_1')?.source, 'previous_message');
   });
 });
@@ -107,9 +116,6 @@ function createInput(overrides: Partial<CrmAiDraftPromptInput> = {}): CrmAiDraft
     },
     writingConfig: {
       enabled: true,
-      commonRequirements: 'Short and natural.',
-      forbiddenClaims: 'No fake claims.',
-      productEmphasis: 'Stable stock.',
       proofAssets: 'Exported to GCC distributors.',
       regionNotes: 'Saudi buyers often ask for stock availability.',
       steps: [1, 2, 3, 4, 5].map(stepIndex => ({

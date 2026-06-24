@@ -66,7 +66,7 @@ declare namespace Api {
 
     type MessageThreadMode = 'new_subject' | 'same_thread';
 
-    type InboxThreadStatus = 'pending' | 'handled' | 'archived';
+    type InboxThreadStatus = 'pending' | 'bounced' | 'handled' | 'archived';
 
     type InboxMessageDirection = 'inbound' | 'outbound';
 
@@ -530,9 +530,6 @@ declare namespace Api {
 
     interface ProductLineAiWritingConfig {
       enabled: boolean;
-      commonRequirements: string;
-      forbiddenClaims: string;
-      productEmphasis: string;
       steps: ProductLineAiWritingStepConfig[];
       sequenceStrategy?: 'core_3_step' | 'full_5_step';
       languagePolicy?: 'account_locale_or_english' | 'english' | 'local_language';

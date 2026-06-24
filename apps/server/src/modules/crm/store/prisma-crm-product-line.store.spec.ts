@@ -113,15 +113,15 @@ describe('PrismaCrmProductLineStore', () => {
       createdByName: 'User One'
     });
     const updated = await store.updateProductLine(created.id, 'org-1', {
-      aiWritingConfig: { ...aiWritingConfig, productEmphasis: 'Focus on sealed bearings.' }
+      aiWritingConfig: { ...aiWritingConfig, proofAssets: 'ISO 9001 and export history.' }
     });
 
     assert.deepEqual(prisma.crmProductLine.createCalls[0].data.aiWritingConfig, aiWritingConfig);
     assert.deepEqual(created.aiWritingConfig, aiWritingConfig);
-    assert.equal(updated?.aiWritingConfig?.productEmphasis, 'Focus on sealed bearings.');
+    assert.equal(updated?.aiWritingConfig?.proofAssets, 'ISO 9001 and export history.');
     assert.deepEqual(prisma.crmProductLine.updateManyAndReturnCalls[0].data.aiWritingConfig, {
       ...aiWritingConfig,
-      productEmphasis: 'Focus on sealed bearings.'
+      proofAssets: 'ISO 9001 and export history.'
     });
   });
 
@@ -180,7 +180,7 @@ describe('PrismaCrmProductLineStore', () => {
     });
 
     assert.equal(prisma.transactionCalls, 1);
-    assert.equal(restored?.productLine.aiWritingConfig?.productEmphasis, 'Historic emphasis.');
+    assert.equal(restored?.productLine.aiWritingConfig?.proofAssets, 'Historic proof.');
     assert.equal(restored?.currentVersion.version, 3);
     assert.deepEqual(prisma.crmProductLineAiPromptVersion.findFirstCalls[0], {
       where: {
@@ -257,9 +257,6 @@ interface UpdateManyAndReturnCall<T> {
 function createAiWritingConfig(input: Partial<CrmProductLineAiWritingConfig> = {}): CrmProductLineAiWritingConfig {
   return {
     enabled: true,
-    commonRequirements: 'Write concise B2B emails.',
-    forbiddenClaims: 'Do not invent prices.',
-    productEmphasis: 'Focus on supply reliability.',
     steps: ([1, 2, 3, 4, 5] as const).map(stepIndex => ({
       stepIndex,
       prompt: `Prompt ${stepIndex}`
@@ -298,7 +295,7 @@ function createPromptVersion(input: Partial<PromptVersionRecord> = {}): PromptVe
     organizationId: 'org-1',
     productLineId: 'product-line-1',
     version: 1,
-    aiWritingConfig: createAiWritingConfig({ productEmphasis: 'Historic emphasis.' }),
+    aiWritingConfig: createAiWritingConfig({ proofAssets: 'Historic proof.' }),
     editorId: 'user-1',
     editorName: 'Alice',
     changeSummary: 'AI 写信配置更新',

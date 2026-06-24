@@ -29,7 +29,7 @@ export function buildCrmAiReplyDraftPrompt(input: CrmAiReplyDraftPromptInput): C
       '',
       `User topic or outline:\n${topic}`,
       '',
-      `Forbidden claims:\n${input.productLine?.forbiddenClaims || 'Do not invent unprovided commercial claims.'}`,
+      'Forbidden claims:\nDo not invent unprovided commercial claims.',
       `Sender:\n${input.senderName || 'Sales team'}`,
       '',
       `Account:\n${JSON.stringify(input.account, null, 2)}`,

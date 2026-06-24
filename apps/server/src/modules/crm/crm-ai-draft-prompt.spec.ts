@@ -10,12 +10,12 @@ import {
 import type { CrmProductLineAiWritingConfig } from './crm.types';
 
 describe('crm-ai-draft-prompt', () => {
-  it('normalizes complete five-step AI writing config', () => {
-    const config = normalizeCrmProductLineAiWritingConfig(
-      createWritingConfig({ commonRequirements: '  Natural tone  ' })
-    );
+  it('normalizes complete five-step AI writing config without product-line global rules', () => {
+    const config = normalizeCrmProductLineAiWritingConfig(createWritingConfig());
 
-    assert.equal(config?.commonRequirements, 'Natural tone');
+    assert.equal('commonRequirements' in (config ?? {}), false);
+    assert.equal('forbiddenClaims' in (config ?? {}), false);
+    assert.equal('productEmphasis' in (config ?? {}), false);
     assert.equal(config?.steps.length, 5);
     assert.equal(config?.steps[1].prompt, 'Step 2 prompt');
   });
@@ -40,7 +40,7 @@ describe('crm-ai-draft-prompt', () => {
     assert.equal(styled?.regionNotes, 'Saudi buyers often ask about stock availability.');
   });
 
-  it('rejects enabled AI writing config with missing step prompt', () => {
+  it('allows enabled AI writing config to omit step prompts for built-in defaults', () => {
     const config = createWritingConfig({
       steps: [
         { stepIndex: 1, prompt: 'Step 1 prompt' },
@@ -51,7 +51,9 @@ describe('crm-ai-draft-prompt', () => {
       ]
     });
 
-    assert.throws(() => requireEnabledCrmProductLineAiWritingConfig(config), /第 2 封/);
+    const normalized = requireEnabledCrmProductLineAiWritingConfig(config);
+
+    assert.equal(normalized.steps[1].prompt, '');
   });
 
   it('builds follow-up prompt with previous message summaries', () => {
@@ -85,6 +87,7 @@ describe('crm-ai-draft-prompt', () => {
     assert.match(prompt.userPrompt, /Step 2/);
     assert.match(prompt.userPrompt, /Do not repeat/);
     assert.match(prompt.userPrompt, /First email body/);
+    assert.doesNotMatch(prompt.userPrompt, /commonRequirements|forbiddenClaims|productEmphasis/);
   });
 
   it('builds first-draft prompt from the template draft and matched persona context', () => {
@@ -130,6 +133,7 @@ describe('crm-ai-draft-prompt', () => {
     assert.match(prompt.userPrompt, /Matched persona/);
     assert.match(prompt.userPrompt, /Purchasing Manager/);
     assert.match(prompt.userPrompt, /Need stable suppliers/);
+    assert.doesNotMatch(prompt.userPrompt, /commonRequirements|forbiddenClaims|productEmphasis/);
   });
 
   it('collects risk notes for missing contact title and product lead time', () => {
@@ -195,9 +199,6 @@ describe('crm-ai-draft-prompt', () => {
 function createWritingConfig(overrides: Partial<CrmProductLineAiWritingConfig> = {}): CrmProductLineAiWritingConfig {
   return {
     enabled: true,
-    commonRequirements: 'Natural English, under 120 words.',
-    forbiddenClaims: 'Do not invent price, MOQ, certificates, or lead time.',
-    productEmphasis: 'Prioritize stock models and fast quotation.',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: `Step ${stepIndex} prompt`

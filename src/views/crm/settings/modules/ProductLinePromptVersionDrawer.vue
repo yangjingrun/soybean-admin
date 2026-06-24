@@ -202,15 +202,6 @@ function getVersionAiConfigMeta(config: Api.Crm.ProductLineAiWritingConfig | nul
               <NSpace vertical :size="12">
                 <NDescriptions :column="1" bordered size="small" label-placement="left">
                   <NDescriptionsItem label="启用状态">{{ selectedSummary.enabledLabel }}</NDescriptionsItem>
-                  <NDescriptionsItem label="通用要求">
-                    {{ selectedSummary.commonRequirements || '未填写' }}
-                  </NDescriptionsItem>
-                  <NDescriptionsItem label="禁止内容">
-                    {{ selectedSummary.forbiddenClaims || '未填写' }}
-                  </NDescriptionsItem>
-                  <NDescriptionsItem label="产品重点">
-                    {{ selectedSummary.productEmphasis || '未填写' }}
-                  </NDescriptionsItem>
                 </NDescriptions>
 
                 <NDivider class="prompt-version-divider">当前 step prompt 概览</NDivider>

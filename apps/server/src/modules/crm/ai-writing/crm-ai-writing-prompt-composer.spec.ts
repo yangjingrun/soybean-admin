@@ -13,18 +13,22 @@ describe('crm-ai-writing-prompt-composer', () => {
         baseDraft: { subject: 'Re: Bearing fit', bodyText: 'Following up.' },
         writingConfig: {
           enabled: true,
-          commonRequirements: 'Short and natural.',
-          forbiddenClaims: 'No fake claims.',
-          productEmphasis: 'Stock models.',
           steps: [
             { stepIndex: 1, prompt: 'Step 1' },
-            { stepIndex: 2, prompt: 'Step 2 value angle' },
+            { stepIndex: 2, prompt: '' },
             { stepIndex: 3, prompt: 'Step 3' },
             { stepIndex: 4, prompt: 'Step 4' },
             { stepIndex: 5, prompt: 'Step 5' }
           ]
         },
-        account: { name: 'ABC Trading', country: 'SA', city: 'Riyadh', timeZone: 'Asia/Riyadh', domain: null, customerType: null },
+        account: {
+          name: 'ABC Trading',
+          country: 'SA',
+          city: 'Riyadh',
+          timeZone: 'Asia/Riyadh',
+          domain: null,
+          customerType: null
+        },
         contact: { fullName: 'Alex', title: 'Sourcing Manager', maskedEmail: 'a***@abc.example', emailStatus: 'valid' },
         productLine: {
           id: 'line-1',
@@ -51,7 +55,9 @@ describe('crm-ai-writing-prompt-composer', () => {
       ] as CrmAiWritingSelectedModule[],
       writingContext: {
         publicFacts: [{ id: 'account.name', label: 'Account name', value: 'ABC Trading', source: 'account' }],
-        previousMessages: [{ factId: 'previous_message.step_1', stepIndex: 1, subject: 'Bearing fit', bodySummary: 'First note.' }],
+        previousMessages: [
+          { factId: 'previous_message.step_1', stepIndex: 1, subject: 'Bearing fit', bodySummary: 'First note.' }
+        ],
         reviewNotes: ['产品交期未配置'],
         baseDraftFact: null
       } satisfies CrmAiWritingContext,
@@ -63,6 +69,9 @@ describe('crm-ai-writing-prompt-composer', () => {
     assert.match(prompt.userPrompt, /account.name/);
     assert.match(prompt.userPrompt, /Previous messages/);
     assert.match(prompt.userPrompt, /Change the angle/);
+    assert.match(prompt.userPrompt, /system built-in guidance/);
+    assert.match(prompt.userPrompt, /"stepPrompt": null/);
     assert.match(prompt.userPrompt, /usedAngles/);
+    assert.doesNotMatch(prompt.userPrompt, /commonRequirements|forbiddenClaims|productEmphasis/);
   });
 });

@@ -30,14 +30,32 @@ export function buildCrmAiWritingContext(input: CrmAiDraftPromptInput): CrmAiWri
     input.productLine.targetCustomerType,
     'product_line'
   );
-  addFact(publicFacts, 'product_line.coreSellingPoints', 'Core selling points', input.productLine.coreSellingPoints, 'product_line');
+  addFact(
+    publicFacts,
+    'product_line.coreSellingPoints',
+    'Core selling points',
+    input.productLine.coreSellingPoints,
+    'product_line'
+  );
   addFact(publicFacts, 'product_line.moq', 'MOQ', input.productLine.moq, 'product_line');
   addFact(publicFacts, 'product_line.leadTime', 'Lead time', input.productLine.leadTime, 'product_line');
   addFact(publicFacts, 'product_line.paymentTerms', 'Payment terms', input.productLine.paymentTerms, 'product_line');
-  addFact(publicFacts, 'product_line.certifications', 'Certifications', input.productLine.certifications, 'product_line');
+  addFact(
+    publicFacts,
+    'product_line.certifications',
+    'Certifications',
+    input.productLine.certifications,
+    'product_line'
+  );
   addFact(publicFacts, 'product_line.catalogUrl', 'Catalog URL', input.productLine.catalogUrl, 'product_line');
   addFact(publicFacts, 'product_line.websiteUrl', 'Website URL', input.productLine.websiteUrl, 'product_line');
-  addFact(publicFacts, 'product_line.commonModelsText', 'Common models', input.productLine.commonModelsText, 'product_line');
+  addFact(
+    publicFacts,
+    'product_line.commonModelsText',
+    'Common models',
+    input.productLine.commonModelsText,
+    'product_line'
+  );
   addFact(publicFacts, 'product_line.proofAssets', 'Proof assets', input.writingConfig.proofAssets, 'product_line');
   addFact(publicFacts, 'product_line.regionNotes', 'Region notes', input.writingConfig.regionNotes, 'product_line');
 

@@ -1533,9 +1533,6 @@ describe('CRM split controllers', () => {
             stepIndex: 2,
             writingConfig: {
               enabled: true,
-              commonRequirements: 'Write concise B2B emails.',
-              forbiddenClaims: 'Do not invent prices.',
-              productEmphasis: 'Focus on supply reliability.',
               steps: [{ stepIndex: 2, prompt: 'Prompt 2' }]
             },
             reason: 'Focused on supply reliability.',
@@ -2183,9 +2180,6 @@ function createProductLineView(
 function createAiWritingConfigView(): NonNullable<CrmProductLineView['aiWritingConfig']> {
   return {
     enabled: true,
-    commonRequirements: 'Write concise B2B emails.',
-    forbiddenClaims: 'Do not invent prices.',
-    productEmphasis: 'Focus on supply reliability.',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: `Prompt ${stepIndex}`

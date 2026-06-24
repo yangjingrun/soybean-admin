@@ -294,11 +294,7 @@ export class CrmProductLineService {
     if (!hasOwn(input, 'aiWritingConfig')) return;
 
     const hasInstruction = Boolean(
-      config?.enabled ||
-      config?.commonRequirements ||
-      config?.forbiddenClaims ||
-      config?.productEmphasis ||
-      config?.steps.some(step => step.prompt)
+      config?.enabled || config?.proofAssets || config?.regionNotes || config?.steps.some(step => step.prompt)
     );
 
     if (hasInstruction) {

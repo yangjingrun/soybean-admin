@@ -33,6 +33,20 @@ const formRef = ref<FormInst | null>(null);
 const message = useMessage();
 const authStore = useAuthStore();
 const drawerTitle = computed(() => (props.mode === 'edit' ? '编辑产品线' : '新增产品线'));
+const productLinePlaceholders = {
+  name: '例如：轴承、工业轴承系列、OEM 机械配件；写客户能看懂的产品分类',
+  targetCustomerType: '例如：进口商、经销商、OEM 采购、设备维修商、工业品分销商',
+  coreSellingPoints: '例如：写主要产品型号、核心优势、适用场景、库存/定制/报价能力',
+  moq: '例如：按型号和库存确认，常规型号可小批量起订',
+  leadTime: '例如：现货 3-7 天，定制或大批量订单按生产排期确认',
+  paymentTerms: '例如：T/T、样品单可协商',
+  certifications: '例如：ISO 9001，可按市场要求提供检测报告或材质证明',
+  catalogUrl: '例如：https://example.com/catalog.pdf',
+  websiteUrl: '例如：https://www.example.com',
+  commonModelsText: '例如：6000/6200/6300 系列；302/303/322 系列；UC/UCP 外球面轴承'
+} as const;
+const aiSelectPlaceholder = '不选默认使用系统内置';
+const aiPromptPlaceholder = '留空默认使用系统内置写法';
 const canManageAiWritingConfig = computed(() => {
   if (typeof props.canManageAiWritingConfig === 'boolean') return props.canManageAiWritingConfig;
 
@@ -89,13 +103,22 @@ async function handleSubmit() {
         <NGrid :cols="24" :x-gap="12" responsive="screen" item-responsive>
           <NGi span="24 m:12">
             <NFormItem label="产品线" path="name">
-              <NInput v-model:value="formModel.name" clearable @keyup.enter="handleSubmit" />
+              <NInput
+                v-model:value="formModel.name"
+                clearable
+                :placeholder="productLinePlaceholders.name"
+                @keyup.enter="handleSubmit"
+              />
             </NFormItem>
           </NGi>
 
           <NGi span="24 m:12">
             <NFormItem label="目标客户">
-              <NInput v-model:value="formModel.targetCustomerType" clearable />
+              <NInput
+                v-model:value="formModel.targetCustomerType"
+                clearable
+                :placeholder="productLinePlaceholders.targetCustomerType"
+              />
             </NFormItem>
           </NGi>
 
@@ -105,43 +128,60 @@ async function handleSubmit() {
                 v-model:value="formModel.coreSellingPoints"
                 type="textarea"
                 :autosize="{ minRows: 3, maxRows: 5 }"
+                :placeholder="productLinePlaceholders.coreSellingPoints"
               />
             </NFormItem>
           </NGi>
 
           <NGi span="24 m:12">
             <NFormItem label="MOQ">
-              <NInput v-model:value="formModel.moq" clearable />
+              <NInput v-model:value="formModel.moq" clearable :placeholder="productLinePlaceholders.moq" />
             </NFormItem>
           </NGi>
 
           <NGi span="24 m:12">
             <NFormItem label="交期">
-              <NInput v-model:value="formModel.leadTime" clearable />
+              <NInput v-model:value="formModel.leadTime" clearable :placeholder="productLinePlaceholders.leadTime" />
             </NFormItem>
           </NGi>
 
           <NGi span="24 m:12">
             <NFormItem label="付款方式">
-              <NInput v-model:value="formModel.paymentTerms" clearable />
+              <NInput
+                v-model:value="formModel.paymentTerms"
+                clearable
+                :placeholder="productLinePlaceholders.paymentTerms"
+              />
             </NFormItem>
           </NGi>
 
           <NGi span="24 m:12">
             <NFormItem label="认证">
-              <NInput v-model:value="formModel.certifications" clearable />
+              <NInput
+                v-model:value="formModel.certifications"
+                clearable
+                :placeholder="productLinePlaceholders.certifications"
+              />
             </NFormItem>
           </NGi>
 
           <NGi span="24 m:12">
             <NFormItem label="产品目录 URL">
-              <NInput v-model:value="formModel.catalogUrl" clearable />
+              <NInput
+                v-model:value="formModel.catalogUrl"
+                clearable
+                :placeholder="productLinePlaceholders.catalogUrl"
+              />
             </NFormItem>
           </NGi>
 
           <NGi span="24 m:12">
             <NFormItem label="官网 URL">
-              <NInput v-model:value="formModel.websiteUrl" clearable />
+              <NInput
+                v-model:value="formModel.websiteUrl"
+                clearable
+                :placeholder="productLinePlaceholders.websiteUrl"
+              />
             </NFormItem>
           </NGi>
 
@@ -151,6 +191,7 @@ async function handleSubmit() {
                 v-model:value="formModel.commonModelsText"
                 type="textarea"
                 :autosize="{ minRows: 3, maxRows: 5 }"
+                :placeholder="productLinePlaceholders.commonModelsText"
               />
             </NFormItem>
           </NGi>
@@ -183,48 +224,14 @@ async function handleSubmit() {
                 responsive="screen"
                 item-responsive
               >
-                <NGi span="24">
-                  <NFormItem label="通用要求">
-                    <NInput
-                      v-model:value="formModel.aiWritingConfig.commonRequirements"
-                      type="textarea"
-                      :autosize="{ minRows: 2, maxRows: 4 }"
-                      :disabled="isAiWritingConfigReadonly"
-                      placeholder="例如：英文自然商务语气，控制在 120 词内，不要像群发邮件"
-                    />
-                  </NFormItem>
-                </NGi>
-
-                <NGi span="24">
-                  <NFormItem label="禁止内容">
-                    <NInput
-                      v-model:value="formModel.aiWritingConfig.forbiddenClaims"
-                      type="textarea"
-                      :autosize="{ minRows: 2, maxRows: 4 }"
-                      :disabled="isAiWritingConfigReadonly"
-                      placeholder="例如：不承诺最低价，不编造认证，不写未确认交期"
-                    />
-                  </NFormItem>
-                </NGi>
-
-                <NGi span="24">
-                  <NFormItem label="产品重点">
-                    <NInput
-                      v-model:value="formModel.aiWritingConfig.productEmphasis"
-                      type="textarea"
-                      :autosize="{ minRows: 2, maxRows: 4 }"
-                      :disabled="isAiWritingConfigReadonly"
-                      placeholder="例如：优先强调库存型号、快速报价、稳定交付"
-                    />
-                  </NFormItem>
-                </NGi>
-
                 <NGi span="24 m:12">
                   <NFormItem label="序列策略">
                     <NSelect
                       v-model:value="formModel.aiWritingConfig.sequenceStrategy"
                       :options="productLineAiSequenceStrategyOptions"
                       :disabled="isAiWritingConfigReadonly"
+                      clearable
+                      :placeholder="aiSelectPlaceholder"
                     />
                   </NFormItem>
                 </NGi>
@@ -235,6 +242,8 @@ async function handleSubmit() {
                       v-model:value="formModel.aiWritingConfig.languagePolicy"
                       :options="productLineAiLanguagePolicyOptions"
                       :disabled="isAiWritingConfigReadonly"
+                      clearable
+                      :placeholder="aiSelectPlaceholder"
                     />
                   </NFormItem>
                 </NGi>
@@ -245,6 +254,8 @@ async function handleSubmit() {
                       v-model:value="formModel.aiWritingConfig.tone"
                       :options="productLineAiToneOptions"
                       :disabled="isAiWritingConfigReadonly"
+                      clearable
+                      :placeholder="aiSelectPlaceholder"
                     />
                   </NFormItem>
                 </NGi>
@@ -255,6 +266,8 @@ async function handleSubmit() {
                       v-model:value="formModel.aiWritingConfig.ctaPreference"
                       :options="productLineAiCtaPreferenceOptions"
                       :disabled="isAiWritingConfigReadonly"
+                      clearable
+                      :placeholder="aiSelectPlaceholder"
                     />
                   </NFormItem>
                 </NGi>
@@ -265,6 +278,8 @@ async function handleSubmit() {
                       v-model:value="formModel.aiWritingConfig.polishPolicy"
                       :options="productLineAiPolishPolicyOptions"
                       :disabled="isAiWritingConfigReadonly"
+                      clearable
+                      :placeholder="aiSelectPlaceholder"
                     />
                   </NFormItem>
                 </NGi>
@@ -276,7 +291,7 @@ async function handleSubmit() {
                       type="textarea"
                       :autosize="{ minRows: 2, maxRows: 4 }"
                       :disabled="isAiWritingConfigReadonly"
-                      placeholder="例如：可公开使用的客户类型、认证、交付记录或案例素材；不要写未确认事实"
+                      placeholder="留空默认使用系统内置；例如：可公开使用的客户类型、认证、交付记录或案例素材"
                     />
                   </NFormItem>
                 </NGi>
@@ -288,13 +303,13 @@ async function handleSubmit() {
                       type="textarea"
                       :autosize="{ minRows: 2, maxRows: 4 }"
                       :disabled="isAiWritingConfigReadonly"
-                      placeholder="例如：特定地区常见采购关注点、表达偏好或需避开的说法"
+                      placeholder="留空默认使用系统内置；例如：特定地区常见采购关注点、表达偏好或需避开的说法"
                     />
                   </NFormItem>
                 </NGi>
 
                 <NGi span="24">
-                  <NTabs type="segment" animated>
+                  <NTabs type="segment" class="product-line-prompt-tabs">
                     <NTabPane
                       v-for="step in formModel.aiWritingConfig.steps"
                       :key="step.stepIndex"
@@ -306,7 +321,7 @@ async function handleSubmit() {
                         type="textarea"
                         :autosize="{ minRows: 4, maxRows: 7 }"
                         :disabled="isAiWritingConfigReadonly"
-                        :placeholder="`配置第 ${step.stepIndex} 封开发信的 AI 写法`"
+                        :placeholder="`第 ${step.stepIndex} 封：${aiPromptPlaceholder}`"
                       />
                     </NTabPane>
                   </NTabs>
