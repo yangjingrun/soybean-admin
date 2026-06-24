@@ -9,7 +9,14 @@ describe('crm region cascader component', () => {
     assert.doesNotMatch(componentSource, /check-strategy="child"/);
   });
 
-  it('does not enable checkbox-style cascade selection', () => {
+  it('explicitly keeps the picker in single-select non-cascade mode', () => {
+    assert.match(componentSource, /:multiple="false"/);
+    assert.match(componentSource, /:cascade="false"/);
     assert.doesNotMatch(componentSource, /<NCascader[\s\S]*\n\s+cascade\b/);
+  });
+
+  it('hides checkbox prefixes if Naive UI renders them from cached state', () => {
+    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option__prefix/);
+    assert.match(componentSource, /display:\s*none/);
   });
 });

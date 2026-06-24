@@ -84,6 +84,8 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
     :filter="filterCrmRegionOption"
     :get-column-style="getRegionColumnStyle"
     :menu-props="dropdownMenuProps"
+    :cascade="false"
+    :multiple="false"
     :options="regionOptions"
     :placeholder="placeholder"
     :render-label="renderRegionLabel"
@@ -122,6 +124,10 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
 :global(.crm-region-cascader-menu .n-cascader-option) {
   width: max-content;
   min-width: 100%;
+}
+
+:global(.crm-region-cascader-menu .n-cascader-option__prefix) {
+  display: none;
 }
 
 :global(.crm-region-cascader-menu .n-cascader-option__label) {
