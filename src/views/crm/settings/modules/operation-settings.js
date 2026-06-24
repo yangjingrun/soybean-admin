@@ -45,16 +45,16 @@ export const operationLogStatusTagTypeMap = {
   failed: 'error'
 };
 export const operationLogCategoryLabelMap = {
-  webhook: 'Webhook',
-  history: 'History',
-  watch: 'Watch',
-  send: 'Send',
+  webhook: '收信通知',
+  history: '邮件同步',
+  watch: '收信续期',
+  send: '发送',
   aiDraft: 'AI 草稿'
 };
 export const operationLogCategoryEmptyTextMap = {
-  webhook: '暂无 webhook system-log，当前仅可从 History 入队结果侧面观察',
-  history: '暂无 History 同步异常或日志',
-  watch: '暂无 Watch 续订或授权日志',
+  webhook: '暂无收信通知日志',
+  history: '暂无邮件同步异常或日志',
+  watch: '暂无收信续期或授权日志',
   send: '暂无发送队列或发送 worker 日志',
   aiDraft: '暂无批量 AI 草稿任务'
 };
@@ -139,9 +139,9 @@ export function buildMailboxOperationDetailItems(row, now = dayjs()) {
     { label: '负责人', value: row.ownerUserName || row.ownerUserId },
     { label: '授权状态', value: mailboxStatusLabelMap[row.status] },
     { label: '闭环模式', value: mailboxSyncModeLabelMap[row.syncMode] },
-    { label: 'Gmail watch', value: mailboxWatchStatusLabelMap[watchStatus] },
-    { label: 'Watch 到期', value: formatMailboxWatchDescription(row.watchExpiration) },
-    { label: 'History checkpoint', value: formatMailboxHistoryId(row.lastHistoryId) },
+    { label: '收信同步', value: mailboxWatchStatusLabelMap[watchStatus] },
+    { label: '同步到期', value: formatMailboxWatchDescription(row.watchExpiration) },
+    { label: '同步进度', value: formatMailboxHistoryId(row.lastHistoryId) },
     { label: '同步问题', value: row.lastSyncIssue?.message ?? '-' },
     { label: '问题时间', value: row.lastSyncIssue ? formatOperationDate(row.lastSyncIssue.happenedAt) : '-' },
     { label: '更新时间', value: formatMailboxDate(row.updatedAt ?? null) }

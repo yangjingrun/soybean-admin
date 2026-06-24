@@ -88,6 +88,8 @@ declare namespace Api {
       archiveSlimmedAt: string | null;
       createdAt: string;
       updatedAt: string;
+      contactCount: number;
+      primaryContact: LeadContact | null;
     }
 
     interface LeadContact {
@@ -971,6 +973,8 @@ declare namespace Api {
 
     interface WorkbenchTodayStats {
       sentCount: number;
+      scheduledTodayCount: number;
+      scheduledTomorrowCount: number;
       queuedCount: number;
       failedCount: number;
       pendingReplyCount: number;
@@ -1281,12 +1285,17 @@ declare namespace Api {
       event: LeadTimelineEvent;
     }
 
+    type MessageReturnToEditResult = MessageSendStartResult;
+    type MessageRetrySendResult = MessageSendStartResult;
+
     interface SequenceStopResult {
       enrollment: SequenceEnrollmentRecord;
       message: MessageRecord | null;
       account: LeadRecord;
       event: LeadTimelineEvent;
     }
+
+    type SequenceResumeResult = SequenceStopResult;
 
     type SequenceBatchItemStatus = 'success' | 'skipped' | 'failed';
 

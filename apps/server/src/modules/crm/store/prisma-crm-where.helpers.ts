@@ -153,7 +153,12 @@ export function toAccountListWhere(args: {
       ? { contacts: { some: { title: { contains: args.contactTitle, mode: 'insensitive' } } } }
       : {}),
     ...(args.updatedFrom || args.updatedTo
-      ? { updatedAt: { ...(args.updatedFrom ? { gte: args.updatedFrom } : {}), ...(args.updatedTo ? { lte: args.updatedTo } : {}) } }
+      ? {
+          updatedAt: {
+            ...(args.updatedFrom ? { gte: args.updatedFrom } : {}),
+            ...(args.updatedTo ? { lte: args.updatedTo } : {})
+          }
+        }
       : {}),
     ...(andFilters.length ? { AND: andFilters } : {})
   };

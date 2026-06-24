@@ -12,17 +12,8 @@ interface ListCitiesInput {
 const defaultCityLimit = 80;
 const maxCityLimit = 5000;
 const countryDisplayNames = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
-const chineseLanguageCodes = new Set([
-  'zh',
-  'zh-cn',
-  'zh-hans',
-  'zh-hant',
-  'zh-tw',
-  'zh-hk',
-  'zh-mo',
-  'cmn',
-  'yue'
-]);
+const chineseLanguageCodes = new Set(['zh', 'zh-cn', 'zh-hans', 'zh-hant', 'zh-tw', 'zh-hk', 'zh-mo', 'cmn', 'yue']);
+const hanScriptPattern = /\p{Script=Han}/u;
 
 interface CityNameRow {
   geonameId: number;
@@ -55,7 +46,10 @@ export class CrmGeoCatalogService {
     return groups
       .map(group => ({
         code: group.countryCode,
-        label: getMappedCountryZhNameByCode(group.countryCode) ?? countryDisplayNames.of(group.countryCode) ?? group.countryCode,
+        label:
+          getMappedCountryZhNameByCode(group.countryCode) ??
+          countryDisplayNames.of(group.countryCode) ??
+          group.countryCode,
         cityCount: group['_count'].countryCode
       }))
       .sort((left, right) => left.label.localeCompare(right.label));
@@ -176,5 +170,5 @@ function normalizeCityLimit(limit?: number) {
 function isChineseCityName(row: { name: string; languageCode?: string | null }) {
   const languageCode = row.languageCode?.toLowerCase();
 
-  return Boolean(languageCode && chineseLanguageCodes.has(languageCode));
+  return Boolean(languageCode && chineseLanguageCodes.has(languageCode) && hanScriptPattern.test(row.name));
 }

@@ -249,7 +249,7 @@ const local: App.I18n.Schema = {
     crm: 'CRM',
     crm_leads: 'Customers',
     'crm_gmail-oauth-callback': 'Gmail OAuth Callback',
-    'crm_email-sequences': 'Email Follow-up',
+    'crm_email-sequences': 'Email Tasks',
     crm_inbox: 'Customer Replies',
     crm_settings: 'CRM Settings',
     manage: 'System Manage',

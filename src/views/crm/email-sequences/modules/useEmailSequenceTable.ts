@@ -216,7 +216,7 @@ export function useEmailSequenceTable() {
         return;
       }
 
-      const resultText = formatSequenceBatchResultText('批量确认草稿', data);
+      const resultText = formatSequenceBatchResultText('批量确认发送', data);
       if (data.failedCount > 0) {
         message.warning(resultText);
       } else {
@@ -355,10 +355,13 @@ export function useEmailSequenceTable() {
     handleDrawerVisibleUpdate: draftReviewFlow.handleDrawerVisibleUpdate,
     handleGenerateNextDraft: draftReviewFlow.handleGenerateNextDraft,
     handleRegenerateAiDraft: draftReviewFlow.handleRegenerateAiDraft,
+    handleResumeSequence: draftReviewFlow.handleResumeSequence,
+    handleRetryFirstMessageSend: draftReviewFlow.handleRetryFirstMessageSend,
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
     handleRefreshCurrentSequence: draftReviewFlow.handleRefreshCurrentSequence,
+    handleReturnFirstMessageToEdit: draftReviewFlow.handleReturnFirstMessageToEdit,
     handleReadAiDraftTask,
     handleRetryAiDraftTask,
     handleRestoreDraftVersion: draftReviewFlow.handleRestoreDraftVersion,
@@ -380,7 +383,10 @@ export function useEmailSequenceTable() {
     records,
     refreshAiDraftTaskDetail,
     resourceLoading: createFlow.resourceLoading,
+    returnEditing: draftReviewFlow.returnEditing,
     sendStarting: draftReviewFlow.sendStarting,
+    sendRetrying: draftReviewFlow.sendRetrying,
+    sequenceResuming: draftReviewFlow.sequenceResuming,
     sequencePolicySelectOptions: createFlow.sequencePolicySelectOptions,
     sequenceStopping: draftReviewFlow.sequenceStopping
   };

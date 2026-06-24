@@ -9,11 +9,17 @@ import type {
   CrmSendDeliveryClaimRecord,
   CrmSendFailureInput,
   CrmSendFailureRecord,
+  CrmFirstMessageRetryInput,
+  CrmFirstMessageRetryRecord,
+  CrmFirstMessageReturnToEditInput,
+  CrmFirstMessageReturnToEditRecord,
   CrmQueuedMessageSendDeferInput,
   CrmQueuedMessageSendTargetInput,
   CrmQueuedMessageSendTargetRecord,
   CrmSendStartInput,
   CrmSendStartRecord,
+  CrmSequenceResumeInput,
+  CrmSequenceResumeRecord,
   CrmSequenceStopInput,
   CrmSequenceStopRecord
 } from '../crm.types';
@@ -361,6 +367,310 @@ export class PrismaCrmSequenceSendStateStore {
         enrollment: toSequenceEnrollmentRecord(enrollment),
         message: skippedMessages[0] ? toMessageRecord(skippedMessages[0]) : null,
         account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async returnFirstMessageToEdit(
+    input: CrmFirstMessageReturnToEditInput
+  ): Promise<CrmFirstMessageReturnToEditRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const targetEnrollment = await tx.crmSequenceEnrollment.findFirst({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: input.fromEnrollmentStatuses }
+        }
+      });
+
+      if (!targetEnrollment) {
+        return null;
+      }
+
+      const targetMessage = await tx.crmMessage.findFirst({
+        where: {
+          enrollmentId: targetEnrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          stepIndex: 1,
+          status: { in: input.fromMessageStatuses },
+          sentAt: null,
+          providerMessageId: null
+        }
+      });
+
+      if (!targetMessage) {
+        return null;
+      }
+
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: input.fromEnrollmentStatuses }
+        },
+        data: {
+          status: 'draft_review_pending',
+          runVersion: { increment: 1 }
+        },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          id: targetMessage.id,
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: input.fromMessageStatuses },
+          sentAt: null,
+          providerMessageId: null
+        },
+        data: {
+          status: 'draft_pending_review',
+          scheduledAt: null,
+          bullJobId: null
+        },
+        limit: 1
+      });
+      const message = messages[0];
+
+      if (!message) {
+        return null;
+      }
+
+      const [account, event] = await Promise.all([
+        tx.crmAccount.update({
+          where: { id: enrollment.accountId },
+          data: { status: input.accountStatus }
+        }),
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: enrollment.accountId,
+            contactId: enrollment.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: 'message_returned_to_edit',
+            title: '开发信已退回修改',
+            content: message.subject,
+            metadata: {
+              enrollmentId: enrollment.id,
+              messageId: message.id,
+              runVersion: enrollment.runVersion
+            }
+          }
+        })
+      ]);
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async resumeSequenceEnrollment(input: CrmSequenceResumeInput): Promise<CrmSequenceResumeRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const targetEnrollment = await tx.crmSequenceEnrollment.findFirst({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: input.fromEnrollmentStatus
+        }
+      });
+
+      if (!targetEnrollment) {
+        return null;
+      }
+
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: input.fromEnrollmentStatus
+        },
+        data: {
+          status: input.toEnrollmentStatus,
+          runVersion: { increment: 1 }
+        },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          stepIndex: 1,
+          status: { in: input.fromMessageStatuses },
+          sentAt: null,
+          providerMessageId: null
+        },
+        data: {
+          status: input.toMessageStatus,
+          bullJobId: null
+        },
+        limit: 1
+      });
+      const message = messages[0] ?? null;
+
+      const [account, event] = await Promise.all([
+        tx.crmAccount.update({
+          where: { id: enrollment.accountId },
+          data: { status: input.accountStatus }
+        }),
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: enrollment.accountId,
+            contactId: enrollment.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: 'sequence_resumed',
+            title: '开发信任务已恢复',
+            content: enrollment.name,
+            metadata: {
+              enrollmentId: enrollment.id,
+              messageId: message?.id ?? null,
+              fromStatus: input.fromEnrollmentStatus,
+              toStatus: enrollment.status,
+              runVersion: enrollment.runVersion
+            }
+          }
+        })
+      ]);
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: message ? toMessageRecord(message) : null,
+        account: toAccountRecord(account),
+        event: toTimelineEventRecord(event)
+      };
+    });
+  }
+
+  async retryFirstMessageSend(input: CrmFirstMessageRetryInput): Promise<CrmFirstMessageRetryRecord | null> {
+    return this.prisma.$transaction(async tx => {
+      const targetEnrollment = await tx.crmSequenceEnrollment.findFirst({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: input.fromEnrollmentStatuses }
+        }
+      });
+
+      if (!targetEnrollment?.mailboxId) {
+        return null;
+      }
+
+      const [targetMessage, contact, mailbox] = await Promise.all([
+        tx.crmMessage.findFirst({
+          where: {
+            enrollmentId: targetEnrollment.id,
+            organizationId: input.organizationId,
+            ownerUserId: input.ownerUserId,
+            stepIndex: 1,
+            status: { in: input.fromMessageStatuses },
+            sentAt: null,
+            providerMessageId: null
+          }
+        }),
+        tx.crmContact.findUnique({ where: { id: targetEnrollment.contactId } }),
+        tx.crmMailbox.findUnique({ where: { id: targetEnrollment.mailboxId } })
+      ]);
+
+      if (!targetMessage || !contact || !mailbox || mailbox.status !== 'active') {
+        return null;
+      }
+
+      const enrollments = await tx.crmSequenceEnrollment.updateManyAndReturn({
+        where: {
+          id: input.enrollmentId,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: input.fromEnrollmentStatuses }
+        },
+        data: {
+          status: 'sequence_running',
+          runVersion: { increment: 1 }
+        },
+        limit: 1
+      });
+      const enrollment = enrollments[0];
+
+      if (!enrollment) {
+        return null;
+      }
+
+      const messages = await tx.crmMessage.updateManyAndReturn({
+        where: {
+          id: targetMessage.id,
+          enrollmentId: enrollment.id,
+          organizationId: input.organizationId,
+          ownerUserId: input.ownerUserId,
+          status: { in: input.fromMessageStatuses },
+          sentAt: null,
+          providerMessageId: null
+        },
+        data: {
+          status: 'draft_ready',
+          scheduledAt: input.scheduledAt,
+          bullJobId: null
+        },
+        limit: 1
+      });
+      const message = messages[0];
+
+      if (!message) {
+        return null;
+      }
+
+      const [account, event] = await Promise.all([
+        tx.crmAccount.update({
+          where: { id: enrollment.accountId },
+          data: { status: input.accountStatus }
+        }),
+        tx.crmTimelineEvent.create({
+          data: {
+            organizationId: input.organizationId,
+            accountId: enrollment.accountId,
+            contactId: enrollment.contactId,
+            ownerUserId: input.ownerUserId,
+            eventType: 'message_send_retry_scheduled',
+            title: '开发信已重新等待发送',
+            content: message.subject,
+            metadata: {
+              enrollmentId: enrollment.id,
+              messageId: message.id,
+              runVersion: enrollment.runVersion
+            }
+          }
+        })
+      ]);
+
+      return {
+        enrollment: toSequenceEnrollmentRecord(enrollment),
+        message: toMessageRecord(message),
+        account: toAccountRecord(account),
+        contact: toContactRecord(contact),
+        mailbox: toMailboxRecord(mailbox),
         event: toTimelineEventRecord(event)
       };
     });

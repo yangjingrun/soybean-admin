@@ -9,7 +9,11 @@ const countryNameRows: CountryNameMapRow[] = [
   { code: 'TW', zhName: '台湾', aliases: ['taiwan', 'twn', 'chinese taipei', '臺灣', '台灣'] },
   { code: 'HK', zhName: '香港', aliases: ['hong kong', 'hkg'] },
   { code: 'MO', zhName: '澳门', aliases: ['macao', 'macau', 'mac', '澳門'] },
-  { code: 'US', zhName: '美国', aliases: ['usa', 'u.s.', 'u.s.a.', 'united states', 'united states of america', 'america', '美國'] },
+  {
+    code: 'US',
+    zhName: '美国',
+    aliases: ['usa', 'u.s.', 'u.s.a.', 'united states', 'united states of america', 'america', '美國']
+  },
   { code: 'CA', zhName: '加拿大', aliases: ['canada'] },
   { code: 'MX', zhName: '墨西哥', aliases: ['mexico'] },
   { code: 'BR', zhName: '巴西', aliases: ['brazil'] },
@@ -37,7 +41,11 @@ const countryNameRows: CountryNameMapRow[] = [
   { code: 'TR', zhName: '土耳其', aliases: ['turkey', 'turkiye', 'türkiye'] },
   { code: 'UA', zhName: '乌克兰', aliases: ['ukraine'] },
   { code: 'GE', zhName: '格鲁吉亚', aliases: ['georgia'] },
-  { code: 'SA', zhName: '沙特阿拉伯', aliases: ['saudi arabia', 'kingdom of saudi arabia', 'ksa', '沙特', 'المملكة العربية السعودية'] },
+  {
+    code: 'SA',
+    zhName: '沙特阿拉伯',
+    aliases: ['saudi arabia', 'kingdom of saudi arabia', 'ksa', '沙特', 'المملكة العربية السعودية']
+  },
   { code: 'AE', zhName: '阿联酋', aliases: ['uae', 'united arab emirates', 'emirates', '阿聯酋'] },
   { code: 'QA', zhName: '卡塔尔', aliases: ['qatar'] },
   { code: 'KW', zhName: '科威特', aliases: ['kuwait'] },

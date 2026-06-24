@@ -17,6 +17,8 @@ describe('PrismaCrmDashboardStore', () => {
     assert.equal(overview.generatedAt, now);
     assert.deepEqual(overview.today, {
       sentCount: 5,
+      scheduledTodayCount: 10,
+      scheduledTomorrowCount: 11,
       queuedCount: 2,
       failedCount: 1,
       pendingReplyCount: 3,
@@ -120,7 +122,7 @@ describe('PrismaCrmDashboardStore', () => {
 });
 
 function createPrisma() {
-  const messageCounts = [5, 2, 1, 6, 2, 4, 1, 1];
+  const messageCounts = [5, 10, 11, 2, 1, 6, 2, 4, 1, 1];
   const inboxMessageCounts = [4, 1];
   const contactCounts = [8, 9];
 

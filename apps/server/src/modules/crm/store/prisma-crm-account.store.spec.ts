@@ -34,6 +34,17 @@ describe('PrismaCrmAccountStore', () => {
           organizationId: 'org-1',
           ownerUserId: 'user-1'
         },
+        include: {
+          _count: {
+            select: {
+              contacts: true
+            }
+          },
+          contacts: {
+            orderBy: { createdAt: 'asc' },
+            take: 1
+          }
+        },
         skip: 0,
         take: 20,
         orderBy: { updatedAt: 'desc' }
@@ -42,6 +53,8 @@ describe('PrismaCrmAccountStore', () => {
         where: prisma.crmAccount.findManyCalls[0].where
       });
       assert.equal(result.total, 1);
+      assert.equal(result.records[0].contactCount, 1);
+      assert.equal(result.records[0].primaryContact?.id, 'contact-1');
     });
 
     it('builds keyword and status account filters without dropping organization scope', async () => {
@@ -443,6 +456,7 @@ function createPrisma(
       findFirstCalls: [] as Array<{ where: Record<string, unknown> }>,
       findManyCalls: [] as Array<{
         where: Record<string, unknown>;
+        include?: Record<string, unknown>;
         skip: number;
         take: number;
         orderBy: Record<string, unknown>;
@@ -464,12 +478,15 @@ function createPrisma(
       },
       async findMany(args: {
         where: Record<string, unknown>;
+        include?: Record<string, unknown>;
         skip: number;
         take: number;
         orderBy: Record<string, unknown>;
       }) {
         this.findManyCalls.push(args);
-        return account ? [account] : [];
+        return account
+          ? [{ ...account, _count: { contacts: contact ? 1 : 0 }, contacts: contact ? [contact] : [] }]
+          : [];
       },
       async count(args: { where: Record<string, unknown> }) {
         this.countCalls.push(args);

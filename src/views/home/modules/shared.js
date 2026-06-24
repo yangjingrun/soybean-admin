@@ -8,9 +8,9 @@ const sentTodayTarget = {
   routePath: '/crm/email-sequences',
   query: { messageStatus: 'sent', dateScope: 'today' }
 };
-const draftReviewTarget = {
+const sendPlanTarget = {
   routePath: '/crm/email-sequences',
-  query: { todoType: 'draft_review_pending' }
+  query: { messageStatus: 'draft_ready' }
 };
 const sendFailedTarget = {
   routePath: '/crm/email-sequences',
@@ -36,7 +36,7 @@ export function buildWorkbenchRecommendation(overview) {
     return {
       key: 'loading',
       title: '正在同步今日工作',
-      description: '首页会汇总客户回信、发送进度、草稿审核和线索质量。',
+      description: '首页会汇总客户回信、发送状态和线索质量。',
       actionText: '刷新工作台',
       icon: 'mdi:refresh',
       routePath: ''
@@ -63,14 +63,14 @@ export function buildWorkbenchRecommendation(overview) {
       ...target
     };
   }
-  if (today.draftReviewCount > 0) {
+  if (countTodayPendingSends(today) > 0) {
     return {
-      key: 'draft-review',
-      title: '审核待发送草稿',
-      description: `待审核 ${today.draftReviewCount} 封，首封 ${today.firstDraftReviewCount} 封，跟进 ${today.followUpDraftReviewCount} 封。`,
-      actionText: '审核草稿',
-      icon: 'mdi:file-document-edit-outline',
-      ...draftReviewTarget
+      key: 'send-plan',
+      title: '查看今日发送计划',
+      description: `今日待发送 ${today.scheduledTodayCount} 封，发送队列 ${today.queuedCount} 封。`,
+      actionText: '查看发送',
+      icon: 'mdi:calendar-send-outline',
+      ...sendPlanTarget
     };
   }
   const leadIssueCount = countLeadIssues(today);
@@ -127,13 +127,13 @@ export function buildWorkbenchMetricCards(overview) {
       ...sentTodayTarget
     },
     {
-      key: 'draft-review',
-      title: '待审核草稿',
-      value: today?.draftReviewCount ?? 0,
-      description: `首封 ${today?.firstDraftReviewCount ?? 0} 封，跟进 ${today?.followUpDraftReviewCount ?? 0} 封`,
-      icon: 'mdi:file-document-edit-outline',
+      key: 'send-plan',
+      title: '今日待发送',
+      value: (today?.scheduledTodayCount ?? 0) + (today?.queuedCount ?? 0),
+      description: `已排期 ${today?.scheduledTodayCount ?? 0} 封，明日待发 ${today?.scheduledTomorrowCount ?? 0} 封`,
+      icon: 'mdi:calendar-send-outline',
       accent: 'amber',
-      ...draftReviewTarget
+      ...sendPlanTarget
     },
     {
       key: 'send-exceptions',
@@ -179,13 +179,13 @@ export function buildWorkbenchTodoItems(overview) {
     ...mailboxIssueTarget
   });
   pushTodo(items, {
-    key: 'draft-review',
-    title: '草稿待审核',
-    description: `首封 ${today.firstDraftReviewCount} 封，跟进 ${today.followUpDraftReviewCount} 封，风险提示 ${today.riskyDraftReviewCount} 封`,
-    count: today.draftReviewCount,
+    key: 'send-plan',
+    title: '今日发送计划',
+    description: `已排期 ${today.scheduledTodayCount} 封，发送队列 ${today.queuedCount} 封，明日待发 ${today.scheduledTomorrowCount} 封`,
+    count: countTodayPendingSends(today),
     tagType: 'info',
-    icon: 'mdi:file-document-edit-outline',
-    ...draftReviewTarget
+    icon: 'mdi:calendar-send-outline',
+    ...sendPlanTarget
   });
   pushTodo(items, {
     key: 'lead-quality',
@@ -346,6 +346,9 @@ function pushTodo(items, item) {
 }
 function countLeadIssues(today) {
   return today.missingContactCount + today.emailVerificationPendingCount + today.riskyEmailCount;
+}
+function countTodayPendingSends(today) {
+  return today.scheduledTodayCount + today.queuedCount;
 }
 function buildLeadQualityTarget(today) {
   if (today.missingContactCount > 0) return missingContactTarget;

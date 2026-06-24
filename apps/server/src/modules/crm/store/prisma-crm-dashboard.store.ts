@@ -37,6 +37,7 @@ export class PrismaCrmDashboardStore implements CrmDashboardRepository {
   }): Promise<CrmWorkbenchOverviewRecord> {
     const todayStart = startOfCrmBusinessDay(args.now);
     const tomorrowStart = addCrmBusinessDays(todayStart, 1);
+    const dayAfterTomorrowStart = addCrmBusinessDays(tomorrowStart, 1);
     const yesterdayStart = addCrmBusinessDays(todayStart, -1);
     const trendStart = addCrmBusinessDays(todayStart, -6);
     const scopedWhere = toScopedOrganizationWhere(args);
@@ -46,6 +47,8 @@ export class PrismaCrmDashboardStore implements CrmDashboardRepository {
 
     const [
       sentCount,
+      scheduledTodayCount,
+      scheduledTomorrowCount,
       queuedCount,
       failedCount,
       pendingReplyCount,
@@ -72,6 +75,20 @@ export class PrismaCrmDashboardStore implements CrmDashboardRepository {
           ...scopedWhere,
           status: 'sent',
           sentAt: todayRange
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'draft_ready',
+          scheduledAt: todayRange
+        }
+      }),
+      this.prisma.crmMessage.count({
+        where: {
+          ...scopedWhere,
+          status: 'draft_ready',
+          scheduledAt: toDateRange(tomorrowStart, dayAfterTomorrowStart)
         }
       }),
       this.prisma.crmMessage.count({
@@ -247,17 +264,17 @@ export class PrismaCrmDashboardStore implements CrmDashboardRepository {
             }
           ]
         : []),
-      ...(queuedCount + failedCount > 0
+      ...(scheduledTodayCount + queuedCount + failedCount > 0
         ? [
             {
               id: 'send-queue',
               type: 'send' as const,
               title: '开发信发送',
               status: failedCount > 0 ? 'failed' : 'queued',
-              totalCount: queuedCount + failedCount,
+              totalCount: scheduledTodayCount + queuedCount + failedCount,
               completedCount: 0,
               failedCount,
-              pendingCount: queuedCount,
+              pendingCount: scheduledTodayCount + queuedCount,
               routePath: '/crm/email-sequences'
             }
           ]
@@ -268,6 +285,8 @@ export class PrismaCrmDashboardStore implements CrmDashboardRepository {
       generatedAt: args.now,
       today: {
         sentCount,
+        scheduledTodayCount,
+        scheduledTomorrowCount,
         queuedCount,
         failedCount,
         pendingReplyCount,

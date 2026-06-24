@@ -172,7 +172,8 @@ for (const rule of Object.values(countryRules)) {
  * a GeoNames or latitude/longitude resolver when higher global coverage is needed.
  */
 export function resolveCrmCustomerTimeZone(input: CrmCustomerTimeZoneInput) {
-  const countryRule = countryAliasIndex.get(normalizeRuleKey(input.country)) ?? resolveCountryRuleByMappedCode(input.country);
+  const countryRule =
+    countryAliasIndex.get(normalizeRuleKey(input.country)) ?? resolveCountryRuleByMappedCode(input.country);
 
   if (!countryRule) {
     return null;

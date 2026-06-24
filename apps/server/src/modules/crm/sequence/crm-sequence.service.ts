@@ -36,7 +36,7 @@ export class CrmSequenceService {
     private readonly reviewCreationService?: CrmSequenceReviewCreationService | null
   ) {}
 
-  /** Creates one first-email review item and deterministic draft without queueing any send job. */
+  /** Creates one first-email sequence and places it in the send schedule. */
   async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
     return this.requireReviewCreationService().createSequenceReviewItem(input, context);
   }

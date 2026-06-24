@@ -178,6 +178,9 @@ function createSequenceRepository(
     async createSequenceDraftBundle() {
       throw new Error('createSequenceDraftBundle should not be called');
     },
+    async listMailboxSendScheduleTimes() {
+      throw new Error('listMailboxSendScheduleTimes should not be called');
+    },
     async listSequenceReviewItems() {
       throw new Error('listSequenceReviewItems should not be called');
     },

@@ -68,6 +68,99 @@ export class PrismaCrmSendScheduleStore {
     });
   }
 
+  /** Finds the latest mailbox-level send point across planned, queued and sent messages. */
+  async findLatestMailboxSendSchedule(input: { organizationId: string; mailboxId: string }) {
+    const [scheduledMessage, sentMessage] = await Promise.all([
+      this.prisma.crmMessage.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          mailboxId: input.mailboxId,
+          status: {
+            in: ['draft_ready', 'queued']
+          },
+          scheduledAt: {
+            not: null
+          }
+        },
+        orderBy: {
+          scheduledAt: 'desc'
+        },
+        select: {
+          scheduledAt: true
+        }
+      }),
+      this.prisma.crmMessage.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          mailboxId: input.mailboxId,
+          status: 'sent',
+          sentAt: {
+            not: null
+          }
+        },
+        orderBy: {
+          sentAt: 'desc'
+        },
+        select: {
+          sentAt: true
+        }
+      })
+    ]);
+    const scheduledAt = scheduledMessage?.scheduledAt ?? null;
+    const sentAt = sentMessage?.sentAt ?? null;
+
+    if (scheduledAt && sentAt) {
+      return scheduledAt > sentAt ? scheduledAt : sentAt;
+    }
+
+    return scheduledAt ?? sentAt;
+  }
+
+  /** Lists mailbox-level planned send points plus the latest sent point for cadence gap scanning. */
+  async listMailboxSendScheduleTimes(input: { organizationId: string; mailboxId: string }) {
+    const [scheduledMessages, sentMessage] = await Promise.all([
+      this.prisma.crmMessage.findMany({
+        where: {
+          organizationId: input.organizationId,
+          mailboxId: input.mailboxId,
+          status: {
+            in: ['draft_ready', 'queued']
+          },
+          scheduledAt: {
+            not: null
+          }
+        },
+        orderBy: {
+          scheduledAt: 'asc'
+        },
+        select: {
+          scheduledAt: true
+        }
+      }),
+      this.prisma.crmMessage.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          mailboxId: input.mailboxId,
+          status: 'sent',
+          sentAt: {
+            not: null
+          }
+        },
+        orderBy: {
+          sentAt: 'desc'
+        },
+        select: {
+          sentAt: true
+        }
+      })
+    ]);
+
+    return [
+      ...scheduledMessages.map(message => message.scheduledAt).filter((time): time is Date => Boolean(time)),
+      ...(sentMessage?.sentAt ? [sentMessage.sentAt] : [])
+    ].sort((left, right) => left.getTime() - right.getTime());
+  }
+
   /** Batch loads owner-level send scheduler state to avoid per-owner count queries. */
   async listOwnerSendStates(input: CrmOwnerSendStateBatchInput) {
     const owners = toUniqueOwnerPairs(input.owners);
@@ -161,7 +254,7 @@ export class PrismaCrmSendScheduleStore {
     }
 
     const mailboxFilters = toMailboxPairFilters(mailboxes);
-    const [dailyRows, hourlyRows] = await Promise.all([
+    const [dailyRows, hourlyRows, latestScheduledRows, latestSentRows] = await Promise.all([
       this.prisma.crmMessage.groupBy({
         by: ['organizationId', 'mailboxId'],
         where: {
@@ -179,10 +272,55 @@ export class PrismaCrmSendScheduleStore {
         _count: {
           _all: true
         }
+      }),
+      this.prisma.crmMessage.groupBy({
+        by: ['organizationId', 'mailboxId'],
+        where: {
+          AND: [
+            { OR: mailboxFilters },
+            {
+              status: {
+                in: ['draft_ready', 'queued']
+              },
+              scheduledAt: {
+                not: null
+              }
+            }
+          ]
+        },
+        _max: {
+          scheduledAt: true
+        }
+      }),
+      this.prisma.crmMessage.groupBy({
+        by: ['organizationId', 'mailboxId'],
+        where: {
+          AND: [
+            { OR: mailboxFilters },
+            {
+              status: 'sent',
+              sentAt: {
+                not: null
+              }
+            }
+          ]
+        },
+        _max: {
+          sentAt: true
+        }
       })
     ]);
     const dailyCountByMailbox = toMailboxCountMap(dailyRows);
     const hourlyCountByMailbox = toMailboxCountMap(hourlyRows);
+    const latestScheduledByMailbox = new Map(
+      latestScheduledRows.map(row => [
+        toMailboxPairKey(row.organizationId, row.mailboxId ?? ''),
+        row['_max'].scheduledAt ?? null
+      ])
+    );
+    const latestSentByMailbox = new Map(
+      latestSentRows.map(row => [toMailboxPairKey(row.organizationId, row.mailboxId ?? ''), row['_max'].sentAt ?? null])
+    );
 
     return mailboxes.map(mailbox => {
       const key = toMailboxPairKey(mailbox.organizationId, mailbox.mailboxId);
@@ -191,7 +329,11 @@ export class PrismaCrmSendScheduleStore {
         organizationId: mailbox.organizationId,
         mailboxId: mailbox.mailboxId,
         dailyCount: dailyCountByMailbox.get(key) ?? 0,
-        hourlyCount: hourlyCountByMailbox.get(key) ?? 0
+        hourlyCount: hourlyCountByMailbox.get(key) ?? 0,
+        latestScheduledAt: maxNullableDate(
+          latestScheduledByMailbox.get(key) ?? null,
+          latestSentByMailbox.get(key) ?? null
+        )
       };
     });
   }
@@ -315,4 +457,12 @@ export class PrismaCrmSendScheduleStore {
 
     return records.map(toMessageRecord);
   }
+}
+
+function maxNullableDate(first: Date | null, second: Date | null) {
+  if (first && second) {
+    return first > second ? first : second;
+  }
+
+  return first ?? second;
 }

@@ -46,9 +46,12 @@ const {
   handleDrawerVisibleUpdate,
   handleGenerateNextDraft,
   handleRegenerateAiDraft,
+  handleResumeSequence,
+  handleRetryFirstMessageSend,
   handlePageSizeUpdate,
   handlePageUpdate,
   handleRefreshCurrentSequence,
+  handleReturnFirstMessageToEdit,
   handleReadAiDraftTask,
   handleRetryAiDraftTask,
   handleRestoreDraftVersion,
@@ -66,7 +69,10 @@ const {
   records,
   refreshAiDraftTaskDetail,
   resourceLoading,
+  returnEditing,
   sendStarting,
+  sendRetrying,
+  sequenceResuming,
   sequencePolicySelectOptions,
   sequenceStopping
 } = useEmailSequenceTable();
@@ -75,7 +81,7 @@ const {
 <template>
   <NSpace vertical :size="12">
     <NSpace justify="end">
-      <NButton type="primary" ghost @click="openCreateModal">生成首封开发信</NButton>
+      <NButton type="primary" ghost @click="openCreateModal">创建开发任务</NButton>
     </NSpace>
 
     <EmailSequenceTable
@@ -120,8 +126,11 @@ const {
       :next-draft-generating="nextDraftGenerating"
       :regenerating="draftRegenerating"
       :refreshing="detailRefreshing"
+      :return-editing="returnEditing"
       :saving="draftSaving"
       :send-starting="sendStarting"
+      :send-retrying="sendRetrying"
+      :sequence-resuming="sequenceResuming"
       :stopping="sequenceStopping"
       :version-loading="draftVersionLoading"
       :version-restoring="draftVersionRestoring"
@@ -130,7 +139,10 @@ const {
       @generate-next-draft="handleGenerateNextDraft"
       @load-draft-versions="loadDraftVersions"
       @regenerate-draft="handleRegenerateAiDraft"
+      @resume="handleResumeSequence"
       @refresh="handleRefreshCurrentSequence"
+      @return-to-edit="handleReturnFirstMessageToEdit"
+      @retry-send="handleRetryFirstMessageSend"
       @restore-draft-version="handleRestoreDraftVersion"
       @save-draft="handleSaveDraft"
       @start-send="handleStartSend"

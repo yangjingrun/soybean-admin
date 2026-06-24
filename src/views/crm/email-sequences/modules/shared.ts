@@ -2,8 +2,8 @@ import dayjs from 'dayjs';
 import type { InjectionKey, Ref } from 'vue';
 
 export const sequenceStatusOptions = [
-  { label: '待确认开发信', value: 'draft_review_pending' },
-  { label: '待启动发送', value: 'ready_to_send' },
+  { label: '待确认发送', value: 'draft_review_pending' },
+  { label: '等待发送', value: 'ready_to_send' },
   { label: '跟进中', value: 'sequence_running' },
   { label: '已暂停跟进', value: 'paused' },
   { label: '已停止跟进', value: 'stopped' },
@@ -12,22 +12,22 @@ export const sequenceStatusOptions = [
 ] satisfies Array<{ label: string; value: Api.Crm.SequenceEnrollmentStatus }>;
 
 export const sequencePageGuide = {
-  title: '开发信跟进承接可开发客户',
-  description: '从客户管理创建后，先确认 AI 草稿，再启动首封发送；客户回信后会自动转到客户回信页处理。'
+  title: '开发信任务承接可开发客户',
+  description: '从客户管理创建后，确认邮件内容并按发送规则安排发送；客户回信后会自动转到客户回信页处理。'
 };
 
 export const sequenceTodoTypeOptions = [
-  { label: '待确认开发信', value: 'draft_review_pending' },
-  { label: '后续信待确认', value: 'follow_up_draft_review' },
-  { label: '待启动首封', value: 'ready_to_start' },
+  { label: '待确认发送', value: 'draft_review_pending' },
+  { label: '后续邮件待确认', value: 'follow_up_draft_review' },
+  { label: '等待发送', value: 'ready_to_start' },
   { label: '可生成下一封', value: 'can_generate_next' },
   { label: '发送失败', value: 'send_failed' },
   { label: '已完成全部步骤', value: 'max_steps_reached' }
 ] satisfies Array<{ label: string; value: Api.Crm.SequenceReviewTodoType }>;
 
 export const sequenceStatusLabelMap: Record<Api.Crm.SequenceEnrollmentStatus, string> = {
-  draft_review_pending: '待确认开发信',
-  ready_to_send: '待启动发送',
+  draft_review_pending: '待确认发送',
+  ready_to_send: '等待发送',
   sequence_running: '跟进中',
   paused: '已暂停跟进',
   stopped: '已停止跟进',
@@ -46,11 +46,11 @@ export const sequenceStatusTagTypeMap: Record<Api.Crm.SequenceEnrollmentStatus, 
 };
 
 export const messageStatusLabelMap: Record<Api.Crm.MessageStatus, string> = {
-  draft_pending_review: '待确认',
-  draft_ready: '已确认',
-  queued: '等待发送',
+  draft_pending_review: '待确认发送',
+  draft_ready: '等待发送',
+  queued: '发送中',
   sent: '已发送',
-  failed: '发送失败',
+  failed: '发送失败，可处理',
   skipped: '已跳过'
 };
 
@@ -310,14 +310,14 @@ export function formatNullableText(value: string | null | undefined) {
   return value || '-';
 }
 
-/** Display scheduled ready follow-ups as waiting for scheduler without changing backend status. */
+/** Display scheduled ready follow-ups with user-facing send wording without changing backend status. */
 export function getMessageStatusView(
   message: Api.Crm.MessageRecord,
   enrollmentStatus?: Api.Crm.SequenceEnrollmentStatus
 ): MessageStatusView {
   if (message.status === 'draft_ready' && message.scheduledAt && enrollmentStatus === 'sequence_running') {
     return {
-      label: '待调度',
+      label: '等待发送',
       tagType: 'warning'
     };
   }
@@ -461,10 +461,18 @@ export function canOperateSelectedSequenceDraft(
   }
 
   if (message.stepIndex === 1) {
-    return item.enrollment.status === 'draft_review_pending';
+    return ['draft_review_pending', 'ready_to_send'].includes(item.enrollment.status);
   }
 
   return ['ready_to_send', 'sequence_running'].includes(item.enrollment.status);
+}
+
+/** Decide whether a just-approved first message should immediately enter the send queue. */
+export function shouldQueueFirstMessageAfterApproval(
+  enrollment: Pick<Api.Crm.SequenceEnrollmentRecord, 'status'>,
+  message: Pick<Api.Crm.MessageRecord, 'status' | 'stepIndex'>
+) {
+  return enrollment.status === 'ready_to_send' && message.stepIndex === 1 && message.status === 'draft_ready';
 }
 
 /** Check whether one selected row can be approved by an owner-only batch action. */
@@ -476,7 +484,7 @@ export function canApproveSequenceDraftInBatch(item: Api.Crm.SequenceReviewItem)
   if (isDraftBlockedBySequencePolicy(item, pendingMessage)) return false;
 
   if (pendingMessage.stepIndex === 1) {
-    return item.enrollment.status === 'draft_review_pending';
+    return ['draft_review_pending', 'ready_to_send'].includes(item.enrollment.status);
   }
 
   // Running sequences require queue scheduling on approval, so batch approval intentionally skips them.
@@ -511,6 +519,37 @@ export function canStopSequenceInBatch(item: Api.Crm.SequenceReviewItem) {
   return (
     item.canOperateDraft &&
     ['draft_review_pending', 'ready_to_send', 'sequence_running', 'paused'].includes(item.enrollment.status)
+  );
+}
+
+/** Check whether the first message can be returned to editing without rewriting sent history. */
+export function canReturnFirstMessageToEdit(item: Api.Crm.SequenceReviewItem, message: Api.Crm.MessageRecord | null) {
+  return Boolean(
+    item.canOperateDraft &&
+    message &&
+    message.stepIndex === 1 &&
+    ['draft_ready', 'queued', 'failed', 'skipped'].includes(message.status) &&
+    ['ready_to_send', 'sequence_running', 'stopped', 'paused'].includes(item.enrollment.status) &&
+    !message.sentAt &&
+    !message.providerMessageId
+  );
+}
+
+/** Check whether a stopped sequence can be restored by the owner. */
+export function canResumeSequence(item: Api.Crm.SequenceReviewItem) {
+  return item.canControlSequence && item.enrollment.status === 'stopped';
+}
+
+/** Check whether an unsent first message can be sent back to the scheduler. */
+export function canRetryFirstMessageSend(item: Api.Crm.SequenceReviewItem, message: Api.Crm.MessageRecord | null) {
+  return Boolean(
+    item.canControlSequence &&
+    message &&
+    message.stepIndex === 1 &&
+    ['draft_ready', 'failed', 'skipped'].includes(message.status) &&
+    ['ready_to_send', 'stopped', 'paused'].includes(item.enrollment.status) &&
+    !message.sentAt &&
+    !message.providerMessageId
   );
 }
 
@@ -623,7 +662,7 @@ function containsLink(text: string) {
 
 function formatSequenceMessageTimelineMeta(message: Api.Crm.MessageRecord) {
   if (message.sentAt) return `已发送 ${formatSequenceDate(message.sentAt)}`;
-  if (message.scheduledAt) return `计划发送 ${formatSequenceDate(message.scheduledAt)}`;
+  if (message.scheduledAt) return `将在 ${formatSequenceDate(message.scheduledAt)} 自动发送`;
   return `更新于 ${formatSequenceDate(message.updatedAt)}`;
 }
 
@@ -742,7 +781,7 @@ export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): S
   if (failedMessages.length > 0) {
     return {
       label: '发送失败',
-      description: `第 ${failedMessages.map(message => message.stepIndex).join('、')} 封发送失败，当前仅支持查看状态`,
+      description: `第 ${failedMessages.map(message => message.stepIndex).join('、')} 封发送失败，可修改后再发送或直接重试`,
       failedCheckCount: checklist.failedCount,
       failedMessageCount: failedMessages.length,
       passedCheckCount: checklist.passedCount,
@@ -753,8 +792,8 @@ export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): S
 
   if (checklist.failedCount > 0) {
     return {
-      label: `${checklist.failedCount} 项待确认`,
-      description: '发送前审核未全部通过，请先确认预警项',
+      label: `${checklist.failedCount} 项需确认`,
+      description: '发送条件未全部通过，请先确认预警项',
       failedCheckCount: checklist.failedCount,
       failedMessageCount: 0,
       passedCheckCount: checklist.passedCount,
@@ -766,7 +805,7 @@ export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): S
   if (checklist.total > 0) {
     return {
       label: `${checklist.total} 项通过`,
-      description: '发送前审核已通过，可继续处理当前邮件',
+      description: '发送条件已通过，可确认当前邮件',
       failedCheckCount: 0,
       failedMessageCount: 0,
       passedCheckCount: checklist.passedCount,
@@ -776,8 +815,8 @@ export function getSequenceSendAuditSummary(item: Api.Crm.SequenceReviewItem): S
   }
 
   return {
-    label: '待补充检查',
-    description: '暂无发送前审核项',
+    label: '暂无发送条件',
+    description: '暂无发送条件校验项',
     failedCheckCount: 0,
     failedMessageCount: 0,
     passedCheckCount: 0,
@@ -792,35 +831,35 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
 
   if (currentMessage?.status === 'draft_pending_review') {
     return {
-      label: '确认开发信',
-      description: `第 ${currentMessage.stepIndex} 封待人工确认`,
-      buttonLabel: '确认',
+      label: '确认发送',
+      description: `第 ${currentMessage.stepIndex} 封还没发送，确认内容后按计划发送`,
+      buttonLabel: '确认发送',
       tagType: 'warning'
     };
   }
 
   if (item.enrollment.status === 'ready_to_send' && item.firstMessage?.status === 'draft_ready') {
     return {
-      label: '启动首封',
-      description: '首封已确认，等待启动发送',
-      buttonLabel: '启动',
+      label: '确认发送',
+      description: '首封已确认，可按发送规则安排发送',
+      buttonLabel: '安排发送',
       tagType: 'success'
     };
   }
 
   if (currentMessage?.status === 'failed') {
     return {
-      label: '处理失败',
-      description: `第 ${currentMessage.stepIndex} 封发送失败`,
-      buttonLabel: '查看',
+      label: '修改后再发送',
+      description: `第 ${currentMessage.stepIndex} 封未成功发出，可修改或直接重试`,
+      buttonLabel: '处理',
       tagType: 'error'
     };
   }
 
   if (currentMessage?.status === 'queued') {
     return {
-      label: '等待发送',
-      description: currentMessage.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '已进入发送队列',
+      label: '发送中',
+      description: '系统正在发送，请稍后查看结果',
       buttonLabel: '查看',
       tagType: 'info'
     };
@@ -832,8 +871,8 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
     item.enrollment.status === 'sequence_running'
   ) {
     return {
-      label: '待调度',
-      description: formatSequenceDate(currentMessage.scheduledAt),
+      label: '等待发送',
+      description: '已确认，等待系统按发送规则执行',
       buttonLabel: '查看',
       tagType: 'warning'
     };
@@ -842,7 +881,7 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
   if (canGenerateNextSequenceDraft(item)) {
     return {
       label: '生成下一封',
-      description: `已生成到第 ${getMaxSequenceMessageStep(item.messages)} 封，可继续生成后续草稿`,
+      description: `已生成到第 ${getMaxSequenceMessageStep(item.messages)} 封，可继续生成后续开发信`,
       buttonLabel: '生成',
       tagType: 'success'
     };
@@ -877,16 +916,16 @@ export function getSequenceNextAction(item: Api.Crm.SequenceReviewItem): Sequenc
 
   if (item.enrollment.status === 'stopped') {
     return {
-      label: '已停止跟进',
-      description: '旧发送任务会自动跳过',
-      buttonLabel: '查看',
-      tagType: 'default'
+      label: '已停止，可恢复',
+      description: '误操作可恢复，已发出的邮件不会重复发送',
+      buttonLabel: '恢复',
+      tagType: 'warning'
     };
   }
 
   if (item.enrollment.status === 'paused') {
     return {
-      label: '已暂停跟进',
+      label: '已暂停，可恢复',
       description: '恢复后会创建新的运行版本',
       buttonLabel: '查看',
       tagType: 'warning'

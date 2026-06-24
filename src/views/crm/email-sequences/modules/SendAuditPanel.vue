@@ -19,9 +19,9 @@ const currentMessageStatusView = computed(() =>
   props.currentMessage ? getMessageStatusView(props.currentMessage, props.item.enrollment.status) : null
 );
 const isCurrentMessageFailed = computed(() => props.currentMessage?.status === 'failed');
-const retryDisabledReason = computed(() => {
-  if (!isCurrentMessageFailed.value) return '当前邮件不是失败状态';
-  return '失败重试暂未开放，请先刷新状态或停止跟进';
+const recoveryHint = computed(() => {
+  if (!isCurrentMessageFailed.value) return '当前邮件没有发送失败，无需处理失败重试';
+  return '这封邮件尚未成功发出，可在底部选择“修改后再发送”或“直接重试”。';
 });
 </script>
 
@@ -29,7 +29,7 @@ const retryDisabledReason = computed(() => {
   <div class="send-audit-panel">
     <div class="section-heading">
       <div>
-        <div class="section-title">发送前审核</div>
+        <div class="section-title">发送条件</div>
         <div class="section-subtitle">
           {{ auditSummary.description }}
         </div>
@@ -61,7 +61,7 @@ const retryDisabledReason = computed(() => {
         <span class="check-label">{{ check.label }}</span>
         <span>{{ check.message }}</span>
       </NAlert>
-      <NEmpty v-if="!item.checklist.length" description="暂无发送前审核项" size="small" />
+      <NEmpty v-if="!item.checklist.length" description="暂无发送条件" size="small" />
     </NSpace>
 
     <NAlert v-if="failedMessages.length" type="error" :bordered="false">
@@ -74,23 +74,15 @@ const retryDisabledReason = computed(() => {
             {{ formatSequenceDate(failedMessage.updatedAt) }}
           </div>
         </div>
-        <div class="failed-message-meta">失败重试暂未开放，请先刷新状态；需要终止后续发送时可停止跟进。</div>
+        <div class="failed-message-meta">失败邮件尚未成功发出，可修改内容后再发送，也可以直接重试。</div>
       </NSpace>
     </NAlert>
 
     <div class="retry-entry">
       <div>
-        <div class="retry-title">失败重试</div>
-        <div class="section-subtitle">{{ retryDisabledReason }}</div>
+        <div class="retry-title">失败处理</div>
+        <div class="section-subtitle">{{ recoveryHint }}</div>
       </div>
-      <NTooltip>
-        <template #trigger>
-          <span>
-            <NButton type="warning" secondary disabled>重试发送</NButton>
-          </span>
-        </template>
-        {{ retryDisabledReason }}
-      </NTooltip>
     </div>
 
     <NAlert v-if="currentMessage" type="info" :bordered="false">

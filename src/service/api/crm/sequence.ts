@@ -159,6 +159,30 @@ export function startCrmFirstMessageSend(enrollmentId: string) {
   });
 }
 
+/** Return an unsent first message to editable review state. */
+export function returnCrmFirstMessageToEdit(enrollmentId: string) {
+  return request<Api.Crm.MessageReturnToEditResult>({
+    url: `/crm/sequence-review-items/${enrollmentId}/return-to-edit`,
+    method: 'post'
+  });
+}
+
+/** Resume one stopped CRM sequence without duplicating sent messages. */
+export function resumeCrmSequenceEnrollment(enrollmentId: string) {
+  return request<Api.Crm.SequenceResumeResult>({
+    url: `/crm/sequence-review-items/${enrollmentId}/resume`,
+    method: 'post'
+  });
+}
+
+/** Send an unsent first message back to the CRM send scheduler. */
+export function retryCrmFirstMessageSend(enrollmentId: string) {
+  return request<Api.Crm.MessageRetrySendResult>({
+    url: `/crm/sequence-review-items/${enrollmentId}/retry-send`,
+    method: 'post'
+  });
+}
+
 /** Stop one sequence and invalidate queued CRM send jobs. */
 export function stopCrmSequenceEnrollment(enrollmentId: string) {
   return request<Api.Crm.SequenceStopResult>({

@@ -1,5 +1,6 @@
 import type {
   CrmAccountDetailRecord,
+  CrmAccountListRecord,
   CrmAccountRecord,
   CrmAiDraftMetadata,
   CrmBlacklistRecord,
@@ -31,10 +32,13 @@ export function toAccountView(record: CrmAccountRecord) {
 }
 
 /** Convert account list rows while hiding internal scheduling profile fields. */
-export function toAccountListView(record: CrmAccountRecord) {
-  const { timeZone: _timeZone, ...safeRecord } = toAccountView(record);
+export function toAccountListView(record: CrmAccountListRecord) {
+  const { timeZone: _timeZone, primaryContact, ...safeRecord } = toAccountView(record);
 
-  return safeRecord;
+  return {
+    ...safeRecord,
+    primaryContact: primaryContact ? toContactView(primaryContact) : null
+  };
 }
 
 /** Convert contact dates to transport-safe ISO strings. */

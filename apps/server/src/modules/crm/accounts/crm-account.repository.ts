@@ -1,6 +1,7 @@
 import type {
   CrmAccountCreateInput,
   CrmAccountDetailRecord,
+  CrmAccountListRecord,
   CrmAccountRecord,
   CrmAccountStatus,
   CrmAccountUpdateInput,
@@ -62,7 +63,7 @@ export interface CrmAccountRepository {
     updatedTo?: Date;
     skip: number;
     take: number;
-  }): Promise<{ records: CrmAccountRecord[]; total: number }>;
+  }): Promise<{ records: CrmAccountListRecord[]; total: number }>;
   getAccountDetail(args: {
     id: string;
     organizationId: string;

@@ -40,6 +40,10 @@ export function useLeadTable() {
   const archiveOperatingId = shallowRef(null);
   const verifyingContactIds = shallowRef([]);
   const refreshingEnrichmentProvider = shallowRef(null);
+  const expandedRowKeys = shallowRef([]);
+  const expandedLeadDetails = shallowRef({});
+  const expandedLeadLoadingIds = shallowRef([]);
+  const expandedLeadFailedIds = shallowRef([]);
   let latestRequestId = 0;
   let latestDetailRequestId = 0;
   const pagination = reactive({
@@ -97,6 +101,7 @@ export function useLeadTable() {
       pagination.current = data.current;
       pagination.size = data.size;
       pagination.total = data.total;
+      syncExpandedRowsWithVisibleRecords(data.records);
     } finally {
       if (requestId === latestRequestId) {
         loading.value = false;
@@ -133,6 +138,43 @@ export function useLeadTable() {
     leadDetail.value = null;
     detailVisible.value = true;
     void loadLeadDetail(record.id);
+  }
+  /** Load contacts for a list-row expansion without replacing the active detail drawer. */
+  async function loadExpandedLeadDetail(id, force = false) {
+    if (!force && expandedLeadDetails.value[id]) {
+      return;
+    }
+    if (expandedLeadLoadingIds.value.includes(id)) {
+      return;
+    }
+    expandedLeadLoadingIds.value = [...expandedLeadLoadingIds.value, id];
+    expandedLeadFailedIds.value = expandedLeadFailedIds.value.filter(item => item !== id);
+    try {
+      const { data, error } = await fetchCrmAccountDetail(id);
+      if (error) {
+        expandedLeadFailedIds.value = [...expandedLeadFailedIds.value, id];
+        return;
+      }
+      expandedLeadDetails.value = {
+        ...expandedLeadDetails.value,
+        [id]: data
+      };
+    } finally {
+      expandedLeadLoadingIds.value = expandedLeadLoadingIds.value.filter(item => item !== id);
+    }
+  }
+  /** Keep expanded row keys controlled and lazy-load newly expanded company contacts. */
+  function handleExpandedRowKeysUpdate(keys) {
+    expandedRowKeys.value = keys;
+    for (const id of keys) {
+      void loadExpandedLeadDetail(id);
+    }
+  }
+  async function refreshExpandedLeadDetail(id) {
+    if (!expandedLeadDetails.value[id] && !expandedRowKeys.value.includes(id)) {
+      return;
+    }
+    await loadExpandedLeadDetail(id, true);
   }
   function handleDetailVisibleUpdate(show) {
     detailVisible.value = show;
@@ -195,6 +237,7 @@ export function useLeadTable() {
       if (detailVisible.value && selectedLeadId.value === accountId) {
         await loadLeadDetail(accountId);
       }
+      await refreshExpandedLeadDetail(accountId);
     } finally {
       removeVerifyingContact(contactId);
     }
@@ -217,6 +260,7 @@ export function useLeadTable() {
       if (detailVisible.value && selectedLeadId.value === id) {
         await loadLeadDetail(id);
       }
+      await refreshExpandedLeadDetail(id);
     } finally {
       refreshingEnrichmentProvider.value = null;
     }
@@ -274,15 +318,17 @@ export function useLeadTable() {
       accountSubmitting.value = false;
     }
   }
-  async function handleCreateContact(payload) {
+  async function handleCreateContact(payload, done) {
     const accountId = selectedLeadId.value;
     if (!accountId) {
+      done?.(false);
       return false;
     }
     contactSubmitting.value = true;
     try {
       const { error } = await createCrmContact(accountId, payload);
       if (error) {
+        done?.(false);
         return false;
       }
       message.success('联系人已新增');
@@ -291,16 +337,19 @@ export function useLeadTable() {
       if (detailVisible.value && selectedLeadId.value === accountId) {
         await loadLeadDetail(accountId);
       }
+      await refreshExpandedLeadDetail(accountId);
+      done?.(true);
       return true;
     } finally {
       contactSubmitting.value = false;
     }
   }
-  async function handleUpdateContact(contactId, payload) {
+  async function handleUpdateContact(contactId, payload, done) {
     contactSubmitting.value = true;
     try {
       const { error } = await updateCrmContact(contactId, payload);
       if (error) {
+        done?.(false);
         return false;
       }
       message.success('联系人已更新');
@@ -308,6 +357,11 @@ export function useLeadTable() {
       if (detailVisible.value && selectedLeadId.value) {
         await loadLeadDetail(selectedLeadId.value);
       }
+      const updatedAccountId = findCachedContactAccountId(contactId);
+      if (updatedAccountId) {
+        await refreshExpandedLeadDetail(updatedAccountId);
+      }
+      done?.(true);
       return true;
     } finally {
       contactSubmitting.value = false;
@@ -329,6 +383,7 @@ export function useLeadTable() {
       if (detailVisible.value && selectedLeadId.value === contact.accountId) {
         await loadLeadDetail(contact.accountId);
       }
+      await refreshExpandedLeadDetail(contact.accountId);
     } finally {
       contactDeletingId.value = null;
     }
@@ -433,6 +488,10 @@ export function useLeadTable() {
     contactSubmitting,
     detailLoading,
     detailVisible,
+    expandedLeadDetails,
+    expandedLeadFailedIds,
+    expandedLeadLoadingIds,
+    expandedRowKeys,
     filterModel,
     handleArchiveLead,
     handleUpdateAccount,
@@ -443,6 +502,7 @@ export function useLeadTable() {
     handleCreateNote,
     handleDeleteContact,
     handleDetailVisibleUpdate,
+    handleExpandedRowKeysUpdate,
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
@@ -458,6 +518,7 @@ export function useLeadTable() {
     leadDetail,
     loadLeads,
     loadLeadDetail,
+    loadExpandedLeadDetail,
     loading,
     noteSubmitting,
     pagination,
@@ -468,6 +529,28 @@ export function useLeadTable() {
     statusSubmitting,
     verifyingContactIds
   };
+  function syncExpandedRowsWithVisibleRecords(nextRecords) {
+    const visibleIds = new Set(nextRecords.map(record => record.id));
+    expandedRowKeys.value = expandedRowKeys.value.filter(id => visibleIds.has(id));
+    expandedLeadLoadingIds.value = expandedLeadLoadingIds.value.filter(id => visibleIds.has(id));
+    expandedLeadFailedIds.value = expandedLeadFailedIds.value.filter(id => visibleIds.has(id));
+    expandedLeadDetails.value = Object.fromEntries(
+      Object.entries(expandedLeadDetails.value).filter(([id]) => visibleIds.has(id))
+    );
+  }
+  function findCachedContactAccountId(contactId) {
+    const detailContact = leadDetail.value?.contacts.find(contact => contact.id === contactId);
+    if (detailContact) {
+      return detailContact.accountId;
+    }
+    for (const detail of Object.values(expandedLeadDetails.value)) {
+      const contact = detail.contacts.find(item => item.id === contactId);
+      if (contact) {
+        return contact.accountId;
+      }
+    }
+    return null;
+  }
 }
 function getRouteQueryString(value) {
   if (typeof value === 'string') return value;

@@ -175,7 +175,7 @@ export class PrismaCrmInboxStore implements CrmInboxRepository {
             organizationId: input.organizationId,
             ownerUserId: input.ownerUserId,
             accountId: outboundMessage.accountId,
-            status: 'queued'
+            status: { in: ['draft_ready', 'queued'] }
           },
           data: {
             status: 'skipped',
@@ -632,7 +632,7 @@ export class PrismaCrmInboxStore implements CrmInboxRepository {
             organizationId: input.organizationId,
             ownerUserId: input.ownerUserId,
             accountId: inboxMessage.accountId,
-            status: 'queued'
+            status: { in: ['draft_ready', 'queued'] }
           },
           data: {
             status: 'skipped',

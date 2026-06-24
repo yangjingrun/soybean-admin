@@ -83,9 +83,9 @@ const columns: DataTableColumns<Api.Crm.AiDraftTaskItemRecord> = [
 
 <template>
   <NDrawer :show="show" :width="720" placement="right" @update:show="emit('update:show', $event)">
-    <NDrawerContent title="批量 AI 草稿任务">
+    <NDrawerContent title="批量生成开发信">
       <NSpin :show="loading">
-        <NEmpty v-if="!task" description="暂无批量 AI 草稿任务" />
+        <NEmpty v-if="!task" description="暂无批量生成任务" />
 
         <NSpace v-else vertical :size="16">
           <NSpace align="center" justify="space-between">

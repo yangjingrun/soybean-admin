@@ -17,6 +17,7 @@ import type {
   CrmScheduledMessageStepKind,
   CrmSendQueuePort
 } from './crm.types';
+import { resolveCrmSequenceScheduledAt } from './sequence/crm-sequence-send-schedule-time';
 
 interface DispatchDueMessagesInput {
   now?: Date;
@@ -38,6 +39,7 @@ interface OwnerDispatchState {
 interface MailboxDispatchState {
   dailyCount: number;
   hourlyCount: number;
+  latestScheduledAt: Date | null;
 }
 
 @Injectable()
@@ -45,6 +47,7 @@ export class CrmSendSchedulerService {
   constructor(
     @Inject(CRM_SEND_SCHEDULER_REPOSITORY) private readonly store: CrmSendSchedulerRepository,
     @Inject(CRM_SEND_QUEUE) private readonly sendQueue: CrmSendQueuePort,
+    @Inject(CrmSendAvailabilityService)
     private readonly availabilityService: CrmSendAvailabilityService
   ) {}
 
@@ -114,9 +117,25 @@ export class CrmSendSchedulerService {
       }
 
       const mailboxKey = toMailboxKey(candidate.message.organizationId, candidate.mailbox.id);
+      const mailboxState = mailboxStates.get(mailboxKey);
 
-      if (!this.hasMailboxCapacity(candidate, mailboxStates.get(mailboxKey))) {
+      if (!this.hasMailboxCapacity(candidate, mailboxState)) {
         skippedCount += 1;
+        continue;
+      }
+
+      const cadenceScheduledAt = resolveCrmSequenceScheduledAt({
+        availabilityService: this.availabilityService,
+        account: candidate.account,
+        globalConfig,
+        now,
+        latestScheduledAt: mailboxState?.latestScheduledAt ?? null
+      });
+
+      if (cadenceScheduledAt > now) {
+        skippedCount += 1;
+        await this.deferCandidate(candidate, cadenceScheduledAt);
+        this.reserveMailboxSchedule(mailboxKey, cadenceScheduledAt, mailboxStates);
         continue;
       }
 
@@ -130,7 +149,7 @@ export class CrmSendSchedulerService {
       dispatchedCount += 1;
       state.dispatchedCount += 1;
       state.dispatchedByKind[candidate.stepKind] += 1;
-      this.reserveMailboxCapacity(mailboxKey, mailboxStates);
+      this.reserveMailboxCapacity(mailboxKey, now, mailboxStates);
     }
 
     return {
@@ -292,20 +311,42 @@ export class CrmSendSchedulerService {
         toMailboxKey(record.organizationId, record.mailboxId),
         {
           dailyCount: record.dailyCount,
-          hourlyCount: record.hourlyCount
+          hourlyCount: record.hourlyCount,
+          latestScheduledAt: record.latestScheduledAt
         }
       ])
     );
   }
 
-  private reserveMailboxCapacity(mailboxKey: string, mailboxStates: Map<string, MailboxDispatchState>) {
+  private reserveMailboxCapacity(
+    mailboxKey: string,
+    scheduledAt: Date,
+    mailboxStates: Map<string, MailboxDispatchState>
+  ) {
     const state = mailboxStates.get(mailboxKey) ?? {
       dailyCount: 0,
-      hourlyCount: 0
+      hourlyCount: 0,
+      latestScheduledAt: null
     };
 
     state.dailyCount += 1;
     state.hourlyCount += 1;
+    state.latestScheduledAt = scheduledAt;
+    mailboxStates.set(mailboxKey, state);
+  }
+
+  private reserveMailboxSchedule(
+    mailboxKey: string,
+    scheduledAt: Date,
+    mailboxStates: Map<string, MailboxDispatchState>
+  ) {
+    const state = mailboxStates.get(mailboxKey) ?? {
+      dailyCount: 0,
+      hourlyCount: 0,
+      latestScheduledAt: null
+    };
+
+    state.latestScheduledAt = scheduledAt;
     mailboxStates.set(mailboxKey, state);
   }
 

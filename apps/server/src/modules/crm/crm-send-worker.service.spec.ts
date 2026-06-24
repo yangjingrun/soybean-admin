@@ -69,7 +69,7 @@ describe('CrmSendWorkerService', () => {
         subject: 'Bearing Series for ABC Trading',
         bodyText:
           'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
-        status: 'draft_pending_review',
+        status: 'draft_ready',
         scheduledAt: new Date(store.completed[0].sentAt.getTime() + 3 * 24 * 60 * 60 * 1000),
         providerThreadId: 'mock-thread:enrollment-1'
       }
@@ -131,7 +131,7 @@ describe('CrmSendWorkerService', () => {
       subject: 'Bearing Series for ABC Trading',
       bodyText:
         'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
-      status: 'draft_pending_review',
+      status: 'draft_ready',
       scheduledAt: new Date(store.completed[0].sentAt.getTime() + 7 * 24 * 60 * 60 * 1000),
       providerThreadId: 'mock-thread:enrollment-1'
     });
@@ -239,7 +239,7 @@ describe('CrmSendWorkerService', () => {
       subject: 'New sourcing idea for ABC Trading',
       bodyText:
         'Hi Ali Hassan,\n\nCould another angle around our product line help with price, MOQ, lead time, and payment terms?\n\nBest regards,\nAlice',
-      status: 'draft_pending_review',
+      status: 'draft_ready',
       scheduledAt: new Date(store.completed[0].sentAt.getTime() + 5 * 24 * 60 * 60 * 1000),
       providerThreadId: 'mock-thread:enrollment-1'
     });

@@ -143,6 +143,11 @@ export interface CrmAccountRecord {
   updatedAt: Date;
 }
 
+export interface CrmAccountListRecord extends CrmAccountRecord {
+  contactCount: number;
+  primaryContact: CrmContactRecord | null;
+}
+
 export interface CrmContactRecord {
   id: string;
   organizationId: string;
@@ -1157,6 +1162,8 @@ export interface CrmWorkbenchOverviewRecord {
   generatedAt: Date;
   today: {
     sentCount: number;
+    scheduledTodayCount: number;
+    scheduledTomorrowCount: number;
     queuedCount: number;
     failedCount: number;
     pendingReplyCount: number;
@@ -1262,6 +1269,52 @@ export interface CrmSendStartRecord {
   mailbox: CrmMailboxRecord;
   event: CrmTimelineEventRecord;
 }
+
+export interface CrmFirstMessageReturnToEditInput {
+  enrollmentId: string;
+  organizationId: string;
+  ownerUserId: string;
+  fromEnrollmentStatuses: CrmSequenceEnrollmentStatus[];
+  fromMessageStatuses: CrmMessageStatus[];
+  accountStatus: CrmAccountStatus;
+}
+
+export interface CrmFirstMessageReturnToEditRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmSequenceResumeInput {
+  enrollmentId: string;
+  organizationId: string;
+  ownerUserId: string;
+  fromEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  toEnrollmentStatus: CrmSequenceEnrollmentStatus;
+  fromMessageStatuses: CrmMessageStatus[];
+  toMessageStatus: CrmMessageStatus;
+  accountStatus: CrmAccountStatus;
+}
+
+export interface CrmSequenceResumeRecord {
+  enrollment: CrmSequenceEnrollmentRecord;
+  message: CrmMessageRecord | null;
+  account: CrmAccountRecord;
+  event: CrmTimelineEventRecord;
+}
+
+export interface CrmFirstMessageRetryInput {
+  enrollmentId: string;
+  organizationId: string;
+  ownerUserId: string;
+  fromEnrollmentStatuses: CrmSequenceEnrollmentStatus[];
+  fromMessageStatuses: CrmMessageStatus[];
+  accountStatus: CrmAccountStatus;
+  scheduledAt: Date;
+}
+
+export type CrmFirstMessageRetryRecord = CrmSendStartRecord;
 
 export interface CrmSendDeliveryClaimInput extends CrmSendQueueJob {
   claimedAt: Date;

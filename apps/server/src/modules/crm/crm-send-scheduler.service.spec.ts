@@ -39,10 +39,30 @@ describe('CrmSendSchedulerService', () => {
     const store = createSchedulerStore({
       preference: createSendPreference({ dailySendLimit: 2, followUpSharePercent: 50 }),
       candidates: [
-        createCandidate({ messageId: 'follow-up-1', stepIndex: 2, scheduledAt: '2026-06-20T01:00:00.000Z' }),
-        createCandidate({ messageId: 'follow-up-2', stepIndex: 3, scheduledAt: '2026-06-20T01:05:00.000Z' }),
-        createCandidate({ messageId: 'first-1', stepIndex: 1, scheduledAt: '2026-06-20T01:10:00.000Z' }),
-        createCandidate({ messageId: 'first-2', stepIndex: 1, scheduledAt: '2026-06-20T01:15:00.000Z' })
+        createCandidate({
+          messageId: 'follow-up-1',
+          stepIndex: 2,
+          scheduledAt: '2026-06-20T01:00:00.000Z',
+          mailboxId: 'mailbox-1'
+        }),
+        createCandidate({
+          messageId: 'follow-up-2',
+          stepIndex: 3,
+          scheduledAt: '2026-06-20T01:05:00.000Z',
+          mailboxId: 'mailbox-2'
+        }),
+        createCandidate({
+          messageId: 'first-1',
+          stepIndex: 1,
+          scheduledAt: '2026-06-20T01:10:00.000Z',
+          mailboxId: 'mailbox-3'
+        }),
+        createCandidate({
+          messageId: 'first-2',
+          stepIndex: 1,
+          scheduledAt: '2026-06-20T01:15:00.000Z',
+          mailboxId: 'mailbox-4'
+        })
       ]
     });
     const queue = createQueue();
@@ -79,8 +99,8 @@ describe('CrmSendSchedulerService', () => {
     const now = new Date('2026-06-20T02:00:00.000Z');
     const store = createSchedulerStore({
       candidates: [
-        createCandidate({ messageId: 'owner-1-message', stepIndex: 1, ownerUserId: 'user-1' }),
-        createCandidate({ messageId: 'owner-2-message', stepIndex: 1, ownerUserId: 'user-2' })
+        createCandidate({ messageId: 'owner-1-message', stepIndex: 1, ownerUserId: 'user-1', mailboxId: 'mailbox-1' }),
+        createCandidate({ messageId: 'owner-2-message', stepIndex: 1, ownerUserId: 'user-2', mailboxId: 'mailbox-2' })
       ],
       ownerStates: [
         createOwnerSendState({ ownerUserId: 'user-1', preference: createSendPreference({ ownerUserId: 'user-1' }) }),
@@ -204,6 +224,33 @@ describe('CrmSendSchedulerService', () => {
         bullJobId: null
       }
     });
+  });
+
+  it('keeps due messages spaced instead of queueing the whole mailbox batch at once', async () => {
+    const now = new Date('2026-06-20T02:00:00.000Z');
+    const store = createSchedulerStore({
+      candidates: [
+        createCandidate({ messageId: 'first-1', stepIndex: 1, scheduledAt: '2026-06-20T01:00:00.000Z' }),
+        createCandidate({ messageId: 'first-2', stepIndex: 1, scheduledAt: '2026-06-20T01:01:00.000Z' })
+      ]
+    });
+    const queue = createQueue();
+    const scheduler = new CrmSendSchedulerService(store, queue, createAllowingAvailability());
+
+    const result = await scheduler.dispatchDueMessages({ now, take: 20 });
+    const deferredCall = store.updateCalls.find(call => call.id === 'first-2');
+
+    assert.equal(result.dispatchedCount, 1);
+    assert.equal(result.skippedCount, 1);
+    assert.deepEqual(
+      queue.jobs.map(job => job.messageId),
+      ['first-1']
+    );
+    assert.equal(deferredCall?.input.status, 'draft_ready');
+    assert.equal(deferredCall?.input.bullJobId, null);
+    assert.ok(deferredCall?.input.scheduledAt);
+    assert.ok(deferredCall.input.scheduledAt >= new Date(now.getTime() + 5 * 60 * 1000));
+    assert.ok(deferredCall.input.scheduledAt <= new Date(now.getTime() + 10 * 60 * 1000));
   });
 });
 
@@ -428,12 +475,14 @@ function createMailboxSendState(input: {
   mailboxId?: string;
   dailyCount?: number;
   hourlyCount?: number;
+  latestScheduledAt?: Date | null;
 }) {
   return {
     organizationId: input.organizationId ?? 'org-1',
     mailboxId: input.mailboxId ?? 'mailbox-1',
     dailyCount: input.dailyCount ?? 0,
-    hourlyCount: input.hourlyCount ?? 0
+    hourlyCount: input.hourlyCount ?? 0,
+    latestScheduledAt: input.latestScheduledAt ?? null
   };
 }
 

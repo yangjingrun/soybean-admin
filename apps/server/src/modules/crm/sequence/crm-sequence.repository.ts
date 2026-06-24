@@ -22,6 +22,7 @@ export interface CrmSequenceRepository {
     statuses: CrmSequenceEnrollmentStatus[];
   }): Promise<CrmSequenceEnrollmentRecord | null>;
   createSequenceDraftBundle(input: CrmSequenceDraftBundleCreateInput): Promise<CrmSequenceDraftBundleRecord>;
+  listMailboxSendScheduleTimes(args: { organizationId: string; mailboxId: string }): Promise<Date[]>;
   listSequenceReviewItems(args: {
     organizationId: string;
     ownerUserId?: string;

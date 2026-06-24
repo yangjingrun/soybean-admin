@@ -24,8 +24,11 @@ import {
   CRM_SUPPRESSION_REPOSITORY
 } from './crm.tokens';
 import { crmBusinessDomainProviders, crmRepositoryProviders } from './crm-module.providers';
+import { CrmSequenceControlService } from './sequence/crm-sequence-control.service';
 import { CrmSequenceEligibilityService } from './sequence/crm-sequence-eligibility.service';
 import { CrmSequenceReviewCreationService } from './sequence/crm-sequence-review-creation.service';
+import { CrmSendAvailabilityService } from './crm-send-availability.service';
+import { CrmSendSchedulerService } from './crm-send-scheduler.service';
 import { CRM_PERSONA_PROFILE_REPOSITORY } from './persona-profiles/crm-persona-profile.repository';
 import { CRM_PRODUCT_LINE_REPOSITORY } from './product-lines/crm-product-line.repository';
 import { CRM_SEQUENCE_POLICY_REPOSITORY } from './sequence-policies/crm-sequence-policy.repository';
@@ -184,5 +187,34 @@ describe('crmBusinessDomainProviders', () => {
     const duplicatedProviders = providers.filter((provider, index) => providers.indexOf(provider) !== index);
 
     assert.deepEqual(duplicatedProviders, []);
+  });
+
+  it('uses explicit availability injection for runtime send schedulers', () => {
+    const injectedParams = Reflect.getMetadata('self:paramtypes', CrmSendSchedulerService) as
+      | Array<{ index: number; param: unknown }>
+      | undefined;
+
+    assert.ok(
+      injectedParams?.some(item => item.index === 2 && item.param === CrmSendAvailabilityService),
+      'CrmSendSchedulerService should explicitly inject CrmSendAvailabilityService'
+    );
+  });
+
+  it('uses explicit availability injection before writing first-send schedule times', () => {
+    const creationParams = Reflect.getMetadata('self:paramtypes', CrmSequenceReviewCreationService) as
+      | Array<{ index: number; param: unknown }>
+      | undefined;
+    const controlParams = Reflect.getMetadata('self:paramtypes', CrmSequenceControlService) as
+      | Array<{ index: number; param: unknown }>
+      | undefined;
+
+    assert.ok(
+      creationParams?.some(item => item.index === 5 && item.param === CrmSendAvailabilityService),
+      'CrmSequenceReviewCreationService should explicitly inject CrmSendAvailabilityService'
+    );
+    assert.ok(
+      controlParams?.some(item => item.index === 2 && item.param === CrmSendAvailabilityService),
+      'CrmSequenceControlService should explicitly inject CrmSendAvailabilityService'
+    );
   });
 });

@@ -96,7 +96,7 @@ export function useEmailSequenceAiDraftTask(options) {
       aiDraftTaskDetail.value = data;
       aiDraftTaskDrawerVisible.value = true;
       options.clearSelection();
-      message.success(data.task.pendingCount > 0 ? '批量 AI 草稿任务已创建' : '批量 AI 草稿任务已完成');
+      message.success(data.task.pendingCount > 0 ? '批量生成任务已创建' : '批量生成任务已完成');
       notifyCrmWorkbenchChanged();
       await options.loadSequences();
     } finally {
@@ -133,7 +133,7 @@ export function useEmailSequenceAiDraftTask(options) {
         return;
       }
       aiDraftTaskDetail.value = data;
-      message.success('批量 AI 草稿任务已取消');
+      message.success('批量生成任务已取消');
       notifyCrmWorkbenchChanged();
       await options.loadSequences();
     } finally {

@@ -23,6 +23,7 @@ import {
   createDefaultEmailTemplateForm,
   createDefaultFollowUpDelayDays,
   createDefaultGlobalConfigForm,
+  createDefaultSendWindow,
   createDefaultSendPreferenceForm,
   createDefaultPersonaProfileFilterModel,
   createDefaultPersonaProfileForm,
@@ -39,6 +40,8 @@ import {
   isMailboxAvailableForSequence,
   isValidEmailVerificationCooldownDays,
   isValidFollowUpDelayDays,
+  isValidSendWindows,
+  isValidSendWorkdays,
   isValidDailySendLimit,
   isValidFollowUpSharePercent,
   isValidOwnerConcurrentSendLimit,
@@ -130,8 +133,30 @@ describe('crm settings shared helpers', () => {
         step3Days: 7,
         step4Days: 14,
         step5Days: 21
-      }
+      },
+      sendWorkdays: [1, 2, 3, 4, 5],
+      sendWindows: [
+        { startMinute: 540, endMinute: 720 },
+        { startMinute: 840, endMinute: 1080 }
+      ]
     });
+  });
+  it('creates and validates customer local work time config', () => {
+    assert.deepEqual(createDefaultSendWindow(), { startMinute: 540, endMinute: 720 });
+    assert.equal(isValidSendWorkdays([1, 2, 3, 4, 5]), true);
+    assert.equal(isValidSendWorkdays([]), false);
+    assert.equal(isValidSendWorkdays([1, 1, 2]), false);
+    assert.equal(isValidSendWorkdays([1, 7]), false);
+    assert.equal(
+      isValidSendWindows([
+        { startMinute: 540, endMinute: 720 },
+        { startMinute: 840, endMinute: 1080 }
+      ]),
+      true
+    );
+    assert.equal(isValidSendWindows([{ startMinute: 720, endMinute: 720 }]), false);
+    assert.equal(isValidSendWindows([{ startMinute: 1080, endMinute: 840 }]), false);
+    assert.equal(isValidSendWindows([]), false);
   });
   it('creates and normalizes AI draft queue config form values', () => {
     assert.deepEqual(createDefaultAiDraftQueueConfigForm(), {
@@ -592,9 +617,9 @@ describe('crm settings shared helpers', () => {
       { label: '负责人', value: 'Alice' },
       { label: '授权状态', value: '启用' },
       { label: '闭环模式', value: '完整同步' },
-      { label: 'Gmail watch', value: '未开启' },
-      { label: 'Watch 到期', value: '暂无 watch 到期时间' },
-      { label: 'History checkpoint', value: '...34567890' },
+      { label: '收信同步', value: '未开启' },
+      { label: '同步到期', value: '暂无收信同步到期时间' },
+      { label: '同步进度', value: '...34567890' },
       { label: '同步问题', value: 'Gmail History checkpoint 已过期，需要人工处理' },
       { label: '问题时间', value: '2026-06-19 16:00:00' },
       { label: '更新时间', value: '-' }

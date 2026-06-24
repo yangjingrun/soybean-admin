@@ -32,6 +32,7 @@ export function useEmailSequenceTable() {
   const batchDraftApproving = shallowRef(false);
   const batchNextDraftGenerating = shallowRef(false);
   const batchSequenceStopping = shallowRef(false);
+  const handledFocusKey = shallowRef('');
   let latestListRequestId = 0;
   const pagination = reactive({
     current: 1,
@@ -86,6 +87,7 @@ export function useEmailSequenceTable() {
       void createFlow.openCreateModalWithSelection(accountId, contactId);
       return;
     }
+    void handleRouteFocus();
     void createFlow.loadCreateResources();
   });
   watch(
@@ -95,6 +97,7 @@ export function useEmailSequenceTable() {
       applyRouteFilters();
       pagination.current = 1;
       void loadSequences();
+      void handleRouteFocus();
     }
   );
   function applyRouteFilters() {
@@ -182,7 +185,7 @@ export function useEmailSequenceTable() {
       if (error) {
         return;
       }
-      const resultText = formatSequenceBatchResultText('批量确认草稿', data);
+      const resultText = formatSequenceBatchResultText('批量确认发送', data);
       if (data.failedCount > 0) {
         message.warning(resultText);
       } else {
@@ -242,6 +245,24 @@ export function useEmailSequenceTable() {
   function handleCheckedRowKeysUpdate(keys) {
     checkedRowKeys.value = keys.map(String);
   }
+  async function handleRouteFocus() {
+    const focus = getRouteQueryString(route.query.focus);
+    if (focus !== 'tracking-open') {
+      return;
+    }
+    const enrollmentId = getRouteQueryString(route.query.enrollmentId);
+    const messageId = getRouteQueryString(route.query.messageId);
+    const eventId = getRouteQueryString(route.query.eventId);
+    if (!enrollmentId || !messageId) {
+      return;
+    }
+    const focusKey = `${focus}:${enrollmentId}:${messageId}:${eventId}`;
+    if (handledFocusKey.value === focusKey) {
+      return;
+    }
+    handledFocusKey.value = focusKey;
+    await draftReviewFlow.openFocusedSequence(enrollmentId, messageId);
+  }
   return {
     accountSelectOptions: createFlow.accountSelectOptions,
     aiDraftTaskCancelling,
@@ -262,6 +283,7 @@ export function useEmailSequenceTable() {
     currentItem: draftReviewFlow.currentItem,
     detailRefreshing: draftReviewFlow.detailRefreshing,
     draftApproving: draftReviewFlow.draftApproving,
+    draftRegenerating: draftReviewFlow.draftRegenerating,
     draftSaving: draftReviewFlow.draftSaving,
     draftVersionLoading: draftReviewFlow.draftVersionLoading,
     draftVersionRestoring: draftReviewFlow.draftVersionRestoring,
@@ -282,10 +304,14 @@ export function useEmailSequenceTable() {
     handleCreateVisibleUpdate: createFlow.handleCreateVisibleUpdate,
     handleDrawerVisibleUpdate: draftReviewFlow.handleDrawerVisibleUpdate,
     handleGenerateNextDraft: draftReviewFlow.handleGenerateNextDraft,
+    handleRegenerateAiDraft: draftReviewFlow.handleRegenerateAiDraft,
+    handleResumeSequence: draftReviewFlow.handleResumeSequence,
+    handleRetryFirstMessageSend: draftReviewFlow.handleRetryFirstMessageSend,
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReset,
     handleRefreshCurrentSequence: draftReviewFlow.handleRefreshCurrentSequence,
+    handleReturnFirstMessageToEdit: draftReviewFlow.handleReturnFirstMessageToEdit,
     handleReadAiDraftTask,
     handleRetryAiDraftTask,
     handleRestoreDraftVersion: draftReviewFlow.handleRestoreDraftVersion,
@@ -307,7 +333,10 @@ export function useEmailSequenceTable() {
     records,
     refreshAiDraftTaskDetail,
     resourceLoading: createFlow.resourceLoading,
+    returnEditing: draftReviewFlow.returnEditing,
     sendStarting: draftReviewFlow.sendStarting,
+    sendRetrying: draftReviewFlow.sendRetrying,
+    sequenceResuming: draftReviewFlow.sequenceResuming,
     sequencePolicySelectOptions: createFlow.sequencePolicySelectOptions,
     sequenceStopping: draftReviewFlow.sequenceStopping
   };

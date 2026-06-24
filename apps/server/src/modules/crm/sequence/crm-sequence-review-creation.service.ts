@@ -25,9 +25,11 @@ import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
 import type { CrmAccountRepository } from '../accounts/crm-account.repository';
 import type { CrmMailboxRepository } from '../mailbox/crm-mailbox.repository';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
+import { CrmSendAvailabilityService } from '../crm-send-availability.service';
 import { CrmSequenceEligibilityService } from './crm-sequence-eligibility.service';
 import type { CrmSequenceRepository } from './crm-sequence.repository';
 import { toSequenceReviewView } from './crm-sequence-review-view';
+import { resolveCrmSequenceScheduledAt } from './crm-sequence-send-schedule-time';
 
 const defaultSequenceStepCount = 5;
 const initialDraftStepIndex: CrmAiWritingStepIndex = 1;
@@ -59,6 +61,8 @@ export class CrmSequenceReviewCreationService {
     private readonly sequenceRepository: CrmSequenceRepository,
     @Inject(CrmSequenceEligibilityService)
     private readonly sequenceEligibilityService: CrmSequenceEligibilityService,
+    @Inject(CrmSendAvailabilityService)
+    private readonly availabilityService: CrmSendAvailabilityService,
     @Optional()
     @Inject(CrmAiDraftService)
     private readonly aiDraftService?: CrmAiDraftService | null,
@@ -67,19 +71,36 @@ export class CrmSequenceReviewCreationService {
     private readonly crmLogger?: CrmLoggerService
   ) {}
 
-  /** Creates one first-email review item and deterministic draft without queueing any send job. */
+  /** Creates the first outreach email and immediately places it in the send schedule. */
   async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
     const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
     await this.sequenceEligibilityService.assertLeadCanStartSequence(account, contact, context);
 
-    const [productLine, mailbox, selectedPolicy, defaultPolicy] = await Promise.all([
+    if (!input.mailboxId) {
+      throw new BadRequestException('请选择发送邮箱');
+    }
+
+    const [productLine, mailbox, selectedPolicy, defaultPolicy, globalConfig] = await Promise.all([
       input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
-      input.mailboxId ? this.requireOwnedActiveMailbox(input.mailboxId, context) : Promise.resolve(null),
+      this.requireOwnedActiveMailbox(input.mailboxId, context),
       input.policyId ? this.requireActiveSequencePolicy(input.policyId, context) : Promise.resolve(null),
-      input.policyId ? Promise.resolve(null) : this.settingsRepository.findDefaultSequencePolicy(context.organizationId)
+      input.policyId
+        ? Promise.resolve(null)
+        : this.settingsRepository.findDefaultSequencePolicy(context.organizationId),
+      this.settingsRepository.getGlobalConfig()
     ]);
     const policy = selectedPolicy ?? defaultPolicy;
     await this.sequenceEligibilityService.assertPolicyAllowsSequence(account, contact, policy, context);
+    const mailboxScheduleTimes = await this.sequenceRepository.listMailboxSendScheduleTimes({
+      organizationId: context.organizationId,
+      mailboxId: mailbox.id
+    });
+    const scheduledAt = resolveCrmSequenceScheduledAt({
+      availabilityService: this.availabilityService,
+      account,
+      globalConfig,
+      mailboxScheduleTimes
+    });
     const [defaultTemplateGroup, personaMatch] = await Promise.all([
       this.settingsRepository.findDefaultEmailTemplateGroup(context.organizationId),
       this.resolvePersonaProfileMatch(account, contact, context)
@@ -113,7 +134,7 @@ export class CrmSequenceReviewCreationService {
           mailboxId: mailbox?.id ?? null,
           policyId: policy?.id ?? null,
           name: buildSequenceName(account, contact),
-          status: 'draft_review_pending',
+          status: 'sequence_running',
           currentStep: initialDraftStepIndex,
           totalSteps: defaultSequenceStepCount,
           runVersion: 1,
@@ -130,7 +151,8 @@ export class CrmSequenceReviewCreationService {
           threadMode: getSequencePolicyStep(policy, initialDraftStepIndex)?.threadMode ?? 'new_subject',
           subject: draft.subject,
           bodyText: draft.bodyText,
-          status: 'draft_pending_review',
+          status: 'draft_ready',
+          scheduledAt,
           metadata: createAiDraftMessageMetadata(draft.aiDraft)
         },
         timelineEvent: {
@@ -138,8 +160,8 @@ export class CrmSequenceReviewCreationService {
           accountId: account.id,
           contactId: contact.id,
           ownerUserId: context.userId,
-          eventType: 'sequence_draft_generated',
-          title: '生成首封开发信草稿',
+          eventType: 'message_send_scheduled',
+          title: '首封开发信已生成并等待发送',
           content: draft.subject,
           metadata: {
             productLineId: productLine?.id ?? null,
@@ -153,11 +175,11 @@ export class CrmSequenceReviewCreationService {
             aiDraft: draft.aiDraft ?? null
           }
         },
-        accountStatus: 'manual_review_pending'
+        accountStatus: 'sequence_running'
       })
     );
 
-    await this.crmLogger?.record('sequence-review-create', 'CRM 首封开发信草稿生成', context, {
+    await this.crmLogger?.record('sequence-review-create', 'CRM 首封开发信已生成并安排发送', context, {
       organizationId: context.organizationId,
       accountId: account.id,
       contactId: contact.id,

@@ -7,7 +7,7 @@ export const leadStatusOptions = [
   { label: '邮箱验证中', value: 'email_verification_pending' },
   { label: '待人工复核', value: 'manual_review_pending' },
   { label: '可触达', value: 'ready' },
-  { label: '开发信跟进中', value: 'sequence_running' },
+  { label: '开发中', value: 'sequence_running' },
   { label: '待处理回复', value: 'replied_pending' },
   { label: '已跟进', value: 'followed_up' },
   { label: '商机', value: 'opportunity' },
@@ -20,7 +20,7 @@ export const leadStatusOptions = [
 
 export const crmLeadPageGuide = {
   title: '客户管理承接 AI 获客结果',
-  description: '先补齐联系人和邮箱验证；可开发客户创建开发信，暂不开发客户会保留历史记录但移出日常跟进。'
+  description: '先补齐联系人和邮箱验证；可开发客户创建开发任务，暂不开发客户会保留历史记录但移出日常跟进。'
 };
 
 export const leadStatusLabelMap: Record<Api.Crm.CrmAccountStatus, string> = {
@@ -29,7 +29,7 @@ export const leadStatusLabelMap: Record<Api.Crm.CrmAccountStatus, string> = {
   email_verification_pending: '邮箱验证中',
   manual_review_pending: '待人工复核',
   ready: '可触达',
-  sequence_running: '开发信跟进中',
+  sequence_running: '开发中',
   replied_pending: '待处理回复',
   followed_up: '已跟进',
   opportunity: '商机',
@@ -68,6 +68,28 @@ export interface LeadNextAction {
   description: string;
   type: NaiveUI.ThemeColor;
 }
+
+export type LeadExpandedContactStatus = 'idle' | 'loading' | 'loaded' | 'error';
+
+export interface LeadExpandedContactView {
+  status: LeadExpandedContactStatus;
+  contacts: Api.Crm.LeadContact[];
+}
+
+export type LeadRowContactView =
+  | {
+      type: 'empty';
+      primaryContact: null;
+    }
+  | {
+      type: 'single';
+      primaryContact: Api.Crm.LeadContact;
+    }
+  | {
+      type: 'multiple';
+      primaryContact: Api.Crm.LeadContact | null;
+      count: number;
+    };
 
 const leadPendingStatuses = new Set<Api.Crm.CrmAccountStatus>([
   'candidate',
@@ -108,13 +130,13 @@ const leadNextActionMap: Record<Api.Crm.CrmAccountStatus, LeadNextAction> = {
     type: 'warning'
   },
   ready: {
-    label: '创建开发信',
-    description: '进入开发信跟进审核',
+    label: '创建开发任务',
+    description: '检查邮件后加入发送队列',
     type: 'success'
   },
   sequence_running: {
-    label: '查看开发信',
-    description: '跟踪当前开发信节奏',
+    label: '查看开发任务',
+    description: '检查待处理邮件和发送进度',
     type: 'primary'
   },
   replied_pending: {
@@ -389,6 +411,70 @@ export function buildLeadQueueStats(records: Api.Crm.LeadRecord[], total: number
       value: records.filter(record => leadActiveStatuses.has(record.status)).length
     }
   ];
+}
+
+/** Derive the expanded contact table view from the cached account detail request state. */
+export function buildLeadExpandedContactView(options: {
+  accountId: string;
+  detail?: Api.Crm.LeadDetail | null;
+  loadingIds: string[];
+  failedIds: string[];
+}): LeadExpandedContactView {
+  if (options.loadingIds.includes(options.accountId)) {
+    return {
+      status: 'loading',
+      contacts: []
+    };
+  }
+
+  if (options.failedIds.includes(options.accountId)) {
+    return {
+      status: 'error',
+      contacts: []
+    };
+  }
+
+  if (options.detail) {
+    return {
+      status: 'loaded',
+      contacts: options.detail.contacts
+    };
+  }
+
+  return {
+    status: 'idle',
+    contacts: []
+  };
+}
+
+/** Decide how contacts should appear in one account list row. */
+export function buildLeadRowContactView(
+  record: Pick<Api.Crm.LeadRecord, 'contactCount' | 'primaryContact'>
+): LeadRowContactView {
+  if (record.contactCount <= 0) {
+    return {
+      type: 'empty',
+      primaryContact: null
+    };
+  }
+
+  if (record.contactCount === 1 && record.primaryContact) {
+    return {
+      type: 'single',
+      primaryContact: record.primaryContact
+    };
+  }
+
+  return {
+    type: 'multiple',
+    primaryContact: record.primaryContact,
+    count: record.contactCount
+  };
+}
+
+/** Contacts that opted out or failed verification should not start new outreach. */
+export function canCreateSequenceFromLeadContact(contact: Api.Crm.LeadContact) {
+  return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
 }
 
 /** Describe the next human action for one lead status. */

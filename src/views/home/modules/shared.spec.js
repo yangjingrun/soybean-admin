@@ -35,6 +35,8 @@ describe('home workbench shared helpers', () => {
           queuedCount: 4,
           failedCount: 1,
           sendFailedCount: 1,
+          scheduledTodayCount: 9,
+          scheduledTomorrowCount: 6,
           draftReviewCount: 3
         },
         yesterday: {
@@ -48,7 +50,7 @@ describe('home workbench shared helpers', () => {
       [
         ['pending-replies', 2, '今日共 5 封，较昨天 +1'],
         ['sent-today', 12, '队列 4 封，失败 1 封，较昨天 +4'],
-        ['draft-review', 3, '首封 0 封，跟进 0 封'],
+        ['send-plan', 13, '已排期 9 封，明日待发 6 封'],
         ['send-exceptions', 1, '发送失败 1 封，邮箱异常 0 个']
       ]
     );
@@ -61,6 +63,7 @@ describe('home workbench shared helpers', () => {
           failedCount: 1,
           sendFailedCount: 1,
           draftReviewCount: 3,
+          scheduledTodayCount: 5,
           firstDraftReviewCount: 1,
           followUpDraftReviewCount: 2,
           missingContactCount: 4,
@@ -72,7 +75,7 @@ describe('home workbench shared helpers', () => {
     );
     assert.deepEqual(
       items.map(item => item.key),
-      ['pending-replies', 'send-failed', 'draft-review', 'lead-quality', 'ai-lead-results']
+      ['pending-replies', 'send-failed', 'send-plan', 'lead-quality', 'ai-lead-results']
     );
   });
   it('polls only when a running task is queued or running', () => {
@@ -156,6 +159,8 @@ function createWorkbenchOverview(overrides = {}) {
     generatedAt: overrides.generatedAt ?? '2026-06-20T09:00:00.000Z',
     today: {
       sentCount: 0,
+      scheduledTodayCount: 0,
+      scheduledTomorrowCount: 0,
       queuedCount: 0,
       failedCount: 0,
       pendingReplyCount: 0,

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-mutating-props */
 import CrmRegionCascader from '@/components/common/crm-region-cascader.vue';
 import { leadStatusOptions } from './shared';
 
-const props = defineProps<{
+defineProps<{
   model: Api.Crm.LeadFilterModel;
   loading?: boolean;
 }>();
@@ -12,7 +13,6 @@ const emit = defineEmits<{
   reset: [];
   search: [];
 }>();
-
 </script>
 
 <template>
@@ -20,20 +20,10 @@ const emit = defineEmits<{
     <NForm :model="model" label-placement="left" label-width="72">
       <NGrid responsive="screen" item-responsive :x-gap="12" :y-gap="12" cols="1 s:2 m:3 l:4 xl:6">
         <NFormItemGi label="公司">
-          <NInput
-            v-model:value="model.keyword"
-            clearable
-            placeholder="公司名 / 域名"
-            @keyup.enter="emit('search')"
-          />
+          <NInput v-model:value="model.keyword" clearable placeholder="公司名 / 域名" @keyup.enter="emit('search')" />
         </NFormItemGi>
         <NFormItemGi label="职位">
-          <NInput
-            v-model:value="model.contactTitle"
-            clearable
-            placeholder="联系人职位"
-            @keyup.enter="emit('search')"
-          />
+          <NInput v-model:value="model.contactTitle" clearable placeholder="联系人职位" @keyup.enter="emit('search')" />
         </NFormItemGi>
         <NFormItemGi label="客户类型">
           <NInput
@@ -47,12 +37,7 @@ const emit = defineEmits<{
           <CrmRegionCascader v-model="model.region" />
         </NFormItemGi>
         <NFormItemGi label="状态">
-          <NSelect
-            v-model:value="model.status"
-            clearable
-            :options="leadStatusOptions"
-            placeholder="全部状态"
-          />
+          <NSelect v-model:value="model.status" clearable :options="leadStatusOptions" placeholder="全部状态" />
         </NFormItemGi>
         <NFormItemGi label="时间">
           <NDatePicker v-model:value="model.updatedAtRange" clearable type="daterange" class="lead-filter-date" />

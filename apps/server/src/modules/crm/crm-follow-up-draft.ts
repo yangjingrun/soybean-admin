@@ -24,7 +24,7 @@ interface BuildNextFollowUpDraftInput {
   senderName?: string | null;
 }
 
-/** Builds the next pending-review follow-up draft with the same policy/template rules as the send worker. */
+/** Builds the next follow-up email directly in the send schedule when no customer reply has stopped the sequence. */
 export function buildNextFollowUpDraft({
   item,
   sourceMessage,
@@ -83,7 +83,7 @@ export function buildNextFollowUpDraft({
     threadMode: policyStep?.threadMode ?? templateStep?.threadMode ?? 'same_thread',
     subject,
     bodyText,
-    status: 'draft_pending_review',
+    status: 'draft_ready',
     scheduledAt: new Date(baseTime.getTime() + delayDays * oneDayMs),
     providerThreadId
   };

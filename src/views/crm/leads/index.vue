@@ -13,6 +13,10 @@ const {
   contactSubmitting,
   detailLoading,
   detailVisible,
+  expandedLeadDetails,
+  expandedLeadFailedIds,
+  expandedLeadLoadingIds,
+  expandedRowKeys,
   filterModel,
   handleArchiveLead,
   handleUpdateAccount,
@@ -21,6 +25,7 @@ const {
   handleCreateNote,
   handleDeleteContact,
   handleDetailVisibleUpdate,
+  handleExpandedRowKeysUpdate,
   handleImportLead,
   handleImportVisibleUpdate,
   handlePageSizeUpdate,
@@ -36,6 +41,7 @@ const {
   importSubmitting,
   importVisible,
   leadDetail,
+  loadExpandedLeadDetail,
   loadLeadDetail,
   loading,
   noteSubmitting,
@@ -69,15 +75,23 @@ const {
       :records="records"
       :loading="loading"
       :archive-operating-id="archiveOperatingId"
+      :expanded-lead-details="expandedLeadDetails"
+      :expanded-lead-failed-ids="expandedLeadFailedIds"
+      :expanded-lead-loading-ids="expandedLeadLoadingIds"
+      :expanded-row-keys="expandedRowKeys"
       :page="pagination.current"
       :page-size="pagination.size"
       :total="pagination.total"
+      :verifying-contact-ids="verifyingContactIds"
       @view="openLeadDetail"
-      @change-status="openLeadDetail"
       @archive="handleArchiveLead"
+      @create-sequence="handleCreateSequenceFromContact"
+      @load-expanded-contacts="loadExpandedLeadDetail"
       @restore="handleRestoreLead"
+      @update-expanded-row-keys="handleExpandedRowKeysUpdate"
       @update-page="handlePageUpdate"
       @update-page-size="handlePageSizeUpdate"
+      @verify-contact-email="handleVerifyContactEmail"
     />
 
     <LeadDetailDrawer

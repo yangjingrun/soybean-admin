@@ -3,12 +3,15 @@ import { useMessage } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   createCrmGmailOAuthUrl,
+  deleteCrmMailbox,
   fetchCrmMailboxes,
   pauseCrmMailbox,
   renewCrmMailboxWatch,
   resumeCrmMailbox,
+  revokeCrmMailboxAuthorization,
   syncCrmMailboxNow
 } from '@/service/api';
+import { closePendingGmailOAuthTab, openGmailOAuthUrlInTab, openPendingGmailOAuthTab } from './mailbox-oauth-tab';
 import { buildMailboxSearchParams, createDefaultMailboxFilterModel } from './shared';
 /** Manage CRM mailbox list requests, authorization modal state and row operations. */
 export function useMailboxTable() {
@@ -17,7 +20,7 @@ export function useMailboxTable() {
   const loading = shallowRef(false);
   const authorizeVisible = shallowRef(false);
   const authorizeSubmitting = shallowRef(false);
-  const operatingMailboxId = shallowRef(null);
+  const operatingMailboxAction = shallowRef(null);
   let latestRequestId = 0;
   const pagination = reactive({
     current: 1,
@@ -71,7 +74,11 @@ export function useMailboxTable() {
   }
   /** Re-authorize an expired Gmail mailbox from the table row. */
   async function handleReauthorizeMailbox(record) {
-    if (operatingMailboxId.value || record.status !== 'auth_expired' || record.provider !== 'gmail') {
+    if (
+      operatingMailboxAction.value ||
+      (record.status !== 'auth_expired' && record.status !== 'revoked') ||
+      record.provider !== 'gmail'
+    ) {
       return;
     }
     await redirectToGmailOAuth({
@@ -79,33 +86,41 @@ export function useMailboxTable() {
       mailboxId: record.id
     });
   }
-  /** Create a Gmail OAuth URL and redirect to Google consent. */
+  /** Create a Gmail OAuth URL and open Google consent in a new browser tab. */
   async function redirectToGmailOAuth(options) {
+    const pendingTab = openPendingGmailOAuthTab();
     if (options.loadingTarget === 'modal') {
       authorizeSubmitting.value = true;
     } else {
-      operatingMailboxId.value = options.mailboxId ?? null;
+      operatingMailboxAction.value = options.mailboxId ? { action: 'reauthorize', id: options.mailboxId } : null;
     }
     try {
       const { data, error } = await createCrmGmailOAuthUrl();
       if (error) {
+        closePendingGmailOAuthTab(pendingTab);
         return;
       }
-      window.location.assign(data.authorizationUrl);
+      const opened = openGmailOAuthUrlInTab(data.authorizationUrl, pendingTab);
+      if (!opened) {
+        message.warning('浏览器拦截了 Google 授权页，请允许弹窗后重试');
+        return;
+      }
+      authorizeVisible.value = false;
+      message.success('已在新标签页打开 Google 授权页');
     } finally {
       if (options.loadingTarget === 'modal') {
         authorizeSubmitting.value = false;
       } else {
-        operatingMailboxId.value = null;
+        operatingMailboxAction.value = null;
       }
     }
   }
   /** Toggle one mailbox status, then refresh the current list. */
   async function handleToggleMailbox(record) {
-    if (operatingMailboxId.value || record.status === 'auth_expired') {
+    if (operatingMailboxAction.value || record.status === 'auth_expired' || record.status === 'revoked') {
       return;
     }
-    operatingMailboxId.value = record.id;
+    operatingMailboxAction.value = { action: 'toggle', id: record.id };
     try {
       const request = record.status === 'active' ? pauseCrmMailbox : resumeCrmMailbox;
       const { error } = await request(record.id);
@@ -116,33 +131,69 @@ export function useMailboxTable() {
       notifyCrmWorkbenchChanged();
       await loadMailboxes();
     } finally {
-      operatingMailboxId.value = null;
+      operatingMailboxAction.value = null;
     }
   }
-  /** Renew Gmail watch for one active mailbox, then refresh the current list. */
-  async function handleRenewMailboxWatch(record) {
-    if (operatingMailboxId.value || record.status !== 'active' || record.provider !== 'gmail') {
+  /** Cancel one Gmail authorization while keeping the mailbox record reserved. */
+  async function handleRevokeMailboxAuthorization(record) {
+    if (operatingMailboxAction.value || record.provider !== 'gmail' || record.status === 'revoked') {
       return;
     }
-    operatingMailboxId.value = record.id;
+    operatingMailboxAction.value = { action: 'revokeAuthorization', id: record.id };
+    try {
+      const { error } = await revokeCrmMailboxAuthorization(record.id);
+      if (error) {
+        return;
+      }
+      message.success('Gmail 授权已取消，邮箱记录已保留');
+      notifyCrmWorkbenchChanged();
+      await loadMailboxes();
+    } finally {
+      operatingMailboxAction.value = null;
+    }
+  }
+  /** Delete one unavailable mailbox and release its Gmail address for rebinding. */
+  async function handleDeleteMailbox(record) {
+    if (operatingMailboxAction.value || (record.status !== 'auth_expired' && record.status !== 'revoked')) {
+      return;
+    }
+    operatingMailboxAction.value = { action: 'delete', id: record.id };
+    try {
+      const { error } = await deleteCrmMailbox(record.id);
+      if (error) {
+        return;
+      }
+      message.success('邮箱已删除，邮箱地址可重新绑定');
+      notifyCrmWorkbenchChanged();
+      await loadMailboxes();
+    } finally {
+      operatingMailboxAction.value = null;
+    }
+  }
+  /** Renew receive-sync subscription for one active mailbox, then refresh the current list. */
+  async function handleRenewMailboxWatch(record) {
+    if (operatingMailboxAction.value || record.status !== 'active' || record.provider !== 'gmail') {
+      return;
+    }
+    operatingMailboxAction.value = { action: 'renewWatch', id: record.id };
     try {
       const { error } = await renewCrmMailboxWatch(record.id);
       if (error) {
         return;
       }
-      message.success('Gmail watch 已续订');
+      message.success('收信同步已续期');
       notifyCrmWorkbenchChanged();
       await loadMailboxes();
     } finally {
-      operatingMailboxId.value = null;
+      operatingMailboxAction.value = null;
     }
   }
   /** Enqueue an immediate Gmail history sync for one active mailbox, then refresh the current list. */
   async function handleSyncMailboxNow(record) {
-    if (operatingMailboxId.value || record.status !== 'active' || record.provider !== 'gmail') {
+    if (operatingMailboxAction.value || record.status !== 'active' || record.provider !== 'gmail') {
       return;
     }
-    operatingMailboxId.value = record.id;
+    operatingMailboxAction.value = { action: 'syncNow', id: record.id };
     try {
       const { data, error } = await syncCrmMailboxNow(record.id);
       if (error) {
@@ -152,7 +203,7 @@ export function useMailboxTable() {
       notifyCrmWorkbenchChanged();
       await loadMailboxes();
     } finally {
-      operatingMailboxId.value = null;
+      operatingMailboxAction.value = null;
     }
   }
   function handleSearch() {
@@ -179,10 +230,12 @@ export function useMailboxTable() {
     filterModel,
     handleAuthorizeMailbox,
     handleAuthorizeVisibleUpdate,
+    handleDeleteMailbox,
     handlePageSizeUpdate,
     handlePageUpdate,
     handleReauthorizeMailbox,
     handleRenewMailboxWatch,
+    handleRevokeMailboxAuthorization,
     handleReset,
     handleSearch,
     handleSyncMailboxNow,
@@ -190,7 +243,7 @@ export function useMailboxTable() {
     loadMailboxes,
     loading,
     openAuthorizeModal,
-    operatingMailboxId,
+    operatingMailboxAction,
     pagination,
     records
   };

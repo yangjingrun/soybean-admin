@@ -6,6 +6,7 @@ import {
   createDefaultLeadNoteForm,
   createDefaultLeadStatusForm,
   buildLeadAccountUpdatePayload,
+  canCreateSequenceFromLeadContact,
   formatArchivedFingerprintTypeLabel,
   formatLeadDate,
   formatLeadText,
@@ -127,11 +128,6 @@ function isEnrichmentRefreshing(provider: Api.Crm.LeadEnrichmentProvider) {
   return props.refreshingEnrichmentProvider === provider;
 }
 
-/** Contacts that explicitly opted out or failed verification should not start new outreach from the drawer. */
-function canCreateSequence(contact: Api.Crm.LeadContact) {
-  return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
-}
-
 function isContactDeleting(contactId: string) {
   return props.contactDeletingId === contactId;
 }
@@ -232,7 +228,7 @@ const contactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>(() => [
                 size: 'small',
                 text: true,
                 type: 'success',
-                disabled: !canCreateSequence(row),
+                disabled: !canCreateSequenceFromLeadContact(row),
                 onClick: () => emit('createSequence', row)
               },
               { default: () => '开发信' }

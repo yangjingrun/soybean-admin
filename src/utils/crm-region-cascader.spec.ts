@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  createCrmAdmin1RegionOption,
   createCrmCityRegionOption,
   createCrmCountryRegionOption,
   filterCrmRegionOption,
@@ -53,5 +54,20 @@ describe('crm region cascader helpers', () => {
     assert.equal(option.label, '纽约 / New York');
     assert.deepEqual(option.keywords, ['纽约', 'New York']);
     assert.deepEqual(getCrmRegionKeywords(String(option.value)), ['纽约', 'New York']);
+  });
+
+  it('uses province and state admin1 options for region filters', () => {
+    const option = createCrmAdmin1RegionOption({
+      countryCode: 'US',
+      code: 'CA',
+      name: 'California',
+      asciiName: null,
+      displayName: '加利福尼亚州'
+    });
+
+    assert.equal(option.nodeType, 'admin1');
+    assert.equal(option.label, '加利福尼亚州 / California');
+    assert.equal(filterCrmRegionOption('California', option), true);
+    assert.deepEqual(getCrmRegionKeywords(String(option.value)), ['加利福尼亚州', 'California']);
   });
 });

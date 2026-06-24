@@ -308,7 +308,7 @@ describe('PrismaCrmInboxStore', () => {
         organizationId: 'org-1',
         ownerUserId: 'user-1',
         accountId: 'account-1',
-        status: 'queued'
+        status: { in: ['draft_ready', 'queued'] }
       },
       data: {
         status: 'skipped',
@@ -398,7 +398,7 @@ describe('PrismaCrmInboxStore', () => {
         organizationId: 'org-1',
         ownerUserId: 'user-1',
         accountId: 'account-1',
-        status: 'queued'
+        status: { in: ['draft_ready', 'queued'] }
       },
       data: {
         status: 'skipped',

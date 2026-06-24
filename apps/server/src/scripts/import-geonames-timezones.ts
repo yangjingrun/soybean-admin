@@ -59,7 +59,8 @@ function createPrismaClient() {
 
 async function parseOptions(args: string[]): Promise<ImportOptions> {
   const citiesFile = getOptionValue(args, '--cities') ?? process.env.GEONAMES_CITIES_FILE;
-  const alternateNamesFile = getOptionValue(args, '--alternate-names') ?? process.env.GEONAMES_ALTERNATE_NAMES_FILE ?? null;
+  const alternateNamesFile =
+    getOptionValue(args, '--alternate-names') ?? process.env.GEONAMES_ALTERNATE_NAMES_FILE ?? null;
   const batchSizeValue = getOptionValue(args, '--batch-size');
   const batchSize = batchSizeValue ? Number.parseInt(batchSizeValue, 10) : defaultBatchSize;
 
@@ -94,6 +95,7 @@ async function importGeoNamesCityTimeZones(prisma: PrismaClient | null, options:
   let cityNameCount = 0;
   let chineseAlternateNameCount = 0;
   let batch: CrmGeoCityNameImportRow[] = [];
+  const preferredChineseDisplayGeonameIds = new Set<number>();
 
   if (!options.dryRun) {
     await prisma?.$connect();
@@ -138,16 +140,22 @@ async function importGeoNamesCityTimeZones(prisma: PrismaClient | null, options:
         continue;
       }
 
+      // GeoNames rarely marks Chinese rows as preferred; use the first Han-script row as display fallback.
+      if (!preferredChineseDisplayGeonameIds.has(row.geonameId)) {
+        row.isPreferred = true;
+        preferredChineseDisplayGeonameIds.add(row.geonameId);
+      }
+
       chineseAlternateNameCount += 1;
       batch.push(row);
 
       if (batch.length >= options.batchSize) {
-        await flushBatch(prisma, batch, options.dryRun);
+        await flushChineseAlternateBatch(prisma, batch, options.dryRun);
         batch = [];
       }
     }
 
-    await flushBatch(prisma, batch, options.dryRun);
+    await flushChineseAlternateBatch(prisma, batch, options.dryRun);
   }
 
   return {
@@ -166,6 +174,42 @@ async function flushBatch(prisma: PrismaClient | null, batch: CrmGeoCityNameImpo
     data: batch,
     skipDuplicates: true
   });
+}
+
+async function flushChineseAlternateBatch(
+  prisma: PrismaClient | null,
+  batch: CrmGeoCityNameImportRow[],
+  dryRun: boolean
+) {
+  if (batch.length === 0 || dryRun) {
+    return;
+  }
+
+  for (const row of batch) {
+    // cities*.txt may already contain the same Chinese text without a language marker.
+    await prisma?.crmGeoCityName.upsert({
+      where: {
+        countryCode_normalizedName_geonameId: {
+          countryCode: row.countryCode,
+          normalizedName: row.normalizedName,
+          geonameId: row.geonameId
+        }
+      },
+      create: row,
+      update: {
+        name: row.name,
+        nameSource: row.nameSource,
+        languageCode: row.languageCode,
+        isPreferred: row.isPreferred,
+        isShort: row.isShort,
+        asciiName: row.asciiName,
+        timeZone: row.timeZone,
+        population: row.population,
+        latitude: row.latitude,
+        longitude: row.longitude
+      }
+    });
+  }
 }
 
 function getOptionValue(args: string[], name: string) {

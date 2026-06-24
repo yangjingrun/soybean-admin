@@ -81,6 +81,7 @@ export interface CrmMailboxSendStateRecord {
   mailboxId: string;
   dailyCount: number;
   hourlyCount: number;
+  latestScheduledAt: Date | null;
 }
 
 export interface CrmSendQueuePort {

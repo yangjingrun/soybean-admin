@@ -4,6 +4,9 @@ import * as leadShared from './shared';
 import {
   buildLeadQueueStats,
   buildLeadSearchParams,
+  buildLeadExpandedContactView,
+  buildLeadRowContactView,
+  canCreateSequenceFromLeadContact,
   crmLeadPageGuide,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
@@ -19,10 +22,10 @@ import {
 describe('crm lead shared helpers', () => {
   it('uses plain business wording for AI leads handoff', () => {
     assert.equal(crmLeadPageGuide.title, '客户管理承接 AI 获客结果');
-    assert.match(crmLeadPageGuide.description, /可开发客户创建开发信/);
+    assert.match(crmLeadPageGuide.description, /可开发客户创建开发任务/);
     assert.match(crmLeadPageGuide.description, /暂不开发客户/);
     assert.equal(leadStatusLabelMap.archived, '暂不开发');
-    assert.equal(leadStatusLabelMap.sequence_running, '开发信跟进中');
+    assert.equal(leadStatusLabelMap.sequence_running, '开发中');
   });
 
   it('creates an empty manual lead import form', () => {
@@ -230,13 +233,13 @@ describe('crm lead shared helpers', () => {
       type: 'warning'
     });
     assert.deepEqual(getLeadNextAction('ready'), {
-      label: '创建开发信',
-      description: '进入开发信跟进审核',
+      label: '创建开发任务',
+      description: '检查邮件后加入发送队列',
       type: 'success'
     });
     assert.deepEqual(getLeadNextAction('sequence_running'), {
-      label: '查看开发信',
-      description: '跟踪当前开发信节奏',
+      label: '查看开发任务',
+      description: '检查待处理邮件和发送进度',
       type: 'primary'
     });
     assert.deepEqual(getLeadNextAction('replied_pending'), {
@@ -322,7 +325,76 @@ describe('crm lead shared helpers', () => {
     assert.equal(params.regionKeywords, '台湾');
   });
 
-  it('builds city region keyword params from cascader filters', () => {
+  it('builds expanded contact table state from cached account detail', () => {
+    const contact = createLeadContact({ id: 'contact-1', accountId: 'lead-1' });
+    const loadedView = buildLeadExpandedContactView({
+      accountId: 'lead-1',
+      detail: {
+        account: createLeadRecord({ id: 'lead-1' }),
+        contacts: [contact],
+        enrichmentHistories: [],
+        timelineEvents: []
+      },
+      loadingIds: [],
+      failedIds: []
+    });
+
+    assert.deepEqual(loadedView, {
+      status: 'loaded',
+      contacts: [contact]
+    });
+    assert.deepEqual(
+      buildLeadExpandedContactView({
+        accountId: 'lead-2',
+        detail: null,
+        loadingIds: ['lead-2'],
+        failedIds: []
+      }),
+      {
+        status: 'loading',
+        contacts: []
+      }
+    );
+    assert.deepEqual(
+      buildLeadExpandedContactView({
+        accountId: 'lead-3',
+        detail: null,
+        loadingIds: [],
+        failedIds: ['lead-3']
+      }),
+      {
+        status: 'error',
+        contacts: []
+      }
+    );
+  });
+
+  it('builds list-row contact display state from contact summary', () => {
+    const primaryContact = createLeadContact({ id: 'contact-1', accountId: 'lead-1' });
+
+    assert.deepEqual(buildLeadRowContactView(createLeadRecord({ contactCount: 0, primaryContact: null })), {
+      type: 'empty',
+      primaryContact: null
+    });
+    assert.deepEqual(buildLeadRowContactView(createLeadRecord({ contactCount: 1, primaryContact })), {
+      type: 'single',
+      primaryContact
+    });
+    assert.deepEqual(buildLeadRowContactView(createLeadRecord({ contactCount: 3, primaryContact })), {
+      type: 'multiple',
+      primaryContact,
+      count: 3
+    });
+  });
+
+  it('prevents starting sequences for unreachable or unsubscribed contacts', () => {
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'valid' })), true);
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'invalid' })), false);
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unreachable' })), false);
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unsubscribed' })), false);
+  });
+
+  it('builds province/state region keyword params from cascader filters', () => {
     const params = buildLeadSearchParams({
       current: 1,
       size: 10,
@@ -330,7 +402,7 @@ describe('crm lead shared helpers', () => {
         keyword: '',
         contactTitle: '',
         customerType: '',
-        region: 'city:US:Los%20Angeles:Los%20Angeles',
+        region: 'admin1:US:CA:California::%E5%8A%A0%E5%88%A9%E7%A6%8F%E5%B0%BC%E4%BA%9A%E5%B7%9E',
         status: null,
         sourceTaskId: null,
         updatedAtRange: null
@@ -338,7 +410,7 @@ describe('crm lead shared helpers', () => {
     });
 
     assert.equal(params.region, undefined);
-    assert.equal(params.regionKeywords, 'Los Angeles');
+    assert.equal(params.regionKeywords, '加利福尼亚州,California');
   });
 });
 
@@ -375,6 +447,27 @@ function createLeadRecord(input: Partial<Api.Crm.LeadRecord> = {}): Api.Crm.Lead
     archivedAt: input.archivedAt ?? null,
     archiveReason: input.archiveReason ?? null,
     archiveSlimmedAt: input.archiveSlimmedAt ?? null,
+    createdAt: input.createdAt ?? '2026-06-19T00:00:00.000Z',
+    updatedAt: input.updatedAt ?? '2026-06-19T00:00:00.000Z',
+    contactCount: input.contactCount ?? 0,
+    primaryContact: input.primaryContact ?? null
+  };
+}
+
+function createLeadContact(input: Partial<Api.Crm.LeadContact> = {}): Api.Crm.LeadContact {
+  return {
+    id: input.id ?? 'contact-1',
+    organizationId: input.organizationId ?? 'org-1',
+    accountId: input.accountId ?? 'lead-1',
+    ownerUserId: input.ownerUserId ?? 'user-1',
+    fullName: input.fullName ?? 'Alex Buyer',
+    title: input.title ?? 'Buyer',
+    email: input.email ?? 'alex@example.com',
+    emailHash: input.emailHash ?? 'hash-1',
+    maskedEmail: input.maskedEmail ?? 'a***@example.com',
+    isPublicEmail: input.isPublicEmail ?? false,
+    emailStatus: input.emailStatus ?? 'unchecked',
+    sourceTaskId: input.sourceTaskId ?? null,
     createdAt: input.createdAt ?? '2026-06-19T00:00:00.000Z',
     updatedAt: input.updatedAt ?? '2026-06-19T00:00:00.000Z'
   };

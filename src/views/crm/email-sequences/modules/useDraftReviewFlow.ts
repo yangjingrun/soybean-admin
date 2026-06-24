@@ -7,6 +7,9 @@ import {
   fetchCrmSequenceReviewItem,
   generateCrmNextSequenceDraft,
   regenerateCrmMessageAiDraft,
+  resumeCrmSequenceEnrollment,
+  retryCrmFirstMessageSend,
+  returnCrmFirstMessageToEdit,
   restoreCrmMessageDraftVersion,
   startCrmFirstMessageSend,
   stopCrmSequenceEnrollment,
@@ -16,7 +19,11 @@ import {
   canRegenerateAiDraft,
   canGenerateNextSequenceDraft,
   canOperateSelectedSequenceDraft,
+  canResumeSequence,
+  canRetryFirstMessageSend,
+  canReturnFirstMessageToEdit,
   getPendingReviewMessage,
+  shouldQueueFirstMessageAfterApproval,
   type DraftReviewApprovePayload,
   type DraftReviewSavePayload
 } from './shared';
@@ -40,7 +47,10 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
   const draftVersionRestoring = shallowRef(false);
   const detailRefreshing = shallowRef(false);
   const nextDraftGenerating = shallowRef(false);
+  const returnEditing = shallowRef(false);
+  const sequenceResuming = shallowRef(false);
   const sendStarting = shallowRef(false);
+  const sendRetrying = shallowRef(false);
   const sequenceStopping = shallowRef(false);
   const selectedEnrollmentId = shallowRef<string | null>(null);
   const selectedMessageId = shallowRef<string | null>(null);
@@ -51,6 +61,9 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
   let latestDraftVersionRestoreRequestId = 0;
   let latestNextDraftGenerateRequestId = 0;
   let latestDraftRegenerateRequestId = 0;
+  let latestReturnEditRequestId = 0;
+  let latestResumeRequestId = 0;
+  let latestRetrySendRequestId = 0;
 
   function openCreatedReviewItem(item: Api.Crm.SequenceReviewItem) {
     currentItem.value = item;
@@ -148,7 +161,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
         return;
       }
 
-      message.success('草稿已保存');
+      message.success('开发信修改已保存');
       currentItem.value = replaceReviewMessage(currentItem.value, data.message);
       await loadDraftVersions(messageId);
       await options.loadSequences();
@@ -264,15 +277,47 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
         return;
       }
 
-      message.success(data.message.status === 'queued' ? '后续草稿已确认并进入发送队列' : '草稿已确认，等待启动发送');
-      notifyCrmWorkbenchChanged();
-      currentItem.value = replaceReviewMessage(
+      const approvedItem = replaceReviewMessage(
         {
           ...currentItem.value,
           enrollment: data.enrollment
         },
         data.message
       );
+
+      if (shouldQueueFirstMessageAfterApproval(data.enrollment, data.message)) {
+        const startResult = await startCrmFirstMessageSend(data.enrollment.id);
+
+        if (startResult.error || requestId !== latestDraftApproveRequestId) {
+          return;
+        }
+
+        if (
+          selectedEnrollmentId.value !== enrollmentId ||
+          selectedMessageId.value !== messageId ||
+          !currentItem.value
+        ) {
+          return;
+        }
+
+        message.success('开发信已确认，并等待发送');
+        notifyCrmWorkbenchChanged();
+        currentItem.value = replaceReviewMessage(
+          {
+            ...approvedItem,
+            account: startResult.data.account,
+            enrollment: startResult.data.enrollment
+          },
+          startResult.data.message
+        );
+        await loadSequenceDetail(startResult.data.enrollment.id);
+        await options.loadSequences();
+        return;
+      }
+
+      message.success(data.message.status === 'queued' ? '开发信已确认，并等待发送' : '开发信已确认');
+      notifyCrmWorkbenchChanged();
+      currentItem.value = approvedItem;
       await loadSequenceDetail(data.enrollment.id);
       await options.loadSequences();
     } finally {
@@ -312,7 +357,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
         return;
       }
 
-      message.success('AI 草稿已重新生成');
+      message.success('开发信已重新生成');
       notifyCrmWorkbenchChanged();
       currentItem.value = replaceReviewMessage(currentItem.value, data.message);
       await loadDraftVersions(messageId);
@@ -347,7 +392,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
         return;
       }
 
-      message.success(`第 ${data.message.stepIndex} 封草稿已生成`);
+      message.success(`第 ${data.message.stepIndex} 封开发信已生成`);
       notifyCrmWorkbenchChanged();
       currentItem.value = replaceReviewMessage(
         {
@@ -387,7 +432,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
         return;
       }
 
-      message.success('首封开发信已进入发送队列');
+      message.success('首封开发信已安排发送');
       notifyCrmWorkbenchChanged();
       currentItem.value = replaceReviewMessage(
         {
@@ -401,6 +446,157 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
       await options.loadSequences();
     } finally {
       sendStarting.value = false;
+    }
+  }
+
+  async function handleReturnFirstMessageToEdit() {
+    const enrollmentId = selectedEnrollmentId.value;
+    const messageId = selectedMessageId.value;
+    const item = currentItem.value;
+
+    if (!enrollmentId || !messageId || !item) {
+      return;
+    }
+
+    const targetMessage = item.messages.find(messageRecord => messageRecord.id === messageId) ?? null;
+
+    if (!canReturnFirstMessageToEdit(item, targetMessage)) {
+      return;
+    }
+
+    const requestId = latestReturnEditRequestId + 1;
+    latestReturnEditRequestId = requestId;
+    returnEditing.value = true;
+
+    try {
+      const { data, error } = await returnCrmFirstMessageToEdit(enrollmentId);
+
+      if (error || requestId !== latestReturnEditRequestId) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || !currentItem.value) {
+        return;
+      }
+
+      message.success('开发信已退回，可修改后再发送');
+      notifyCrmWorkbenchChanged();
+      selectedMessageId.value = data.message.id;
+      currentItem.value = replaceReviewMessage(
+        {
+          ...currentItem.value,
+          account: data.account,
+          enrollment: data.enrollment
+        },
+        data.message
+      );
+      await loadSequenceDetail(data.enrollment.id);
+      await options.loadSequences();
+    } finally {
+      if (requestId === latestReturnEditRequestId) {
+        returnEditing.value = false;
+      }
+    }
+  }
+
+  async function handleResumeSequence() {
+    const enrollmentId = selectedEnrollmentId.value;
+    const item = currentItem.value;
+
+    if (!enrollmentId || !item || !canResumeSequence(item)) {
+      return;
+    }
+
+    const requestId = latestResumeRequestId + 1;
+    latestResumeRequestId = requestId;
+    sequenceResuming.value = true;
+
+    try {
+      const { data, error } = await resumeCrmSequenceEnrollment(enrollmentId);
+
+      if (error || requestId !== latestResumeRequestId) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || !currentItem.value) {
+        return;
+      }
+
+      message.success('开发信任务已恢复');
+      notifyCrmWorkbenchChanged();
+      currentItem.value = data.message
+        ? replaceReviewMessage(
+            {
+              ...currentItem.value,
+              account: data.account,
+              enrollment: data.enrollment
+            },
+            data.message
+          )
+        : {
+            ...currentItem.value,
+            account: data.account,
+            enrollment: data.enrollment
+          };
+      if (data.message) {
+        selectedMessageId.value = data.message.id;
+      }
+      await loadSequenceDetail(data.enrollment.id);
+      await options.loadSequences();
+    } finally {
+      if (requestId === latestResumeRequestId) {
+        sequenceResuming.value = false;
+      }
+    }
+  }
+
+  async function handleRetryFirstMessageSend() {
+    const enrollmentId = selectedEnrollmentId.value;
+    const messageId = selectedMessageId.value;
+    const item = currentItem.value;
+
+    if (!enrollmentId || !messageId || !item) {
+      return;
+    }
+
+    const targetMessage = item.messages.find(messageRecord => messageRecord.id === messageId) ?? null;
+
+    if (!canRetryFirstMessageSend(item, targetMessage)) {
+      return;
+    }
+
+    const requestId = latestRetrySendRequestId + 1;
+    latestRetrySendRequestId = requestId;
+    sendRetrying.value = true;
+
+    try {
+      const { data, error } = await retryCrmFirstMessageSend(enrollmentId);
+
+      if (error || requestId !== latestRetrySendRequestId) {
+        return;
+      }
+
+      if (selectedEnrollmentId.value !== enrollmentId || !currentItem.value) {
+        return;
+      }
+
+      message.success('开发信已重新等待发送');
+      notifyCrmWorkbenchChanged();
+      selectedMessageId.value = data.message.id;
+      currentItem.value = replaceReviewMessage(
+        {
+          ...currentItem.value,
+          account: data.account,
+          enrollment: data.enrollment
+        },
+        data.message
+      );
+      await loadSequenceDetail(data.enrollment.id);
+      await options.loadSequences();
+    } finally {
+      if (requestId === latestRetrySendRequestId) {
+        sendRetrying.value = false;
+      }
     }
   }
 
@@ -441,7 +637,7 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
         return;
       }
 
-      message.success('开发信跟进已停止');
+      message.success('开发任务已停止');
       notifyCrmWorkbenchChanged();
       currentItem.value = data.message
         ? replaceReviewMessage(
@@ -475,6 +671,9 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
       latestDraftVersionRestoreRequestId += 1;
       latestNextDraftGenerateRequestId += 1;
       latestDraftRegenerateRequestId += 1;
+      latestReturnEditRequestId += 1;
+      latestResumeRequestId += 1;
+      latestRetrySendRequestId += 1;
       selectedEnrollmentId.value = null;
       selectedMessageId.value = null;
       currentItem.value = null;
@@ -497,17 +696,23 @@ export function useDraftReviewFlow(options: UseDraftReviewFlowOptions) {
     handleDrawerVisibleUpdate,
     handleGenerateNextDraft,
     handleRegenerateAiDraft,
+    handleResumeSequence,
+    handleRetryFirstMessageSend,
     handleRefreshCurrentSequence,
+    handleReturnFirstMessageToEdit,
     handleRestoreDraftVersion,
     handleSaveDraft,
     handleStartSend,
     handleStopSequence,
     loadDraftVersions,
     nextDraftGenerating,
+    returnEditing,
+    sequenceResuming,
     openCreatedReviewItem,
     openDraftDrawer,
     openFocusedSequence,
     sendStarting,
+    sendRetrying,
     sequenceStopping
   };
 }

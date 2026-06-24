@@ -28,9 +28,10 @@ export class CrmDraftApprovalService {
 
     const reviewItem = await this.requireOwnedSequenceReviewItem(message.enrollmentId, context);
 
-    if (reviewItem.enrollment.status !== 'draft_review_pending') {
+    if (!['draft_review_pending', 'ready_to_send'].includes(reviewItem.enrollment.status)) {
       throw new BadRequestException('当前序列状态不能确认草稿');
     }
+    const fromEnrollmentStatus = reviewItem.enrollment.status;
 
     const approval = await this.approvalRepository.approveMessageDraft({
       messageId: message.id,
@@ -39,7 +40,7 @@ export class CrmDraftApprovalService {
       ownerUserId: context.userId,
       accountId: message.accountId,
       contactId: message.contactId,
-      fromEnrollmentStatus: 'draft_review_pending',
+      fromEnrollmentStatus,
       toEnrollmentStatus: 'ready_to_send',
       fromMessageStatus: 'draft_pending_review',
       toMessageStatus: 'draft_ready',

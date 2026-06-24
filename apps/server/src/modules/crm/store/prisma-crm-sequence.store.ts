@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { CrmSequenceRepository } from '../sequence/crm-sequence.repository';
 import { PrismaCrmMessageDraftStore } from './prisma-crm-message-draft.store';
+import { PrismaCrmSendScheduleStore } from './prisma-crm-send-schedule.store';
 import { PrismaCrmSequenceReviewStore } from './prisma-crm-sequence-review.store';
 import { PrismaCrmSequenceSendStateStore } from './prisma-crm-sequence-send-state.store';
 
@@ -10,11 +11,13 @@ export class PrismaCrmSequenceStore implements CrmSequenceRepository {
   private readonly reviewStore: PrismaCrmSequenceReviewStore;
   private readonly messageDraftStore: PrismaCrmMessageDraftStore;
   private readonly sendStateStore: PrismaCrmSequenceSendStateStore;
+  private readonly sendScheduleStore: PrismaCrmSendScheduleStore;
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {
     this.reviewStore = new PrismaCrmSequenceReviewStore(prisma);
     this.messageDraftStore = new PrismaCrmMessageDraftStore(prisma);
     this.sendStateStore = new PrismaCrmSequenceSendStateStore(prisma);
+    this.sendScheduleStore = new PrismaCrmSendScheduleStore(prisma);
   }
 
   findActiveEnrollmentByContact(
@@ -39,6 +42,12 @@ export class PrismaCrmSequenceStore implements CrmSequenceRepository {
     ...args: Parameters<PrismaCrmSequenceReviewStore['createSequenceDraftBundle']>
   ): ReturnType<PrismaCrmSequenceReviewStore['createSequenceDraftBundle']> {
     return this.reviewStore.createSequenceDraftBundle(...args);
+  }
+
+  listMailboxSendScheduleTimes(
+    ...args: Parameters<PrismaCrmSendScheduleStore['listMailboxSendScheduleTimes']>
+  ): ReturnType<PrismaCrmSendScheduleStore['listMailboxSendScheduleTimes']> {
+    return this.sendScheduleStore.listMailboxSendScheduleTimes(...args);
   }
 
   createFollowUpDraftBundle(

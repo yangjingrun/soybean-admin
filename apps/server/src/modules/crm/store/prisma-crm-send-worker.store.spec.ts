@@ -275,7 +275,7 @@ describe('PrismaCrmSendWorkerStore', () => {
         threadMode: 'same_thread',
         subject: 'Bearing Series for ABC Trading',
         bodyText: 'Hi Ali,\n\nJust following up.',
-        status: 'draft_pending_review',
+        status: 'draft_ready',
         scheduledAt,
         providerThreadId: 'gmail-thread-1'
       }
@@ -293,7 +293,7 @@ describe('PrismaCrmSendWorkerStore', () => {
       threadMode: 'same_thread',
       subject: 'Bearing Series for ABC Trading',
       bodyText: 'Hi Ali,\n\nJust following up.',
-      status: 'draft_pending_review',
+      status: 'draft_ready',
       scheduledAt,
       providerThreadId: 'gmail-thread-1',
       enrollmentId: 'enrollment-1'
@@ -338,7 +338,7 @@ describe('PrismaCrmSendWorkerStore', () => {
         threadMode: 'same_thread',
         subject: 'Bearing Series for ABC Trading',
         bodyText: 'Hi Ali,\n\nJust following up.',
-        status: 'draft_pending_review',
+        status: 'draft_ready',
         scheduledAt: new Date('2026-06-21T10:45:00.000Z'),
         providerThreadId: 'gmail-thread-1'
       }

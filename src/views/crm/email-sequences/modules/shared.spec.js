@@ -19,11 +19,14 @@ import {
   getSequenceNextAction,
   getSequenceProgressText,
   getSequenceSendAuditSummary,
+  shouldQueueFirstMessageAfterApproval,
   buildSequenceBatchResultDisplayItems,
   buildSequenceBatchResultDisplayMap,
   buildSequenceReviewFilterTags,
   formatSequenceBatchResultText,
   canGenerateNextSequenceDraft,
+  canRegenerateAiDraft,
+  canOperateSelectedSequenceDraft,
   canApproveSequenceDraftInBatch,
   canCreateAiDraftTaskForSequence,
   canStopSequenceInBatch,
@@ -100,7 +103,9 @@ function createSequenceItem(overrides = {}) {
       archiveReason: null,
       archiveSlimmedAt: null,
       createdAt: '2026-06-19T01:00:00.000Z',
-      updatedAt: '2026-06-19T01:00:00.000Z'
+      updatedAt: '2026-06-19T01:00:00.000Z',
+      contactCount: 0,
+      primaryContact: null
     },
     contact: {
       id: 'contact-1',
@@ -168,16 +173,16 @@ function createSequencePolicy(overrides = {}) {
 }
 describe('email sequence review shared helpers', () => {
   it('uses business wording for development email follow-up', () => {
-    assert.equal(sequencePageGuide.title, '开发信跟进承接可开发客户');
-    assert.match(sequencePageGuide.description, /确认 AI 草稿/);
+    assert.equal(sequencePageGuide.title, '开发信任务承接可开发客户');
+    assert.match(sequencePageGuide.description, /确认邮件内容/);
     assert.match(sequencePageGuide.description, /客户回信/);
-    assert.equal(sequenceStatusLabelMap.draft_review_pending, '待确认开发信');
-    assert.equal(sequenceStatusLabelMap.ready_to_send, '待启动发送');
+    assert.equal(sequenceStatusLabelMap.draft_review_pending, '待确认发送');
+    assert.equal(sequenceStatusLabelMap.ready_to_send, '等待发送');
     assert.equal(sequenceStatusLabelMap.sequence_running, '跟进中');
     assert.equal(sequenceStatusLabelMap.stopped, '已停止跟进');
-    assert.equal(messageStatusLabelMap.draft_pending_review, '待确认');
-    assert.equal(messageStatusLabelMap.queued, '等待发送');
-    assert.equal(sequenceTodoTypeOptions[0]?.label, '待确认开发信');
+    assert.equal(messageStatusLabelMap.draft_pending_review, '待确认发送');
+    assert.equal(messageStatusLabelMap.queued, '发送中');
+    assert.equal(sequenceTodoTypeOptions[0]?.label, '待确认发送');
   });
   it('normalizes selected sequence policy into the create payload', () => {
     const form = {
@@ -231,7 +236,7 @@ describe('email sequence review shared helpers', () => {
     filterModel.dateScope = 'today';
     assert.deepEqual(buildSequenceReviewFilterTags(filterModel), [
       { key: 'keyword', label: '关键词：ABC' },
-      { key: 'todoType', label: '待办：待确认开发信' },
+      { key: 'todoType', label: '待办：待确认发送' },
       { key: 'messageStatus', label: '邮件：已发送' },
       { key: 'dateScope', label: '时间：今天' }
     ]);
@@ -431,11 +436,11 @@ describe('email sequence review shared helpers', () => {
       scheduledAt: '2026-06-20T07:00:00.000Z'
     });
     assert.deepEqual(getMessageStatusView(scheduledReady, 'sequence_running'), {
-      label: '待调度',
+      label: '等待发送',
       tagType: 'warning'
     });
     assert.deepEqual(getMessageStatusView(queued, 'sequence_running'), {
-      label: '等待发送',
+      label: '发送中',
       tagType: 'info'
     });
   });
@@ -470,12 +475,12 @@ describe('email sequence review shared helpers', () => {
       items.map(item => [item.id, item.title, item.statusLabel, item.selected]),
       [
         ['message-1', '第 1 封', '已发送', false],
-        ['message-2', '第 2 封', '等待发送', true],
-        ['message-3', '第 3 封', '待确认', false]
+        ['message-2', '第 2 封', '发送中', true],
+        ['message-3', '第 3 封', '待确认发送', false]
       ]
     );
     assert.match(items[0].metaText, /^已发送 /);
-    assert.match(items[1].metaText, /^计划发送 /);
+    assert.match(items[1].metaText, /^将在 .* 自动发送$/);
     assert.match(items[2].metaText, /^更新于 /);
     assert.equal(items[2].subject, 'Third');
   });
@@ -512,6 +517,7 @@ describe('email sequence review shared helpers', () => {
       ['message-2', 'message-3']
     );
     assert.equal(getSequenceSendAuditSummary(item).label, '发送失败');
+    assert.match(getSequenceSendAuditSummary(item).description, /修改后再发送|直接重试/);
     assert.equal(getSequenceSendAuditSummary(item).failedMessageCount, 2);
     assert.equal(getSequenceSendAuditSummary(item).failedCheckCount, 1);
     assert.equal(getCurrentSequenceMessage(item)?.id, 'message-2');
@@ -526,7 +532,7 @@ describe('email sequence review shared helpers', () => {
     const passed = createSequenceItem({
       checklist: [{ key: 'mailbox', label: '邮箱', passed: true, message: '邮箱可用' }]
     });
-    assert.equal(getSequenceSendAuditSummary(warning).label, '1 项待确认');
+    assert.equal(getSequenceSendAuditSummary(warning).label, '1 项需确认');
     assert.equal(getSequenceSendAuditSummary(warning).tagType, 'warning');
     assert.equal(getSequenceSendAuditSummary(passed).label, '1 项通过');
     assert.equal(getSequenceSendAuditSummary(passed).tagType, 'success');
@@ -552,10 +558,28 @@ describe('email sequence review shared helpers', () => {
       ],
       enrollment: { status: 'sequence_running', currentStep: 2 }
     });
+    const scheduledRunning = createSequenceItem({
+      firstMessage: createMessage({ status: 'sent' }),
+      messages: [
+        createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
+        createMessage({
+          id: 'message-2',
+          stepIndex: 2,
+          status: 'draft_ready',
+          scheduledAt: '2026-06-20T06:00:00.000Z'
+        })
+      ],
+      enrollment: { status: 'sequence_running', currentStep: 2 }
+    });
     const replied = createSequenceItem({
       firstMessage: createMessage({ status: 'sent' }),
       messages: [createMessage({ status: 'sent' })],
       enrollment: { status: 'replied' }
+    });
+    const stopped = createSequenceItem({
+      firstMessage: createMessage({ status: 'skipped' }),
+      messages: [createMessage({ status: 'skipped' })],
+      enrollment: { status: 'stopped' }
     });
     const canGenerateNext = createSequenceItem({
       firstMessage: createMessage({ id: 'message-1', stepIndex: 1, status: 'sent' }),
@@ -571,13 +595,43 @@ describe('email sequence review shared helpers', () => {
       enrollment: { status: 'sequence_running', totalSteps: 5 }
     });
     assert.equal(getCurrentSequenceMessage(pending)?.id, 'message-2');
-    assert.equal(getSequenceNextAction(pending).label, '确认开发信');
-    assert.equal(getSequenceNextAction(ready).label, '启动首封');
-    assert.equal(getSequenceNextAction(failed).label, '处理失败');
+    assert.equal(getSequenceNextAction(pending).label, '确认发送');
+    assert.equal(getSequenceNextAction(pending).buttonLabel, '确认发送');
+    assert.equal(getSequenceNextAction(ready).label, '确认发送');
+    assert.equal(getSequenceNextAction(ready).buttonLabel, '安排发送');
+    assert.equal(getSequenceNextAction(failed).label, '修改后再发送');
+    assert.equal(getSequenceNextAction(failed).buttonLabel, '处理');
+    assert.equal(getSequenceNextAction(scheduledRunning).label, '等待发送');
+    assert.equal(getSequenceNextAction(scheduledRunning).description, '已确认，等待系统按发送规则执行');
+    assert.equal(getSequenceNextAction(stopped).label, '已停止，可恢复');
+    assert.equal(getSequenceNextAction(stopped).buttonLabel, '恢复');
     assert.equal(getSequenceNextAction(canGenerateNext).label, '生成下一封');
     assert.equal(getSequenceNextAction(canGenerateNext).buttonLabel, '生成');
     assert.equal(getSequenceNextAction(reachedLastStep).label, '已到最后一封');
     assert.equal(getSequenceNextAction(replied).description, '同公司开发信已停止');
+  });
+  it('queues the first message immediately after approval when backend returns ready state', () => {
+    assert.equal(
+      shouldQueueFirstMessageAfterApproval(
+        { status: 'ready_to_send' },
+        createMessage({ stepIndex: 1, status: 'draft_ready' })
+      ),
+      true
+    );
+    assert.equal(
+      shouldQueueFirstMessageAfterApproval(
+        { status: 'sequence_running' },
+        createMessage({ stepIndex: 2, status: 'draft_ready' })
+      ),
+      false
+    );
+    assert.equal(
+      shouldQueueFirstMessageAfterApproval(
+        { status: 'ready_to_send' },
+        createMessage({ stepIndex: 1, status: 'queued' })
+      ),
+      false
+    );
   });
   it('gets the largest sequence message step from existing messages', () => {
     assert.equal(
@@ -651,6 +705,100 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canGenerateNextSequenceDraft(stopped), false);
     assert.equal(canGenerateNextSequenceDraft(forbidden), false);
   });
+  it('allows regenerating one pending AI draft only when the current draft is still operable', () => {
+    const aiEnabledProductLine = {
+      id: 'product-line-1',
+      organizationId: 'org-1',
+      name: '轴承',
+      targetCustomerType: null,
+      coreSellingPoints: null,
+      moq: null,
+      leadTime: null,
+      paymentTerms: null,
+      certifications: null,
+      catalogUrl: null,
+      websiteUrl: null,
+      commonModelsText: null,
+      aiWritingConfig: {
+        enabled: true,
+        commonRequirements: 'Natural English',
+        forbiddenClaims: 'No fake claims',
+        productEmphasis: 'Stable stock',
+        steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+          stepIndex: stepIndex,
+          prompt: `Step ${stepIndex}`
+        }))
+      },
+      status: 'active',
+      createdById: 'user-1',
+      createdByName: 'Alice',
+      createdAt: '2026-06-19T01:00:00.000Z',
+      updatedAt: '2026-06-19T01:00:00.000Z'
+    };
+    const firstDraftPending = createSequenceItem({
+      enrollment: { status: 'draft_review_pending' },
+      messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const followUpPending = createSequenceItem({
+      enrollment: { status: 'sequence_running' },
+      messages: [createMessage({ id: 'message-2', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+    const pausedFollowUp = createSequenceItem({
+      enrollment: { status: 'paused' },
+      messages: [createMessage({ id: 'message-3', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+    const notAiDraft = createSequenceItem({
+      messages: [createMessage({ id: 'message-4', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const stoppedFirstDraft = createSequenceItem({
+      enrollment: { status: 'stopped' },
+      messages: [createMessage({ id: 'message-6', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    firstDraftPending.productLine = aiEnabledProductLine;
+    followUpPending.productLine = aiEnabledProductLine;
+    pausedFollowUp.productLine = aiEnabledProductLine;
+    stoppedFirstDraft.productLine = aiEnabledProductLine;
+    notAiDraft.productLine = {
+      ...aiEnabledProductLine,
+      aiWritingConfig: null
+    };
+    assert.equal(canRegenerateAiDraft(firstDraftPending, firstDraftPending.messages[0]), true);
+    assert.equal(canRegenerateAiDraft(followUpPending, followUpPending.messages[0]), true);
+    assert.equal(canRegenerateAiDraft(pausedFollowUp, pausedFollowUp.messages[0]), false);
+    assert.equal(canRegenerateAiDraft(stoppedFirstDraft, stoppedFirstDraft.messages[0]), false);
+    assert.equal(canRegenerateAiDraft(notAiDraft, notAiDraft.messages[0]), false);
+    assert.equal(
+      canRegenerateAiDraft(firstDraftPending, createMessage({ id: 'message-5', stepIndex: 1, status: 'sent' })),
+      false
+    );
+  });
+  it('allows detail modal draft operations only while the sequence status matches the selected draft step', () => {
+    const firstDraftPending = createSequenceItem({
+      enrollment: { status: 'draft_review_pending' },
+      messages: [createMessage({ id: 'message-1', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const readyFirstDraftPending = createSequenceItem({
+      enrollment: { status: 'ready_to_send' },
+      messages: [createMessage({ id: 'message-5', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const stoppedFirstDraft = createSequenceItem({
+      enrollment: { status: 'stopped' },
+      messages: [createMessage({ id: 'message-2', stepIndex: 1, status: 'draft_pending_review' })]
+    });
+    const runningFollowUp = createSequenceItem({
+      enrollment: { status: 'sequence_running' },
+      messages: [createMessage({ id: 'message-3', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+    const pausedFollowUp = createSequenceItem({
+      enrollment: { status: 'paused' },
+      messages: [createMessage({ id: 'message-4', stepIndex: 2, status: 'draft_pending_review' })]
+    });
+    assert.equal(canOperateSelectedSequenceDraft(firstDraftPending, firstDraftPending.messages[0]), true);
+    assert.equal(canOperateSelectedSequenceDraft(readyFirstDraftPending, readyFirstDraftPending.messages[0]), true);
+    assert.equal(canOperateSelectedSequenceDraft(stoppedFirstDraft, stoppedFirstDraft.messages[0]), false);
+    assert.equal(canOperateSelectedSequenceDraft(runningFollowUp, runningFollowUp.messages[0]), true);
+    assert.equal(canOperateSelectedSequenceDraft(pausedFollowUp, pausedFollowUp.messages[0]), false);
+  });
   it('summarizes selected rows for owner-only batch actions', () => {
     const approvable = createSequenceItem({
       enrollment: { id: 'enrollment-0', status: 'draft_review_pending' },
@@ -723,14 +871,14 @@ describe('email sequence review shared helpers', () => {
     assert.equal(canApproveSequenceDraftInBatch(item), false);
   });
   it('formats batch operation summary counts for toolbar messages', () => {
-    const text = formatSequenceBatchResultText('批量生成下一封草稿', {
+    const text = formatSequenceBatchResultText('批量生成下一封', {
       totalCount: 4,
       successCount: 1,
       skippedCount: 2,
       failedCount: 1,
       results: []
     });
-    assert.equal(text, '批量生成下一封草稿完成：成功 1 条，跳过 2 条，失败 1 条');
+    assert.equal(text, '批量生成下一封完成：成功 1 条，跳过 2 条，失败 1 条');
   });
   it('builds per-row batch result display items by enrollment id', () => {
     const displayItems = buildSequenceBatchResultDisplayItems({
@@ -745,12 +893,12 @@ describe('email sequence review shared helpers', () => {
           messageId: 'message-2',
           stepIndex: 2,
           status: 'success',
-          message: '第 2 封草稿已生成'
+          message: '第 2 封开发信已生成'
         },
         {
           id: 'enrollment-2',
           status: 'skipped',
-          message: '当前序列没有可生成的后续草稿'
+          message: '当前序列没有可生成的后续开发信'
         },
         {
           id: 'input-3',
@@ -771,14 +919,14 @@ describe('email sequence review shared helpers', () => {
       [
         {
           enrollmentId: 'enrollment-1',
-          message: '第 2 封草稿已生成',
+          message: '第 2 封开发信已生成',
           statusLabel: '成功',
           stepText: '第 2 封',
           tagType: 'success'
         },
         {
           enrollmentId: 'enrollment-2',
-          message: '当前序列没有可生成的后续草稿',
+          message: '当前序列没有可生成的后续开发信',
           statusLabel: '跳过',
           stepText: null,
           tagType: 'warning'
@@ -793,7 +941,7 @@ describe('email sequence review shared helpers', () => {
       ]
     );
     const displayMap = buildSequenceBatchResultDisplayMap(displayItems);
-    assert.equal(displayMap.get('enrollment-1')?.message, '第 2 封草稿已生成');
+    assert.equal(displayMap.get('enrollment-1')?.message, '第 2 封开发信已生成');
     assert.equal(displayMap.get('enrollment-2')?.statusLabel, '跳过');
     assert.equal(displayMap.get('enrollment-3')?.tagType, 'error');
   });

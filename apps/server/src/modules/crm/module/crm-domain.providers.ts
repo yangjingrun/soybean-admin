@@ -44,7 +44,13 @@ import { CrmTrackingService } from '../tracking/crm-tracking.service';
 import { CrmTrackingTokenService } from '../tracking/crm-tracking-token.service';
 
 export const crmBusinessDomainProviders = {
-  lead: [CrmAccountService, CrmArchiveSlimmingService, CrmDashboardService, CrmGeoCatalogService, CrmGeoTimezoneService],
+  lead: [
+    CrmAccountService,
+    CrmArchiveSlimmingService,
+    CrmDashboardService,
+    CrmGeoCatalogService,
+    CrmGeoTimezoneService
+  ],
   settingsCatalog: [
     CrmSettingsService,
     CrmProductLineService,

@@ -105,5 +105,12 @@ describe('geonames-timezone-import', () => {
       ),
       null
     );
+    assert.equal(
+      buildChineseGeoCityNameRowFromAlternateLine(
+        ['1003', '1795565', 'yue', 'Sam Zan', '1', '0', '0', '0'].join('\t'),
+        new Map([[cityBase.geonameId, cityBase]])
+      ),
+      null
+    );
   });
 });

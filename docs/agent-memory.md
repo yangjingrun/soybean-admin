@@ -13,6 +13,22 @@
 
 ## 已确认经验
 
+### 2026-06-24 CRM 后续开发信默认自动进入发送池，客户回复后才停发
+
+- 场景：CRM 序列邮件发送成功后，需要自动推进下一封跟进邮件；用户期望首封发送后第二封按调度时间自动排队，不再需要人工确认。
+- 坑点：如果 `buildNextFollowUpDraft()` 继续创建 `draft_pending_review`，后续邮件会停在待审核，无法自动进入调度；如果客户回复时只跳过 `queued`，已经自动排期但尚未入 BullMQ 的 `draft_ready` 后续邮件仍可能继续发送。
+- 正确做法：发送 worker 生成下一封跟进邮件时直接写 `status: draft_ready` 和计算好的 `scheduledAt`，由发送调度器按时间窗口/邮箱错峰入队；客户回复或确认退订时，把同账号未发送的 `draft_ready/queued` 邮件统一置为 `skipped`，并递增 active enrollment 的 `runVersion`。
+- 相关文件：`apps/server/src/modules/crm/crm-follow-up-draft.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm-inbox.store.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-send-worker.service.spec.ts apps/server/src/modules/crm/store/prisma-crm-send-worker.store.spec.ts apps/server/src/modules/crm/store/prisma-crm-inbox.store.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts apps/server/src/modules/crm/store/prisma-crm-send-scheduler.store.spec.ts`，确认下一封为 `draft_ready`，回复/退订会跳过 `draft_ready + queued`，调度器仍会派发后续邮件。
+
+### 2026-06-24 CRM 同邮箱发送错峰要找最早可用空档，不要只排到最远未来排期之后
+
+- 场景：创建或重试 CRM 首封开发信时，同一个发送邮箱下可能已有多个 `draft_ready/queued` 计划发送时间，客户之间还可能有不同国家和时区。
+- 坑点：如果只取该邮箱最远的 `scheduledAt/sentAt` 再追加 5-10 分钟，会被一封更远未来、甚至跨周末/跨时区的邮件反向阻塞；例如中国客户在 2026-06-24 工作时间可发，却被洛杉矶测试邮件拖到 2026-06-29。
+- 正确做法：按客户时区先计算候选可发送窗口，再用同邮箱已有发送时间列表扫描最早可用空档；候选时间只需避开前后 5-10 分钟间隔，如果被推到客户窗口外，再顺延到客户的下一发送窗口。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/store/prisma-crm-send-schedule.store.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-control.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`，确认远期同邮箱排期不会拖延当前客户，近距离前后邮件仍会错峰。
+
 ### 2026-06-24 CRM GeoNames 城市中文展示必须使用带语言标记的别名
 
 - 场景：CRM 地区级联筛选展示国家/城市，城市数据来自 GeoNames `cities*.txt` 和可选 `alternateNamesV2.txt`。
@@ -20,6 +36,38 @@
 - 正确做法：`cities*.txt` 自带 alternate names 只用于搜索匹配；城市展示中文名只使用 `alternateNamesV2.txt` 中带 `zh/zh-CN/zh-Hans/zh-Hant/zh-TW/zh-HK/zh-MO/cmn/yue` 语言标记的行。导入时用 `--alternate-names` 追加可信中文别名，目录服务无语言标记时返回 `displayName: null`。
 - 相关文件：`apps/server/src/modules/crm/geo/geonames-timezone-import.ts`、`apps/server/src/scripts/import-geonames-timezones.ts`、`apps/server/src/modules/crm/geo/crm-geo-catalog.service.ts`、`docs/geonames-timezone-import.md`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/geo/geonames-timezone-import.spec.ts apps/server/src/modules/crm/geo/crm-geo-catalog.service.spec.ts`，确认无语言标记的“宝安/天府”不会作为展示名，带 `zh` 的“深圳”可以作为展示名。
+
+### 2026-06-24 首页工作台不展示首封草稿审核
+
+- 场景：CRM 首封开发信主流程已经改为确认后直接进入发送计划，首页工作台展示当天 CRM 发送状态。
+- 坑点：首页如果继续展示“待审核草稿/草稿待审核”，会让用户误以为首封仍需要人工审核；只按 queued 统计也会漏掉尚未进入 BullMQ、但已按 `scheduledAt` 排期的待发送邮件。
+- 正确做法：首页工作台用发送状态口径：`scheduledTodayCount` 统计今天 `draft_ready + scheduledAt` 的已排期邮件，`scheduledTomorrowCount` 统计明天已排期邮件，`queuedCount/failedCount/sentCount` 分别按真实状态统计。首页卡片和待办展示“今日待发送/今日发送计划”，不展示“待审核草稿”。今日有已排期、queued 或 failed 发送任务时，runningTasks 需要包含 `send` 项，让首页继续轮询刷新。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm-dashboard.store.ts`、`apps/server/src/modules/crm/crm.types.ts`、`src/views/home/modules/shared.ts`、`src/hooks/business/crm-workbench-refresh.ts`。
+- 验证方式：运行 `pnpm exec tsx --test src/views/home/modules/shared.spec.ts src/views/home/modules/shared.spec.js`、`pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm-dashboard.store.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts` 和 `pnpm typecheck`。
+
+### 2026-06-24 CRM 发送节拍按邮箱维度错峰
+
+- 场景：CRM 开发信会持续新增计划发送邮件，同一个发送邮箱下可能已经排了很多封未来待发邮件。
+- 坑点：错峰不能按国家或业务员维度做；同一个邮箱需要 5-10 分钟随机间隔，但两个不同发送邮箱允许同一时间发送。新加邮件也不能只看当前时间，必须排到该邮箱已有计划队列尾部。
+- 正确做法：写入计划时间和调度器真正入队前，都按 `organizationId + mailboxId` 查询/维护最后发送点；取 `draft_ready/queued.scheduledAt` 与 `sent.sentAt` 的最大值，再追加 5-10 分钟随机间隔。如果间隔把时间推到客户当地发送窗口外，再顺延到客户当地下一发送窗口。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/store/prisma-crm-send-schedule.store.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-control.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts apps/server/src/modules/crm/store/prisma-crm-send-scheduler.store.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`，确认同邮箱错峰、不同邮箱可同时间入队。
+
+### 2026-06-24 CRM 首封确认发送要立即写入真实可发送时间
+
+- 场景：用户确认发送首封开发信后，列表展示“等待发送 + 计划发送时间”，后台调度器每分钟扫描到期邮件。
+- 坑点：确认发送时如果直接写 `scheduledAt = new Date()`，但客户当地当前不在发送窗口内，页面会先展示一个已经过去或马上过去的计划时间；调度器下一轮才会按客户时区顺延，用户会误以为“时间到了但没发出去”。
+- 正确做法：创建首封、旧流程确认首封、失败重试首封这类写入发送池的入口，必须先用 `CrmSendAvailabilityService.evaluate()` 和全局 `sendWorkdays/sendWindows` 计算真实 `scheduledAt`：可发就写当前时间，不可发就写 `nextAvailableAt`。后台调度器仍保留发送前二次校验。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-control.service.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/crm-module.providers.spec.ts` 和 `pnpm typecheck`，确认非发送窗口会直接写入下一可发送时间。
+
+### 2026-06-24 Nest 后台调度 Service 依赖要显式 Inject
+
+- 场景：CRM 邮件发送调度器每分钟扫描到期 `draft_ready` 邮件，将其转入 BullMQ 发送队列。
+- 坑点：`CrmSendSchedulerService` 构造函数里 `CrmSendAvailabilityService` 如果只依赖 TypeScript 反射注入，运行时可能变成 `undefined`，调度器会每分钟记录 `send-scheduler-failed`，错误为 `Cannot read properties of undefined (reading 'evaluate')`，页面表现为计划时间已过但仍停在“等待发送”。
+- 正确做法：后台 worker/scheduler 这类运行期服务依赖具体服务时，用 `@Inject(ConcreteService)` 显式声明注入 token；同时在 `crm-module.providers.spec.ts` 用 `Reflect.getMetadata('self:paramtypes', Service)` 固化关键运行期注入。
+- 相关文件：`apps/server/src/modules/crm/crm-send-scheduler.service.ts`、`apps/server/src/modules/crm/crm-module.providers.spec.ts`、`apps/server/src/modules/crm/crm-send-scheduler-host.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-module.providers.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts`，并观察 `send-scheduler-failed` 不再继续新增；洛杉矶非工作时间到期邮件会被顺延到当地下一发送窗口。
 
 ### 2026-06-24 CRM 邮件打开追踪像素接口必须显式公开
 

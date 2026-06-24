@@ -15,6 +15,7 @@ import {
 const cityFetchLimit = 5000;
 const citySearchLimit = 80;
 const citySearchDebounceMs = 260;
+
 /** Load CRM geography options for reusable country/city cascader filters. */
 export function useCrmRegionCascader() {
   const regionOptions = shallowRef<CrmRegionCascaderOption[]>([]);
@@ -89,7 +90,6 @@ export function useCrmRegionCascader() {
   async function searchCities(keyword: string) {
     const requestId = latestCitySearchRequestId + 1;
     latestCitySearchRequestId = requestId;
-
     let data: Api.Crm.GeoCityOption[];
 
     try {
@@ -127,12 +127,10 @@ export function useCrmRegionCascader() {
       }
 
       const cityOption = createCrmCityRegionOption(city);
-      const searchCountryOption =
-        searchCountryOptions.get(city.countryCode) ??
-        ({
-          ...countryOption,
-          children: []
-        } satisfies CrmRegionCascaderOption);
+      const searchCountryOption = searchCountryOptions.get(city.countryCode) ?? {
+        ...countryOption,
+        children: []
+      };
       const children = searchCountryOption.children ?? [];
 
       if (!children.some(child => child.value === cityOption.value)) {

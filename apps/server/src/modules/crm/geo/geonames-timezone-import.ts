@@ -43,6 +43,7 @@ const geonamesAlternateNameColumn = {
   isShort: 5
 } as const;
 const chineseLanguageCodes = new Set(['zh', 'zh-cn', 'zh-hans', 'zh-hant', 'zh-tw', 'zh-hk', 'zh-mo', 'cmn', 'yue']);
+const hanScriptPattern = /\p{Script=Han}/u;
 
 /**
  * Normalize external place names into stable lookup keys while preserving non-Latin scripts.
@@ -113,7 +114,7 @@ export function buildChineseGeoCityNameRowFromAlternateLine(
   const name = normalizeNullableText(columns[geonamesAlternateNameColumn.name]);
   const base = baseByGeonameId.get(geonameId);
 
-  if (!base || !name || !languageCode || !chineseLanguageCodes.has(languageCode)) {
+  if (!base || !name || !languageCode || !chineseLanguageCodes.has(languageCode) || !isHanScriptName(name)) {
     return null;
   }
 
@@ -172,6 +173,10 @@ function normalizeNullableText(value?: string | null) {
   const normalized = value?.trim();
 
   return normalized || null;
+}
+
+function isHanScriptName(name: string) {
+  return hanScriptPattern.test(name);
 }
 
 function normalizeInteger(value?: string | null) {

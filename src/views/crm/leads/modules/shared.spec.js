@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import * as leadShared from './shared';
+import * as leadShared from './shared.js';
 import {
   buildLeadQueueStats,
   buildLeadSearchParams,
+  buildLeadExpandedContactView,
+  buildLeadRowContactView,
+  canCreateSequenceFromLeadContact,
   crmLeadPageGuide,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
@@ -14,14 +17,14 @@ import {
   readArchivedFingerprintMatches,
   createDefaultLeadImportForm,
   normalizeLeadImportPayload
-} from './shared';
+} from './shared.js';
 describe('crm lead shared helpers', () => {
   it('uses plain business wording for AI leads handoff', () => {
     assert.equal(crmLeadPageGuide.title, '客户管理承接 AI 获客结果');
-    assert.match(crmLeadPageGuide.description, /可开发客户创建开发信/);
+    assert.match(crmLeadPageGuide.description, /可开发客户创建开发任务/);
     assert.match(crmLeadPageGuide.description, /暂不开发客户/);
     assert.equal(leadStatusLabelMap.archived, '暂不开发');
-    assert.equal(leadStatusLabelMap.sequence_running, '开发信跟进中');
+    assert.equal(leadStatusLabelMap.sequence_running, '开发中');
   });
   it('creates an empty manual lead import form', () => {
     assert.deepEqual(createDefaultLeadImportForm(), {
@@ -123,8 +126,12 @@ describe('crm lead shared helpers', () => {
         size: 20,
         filterModel: {
           keyword: ' bearing ',
+          contactTitle: '',
+          customerType: '',
+          region: '',
           status: 'missing_contact',
-          sourceTaskId: ' task-1 '
+          sourceTaskId: ' task-1 ',
+          updatedAtRange: null
         }
       }),
       {
@@ -214,13 +221,13 @@ describe('crm lead shared helpers', () => {
       type: 'warning'
     });
     assert.deepEqual(getLeadNextAction('ready'), {
-      label: '创建开发信',
-      description: '进入开发信跟进审核',
+      label: '创建开发任务',
+      description: '检查邮件后加入发送队列',
       type: 'success'
     });
     assert.deepEqual(getLeadNextAction('sequence_running'), {
-      label: '查看开发信',
-      description: '跟踪当前开发信节奏',
+      label: '查看开发任务',
+      description: '检查待处理邮件和发送进度',
       type: 'primary'
     });
     assert.deepEqual(getLeadNextAction('replied_pending'), {
@@ -261,6 +268,126 @@ describe('crm lead shared helpers', () => {
     );
     assert.equal(formatLeadWebsiteDisplay({ websiteUrl: null, domain: null }), '-');
   });
+  it('builds lead search params from field filters', () => {
+    const params = buildLeadSearchParams({
+      current: 1,
+      size: 10,
+      filterModel: {
+        keyword: ' ABC ',
+        contactTitle: ' buyer ',
+        customerType: ' distributor ',
+        region: ' Riyadh ',
+        status: 'ready',
+        sourceTaskId: null,
+        updatedAtRange: [Date.UTC(2026, 5, 1), Date.UTC(2026, 5, 24)]
+      }
+    });
+    assert.equal(params.keyword, 'ABC');
+    assert.equal(params.contactTitle, 'buyer');
+    assert.equal(params.customerType, 'distributor');
+    assert.equal(params.region, 'Riyadh');
+    assert.equal(params.status, 'ready');
+    assert.ok(params.updatedFrom);
+    assert.ok(params.updatedTo);
+  });
+  it('builds country region keyword params from cascader filters', () => {
+    const params = buildLeadSearchParams({
+      current: 1,
+      size: 10,
+      filterModel: {
+        keyword: '',
+        contactTitle: '',
+        customerType: '',
+        region: 'country:TW:%E5%8F%B0%E6%B9%BE',
+        status: null,
+        sourceTaskId: null,
+        updatedAtRange: null
+      }
+    });
+    assert.equal(params.region, undefined);
+    assert.equal(params.regionKeywords, '台湾');
+  });
+  it('builds expanded contact table state from cached account detail', () => {
+    const contact = createLeadContact({ id: 'contact-1', accountId: 'lead-1' });
+    const loadedView = buildLeadExpandedContactView({
+      accountId: 'lead-1',
+      detail: {
+        account: createLeadRecord({ id: 'lead-1' }),
+        contacts: [contact],
+        enrichmentHistories: [],
+        timelineEvents: []
+      },
+      loadingIds: [],
+      failedIds: []
+    });
+    assert.deepEqual(loadedView, {
+      status: 'loaded',
+      contacts: [contact]
+    });
+    assert.deepEqual(
+      buildLeadExpandedContactView({
+        accountId: 'lead-2',
+        detail: null,
+        loadingIds: ['lead-2'],
+        failedIds: []
+      }),
+      {
+        status: 'loading',
+        contacts: []
+      }
+    );
+    assert.deepEqual(
+      buildLeadExpandedContactView({
+        accountId: 'lead-3',
+        detail: null,
+        loadingIds: [],
+        failedIds: ['lead-3']
+      }),
+      {
+        status: 'error',
+        contacts: []
+      }
+    );
+  });
+  it('builds list-row contact display state from contact summary', () => {
+    const primaryContact = createLeadContact({ id: 'contact-1', accountId: 'lead-1' });
+    assert.deepEqual(buildLeadRowContactView(createLeadRecord({ contactCount: 0, primaryContact: null })), {
+      type: 'empty',
+      primaryContact: null
+    });
+    assert.deepEqual(buildLeadRowContactView(createLeadRecord({ contactCount: 1, primaryContact })), {
+      type: 'single',
+      primaryContact
+    });
+    assert.deepEqual(buildLeadRowContactView(createLeadRecord({ contactCount: 3, primaryContact })), {
+      type: 'multiple',
+      primaryContact,
+      count: 3
+    });
+  });
+  it('prevents starting sequences for unreachable or unsubscribed contacts', () => {
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'valid' })), true);
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'invalid' })), false);
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unreachable' })), false);
+    assert.equal(canCreateSequenceFromLeadContact(createLeadContact({ emailStatus: 'unsubscribed' })), false);
+  });
+  it('builds city region keyword params from cascader filters', () => {
+    const params = buildLeadSearchParams({
+      current: 1,
+      size: 10,
+      filterModel: {
+        keyword: '',
+        contactTitle: '',
+        customerType: '',
+        region: 'city:US:Los%20Angeles:Los%20Angeles',
+        status: null,
+        sourceTaskId: null,
+        updatedAtRange: null
+      }
+    });
+    assert.equal(params.region, undefined);
+    assert.equal(params.regionKeywords, 'Los Angeles');
+  });
 });
 function createTimelineEvent(input = {}) {
   return {
@@ -294,6 +421,26 @@ function createLeadRecord(input = {}) {
     archivedAt: input.archivedAt ?? null,
     archiveReason: input.archiveReason ?? null,
     archiveSlimmedAt: input.archiveSlimmedAt ?? null,
+    createdAt: input.createdAt ?? '2026-06-19T00:00:00.000Z',
+    updatedAt: input.updatedAt ?? '2026-06-19T00:00:00.000Z',
+    contactCount: input.contactCount ?? 0,
+    primaryContact: input.primaryContact ?? null
+  };
+}
+function createLeadContact(input = {}) {
+  return {
+    id: input.id ?? 'contact-1',
+    organizationId: input.organizationId ?? 'org-1',
+    accountId: input.accountId ?? 'lead-1',
+    ownerUserId: input.ownerUserId ?? 'user-1',
+    fullName: input.fullName ?? 'Alex Buyer',
+    title: input.title ?? 'Buyer',
+    email: input.email ?? 'alex@example.com',
+    emailHash: input.emailHash ?? 'hash-1',
+    maskedEmail: input.maskedEmail ?? 'a***@example.com',
+    isPublicEmail: input.isPublicEmail ?? false,
+    emailStatus: input.emailStatus ?? 'unchecked',
+    sourceTaskId: input.sourceTaskId ?? null,
     createdAt: input.createdAt ?? '2026-06-19T00:00:00.000Z',
     updatedAt: input.updatedAt ?? '2026-06-19T00:00:00.000Z'
   };

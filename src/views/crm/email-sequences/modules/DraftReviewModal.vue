@@ -16,6 +16,9 @@ import {
   canRegenerateAiDraft,
   canGenerateNextSequenceDraft,
   canOperateSelectedSequenceDraft,
+  canResumeSequence,
+  canRetryFirstMessageSend,
+  canReturnFirstMessageToEdit,
   isDraftBlockedBySequencePolicy,
   getMessageStatusView,
   type DraftReviewApprovePayload,
@@ -31,8 +34,11 @@ const props = defineProps<{
   nextDraftGenerating?: boolean;
   regenerating?: boolean;
   refreshing?: boolean;
+  returnEditing?: boolean;
   saving?: boolean;
   sendStarting?: boolean;
+  sendRetrying?: boolean;
+  sequenceResuming?: boolean;
   show: boolean;
   stopping?: boolean;
   versionLoading?: boolean;
@@ -45,7 +51,10 @@ const emit = defineEmits<{
   generateNextDraft: [];
   loadDraftVersions: [messageId: string | null];
   regenerateDraft: [];
+  resume: [];
   refresh: [];
+  returnToEdit: [];
+  retrySend: [];
   restoreDraftVersion: [payload: { messageId: string; versionId: string }];
   saveDraft: [payload: DraftReviewSavePayload];
   startSend: [];
@@ -145,6 +154,11 @@ const canStartSend = computed(() =>
   )
 );
 const canGenerateNextDraft = computed(() => Boolean(props.item && canGenerateNextSequenceDraft(props.item)));
+const canReturnToEdit = computed(() =>
+  Boolean(props.item && canReturnFirstMessageToEdit(props.item, currentMessage.value))
+);
+const canResume = computed(() => Boolean(props.item && canResumeSequence(props.item)));
+const canRetrySend = computed(() => Boolean(props.item && canRetryFirstMessageSend(props.item, currentMessage.value)));
 const policyReviewHints = computed(() =>
   props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
 );
@@ -278,22 +292,23 @@ const canStopSequence = computed(() =>
   )
 );
 const statusTip = computed(() => {
-  if (props.item?.enrollment.status === 'stopped') return '跟进已停止，旧发送任务会在执行前跳过';
-  if (!currentMessage.value) return '暂无草稿';
+  if (props.item?.enrollment.status === 'stopped') return '跟进已停止，如为误操作可恢复，已发出的邮件不会重复发送';
+  if (!currentMessage.value) return '暂无邮件';
   if (isCurrentDraftBlockedByPolicy.value) return '当前策略阻止新增链接，请删除草稿中的链接后再确认';
   if (!isFirstMessageSelected.value && currentMessage.value.status === 'draft_pending_review')
-    return '确认后会按计划时间进入发送队列';
-  if (currentMessage.value.status === 'draft_pending_review') return '开发信待人工确认后才能进入发送队列';
+    return '这封开发信还没发送，请确认内容；确认后会按计划时间等待发送';
+  if (currentMessage.value.status === 'draft_pending_review')
+    return '这封开发信还没发送，请确认内容；确认后会按发送规则安排发送';
   if (
     currentMessage.value.status === 'draft_ready' &&
     currentMessage.value.scheduledAt &&
     props.item?.enrollment.status === 'sequence_running'
   )
-    return '开发信已确认，等待发送调度器按计划入队';
-  if (currentMessage.value.status === 'draft_ready') return '开发信已确认，可以启动首封发送';
-  if (currentMessage.value.status === 'queued') return '开发信已进入发送队列';
+    return `开发信还没有发出，将在 ${formatSequenceDate(currentMessage.value.scheduledAt)} 自动发送`;
+  if (currentMessage.value.status === 'draft_ready') return '开发信已确认，可以安排发送';
+  if (currentMessage.value.status === 'queued') return '系统正在准备发送，请稍后查看结果';
   if (currentMessage.value.status === 'sent') return '开发信已发送';
-  if (currentMessage.value.status === 'failed') return '发送失败，重试操作暂未开放';
+  if (currentMessage.value.status === 'failed') return '发送失败，尚未成功发出，可修改后再发送或直接重试';
   if (currentMessage.value.status === 'skipped') return '开发信已跳过，不会继续发送';
   return '当前邮件不可发送';
 });
@@ -410,13 +425,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
 </script>
 
 <template>
-  <NModal
-    v-model:show="modalVisible"
-    preset="card"
-    title="开发信草稿审核"
-    class="draft-review-modal"
-    :mask-closable="false"
-  >
+  <NModal v-model:show="modalVisible" preset="card" title="确认发送" class="draft-review-modal" :mask-closable="false">
     <NSpin :show="loading">
       <NScrollbar class="draft-review-scroll">
         <div v-if="item" class="review-workbench">
@@ -466,7 +475,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               <div class="review-section">
                 <div class="section-heading">
                   <div>
-                    <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封草稿</div>
+                    <div class="section-title">第 {{ currentMessage?.stepIndex ?? 1 }} 封开发信</div>
                   </div>
                 </div>
                 <NAlert type="info" :bordered="false" class="status-alert">
@@ -505,13 +514,13 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               />
             </NCollapseItem>
 
-            <NCollapseItem title="发送安排" name="send-schedule">
+            <NCollapseItem title="发送计划" name="send-schedule">
               <NDescriptions :column="2" bordered size="small" label-placement="left">
                 <NDescriptionsItem label="运行版本">{{ item.enrollment.runVersion }}</NDescriptionsItem>
                 <NDescriptionsItem label="队列 Job">
                   {{ formatNullableText(currentMessage?.bullJobId) }}
                 </NDescriptionsItem>
-                <NDescriptionsItem label="计划发送">
+                <NDescriptionsItem label="计划发送时间">
                   {{ currentMessage?.scheduledAt ? formatSequenceDate(currentMessage.scheduledAt) : '-' }}
                 </NDescriptionsItem>
                 <NDescriptionsItem label="实际发送">
@@ -520,7 +529,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               </NDescriptions>
             </NCollapseItem>
 
-            <NCollapseItem title="发送前审核明细" name="send-audit">
+            <NCollapseItem title="发送条件" name="send-audit">
               <SendAuditPanel :item="item" :current-message="currentMessage" />
             </NCollapseItem>
 
@@ -562,26 +571,128 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
         <div class="modal-actions">
           <NButton
             v-if="canRefreshSequence"
-            :disabled="loading || saving || approving || sendStarting || stopping || nextDraftGenerating"
+            :disabled="
+              loading ||
+              saving ||
+              approving ||
+              sendStarting ||
+              sendRetrying ||
+              returnEditing ||
+              sequenceResuming ||
+              stopping ||
+              nextDraftGenerating
+            "
             :loading="refreshing"
             @click="emit('refresh')"
           >
             刷新状态
           </NButton>
+          <NPopconfirm
+            v-if="canResume"
+            positive-text="确认恢复跟进"
+            negative-text="取消"
+            @positive-click="emit('resume')"
+          >
+            <template #trigger>
+              <NButton
+                type="success"
+                secondary
+                :disabled="
+                  loading ||
+                  saving ||
+                  approving ||
+                  sendStarting ||
+                  sendRetrying ||
+                  returnEditing ||
+                  refreshing ||
+                  stopping ||
+                  nextDraftGenerating ||
+                  regenerating
+                "
+                :loading="sequenceResuming"
+              >
+                恢复跟进
+              </NButton>
+            </template>
+            恢复后不会重复发送已经发出的邮件；未发出的首封会回到待发送，可继续修改或发送。
+          </NPopconfirm>
           <NPopconfirm v-if="canStopSequence" positive-text="停止" negative-text="取消" @positive-click="emit('stop')">
             <template #trigger>
               <NButton
                 type="error"
                 secondary
                 :disabled="
-                  loading || saving || approving || sendStarting || refreshing || nextDraftGenerating || regenerating
+                  loading ||
+                  saving ||
+                  approving ||
+                  sendStarting ||
+                  sendRetrying ||
+                  returnEditing ||
+                  sequenceResuming ||
+                  refreshing ||
+                  nextDraftGenerating ||
+                  regenerating
                 "
                 :loading="stopping"
               >
                 停止跟进
               </NButton>
             </template>
-            停止后当前跟进不会继续发送，队列中的旧任务也会失效。
+            停止后未发出的邮件会取消发送，已发送历史会保留；如果是误操作，后续可以恢复跟进。
+          </NPopconfirm>
+          <NButton
+            v-if="canReturnToEdit"
+            type="primary"
+            secondary
+            :disabled="
+              loading ||
+              saving ||
+              approving ||
+              refreshing ||
+              sendStarting ||
+              sendRetrying ||
+              sequenceResuming ||
+              stopping ||
+              regenerating ||
+              versionRestoring ||
+              nextDraftGenerating ||
+              !currentMessage
+            "
+            :loading="returnEditing"
+            @click="emit('returnToEdit')"
+          >
+            修改后再发送
+          </NButton>
+          <NPopconfirm
+            v-if="canRetrySend"
+            positive-text="直接重试"
+            negative-text="取消"
+            @positive-click="emit('retrySend')"
+          >
+            <template #trigger>
+              <NButton
+                type="warning"
+                secondary
+                :disabled="
+                  loading ||
+                  saving ||
+                  approving ||
+                  refreshing ||
+                  sendStarting ||
+                  returnEditing ||
+                  sequenceResuming ||
+                  stopping ||
+                  regenerating ||
+                  versionRestoring ||
+                  nextDraftGenerating ||
+                  !currentMessage
+                "
+                :loading="sendRetrying"
+              >
+                直接重试
+              </NButton>
+            </template>
+            将使用当前邮件内容重新等待发送，不会重新生成正文。
           </NPopconfirm>
           <NButton
             v-if="canRegenerate"
@@ -591,6 +702,9 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               approving ||
               refreshing ||
               sendStarting ||
+              sendRetrying ||
+              returnEditing ||
+              sequenceResuming ||
               stopping ||
               versionRestoring ||
               nextDraftGenerating ||
@@ -608,6 +722,9 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               approving ||
               refreshing ||
               sendStarting ||
+              sendRetrying ||
+              returnEditing ||
+              sequenceResuming ||
               stopping ||
               regenerating ||
               versionRestoring ||
@@ -617,7 +734,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             :loading="saving"
             @click="handleSave"
           >
-            保存草稿
+            保存修改
           </NButton>
           <NButton
             v-if="canOperateSelectedDraft"
@@ -627,6 +744,9 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               saving ||
               refreshing ||
               sendStarting ||
+              sendRetrying ||
+              returnEditing ||
+              sequenceResuming ||
               stopping ||
               regenerating ||
               versionRestoring ||
@@ -637,15 +757,26 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             :loading="approving"
             @click="handleApprove"
           >
-            确认草稿
+            确认发送
           </NButton>
           <NButton
             v-if="canGenerateNextDraft"
-            :disabled="loading || saving || approving || refreshing || sendStarting || stopping || regenerating"
+            :disabled="
+              loading ||
+              saving ||
+              approving ||
+              refreshing ||
+              sendStarting ||
+              sendRetrying ||
+              returnEditing ||
+              sequenceResuming ||
+              stopping ||
+              regenerating
+            "
             :loading="nextDraftGenerating"
             @click="emit('generateNextDraft')"
           >
-            生成下一封草稿
+            生成下一封
           </NButton>
           <NButton
             v-if="canStartSend"
@@ -655,6 +786,9 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
               saving ||
               approving ||
               refreshing ||
+              sendRetrying ||
+              returnEditing ||
+              sequenceResuming ||
               stopping ||
               regenerating ||
               nextDraftGenerating ||
@@ -663,7 +797,7 @@ function findAiDraftStepPrompt(steps: Api.Crm.ProductLineAiWritingStepConfig[] |
             :loading="sendStarting"
             @click="emit('startSend')"
           >
-            启动发送
+            安排发送
           </NButton>
         </div>
       </div>

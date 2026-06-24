@@ -87,7 +87,21 @@ describe('PrismaCrmSendSchedulerStore', () => {
     };
     const prisma = createPrisma({
       mailboxDailyRows: [{ organizationId: 'org-1', mailboxId: 'mailbox-1', _count: { _all: 8 } }],
-      mailboxHourlyRows: [{ organizationId: 'org-1', mailboxId: 'mailbox-1', _count: { _all: 2 } }]
+      mailboxHourlyRows: [{ organizationId: 'org-1', mailboxId: 'mailbox-1', _count: { _all: 2 } }],
+      mailboxLatestScheduledRows: [
+        {
+          organizationId: 'org-1',
+          mailboxId: 'mailbox-1',
+          _max: { scheduledAt: new Date('2026-06-20T10:20:00.000Z') }
+        }
+      ],
+      mailboxLatestSentRows: [
+        {
+          organizationId: 'org-1',
+          mailboxId: 'mailbox-1',
+          _max: { sentAt: new Date('2026-06-20T10:10:00.000Z') }
+        }
+      ]
     });
     const store = new PrismaCrmSendSchedulerStore(prisma as never);
 
@@ -106,23 +120,27 @@ describe('PrismaCrmSendSchedulerStore', () => {
         organizationId: 'org-1',
         mailboxId: 'mailbox-1',
         dailyCount: 8,
-        hourlyCount: 2
+        hourlyCount: 2,
+        latestScheduledAt: new Date('2026-06-20T10:20:00.000Z')
       },
       {
         organizationId: 'org-1',
         mailboxId: 'mailbox-2',
         dailyCount: 0,
-        hourlyCount: 0
+        hourlyCount: 0,
+        latestScheduledAt: null
       }
     ]);
     assert.deepEqual(
-      prisma.crmMessage.groupByCalls.slice(-2).map(call => call.by),
+      prisma.crmMessage.groupByCalls.slice(-4).map(call => call.by),
       [
+        ['organizationId', 'mailboxId'],
+        ['organizationId', 'mailboxId'],
         ['organizationId', 'mailboxId'],
         ['organizationId', 'mailboxId']
       ]
     );
-    assert.deepEqual(prisma.crmMessage.groupByCalls.at(-2)?.where, {
+    assert.deepEqual(prisma.crmMessage.groupByCalls.at(-4)?.where, {
       AND: [
         {
           OR: [
@@ -284,6 +302,16 @@ function createPrisma(
       mailboxId: string;
       _count: { _all: number };
     }>;
+    mailboxLatestScheduledRows?: Array<{
+      organizationId: string;
+      mailboxId: string | null;
+      _max: { scheduledAt: Date | null };
+    }>;
+    mailboxLatestSentRows?: Array<{
+      organizationId: string;
+      mailboxId: string | null;
+      _max: { sentAt: Date | null };
+    }>;
     blacklistFindManyResults?: ReturnType<typeof createPrismaBlacklist>[];
   } = {}
 ) {
@@ -368,7 +396,8 @@ function createPrisma(
       groupByCalls: [] as Array<{
         by: string[];
         where: Record<string, unknown>;
-        _count: Record<string, unknown>;
+        _count?: Record<string, unknown>;
+        _max?: Record<string, unknown>;
       }>,
       updateManyAndReturnCalls: [] as Array<{
         where: Record<string, unknown>;
@@ -383,12 +412,27 @@ function createPrisma(
         this.findManyCalls.push(args);
         return messages.map(item => attachMessageRelations(item));
       },
-      async groupBy(args: { by: string[]; where: Record<string, unknown>; _count: Record<string, unknown> }) {
+      async groupBy(args: {
+        by: string[];
+        where: Record<string, unknown>;
+        _count?: Record<string, unknown>;
+        _max?: Record<string, unknown>;
+      }) {
         this.groupByCalls.push(args);
         if (args.by.includes('mailboxId')) {
           const mailboxGroupByCalls = this.groupByCalls.filter(call => call.by.includes('mailboxId')).length;
 
-          return mailboxGroupByCalls === 1 ? (options.mailboxDailyRows ?? []) : (options.mailboxHourlyRows ?? []);
+          if (mailboxGroupByCalls === 1) {
+            return options.mailboxDailyRows ?? [];
+          }
+          if (mailboxGroupByCalls === 2) {
+            return options.mailboxHourlyRows ?? [];
+          }
+          if (mailboxGroupByCalls === 3) {
+            return options.mailboxLatestScheduledRows ?? [];
+          }
+
+          return options.mailboxLatestSentRows ?? [];
         }
 
         if (args.by.includes('stepIndex')) {

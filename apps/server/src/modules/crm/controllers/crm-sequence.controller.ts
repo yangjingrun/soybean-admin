@@ -178,6 +178,21 @@ export class CrmSequenceController extends CrmControllerBase {
     return ok(await this.sequenceControlService.startFirstMessageSend(id, this.requireUserContext(context)));
   }
 
+  @Post('sequence-review-items/:id/return-to-edit')
+  async returnFirstMessageToEdit(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.sequenceControlService.returnFirstMessageToEdit(id, this.requireUserContext(context)));
+  }
+
+  @Post('sequence-review-items/:id/resume')
+  async resumeSequenceEnrollment(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.sequenceControlService.resumeSequenceEnrollment(id, this.requireUserContext(context)));
+  }
+
+  @Post('sequence-review-items/:id/retry-send')
+  async retryFirstMessageSend(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
+    return ok(await this.sequenceControlService.retryFirstMessageSend(id, this.requireUserContext(context)));
+  }
+
   @Post('sequence-review-items/:id/generate-next-draft')
   async generateNextDraft(@CurrentContext() context: CrmUserContext | null = null, @Param('id') id: string) {
     return ok(await this.nextDraftService.generateNextDraft(id, this.requireUserContext(context)));

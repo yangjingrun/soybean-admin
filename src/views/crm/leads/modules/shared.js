@@ -1,11 +1,12 @@
 import dayjs from 'dayjs';
+import { getCrmRegionKeywords } from '@/utils/crm-region-cascader';
 export const leadStatusOptions = [
   { label: '候选线索', value: 'candidate' },
   { label: '缺少联系人', value: 'missing_contact' },
   { label: '邮箱验证中', value: 'email_verification_pending' },
   { label: '待人工复核', value: 'manual_review_pending' },
   { label: '可触达', value: 'ready' },
-  { label: '开发信跟进中', value: 'sequence_running' },
+  { label: '开发中', value: 'sequence_running' },
   { label: '待处理回复', value: 'replied_pending' },
   { label: '已跟进', value: 'followed_up' },
   { label: '商机', value: 'opportunity' },
@@ -17,7 +18,7 @@ export const leadStatusOptions = [
 ];
 export const crmLeadPageGuide = {
   title: '客户管理承接 AI 获客结果',
-  description: '先补齐联系人和邮箱验证；可开发客户创建开发信，暂不开发客户会保留历史记录但移出日常跟进。'
+  description: '先补齐联系人和邮箱验证；可开发客户创建开发任务，暂不开发客户会保留历史记录但移出日常跟进。'
 };
 export const leadStatusLabelMap = {
   candidate: '候选线索',
@@ -25,7 +26,7 @@ export const leadStatusLabelMap = {
   email_verification_pending: '邮箱验证中',
   manual_review_pending: '待人工复核',
   ready: '可触达',
-  sequence_running: '开发信跟进中',
+  sequence_running: '开发中',
   replied_pending: '待处理回复',
   followed_up: '已跟进',
   opportunity: '商机',
@@ -82,13 +83,13 @@ const leadNextActionMap = {
     type: 'warning'
   },
   ready: {
-    label: '创建开发信',
-    description: '进入开发信跟进审核',
+    label: '创建开发任务',
+    description: '检查邮件后加入发送队列',
     type: 'success'
   },
   sequence_running: {
-    label: '查看开发信',
-    description: '跟踪当前开发信节奏',
+    label: '查看开发任务',
+    description: '检查待处理邮件和发送进度',
     type: 'primary'
   },
   replied_pending: {
@@ -184,8 +185,12 @@ const archivedFingerprintMatchedEventType = 'archived_fingerprint_matched';
 export function createDefaultLeadFilterModel() {
   return {
     keyword: '',
+    contactTitle: '',
+    customerType: '',
+    region: '',
     status: null,
-    sourceTaskId: null
+    sourceTaskId: null,
+    updatedAtRange: null
   };
 }
 /** Create the default manual lead import form model. */
@@ -259,8 +264,30 @@ export function buildLeadSearchParams(options) {
   if (keyword) {
     params.keyword = keyword;
   }
+  const contactTitle = filterModel.contactTitle?.trim();
+  if (contactTitle) {
+    params.contactTitle = contactTitle;
+  }
+  const customerType = filterModel.customerType?.trim();
+  if (customerType) {
+    params.customerType = customerType;
+  }
+  const region = filterModel.region?.trim();
+  if (region) {
+    const regionKeywords = getCrmRegionKeywords(region);
+    if (regionKeywords.length) {
+      params.regionKeywords = regionKeywords.join(',');
+    } else {
+      params.region = region;
+    }
+  }
   if (filterModel.status) {
     params.status = filterModel.status;
+  }
+  if (filterModel.updatedAtRange) {
+    const [start, end] = filterModel.updatedAtRange;
+    params.updatedFrom = dayjs(start).startOf('day').toISOString();
+    params.updatedTo = dayjs(end).endOf('day').toISOString();
   }
   const sourceTaskId = filterModel.sourceTaskId?.trim();
   if (sourceTaskId) {
@@ -292,6 +319,55 @@ export function buildLeadQueueStats(records, total) {
       value: records.filter(record => leadActiveStatuses.has(record.status)).length
     }
   ];
+}
+/** Derive the expanded contact table view from the cached account detail request state. */
+export function buildLeadExpandedContactView(options) {
+  if (options.loadingIds.includes(options.accountId)) {
+    return {
+      status: 'loading',
+      contacts: []
+    };
+  }
+  if (options.failedIds.includes(options.accountId)) {
+    return {
+      status: 'error',
+      contacts: []
+    };
+  }
+  if (options.detail) {
+    return {
+      status: 'loaded',
+      contacts: options.detail.contacts
+    };
+  }
+  return {
+    status: 'idle',
+    contacts: []
+  };
+}
+/** Decide how contacts should appear in one account list row. */
+export function buildLeadRowContactView(record) {
+  if (record.contactCount <= 0) {
+    return {
+      type: 'empty',
+      primaryContact: null
+    };
+  }
+  if (record.contactCount === 1 && record.primaryContact) {
+    return {
+      type: 'single',
+      primaryContact: record.primaryContact
+    };
+  }
+  return {
+    type: 'multiple',
+    primaryContact: record.primaryContact,
+    count: record.contactCount
+  };
+}
+/** Contacts that opted out or failed verification should not start new outreach. */
+export function canCreateSequenceFromLeadContact(contact) {
+  return !['invalid', 'unreachable', 'unsubscribed'].includes(contact.emailStatus);
 }
 /** Describe the next human action for one lead status. */
 export function getLeadNextAction(status) {

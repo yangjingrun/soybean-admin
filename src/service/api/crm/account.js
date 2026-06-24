@@ -7,6 +7,21 @@ export function fetchCrmAccounts(params) {
     params
   });
 }
+/** List countries that have persisted CRM GeoNames city rows. */
+export function fetchCrmGeoCountries() {
+  return request({
+    url: '/crm/geo/countries',
+    method: 'get'
+  });
+}
+/** List cities under one country from the persisted CRM GeoNames dictionary. */
+export function fetchCrmGeoCities(params) {
+  return request({
+    url: '/crm/geo/cities',
+    method: 'get',
+    params
+  });
+}
 /** Manually import one CRM lead into the current user's private lead library. */
 export function importCrmLead(data) {
   return request({

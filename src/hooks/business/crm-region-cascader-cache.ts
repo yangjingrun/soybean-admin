@@ -10,6 +10,7 @@ interface CrmRegionCatalogLoaders {
 }
 
 const cityLoadConcurrency = 4;
+
 let regionCatalogCache: CrmRegionCascaderOption[] | null = null;
 let regionCatalogLoadingPromise: Promise<CrmRegionCascaderOption[]> | null = null;
 const citySearchCache = new Map<string, Api.Crm.GeoCityOption[]>();
@@ -86,9 +87,7 @@ async function loadCrmRegionCatalog(loaders: CrmRegionCatalogLoaders) {
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(cityLoadConcurrency, countryOptions.length) }, () => runWorker())
-  );
+  await Promise.all(Array.from({ length: Math.min(cityLoadConcurrency, countryOptions.length) }, () => runWorker()));
 
   return countryOptions;
 }

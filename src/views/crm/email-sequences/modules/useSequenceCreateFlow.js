@@ -148,13 +148,17 @@ export function useSequenceCreateFlow(options) {
       message.warning('请选择客户和联系人');
       return;
     }
+    if (!createForm.mailboxId) {
+      message.warning('请选择发送邮箱');
+      return;
+    }
     createSubmitting.value = true;
     try {
       const { data, error } = await createCrmSequenceReviewItem(normalizeSequenceCreatePayload(createForm));
       if (error) {
         return;
       }
-      message.success('首封草稿已生成');
+      message.success('首封开发信已安排发送');
       notifyCrmWorkbenchChanged();
       createVisible.value = false;
       await options.onCreated(data.item);

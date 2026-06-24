@@ -172,6 +172,11 @@ export function useSequenceCreateFlow(options: UseSequenceCreateFlowOptions) {
       return;
     }
 
+    if (!createForm.mailboxId) {
+      message.warning('请选择发送邮箱');
+      return;
+    }
+
     createSubmitting.value = true;
 
     try {
@@ -181,7 +186,7 @@ export function useSequenceCreateFlow(options: UseSequenceCreateFlowOptions) {
         return;
       }
 
-      message.success('首封草稿已生成');
+      message.success('首封开发信已安排发送');
       notifyCrmWorkbenchChanged();
       createVisible.value = false;
       await options.onCreated(data.item);

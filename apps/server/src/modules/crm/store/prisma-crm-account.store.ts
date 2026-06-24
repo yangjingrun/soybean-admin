@@ -15,6 +15,7 @@ import {
 } from './prisma-crm-store.helpers';
 import type {
   CrmAccountCreateInput,
+  CrmAccountListRecord,
   CrmAccountStatus,
   CrmAccountUpdateInput,
   CrmArchiveSlimInput,
@@ -31,6 +32,17 @@ import type {
   CrmTimelineEventCreateInput
 } from '../crm.types';
 import type { CrmAccountRepository } from '../accounts/crm-account.repository';
+
+type PrismaAccountListRecord = Prisma.CrmAccountGetPayload<{
+  include: {
+    _count: {
+      select: {
+        contacts: true;
+      };
+    };
+    contacts: true;
+  };
+}>;
 
 @Injectable()
 export class PrismaCrmAccountStore implements CrmAccountRepository {
@@ -372,6 +384,17 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
     const [records, total] = await Promise.all([
       this.prisma.crmAccount.findMany({
         where,
+        include: {
+          _count: {
+            select: {
+              contacts: true
+            }
+          },
+          contacts: {
+            orderBy: { createdAt: 'asc' },
+            take: 1
+          }
+        },
         skip: args.skip,
         take: args.take,
         orderBy: { updatedAt: 'desc' }
@@ -380,7 +403,7 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
     ]);
 
     return {
-      records: records.map(toAccountRecord),
+      records: records.map(toAccountListRecord),
       total
     };
   }
@@ -454,4 +477,14 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
 
 function toUniqueValues(values: string[]) {
   return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)));
+}
+
+function toAccountListRecord(record: PrismaAccountListRecord): CrmAccountListRecord {
+  const { _count, contacts, ...account } = record;
+
+  return {
+    ...toAccountRecord(account),
+    contactCount: _count.contacts,
+    primaryContact: contacts[0] ? toContactRecord(contacts[0]) : null
+  };
 }

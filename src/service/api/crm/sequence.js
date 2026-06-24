@@ -30,6 +30,13 @@ export function updateCrmMessageDraft(id, data) {
     data
   });
 }
+/** Regenerate one owner draft from the configured AI writing prompt. */
+export function regenerateCrmMessageAiDraft(id) {
+  return request({
+    url: `/crm/messages/${id}/regenerate-ai-draft`,
+    method: 'post'
+  });
+}
 /** List saved version snapshots for one owner draft message. */
 export function fetchCrmMessageDraftVersions(id) {
   return request({
@@ -129,6 +136,27 @@ export function batchApproveCrmMessageDrafts(data) {
 export function startCrmFirstMessageSend(enrollmentId) {
   return request({
     url: `/crm/sequence-review-items/${enrollmentId}/start-send`,
+    method: 'post'
+  });
+}
+/** Return an unsent first message to editable review state. */
+export function returnCrmFirstMessageToEdit(enrollmentId) {
+  return request({
+    url: `/crm/sequence-review-items/${enrollmentId}/return-to-edit`,
+    method: 'post'
+  });
+}
+/** Resume one stopped CRM sequence without duplicating sent messages. */
+export function resumeCrmSequenceEnrollment(enrollmentId) {
+  return request({
+    url: `/crm/sequence-review-items/${enrollmentId}/resume`,
+    method: 'post'
+  });
+}
+/** Send an unsent first message back to the CRM send scheduler. */
+export function retryCrmFirstMessageSend(enrollmentId) {
+  return request({
+    url: `/crm/sequence-review-items/${enrollmentId}/retry-send`,
     method: 'post'
   });
 }

@@ -7,14 +7,11 @@ import {
   formatNullableText,
   formatSequenceDate,
   getCurrentSequenceMessage,
-  getMessageStatusView,
   getNextScheduledReviewMessage,
   getSequenceNextAction,
   getSequenceProgressText,
   getSequenceSendAuditSummary,
   sequenceBatchResultDisplayKey,
-  sequenceStatusLabelMap,
-  sequenceStatusTagTypeMap,
   summarizeSequenceBatchSelection
 } from './shared';
 
@@ -75,7 +72,24 @@ const batchSelectionSummary = computed(() => {
 
   return summarizeSequenceBatchSelection(selectedRecords);
 });
-const tableScrollX = computed(() => (recentBatchResultItems.value.length > 0 ? 1670 : 1470));
+const tableScrollX = computed(() => (recentBatchResultItems.value.length > 0 ? 1770 : 1530));
+
+const sequenceCellStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+  minWidth: 0
+};
+const sequencePrimaryTextStyle = {
+  color: 'var(--n-text-color)',
+  fontWeight: 500,
+  lineHeight: '18px'
+};
+const sequenceSecondaryTextStyle = {
+  color: 'var(--n-text-color-3)',
+  fontSize: '12px',
+  lineHeight: '16px'
+};
 
 const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
   const tableColumns: DataTableColumns<Api.Crm.SequenceReviewItem> = [
@@ -84,39 +98,27 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
       width: 48
     },
     {
-      key: 'account',
-      title: '客户',
-      minWidth: 220,
+      key: 'customerContact',
+      title: '客户 / 联系人',
+      minWidth: 300,
       render: row =>
-        h('div', { class: 'sequence-cell' }, [
-          h('span', { class: 'sequence-primary-text' }, row.account.name),
-          h('span', { class: 'sequence-secondary-text' }, formatNullableText(row.account.domain))
+        h('div', { class: 'sequence-cell', style: sequenceCellStyle }, [
+          h('span', { class: 'sequence-primary-text', style: sequencePrimaryTextStyle }, row.account.name),
+          h(
+            'span',
+            { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle },
+            `${row.contact.fullName || '-'} · ${row.contact.title || row.contact.maskedEmail}`
+          ),
+          h(
+            'span',
+            { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle },
+            formatNullableText(row.account.domain)
+          )
         ])
-    },
-    {
-      key: 'contact',
-      title: '联系人',
-      minWidth: 180,
-      render: row =>
-        h('div', { class: 'sequence-cell' }, [
-          h('span', { class: 'sequence-primary-text' }, row.contact.fullName || '-'),
-          h('span', { class: 'sequence-secondary-text' }, row.contact.title || row.contact.maskedEmail)
-        ])
-    },
-    {
-      key: 'status',
-      title: '跟进状态',
-      width: 120,
-      render: row =>
-        h(
-          NTag,
-          { bordered: false, size: 'small', type: sequenceStatusTagTypeMap[row.enrollment.status] },
-          { default: () => sequenceStatusLabelMap[row.enrollment.status] }
-        )
     },
     {
       key: 'progress',
-      title: '开发信进度',
+      title: '跟进进度',
       width: 130,
       render: row => getSequenceProgressText(row.enrollment)
     },
@@ -131,42 +133,27 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
           return '-';
         }
 
-        const messageStatusView = getMessageStatusView(currentMessage, row.enrollment.status);
-
-        return h('div', { class: 'sequence-cell' }, [
-          h('span', { class: 'sequence-primary-text' }, currentMessage.subject),
-          h(
-            NTag,
-            { bordered: false, size: 'small', type: messageStatusView.tagType },
-            { default: () => messageStatusView.label }
-          )
-        ]);
+        return h('span', { class: 'sequence-primary-text', style: sequencePrimaryTextStyle }, currentMessage.subject);
       }
     },
     {
-      key: 'checklist',
-      title: '发送审核',
-      minWidth: 180,
+      key: 'sendStatus',
+      title: '发送状态',
+      width: 120,
+      render: row => {
+        const status = getSequenceNextAction(row);
+
+        return h(NTag, { bordered: false, size: 'small', type: status.tagType }, { default: () => status.label });
+      }
+    },
+    {
+      key: 'sendAudit',
+      title: '发送条件',
+      width: 130,
       render: row => {
         const summary = getSequenceSendAuditSummary(row);
 
-        return h('div', { class: 'sequence-cell' }, [
-          h(NTag, { bordered: false, size: 'small', type: summary.tagType }, { default: () => summary.label }),
-          h('span', { class: 'sequence-secondary-text' }, summary.description)
-        ]);
-      }
-    },
-    {
-      key: 'nextAction',
-      title: '下一步',
-      minWidth: 190,
-      render: row => {
-        const nextAction = getSequenceNextAction(row);
-
-        return h('div', { class: 'sequence-cell' }, [
-          h(NTag, { bordered: false, size: 'small', type: nextAction.tagType }, { default: () => nextAction.label }),
-          h('span', { class: 'sequence-secondary-text' }, nextAction.description)
-        ]);
+        return h(NTag, { bordered: false, size: 'small', type: summary.tagType }, { default: () => summary.label });
       }
     }
   ];
@@ -184,18 +171,20 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
             return '-';
           }
 
-          return h('div', { class: 'sequence-cell' }, [
+          return h('div', { class: 'sequence-cell', style: sequenceCellStyle }, [
             h('div', { class: 'sequence-result-line' }, [
               h(NTag, { bordered: false, size: 'small', type: result.tagType }, { default: () => result.statusLabel }),
-              result.stepText ? h('span', { class: 'sequence-secondary-text' }, result.stepText) : null
+              result.stepText
+                ? h('span', { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle }, result.stepText)
+                : null
             ]),
-            h('span', { class: 'sequence-secondary-text' }, result.message)
+            h('span', { class: 'sequence-secondary-text', style: sequenceSecondaryTextStyle }, result.message)
           ]);
         }
       },
       {
         key: 'nextScheduledAt',
-        title: '下一封计划发送',
+        title: '计划发送时间',
         width: 170,
         render: row => {
           const nextMessage = getNextScheduledReviewMessage(row.messages);
@@ -207,7 +196,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
   } else {
     tableColumns.push({
       key: 'nextScheduledAt',
-      title: '下一封计划发送',
+      title: '计划发送时间',
       width: 170,
       render: row => {
         const nextMessage = getNextScheduledReviewMessage(row.messages);
@@ -219,10 +208,10 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
 
   tableColumns.push(
     {
-      key: 'updatedAt',
-      title: '更新时间',
+      key: 'createdAt',
+      title: '创建时间',
       width: 170,
-      render: row => formatSequenceDate(row.enrollment.updatedAt)
+      render: row => formatSequenceDate(row.enrollment.createdAt)
     },
     {
       key: 'operate',
@@ -237,7 +226,7 @@ const columns = computed<DataTableColumns<Api.Crm.SequenceReviewItem>>(() => {
           {
             size: 'small',
             text: true,
-            type: ['启动', '生成'].includes(nextAction.buttonLabel) ? 'success' : 'primary',
+            type: ['安排发送', '启动', '生成', '恢复'].includes(nextAction.buttonLabel) ? 'success' : 'primary',
             onClick: () => emit('review', row)
           },
           { default: () => nextAction.buttonLabel }
@@ -255,7 +244,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper" title="开发信跟进任务">
+  <NCard :bordered="false" size="small" class="card-wrapper" title="开发信任务">
     <template #header-extra>
       <NSpace align="center" :size="8">
         <NText v-if="batchSelectionSummary.selectedCount > 0" depth="3">
@@ -270,7 +259,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
           :loading="batchDraftApproving"
           @click="emit('batchApproveDrafts')"
         >
-          批量确认开发信
+          批量确认发送
         </NButton>
         <NButton
           size="small"
@@ -334,7 +323,7 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
       @update:page-size="emit('updatePageSize', $event)"
     >
       <template #empty>
-        <NEmpty description="暂无开发信跟进任务" />
+        <NEmpty description="暂无开发信任务" />
       </template>
     </NDataTable>
   </NCard>

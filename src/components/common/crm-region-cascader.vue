@@ -15,7 +15,7 @@ const props = withDefaults(
   {
     modelValue: '',
     disabled: false,
-    placeholder: '国家 / 地区 / 城市'
+    placeholder: '国家 / 省州'
   }
 );
 
@@ -23,19 +23,14 @@ const emit = defineEmits<{
   'update:modelValue': [value: string];
 }>();
 
-const {
-  clearRegionSearch,
-  filterCrmRegionOption,
-  handleRegionDropdownShow,
-  regionLoading,
-  regionOptions
-} = useCrmRegionCascader();
+const { clearRegionSearch, filterCrmRegionOption, handleRegionDropdownShow, regionLoading, regionOptions } =
+  useCrmRegionCascader();
 
 const cascaderValue = computed(() => props.modelValue || null);
 const cascaderDisabled = computed(() => props.disabled || regionLoading.value);
 const cascaderShow = shallowRef(false);
 const dropdownStyle = {
-  // 国家-地区-城市层级较长，放大弹层高度减少滚动成本。
+  // 国家-省州列表较长，放大弹层高度减少滚动成本。
   '--n-menu-height': 'min(72vh, 560px)'
 } as CSSProperties;
 const dropdownMenuProps = {

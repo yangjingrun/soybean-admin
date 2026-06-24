@@ -1369,6 +1369,29 @@ describe('CRM split controllers', () => {
 
         return createSendStartView({ id });
       },
+      async returnFirstMessageToEdit(id, context) {
+        calls.push({ action: 'return-to-edit', id, context });
+
+        return {
+          ...createSendStartView({ id }),
+          enrollment: createEnrollmentView({ id, status: 'draft_review_pending' }),
+          message: createMessageView({ status: 'draft_pending_review' })
+        };
+      },
+      async resumeSequenceEnrollment(id, context) {
+        calls.push({ action: 'resume', id, context });
+
+        return {
+          ...createSequenceStopView({ id }),
+          enrollment: createEnrollmentView({ id, status: 'ready_to_send' }),
+          message: createMessageView({ status: 'draft_ready' })
+        };
+      },
+      async retryFirstMessageSend(id, context) {
+        calls.push({ action: 'retry-send', id, context });
+
+        return createSendStartView({ id });
+      },
       async generateNextDraft(id, context) {
         calls.push({ action: 'generate-next-draft', id, context });
 
@@ -1395,12 +1418,18 @@ describe('CRM split controllers', () => {
     });
     const approved = await controller.approveMessageDraft(createContext(), 'message-1');
     const queued = await controller.startFirstMessageSend(createContext(), 'enrollment-1');
+    const returned = await controller.returnFirstMessageToEdit(createContext(), 'enrollment-1');
+    const resumed = await controller.resumeSequenceEnrollment(createContext(), 'enrollment-1');
+    const retried = await controller.retryFirstMessageSend(createContext(), 'enrollment-1');
     const generated = await controller.generateNextDraft(createContext(), 'enrollment-1');
     const stopped = await controller.stopSequenceEnrollment(createContext(), 'enrollment-1');
 
     assert.equal(updated.data.message.subject, 'Hello');
     assert.equal(approved.data.enrollment.status, 'ready_to_send');
     assert.equal(queued.data.message.status, 'queued');
+    assert.equal(returned.data.message.status, 'draft_pending_review');
+    assert.equal(resumed.data.enrollment.status, 'ready_to_send');
+    assert.equal(retried.data.enrollment.status, 'sequence_running');
     assert.equal(generated.data.enrollment.status, 'ready_to_send');
     assert.equal(generated.data.message.stepIndex, 2);
     assert.equal(stopped.data.enrollment.status, 'stopped');
@@ -1410,6 +1439,9 @@ describe('CRM split controllers', () => {
         ['update', 'message-1', 'org-1'],
         ['approve', 'message-1', 'org-1'],
         ['start-send', 'enrollment-1', 'org-1'],
+        ['return-to-edit', 'enrollment-1', 'org-1'],
+        ['resume', 'enrollment-1', 'org-1'],
+        ['retry-send', 'enrollment-1', 'org-1'],
         ['generate-next-draft', 'enrollment-1', 'org-1'],
         ['stop', 'enrollment-1', 'org-1']
       ]
@@ -2505,6 +2537,8 @@ function createWorkbenchOverviewView(overrides: Partial<CrmWorkbenchOverviewView
     generatedAt: new Date('2026-06-20T09:00:00.000Z'),
     today: {
       sentCount: 12,
+      scheduledTodayCount: 9,
+      scheduledTomorrowCount: 6,
       queuedCount: 4,
       failedCount: 1,
       pendingReplyCount: 3,
