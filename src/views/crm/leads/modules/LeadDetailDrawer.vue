@@ -11,6 +11,7 @@ import {
   canCreateSequenceFromLeadContact,
   formatArchivedFingerprintTypeLabel,
   formatLeadDate,
+  formatLeadProgressTime,
   formatLeadText,
   formatLeadTimelineTitle,
   getArchivedFingerprintMatchEvents,
@@ -86,6 +87,12 @@ interface CommunicationMetric {
   tagType?: NaiveUI.ThemeColor;
 }
 
+interface ScheduleDigest {
+  firstSentTime: string;
+  replyTime: string;
+  stopReason: string;
+}
+
 const modalVisible = computed({
   get: () => props.show,
   set: value => emit('update:show', value)
@@ -143,6 +150,13 @@ const archivedMatchCount = computed(() =>
   archivedMatchGroups.value.reduce((total, group) => total + group.matches.length, 0)
 );
 const contactModalTitle = computed(() => (contactEditingId.value ? '编辑联系人' : '新增联系人'));
+const selectedContactTimelineEvents = computed(() => {
+  const contactId = selectedContact.value?.id;
+
+  if (!contactId) return [];
+
+  return timelineEvents.value.filter(event => event.contactId === contactId);
+});
 const communicationHealth = computed(() => {
   const status = account.value?.status;
 
@@ -198,19 +212,65 @@ const sequenceSummary = computed(() => {
 
   return nextAction.value?.description ?? '暂无开发信进度。';
 });
-const scheduleSummary = computed(() => {
-  const progress = selectedContactProgress.value;
+const scheduleDigest = computed<ScheduleDigest>(() => {
+  const contact = selectedContact.value;
+  const events = selectedContactTimelineEvents.value;
+  const firstSentEvent = findEarliestTimelineEvent(events, event => event.eventType === 'message_sent');
+  const replyEvent = findLatestTimelineEvent(events, event =>
+    ['customer_replied', 'customer_reply_received', 'customer_unsubscribed', 'email_bounced'].includes(event.eventType)
+  );
+  const stoppedEvent = findLatestTimelineEvent(events, event => event.eventType === 'sequence_stopped');
+  const firstSentAt =
+    firstSentEvent?.createdAt ??
+    (contact?.emailProgressStatus === 'sent' && contact.emailProgressStepIndex === 1 ? contact.emailProgressAt : null);
 
-  if (progress) return `${selectedContact.value?.fullName || selectedContact.value?.maskedEmail || '当前联系人'}：${progress.label}${progress.timeText === '-' ? '' : ` · ${progress.timeText}`}`;
-
-  const status = account.value?.status;
-
-  if (status === 'sequence_running') return '调度详情需要读取当前开发信任务，建议从开发信任务列表进入同一客户沟通弹窗。';
-  if (status === 'replied_pending') return '客户回复后，后续 draft_ready/queued 邮件会被跳过，不再继续发送。';
-  if (status === 'ready') return '创建首封开发信后，系统会按客户时区、发送窗口和同邮箱错峰写入计划发送时间。';
-
-  return '当前客户暂无待展示的发送调度。';
+  return {
+    firstSentTime: firstSentAt ? formatLeadDate(firstSentAt) : '-',
+    replyTime: replyEvent?.createdAt
+      ? formatLeadDate(replyEvent.createdAt)
+      : contact?.emailProgressStatus === 'replied'
+        ? formatLeadProgressTime(contact.emailProgressAt)
+        : '-',
+    stopReason: resolveScheduleStopReason({ contact, replyEvent, stoppedEvent })
+  };
 });
+
+/** Find the newest timeline event that matches a business predicate. */
+function findLatestTimelineEvent(
+  events: Api.Crm.LeadTimelineEvent[],
+  predicate: (event: Api.Crm.LeadTimelineEvent) => boolean
+) {
+  return events
+    .filter(predicate)
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+}
+
+/** Find the oldest timeline event that matches a business predicate. */
+function findEarliestTimelineEvent(
+  events: Api.Crm.LeadTimelineEvent[],
+  predicate: (event: Api.Crm.LeadTimelineEvent) => boolean
+) {
+  return events
+    .filter(predicate)
+    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())[0];
+}
+
+/** Resolve the user-facing stop reason without exposing internal queue rules. */
+function resolveScheduleStopReason(input: {
+  contact: Api.Crm.LeadContact | null;
+  replyEvent?: Api.Crm.LeadTimelineEvent;
+  stoppedEvent?: Api.Crm.LeadTimelineEvent;
+}) {
+  if (input.replyEvent?.eventType === 'customer_unsubscribed') return '客户退订，已停止后续发送';
+  if (input.replyEvent?.eventType === 'email_bounced') return '邮件退信，已停止后续发送';
+  if (input.replyEvent) return '客户已回复，已停止后续发送';
+  if (input.stoppedEvent) return '人工停止开发信序列';
+  if (input.contact?.emailStatus === 'unsubscribed') return '客户退订，已停止后续发送';
+  if (input.contact?.emailProgressStatus === 'skipped') return '后续邮件已跳过';
+  if (input.contact?.emailProgressStatus === 'replied') return '客户已回复，已停止后续发送';
+
+  return '未触发停止';
+}
 
 /** Check whether the current contact already has an email verification request in flight. */
 function isContactVerifying(contactId: string) {
@@ -760,39 +820,11 @@ function handleSelectCommunicationContact(contactId: string) {
                 </div>
               </div>
               <div class="drawer-section">
-                <div class="section-title">邮件调度</div>
-                <NAlert type="info" :bordered="false">{{ scheduleSummary }}</NAlert>
-                <NTimeline>
-                  <NTimelineItem
-                    title="当前邮箱进度"
-                    :content="selectedContactProgress?.label ?? '首封待生成'"
-                    :time="selectedContactProgress?.timeText === '-' ? undefined : selectedContactProgress?.timeText"
-                    :type="selectedContact?.emailProgressStatus === 'failed' ? 'error' : 'info'"
-                  />
-                  <NTimelineItem
-                    title="后续调度规则"
-                    content="按客户时区、全局发送窗口和同邮箱错峰计算"
-                    type="default"
-                  />
-                  <NTimelineItem
-                    title="停止条件"
-                    content="客户回复或确认退订后跳过后续待发送邮件"
-                    type="warning"
-                  />
-                </NTimeline>
-              </div>
-              <div class="drawer-section side-action-panel">
-                <div class="section-title">调度信息</div>
+                <div class="section-title">调度摘要</div>
                 <NDescriptions :column="1" label-placement="left" bordered size="small">
-                  <NDescriptionsItem label="当前联系人">
-                    {{ selectedContact?.fullName || selectedContact?.maskedEmail || '-' }}
-                  </NDescriptionsItem>
-                  <NDescriptionsItem label="联系人邮箱">{{ formatLeadText(selectedContact?.maskedEmail) }}</NDescriptionsItem>
-                  <NDescriptionsItem label="客户时区">{{ formatLeadText(account.timeZone) }}</NDescriptionsItem>
-                  <NDescriptionsItem label="地区">{{ [account.country, account.city].filter(Boolean).join(' / ') || '-' }}</NDescriptionsItem>
-                  <NDescriptionsItem label="消息 ID">
-                    {{ formatLeadText(selectedContact?.emailProgressMessageId) }}
-                  </NDescriptionsItem>
+                  <NDescriptionsItem label="第一封发送时间">{{ scheduleDigest.firstSentTime }}</NDescriptionsItem>
+                  <NDescriptionsItem label="客户回复时间">{{ scheduleDigest.replyTime }}</NDescriptionsItem>
+                  <NDescriptionsItem label="停止原因">{{ scheduleDigest.stopReason }}</NDescriptionsItem>
                 </NDescriptions>
               </div>
             </div>
@@ -1122,7 +1154,7 @@ function handleSelectCommunicationContact(contactId: string) {
 }
 
 .schedule-workspace {
-  grid-template-columns: 240px minmax(0, 1fr) minmax(280px, 0.36fr);
+  grid-template-columns: 240px minmax(0, 1fr);
 }
 
 .profile-tab-content {
