@@ -2,6 +2,7 @@
 import { reactive, ref, watch } from 'vue';
 import type { FormInst, FormRules } from 'naive-ui';
 import { normalizeLeadImportPayload } from './shared';
+import { useLeadLocationOptions } from './useLeadLocationOptions';
 
 const visible = defineModel<boolean>('visible', { required: true });
 const formModel = defineModel<Api.Crm.LeadImportFormModel>('modelValue', { required: true });
@@ -15,6 +16,17 @@ const emit = defineEmits<{
 }>();
 
 const formRef = ref<FormInst | null>(null);
+const {
+  countryLoading,
+  cityLoading,
+  countryOptions,
+  cityOptions,
+  selectedCountryCode,
+  hasSelectedCountry,
+  loadCities,
+  handleCountryChange,
+  handleCityChange
+} = useLeadLocationOptions(formModel, visible);
 const rules = reactive<FormRules>({
   name: [
     {
@@ -65,8 +77,27 @@ async function handleSubmit() {
         <NGi span="24 m:12">
           <NFormItem label="地区">
             <NInputGroup>
-              <NInput v-model:value="formModel.country" clearable placeholder="国家/地区" />
-              <NInput v-model:value="formModel.city" clearable placeholder="城市" />
+              <NSelect
+                v-model:value="selectedCountryCode"
+                clearable
+                filterable
+                :loading="countryLoading"
+                :options="countryOptions"
+                placeholder="国家/地区"
+                @update:value="handleCountryChange"
+              />
+              <NSelect
+                v-model:value="formModel.city"
+                clearable
+                filterable
+                remote
+                :disabled="!hasSelectedCountry"
+                :loading="cityLoading"
+                :options="cityOptions"
+                placeholder="城市"
+                @search="loadCities"
+                @update:value="handleCityChange"
+              />
             </NInputGroup>
           </NFormItem>
         </NGi>
@@ -74,12 +105,6 @@ async function handleSubmit() {
         <NGi span="24">
           <NFormItem label="地址">
             <NInput v-model:value="formModel.address" clearable />
-          </NFormItem>
-        </NGi>
-
-        <NGi span="24 m:12">
-          <NFormItem label="时区">
-            <NInput v-model:value="formModel.timeZone" clearable placeholder="留空自动识别，如 Asia/Riyadh" />
           </NFormItem>
         </NGi>
 

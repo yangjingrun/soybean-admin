@@ -26,6 +26,7 @@ import { CrmDraftApprovalService } from '../sequence/crm-draft-approval.service'
 import { CrmDraftPreviewService } from '../sequence/crm-draft-preview.service';
 import { CrmDraftService } from '../sequence/crm-draft.service';
 import { CrmFollowUpApprovalService } from '../sequence/crm-follow-up-approval.service';
+import { CrmGeoCatalogService } from '../geo/crm-geo-catalog.service';
 import { CrmGeoTimezoneService } from '../geo/crm-geo-timezone.service';
 import { CrmMessageDraftApprovalRouterService } from '../sequence/crm-message-draft-approval-router.service';
 import { CrmNextDraftService } from '../sequence/crm-next-draft.service';
@@ -43,7 +44,7 @@ import { CrmTrackingService } from '../tracking/crm-tracking.service';
 import { CrmTrackingTokenService } from '../tracking/crm-tracking-token.service';
 
 export const crmBusinessDomainProviders = {
-  lead: [CrmAccountService, CrmArchiveSlimmingService, CrmDashboardService, CrmGeoTimezoneService],
+  lead: [CrmAccountService, CrmArchiveSlimmingService, CrmDashboardService, CrmGeoCatalogService, CrmGeoTimezoneService],
   settingsCatalog: [
     CrmSettingsService,
     CrmProductLineService,

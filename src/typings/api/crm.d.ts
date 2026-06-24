@@ -166,6 +166,25 @@ declare namespace Api {
       updatedAtRange: [number, number] | null;
     }
 
+    interface GeoCountryOption {
+      code: string;
+      label: string;
+      cityCount: number;
+    }
+
+    interface GeoCityOption {
+      name: string;
+      asciiName: string | null;
+      countryCode: string;
+      timeZone: string;
+    }
+
+    interface GeoCitySearchParams {
+      countryCode: string;
+      keyword?: string;
+      limit?: number;
+    }
+
     interface LeadImportContactPayload {
       fullName?: string;
       title?: string;
