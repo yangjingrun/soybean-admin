@@ -1,4 +1,12 @@
 import { request } from '../../request';
+import {
+  buildBatchGenerateCrmNextSequenceDraftsRequestConfig,
+  buildCreateCrmAiDraftTaskRequestConfig,
+  buildCreateCrmFirstOutreachAiDraftTaskRequestConfig,
+  buildGenerateCrmNextSequenceDraftRequestConfig,
+  buildRegenerateCrmMessageAiDraftRequestConfig,
+  buildRetryFailedCrmAiDraftTaskRequestConfig
+} from './sequence.shared';
 
 /** List sequence review items by filters and pagination. */
 export function fetchCrmSequenceReviewItems(params: Api.Crm.SequenceReviewSearchParams) {
@@ -37,10 +45,7 @@ export function updateCrmMessageDraft(id: string, data: Api.Crm.MessageDraftPayl
 
 /** Regenerate one owner draft from the configured AI writing prompt. */
 export function regenerateCrmMessageAiDraft(id: string) {
-  return request<Api.Crm.MessageDraftUpdateResult>({
-    url: `/crm/messages/${id}/regenerate-ai-draft`,
-    method: 'post'
-  });
+  return request<Api.Crm.MessageDraftUpdateResult>(buildRegenerateCrmMessageAiDraftRequestConfig(id));
 }
 
 /** List saved version snapshots for one owner draft message. */
@@ -69,37 +74,24 @@ export function approveCrmMessageDraft(id: string) {
 
 /** Generate the next local follow-up draft for one sequence without queueing it. */
 export function generateCrmNextSequenceDraft(enrollmentId: string) {
-  return request<Api.Crm.MessageNextDraftGenerateResult>({
-    url: `/crm/sequence-review-items/${enrollmentId}/generate-next-draft`,
-    method: 'post'
-  });
+  return request<Api.Crm.MessageNextDraftGenerateResult>(
+    buildGenerateCrmNextSequenceDraftRequestConfig(enrollmentId)
+  );
 }
 
 /** Generate next local follow-up drafts for selected sequences without queueing Gmail sends. */
 export function batchGenerateCrmNextSequenceDrafts(data: Api.Crm.SequenceReviewBatchPayload) {
-  return request<Api.Crm.SequenceBatchOperateResult>({
-    url: '/crm/sequence-review-items/batch-generate-next-draft',
-    method: 'post',
-    data
-  });
+  return request<Api.Crm.SequenceBatchOperateResult>(buildBatchGenerateCrmNextSequenceDraftsRequestConfig(data));
 }
 
 /** Create one background CRM AI draft task for selected sequences without sending Gmail. */
 export function createCrmAiDraftTask(data: Api.Crm.CreateAiDraftTaskPayload) {
-  return request<Api.Crm.AiDraftTaskDetail>({
-    url: '/crm/ai-draft-tasks',
-    method: 'post',
-    data
-  });
+  return request<Api.Crm.AiDraftTaskDetail>(buildCreateCrmAiDraftTaskRequestConfig(data));
 }
 
 /** Create one background CRM AI draft task for first outreach emails. */
 export function createCrmFirstOutreachAiDraftTask(data: Api.Crm.CreateFirstOutreachAiDraftTaskPayload) {
-  return request<Api.Crm.AiDraftTaskDetail>({
-    url: '/crm/ai-draft-tasks/first-outreach',
-    method: 'post',
-    data
-  });
+  return request<Api.Crm.AiDraftTaskDetail>(buildCreateCrmFirstOutreachAiDraftTaskRequestConfig(data));
 }
 
 /** Read the current active or unread CRM AI draft task for the owner. */
@@ -129,10 +121,7 @@ export function fetchCrmAiDraftTaskDetail(id: string) {
 
 /** Retry retryable failed items for one CRM AI draft task. */
 export function retryFailedCrmAiDraftTask(id: string) {
-  return request<Api.Crm.AiDraftTaskDetail>({
-    url: `/crm/ai-draft-tasks/${id}/retry-failed`,
-    method: 'post'
-  });
+  return request<Api.Crm.AiDraftTaskDetail>(buildRetryFailedCrmAiDraftTaskRequestConfig(id));
 }
 
 /** Cancel one queued or running CRM AI draft task. */
