@@ -68,10 +68,21 @@ const stepCount = computed(() => props.steps.length);
 <style scoped>
 .prompt-step-panel {
   height: calc(100vh - 168px);
+  overflow: hidden;
+}
+
+.prompt-step-panel :deep(.n-card__content) {
+  display: flex;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .prompt-step-panel__header {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -86,7 +97,9 @@ const stepCount = computed(() => props.steps.length);
 }
 
 .prompt-step-panel__scroll {
-  max-height: calc(100vh - 238px);
+  height: 100%;
+  min-height: 0;
+  flex: 1;
 }
 
 .prompt-step-list {
@@ -176,10 +189,18 @@ const stepCount = computed(() => props.steps.length);
 @media (max-width: 1280px) {
   .prompt-step-panel {
     height: auto;
+    overflow: visible;
+  }
+
+  .prompt-step-panel :deep(.n-card__content) {
+    display: block;
+    height: auto;
+    overflow: visible;
   }
 
   .prompt-step-panel__scroll {
-    max-height: none;
+    height: auto;
+    min-height: auto;
   }
 }
 </style>
