@@ -17,7 +17,12 @@ import {
   updateCrmAccountStatus,
   verifyCrmContactEmail
 } from '@/service/api';
-import { buildLeadSearchParams, createDefaultLeadFilterModel, createDefaultLeadImportForm } from '../shared';
+import {
+  buildLeadSearchParams,
+  createDefaultLeadFilterModel,
+  createDefaultLeadImportForm,
+  type LeadCommunicationTab
+} from '../shared';
 
 /** Manage CRM lead list request state, pagination and current-page derived stats. */
 export function useLeadTable() {
@@ -28,6 +33,7 @@ export function useLeadTable() {
   const records = shallowRef<Api.Crm.LeadRecord[]>([]);
   const loading = shallowRef(false);
   const detailVisible = shallowRef(false);
+  const detailActiveTab = shallowRef<LeadCommunicationTab>('overview');
   const detailLoading = shallowRef(false);
   const importVisible = shallowRef(false);
   const importSubmitting = shallowRef(false);
@@ -124,7 +130,7 @@ export function useLeadTable() {
     }
   }
 
-  /** Load detail for the selected lead and ignore stale drawer requests. */
+  /** Load detail for the selected lead and ignore stale communication-modal requests. */
   async function loadLeadDetail(id = selectedLeadId.value) {
     if (!id) {
       return;
@@ -141,7 +147,7 @@ export function useLeadTable() {
         return;
       }
 
-      // The drawer may have switched to another lead while this request was in flight.
+      // The modal may have switched to another lead while this request was in flight.
       if (requestId !== latestDetailRequestId || selectedLeadId.value !== id) {
         return;
       }
@@ -154,9 +160,10 @@ export function useLeadTable() {
     }
   }
 
-  /** Open detail drawer for one lead and start a fresh detail request. */
-  function openLeadDetail(record: Api.Crm.LeadRecord) {
+  /** Open the unified customer communication modal on the requested tab. */
+  function openLeadDetail(record: Api.Crm.LeadRecord, activeTab: LeadCommunicationTab = 'overview') {
     selectedLeadId.value = record.id;
+    detailActiveTab.value = activeTab;
     leadDetail.value = null;
     detailVisible.value = true;
     void loadLeadDetail(record.id);
@@ -214,10 +221,15 @@ export function useLeadTable() {
 
     if (!show) {
       selectedLeadId.value = null;
+      detailActiveTab.value = 'overview';
       leadDetail.value = null;
       detailLoading.value = false;
       latestDetailRequestId += 1;
     }
+  }
+
+  function handleDetailActiveTabUpdate(tab: LeadCommunicationTab) {
+    detailActiveTab.value = tab;
   }
 
   function openImportModal() {
@@ -611,6 +623,7 @@ export function useLeadTable() {
     accountSubmitting,
     contactDeletingId,
     contactSubmitting,
+    detailActiveTab,
     detailLoading,
     detailVisible,
     expandedLeadDetails,
@@ -626,6 +639,7 @@ export function useLeadTable() {
     handleCreateContact,
     handleCreateNote,
     handleDeleteContact,
+    handleDetailActiveTabUpdate,
     handleDetailVisibleUpdate,
     handleExpandedRowKeysUpdate,
     handlePageSizeUpdate,

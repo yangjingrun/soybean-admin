@@ -63,6 +63,8 @@ export interface LeadQueueStat {
   value: number;
 }
 
+export type LeadCommunicationTab = 'overview' | 'sequence' | 'inbox' | 'schedule' | 'profile';
+
 export interface LeadNextAction {
   label: string;
   description: string;

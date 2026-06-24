@@ -11,6 +11,7 @@ const {
   accountSubmitting,
   contactDeletingId,
   contactSubmitting,
+  detailActiveTab,
   detailLoading,
   detailVisible,
   expandedLeadDetails,
@@ -24,6 +25,7 @@ const {
   handleCreateContact,
   handleCreateNote,
   handleDeleteContact,
+  handleDetailActiveTabUpdate,
   handleDetailVisibleUpdate,
   handleExpandedRowKeysUpdate,
   handleImportLead,
@@ -83,7 +85,7 @@ const {
       :page-size="pagination.size"
       :total="pagination.total"
       :verifying-contact-ids="verifyingContactIds"
-      @view="openLeadDetail"
+      @open-communication="openLeadDetail"
       @archive="handleArchiveLead"
       @create-sequence="handleCreateSequenceFromContact"
       @load-expanded-contacts="loadExpandedLeadDetail"
@@ -96,6 +98,7 @@ const {
 
     <LeadDetailDrawer
       :show="detailVisible"
+      :active-tab="detailActiveTab"
       :detail="leadDetail"
       :loading="detailLoading"
       :account-submitting="accountSubmitting"
@@ -106,6 +109,7 @@ const {
       :verifying-contact-ids="verifyingContactIds"
       :refreshing-enrichment-provider="refreshingEnrichmentProvider"
       @update:show="handleDetailVisibleUpdate"
+      @update:active-tab="handleDetailActiveTabUpdate"
       @create-sequence="handleCreateSequenceFromContact"
       @create-contact="handleCreateContact"
       @delete-contact="handleDeleteContact"

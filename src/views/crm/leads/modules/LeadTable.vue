@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NButton, NDataTable, NEmpty, NSpace, NSpin, NTag } from 'naive-ui';
+import { NButton, NDataTable, NDropdown, NEmpty, NSpace, NSpin, NTag } from 'naive-ui';
 import type { DataTableColumns, DataTableRowKey } from 'naive-ui';
 import {
   buildLeadExpandedContactView,
@@ -12,7 +12,8 @@ import {
   leadEmailStatusLabelMap,
   leadEmailStatusTagTypeMap,
   leadStatusLabelMap,
-  leadStatusTagTypeMap
+  leadStatusTagTypeMap,
+  type LeadCommunicationTab
 } from './shared';
 
 const props = defineProps<{
@@ -34,8 +35,8 @@ const emit = defineEmits<{
   createSequence: [contact: Api.Crm.LeadContact];
   loadExpandedContacts: [accountId: string];
   restore: [record: Api.Crm.LeadRecord];
+  openCommunication: [record: Api.Crm.LeadRecord, tab: LeadCommunicationTab];
   updateExpandedRowKeys: [keys: string[]];
-  view: [record: Api.Crm.LeadRecord];
   updatePage: [page: number];
   updatePageSize: [pageSize: number];
   verifyContactEmail: [contact: Api.Crm.LeadContact];
@@ -283,6 +284,22 @@ function handleExpandedRowKeysUpdate(keys: DataTableRowKey[]) {
   emit('updateExpandedRowKeys', keys.map(String));
 }
 
+function handleMoreAction(key: string | number, row: Api.Crm.LeadRecord) {
+  if (key === 'schedule') {
+    emit('openCommunication', row, 'schedule');
+    return;
+  }
+
+  if (key === 'restore') {
+    emit('restore', row);
+    return;
+  }
+
+  if (key === 'archive') {
+    emit('archive', row);
+  }
+}
+
 const hasMultipleContactRows = computed(() =>
   props.records.some(row => buildLeadRowContactView(row).type === 'multiple')
 );
@@ -343,7 +360,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'operate',
       title: '操作',
-      width: 150,
+      width: 220,
       fixed: 'right',
       render: row =>
         h(
@@ -360,7 +377,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                   size: 'small',
                   text: true,
                   type: 'primary',
-                  onClick: () => emit('view', row)
+                  onClick: () => emit('openCommunication', row, 'profile')
                 },
                 { default: () => '详情' }
               ),
@@ -369,11 +386,47 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                 {
                   size: 'small',
                   text: true,
-                  type: row.status === 'archived' ? 'primary' : 'error',
-                  loading: props.archiveOperatingId === row.id,
-                  onClick: () => (row.status === 'archived' ? emit('restore', row) : emit('archive', row))
+                  type: 'success',
+                  onClick: () => emit('openCommunication', row, 'sequence')
                 },
-                { default: () => (row.status === 'archived' ? '重新开发' : '暂不开发') }
+                { default: () => '进度' }
+              ),
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  text: true,
+                  type: 'info',
+                  onClick: () => emit('openCommunication', row, 'inbox')
+                },
+                { default: () => '邮件' }
+              ),
+              h(
+                NDropdown,
+                {
+                  options: [
+                    { label: '调度', key: 'schedule' },
+                    {
+                      label: row.status === 'archived' ? '重新开发' : '暂不开发',
+                      key: row.status === 'archived' ? 'restore' : 'archive',
+                      disabled: props.archiveOperatingId === row.id
+                    }
+                  ],
+                  onSelect: (key: string | number) => handleMoreAction(key, row)
+                },
+                {
+                  default: () =>
+                    h(
+                      NButton,
+                      {
+                        size: 'small',
+                        text: true,
+                        type: 'primary',
+                        loading: props.archiveOperatingId === row.id
+                      },
+                      { default: () => '更多' }
+                    )
+                }
               )
             ]
           }
@@ -406,7 +459,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1580"
+        :scroll-x="1660"
         size="small"
         remote
         @update:expanded-row-keys="handleExpandedRowKeysUpdate"
