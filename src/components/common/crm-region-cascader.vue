@@ -145,6 +145,14 @@ function renderEmptyRegionPrefix() {
   width: max-content;
 }
 
+:global(.crm-region-cascader-menu .n-base-select-menu .n-scrollbar) {
+  max-height: var(--n-menu-height);
+}
+
+:global(.crm-region-cascader-menu .n-base-select-menu-option-wrapper) {
+  max-height: var(--n-menu-height);
+}
+
 :global(.crm-region-cascader-menu .n-cascader-option) {
   width: max-content;
   min-width: 100%;
