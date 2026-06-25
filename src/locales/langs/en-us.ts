@@ -247,7 +247,7 @@ const local: App.I18n.Schema = {
     'ai-settings': 'AI Settings',
     'ai-prompt-settings': 'Prompt Config',
     crm: 'CRM',
-    crm_leads: 'Customer Development Desk',
+    crm_leads: 'Customer Management',
     'crm_gmail-oauth-callback': 'Gmail OAuth Callback',
     'crm_email-sequences': 'Mailbox Scheduling',
     crm_inbox: 'Customer Replies',

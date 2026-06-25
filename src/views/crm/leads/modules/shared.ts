@@ -20,7 +20,7 @@ export const leadStatusOptions = [
 ] satisfies Array<{ label: string; value: Api.Crm.CrmAccountStatus }>;
 
 export const crmLeadPageGuide = {
-  title: '客户开发台承接 AI 获客结果',
+  title: '客户管理承接 AI 获客结果',
   description: '以公司管理客户、以联系人推进触达；可开发联系人生成开发信后，可直接查看邮箱进度和调度信息。'
 };
 

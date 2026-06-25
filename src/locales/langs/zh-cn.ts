@@ -242,7 +242,7 @@ const local: App.I18n.Schema = {
     'ai-settings': 'AI 配置',
     'ai-prompt-settings': '提示词配置',
     crm: 'CRM',
-    crm_leads: '客户开发台',
+    crm_leads: '客户管理',
     'crm_gmail-oauth-callback': 'Gmail授权回调',
     'crm_email-sequences': '邮箱调度',
     crm_inbox: '客户回信',

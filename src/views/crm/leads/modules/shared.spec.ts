@@ -28,7 +28,7 @@ import {
 
 describe('crm lead shared helpers', () => {
   it('uses plain business wording for AI leads handoff', () => {
-    assert.equal(crmLeadPageGuide.title, '客户开发台承接 AI 获客结果');
+    assert.equal(crmLeadPageGuide.title, '客户管理承接 AI 获客结果');
     assert.match(crmLeadPageGuide.description, /邮箱进度和调度信息/);
     assert.match(crmLeadPageGuide.description, /以联系人推进触达/);
     assert.equal(leadStatusLabelMap.archived, '暂不开发');

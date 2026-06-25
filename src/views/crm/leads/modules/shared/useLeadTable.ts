@@ -946,7 +946,7 @@ export function useLeadTable() {
   function showFirstOutreachProgressNotification(count: number) {
     const notice = notification.info({
       title: '批量开发信生成中',
-      content: `已提交后台生成 ${count} 封开发信。客户开发台邮箱进度已标记为“正在生成中”，也可到邮箱调度查看任务进度。`,
+      content: `已提交后台生成 ${count} 封开发信。客户管理邮箱进度已标记为“正在生成中”，也可到邮箱调度查看任务进度。`,
       meta: '系统通知',
       duration: 0,
       keepAliveOnHover: true,
