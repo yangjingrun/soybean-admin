@@ -51,7 +51,6 @@ const emit = defineEmits<{
 
 function renderCompany(row: Api.Crm.LeadRecord) {
   const href = row.websiteUrl || row.domain ? getWebsiteHref(row.websiteUrl || row.domain || '') : '';
-  const socialLinks = getLeadCompanySocialLinks(row);
   const companyNode = href
     ? h(
         'a',
@@ -66,16 +65,21 @@ function renderCompany(row: Api.Crm.LeadRecord) {
       )
     : h('span', { class: 'lead-company-name' }, row.name);
 
-  return h('div', { class: 'lead-company-cell' }, [
-    companyNode,
-    socialLinks.length
-      ? h(
-          'div',
-          { class: 'lead-company-social-row' },
-          socialLinks.map(link => renderCompanySocialLink(link))
-        )
-      : null
-  ]);
+  return h('div', { class: 'lead-company-cell' }, companyNode);
+}
+
+function renderCompanySocialLinks(row: Api.Crm.LeadRecord) {
+  const socialLinks = getLeadCompanySocialLinks(row);
+
+  if (!socialLinks.length) {
+    return h('span', { class: 'lead-empty-text' }, '-');
+  }
+
+  return h(
+    'div',
+    { class: 'lead-company-social-row' },
+    socialLinks.map(link => renderCompanySocialLink(link))
+  );
 }
 
 function renderCompanySocialLink(link: ReturnType<typeof getLeadCompanySocialLinks>[number]) {
@@ -412,8 +416,14 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'name',
       title: '公司 / 官网',
-      width: 250,
+      width: 220,
       render: row => renderCompany(row)
+    },
+    {
+      key: 'socialLinks',
+      title: '社媒',
+      width: 120,
+      render: row => renderCompanySocialLinks(row)
     },
     {
       key: 'contacts',
@@ -578,7 +588,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1300"
+        :scroll-x="1420"
         size="small"
         remote
         @update:checked-row-keys="handleCheckedRowKeysUpdate"
@@ -619,7 +629,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 }
 
 :deep(.lead-company-cell) {
-  max-width: 230px;
+  max-width: 200px;
 }
 
 :deep(.lead-contact-cell),
@@ -668,7 +678,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   align-items: center;
   flex-flow: row wrap;
   gap: 6px;
-  margin-top: 4px;
+  max-width: 110px;
 }
 
 :deep(.lead-company-social-link) {
