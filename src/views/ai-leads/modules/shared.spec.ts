@@ -8,6 +8,7 @@ import {
   createAiResultFromKeywordHistory,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
+  getAiLeadCandidateSocialLinks,
   parseKeywordOptimizationPlan,
   normalizeAiLeadCandidateDomain,
   resolveTargetLeadCountAfterOptimization
@@ -344,5 +345,58 @@ describe('ai leads keyword optimization helpers', () => {
         }
       }
     });
+  });
+
+  it('normalizes candidate social links for icon display', () => {
+    const links = getAiLeadCandidateSocialLinks({
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        pageCount: 1,
+        emails: [],
+        phones: [],
+        socialLinks: [
+          'https://www.linkedin.com/company/bearing-house/',
+          'https://facebook.com/bearinghouse',
+          'https://x.com/bearinghouse',
+          'https://www.linkedin.com/company/bearing-house'
+        ],
+        whatsappLinks: ['https://wa.me/902163128000'],
+        mapLinks: [],
+        contactLinks: [],
+        keywordHits: [],
+        evidenceSnippets: [],
+        failureReason: null
+      }
+    });
+
+    assert.deepEqual(
+      links.map(link => ({ channel: link.channel, label: link.label, icon: link.icon, url: link.url })),
+      [
+        {
+          channel: 'linkedin',
+          label: 'LinkedIn',
+          icon: 'mdi:linkedin',
+          url: 'https://www.linkedin.com/company/bearing-house/'
+        },
+        {
+          channel: 'facebook',
+          label: 'Facebook',
+          icon: 'mdi:facebook',
+          url: 'https://facebook.com/bearinghouse'
+        },
+        {
+          channel: 'x',
+          label: 'X / Twitter',
+          icon: 'mdi:twitter',
+          url: 'https://x.com/bearinghouse'
+        },
+        {
+          channel: 'whatsapp',
+          label: 'WhatsApp',
+          icon: 'mdi:whatsapp',
+          url: 'https://wa.me/902163128000'
+        }
+      ]
+    );
   });
 });

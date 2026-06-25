@@ -2,10 +2,11 @@
 import { computed, h } from 'vue';
 import { NProgress, NTag, NTooltip } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
+import SvgIcon from '@/components/custom/svg-icon.vue';
 import { useRouterPush } from '@/hooks/common/router';
 import { getMetricDisplayText } from './search-progress';
 import type { LeadSearchProgressState } from './search-progress';
-import { buildAiLeadCandidateImportRows, type AiLeadCandidateImportRow } from './shared';
+import { buildAiLeadCandidateImportRows, getAiLeadCandidateSocialLinks, type AiLeadCandidateImportRow } from './shared';
 import { resolveConfigHintTarget } from './config-hint';
 
 const props = defineProps<{
@@ -75,6 +76,9 @@ const summaryItems = computed(() => {
 });
 const candidateRows = computed(() => buildAiLeadCandidateImportRows(props.state.result?.candidates ?? []));
 const showSourceColumn = computed(() => candidateRows.value.some(row => Boolean(row.candidate.sourceLabel?.trim())));
+const showSocialColumn = computed(() =>
+  candidateRows.value.some(row => getAiLeadCandidateSocialLinks(row.candidate).length)
+);
 const showPrecisionColumn = computed(() =>
   candidateRows.value.some(row => typeof row.candidate.score === 'number' || Boolean(row.candidate.precisionAnalysis))
 );
@@ -118,6 +122,44 @@ const sourceColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
         type: sourceLabel.includes('本地') ? 'success' : 'info'
       },
       { default: () => sourceLabel }
+    );
+  }
+};
+const socialColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
+  title: '社媒',
+  key: 'socialLinks',
+  width: 150,
+  render: row => {
+    const links = getAiLeadCandidateSocialLinks(row.candidate);
+
+    if (!links.length) {
+      return '-';
+    }
+
+    return h(
+      'div',
+      { class: 'candidate-social-cell' },
+      links.map(link =>
+        h(
+          NTooltip,
+          { key: link.url, trigger: 'hover', placement: 'top' },
+          {
+            trigger: () =>
+              h(
+                'a',
+                {
+                  class: 'candidate-social-link',
+                  href: link.url,
+                  target: '_blank',
+                  rel: 'noopener noreferrer',
+                  'aria-label': `打开 ${link.label}`
+                },
+                [h(SvgIcon, { icon: link.icon, class: 'candidate-social-icon' })]
+              ),
+            default: () => link.label
+          }
+        )
+      )
     );
   }
 };
@@ -231,12 +273,20 @@ const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(()
     }
   ];
 
+  let insertIndex = 5;
+
+  if (showSocialColumn.value) {
+    columns.splice(insertIndex, 0, socialColumn);
+    insertIndex += 1;
+  }
+
   if (showSourceColumn.value) {
-    columns.splice(5, 0, sourceColumn);
+    columns.splice(insertIndex, 0, sourceColumn);
+    insertIndex += 1;
   }
 
   if (showPrecisionColumn.value) {
-    columns.splice(showSourceColumn.value ? 6 : 5, 0, precisionColumn);
+    columns.splice(insertIndex, 0, precisionColumn);
   }
 
   return columns;
@@ -483,7 +533,7 @@ function getPrecisionTooltipItems(row: AiLeadCandidateImportRow) {
             :bordered="false"
             :pagination="{ pageSize: 8 }"
             :row-key="row => row.importState.key"
-            scroll-x="1220"
+            scroll-x="1320"
           />
         </NCollapseItem>
       </NCollapse>
@@ -707,6 +757,41 @@ function getPrecisionTooltipItems(row: AiLeadCandidateImportRow) {
 :deep(.candidate-quality-text) {
   color: var(--n-text-color-3);
   font-size: 12px;
+}
+
+:deep(.candidate-social-cell) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+:deep(.candidate-social-link) {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe4f0;
+  border-radius: 6px;
+  color: #3f587c;
+  background: #ffffff;
+  text-decoration: none;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+:deep(.candidate-social-link:hover) {
+  border-color: var(--progress-primary);
+  color: var(--progress-primary);
+  background: var(--progress-primary-soft);
+}
+
+:deep(.candidate-social-icon) {
+  font-size: 16px;
 }
 
 :deep(.candidate-precision-cell) {

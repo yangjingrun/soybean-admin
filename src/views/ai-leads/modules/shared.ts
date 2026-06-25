@@ -34,6 +34,24 @@ export interface AiLeadCandidateImportRow {
   importState: AiLeadCandidateImportState;
 }
 
+export type AiLeadCandidateSocialChannel =
+  | 'linkedin'
+  | 'facebook'
+  | 'instagram'
+  | 'youtube'
+  | 'x'
+  | 'tiktok'
+  | 'pinterest'
+  | 'whatsapp'
+  | 'social';
+
+export interface AiLeadCandidateSocialLink {
+  url: string;
+  channel: AiLeadCandidateSocialChannel;
+  label: string;
+  icon: string;
+}
+
 const businessGlossary = [
   ['auto_parts_wholesaler', '汽配批发商'],
   ['industrial_supplier', '工业用品供应商'],
@@ -112,6 +130,22 @@ const lowQualityCandidateTitles = new Set([
   'login',
   'untitled'
 ]);
+
+const socialChannelRules: Array<{
+  channel: AiLeadCandidateSocialChannel;
+  label: string;
+  icon: string;
+  match: RegExp;
+}> = [
+  { channel: 'linkedin', label: 'LinkedIn', icon: 'mdi:linkedin', match: /linkedin\.com/i },
+  { channel: 'facebook', label: 'Facebook', icon: 'mdi:facebook', match: /facebook\.com/i },
+  { channel: 'instagram', label: 'Instagram', icon: 'mdi:instagram', match: /instagram\.com/i },
+  { channel: 'youtube', label: 'YouTube', icon: 'mdi:youtube', match: /youtube\.com|youtu\.be/i },
+  { channel: 'x', label: 'X / Twitter', icon: 'mdi:twitter', match: /x\.com|twitter\.com/i },
+  { channel: 'tiktok', label: 'TikTok', icon: 'simple-icons:tiktok', match: /tiktok\.com/i },
+  { channel: 'pinterest', label: 'Pinterest', icon: 'mdi:pinterest', match: /pinterest\./i },
+  { channel: 'whatsapp', label: 'WhatsApp', icon: 'mdi:whatsapp', match: /wa\.me|whatsapp\.com/i }
+];
 
 /** Parses the AI keyword optimization result into the agreed structured JSON plan. */
 export function parseKeywordOptimizationPlan(text: string): Api.AiLeads.OptimizedKeywordPlan {
@@ -281,6 +315,32 @@ export function buildAiLeadCandidateImportPayload(
   };
 }
 
+/** Builds normalized social-channel links for the candidate result table. */
+export function getAiLeadCandidateSocialLinks(
+  candidate: Pick<Api.AiLeads.LeadSearchCandidateView, 'websiteEvidence'>
+): AiLeadCandidateSocialLink[] {
+  const links = [
+    ...(candidate.websiteEvidence?.socialLinks ?? []),
+    ...(candidate.websiteEvidence?.whatsappLinks ?? [])
+  ];
+  const seen = new Set<string>();
+  const output: AiLeadCandidateSocialLink[] = [];
+
+  for (const link of links) {
+    const url = link.trim();
+    const dedupeKey = normalizeSocialUrl(url);
+
+    if (!url || seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    output.push(toSocialLinkView(url));
+  }
+
+  return output;
+}
+
 /** Normalize the candidate website into a comparable domain key. */
 export function normalizeAiLeadCandidateDomain(candidate: Pick<Api.AiLeads.LeadSearchCandidateView, 'website'>) {
   const website = candidate.website?.trim();
@@ -393,6 +453,27 @@ function isObviousLowQualityCandidate(candidate: Api.AiLeads.LeadSearchCandidate
   return (
     lowQualityCandidateTitles.has(title) || (typeof candidate.score === 'number' && candidate.score < 40) || !hasContext
   );
+}
+
+function toSocialLinkView(url: string): AiLeadCandidateSocialLink {
+  const rule = socialChannelRules.find(item => item.match.test(url));
+
+  return {
+    url,
+    channel: rule?.channel ?? 'social',
+    label: rule?.label ?? '社媒',
+    icon: rule?.icon ?? 'mdi:link-variant'
+  };
+}
+
+function normalizeSocialUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+
+    return `${parsed.hostname.replace(/^www\./i, '').toLowerCase()}${parsed.pathname.replace(/\/$/, '')}`;
+  } catch {
+    return url.toLowerCase();
+  }
 }
 
 function compactSourceSnapshot(record: Record<string, unknown>) {
