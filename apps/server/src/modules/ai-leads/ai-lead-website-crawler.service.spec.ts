@@ -52,6 +52,51 @@ describe('AiLeadWebsiteCrawlerService', () => {
     assert.equal(candidates[0].websiteEvidence?.failureReason, '缺少官网');
   });
 
+  it('extracts website evidence with dynamic industry keywords', async () => {
+    const service = new AiLeadWebsiteCrawlerService({
+      async crawl(requests) {
+        return [
+          {
+            request: requests[0],
+            statusCode: 200,
+            loadedUrl: requests[0].url,
+            html: `
+              <title>Bright LED Supply</title>
+              <body>
+                Bright LED Supply is a LED lighting distributor for commercial lighting projects.
+                Contact export@bright-led.example.com for LED strip and panel light sourcing.
+                We do not serve school lighting projects or consumer retail orders.
+              </body>
+            `
+          }
+        ];
+      }
+    });
+
+    const candidates = await service.enrichCandidates(
+      [createCandidate({ title: 'Bright LED Supply', website: 'https://bright-led.example.com' })],
+      {
+        matchProfile: {
+          positiveKeywords: ['LED lighting', 'LED strip'],
+          negativeKeywords: ['school', 'consumer retail'],
+          productLineKeywords: ['panel light']
+        }
+      }
+    );
+
+    assert.deepEqual(candidates[0].websiteEvidence?.keywordHits, [
+      'LED lighting',
+      'LED strip',
+      'panel light',
+      'distributor',
+      'export'
+    ]);
+    assert.deepEqual(candidates[0].websiteEvidence?.negativeKeywordHits, ['school', 'consumer retail']);
+    assert.match(candidates[0].websiteEvidence?.evidenceSnippets.join(' '), /LED lighting distributor/);
+    assert.match(candidates[0].websiteEvidence?.evidenceSnippets.join(' '), /LED strip and panel light/);
+    assert.match(candidates[0].websiteEvidence?.negativeEvidenceSnippets.join(' '), /school lighting projects/);
+  });
+
   it('records crawler failure without blocking other candidates', async () => {
     const service = new AiLeadWebsiteCrawlerService({
       async crawl() {

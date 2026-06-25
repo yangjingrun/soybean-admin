@@ -196,6 +196,147 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.ok(assertCalls.length >= 2);
   });
 
+  it('passes dynamic product keywords to website crawler', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'ae',
+              hl: 'en',
+              location: 'United Arab Emirates',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      {
+        organic: [
+          {
+            title: 'Bright LED Supply',
+            link: 'https://bright-led.example.com',
+            snippet: 'LED lighting distributor'
+          }
+        ]
+      }
+    ]);
+    let receivedMatchProfile: {
+      positiveKeywords: string[];
+      negativeKeywords: string[];
+      productLineKeywords: string[];
+    } | null = null;
+    const websiteCrawler = {
+      async enrichCandidates(
+        candidates: Array<Record<string, unknown>>,
+        options?: {
+          matchProfile?: {
+            positiveKeywords: string[];
+            negativeKeywords: string[];
+            productLineKeywords: string[];
+          };
+        }
+      ) {
+        receivedMatchProfile = options?.matchProfile ?? null;
+
+        return candidates.map(candidate => ({
+          ...candidate,
+          websiteEvidence: {
+            crawlStatus: 'completed',
+            pageCount: 1,
+            emails: [],
+            phones: [],
+            socialLinks: [],
+            whatsappLinks: [],
+            mapLinks: [],
+            contactLinks: [],
+            keywordHits: options?.matchProfile?.positiveKeywords ?? [],
+            evidenceSnippets: ['LED lighting distributor'],
+            negativeKeywordHits: options?.matchProfile?.negativeKeywords ?? [],
+            negativeEvidenceSnippets: ['school project'],
+            failureReason: null
+          }
+        }));
+      }
+    };
+    const precisionAnalysis = {
+      async analyzeCandidates(input: { candidates: Array<Record<string, unknown>> }) {
+        return input.candidates;
+      }
+    };
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder(),
+      undefined,
+      websiteCrawler as never,
+      precisionAnalysis as never
+    );
+
+    await service.searchWithKeywordPlan(
+      {
+        requirement: '找阿联酋 LED 灯具进口商',
+        targetLeadCount: 20,
+        keywordPlan: {
+          resolvedProductKeywords: 'LED lighting, LED strip, panel light',
+          resolvedTargetRegions: 'United Arab Emirates',
+          resolvedTargetCustomerProfile: 'lighting importer',
+          resolvedTargetLeadCount: 20,
+          structuredRequirement: '寻找阿联酋 LED 灯具进口商，排除学校项目和零售消费者商店。',
+          buyerSegments: [
+            {
+              buyerType: 'lighting importer',
+              purchaseReason: 'imports LED lighting products for commercial projects',
+              websiteSignals: ['LED catalog', 'lighting brands', 'project supply'],
+              priorityContacts: ['Procurement Manager'],
+              priorityLevel: '高',
+              preferredSerperChannel: 'search'
+            },
+            {
+              buyerType: 'lighting stockist',
+              purchaseReason: 'stocks LED strip and panel light products',
+              websiteSignals: ['stock list', 'wholesale lighting'],
+              priorityContacts: ['Sales Manager'],
+              priorityLevel: '中',
+              preferredSerperChannel: 'search'
+            }
+          ],
+          serperSearchQueries: [{ q: 'LED lighting importer UAE', gl: 'ae', hl: 'en' }],
+          serperPlacesQueries: [],
+          searchExecutionRules: {
+            keep: ['LED wholesaler', 'project lighting distributor'],
+            exclude: ['school', 'consumer retail', 'B2C-only shop']
+          },
+          productLineSnapshot: {
+            name: 'Commercial LED Lighting',
+            targetCustomerType: 'project lighting distributor',
+            coreSellingPoints: 'LED panel light and LED strip for commercial fit-out',
+            commonModelsText: 'panel light 600x600, 24V LED strip'
+          }
+        }
+      },
+      { user: createUser() }
+    );
+
+    assert.ok(receivedMatchProfile);
+    assert.deepEqual(receivedMatchProfile.positiveKeywords.slice(0, 3), ['LED lighting', 'LED strip', 'panel light']);
+    assert.ok(receivedMatchProfile.positiveKeywords.includes('lighting importer'));
+    assert.ok(receivedMatchProfile.positiveKeywords.includes('LED catalog'));
+    assert.ok(receivedMatchProfile.positiveKeywords.includes('lighting stockist'));
+    assert.ok(receivedMatchProfile.positiveKeywords.includes('LED wholesaler'));
+    assert.ok(receivedMatchProfile.positiveKeywords.includes('LED 灯具'));
+    assert.deepEqual(receivedMatchProfile.negativeKeywords, ['school', 'consumer retail', 'B2C-only shop']);
+    assert.ok(receivedMatchProfile.productLineKeywords.includes('Commercial LED Lighting'));
+    assert.ok(receivedMatchProfile.productLineKeywords.includes('panel light 600x600'));
+  });
+
   it('keeps checkpoint keys distinct for the same query with different time ranges', async () => {
     const aiGateway = createAiGateway([
       {

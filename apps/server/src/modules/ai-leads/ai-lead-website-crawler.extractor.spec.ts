@@ -48,6 +48,8 @@ describe('ai lead website crawler extractor', () => {
     assert.equal(page.title, 'Bearing Example');
     assert.equal(page.description, 'Elevator traction machine bearing supplier');
     assert.match(page.evidenceSnippets.join(' '), /traction machine bearings/);
+    assert.deepEqual(page.negativeKeywordHits, []);
+    assert.deepEqual(page.negativeEvidenceSnippets, []);
   });
 
   it('merges page evidence into one compact website evidence record', () => {
@@ -65,7 +67,9 @@ describe('ai lead website crawler extractor', () => {
         mapLinks: [],
         contactLinks: ['https://bearing.example.com/contact'],
         keywordHits: ['bearing', 'elevator'],
-        evidenceSnippets: ['Bearing supplier for elevator projects']
+        evidenceSnippets: ['Bearing supplier for elevator projects'],
+        negativeKeywordHits: [],
+        negativeEvidenceSnippets: []
       },
       {
         url: 'https://bearing.example.com/contact',
@@ -80,7 +84,9 @@ describe('ai lead website crawler extractor', () => {
         mapLinks: ['https://maps.google.com/?q=Bearing'],
         contactLinks: ['https://bearing.example.com/contact'],
         keywordHits: ['bearing', 'traction'],
-        evidenceSnippets: ['Traction machine bearing stock']
+        evidenceSnippets: ['Traction machine bearing stock'],
+        negativeKeywordHits: ['school'],
+        negativeEvidenceSnippets: ['School maintenance team only']
       }
     ]);
 
@@ -98,6 +104,8 @@ describe('ai lead website crawler extractor', () => {
       contactLinks: ['https://bearing.example.com/contact'],
       keywordHits: ['bearing', 'elevator', 'traction'],
       evidenceSnippets: ['Bearing supplier for elevator projects', 'Traction machine bearing stock'],
+      negativeKeywordHits: ['school'],
+      negativeEvidenceSnippets: ['School maintenance team only'],
       failureReason: null
     });
   });

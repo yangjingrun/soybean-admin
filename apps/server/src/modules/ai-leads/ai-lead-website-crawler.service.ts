@@ -11,6 +11,7 @@ import type {
   AiLeadWebsiteCrawlPageResult,
   AiLeadWebsiteCrawlRequest,
   AiLeadWebsiteCrawlerPageFetcher,
+  AiLeadWebsiteEvidenceKeywordOptions,
   AiLeadWebsiteEnrichedCandidate
 } from './ai-lead-website-crawler.types';
 
@@ -37,7 +38,10 @@ export class AiLeadWebsiteCrawlerService {
   ) {}
 
   /** Enriches Serper candidates with public website contact and product evidence. */
-  async enrichCandidates(candidates: AiLeadSearchCandidate[]): Promise<AiLeadWebsiteEnrichedCandidate[]> {
+  async enrichCandidates(
+    candidates: AiLeadSearchCandidate[],
+    options: AiLeadWebsiteEvidenceKeywordOptions = {}
+  ): Promise<AiLeadWebsiteEnrichedCandidate[]> {
     const output: AiLeadWebsiteEnrichedCandidate[] = [];
     const pageFetcher = this.fetcher ?? new CrawleeWebsitePageFetcher();
 
@@ -58,12 +62,15 @@ export class AiLeadWebsiteCrawlerService {
       try {
         const pages = await pageFetcher.crawl(requests);
         const pageEvidence = pages.map(page =>
-          extractWebsitePageEvidence({
-            url: page.request.url,
-            loadedUrl: page.loadedUrl,
-            statusCode: page.statusCode,
-            html: page.html
-          })
+          extractWebsitePageEvidence(
+            {
+              url: page.request.url,
+              loadedUrl: page.loadedUrl,
+              statusCode: page.statusCode,
+              html: page.html
+            },
+            options
+          )
         );
 
         output.push({
@@ -100,7 +107,7 @@ class CrawleeWebsitePageFetcher implements AiLeadWebsiteCrawlerPageFetcher {
 
         pages.push({
           request: sourceRequest,
-          statusCode: response.statusCode,
+          statusCode: response.statusCode as number,
           loadedUrl: request.loadedUrl || request.url,
           html: $.html()
         });

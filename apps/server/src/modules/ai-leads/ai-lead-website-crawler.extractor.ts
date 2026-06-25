@@ -1,6 +1,10 @@
-import type { AiLeadWebsiteEvidence, AiLeadWebsitePageEvidence } from './ai-lead-website-crawler.types';
+import type {
+  AiLeadWebsiteEvidence,
+  AiLeadWebsiteEvidenceKeywordOptions,
+  AiLeadWebsitePageEvidence
+} from './ai-lead-website-crawler.types';
 
-const targetKeywords = [
+const defaultProductKeywords = [
   'bearing',
   'traction',
   'elevator',
@@ -13,11 +17,21 @@ const targetKeywords = [
   'geared',
   'escalator',
   'spare',
-  'component',
+  'component'
+];
+
+const buyerSignalKeywords = [
   'supplier',
   'manufacturer',
   'import',
-  'distributor'
+  'importer',
+  'distributor',
+  'dealer',
+  'stockist',
+  'wholesaler',
+  'export',
+  'catalog',
+  'products'
 ];
 
 const socialHostPattern = /(?:linkedin|facebook|instagram|youtube|x\.com|twitter|tiktok|pinterest)/i;
@@ -33,12 +47,17 @@ interface ExtractWebsitePageEvidenceInput {
 }
 
 /** Extracts contact channels and product evidence from one fetched website HTML page. */
-export function extractWebsitePageEvidence(input: ExtractWebsitePageEvidenceInput): AiLeadWebsitePageEvidence {
+export function extractWebsitePageEvidence(
+  input: ExtractWebsitePageEvidenceInput,
+  options: AiLeadWebsiteEvidenceKeywordOptions = {}
+): AiLeadWebsitePageEvidence {
   const links = extractLinks(input.html, input.loadedUrl || input.url);
   const text = normalizeText(stripHtml(input.html));
   const title = extractTitle(input.html);
   const description = extractDescription(input.html);
   const combined = normalizeText(`${title} ${description} ${text} ${links.join(' ')}`);
+  const targetKeywords = resolveTargetKeywords(options);
+  const negativeKeywords = resolveNegativeKeywords(options);
 
   return {
     url: input.url,
@@ -55,7 +74,9 @@ export function extractWebsitePageEvidence(input: ExtractWebsitePageEvidenceInpu
       links.filter(link => sameHost(input.loadedUrl || input.url, link) && contactPathPattern.test(link))
     ),
     keywordHits: targetKeywords.filter(keyword => matchesKeyword(combined, keyword)),
-    evidenceSnippets: unique(extractEvidenceSnippets(text), 6)
+    evidenceSnippets: unique(extractEvidenceSnippets(text, targetKeywords), 6),
+    negativeKeywordHits: negativeKeywords.filter(keyword => matchesKeyword(combined, keyword)),
+    negativeEvidenceSnippets: unique(extractEvidenceSnippets(text, negativeKeywords), 6)
   };
 }
 
@@ -101,6 +122,14 @@ export function mergeWebsitePageEvidence(pages: AiLeadWebsitePageEvidence[]): Ai
       pages.flatMap(page => page.evidenceSnippets),
       8
     ),
+    negativeKeywordHits: unique(
+      pages.flatMap(page => page.negativeKeywordHits),
+      24
+    ),
+    negativeEvidenceSnippets: unique(
+      pages.flatMap(page => page.negativeEvidenceSnippets),
+      8
+    ),
     failureReason: null
   };
 }
@@ -125,6 +154,8 @@ function createEmptyWebsiteEvidence(crawlStatus: 'failed' | 'skipped', reason: s
     contactLinks: [],
     keywordHits: [],
     evidenceSnippets: [],
+    negativeKeywordHits: [],
+    negativeEvidenceSnippets: [],
     failureReason: reason
   };
 }
@@ -173,12 +204,26 @@ function extractPhones(text: string) {
   return text.match(/(?:\+\d{1,3}[\s().-]*)?(?:\(?\d{2,5}\)?[\s().-]*){2,}\d{2,6}/g) ?? [];
 }
 
-function extractEvidenceSnippets(text: string) {
+function extractEvidenceSnippets(text: string, targetKeywords: string[]) {
   return targetKeywords.flatMap(keyword => {
     const match = text.match(new RegExp(`.{0,90}${toKeywordPattern(keyword)}.{0,120}`, 'i'));
 
     return match ? [normalizeText(match[0])] : [];
   });
+}
+
+function resolveTargetKeywords(options: AiLeadWebsiteEvidenceKeywordOptions) {
+  const profileKeywords = options.matchProfile
+    ? [...options.matchProfile.positiveKeywords, ...options.matchProfile.productLineKeywords]
+    : [];
+  const customKeywords = profileKeywords.length > 0 ? profileKeywords : (options.targetKeywords ?? []);
+  const productKeywords = customKeywords.length > 0 ? customKeywords : defaultProductKeywords;
+
+  return unique([...productKeywords, ...buyerSignalKeywords], 48);
+}
+
+function resolveNegativeKeywords(options: AiLeadWebsiteEvidenceKeywordOptions) {
+  return unique(options.matchProfile?.negativeKeywords ?? options.negativeKeywords ?? [], 48);
 }
 
 function stripHtml(html: string) {
@@ -269,11 +314,18 @@ function sameHost(baseUrl: string, link: string) {
 }
 
 function matchesKeyword(text: string, keyword: string) {
+  if (/[\u4e00-\u9fff]/.test(keyword)) {
+    return new RegExp(toKeywordPattern(keyword), 'i').test(text);
+  }
+
   return new RegExp(`\\b${toKeywordPattern(keyword)}\\b`, 'i').test(text);
 }
 
 function toKeywordPattern(keyword: string) {
-  return `${escapeRegExp(keyword)}(?:s|es)?`;
+  const escaped = escapeRegExp(keyword).replace(/\s+/g, '\\s+');
+  const pluralSuffix = /[A-Za-z]$/.test(keyword) ? '(?:s|es)?' : '';
+
+  return `${escaped}${pluralSuffix}`;
 }
 
 function escapeRegExp(value: string) {

@@ -32,7 +32,21 @@ export interface AiLeadWebsiteEvidence {
   contactLinks: string[];
   keywordHits: string[];
   evidenceSnippets: string[];
+  negativeKeywordHits: string[];
+  negativeEvidenceSnippets: string[];
   failureReason: string | null;
+}
+
+export interface AiLeadWebsiteMatchProfile {
+  positiveKeywords: string[];
+  negativeKeywords: string[];
+  productLineKeywords: string[];
+}
+
+export interface AiLeadWebsiteEvidenceKeywordOptions {
+  targetKeywords?: string[];
+  negativeKeywords?: string[];
+  matchProfile?: AiLeadWebsiteMatchProfile;
 }
 
 export type AiLeadPrecisionPriority = 'high' | 'medium' | 'low' | 'reject';

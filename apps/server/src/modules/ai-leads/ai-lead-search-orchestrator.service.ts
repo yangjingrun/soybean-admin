@@ -21,7 +21,11 @@ import { toLeadSearchPublicResult } from './ai-lead-search-progress';
 import { AiLeadCrmPrecheckService, type AiLeadCrmPrecheckSummary } from './ai-lead-crm-precheck.service';
 import { applySerperRequestCountry } from './ai-lead-candidate-country';
 import { AiLeadWebsiteCrawlerService } from './ai-lead-website-crawler.service';
-import type { AiLeadPrecisionAnalysis, AiLeadWebsiteEvidence } from './ai-lead-website-crawler.types';
+import type {
+  AiLeadPrecisionAnalysis,
+  AiLeadWebsiteEvidence,
+  AiLeadWebsiteMatchProfile
+} from './ai-lead-website-crawler.types';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -502,7 +506,9 @@ export class AiLeadSearchOrchestrator {
       metrics: this.toProgressMetrics(0, candidates.length, candidates.length, 0)
     });
 
-    const websiteEnrichedCandidates = await this.websiteCrawlerService.enrichCandidates(candidates);
+    const websiteEnrichedCandidates = await this.websiteCrawlerService.enrichCandidates(candidates, {
+      matchProfile: buildWebsiteMatchProfile(requirement, keywordOptimization)
+    });
 
     await options.assertStillRunning?.();
     await reporter?.emit({
@@ -875,6 +881,187 @@ function trimOptional(value: unknown) {
 
 function readPositiveNumber(value: unknown) {
   return typeof value === 'number' && value > 0 ? value : undefined;
+}
+
+function buildWebsiteMatchProfile(requirement: string, keywordPlan: OptimizedKeywordPlan): AiLeadWebsiteMatchProfile {
+  const positiveKeywords: string[] = [];
+  const negativeKeywords: string[] = [];
+  const productLineKeywords: string[] = [];
+
+  collectKeywordPlanSignals(keywordPlan, positiveKeywords, negativeKeywords);
+  collectProductLineSignals(keywordPlan, productLineKeywords);
+  addMixedLanguageProductKeywords(positiveKeywords, requirement);
+  addMixedLanguageProductKeywords(positiveKeywords, stringValue(keywordPlan.structuredRequirement));
+
+  return {
+    positiveKeywords: uniqueCrawlerKeywords(positiveKeywords, 48),
+    negativeKeywords: uniqueCrawlerKeywords(negativeKeywords, 48),
+    productLineKeywords: uniqueCrawlerKeywords(productLineKeywords, 24)
+  };
+}
+
+function collectKeywordPlanSignals(value: unknown, positiveOutput: string[], negativeOutput: string[]) {
+  if (Array.isArray(value)) {
+    value.forEach(item => collectKeywordPlanSignals(item, positiveOutput, negativeOutput));
+    return;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return;
+  }
+
+  for (const [key, childValue] of Object.entries(value)) {
+    if (key === 'requestBody' || key === 'q') {
+      continue;
+    }
+
+    if (isNegativeKeywordField(key)) {
+      addDelimitedKeywords(negativeOutput, childValue);
+      continue;
+    }
+
+    if (isPositiveKeywordField(key)) {
+      addDelimitedKeywords(positiveOutput, childValue);
+      continue;
+    }
+
+    collectKeywordPlanSignals(childValue, positiveOutput, negativeOutput);
+  }
+}
+
+function collectProductLineSignals(keywordPlan: OptimizedKeywordPlan, output: string[]) {
+  for (const key of ['productLine', 'productLineSnapshot', 'productLineInfo', 'selectedProductLine']) {
+    const value = keywordPlan[key];
+
+    if (value && typeof value === 'object') {
+      collectKnownProductLineFields(value, output);
+    }
+  }
+}
+
+function collectKnownProductLineFields(value: unknown, output: string[]) {
+  if (Array.isArray(value)) {
+    value.forEach(item => collectKnownProductLineFields(item, output));
+    return;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return;
+  }
+
+  for (const [key, childValue] of Object.entries(value)) {
+    if (isProductLineKeywordField(key)) {
+      addDelimitedKeywords(output, childValue);
+      continue;
+    }
+
+    collectKnownProductLineFields(childValue, output);
+  }
+}
+
+function isPositiveKeywordField(key: string) {
+  return [
+    'resolvedProductKeywords',
+    'resolvedTargetCustomerProfile',
+    'buyerType',
+    'purchaseReason',
+    'websiteSignals',
+    'expectedPlaceTypes',
+    'keep',
+    'intent',
+    'targetCustomerType',
+    'positiveSignals',
+    'matchKeywords'
+  ].includes(key);
+}
+
+function isNegativeKeywordField(key: string) {
+  return [
+    'exclude',
+    'excludeWords',
+    'excludedKeywords',
+    'negativeSignals',
+    'negativeKeywords',
+    'rejectSignals'
+  ].includes(key);
+}
+
+function isProductLineKeywordField(key: string) {
+  return [
+    'name',
+    'targetCustomerType',
+    'coreSellingPoints',
+    'commonModelsText',
+    'certifications',
+    'productKeywords',
+    'applicationScenarios'
+  ].includes(key);
+}
+
+function addDelimitedKeywords(output: string[], value: unknown) {
+  if (typeof value !== 'string') {
+    if (Array.isArray(value)) {
+      value.forEach(item => addDelimitedKeywords(output, item));
+    }
+
+    return;
+  }
+
+  for (const item of value.split(/[,，;；、\n\r|/]+/)) {
+    addCrawlerKeyword(output, item);
+  }
+}
+
+function addMixedLanguageProductKeywords(output: string[], requirement: string) {
+  const matches =
+    requirement.match(/[A-Za-z0-9][A-Za-z0-9+./-]*(?:\s+[A-Za-z0-9+./-]+){0,3}\s*[\u4e00-\u9fff]{1,12}/g) ?? [];
+
+  for (const match of matches) {
+    addCrawlerKeyword(
+      output,
+      match.replace(/(?:进口商|经销商|分销商|批发商|供应商|制造商|生产商|代理商|采购商|厂家|工厂|买家|客户)$/u, '')
+    );
+  }
+}
+
+function addCrawlerKeyword(output: string[], value: string) {
+  const keyword = normalizeCrawlerKeyword(value);
+
+  if (keyword.length < 2 || keyword.length > 80) {
+    return;
+  }
+
+  output.push(keyword);
+}
+
+function normalizeCrawlerKeyword(value: string) {
+  return value
+    .replace(/["'`]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s:：,，;；、-]+|[\s:：,，;；、-]+$/g, '')
+    .trim();
+}
+
+function uniqueCrawlerKeywords(values: string[], limit: number) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const value of values) {
+    const key = value.toLowerCase();
+
+    if (!value || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(value);
+
+    if (output.length >= limit) {
+      break;
+    }
+  }
+
+  return output;
 }
 
 function readTbs(value: unknown) {

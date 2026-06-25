@@ -236,6 +236,8 @@ declare namespace Api {
       contactLinks: string[];
       keywordHits: string[];
       evidenceSnippets: string[];
+      negativeKeywordHits?: string[];
+      negativeEvidenceSnippets?: string[];
       failureReason: string | null;
     }
 
