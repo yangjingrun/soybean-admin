@@ -17,6 +17,7 @@ import type {
   CrmUserContext
 } from '../crm.types';
 import type { CrmSendAvailabilityService } from '../crm-send-availability.service';
+import { CrmSendAvailabilityService as DefaultCrmSendAvailabilityService } from '../crm-send-availability.service';
 import { resolveCrmSequenceScheduledAt } from './crm-sequence-send-schedule-time';
 
 describe('CrmSequenceReviewCreationService', () => {
@@ -125,8 +126,36 @@ describe('CrmSequenceReviewCreationService', () => {
       random: () => 0
     });
 
-    assert.equal(scheduledAt.toISOString(), now.toISOString());
+    assert.equal(scheduledAt.toISOString(), '2026-06-24T06:00:10.000Z');
     assert.ok(latestScheduledAt.getTime() - scheduledAt.getTime() >= 5 * 60 * 1000);
+  });
+
+  it('moves exact-hour schedule times to a seconds offset', () => {
+    const now = new Date('2026-06-24T06:00:00.000Z');
+    const scheduledAt = resolveCrmSequenceScheduledAt({
+      availabilityService: createAvailabilityService(),
+      account: createAccount(),
+      globalConfig: createGlobalConfig(),
+      now,
+      random: () => 0
+    });
+
+    assert.equal(scheduledAt.toISOString(), '2026-06-24T06:00:10.000Z');
+  });
+
+  it('keeps exact-hour avoidance inside the recipient send window', () => {
+    const now = new Date('2026-06-24T19:00:00.000Z');
+    const scheduledAt = resolveCrmSequenceScheduledAt({
+      availabilityService: createRealAvailabilityService(),
+      account: createAccount(),
+      globalConfig: createGlobalConfig({
+        sendWindows: [{ startMinute: 12 * 60, endMinute: 12 * 60 + 10 }]
+      }),
+      now,
+      random: () => 0
+    });
+
+    assert.equal(scheduledAt.toISOString(), '2026-06-24T19:00:10.000Z');
   });
 
   it('places a new schedule after a nearby previous mailbox send plan', () => {
@@ -267,6 +296,14 @@ function createAvailabilityService(): CrmSendAvailabilityService {
       };
     }
   } as unknown as CrmSendAvailabilityService;
+}
+
+function createRealAvailabilityService(): CrmSendAvailabilityService {
+  return new DefaultCrmSendAvailabilityService({
+    isHoliday() {
+      return false;
+    }
+  });
 }
 
 function createGlobalConfig(overrides: Partial<CrmGlobalConfigRecord> = {}): CrmGlobalConfigRecord {

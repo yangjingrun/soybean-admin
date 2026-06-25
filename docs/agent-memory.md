@@ -495,6 +495,14 @@
 - 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-control-rules.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`。
 - 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`，确认 stopped/replied/archived 等历史序列会阻止再次生成首封草稿。
 
+### 2026-06-25 CRM 发送排期避开整点秒级时间戳
+
+- 场景：CRM 首封、后续开发信和调度器都通过 `resolveCrmSequenceScheduledAt()` 计算真实发送时间，需要让发送时间看起来不像机器整点批量发送。
+- 坑点：调度器测试如果继续固定 `now=xx:00:00`，会误把“整点立即入队”当成正确行为；但避让幅度也不能过大，用户只需要避开 `00:00:00`、`01:00:00` 这类整点秒级时间戳。
+- 正确做法：先用客户时区和全局发送窗口求出真实可发点；如果结果正好落在 `hh:00:00.000`，顺延 10-60 秒后再按同邮箱间隔扫描。调度器遇到整点到期消息应先回写秒级偏移后的 `scheduledAt`，下一轮再入队。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/crm-ai-draft-task-worker.service.spec.ts`，确认整点会改到 10-60 秒内，调度器整点不会立即入队。
+
 ### 记录模板
 
 ```md

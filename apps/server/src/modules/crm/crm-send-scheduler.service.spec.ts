@@ -35,7 +35,7 @@ type SchedulerFakeStore = CrmSendSchedulerRepository & {
 
 describe('CrmSendSchedulerService', () => {
   it('dispatches due first-touch and follow-up messages by owner share preference', async () => {
-    const now = new Date('2026-06-20T02:00:00.000Z');
+    const now = new Date('2026-06-20T02:11:00.000Z');
     const store = createSchedulerStore({
       preference: createSendPreference({ dailySendLimit: 2, followUpSharePercent: 50 }),
       candidates: [
@@ -79,7 +79,7 @@ describe('CrmSendSchedulerService', () => {
   });
 
   it('skips due messages when the owner has reached queued concurrency', async () => {
-    const now = new Date('2026-06-20T02:00:00.000Z');
+    const now = new Date('2026-06-20T02:11:00.000Z');
     const store = createSchedulerStore({
       globalConfig: createGlobalConfig({ ownerConcurrentSendLimit: 1 }),
       queuedCount: 1,
@@ -96,7 +96,7 @@ describe('CrmSendSchedulerService', () => {
   });
 
   it('batch loads owner dispatch state for all due owners', async () => {
-    const now = new Date('2026-06-20T02:00:00.000Z');
+    const now = new Date('2026-06-20T02:11:00.000Z');
     const store = createSchedulerStore({
       candidates: [
         createCandidate({ messageId: 'owner-1-message', stepIndex: 1, ownerUserId: 'user-1', mailboxId: 'mailbox-1' }),
@@ -124,7 +124,7 @@ describe('CrmSendSchedulerService', () => {
   });
 
   it('batch loads mailbox dispatch state for all due mailboxes', async () => {
-    const now = new Date('2026-06-20T02:00:00.000Z');
+    const now = new Date('2026-06-20T02:11:00.000Z');
     const store = createSchedulerStore({
       candidates: [
         createCandidate({ messageId: 'mailbox-1-message', stepIndex: 1, mailboxId: 'mailbox-1' }),
@@ -150,7 +150,7 @@ describe('CrmSendSchedulerService', () => {
   });
 
   it('reserves mailbox capacity in memory after each queued candidate', async () => {
-    const now = new Date('2026-06-20T02:00:00.000Z');
+    const now = new Date('2026-06-20T02:11:00.000Z');
     const store = createSchedulerStore({
       candidates: [
         createCandidate({ messageId: 'first-1', stepIndex: 1, dailyLimit: 1, hourlyLimit: 1 }),
@@ -172,8 +172,29 @@ describe('CrmSendSchedulerService', () => {
     assert.equal(store.countDispatchedMessagesCalls.filter(call => call.mailboxId).length, 0);
   });
 
-  it('defers messages outside the recipient local send window before capacity checks and queueing', async () => {
+  it('defers due messages that land exactly on the hour before queueing', async () => {
     const now = new Date('2026-06-20T02:00:00.000Z');
+    const store = createSchedulerStore({
+      candidates: [createCandidate({ messageId: 'first-1', stepIndex: 1 })]
+    });
+    const queue = createQueue();
+    const scheduler = new CrmSendSchedulerService(store, queue, createAllowingAvailability());
+
+    const result = await scheduler.dispatchDueMessages({ now, take: 20 });
+
+    assert.equal(result.dispatchedCount, 0);
+    assert.equal(result.skippedCount, 1);
+    assert.equal(queue.jobs.length, 0);
+    assert.equal(store.updateCalls[0].id, 'first-1');
+    assert.equal(store.updateCalls[0].input.status, 'draft_ready');
+    assert.equal(store.updateCalls[0].input.bullJobId, null);
+    assert.ok(store.updateCalls[0].input.scheduledAt);
+    assert.ok(store.updateCalls[0].input.scheduledAt >= new Date('2026-06-20T02:00:10.000Z'));
+    assert.ok(store.updateCalls[0].input.scheduledAt <= new Date('2026-06-20T02:01:00.000Z'));
+  });
+
+  it('defers messages outside the recipient local send window before capacity checks and queueing', async () => {
+    const now = new Date('2026-06-20T02:11:00.000Z');
     const nextAvailableAt = new Date('2026-06-20T13:30:00.000Z');
     const store = createSchedulerStore({
       candidates: [
@@ -227,7 +248,7 @@ describe('CrmSendSchedulerService', () => {
   });
 
   it('keeps due messages spaced instead of queueing the whole mailbox batch at once', async () => {
-    const now = new Date('2026-06-20T02:00:00.000Z');
+    const now = new Date('2026-06-20T02:11:00.000Z');
     const store = createSchedulerStore({
       candidates: [
         createCandidate({ messageId: 'first-1', stepIndex: 1, scheduledAt: '2026-06-20T01:00:00.000Z' }),

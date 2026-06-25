@@ -14,20 +14,24 @@ export interface CrmSequenceScheduledAtInput {
 
 export const crmSendCadenceMinDelayMs = 5 * 60 * 1000;
 export const crmSendCadenceMaxDelayMs = 10 * 60 * 1000;
+export const crmSendExactHourAvoidanceMinDelayMs = 10 * 1000;
+export const crmSendExactHourAvoidanceMaxDelayMs = 60 * 1000;
 
 /** Resolves the real first-send schedule time based on the recipient's local send window. */
 export function resolveCrmSequenceScheduledAt(input: CrmSequenceScheduledAtInput) {
   const now = input.now ?? new Date();
-  const cadenceDelayMs = createCrmSendCadenceDelayMs(input.random ?? Math.random);
+  const random = input.random ?? Math.random;
+  const cadenceDelayMs = createCrmSendCadenceDelayMs(random);
   const scheduleTimes = normalizeMailboxScheduleTimes(input);
   let candidate = resolveRecipientReadyAt(input, now).readyAt;
 
   for (let index = 0; index <= scheduleTimes.length + 30; index += 1) {
     const recipientReadyAt = resolveRecipientReadyAt(input, candidate).readyAt;
-    const conflictAt = findMailboxScheduleConflict(scheduleTimes, recipientReadyAt, cadenceDelayMs);
+    const naturalReadyAt = resolveExactHourAvoidedReadyAt(input, recipientReadyAt, random);
+    const conflictAt = findMailboxScheduleConflict(scheduleTimes, naturalReadyAt, cadenceDelayMs);
 
     if (!conflictAt) {
-      return recipientReadyAt;
+      return naturalReadyAt;
     }
 
     // Move past the conflicting mailbox slot, then re-check the recipient's local send window.
@@ -58,6 +62,38 @@ export function createCrmSendCadenceDelayMs(random: () => number) {
   const ratio = Math.min(Math.max(random(), 0), 0.999999);
 
   return Math.floor(crmSendCadenceMinDelayMs + ratio * (crmSendCadenceMaxDelayMs - crmSendCadenceMinDelayMs));
+}
+
+/** Nudges exact-hour sends away from machine-like timestamps when the schedule lands on hh:00:00. */
+export function avoidExactHourSendTime(candidate: Date, random: () => number) {
+  if (candidate.getUTCMinutes() !== 0 || candidate.getUTCSeconds() !== 0 || candidate.getUTCMilliseconds() !== 0) {
+    return candidate;
+  }
+
+  const ratio = Math.min(Math.max(random(), 0), 0.999999);
+  const delayMs = Math.floor(
+    crmSendExactHourAvoidanceMinDelayMs +
+      ratio * (crmSendExactHourAvoidanceMaxDelayMs - crmSendExactHourAvoidanceMinDelayMs)
+  );
+
+  return new Date(candidate.getTime() + delayMs);
+}
+
+/** Uses the seconds offset only when it still satisfies the recipient's send window. */
+function resolveExactHourAvoidedReadyAt(
+  input: CrmSequenceScheduledAtInput,
+  recipientReadyAt: Date,
+  random: () => number
+) {
+  const naturalReadyAt = avoidExactHourSendTime(recipientReadyAt, random);
+
+  if (naturalReadyAt === recipientReadyAt) {
+    return recipientReadyAt;
+  }
+
+  const checkedReadyAt = resolveRecipientReadyAt(input, naturalReadyAt).readyAt;
+
+  return checkedReadyAt.getTime() === naturalReadyAt.getTime() ? naturalReadyAt : recipientReadyAt;
 }
 
 /** Normalize mailbox schedule inputs and keep them ordered for gap scanning. */
