@@ -79,6 +79,123 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.equal(result.candidates[0].country, '沙特阿拉伯');
   });
 
+  it('enriches Serper candidates with website evidence and precision analysis', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'sa',
+              hl: 'en',
+              location: 'Saudi Arabia',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      {
+        organic: [
+          {
+            title: 'ABC Bearing',
+            link: 'https://abc.example.com',
+            snippet: 'bearing supplier'
+          }
+        ]
+      }
+    ]);
+    const progressEvents: LeadSearchProgressEventInput[] = [];
+    const assertCalls: string[] = [];
+    const websiteCrawler = {
+      async enrichCandidates(candidates: Array<Record<string, unknown>>) {
+        return candidates.map(candidate => ({
+          ...candidate,
+          websiteEvidence: {
+            crawlStatus: 'completed',
+            pageCount: 1,
+            emails: ['sales@abc.example.com'],
+            phones: [],
+            socialLinks: [],
+            whatsappLinks: [],
+            mapLinks: [],
+            contactLinks: ['https://abc.example.com/contact'],
+            keywordHits: ['bearing'],
+            evidenceSnippets: ['bearing supplier'],
+            failureReason: null
+          }
+        }));
+      }
+    };
+    const precisionAnalysis = {
+      async analyzeCandidates(input: { candidates: Array<Record<string, unknown>> }) {
+        return input.candidates.map(candidate => ({
+          ...candidate,
+          score: 88,
+          reason: '官网命中 bearing supplier',
+          precisionAnalysis: {
+            score: 88,
+            priority: 'high',
+            buyerType: 'bearing distributor',
+            reason: '官网命中 bearing supplier',
+            matchedSignals: ['bearing supplier'],
+            risks: [],
+            recommendedAction: '优先开发',
+            reviewRequired: false
+          }
+        }));
+      }
+    };
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder(),
+      undefined,
+      websiteCrawler as never,
+      precisionAnalysis as never
+    );
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '找轴承进口商',
+        targetLeadCount: 20,
+        keywordPlan: {
+          resolvedProductKeywords: '6204 bearing',
+          resolvedTargetRegions: 'Saudi Arabia',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 20,
+          serperSearchQueries: [{ q: '6204 bearing importer Saudi Arabia', gl: 'sa', hl: 'en' }],
+          serperPlacesQueries: []
+        }
+      },
+      { user: createUser() },
+      {
+        async emit(event) {
+          progressEvents.push(event);
+        }
+      },
+      {
+        async assertStillRunning() {
+          assertCalls.push('assert');
+        }
+      }
+    );
+
+    assert.equal(result.candidates[0].score, 88);
+    assert.equal(result.candidates[0].reason, '官网命中 bearing supplier');
+    assert.deepEqual(result.candidates[0].websiteEvidence?.emails, ['sales@abc.example.com']);
+    assert.equal(result.candidates[0].precisionAnalysis?.priority, 'high');
+    assert.ok(progressEvents.some(event => event.stepKey === 'crawl_websites'));
+    assert.ok(progressEvents.some(event => event.stepKey === 'analyze_precision'));
+    assert.ok(assertCalls.length >= 2);
+  });
+
   it('keeps checkpoint keys distinct for the same query with different time ranges', async () => {
     const aiGateway = createAiGateway([
       {

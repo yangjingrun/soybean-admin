@@ -274,7 +274,9 @@ export function buildAiLeadCandidateImportPayload(
       sourceLabel: candidate.sourceLabel,
       sourceUrl: candidate.sourceUrl,
       score: candidate.score,
-      reason: candidate.reason
+      reason: candidate.reason,
+      websiteEvidence: candidate.websiteEvidence,
+      precisionAnalysis: candidate.precisionAnalysis
     })
   };
 }

@@ -10,6 +10,7 @@ import { SerperClient, type SerperEndpoint, type SerperRequestBody } from '../ai
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
 import type { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
+import { AiLeadPrecisionAnalysisService } from './ai-lead-precision-analysis.service';
 import {
   buildKeywordOptimizePrompt,
   buildKeywordOptimizeRepairPrompt,
@@ -19,6 +20,8 @@ import type { LeadSearchProgressReporter } from './ai-lead-search-progress';
 import { toLeadSearchPublicResult } from './ai-lead-search-progress';
 import { AiLeadCrmPrecheckService, type AiLeadCrmPrecheckSummary } from './ai-lead-crm-precheck.service';
 import { applySerperRequestCountry } from './ai-lead-candidate-country';
+import { AiLeadWebsiteCrawlerService } from './ai-lead-website-crawler.service';
+import type { AiLeadPrecisionAnalysis, AiLeadWebsiteEvidence } from './ai-lead-website-crawler.types';
 
 const keywordOptimizeMaxOutputTokens = 3600;
 const searchDecisionMaxOutputTokens = 1000;
@@ -134,6 +137,10 @@ export interface AiLeadSearchCandidate {
   latitude?: number;
   longitude?: number;
   country?: string;
+  websiteEvidence?: AiLeadWebsiteEvidence;
+  precisionAnalysis?: AiLeadPrecisionAnalysis;
+  score?: number;
+  reason?: string;
 }
 
 export interface LeadSearchQueryExecutionInput {
@@ -144,6 +151,7 @@ export interface LeadSearchQueryExecutionInput {
 
 export interface LeadSearchExecutionOptions {
   executeQuery?: (input: LeadSearchQueryExecutionInput, runDefault: () => Promise<unknown>) => Promise<unknown>;
+  assertStillRunning?: () => Promise<void>;
 }
 
 export interface BoundKeywordSearchDto extends SearchOrchestrateDto {
@@ -160,7 +168,13 @@ export class AiLeadSearchOrchestrator {
     @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder,
     @Optional()
     @Inject(AiLeadCrmPrecheckService)
-    private readonly crmPrecheckService?: AiLeadCrmPrecheckService
+    private readonly crmPrecheckService?: AiLeadCrmPrecheckService,
+    @Optional()
+    @Inject(AiLeadWebsiteCrawlerService)
+    private readonly websiteCrawlerService?: AiLeadWebsiteCrawlerService,
+    @Optional()
+    @Inject(AiLeadPrecisionAnalysisService)
+    private readonly precisionAnalysisService?: AiLeadPrecisionAnalysisService
   ) {}
 
   /** Runs keyword optimization, Serper search, and search-result decisions as one backend workflow. */
@@ -416,19 +430,29 @@ export class AiLeadSearchOrchestrator {
       progressPercent: 90,
       metrics: this.toProgressMetrics(serperRequests.length, maxRequests, candidates.length, decisions.length)
     });
+
+    const enrichedCandidates = await this.enrichCandidatesWithWebsiteEvidence(
+      candidates,
+      requirement,
+      keywordOptimization,
+      context,
+      reporter,
+      options
+    );
+
     await reporter?.emit({
       type: 'step_completed',
       stepKey: 'organize_candidates',
       title: '整理候选客户',
-      description: `已整理 ${candidates.length} 条候选线索`,
+      description: `已整理 ${enrichedCandidates.length} 条候选线索`,
       progressPercent: 95,
-      metrics: this.toProgressMetrics(serperRequests.length, maxRequests, candidates.length, decisions.length)
+      metrics: this.toProgressMetrics(serperRequests.length, maxRequests, enrichedCandidates.length, decisions.length)
     });
 
     await this.recordLog('success', 'AI 获客搜索编排完成', context, {
       serperRequestCount: serperRequests.length,
       decisionCount: decisions.length,
-      candidateCount: candidates.length,
+      candidateCount: enrichedCandidates.length,
       stopReason
     });
 
@@ -439,7 +463,7 @@ export class AiLeadSearchOrchestrator {
       serperRequests,
       serperResults,
       decisions,
-      candidates,
+      candidates: enrichedCandidates,
       stopReason
     };
 
@@ -454,6 +478,69 @@ export class AiLeadSearchOrchestrator {
     });
 
     return result;
+  }
+
+  private async enrichCandidatesWithWebsiteEvidence(
+    candidates: AiLeadSearchCandidate[],
+    requirement: string,
+    keywordOptimization: OptimizedKeywordPlan,
+    context: AiLeadSearchContext,
+    reporter: LeadSearchProgressReporter | undefined,
+    options: LeadSearchExecutionOptions
+  ) {
+    if (candidates.length === 0 || !this.websiteCrawlerService || !this.precisionAnalysisService) {
+      return candidates;
+    }
+
+    await options.assertStillRunning?.();
+    await reporter?.emit({
+      type: 'step_started',
+      stepKey: 'crawl_websites',
+      title: '采集官网证据',
+      description: `正在补充 ${candidates.length} 个客户的官网公开信息`,
+      progressPercent: 90,
+      metrics: this.toProgressMetrics(0, candidates.length, candidates.length, 0)
+    });
+
+    const websiteEnrichedCandidates = await this.websiteCrawlerService.enrichCandidates(candidates);
+
+    await options.assertStillRunning?.();
+    await reporter?.emit({
+      type: 'step_completed',
+      stepKey: 'crawl_websites',
+      title: '采集官网证据',
+      description: `已完成 ${websiteEnrichedCandidates.length} 个客户的官网证据补充`,
+      progressPercent: 93,
+      metrics: this.toProgressMetrics(websiteEnrichedCandidates.length, candidates.length, candidates.length, 0)
+    });
+
+    await reporter?.emit({
+      type: 'step_started',
+      stepKey: 'analyze_precision',
+      title: '分析客户精准度',
+      description: '正在结合 Serper 和官网证据判断客户匹配度',
+      progressPercent: 94
+    });
+
+    const analyzedCandidates = await this.precisionAnalysisService.analyzeCandidates(
+      {
+        requirement,
+        keywordPlan: keywordOptimization,
+        candidates: websiteEnrichedCandidates
+      },
+      context
+    );
+
+    await options.assertStillRunning?.();
+    await reporter?.emit({
+      type: 'step_completed',
+      stepKey: 'analyze_precision',
+      title: '分析客户精准度',
+      description: `已完成 ${analyzedCandidates.length} 个客户的精准度判断`,
+      progressPercent: 95
+    });
+
+    return analyzedCandidates;
   }
 
   /** Generates a keyword plan and asks the model to repair it once if quality gates fail. */

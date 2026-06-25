@@ -219,6 +219,37 @@ declare namespace Api {
       total?: number;
     }
 
+    type LeadWebsiteCrawlStatus = 'completed' | 'failed' | 'skipped';
+    type LeadPrecisionPriority = 'high' | 'medium' | 'low' | 'reject';
+
+    interface LeadSearchWebsiteEvidence {
+      crawlStatus: LeadWebsiteCrawlStatus;
+      pageCount: number;
+      finalUrl?: string;
+      title?: string;
+      description?: string;
+      emails: string[];
+      phones: string[];
+      socialLinks: string[];
+      whatsappLinks: string[];
+      mapLinks: string[];
+      contactLinks: string[];
+      keywordHits: string[];
+      evidenceSnippets: string[];
+      failureReason: string | null;
+    }
+
+    interface LeadSearchPrecisionAnalysis {
+      score: number;
+      priority: LeadPrecisionPriority;
+      buyerType: string;
+      reason: string;
+      matchedSignals: string[];
+      risks: string[];
+      recommendedAction: string;
+      reviewRequired: boolean;
+    }
+
     interface LeadSearchCandidateView {
       title?: string;
       website?: string;
@@ -232,6 +263,8 @@ declare namespace Api {
       sourceUrl?: string;
       score?: number;
       reason?: string;
+      websiteEvidence?: LeadSearchWebsiteEvidence;
+      precisionAnalysis?: LeadSearchPrecisionAnalysis;
     }
 
     interface LeadSearchSerperResultView {

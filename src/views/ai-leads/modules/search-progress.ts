@@ -292,7 +292,9 @@ function toCandidateView(candidate: Record<string, unknown>): Api.AiLeads.LeadSe
     sourceLabel: readString(candidate.sourceLabel) || toSourceLabel(readString(candidate.sourceType)),
     sourceUrl: readString(candidate.sourceUrl) || readString(candidate.url) || readString(candidate.link),
     score: readNumber(candidate.score),
-    reason: readString(candidate.reason)
+    reason: readString(candidate.reason),
+    websiteEvidence: readWebsiteEvidence(candidate.websiteEvidence),
+    precisionAnalysis: readPrecisionAnalysis(candidate.precisionAnalysis)
   };
 }
 
@@ -310,6 +312,18 @@ function readString(value: unknown) {
 
 function readNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readWebsiteEvidence(value: unknown) {
+  return isRecord(value) ? (value as unknown as Api.AiLeads.LeadSearchWebsiteEvidence) : undefined;
+}
+
+function readPrecisionAnalysis(value: unknown) {
+  return isRecord(value) ? (value as unknown as Api.AiLeads.LeadSearchPrecisionAnalysis) : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function toSourceLabel(sourceType?: string) {

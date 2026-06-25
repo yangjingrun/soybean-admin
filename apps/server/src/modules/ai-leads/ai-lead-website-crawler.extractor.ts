@@ -1,0 +1,281 @@
+import type { AiLeadWebsiteEvidence, AiLeadWebsitePageEvidence } from './ai-lead-website-crawler.types';
+
+const targetKeywords = [
+  'bearing',
+  'traction',
+  'elevator',
+  'lift',
+  'asansör',
+  'asansor',
+  'machine',
+  'motor',
+  'gearless',
+  'geared',
+  'escalator',
+  'spare',
+  'component',
+  'supplier',
+  'manufacturer',
+  'import',
+  'distributor'
+];
+
+const socialHostPattern = /(?:linkedin|facebook|instagram|youtube|x\.com|twitter|tiktok|pinterest)/i;
+const whatsappPattern = /(?:wa\.me|whatsapp\.com)/i;
+const mapPattern = /(?:maps\.google|goo\.gl\/maps|google\.[^/]+\/maps)/i;
+const contactPathPattern = /(?:contact|about|iletisim|hakkimizda|support|sales|dealer|distributor|export)/i;
+
+interface ExtractWebsitePageEvidenceInput {
+  url: string;
+  loadedUrl: string;
+  statusCode: number;
+  html: string;
+}
+
+/** Extracts contact channels and product evidence from one fetched website HTML page. */
+export function extractWebsitePageEvidence(input: ExtractWebsitePageEvidenceInput): AiLeadWebsitePageEvidence {
+  const links = extractLinks(input.html, input.loadedUrl || input.url);
+  const text = normalizeText(stripHtml(input.html));
+  const title = extractTitle(input.html);
+  const description = extractDescription(input.html);
+  const combined = normalizeText(`${title} ${description} ${text} ${links.join(' ')}`);
+
+  return {
+    url: input.url,
+    loadedUrl: input.loadedUrl,
+    statusCode: input.statusCode,
+    title,
+    description,
+    emails: unique(extractEmails(combined)),
+    phones: uniquePhones(extractPhones(combined)),
+    socialLinks: unique(links.filter(link => socialHostPattern.test(link))),
+    whatsappLinks: unique(links.filter(link => whatsappPattern.test(link))),
+    mapLinks: unique(links.filter(link => mapPattern.test(link))),
+    contactLinks: unique(
+      links.filter(link => sameHost(input.loadedUrl || input.url, link) && contactPathPattern.test(link))
+    ),
+    keywordHits: targetKeywords.filter(keyword => matchesKeyword(combined, keyword)),
+    evidenceSnippets: unique(extractEvidenceSnippets(text), 6)
+  };
+}
+
+/** Merges multiple page-level records into one compact candidate-level website evidence record. */
+export function mergeWebsitePageEvidence(pages: AiLeadWebsitePageEvidence[]): AiLeadWebsiteEvidence {
+  const firstPage = pages[0];
+
+  return {
+    crawlStatus: 'completed',
+    pageCount: pages.length,
+    finalUrl: firstPage?.loadedUrl,
+    title: firstPage?.title,
+    description: firstPage?.description,
+    emails: unique(
+      pages.flatMap(page => page.emails),
+      12
+    ),
+    phones: unique(
+      pages.flatMap(page => page.phones),
+      10
+    ),
+    socialLinks: unique(
+      pages.flatMap(page => page.socialLinks),
+      12
+    ),
+    whatsappLinks: unique(
+      pages.flatMap(page => page.whatsappLinks),
+      8
+    ),
+    mapLinks: unique(
+      pages.flatMap(page => page.mapLinks),
+      8
+    ),
+    contactLinks: unique(
+      pages.flatMap(page => page.contactLinks),
+      20
+    ),
+    keywordHits: unique(
+      pages.flatMap(page => page.keywordHits),
+      24
+    ),
+    evidenceSnippets: unique(
+      pages.flatMap(page => page.evidenceSnippets),
+      8
+    ),
+    failureReason: null
+  };
+}
+
+export function createSkippedWebsiteEvidence(reason: string): AiLeadWebsiteEvidence {
+  return createEmptyWebsiteEvidence('skipped', reason);
+}
+
+export function createFailedWebsiteEvidence(reason: string): AiLeadWebsiteEvidence {
+  return createEmptyWebsiteEvidence('failed', reason);
+}
+
+function createEmptyWebsiteEvidence(crawlStatus: 'failed' | 'skipped', reason: string): AiLeadWebsiteEvidence {
+  return {
+    crawlStatus,
+    pageCount: 0,
+    emails: [],
+    phones: [],
+    socialLinks: [],
+    whatsappLinks: [],
+    mapLinks: [],
+    contactLinks: [],
+    keywordHits: [],
+    evidenceSnippets: [],
+    failureReason: reason
+  };
+}
+
+function extractLinks(html: string, baseUrl: string) {
+  const links: string[] = [];
+  const hrefPattern = /href\s*=\s*["']([^"']+)["']/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = hrefPattern.exec(html))) {
+    const href = decodeHtml(match[1] || '').trim();
+    if (!href || href.startsWith('#') || href.toLowerCase().startsWith('javascript:')) {
+      continue;
+    }
+
+    if (/^(mailto:|tel:)/i.test(href)) {
+      links.push(href);
+      continue;
+    }
+
+    try {
+      links.push(new URL(href, baseUrl).toString());
+    } catch {
+      // Ignore malformed hrefs; they are not usable customer channels.
+    }
+  }
+
+  return links;
+}
+
+function extractTitle(html: string) {
+  return normalizeText(decodeHtml(readFirstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i)));
+}
+
+function extractDescription(html: string) {
+  return normalizeText(
+    decodeHtml(readFirstMatch(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i))
+  );
+}
+
+function extractEmails(text: string) {
+  return text.match(/[\w.+%-]+@[\w.-]+\.[A-Za-z]{2,}/g) ?? [];
+}
+
+function extractPhones(text: string) {
+  return text.match(/(?:\+\d{1,3}[\s().-]*)?(?:\(?\d{2,5}\)?[\s().-]*){2,}\d{2,6}/g) ?? [];
+}
+
+function extractEvidenceSnippets(text: string) {
+  return targetKeywords.flatMap(keyword => {
+    const match = text.match(new RegExp(`.{0,90}${toKeywordPattern(keyword)}.{0,120}`, 'i'));
+
+    return match ? [normalizeText(match[0])] : [];
+  });
+}
+
+function stripHtml(html: string) {
+  return decodeHtml(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+  );
+}
+
+function readFirstMatch(value: string, pattern: RegExp) {
+  return value.match(pattern)?.[1] ?? '';
+}
+
+function normalizeText(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function decodeHtml(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function unique(values: string[], limit = 12) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const value of values) {
+    const normalized = normalizeText(value).replace(/[),.;:]+$/, '');
+    const key = normalized.toLowerCase();
+
+    if (!normalized || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(normalized);
+
+    if (output.length >= limit) {
+      break;
+    }
+  }
+
+  return output;
+}
+
+function uniquePhones(values: string[], limit = 10) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const value of values) {
+    const normalized = normalizeText(value).replace(/[),.;:]+$/, '');
+    const key = normalized.replace(/\D/g, '');
+
+    if (!normalized || !key || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(normalized);
+
+    if (output.length >= limit) {
+      break;
+    }
+  }
+
+  return output;
+}
+
+function sameHost(baseUrl: string, link: string) {
+  if (/^(mailto:|tel:)/i.test(link)) {
+    return false;
+  }
+
+  try {
+    const baseHost = new URL(baseUrl).hostname.replace(/^www\./i, '').toLowerCase();
+    const linkHost = new URL(link).hostname.replace(/^www\./i, '').toLowerCase();
+
+    return baseHost === linkHost;
+  } catch {
+    return false;
+  }
+}
+
+function matchesKeyword(text: string, keyword: string) {
+  return new RegExp(`\\b${toKeywordPattern(keyword)}\\b`, 'i').test(text);
+}
+
+function toKeywordPattern(keyword: string) {
+  return `${escapeRegExp(keyword)}(?:s|es)?`;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

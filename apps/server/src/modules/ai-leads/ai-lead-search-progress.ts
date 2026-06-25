@@ -17,11 +17,19 @@ export interface LeadSearchCandidateView {
   title?: string;
   website?: string;
   snippet?: string;
+  country?: string;
+  city?: string;
   address?: string;
   phoneNumber?: string;
   latitude?: number;
   longitude?: number;
+  sourceType?: string;
   sourceLabel?: string;
+  sourceUrl?: string;
+  score?: number;
+  reason?: string;
+  websiteEvidence?: unknown;
+  precisionAnalysis?: unknown;
 }
 
 export interface LeadSearchSerperResultView {
@@ -82,6 +90,13 @@ interface InternalCandidateSummary {
   phoneNumber?: string;
   latitude?: number;
   longitude?: number;
+  country?: string;
+  city?: string;
+  sourceUrl?: string;
+  score?: number;
+  reason?: string;
+  websiteEvidence?: unknown;
+  precisionAnalysis?: unknown;
 }
 
 /** Adds run metadata and monotonic sequence numbers to business progress events. */
@@ -114,10 +129,14 @@ export function serializeLeadSearchProgressEvent(event: LeadSearchProgressEvent)
 export function toLeadSearchPublicResult(result: InternalSearchResult): LeadSearchPublicResult {
   return {
     summary: {
-      candidateCount: result.candidates.length
+      actionCount: result.serperRequests.length,
+      qualityCheckCount: result.decisions.length,
+      candidateCount: result.candidates.length,
+      stopReason: result.stopReason
     },
     candidates: result.candidates.map(toCandidateView),
-    serperResults: []
+    serperResults: [],
+    warnings: result.qualityWarnings
   };
 }
 
@@ -126,9 +145,34 @@ function toCandidateView(candidate: InternalCandidateSummary): LeadSearchCandida
     title: candidate.title,
     website: candidate.website || candidate.url,
     snippet: candidate.snippet,
+    country: candidate.country,
+    city: candidate.city,
     address: candidate.address,
     phoneNumber: candidate.phoneNumber,
     latitude: candidate.latitude,
-    longitude: candidate.longitude
+    longitude: candidate.longitude,
+    sourceType: candidate.sourceType,
+    sourceLabel: toSourceLabel(candidate.sourceType),
+    sourceUrl: candidate.sourceUrl || candidate.url,
+    score: candidate.score,
+    reason: candidate.reason,
+    websiteEvidence: candidate.websiteEvidence,
+    precisionAnalysis: candidate.precisionAnalysis
   };
+}
+
+function toSourceLabel(sourceType?: string) {
+  if (sourceType === 'place' || sourceType === 'local') {
+    return '本地商家线索';
+  }
+
+  if (sourceType === 'organic') {
+    return '公开线索';
+  }
+
+  if (sourceType === 'maps') {
+    return '地图线索';
+  }
+
+  return undefined;
 }

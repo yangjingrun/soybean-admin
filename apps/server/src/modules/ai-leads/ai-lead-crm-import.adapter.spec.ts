@@ -20,7 +20,30 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
           country: 'SA',
           score: 82,
           reason: 'Matches bearing supplier intent',
-          sourceUrl: 'https://google.serper.dev/places'
+          sourceUrl: 'https://google.serper.dev/places',
+          websiteEvidence: {
+            crawlStatus: 'completed',
+            pageCount: 1,
+            emails: ['sales@abc.example'],
+            phones: [],
+            socialLinks: [],
+            whatsappLinks: [],
+            mapLinks: [],
+            contactLinks: ['https://abc.example/contact'],
+            keywordHits: ['bearing'],
+            evidenceSnippets: ['Bearing distributor'],
+            failureReason: null
+          },
+          precisionAnalysis: {
+            score: 82,
+            priority: 'high',
+            buyerType: 'bearing distributor',
+            reason: 'Matches bearing supplier intent',
+            matchedSignals: ['bearing'],
+            risks: [],
+            recommendedAction: '优先开发',
+            reviewRequired: false
+          }
         },
         { title: '  ', website: 'https://blank.example' },
         { title: 'XYZ Trading', url: 'https://xyz.example' }
@@ -51,7 +74,30 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
           reason: 'Matches bearing supplier intent',
           sourceUrl: 'https://google.serper.dev/places',
           url: 'https://fallback.example',
-          website: 'https://abc.example'
+          website: 'https://abc.example',
+          websiteEvidence: {
+            crawlStatus: 'completed',
+            pageCount: 1,
+            emails: ['sales@abc.example'],
+            phones: [],
+            socialLinks: [],
+            whatsappLinks: [],
+            mapLinks: [],
+            contactLinks: ['https://abc.example/contact'],
+            keywordHits: ['bearing'],
+            evidenceSnippets: ['Bearing distributor'],
+            failureReason: null
+          },
+          precisionAnalysis: {
+            score: 82,
+            priority: 'high',
+            buyerType: 'bearing distributor',
+            reason: 'Matches bearing supplier intent',
+            matchedSignals: ['bearing'],
+            risks: [],
+            recommendedAction: '优先开发',
+            reviewRequired: false
+          }
         }
       },
       {

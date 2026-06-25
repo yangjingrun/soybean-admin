@@ -16,6 +16,8 @@ interface AiLeadCandidateLike {
   score?: unknown;
   reason?: unknown;
   sourceUrl?: unknown;
+  websiteEvidence?: unknown;
+  precisionAnalysis?: unknown;
 }
 
 /** Maps completed AI lead candidates to CRM import inputs. */
@@ -87,7 +89,7 @@ function buildCandidateCoordinatePatch(candidate: AiLeadCandidateLike) {
 }
 
 function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
-  const snapshot: Record<string, string | number> = {};
+  const snapshot: Record<string, unknown> = {};
   const stringFields = [
     'snippet',
     'city',
@@ -114,6 +116,12 @@ function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
 
   const longitude = normalizeNumber(candidate.longitude);
   if (longitude !== null) snapshot.longitude = longitude;
+
+  for (const field of ['websiteEvidence', 'precisionAnalysis'] as const) {
+    if (candidate[field] && typeof candidate[field] === 'object') {
+      snapshot[field] = candidate[field];
+    }
+  }
 
   return Object.keys(snapshot).length ? snapshot : null;
 }

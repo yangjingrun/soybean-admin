@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NProgress, NTag } from 'naive-ui';
+import { NProgress, NTag, NTooltip } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { useRouterPush } from '@/hooks/common/router';
 import { getMetricDisplayText } from './search-progress';
@@ -75,6 +75,9 @@ const summaryItems = computed(() => {
 });
 const candidateRows = computed(() => buildAiLeadCandidateImportRows(props.state.result?.candidates ?? []));
 const showSourceColumn = computed(() => candidateRows.value.some(row => Boolean(row.candidate.sourceLabel?.trim())));
+const showPrecisionColumn = computed(() =>
+  candidateRows.value.some(row => typeof row.candidate.score === 'number' || Boolean(row.candidate.precisionAnalysis))
+);
 const importedCount = computed(() => candidateRows.value.filter(row => row.importState.canImport).length);
 const skippedCount = computed(() => candidateRows.value.length - importedCount.value);
 const skippedRows = computed(() => candidateRows.value.filter(row => !row.importState.canImport));
@@ -115,6 +118,46 @@ const sourceColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
         type: sourceLabel.includes('本地') ? 'success' : 'info'
       },
       { default: () => sourceLabel }
+    );
+  }
+};
+const precisionColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
+  title: '精准度',
+  key: 'precision',
+  width: 150,
+  render: row => {
+    const score = row.candidate.score ?? row.candidate.precisionAnalysis?.score;
+    const priority = row.candidate.precisionAnalysis?.priority;
+
+    if (typeof score !== 'number') {
+      return '-';
+    }
+
+    return h(
+      NTooltip,
+      { trigger: 'hover', placement: 'top' },
+      {
+        trigger: () =>
+          h('div', { class: 'candidate-precision-cell' }, [
+            h(
+              NTag,
+              {
+                size: 'small',
+                bordered: false,
+                type: getPrecisionTagType(score)
+              },
+              { default: () => `${score}分` }
+            ),
+            priority
+              ? h(
+                  NTag,
+                  { size: 'small', bordered: false, type: getPriorityTagType(priority) },
+                  { default: () => getPriorityText(priority) }
+                )
+              : null
+          ]),
+        default: () => h('div', { class: 'candidate-precision-tooltip' }, getPrecisionTooltipItems(row))
+      }
     );
   }
 };
@@ -192,6 +235,10 @@ const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(()
     columns.splice(5, 0, sourceColumn);
   }
 
+  if (showPrecisionColumn.value) {
+    columns.splice(showSourceColumn.value ? 6 : 5, 0, precisionColumn);
+  }
+
   return columns;
 });
 
@@ -263,6 +310,64 @@ function getImportStateText(row: AiLeadCandidateImportRow) {
   const reasons = row.importState.reasons.map(reason => importSkipReasonText[reason] ?? reason);
 
   return reasons.join('、') || '信息不全';
+}
+
+function getPrecisionTagType(score: number): 'success' | 'info' | 'warning' | 'error' {
+  if (score >= 80) {
+    return 'success';
+  }
+
+  if (score >= 60) {
+    return 'info';
+  }
+
+  if (score >= 40) {
+    return 'warning';
+  }
+
+  return 'error';
+}
+
+function getPriorityTagType(priority: Api.AiLeads.LeadPrecisionPriority): 'success' | 'info' | 'warning' | 'error' {
+  const typeMap: Record<Api.AiLeads.LeadPrecisionPriority, 'success' | 'info' | 'warning' | 'error'> = {
+    high: 'success',
+    medium: 'info',
+    low: 'warning',
+    reject: 'error'
+  };
+
+  return typeMap[priority];
+}
+
+function getPriorityText(priority: Api.AiLeads.LeadPrecisionPriority) {
+  const textMap: Record<Api.AiLeads.LeadPrecisionPriority, string> = {
+    high: '高',
+    medium: '中',
+    low: '低',
+    reject: '拒绝'
+  };
+
+  return textMap[priority];
+}
+
+/** Creates the precision popover content from crawler and LLM evidence. */
+function getPrecisionTooltipItems(row: AiLeadCandidateImportRow) {
+  const evidence = row.candidate.websiteEvidence;
+  const analysis = row.candidate.precisionAnalysis;
+  const items = [
+    row.candidate.reason || analysis?.reason,
+    evidence?.emails.length ? `邮箱：${evidence.emails.slice(0, 3).join('、')}` : '',
+    evidence?.phones.length ? `电话：${evidence.phones.slice(0, 3).join('、')}` : '',
+    evidence?.socialLinks.length ? `社媒：${evidence.socialLinks.slice(0, 2).join('、')}` : '',
+    evidence?.whatsappLinks.length ? `WhatsApp：${evidence.whatsappLinks.slice(0, 2).join('、')}` : '',
+    evidence?.contactLinks.length ? `联系页：${evidence.contactLinks.slice(0, 2).join('、')}` : '',
+    evidence?.evidenceSnippets.length ? `证据：${evidence.evidenceSnippets.slice(0, 2).join('；')}` : '',
+    analysis?.reviewRequired ? '需要人工复核' : ''
+  ].filter((item): item is string => Boolean(item));
+
+  return items.length
+    ? items.map(item => h('div', { class: 'candidate-precision-tooltip-line' }, item))
+    : [h('div', { class: 'candidate-precision-tooltip-line' }, '暂无证据')];
 }
 </script>
 
@@ -602,6 +707,23 @@ function getImportStateText(row: AiLeadCandidateImportRow) {
 :deep(.candidate-quality-text) {
   color: var(--n-text-color-3);
   font-size: 12px;
+}
+
+:deep(.candidate-precision-cell) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+:deep(.candidate-precision-tooltip) {
+  max-width: 420px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+:deep(.candidate-precision-tooltip-line + .candidate-precision-tooltip-line) {
+  margin-top: 4px;
 }
 
 .error-hint {

@@ -249,7 +249,32 @@ describe('ai leads search progress state', () => {
               sourceType: 'organic',
               title: 'Bearing House',
               url: 'https://bearing.example.com',
-              snippet: 'bearing distributor'
+              snippet: 'bearing distributor',
+              websiteEvidence: {
+                crawlStatus: 'completed',
+                pageCount: 1,
+                emails: ['sales@bearing.example.com'],
+                phones: [],
+                socialLinks: [],
+                whatsappLinks: [],
+                mapLinks: [],
+                contactLinks: ['https://bearing.example.com/contact'],
+                keywordHits: ['bearing'],
+                evidenceSnippets: ['bearing distributor'],
+                failureReason: null
+              },
+              precisionAnalysis: {
+                score: 88,
+                priority: 'high',
+                buyerType: 'bearing distributor',
+                reason: '官网命中 bearing distributor',
+                matchedSignals: ['bearing distributor'],
+                risks: [],
+                recommendedAction: '优先开发',
+                reviewRequired: false
+              },
+              score: 88,
+              reason: '官网命中 bearing distributor'
             }
           ],
           stopReason: '所有查询已完成'
@@ -268,8 +293,31 @@ describe('ai leads search progress state', () => {
       sourceType: 'organic',
       sourceLabel: '公开线索',
       sourceUrl: 'https://bearing.example.com',
-      score: undefined,
-      reason: undefined
+      score: 88,
+      reason: '官网命中 bearing distributor',
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        pageCount: 1,
+        emails: ['sales@bearing.example.com'],
+        phones: [],
+        socialLinks: [],
+        whatsappLinks: [],
+        mapLinks: [],
+        contactLinks: ['https://bearing.example.com/contact'],
+        keywordHits: ['bearing'],
+        evidenceSnippets: ['bearing distributor'],
+        failureReason: null
+      },
+      precisionAnalysis: {
+        score: 88,
+        priority: 'high',
+        buyerType: 'bearing distributor',
+        reason: '官网命中 bearing distributor',
+        matchedSignals: ['bearing distributor'],
+        risks: [],
+        recommendedAction: '优先开发',
+        reviewRequired: false
+      }
     });
   });
 

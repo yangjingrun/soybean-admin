@@ -107,6 +107,7 @@ export class AiLeadSearchTaskWorkerService {
         },
         reporter,
         {
+          assertStillRunning: () => this.assertTaskStillRunning(task.id, job.runVersion),
           executeQuery: (input, runDefault) =>
             this.executeQueryWithCheckpoint(task.id, job.runVersion, input, runDefault)
         }

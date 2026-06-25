@@ -271,7 +271,30 @@ describe('ai leads keyword optimization helpers', () => {
       sourceType: 'search',
       sourceUrl: 'https://google.example.com/result',
       score: 88,
-      reason: 'Good buyer signal'
+      reason: 'Good buyer signal',
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        pageCount: 1,
+        emails: ['sales@bearing.example.com'],
+        phones: ['+966 123'],
+        socialLinks: ['https://www.linkedin.com/company/bearing-house'],
+        whatsappLinks: [],
+        mapLinks: [],
+        contactLinks: ['https://bearing.example.com/contact'],
+        keywordHits: ['bearing'],
+        evidenceSnippets: ['Bearing distributor'],
+        failureReason: null
+      },
+      precisionAnalysis: {
+        score: 88,
+        priority: 'high',
+        buyerType: 'bearing distributor',
+        reason: 'Good buyer signal',
+        matchedSignals: ['bearing'],
+        risks: [],
+        recommendedAction: '优先开发',
+        reviewRequired: false
+      }
     };
 
     assert.equal(normalizeAiLeadCandidateDomain(candidate), 'bearing.example.com');
@@ -295,7 +318,30 @@ describe('ai leads keyword optimization helpers', () => {
         sourceLabel: '公开线索',
         sourceUrl: 'https://google.example.com/result',
         score: 88,
-        reason: 'Good buyer signal'
+        reason: 'Good buyer signal',
+        websiteEvidence: {
+          crawlStatus: 'completed',
+          pageCount: 1,
+          emails: ['sales@bearing.example.com'],
+          phones: ['+966 123'],
+          socialLinks: ['https://www.linkedin.com/company/bearing-house'],
+          whatsappLinks: [],
+          mapLinks: [],
+          contactLinks: ['https://bearing.example.com/contact'],
+          keywordHits: ['bearing'],
+          evidenceSnippets: ['Bearing distributor'],
+          failureReason: null
+        },
+        precisionAnalysis: {
+          score: 88,
+          priority: 'high',
+          buyerType: 'bearing distributor',
+          reason: 'Good buyer signal',
+          matchedSignals: ['bearing'],
+          risks: [],
+          recommendedAction: '优先开发',
+          reviewRequired: false
+        }
       }
     });
   });

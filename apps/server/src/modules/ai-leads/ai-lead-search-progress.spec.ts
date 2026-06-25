@@ -83,10 +83,10 @@ describe('ai lead search progress helpers', () => {
     });
 
     assert.equal(result.summary.candidateCount, 1);
-    assert.equal('actionCount' in result.summary, false);
-    assert.equal('qualityCheckCount' in result.summary, false);
-    assert.equal('stopReason' in result.summary, false);
-    assert.equal('sourceLabel' in result.candidates[0], false);
+    assert.equal(result.summary.actionCount, 1);
+    assert.equal(result.summary.qualityCheckCount, 1);
+    assert.equal(result.summary.stopReason, '已达到目标线索数量');
+    assert.equal(result.candidates[0].sourceLabel, '公开线索');
     assert.deepEqual(result.serperResults, []);
     assert.equal(JSON.stringify(result).includes('apiKey'), false);
   });

@@ -12,6 +12,8 @@ import { AiLeadSearchTaskQueueService } from './ai-lead-search-task-queue.servic
 import { AiLeadSearchTaskService } from './ai-lead-search-task.service';
 import { AiLeadSearchTaskWorkerHost } from './ai-lead-search-task-worker-host.service';
 import { AiLeadSearchTaskWorkerService } from './ai-lead-search-task-worker.service';
+import { AiLeadPrecisionAnalysisService } from './ai-lead-precision-analysis.service';
+import { AiLeadWebsiteCrawlerService } from './ai-lead-website-crawler.service';
 import { AiLeadsController } from './ai-leads.controller';
 import { AiLeadsService } from './ai-leads.service';
 import {
@@ -36,6 +38,8 @@ import { PrismaAiLeadSearchTaskStore } from './prisma-ai-lead-search-task.store'
     AiLeadSearchTaskQueueService,
     AiLeadSearchTaskWorkerService,
     AiLeadSearchTaskWorkerHost,
+    AiLeadWebsiteCrawlerService,
+    AiLeadPrecisionAnalysisService,
     {
       provide: AI_LEAD_KEYWORD_HISTORY_STORE,
       useClass: PrismaAiLeadKeywordHistoryStore
