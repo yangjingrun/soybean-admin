@@ -103,6 +103,61 @@ describe('CrmAccountService', () => {
     assert.equal(createAccountCalls[0].timeZone, 'Asia/Dubai');
   });
 
+  it('persists crawler evidence source snapshot when importing AI leads', async () => {
+    const createAccountCalls: Array<Record<string, unknown>> = [];
+    const timelineEvents: CrmTimelineEventCreateInput[] = [];
+    const service = new CrmAccountService(
+      {
+        async findArchivedFingerprints() {
+          return [];
+        },
+        async findAccountByDomain() {
+          return null;
+        },
+        async createAccount(input: Partial<CrmAccountRecord>) {
+          createAccountCalls.push(input);
+
+          return createAccount(input);
+        },
+        async createTimelineEvent(input: CrmTimelineEventCreateInput) {
+          timelineEvents.push(input);
+
+          return createTimelineEvent(input);
+        }
+      } as never,
+      {} as never
+    );
+    const sourceSnapshot = {
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        socialLinks: ['https://www.linkedin.com/company/abc-bearing'],
+        whatsappLinks: ['https://wa.me/971501234567']
+      },
+      precisionAnalysis: {
+        score: 88,
+        matchedSignals: ['bearing distributor']
+      }
+    };
+
+    await service.importAccountFromLead(
+      {
+        name: 'ABC Bearing',
+        websiteUrl: 'https://abc.example',
+        sourceSnapshot
+      },
+      {
+        userId: 'u-1',
+        userName: 'Sales',
+        roles: ['R_USER'],
+        organizationId: 'org-1',
+        organizationRole: 'member'
+      }
+    );
+
+    assert.deepEqual(createAccountCalls[0].sourceSnapshot, sourceSnapshot);
+    assert.deepEqual((timelineEvents[0].metadata as { sourceSnapshot: unknown }).sourceSnapshot, sourceSnapshot);
+  });
+
   it('infers account timezone from imported country and city when timezone is missing', async () => {
     const createAccountCalls: Array<Record<string, unknown>> = [];
     const service = new CrmAccountService(

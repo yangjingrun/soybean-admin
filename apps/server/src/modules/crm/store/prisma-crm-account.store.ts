@@ -7,6 +7,8 @@ import {
   toAccountListWhere,
   toAccountRecord,
   toArchivedFingerprintRecord,
+  toAccountCreateInput,
+  toAccountUpdateInput,
   toContactIdentityWhere,
   toContactRecord,
   toEmailVerificationCacheRecord,
@@ -119,7 +121,7 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
   async createAccount(input: CrmAccountCreateInput) {
     try {
       const record = await this.prisma.crmAccount.create({
-        data: input as Prisma.CrmAccountUncheckedCreateInput
+        data: toAccountCreateInput(input)
       });
 
       return toAccountRecord(record);
@@ -137,7 +139,7 @@ export class PrismaCrmAccountStore implements CrmAccountRepository {
   async updateAccount(id: string, input: CrmAccountUpdateInput) {
     const records = await this.prisma.crmAccount.updateManyAndReturn({
       where: { id },
-      data: input,
+      data: toAccountUpdateInput(input),
       limit: 1
     });
 

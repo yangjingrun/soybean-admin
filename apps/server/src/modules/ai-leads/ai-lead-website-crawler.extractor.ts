@@ -34,10 +34,20 @@ const buyerSignalKeywords = [
   'products'
 ];
 
-const socialHostPattern = /(?:linkedin|facebook|instagram|youtube|x\.com|twitter|tiktok|pinterest)/i;
 const whatsappPattern = /(?:wa\.me|whatsapp\.com)/i;
 const mapPattern = /(?:maps\.google|goo\.gl\/maps|google\.[^/]+\/maps)/i;
 const contactPathPattern = /(?:contact|about|iletisim|hakkimizda|support|sales|dealer|distributor|export)/i;
+const socialHostDomains = [
+  'linkedin.com',
+  'facebook.com',
+  'instagram.com',
+  'youtube.com',
+  'youtu.be',
+  'x.com',
+  'twitter.com',
+  'tiktok.com',
+  'pinterest.com'
+];
 
 interface ExtractWebsitePageEvidenceInput {
   url: string;
@@ -67,7 +77,7 @@ export function extractWebsitePageEvidence(
     description,
     emails: unique(extractEmails(combined)),
     phones: uniquePhones(extractPhones(combined)),
-    socialLinks: unique(links.filter(link => socialHostPattern.test(link))),
+    socialLinks: unique(links.filter(isSocialLink)),
     whatsappLinks: unique(links.filter(link => whatsappPattern.test(link))),
     mapLinks: unique(links.filter(link => mapPattern.test(link))),
     contactLinks: unique(
@@ -310,6 +320,20 @@ function sameHost(baseUrl: string, link: string) {
     return baseHost === linkHost;
   } catch {
     return false;
+  }
+}
+
+function isSocialLink(link: string) {
+  const hostname = parseHostname(link);
+
+  return Boolean(hostname && socialHostDomains.some(domain => hostname === domain || hostname.endsWith(`.${domain}`)));
+}
+
+function parseHostname(link: string) {
+  try {
+    return new URL(link).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return '';
   }
 }
 

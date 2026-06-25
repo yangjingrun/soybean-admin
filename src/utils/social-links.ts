@@ -20,16 +20,36 @@ const socialChannelRules: Array<{
   channel: SocialLinkChannel;
   label: string;
   icon: string;
-  match: RegExp;
+  match: (hostname: string) => boolean;
 }> = [
-  { channel: 'linkedin', label: 'LinkedIn', icon: 'mdi:linkedin', match: /linkedin\.com/i },
-  { channel: 'facebook', label: 'Facebook', icon: 'mdi:facebook', match: /facebook\.com/i },
-  { channel: 'instagram', label: 'Instagram', icon: 'mdi:instagram', match: /instagram\.com/i },
-  { channel: 'youtube', label: 'YouTube', icon: 'mdi:youtube', match: /youtube\.com|youtu\.be/i },
-  { channel: 'x', label: 'X / Twitter', icon: 'mdi:twitter', match: /x\.com|twitter\.com/i },
-  { channel: 'tiktok', label: 'TikTok', icon: 'simple-icons:tiktok', match: /tiktok\.com/i },
-  { channel: 'pinterest', label: 'Pinterest', icon: 'mdi:pinterest', match: /pinterest\./i },
-  { channel: 'whatsapp', label: 'WhatsApp', icon: 'mdi:whatsapp', match: /wa\.me|whatsapp\.com/i }
+  { channel: 'linkedin', label: 'LinkedIn', icon: 'mdi:linkedin', match: host => matchesDomain(host, 'linkedin.com') },
+  { channel: 'facebook', label: 'Facebook', icon: 'mdi:facebook', match: host => matchesDomain(host, 'facebook.com') },
+  {
+    channel: 'instagram',
+    label: 'Instagram',
+    icon: 'mdi:instagram',
+    match: host => matchesDomain(host, 'instagram.com')
+  },
+  {
+    channel: 'youtube',
+    label: 'YouTube',
+    icon: 'mdi:youtube',
+    match: host => matchesDomain(host, 'youtube.com') || matchesDomain(host, 'youtu.be')
+  },
+  {
+    channel: 'x',
+    label: 'X / Twitter',
+    icon: 'mdi:twitter',
+    match: host => matchesDomain(host, 'x.com') || matchesDomain(host, 'twitter.com')
+  },
+  { channel: 'tiktok', label: 'TikTok', icon: 'simple-icons:tiktok', match: host => matchesDomain(host, 'tiktok.com') },
+  { channel: 'pinterest', label: 'Pinterest', icon: 'mdi:pinterest', match: host => host.startsWith('pinterest.') },
+  {
+    channel: 'whatsapp',
+    label: 'WhatsApp',
+    icon: 'mdi:whatsapp',
+    match: host => matchesDomain(host, 'wa.me') || matchesDomain(host, 'whatsapp.com')
+  }
 ];
 
 /** Converts raw social URLs into deduped icon-ready channel links. */
@@ -45,21 +65,28 @@ export function buildSocialLinkViews(links: string[]): SocialLinkView[] {
       continue;
     }
 
+    const linkView = toSocialLinkView(url);
+
+    if (!linkView) continue;
+
     seen.add(dedupeKey);
-    output.push(toSocialLinkView(url));
+    output.push(linkView);
   }
 
   return output;
 }
 
-function toSocialLinkView(url: string): SocialLinkView {
-  const rule = socialChannelRules.find(item => item.match.test(url));
+function toSocialLinkView(url: string): SocialLinkView | null {
+  const hostname = parseHostname(url);
+  const rule = hostname ? socialChannelRules.find(item => item.match(hostname)) : null;
+
+  if (!rule) return null;
 
   return {
     url,
-    channel: rule?.channel ?? 'social',
-    label: rule?.label ?? '社媒',
-    icon: rule?.icon ?? 'mdi:link-variant'
+    channel: rule.channel,
+    label: rule.label,
+    icon: rule.icon
   };
 }
 
@@ -71,4 +98,16 @@ function normalizeSocialUrl(url: string) {
   } catch {
     return url.toLowerCase();
   }
+}
+
+function parseHostname(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function matchesDomain(hostname: string, domain: string) {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
 }

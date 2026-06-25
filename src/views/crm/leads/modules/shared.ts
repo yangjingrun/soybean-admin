@@ -702,10 +702,7 @@ export function getLeadCompanySocialLinks(
 ): CrmLeadCompanySocialLink[] {
   const evidence = readLeadWebsiteEvidence(record.sourceSnapshot);
 
-  return buildSocialLinkViews([
-    ...readStringArray(evidence?.socialLinks),
-    ...readStringArray(evidence?.whatsappLinks)
-  ]);
+  return buildSocialLinkViews([...readStringArray(evidence?.socialLinks), ...readStringArray(evidence?.whatsappLinks)]);
 }
 
 function readLeadWebsiteEvidence(sourceSnapshot: Record<string, unknown> | null | undefined) {

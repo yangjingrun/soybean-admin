@@ -152,6 +152,27 @@ describe('PrismaCrmAccountStore', () => {
       });
     });
 
+    it('maps persisted source snapshot JSON back to CRM account records', async () => {
+      const sourceSnapshot = {
+        websiteEvidence: {
+          socialLinks: ['https://www.linkedin.com/company/abc-bearing']
+        }
+      };
+      const prisma = createPrisma({
+        account: createPrismaAccount({ sourceSnapshot })
+      });
+      const store = new PrismaCrmAccountStore(prisma as never);
+
+      const result = await store.listAccounts({
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        skip: 0,
+        take: 20
+      });
+
+      assert.deepEqual(result.records[0].sourceSnapshot, sourceSnapshot);
+    });
+
     it('adds primary contact email progress to listed accounts', async () => {
       const scheduledAt = new Date('2026-06-24T08:20:00.000Z');
       const prisma = createPrisma({

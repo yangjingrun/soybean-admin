@@ -1,8 +1,4 @@
-import {
-  buildSocialLinkViews,
-  type SocialLinkChannel,
-  type SocialLinkView
-} from '@/utils/social-links';
+import { buildSocialLinkViews, type SocialLinkChannel, type SocialLinkView } from '@/utils/social-links';
 
 export interface KeywordOptimizationSummaryItem {
   label: string;

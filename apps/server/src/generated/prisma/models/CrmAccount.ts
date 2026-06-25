@@ -100,6 +100,7 @@ export type CrmAccountCountAggregateOutputType = {
   customerType: number;
   status: number;
   sourceTaskId: number;
+  sourceSnapshot: number;
   archivedAt: number;
   archiveReason: number;
   archiveSlimmedAt: number;
@@ -183,6 +184,7 @@ export type CrmAccountCountAggregateInputType = {
   customerType?: true;
   status?: true;
   sourceTaskId?: true;
+  sourceSnapshot?: true;
   archivedAt?: true;
   archiveReason?: true;
   archiveSlimmedAt?: true;
@@ -295,6 +297,7 @@ export type CrmAccountGroupByOutputType = {
   customerType: string | null;
   status: string;
   sourceTaskId: string | null;
+  sourceSnapshot: runtime.JsonValue | null;
   archivedAt: Date | null;
   archiveReason: string | null;
   archiveSlimmedAt: Date | null;
@@ -339,6 +342,7 @@ export type CrmAccountWhereInput = {
   customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringFilter<'CrmAccount'> | string;
   sourceTaskId?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  sourceSnapshot?: Prisma.JsonNullableFilter<'CrmAccount'>;
   archivedAt?: Prisma.DateTimeNullableFilter<'CrmAccount'> | Date | string | null;
   archiveReason?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   archiveSlimmedAt?: Prisma.DateTimeNullableFilter<'CrmAccount'> | Date | string | null;
@@ -373,6 +377,7 @@ export type CrmAccountOrderByWithRelationInput = {
   customerType?: Prisma.SortOrderInput | Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrderInput | Prisma.SortOrder;
+  sourceSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder;
   archivedAt?: Prisma.SortOrderInput | Prisma.SortOrder;
   archiveReason?: Prisma.SortOrderInput | Prisma.SortOrder;
   archiveSlimmedAt?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -412,6 +417,7 @@ export type CrmAccountWhereUniqueInput = Prisma.AtLeast<
     customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     status?: Prisma.StringFilter<'CrmAccount'> | string;
     sourceTaskId?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+    sourceSnapshot?: Prisma.JsonNullableFilter<'CrmAccount'>;
     archivedAt?: Prisma.DateTimeNullableFilter<'CrmAccount'> | Date | string | null;
     archiveReason?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     archiveSlimmedAt?: Prisma.DateTimeNullableFilter<'CrmAccount'> | Date | string | null;
@@ -448,6 +454,7 @@ export type CrmAccountOrderByWithAggregationInput = {
   customerType?: Prisma.SortOrderInput | Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrderInput | Prisma.SortOrder;
+  sourceSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder;
   archivedAt?: Prisma.SortOrderInput | Prisma.SortOrder;
   archiveReason?: Prisma.SortOrderInput | Prisma.SortOrder;
   archiveSlimmedAt?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -480,6 +487,7 @@ export type CrmAccountScalarWhereWithAggregatesInput = {
   customerType?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringWithAggregatesFilter<'CrmAccount'> | string;
   sourceTaskId?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
+  sourceSnapshot?: Prisma.JsonNullableWithAggregatesFilter<'CrmAccount'>;
   archivedAt?: Prisma.DateTimeNullableWithAggregatesFilter<'CrmAccount'> | Date | string | null;
   archiveReason?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   archiveSlimmedAt?: Prisma.DateTimeNullableWithAggregatesFilter<'CrmAccount'> | Date | string | null;
@@ -503,6 +511,7 @@ export type CrmAccountCreateInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -537,6 +546,7 @@ export type CrmAccountUncheckedCreateInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -569,6 +579,7 @@ export type CrmAccountUpdateInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -603,6 +614,7 @@ export type CrmAccountUncheckedUpdateInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -636,6 +648,7 @@ export type CrmAccountCreateManyInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -659,6 +672,7 @@ export type CrmAccountUpdateManyMutationInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -683,6 +697,7 @@ export type CrmAccountUncheckedUpdateManyInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -723,6 +738,7 @@ export type CrmAccountCountOrderByAggregateInput = {
   customerType?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   sourceTaskId?: Prisma.SortOrder;
+  sourceSnapshot?: Prisma.SortOrder;
   archivedAt?: Prisma.SortOrder;
   archiveReason?: Prisma.SortOrder;
   archiveSlimmedAt?: Prisma.SortOrder;
@@ -1129,6 +1145,7 @@ export type CrmAccountCreateWithoutOrganizationInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1161,6 +1178,7 @@ export type CrmAccountUncheckedCreateWithoutOrganizationInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1238,6 +1256,7 @@ export type CrmAccountScalarWhereInput = {
   customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringFilter<'CrmAccount'> | string;
   sourceTaskId?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  sourceSnapshot?: Prisma.JsonNullableFilter<'CrmAccount'>;
   archivedAt?: Prisma.DateTimeNullableFilter<'CrmAccount'> | Date | string | null;
   archiveReason?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   archiveSlimmedAt?: Prisma.DateTimeNullableFilter<'CrmAccount'> | Date | string | null;
@@ -1261,6 +1280,7 @@ export type CrmAccountCreateWithoutContactsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1294,6 +1314,7 @@ export type CrmAccountUncheckedCreateWithoutContactsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1341,6 +1362,7 @@ export type CrmAccountUpdateWithoutContactsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1374,6 +1396,7 @@ export type CrmAccountUncheckedUpdateWithoutContactsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1405,6 +1428,7 @@ export type CrmAccountCreateWithoutEnrichmentHistoriesInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1438,6 +1462,7 @@ export type CrmAccountUncheckedCreateWithoutEnrichmentHistoriesInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1497,6 +1522,7 @@ export type CrmAccountUpdateWithoutEnrichmentHistoriesInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1530,6 +1556,7 @@ export type CrmAccountUncheckedUpdateWithoutEnrichmentHistoriesInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1561,6 +1588,7 @@ export type CrmAccountCreateWithoutEventsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1594,6 +1622,7 @@ export type CrmAccountUncheckedCreateWithoutEventsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1641,6 +1670,7 @@ export type CrmAccountUpdateWithoutEventsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1674,6 +1704,7 @@ export type CrmAccountUncheckedUpdateWithoutEventsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1705,6 +1736,7 @@ export type CrmAccountCreateWithoutEnrollmentsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1738,6 +1770,7 @@ export type CrmAccountUncheckedCreateWithoutEnrollmentsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1797,6 +1830,7 @@ export type CrmAccountUpdateWithoutEnrollmentsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1830,6 +1864,7 @@ export type CrmAccountUncheckedUpdateWithoutEnrollmentsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1861,6 +1896,7 @@ export type CrmAccountCreateWithoutMessagesInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1894,6 +1930,7 @@ export type CrmAccountUncheckedCreateWithoutMessagesInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -1941,6 +1978,7 @@ export type CrmAccountUpdateWithoutMessagesInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -1974,6 +2012,7 @@ export type CrmAccountUncheckedUpdateWithoutMessagesInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2005,6 +2044,7 @@ export type CrmAccountCreateWithoutEmailOpenEventsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2038,6 +2078,7 @@ export type CrmAccountUncheckedCreateWithoutEmailOpenEventsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2097,6 +2138,7 @@ export type CrmAccountUpdateWithoutEmailOpenEventsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2130,6 +2172,7 @@ export type CrmAccountUncheckedUpdateWithoutEmailOpenEventsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2161,6 +2204,7 @@ export type CrmAccountCreateWithoutMessageDraftVersionsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2194,6 +2238,7 @@ export type CrmAccountUncheckedCreateWithoutMessageDraftVersionsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2253,6 +2298,7 @@ export type CrmAccountUpdateWithoutMessageDraftVersionsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2286,6 +2332,7 @@ export type CrmAccountUncheckedUpdateWithoutMessageDraftVersionsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2317,6 +2364,7 @@ export type CrmAccountCreateWithoutInboxThreadsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2350,6 +2398,7 @@ export type CrmAccountUncheckedCreateWithoutInboxThreadsInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2409,6 +2458,7 @@ export type CrmAccountUpdateWithoutInboxThreadsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2442,6 +2492,7 @@ export type CrmAccountUncheckedUpdateWithoutInboxThreadsInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2473,6 +2524,7 @@ export type CrmAccountCreateWithoutInboxMessagesInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2506,6 +2558,7 @@ export type CrmAccountUncheckedCreateWithoutInboxMessagesInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2565,6 +2618,7 @@ export type CrmAccountUpdateWithoutInboxMessagesInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2598,6 +2652,7 @@ export type CrmAccountUncheckedUpdateWithoutInboxMessagesInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2629,6 +2684,7 @@ export type CrmAccountCreateManyOrganizationInput = {
   customerType?: string | null;
   status?: string;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Date | string | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | string | null;
@@ -2652,6 +2708,7 @@ export type CrmAccountUpdateWithoutOrganizationInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2684,6 +2741,7 @@ export type CrmAccountUncheckedUpdateWithoutOrganizationInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2716,6 +2774,7 @@ export type CrmAccountUncheckedUpdateManyWithoutOrganizationInput = {
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
   sourceTaskId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   archivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
   archiveReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   archiveSlimmedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
@@ -2866,6 +2925,7 @@ export type CrmAccountSelect<
     customerType?: boolean;
     status?: boolean;
     sourceTaskId?: boolean;
+    sourceSnapshot?: boolean;
     archivedAt?: boolean;
     archiveReason?: boolean;
     archiveSlimmedAt?: boolean;
@@ -2906,6 +2966,7 @@ export type CrmAccountSelectCreateManyAndReturn<
     customerType?: boolean;
     status?: boolean;
     sourceTaskId?: boolean;
+    sourceSnapshot?: boolean;
     archivedAt?: boolean;
     archiveReason?: boolean;
     archiveSlimmedAt?: boolean;
@@ -2936,6 +2997,7 @@ export type CrmAccountSelectUpdateManyAndReturn<
     customerType?: boolean;
     status?: boolean;
     sourceTaskId?: boolean;
+    sourceSnapshot?: boolean;
     archivedAt?: boolean;
     archiveReason?: boolean;
     archiveSlimmedAt?: boolean;
@@ -2963,6 +3025,7 @@ export type CrmAccountSelectScalar = {
   customerType?: boolean;
   status?: boolean;
   sourceTaskId?: boolean;
+  sourceSnapshot?: boolean;
   archivedAt?: boolean;
   archiveReason?: boolean;
   archiveSlimmedAt?: boolean;
@@ -2989,6 +3052,7 @@ export type CrmAccountOmit<
   | 'customerType'
   | 'status'
   | 'sourceTaskId'
+  | 'sourceSnapshot'
   | 'archivedAt'
   | 'archiveReason'
   | 'archiveSlimmedAt'
@@ -3056,6 +3120,7 @@ export type $CrmAccountPayload<
       customerType: string | null;
       status: string;
       sourceTaskId: string | null;
+      sourceSnapshot: runtime.JsonValue | null;
       archivedAt: Date | null;
       archiveReason: string | null;
       archiveSlimmedAt: Date | null;
@@ -3640,6 +3705,7 @@ export interface CrmAccountFieldRefs {
   readonly customerType: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly status: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly sourceTaskId: Prisma.FieldRef<'CrmAccount', 'String'>;
+  readonly sourceSnapshot: Prisma.FieldRef<'CrmAccount', 'Json'>;
   readonly archivedAt: Prisma.FieldRef<'CrmAccount', 'DateTime'>;
   readonly archiveReason: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly archiveSlimmedAt: Prisma.FieldRef<'CrmAccount', 'DateTime'>;

@@ -773,6 +773,7 @@ export interface CrmAccountCreateInput {
   customerType?: string | null;
   status: CrmAccountStatus;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Record<string, unknown> | null;
 }
 
 export interface CrmAccountUpdateInput {
@@ -789,6 +790,7 @@ export interface CrmAccountUpdateInput {
   customerType?: string | null;
   status?: CrmAccountStatus;
   sourceTaskId?: string | null;
+  sourceSnapshot?: Record<string, unknown> | null;
   archivedAt?: Date | null;
   archiveReason?: string | null;
   archiveSlimmedAt?: Date | null;

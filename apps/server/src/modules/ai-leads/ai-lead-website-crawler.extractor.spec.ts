@@ -52,6 +52,24 @@ describe('ai lead website crawler extractor', () => {
     assert.deepEqual(page.negativeEvidenceSnippets, []);
   });
 
+  it('does not classify regular company domains containing x.com as social links', () => {
+    const page = extractWebsitePageEvidence({
+      url: 'https://vwimpex.com',
+      loadedUrl: 'https://vwimpex.com',
+      statusCode: 200,
+      html: `
+        <html>
+          <body>
+            <a href="https://vwimpex.com/about-us">About us</a>
+            <a href="https://x.com/VWIMPEX">X profile</a>
+          </body>
+        </html>
+      `
+    });
+
+    assert.deepEqual(page.socialLinks, ['https://x.com/VWIMPEX']);
+  });
+
   it('merges page evidence into one compact website evidence record', () => {
     const evidence = mergeWebsitePageEvidence([
       {

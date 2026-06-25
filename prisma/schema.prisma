@@ -209,6 +209,7 @@ model CrmAccount {
   customerType   String?
   status         String   @default("candidate")
   sourceTaskId   String?
+  sourceSnapshot Json?
   archivedAt     DateTime?
   archiveReason  String?
   archiveSlimmedAt DateTime?

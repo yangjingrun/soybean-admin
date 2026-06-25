@@ -3,6 +3,8 @@ import { serializeSequencePolicyStepDelayDays, serializeSequencePolicyThreadMode
 import type {
   CrmAiDraftTaskItemUpdateInput,
   CrmAiDraftTaskUpdateInput,
+  CrmAccountCreateInput,
+  CrmAccountUpdateInput,
   CrmEmailTemplateStepInput,
   CrmPersonaProfileCreateInput,
   CrmPersonaProfileUpdateInput,
@@ -13,6 +15,22 @@ import type {
 /** Converts nullable values into Prisma JSON input values. */
 export function toNullableJsonInput(value: unknown) {
   return value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+}
+
+/** Maps account create input and serializes nullable source snapshot JSON. */
+export function toAccountCreateInput(input: CrmAccountCreateInput): Prisma.CrmAccountUncheckedCreateInput {
+  return {
+    ...input,
+    sourceSnapshot: input.sourceSnapshot === undefined ? undefined : toNullableJsonInput(input.sourceSnapshot)
+  };
+}
+
+/** Maps account update input and serializes nullable source snapshot JSON. */
+export function toAccountUpdateInput(input: CrmAccountUpdateInput): Prisma.CrmAccountUncheckedUpdateInput {
+  return {
+    ...input,
+    sourceSnapshot: input.sourceSnapshot === undefined ? undefined : toNullableJsonInput(input.sourceSnapshot)
+  };
 }
 
 /** Maps AI draft task updates and serializes nullable JSON fields. */

@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-25 AI 获客 crawler 证据导入 CRM 必须持久化 sourceSnapshot
+
+- 场景：AI 获客任务的官网 crawler 已经采到 `websiteEvidence.socialLinks/whatsappLinks/emails/contactLinks`，但 CRM 客户开发台“社媒”列显示 `-`。
+- 坑点：只在 AI 获客任务结果里保存 crawler 原始证据不够；CRM 页面读取的是 `CrmAccount.sourceSnapshot.websiteEvidence`。如果 Prisma schema、数据库字段或导入服务没有持久化 `sourceSnapshot`，导入后社媒证据会丢失。另一个坑是社媒链接不能用裸字符串 `/x\.com/` 匹配，否则 `vwimpex.com` 这类普通官网会被误判成 X。
+- 正确做法：`CrmAccount` 保留 `sourceSnapshot Json?`，AI 获客导入时把规范化后的嵌套 JSON 写入 account 和导入时间线；历史数据用 `backfill:crm-account-source-snapshots` 从 `AiLeadSearchTask.result.candidates` 回填；crawler 和前端展示都按 URL hostname 判断社媒域名。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/accounts/crm-account.service.ts`、`apps/server/src/modules/crm/accounts/crm-account-source-snapshot-backfill.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.extractor.ts`、`src/utils/social-links.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-list-indexes.spec.ts apps/server/src/modules/crm/accounts/crm-account.service.spec.ts apps/server/src/modules/crm/accounts/crm-account-source-snapshot-backfill.spec.ts apps/server/src/modules/crm/store/prisma-crm-account.store.spec.ts apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.spec.ts apps/server/src/modules/ai-leads/ai-lead-website-crawler.extractor.spec.ts`，以及 `pnpm exec tsx --test src/utils/social-links.spec.ts src/views/crm/leads/modules/shared.spec.ts`。
+
 ### 2026-06-25 CRM 同产品批量首封要变化主题角度和 CTA 句式
 
 - 场景：CRM AI 开发信同一批次都使用同一个产品资料，例如轴承，首封正文需要保持产品事实一致但避免批量模板感。

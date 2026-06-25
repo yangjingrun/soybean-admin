@@ -19,8 +19,13 @@ import type {
 export function toAccountRecord(record: CrmAccountModel): CrmAccountRecord {
   return {
     ...record,
-    status: record.status as CrmAccountRecord['status']
+    status: record.status as CrmAccountRecord['status'],
+    sourceSnapshot: toSourceSnapshotRecord(record.sourceSnapshot)
   };
+}
+
+function toSourceSnapshotRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 /** Maps an archived fingerprint model while narrowing the fingerprint type. */

@@ -123,6 +123,7 @@ export class CrmAccountService {
     const longitude = normalizeNullableNumber(input.longitude);
     const timeZone = await this.resolveCustomerTimeZone({ country, city, timeZone: input.timeZone });
     const archivedMatches = await this.findArchivedImportMatches(domain, input, context);
+    const sourceSnapshot = normalizeLeadSourceSnapshot(input.sourceSnapshot);
     const existingAccount = domain
       ? await this.accountRepository.findAccountByDomain(context.organizationId, context.userId, domain)
       : null;
@@ -143,7 +144,8 @@ export class CrmAccountService {
         timeZone,
         customerType: normalizeNullableString(input.customerType),
         status: input.contact?.email ? 'email_verification_pending' : 'missing_contact',
-        sourceTaskId: normalizeNullableString(input.sourceTaskId)
+        sourceTaskId: normalizeNullableString(input.sourceTaskId),
+        sourceSnapshot
       }));
 
     if (!existingAccount) {
@@ -156,7 +158,7 @@ export class CrmAccountService {
         metadata: {
           sourceTaskId: input.sourceTaskId ?? null,
           domain,
-          sourceSnapshot: normalizeLeadSourceSnapshot(input.sourceSnapshot)
+          sourceSnapshot
         }
       });
     }
@@ -1283,29 +1285,58 @@ function toArchivedFingerprintMatchMetadata(record: CrmArchivedFingerprintRecord
   };
 }
 
+type LeadSourceSnapshotJson =
+  | string
+  | number
+  | boolean
+  | null
+  | LeadSourceSnapshotJson[]
+  | {
+      [key: string]: LeadSourceSnapshotJson;
+    };
+
+/** Normalizes AI lead source evidence into a compact JSON-safe snapshot. */
 function normalizeLeadSourceSnapshot(value: ImportCrmLeadInput['sourceSnapshot']) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
-  const snapshot: Record<string, string | number | boolean | null> = {};
+  const snapshot: Record<string, LeadSourceSnapshotJson> = {};
   for (const [key, item] of Object.entries(value)) {
     if (!key) continue;
-    if (typeof item === 'string') {
-      const normalized = item.trim();
-      if (normalized) snapshot[key] = normalized;
-      continue;
-    }
-
-    if (typeof item === 'number' && Number.isFinite(item)) {
-      snapshot[key] = item;
-      continue;
-    }
-
-    if (typeof item === 'boolean' || item === null) {
-      snapshot[key] = item;
-    }
+    const normalized = normalizeLeadSnapshotJsonValue(item);
+    if (normalized !== undefined) snapshot[key] = normalized;
   }
 
   return Object.keys(snapshot).length ? snapshot : null;
+}
+
+function normalizeLeadSnapshotJsonValue(value: unknown): LeadSourceSnapshotJson | undefined {
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+
+    return normalized || undefined;
+  }
+
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'boolean' || value === null) return value;
+
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map(item => normalizeLeadSnapshotJsonValue(item))
+      .filter((item): item is LeadSourceSnapshotJson => item !== undefined);
+
+    return normalized.length ? normalized : undefined;
+  }
+
+  if (!value || typeof value !== 'object') return undefined;
+
+  const normalizedObject: Record<string, LeadSourceSnapshotJson> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!key) continue;
+    const normalized = normalizeLeadSnapshotJsonValue(item);
+    if (normalized !== undefined) normalizedObject[key] = normalized;
+  }
+
+  return Object.keys(normalizedObject).length ? normalizedObject : undefined;
 }
 
 function canApplyEmailVerificationAccountStatus(status: CrmAccountStatus) {

@@ -12,6 +12,12 @@ describe('CRM list query indexes', () => {
     assertModelIndex(model, ['organizationId', 'ownerUserId', 'status', 'updatedAt']);
   });
 
+  it('keeps AI lead crawler evidence persisted on CRM accounts', () => {
+    const model = extractPrismaModel(schema, 'CrmAccount');
+
+    assert.match(model, /\n\s+sourceSnapshot\s+Json\?\s*\n/);
+  });
+
   it('keeps sequence review list indexes aligned with organization and status filters', () => {
     const model = extractPrismaModel(schema, 'CrmSequenceEnrollment');
 
