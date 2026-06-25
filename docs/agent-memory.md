@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-25 CRM 同产品批量首封要变化主题角度和 CTA 句式
+
+- 场景：CRM AI 开发信同一批次都使用同一个产品资料，例如轴承，首封正文需要保持产品事实一致但避免批量模板感。
+- 坑点：只要求“同产品事实准确”会让多封首封重复使用 `One bearing designation`、`one designation check is easier than a broad catalog` 和同一 CTA 句式；单封能发，批量看会显得机械。
+- 正确做法：prompt 中明确“同产品可重复事实，但 subject direction、opening scenario、value point、CTA sentence pattern 要按客户角色和业务任务变化”；轴承类首封优先在补货、MOQ/交期、替换交叉参考、备选供应、产线连续性、品类缺口等角度中选一个，不默认复用同一句开场。
+- 相关文件：`apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.ts`、`apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts apps/server/src/modules/crm/crm-ai-draft-prompt.spec.ts`，确认 prompt 包含同产品批次变化约束且 AI 写信相关测试通过。
+
 ### 2026-06-24 CRM 产品资料 AI 写信 step prompt 留空要走系统内置
 
 - 场景：产品资料启用 AI 写信后，配置页每封开发信提示词允许留空，页面文案说明“留空默认使用系统内置写法”。

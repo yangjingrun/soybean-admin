@@ -140,6 +140,25 @@ describe('crm-ai-writing-prompt-composer', () => {
     assert.match(prompt.userPrompt, /50-90 English words/);
     assert.match(prompt.systemPrompt, /Do not turn inference into fact/);
   });
+
+  it('guides same-product batches to vary first-touch subject, angle, and CTA pattern', () => {
+    const prompt = composeCrmAiWritingPrompt({
+      input: createPromptInputForSpec(),
+      selectedModules: [{ promptKey: 'crm_outreach_sequence_strategy', title: 'Sequence', reason: 'Required' }],
+      writingContext: createWritingContextForSpec(),
+      riskNotes: []
+    });
+
+    assert.match(prompt.systemPrompt, /Same-product batches may repeat product facts/);
+    assert.match(prompt.systemPrompt, /subject direction, opening scenario, value point, and CTA sentence pattern/);
+    assert.match(prompt.userPrompt, /For step 1, choose one role-specific business scene/);
+    assert.match(
+      prompt.userPrompt,
+      /Do not use "one designation check is easier than a broad catalog" as a default opener/
+    );
+    assert.match(prompt.userPrompt, /Subject angle examples for bearings/);
+    assert.match(prompt.userPrompt, /CTA variation examples for bearings/);
+  });
 });
 
 function createPromptInputForSpec(overrides: Partial<CrmAiDraftPromptInput> = {}): CrmAiDraftPromptInput {
