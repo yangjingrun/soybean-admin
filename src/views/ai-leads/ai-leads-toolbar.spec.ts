@@ -63,8 +63,9 @@ describe('AI leads toolbar', () => {
     assert.match(pageComposableSource, /handleProcessCollectedLeads/);
     assert.match(pageComposableSource, /sourceTaskId: task\.id/);
     assert.match(pageSource, /@process-collected-leads="handleProcessCollectedLeads"/);
-    assert.match(searchProgressPanelSource, /处理本次客户/);
-    assert.match(searchProgressPanelSource, /可用线索已自动进入 CRM/);
+    assert.match(searchProgressPanelSource, /已为你存入/);
+    assert.match(searchProgressPanelSource, /点右侧按钮去客户管理跟进/);
+    assert.match(searchProgressPanelSource, /emit\('processCollectedLeads'\)/);
     assert.equal(searchProgressPanelSource.includes('导入 CRM'), false);
   });
 
@@ -130,5 +131,14 @@ describe('AI leads toolbar', () => {
 
   it('keeps result content padded below the card header', () => {
     assert.match(pageSource, /\.result-card\s+:deep\(\.result-card-content\)\s*\{[^}]*padding: 16px;/);
+  });
+
+  it('keeps the AI leads workspace usable on small screens', () => {
+    assert.match(pageSource, /@media \(max-width: 768px\)/);
+    assert.match(pageSource, /\.lead-source-mode\s+:deep\(\.n-radio-group\)\s*\{[^}]*width: 100%;/);
+    assert.match(pageSource, /\.lead-count-input\s*\{[^}]*width: 100%;/);
+    assert.match(pageSource, /\.task-toolbar-actions\s+:deep\(\.n-space-item\)\s*\{[^}]*flex: 1 1 132px;/);
+    assert.match(pageSource, /\.result-actions\s+:deep\(\.n-space-item\)\s*\{[^}]*flex: 1 1 132px;/);
+    assert.match(pageSource, /@media \(max-width: 480px\)/);
   });
 });

@@ -331,10 +331,12 @@ async function handleStartKeywordResultEdit() {
   --ai-leads-error: rgb(var(--error-color));
   --ai-leads-ink: #1f2937;
   --ai-leads-text-weak: #667085;
+  min-width: 0;
 }
 
 .task-card,
 .result-card {
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--ai-leads-border);
   background: #ffffff;
@@ -427,6 +429,11 @@ async function handleStartKeywordResultEdit() {
 .task-toolbar-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.task-toolbar-actions :deep(.n-button),
+.result-actions :deep(.n-button) {
+  max-width: 100%;
 }
 
 .history-context-alert {
@@ -538,26 +545,130 @@ async function handleStartKeywordResultEdit() {
   min-height: 320px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .task-card :deep(.n-card__content) {
+    padding: 10px 12px;
+  }
+
+  .result-card :deep(.n-card-header) {
+    padding: 12px;
+  }
+
+  .result-card :deep(.result-card-content) {
+    min-height: 360px;
+    padding: 12px;
+  }
+
   .section-header {
+    width: 100%;
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .section-heading,
+  .result-actions {
+    width: 100%;
   }
 
   .result-actions {
     justify-content: flex-start;
   }
 
+  .result-actions :deep(.n-space-item) {
+    flex: 1 1 132px;
+    min-width: 0;
+  }
+
+  .result-actions :deep(.n-button) {
+    width: 100%;
+  }
+
   .task-toolbar {
+    align-items: stretch;
     flex-direction: column;
+  }
+
+  .task-toolbar-left,
+  .lead-source-mode,
+  .lead-count-compact,
+  .task-toolbar-actions {
+    width: 100%;
+  }
+
+  .task-toolbar-left,
+  .lead-source-mode,
+  .lead-count-compact {
+    align-items: stretch;
+  }
+
+  .lead-source-mode,
+  .lead-count-compact {
+    gap: 6px;
+  }
+
+  .lead-source-mode :deep(.n-radio-group) {
+    display: flex;
+    width: 100%;
+  }
+
+  .lead-source-mode :deep(.n-radio-button) {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .lead-count-input {
+    width: 100%;
+  }
+
+  .lead-count-feedback {
+    width: 100%;
   }
 
   .task-toolbar-actions {
     justify-content: flex-start;
   }
 
+  .task-toolbar-actions :deep(.n-space-item) {
+    flex: 1 1 132px;
+    min-width: 0;
+  }
+
+  .task-toolbar-actions :deep(.n-button) {
+    width: 100%;
+  }
+
   .skeleton-grid {
     grid-template-columns: 1fr;
+  }
+
+  .keyword-ready-main {
+    min-height: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .task-card :deep(.n-card__content),
+  .result-card :deep(.result-card-content) {
+    padding: 10px;
+  }
+
+  .lead-form :deep(.n-form-item) {
+    --n-feedback-height: 18px;
+  }
+
+  .history-context-alert {
+    margin-top: 8px;
+  }
+
+  .task-toolbar-actions :deep(.n-space-item),
+  .result-actions :deep(.n-space-item) {
+    flex-basis: 100%;
+  }
+
+  .keyword-ready-panel,
+  .result-empty,
+  .lead-workflow-skeleton {
+    min-height: 260px;
   }
 }
 </style>
