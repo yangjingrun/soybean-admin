@@ -10,6 +10,7 @@ const {
   aiFinishReasonLabel,
   aiResult,
   canManageKeywordStrategy,
+  canViewSerperDetails,
   canReturnToKeywordStep,
   canSaveHistory,
   canStartLeadWorkflow,
@@ -265,7 +266,7 @@ async function handleStartKeywordResultEdit() {
           :state="searchProgress"
           :loading="isSearchTaskPending"
           :processable="Boolean(currentSearchTask?.id)"
-          :show-serper-details="canManageKeywordStrategy"
+          :show-serper-details="canViewSerperDetails"
           @process-collected-leads="handleProcessCollectedLeads"
         />
       </div>
@@ -292,6 +293,7 @@ async function handleStartKeywordResultEdit() {
                 v-model:keyword-plan="editableKeywordPlan"
                 :view-model="keywordOptimizationViewModel"
                 :editable="isEditingResult"
+                :show-query-details="canViewSerperDetails"
               />
               <template v-else>
                 <NAlert type="warning" :bordered="false">AI 搜索策略不是合法 JSON，请重新生成。</NAlert>

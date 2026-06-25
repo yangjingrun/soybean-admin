@@ -5,6 +5,7 @@ import type { KeywordOptimizationQueryRow, KeywordOptimizationViewModel } from '
 defineProps<{
   viewModel: KeywordOptimizationViewModel;
   editable?: boolean;
+  showQueryDetails?: boolean;
 }>();
 
 const keywordPlan = defineModel<Api.AiLeads.OptimizedKeywordPlan | null>('keywordPlan', { required: true });
@@ -180,7 +181,7 @@ function updateSegmentList(
       </NGrid>
     </section>
 
-    <template v-if="viewModel.showQueryDetails">
+    <template v-if="showQueryDetails && viewModel.showQueryDetails">
       <section class="keyword-section query-section">
         <div class="section-title">Search 查询词</div>
         <NDataTable

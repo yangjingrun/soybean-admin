@@ -119,6 +119,7 @@ export function useAiLeadPage() {
   const canManageKeywordStrategy = computed(() =>
     hasPermission(authStore.userInfo, aiLeadsKeywordStrategyManagePermission)
   );
+  const canViewSerperDetails = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
   const isSearchTaskPending = computed(() => isLeadSearchTaskPending(currentSearchTask.value?.status));
   const isSearching = computed(() => isSearchTaskSubmitting.value || isSearchTaskPending.value);
   const isLeadWorkflowRunning = computed(
@@ -186,7 +187,7 @@ export function useAiLeadPage() {
   });
   const keywordOptimizationViewModel = computed(() =>
     keywordOptimizationPlan.value
-      ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, canManageKeywordStrategy.value)
+      ? createKeywordOptimizationViewModel(keywordOptimizationPlan.value, canViewSerperDetails.value)
       : null
   );
   const aiFinishReasonLabel = computed(() => formatAiFinishReason(aiResult.value?.finishReason));
@@ -583,7 +584,7 @@ export function useAiLeadPage() {
     }
 
     const copyText =
-      canManageKeywordStrategy.value || !keywordOptimizationViewModel.value
+      canViewSerperDetails.value || !keywordOptimizationViewModel.value
         ? aiResult.value.text
         : formatKeywordOptimizationVisibleText(keywordOptimizationViewModel.value);
 
@@ -968,6 +969,7 @@ export function useAiLeadPage() {
     aiResult,
     canGenerate,
     canManageKeywordStrategy,
+    canViewSerperDetails,
     canReturnToKeywordStep,
     canSaveHistory,
     canSearchCustomers,

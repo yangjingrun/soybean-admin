@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 const pageSource = readFileSync(new URL('./index.vue', import.meta.url), 'utf8');
 const pageComposableSource = readFileSync(new URL('./modules/useAiLeadPage.ts', import.meta.url), 'utf8');
 const searchProgressPanelSource = readFileSync(new URL('./modules/SearchProgressPanel.vue', import.meta.url), 'utf8');
+const keywordResultSource = readFileSync(new URL('./modules/KeywordOptimizationResult.vue', import.meta.url), 'utf8');
 
 /** Reads the explicit Naive UI button size for a toolbar button by one stable source marker. */
 function getButtonSizeByMarker(marker: string) {
@@ -126,7 +127,19 @@ describe('AI leads toolbar', () => {
     );
     assert.match(pageSource, /!hasSearchProgress && aiResult && canManageKeywordStrategy/);
     assert.match(pageSource, /v-if="canManageKeywordStrategy"/);
-    assert.match(pageSource, /:show-serper-details="canManageKeywordStrategy"/);
+  });
+
+  it('keeps Serper query details limited to super administrators', () => {
+    assert.match(pageComposableSource, /const canViewSerperDetails = computed/);
+    assert.match(pageComposableSource, /authStore\.userInfo\.roles\.includes\('R_SUPER'\)/);
+    assert.match(
+      pageComposableSource,
+      /createKeywordOptimizationViewModel\(keywordOptimizationPlan\.value,\s*canViewSerperDetails\.value\)/
+    );
+    assert.match(pageSource, /:show-serper-details="canViewSerperDetails"/);
+    assert.match(pageSource, /:show-query-details="canViewSerperDetails"/);
+    assert.match(keywordResultSource, /showQueryDetails\?: boolean/);
+    assert.match(keywordResultSource, /v-if="showQueryDetails && viewModel\.showQueryDetails"/);
   });
 
   it('keeps result content padded below the card header', () => {
