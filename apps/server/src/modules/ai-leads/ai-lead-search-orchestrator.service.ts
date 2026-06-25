@@ -524,7 +524,7 @@ export class AiLeadSearchOrchestrator {
       type: 'step_started',
       stepKey: 'analyze_precision',
       title: '分析客户精准度',
-      description: '正在结合 Serper 和官网证据判断客户匹配度',
+      description: '正在结合公开信息和官网证据判断客户匹配度',
       progressPercent: 94
     });
 
