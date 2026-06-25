@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNumber, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 function trimOptionalString({ value }: { value: unknown }) {
   if (typeof value !== 'string') return value;
@@ -46,6 +46,14 @@ export class UpdateCrmAccountDto {
   @MaxLength(500)
   @Transform(trimOptionalString)
   address?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number | null;
 
   @IsOptional()
   @IsString()

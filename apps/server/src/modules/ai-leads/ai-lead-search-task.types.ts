@@ -54,7 +54,7 @@ export interface AiLeadSearchTaskQueryRecord {
   id: string;
   taskId: string;
   requestKey: string;
-  endpoint: 'search' | 'places';
+  endpoint: 'search' | 'places' | 'maps';
   requestBody: unknown;
   status: AiLeadSearchTaskQueryStatus;
   result: unknown | null;
@@ -67,7 +67,7 @@ export interface AiLeadSearchTaskQueryRecord {
 export interface AiLeadSearchTaskQueryStartInput {
   taskId: string;
   requestKey: string;
-  endpoint: 'search' | 'places';
+  endpoint: 'search' | 'places' | 'maps';
   requestBody: unknown;
   orderIndex: number;
 }

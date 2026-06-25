@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsObject, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { IsNumber, IsObject, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
 
 class ImportCrmLeadContactDto {
   @IsOptional()
@@ -43,6 +43,14 @@ export class ImportCrmLeadDto {
   @IsString()
   @MaxLength(500)
   address?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number | null;
 
   @IsOptional()
   @IsString()

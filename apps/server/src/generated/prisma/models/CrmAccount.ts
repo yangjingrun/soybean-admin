@@ -19,8 +19,20 @@ export type CrmAccountModel = runtime.Types.Result.DefaultSelection<Prisma.$CrmA
 
 export type AggregateCrmAccount = {
   _count: CrmAccountCountAggregateOutputType | null;
+  _avg: CrmAccountAvgAggregateOutputType | null;
+  _sum: CrmAccountSumAggregateOutputType | null;
   _min: CrmAccountMinAggregateOutputType | null;
   _max: CrmAccountMaxAggregateOutputType | null;
+};
+
+export type CrmAccountAvgAggregateOutputType = {
+  latitude: number | null;
+  longitude: number | null;
+};
+
+export type CrmAccountSumAggregateOutputType = {
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type CrmAccountMinAggregateOutputType = {
@@ -34,6 +46,8 @@ export type CrmAccountMinAggregateOutputType = {
   country: string | null;
   city: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   timeZone: string | null;
   customerType: string | null;
   status: string | null;
@@ -56,6 +70,8 @@ export type CrmAccountMaxAggregateOutputType = {
   country: string | null;
   city: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   timeZone: string | null;
   customerType: string | null;
   status: string | null;
@@ -78,6 +94,8 @@ export type CrmAccountCountAggregateOutputType = {
   country: number;
   city: number;
   address: number;
+  latitude: number;
+  longitude: number;
   timeZone: number;
   customerType: number;
   status: number;
@@ -88,6 +106,16 @@ export type CrmAccountCountAggregateOutputType = {
   createdAt: number;
   updatedAt: number;
   _all: number;
+};
+
+export type CrmAccountAvgAggregateInputType = {
+  latitude?: true;
+  longitude?: true;
+};
+
+export type CrmAccountSumAggregateInputType = {
+  latitude?: true;
+  longitude?: true;
 };
 
 export type CrmAccountMinAggregateInputType = {
@@ -101,6 +129,8 @@ export type CrmAccountMinAggregateInputType = {
   country?: true;
   city?: true;
   address?: true;
+  latitude?: true;
+  longitude?: true;
   timeZone?: true;
   customerType?: true;
   status?: true;
@@ -123,6 +153,8 @@ export type CrmAccountMaxAggregateInputType = {
   country?: true;
   city?: true;
   address?: true;
+  latitude?: true;
+  longitude?: true;
   timeZone?: true;
   customerType?: true;
   status?: true;
@@ -145,6 +177,8 @@ export type CrmAccountCountAggregateInputType = {
   country?: true;
   city?: true;
   address?: true;
+  latitude?: true;
+  longitude?: true;
   timeZone?: true;
   customerType?: true;
   status?: true;
@@ -197,6 +231,18 @@ export type CrmAccountAggregateArgs<
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    *
+   * Select which fields to average
+   **/
+  _avg?: CrmAccountAvgAggregateInputType;
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   *
+   * Select which fields to sum
+   **/
+  _sum?: CrmAccountSumAggregateInputType;
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   *
    * Select which fields to find the minimum value
    **/
   _min?: CrmAccountMinAggregateInputType;
@@ -226,6 +272,8 @@ export type CrmAccountGroupByArgs<
   take?: number;
   skip?: number;
   _count?: CrmAccountCountAggregateInputType | true;
+  _avg?: CrmAccountAvgAggregateInputType;
+  _sum?: CrmAccountSumAggregateInputType;
   _min?: CrmAccountMinAggregateInputType;
   _max?: CrmAccountMaxAggregateInputType;
 };
@@ -241,6 +289,8 @@ export type CrmAccountGroupByOutputType = {
   country: string | null;
   city: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   timeZone: string | null;
   customerType: string | null;
   status: string;
@@ -251,6 +301,8 @@ export type CrmAccountGroupByOutputType = {
   createdAt: Date;
   updatedAt: Date;
   _count: CrmAccountCountAggregateOutputType | null;
+  _avg: CrmAccountAvgAggregateOutputType | null;
+  _sum: CrmAccountSumAggregateOutputType | null;
   _min: CrmAccountMinAggregateOutputType | null;
   _max: CrmAccountMaxAggregateOutputType | null;
 };
@@ -281,6 +333,8 @@ export type CrmAccountWhereInput = {
   country?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   city?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   address?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  latitude?: Prisma.FloatNullableFilter<'CrmAccount'> | number | null;
+  longitude?: Prisma.FloatNullableFilter<'CrmAccount'> | number | null;
   timeZone?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringFilter<'CrmAccount'> | string;
@@ -313,6 +367,8 @@ export type CrmAccountOrderByWithRelationInput = {
   country?: Prisma.SortOrderInput | Prisma.SortOrder;
   city?: Prisma.SortOrderInput | Prisma.SortOrder;
   address?: Prisma.SortOrderInput | Prisma.SortOrder;
+  latitude?: Prisma.SortOrderInput | Prisma.SortOrder;
+  longitude?: Prisma.SortOrderInput | Prisma.SortOrder;
   timeZone?: Prisma.SortOrderInput | Prisma.SortOrder;
   customerType?: Prisma.SortOrderInput | Prisma.SortOrder;
   status?: Prisma.SortOrder;
@@ -350,6 +406,8 @@ export type CrmAccountWhereUniqueInput = Prisma.AtLeast<
     country?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     city?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     address?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+    latitude?: Prisma.FloatNullableFilter<'CrmAccount'> | number | null;
+    longitude?: Prisma.FloatNullableFilter<'CrmAccount'> | number | null;
     timeZone?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
     status?: Prisma.StringFilter<'CrmAccount'> | string;
@@ -384,6 +442,8 @@ export type CrmAccountOrderByWithAggregationInput = {
   country?: Prisma.SortOrderInput | Prisma.SortOrder;
   city?: Prisma.SortOrderInput | Prisma.SortOrder;
   address?: Prisma.SortOrderInput | Prisma.SortOrder;
+  latitude?: Prisma.SortOrderInput | Prisma.SortOrder;
+  longitude?: Prisma.SortOrderInput | Prisma.SortOrder;
   timeZone?: Prisma.SortOrderInput | Prisma.SortOrder;
   customerType?: Prisma.SortOrderInput | Prisma.SortOrder;
   status?: Prisma.SortOrder;
@@ -394,8 +454,10 @@ export type CrmAccountOrderByWithAggregationInput = {
   createdAt?: Prisma.SortOrder;
   updatedAt?: Prisma.SortOrder;
   _count?: Prisma.CrmAccountCountOrderByAggregateInput;
+  _avg?: Prisma.CrmAccountAvgOrderByAggregateInput;
   _max?: Prisma.CrmAccountMaxOrderByAggregateInput;
   _min?: Prisma.CrmAccountMinOrderByAggregateInput;
+  _sum?: Prisma.CrmAccountSumOrderByAggregateInput;
 };
 
 export type CrmAccountScalarWhereWithAggregatesInput = {
@@ -412,6 +474,8 @@ export type CrmAccountScalarWhereWithAggregatesInput = {
   country?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   city?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   address?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
+  latitude?: Prisma.FloatNullableWithAggregatesFilter<'CrmAccount'> | number | null;
+  longitude?: Prisma.FloatNullableWithAggregatesFilter<'CrmAccount'> | number | null;
   timeZone?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   customerType?: Prisma.StringNullableWithAggregatesFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringWithAggregatesFilter<'CrmAccount'> | string;
@@ -433,6 +497,8 @@ export type CrmAccountCreateInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -465,6 +531,8 @@ export type CrmAccountUncheckedCreateInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -495,6 +563,8 @@ export type CrmAccountUpdateInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -527,6 +597,8 @@ export type CrmAccountUncheckedUpdateInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -558,6 +630,8 @@ export type CrmAccountCreateManyInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -579,6 +653,8 @@ export type CrmAccountUpdateManyMutationInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -601,6 +677,8 @@ export type CrmAccountUncheckedUpdateManyInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -639,6 +717,8 @@ export type CrmAccountCountOrderByAggregateInput = {
   country?: Prisma.SortOrder;
   city?: Prisma.SortOrder;
   address?: Prisma.SortOrder;
+  latitude?: Prisma.SortOrder;
+  longitude?: Prisma.SortOrder;
   timeZone?: Prisma.SortOrder;
   customerType?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
@@ -648,6 +728,11 @@ export type CrmAccountCountOrderByAggregateInput = {
   archiveSlimmedAt?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
   updatedAt?: Prisma.SortOrder;
+};
+
+export type CrmAccountAvgOrderByAggregateInput = {
+  latitude?: Prisma.SortOrder;
+  longitude?: Prisma.SortOrder;
 };
 
 export type CrmAccountMaxOrderByAggregateInput = {
@@ -661,6 +746,8 @@ export type CrmAccountMaxOrderByAggregateInput = {
   country?: Prisma.SortOrder;
   city?: Prisma.SortOrder;
   address?: Prisma.SortOrder;
+  latitude?: Prisma.SortOrder;
+  longitude?: Prisma.SortOrder;
   timeZone?: Prisma.SortOrder;
   customerType?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
@@ -683,6 +770,8 @@ export type CrmAccountMinOrderByAggregateInput = {
   country?: Prisma.SortOrder;
   city?: Prisma.SortOrder;
   address?: Prisma.SortOrder;
+  latitude?: Prisma.SortOrder;
+  longitude?: Prisma.SortOrder;
   timeZone?: Prisma.SortOrder;
   customerType?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
@@ -692,6 +781,11 @@ export type CrmAccountMinOrderByAggregateInput = {
   archiveSlimmedAt?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
   updatedAt?: Prisma.SortOrder;
+};
+
+export type CrmAccountSumOrderByAggregateInput = {
+  latitude?: Prisma.SortOrder;
+  longitude?: Prisma.SortOrder;
 };
 
 export type CrmAccountScalarRelationFilter = {
@@ -788,6 +882,14 @@ export type CrmAccountUncheckedUpdateManyWithoutOrganizationNestedInput = {
     | Prisma.CrmAccountUpdateManyWithWhereWithoutOrganizationInput
     | Prisma.CrmAccountUpdateManyWithWhereWithoutOrganizationInput[];
   deleteMany?: Prisma.CrmAccountScalarWhereInput | Prisma.CrmAccountScalarWhereInput[];
+};
+
+export type NullableFloatFieldUpdateOperationsInput = {
+  set?: number | null;
+  increment?: number;
+  decrement?: number;
+  multiply?: number;
+  divide?: number;
 };
 
 export type CrmAccountCreateNestedOneWithoutContactsInput = {
@@ -1021,6 +1123,8 @@ export type CrmAccountCreateWithoutOrganizationInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1051,6 +1155,8 @@ export type CrmAccountUncheckedCreateWithoutOrganizationInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1126,6 +1232,8 @@ export type CrmAccountScalarWhereInput = {
   country?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   city?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   address?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
+  latitude?: Prisma.FloatNullableFilter<'CrmAccount'> | number | null;
+  longitude?: Prisma.FloatNullableFilter<'CrmAccount'> | number | null;
   timeZone?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   customerType?: Prisma.StringNullableFilter<'CrmAccount'> | string | null;
   status?: Prisma.StringFilter<'CrmAccount'> | string;
@@ -1147,6 +1255,8 @@ export type CrmAccountCreateWithoutContactsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1178,6 +1288,8 @@ export type CrmAccountUncheckedCreateWithoutContactsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1223,6 +1335,8 @@ export type CrmAccountUpdateWithoutContactsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1254,6 +1368,8 @@ export type CrmAccountUncheckedUpdateWithoutContactsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1283,6 +1399,8 @@ export type CrmAccountCreateWithoutEnrichmentHistoriesInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1314,6 +1432,8 @@ export type CrmAccountUncheckedCreateWithoutEnrichmentHistoriesInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1371,6 +1491,8 @@ export type CrmAccountUpdateWithoutEnrichmentHistoriesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1402,6 +1524,8 @@ export type CrmAccountUncheckedUpdateWithoutEnrichmentHistoriesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1431,6 +1555,8 @@ export type CrmAccountCreateWithoutEventsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1462,6 +1588,8 @@ export type CrmAccountUncheckedCreateWithoutEventsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1507,6 +1635,8 @@ export type CrmAccountUpdateWithoutEventsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1538,6 +1668,8 @@ export type CrmAccountUncheckedUpdateWithoutEventsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1567,6 +1699,8 @@ export type CrmAccountCreateWithoutEnrollmentsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1598,6 +1732,8 @@ export type CrmAccountUncheckedCreateWithoutEnrollmentsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1655,6 +1791,8 @@ export type CrmAccountUpdateWithoutEnrollmentsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1686,6 +1824,8 @@ export type CrmAccountUncheckedUpdateWithoutEnrollmentsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1715,6 +1855,8 @@ export type CrmAccountCreateWithoutMessagesInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1746,6 +1888,8 @@ export type CrmAccountUncheckedCreateWithoutMessagesInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1791,6 +1935,8 @@ export type CrmAccountUpdateWithoutMessagesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1822,6 +1968,8 @@ export type CrmAccountUncheckedUpdateWithoutMessagesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1851,6 +1999,8 @@ export type CrmAccountCreateWithoutEmailOpenEventsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1882,6 +2032,8 @@ export type CrmAccountUncheckedCreateWithoutEmailOpenEventsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -1939,6 +2091,8 @@ export type CrmAccountUpdateWithoutEmailOpenEventsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1970,6 +2124,8 @@ export type CrmAccountUncheckedUpdateWithoutEmailOpenEventsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -1999,6 +2155,8 @@ export type CrmAccountCreateWithoutMessageDraftVersionsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -2030,6 +2188,8 @@ export type CrmAccountUncheckedCreateWithoutMessageDraftVersionsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -2087,6 +2247,8 @@ export type CrmAccountUpdateWithoutMessageDraftVersionsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2118,6 +2280,8 @@ export type CrmAccountUncheckedUpdateWithoutMessageDraftVersionsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2147,6 +2311,8 @@ export type CrmAccountCreateWithoutInboxThreadsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -2178,6 +2344,8 @@ export type CrmAccountUncheckedCreateWithoutInboxThreadsInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -2235,6 +2403,8 @@ export type CrmAccountUpdateWithoutInboxThreadsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2266,6 +2436,8 @@ export type CrmAccountUncheckedUpdateWithoutInboxThreadsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2295,6 +2467,8 @@ export type CrmAccountCreateWithoutInboxMessagesInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -2326,6 +2500,8 @@ export type CrmAccountUncheckedCreateWithoutInboxMessagesInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -2383,6 +2559,8 @@ export type CrmAccountUpdateWithoutInboxMessagesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2414,6 +2592,8 @@ export type CrmAccountUncheckedUpdateWithoutInboxMessagesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2443,6 +2623,8 @@ export type CrmAccountCreateManyOrganizationInput = {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: string;
@@ -2464,6 +2646,8 @@ export type CrmAccountUpdateWithoutOrganizationInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2494,6 +2678,8 @@ export type CrmAccountUncheckedUpdateWithoutOrganizationInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2524,6 +2710,8 @@ export type CrmAccountUncheckedUpdateManyWithoutOrganizationInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  latitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
+  longitude?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null;
   timeZone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   customerType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   status?: Prisma.StringFieldUpdateOperationsInput | string;
@@ -2672,6 +2860,8 @@ export type CrmAccountSelect<
     country?: boolean;
     city?: boolean;
     address?: boolean;
+    latitude?: boolean;
+    longitude?: boolean;
     timeZone?: boolean;
     customerType?: boolean;
     status?: boolean;
@@ -2710,6 +2900,8 @@ export type CrmAccountSelectCreateManyAndReturn<
     country?: boolean;
     city?: boolean;
     address?: boolean;
+    latitude?: boolean;
+    longitude?: boolean;
     timeZone?: boolean;
     customerType?: boolean;
     status?: boolean;
@@ -2738,6 +2930,8 @@ export type CrmAccountSelectUpdateManyAndReturn<
     country?: boolean;
     city?: boolean;
     address?: boolean;
+    latitude?: boolean;
+    longitude?: boolean;
     timeZone?: boolean;
     customerType?: boolean;
     status?: boolean;
@@ -2763,6 +2957,8 @@ export type CrmAccountSelectScalar = {
   country?: boolean;
   city?: boolean;
   address?: boolean;
+  latitude?: boolean;
+  longitude?: boolean;
   timeZone?: boolean;
   customerType?: boolean;
   status?: boolean;
@@ -2787,6 +2983,8 @@ export type CrmAccountOmit<
   | 'country'
   | 'city'
   | 'address'
+  | 'latitude'
+  | 'longitude'
   | 'timeZone'
   | 'customerType'
   | 'status'
@@ -2852,6 +3050,8 @@ export type $CrmAccountPayload<
       country: string | null;
       city: string | null;
       address: string | null;
+      latitude: number | null;
+      longitude: number | null;
       timeZone: string | null;
       customerType: string | null;
       status: string;
@@ -3434,6 +3634,8 @@ export interface CrmAccountFieldRefs {
   readonly country: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly city: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly address: Prisma.FieldRef<'CrmAccount', 'String'>;
+  readonly latitude: Prisma.FieldRef<'CrmAccount', 'Float'>;
+  readonly longitude: Prisma.FieldRef<'CrmAccount', 'Float'>;
   readonly timeZone: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly customerType: Prisma.FieldRef<'CrmAccount', 'String'>;
   readonly status: Prisma.FieldRef<'CrmAccount', 'String'>;

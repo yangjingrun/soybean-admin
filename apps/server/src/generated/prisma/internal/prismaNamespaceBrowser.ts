@@ -210,6 +210,8 @@ export const CrmAccountScalarFieldEnum = {
   country: 'country',
   city: 'city',
   address: 'address',
+  latitude: 'latitude',
+  longitude: 'longitude',
   timeZone: 'timeZone',
   customerType: 'customerType',
   status: 'status',

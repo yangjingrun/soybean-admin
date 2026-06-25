@@ -8,6 +8,11 @@ export function normalizeNullableString(value?: string | null) {
   return normalized || null;
 }
 
+/** Normalize optional numeric fields and drop non-finite values. */
+export function normalizeNullableNumber(value?: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 /** Normalize a website URL or raw host to the CRM domain identity. */
 export function normalizeCrmDomain(value?: string | null) {
   const rawValue = value?.trim();

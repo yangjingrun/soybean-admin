@@ -114,6 +114,8 @@ export interface ImportCrmLeadInput {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   sourceTaskId?: string | null;
@@ -136,6 +138,8 @@ export interface CrmAccountRecord {
   country: string | null;
   city: string | null;
   address: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone: string | null;
   customerType: string | null;
   status: CrmAccountStatus;
@@ -762,6 +766,8 @@ export interface CrmAccountCreateInput {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status: CrmAccountStatus;
@@ -776,6 +782,8 @@ export interface CrmAccountUpdateInput {
   country?: string | null;
   city?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   timeZone?: string | null;
   customerType?: string | null;
   status?: CrmAccountStatus;

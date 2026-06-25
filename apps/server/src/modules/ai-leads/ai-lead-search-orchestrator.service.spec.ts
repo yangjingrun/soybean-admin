@@ -76,7 +76,7 @@ describe('AiLeadSearchOrchestrator', () => {
     );
     assert.deepEqual(executedKeys, ['search|6204 bearing importer Saudi Arabia|sa|en|Saudi Arabia|10|1|']);
     assert.equal(result.serperRequests.length, 1);
-    assert.equal(result.candidates[0].country, 'SA');
+    assert.equal(result.candidates[0].country, '沙特阿拉伯');
   });
 
   it('keeps checkpoint keys distinct for the same query with different time ranges', async () => {
@@ -1254,6 +1254,8 @@ describe('AiLeadSearchOrchestrator', () => {
             website: 'https://bearingdepot.com',
             address: '420 Saw Mill River Rd, Yonkers, NY',
             phoneNumber: '+1 914-555-0199',
+            latitude: 40.9397,
+            longitude: -73.8896,
             placeId: 'places/abc',
             cid: '12345'
           }
@@ -1309,6 +1311,8 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.equal(result.serperRequests[0].endpoint, 'maps');
     assert.equal(result.candidates[0].sourceType, 'maps');
     assert.equal(result.candidates[0].title, 'Bearing Depot & Supply Inc');
+    assert.equal(result.candidates[0].latitude, 40.9397);
+    assert.equal(result.candidates[0].longitude, -73.8896);
   });
 
   it('stops the current query when the next request repeats an executed request', async () => {

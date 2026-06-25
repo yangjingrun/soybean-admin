@@ -19,6 +19,8 @@ export interface LeadSearchCandidateView {
   snippet?: string;
   address?: string;
   phoneNumber?: string;
+  latitude?: number;
+  longitude?: number;
   sourceLabel?: string;
 }
 
@@ -78,6 +80,8 @@ interface InternalCandidateSummary {
   website?: string;
   address?: string;
   phoneNumber?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 /** Adds run metadata and monotonic sequence numbers to business progress events. */
@@ -123,6 +127,8 @@ function toCandidateView(candidate: InternalCandidateSummary): LeadSearchCandida
     website: candidate.website || candidate.url,
     snippet: candidate.snippet,
     address: candidate.address,
-    phoneNumber: candidate.phoneNumber
+    phoneNumber: candidate.phoneNumber,
+    latitude: candidate.latitude,
+    longitude: candidate.longitude
   };
 }

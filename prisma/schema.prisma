@@ -203,6 +203,8 @@ model CrmAccount {
   country        String?
   city           String?
   address        String?
+  latitude       Float?
+  longitude      Float?
   timeZone       String?
   customerType   String?
   status         String   @default("candidate")

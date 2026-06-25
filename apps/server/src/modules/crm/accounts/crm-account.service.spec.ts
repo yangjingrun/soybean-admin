@@ -83,6 +83,8 @@ describe('CrmAccountService', () => {
         country: 'AE',
         city: ' Dubai ',
         address: ' JAFZA South ',
+        latitude: 24.9469207,
+        longitude: 55.1189514,
         timeZone: ' Asia/Dubai '
       },
       {
@@ -96,6 +98,8 @@ describe('CrmAccountService', () => {
 
     assert.equal(createAccountCalls[0].city, 'Dubai');
     assert.equal(createAccountCalls[0].address, 'JAFZA South');
+    assert.equal(createAccountCalls[0].latitude, 24.9469207);
+    assert.equal(createAccountCalls[0].longitude, 55.1189514);
     assert.equal(createAccountCalls[0].timeZone, 'Asia/Dubai');
   });
 

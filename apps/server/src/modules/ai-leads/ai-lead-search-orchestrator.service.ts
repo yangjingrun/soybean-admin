@@ -131,6 +131,8 @@ export interface AiLeadSearchCandidate {
   website?: string;
   address?: string;
   phoneNumber?: string;
+  latitude?: number;
+  longitude?: number;
   country?: string;
 }
 
@@ -905,10 +907,22 @@ function extractPlaceCandidates(value: unknown, sourceType: 'place' | 'local' | 
         title,
         website,
         address,
-        phoneNumber: stringValue(record.phoneNumber)
+        phoneNumber: stringValue(record.phoneNumber),
+        ...buildCoordinatePatch(record)
       };
     })
     .filter(isCandidateSummary);
+}
+
+/** Keeps provider map coordinates as normalized numeric candidate fields. */
+function buildCoordinatePatch(record: Record<string, unknown>) {
+  const latitude = numberValue(record.latitude);
+  const longitude = numberValue(record.longitude);
+
+  return {
+    ...(latitude !== null ? { latitude } : {}),
+    ...(longitude !== null ? { longitude } : {})
+  };
 }
 
 function isCandidateSummary(value: AiLeadSearchCandidate | null): value is AiLeadSearchCandidate {
@@ -917,6 +931,10 @@ function isCandidateSummary(value: AiLeadSearchCandidate | null): value is AiLea
 
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function numberValue(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function getDomain(url: string) {

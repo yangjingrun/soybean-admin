@@ -47,6 +47,7 @@ import {
   normalizeCrmDomain,
   normalizeCrmName,
   normalizeLimitedContent,
+  normalizeNullableNumber,
   normalizeNullableString,
   normalizePositiveInteger
 } from '../shared/crm-normalizers';
@@ -118,6 +119,8 @@ export class CrmAccountService {
     const domain = normalizeCrmDomain(input.websiteUrl);
     const country = normalizeNullableString(input.country);
     const city = normalizeNullableString(input.city);
+    const latitude = normalizeNullableNumber(input.latitude);
+    const longitude = normalizeNullableNumber(input.longitude);
     const timeZone = await this.resolveCustomerTimeZone({ country, city, timeZone: input.timeZone });
     const archivedMatches = await this.findArchivedImportMatches(domain, input, context);
     const existingAccount = domain
@@ -135,6 +138,8 @@ export class CrmAccountService {
         country,
         city,
         address: normalizeNullableString(input.address),
+        latitude,
+        longitude,
         timeZone,
         customerType: normalizeNullableString(input.customerType),
         status: input.contact?.email ? 'email_verification_pending' : 'missing_contact',
@@ -323,6 +328,8 @@ export class CrmAccountService {
       country?: string | null;
       city?: string | null;
       address?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
       timeZone?: string | null;
       customerType?: string | null;
     },
@@ -338,6 +345,10 @@ export class CrmAccountService {
     const nextCountry = input.country === undefined ? detail.account.country : normalizeNullableString(input.country);
     const nextCity = input.city === undefined ? detail.account.city : normalizeNullableString(input.city);
     const nextAddress = input.address === undefined ? detail.account.address : normalizeNullableString(input.address);
+    const nextLatitude =
+      input.latitude === undefined ? detail.account.latitude : normalizeNullableNumber(input.latitude);
+    const nextLongitude =
+      input.longitude === undefined ? detail.account.longitude : normalizeNullableNumber(input.longitude);
     const locationChanged = input.country !== undefined || input.city !== undefined;
     const nextTimeZone =
       input.timeZone !== undefined
@@ -357,6 +368,8 @@ export class CrmAccountService {
       country: nextCountry,
       city: nextCity,
       address: nextAddress,
+      latitude: nextLatitude,
+      longitude: nextLongitude,
       timeZone: nextTimeZone,
       customerType: nextCustomerType
     });

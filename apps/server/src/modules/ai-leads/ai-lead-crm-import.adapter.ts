@@ -9,6 +9,8 @@ interface AiLeadCandidateLike {
   city?: unknown;
   address?: unknown;
   phoneNumber?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
   country?: unknown;
   sourceType?: unknown;
   score?: unknown;
@@ -33,6 +35,7 @@ export function mapAiLeadTaskResultToCrmImportInputs(taskId: string, result: unk
         websiteUrl: normalizeString(candidate.website) || normalizeString(candidate.url),
         ...buildCandidateCountryPatch(candidate),
         ...buildCandidateLocationPatch(candidate),
+        ...buildCandidateCoordinatePatch(candidate),
         sourceTaskId: taskId,
         contact: null,
         sourceSnapshot: buildCandidateSourceSnapshot(candidate)
@@ -72,6 +75,17 @@ function buildCandidateLocationPatch(candidate: AiLeadCandidateLike) {
   };
 }
 
+/** Build normalized coordinate fields for CRM account persistence. */
+function buildCandidateCoordinatePatch(candidate: AiLeadCandidateLike) {
+  const latitude = normalizeNumber(candidate.latitude);
+  const longitude = normalizeNumber(candidate.longitude);
+
+  return {
+    ...(latitude !== null ? { latitude } : {}),
+    ...(longitude !== null ? { longitude } : {})
+  };
+}
+
 function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
   const snapshot: Record<string, string | number> = {};
   const stringFields = [
@@ -94,6 +108,12 @@ function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
 
   const score = normalizeNumber(candidate.score);
   if (score !== null) snapshot.score = score;
+
+  const latitude = normalizeNumber(candidate.latitude);
+  if (latitude !== null) snapshot.latitude = latitude;
+
+  const longitude = normalizeNumber(candidate.longitude);
+  if (longitude !== null) snapshot.longitude = longitude;
 
   return Object.keys(snapshot).length ? snapshot : null;
 }

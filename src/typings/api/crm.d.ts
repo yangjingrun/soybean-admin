@@ -81,6 +81,8 @@ declare namespace Api {
       country: string | null;
       city: string | null;
       address: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
       timeZone?: string | null;
       customerType: string | null;
       status: CrmAccountStatus;
@@ -209,6 +211,8 @@ declare namespace Api {
       country?: string;
       city?: string;
       address?: string;
+      latitude?: number | null;
+      longitude?: number | null;
       timeZone?: string;
       customerType?: string;
       sourceTaskId?: string | null;
