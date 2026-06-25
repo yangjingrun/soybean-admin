@@ -190,14 +190,17 @@ export function createKeywordOptimizationViewModel(
   plan: Api.AiLeads.OptimizedKeywordPlan,
   isSuperAdmin: boolean
 ): KeywordOptimizationViewModel {
+  const formatVisibleText = (text: string) =>
+    annotateBusinessTerms(isSuperAdmin ? text : sanitizeKeywordOptimizationVisibleText(text));
+
   return {
     summaryItems: [
-      { label: '需求归纳', value: annotateBusinessTerms(plan.structuredRequirement) },
-      { label: '产品关键词', value: annotateBusinessTerms(plan.resolvedProductKeywords) },
-      { label: '目标市场', value: annotateBusinessTerms(plan.resolvedTargetRegions) },
-      { label: '客户画像', value: annotateBusinessTerms(plan.resolvedTargetCustomerProfile) }
+      { label: '需求归纳', value: formatVisibleText(plan.structuredRequirement) },
+      { label: '产品关键词', value: formatVisibleText(plan.resolvedProductKeywords) },
+      { label: '目标市场', value: formatVisibleText(plan.resolvedTargetRegions) },
+      { label: '客户画像', value: formatVisibleText(plan.resolvedTargetCustomerProfile) }
     ],
-    buyerSegments: plan.buyerSegments.map(normalizeBuyerSegment),
+    buyerSegments: plan.buyerSegments.map(segment => normalizeBuyerSegment(segment, formatVisibleText)),
     searchQueries: isSuperAdmin ? (plan.serperSearchQueries ?? []).map(normalizeQueryRow) : [],
     placesQueries: isSuperAdmin ? getPlacesQueries(plan).map(normalizeQueryRow) : [],
     mapsQueries: isSuperAdmin ? (plan.serperMapsQueries ?? []).map(normalizeQueryRow) : [],
@@ -325,13 +328,28 @@ function annotateBusinessTerms(text: string) {
   }, text);
 }
 
-function normalizeBuyerSegment(segment: Api.AiLeads.BuyerSegment): Api.AiLeads.BuyerSegment {
+/** Removes provider/query-channel wording from regular-user visible strategy summaries. */
+function sanitizeKeywordOptimizationVisibleText(text: string) {
+  return text
+    .replace(/Serper\s+Search\s+查询(词|计划)?/gi, '搜索查询$1')
+    .replace(/Serper\s+Places\s+查询(词|计划)?/gi, '本地商家查询$1')
+    .replace(/Serper\s+Maps\s+查询(词|计划)?/gi, '地图查询$1')
+    .replace(/Serper\s*(Search|Places|Maps)?/gi, '')
+    .replace(/([\u4e00-\u9fff])\s+(搜索|本地商家|地图)查询/g, '$1$2查询')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function normalizeBuyerSegment(
+  segment: Api.AiLeads.BuyerSegment,
+  formatVisibleText: (text: string) => string
+): Api.AiLeads.BuyerSegment {
   return {
     ...segment,
-    buyerType: annotateBusinessTerms(segment.buyerType),
-    purchaseReason: annotateBusinessTerms(segment.purchaseReason),
-    websiteSignals: segment.websiteSignals.map(annotateBusinessTerms),
-    priorityContacts: segment.priorityContacts.map(annotateBusinessTerms),
+    buyerType: formatVisibleText(segment.buyerType),
+    purchaseReason: formatVisibleText(segment.purchaseReason),
+    websiteSignals: segment.websiteSignals.map(formatVisibleText),
+    priorityContacts: segment.priorityContacts.map(formatVisibleText),
     preferredSerperChannel: segment.preferredSerperChannel
   };
 }

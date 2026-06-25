@@ -19,12 +19,12 @@ const keywordPlan: Api.AiLeads.OptimizedKeywordPlan = {
   resolvedTargetRegions: '沙特阿拉伯',
   resolvedTargetCustomerProfile: '轴承进口商和工业品经销商',
   resolvedTargetLeadCount: null,
-  structuredRequirement: '中国河北轴承供应商寻找沙特进口商和经销商。',
+  structuredRequirement: '中国河北轴承供应商生成 Serper Maps 查询计划，寻找沙特进口商和经销商。',
   buyerSegments: [
     {
       buyerType: 'Importer',
       purchaseReason: '补充本地轴承库存并转售给工业客户',
-      websiteSignals: ['Import', 'Bearing catalog'],
+      websiteSignals: ['Import', 'Serper Places 查询词覆盖 Bearing catalog'],
       priorityContacts: ['Purchasing Manager'],
       priorityLevel: '高'
     }
@@ -105,8 +105,12 @@ describe('ai leads keyword optimization helpers', () => {
     const viewModel = createKeywordOptimizationViewModel(keywordPlan, false);
 
     assert.equal(viewModel.summaryItems.length, 4);
+    assert.match(viewModel.summaryItems[0].value, /地图查询计划/);
+    assert.doesNotMatch(viewModel.summaryItems[0].value, /Serper/);
     assert.equal(viewModel.buyerSegments.length, 1);
     assert.equal(viewModel.buyerSegments[0].buyerType, 'Importer（进口商）');
+    assert.match(viewModel.buyerSegments[0].websiteSignals[1], /本地商家查询词覆盖/);
+    assert.doesNotMatch(viewModel.buyerSegments[0].websiteSignals.join(' '), /Serper/);
     assert.equal(viewModel.showQueryDetails, false);
     assert.deepEqual(viewModel.searchQueries, []);
     assert.deepEqual(viewModel.placesQueries, []);
@@ -117,6 +121,8 @@ describe('ai leads keyword optimization helpers', () => {
     const viewModel = createKeywordOptimizationViewModel(keywordPlan, true);
 
     assert.equal(viewModel.showQueryDetails, true);
+    assert.match(viewModel.summaryItems[0].value, /Serper Maps 查询计划/);
+    assert.match(viewModel.buyerSegments[0].websiteSignals[1], /Serper Places 查询词/);
     assert.equal(viewModel.searchQueries[0].q, '6204 bearing importer Saudi Arabia');
     assert.equal(viewModel.searchQueries[0].buyerType, 'Importer（进口商）');
     assert.equal(viewModel.placesQueries[0].q, 'bearing supplier Riyadh');
@@ -131,8 +137,9 @@ describe('ai leads keyword optimization helpers', () => {
     const viewModel = createKeywordOptimizationViewModel(keywordPlan, false);
     const text = formatKeywordOptimizationVisibleText(viewModel);
 
-    assert.match(text, /需求归纳：中国河北轴承供应商寻找沙特进口商和经销商。/);
+    assert.match(text, /需求归纳：中国河北轴承供应商生成地图查询计划，寻找沙特进口商和经销商。/);
     assert.match(text, /买家类型：Importer（进口商）/);
+    assert.doesNotMatch(text, /Serper/);
     assert.doesNotMatch(text, /6204 bearing importer Saudi Arabia/);
     assert.doesNotMatch(text, /bearing supplier Riyadh/);
     assert.doesNotMatch(text, /bearing distributor/);
