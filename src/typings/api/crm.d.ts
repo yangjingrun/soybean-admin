@@ -498,6 +498,17 @@ declare namespace Api {
           };
     }
 
+    interface CurrentUserOutreachStateClearResult {
+      deletedAiDraftTaskCount: number;
+      deletedAiDraftTaskItemCount: number;
+      deletedDraftVersionCount: number;
+      deletedEnrollmentCount: number;
+      deletedMessageCount: number;
+      deletedOpenEventCount: number;
+      deletedTimelineEventCount: number;
+      resetAccountCount: number;
+    }
+
     type MailboxList = Api.Common.PaginatingQueryRecord<MailboxRecord>;
 
     interface ProductLineRecord {
@@ -551,7 +562,25 @@ declare namespace Api {
       id: string;
       label: string;
       value: string;
-      source: 'account' | 'contact' | 'product_line' | 'persona' | 'previous_message' | 'base_draft';
+      source:
+        | 'account'
+        | 'contact'
+        | 'product_line'
+        | 'persona'
+        | 'previous_message'
+        | 'base_draft'
+        | 'source_snapshot'
+        | 'sequence_strategy';
+    }
+
+    interface AiDraftStepStrategySnapshot {
+      taskDescription: string;
+      newValue: string;
+      wordRange: {
+        min: number;
+        max: number;
+      };
+      requiredFactGroups: string[];
     }
 
     interface AiDraftSnapshot {
@@ -559,6 +588,8 @@ declare namespace Api {
       productLineName: string;
       stepIndex: AiWritingStepIndex;
       writingConfig: ProductLineAiWritingConfig;
+      sourceSnapshot?: Record<string, unknown> | null;
+      stepStrategy?: AiDraftStepStrategySnapshot | null;
       reason: string;
       riskNotes: string[];
       selectedModules?: AiDraftSelectedModuleSnapshot[];

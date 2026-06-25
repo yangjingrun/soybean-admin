@@ -7,6 +7,23 @@ import { PrismaCrmProductLineStore } from './prisma-crm-product-line.store';
 import { PrismaCrmSequencePolicyStore } from './prisma-crm-sequence-policy.store';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
 
+const outreachTimelineEventTypes = [
+  'ai_draft_regenerated',
+  'draft_approved',
+  'draft_updated',
+  'draft_version_restored',
+  'email_opened',
+  'message_returned_to_edit',
+  'message_send_failed',
+  'message_send_retry_scheduled',
+  'message_send_scheduled',
+  'message_sent',
+  'sequence_draft_generated',
+  'sequence_follow_up_draft_generated',
+  'sequence_resumed',
+  'sequence_stopped'
+];
+
 @Injectable()
 export class PrismaCrmSettingsStore implements CrmSettingsRepository {
   private readonly configStore: PrismaCrmConfigStore;
@@ -45,6 +62,76 @@ export class PrismaCrmSettingsStore implements CrmSettingsRepository {
     ...args: Parameters<PrismaCrmConfigStore['saveAiDraftQueueConfig']>
   ): ReturnType<PrismaCrmConfigStore['saveAiDraftQueueConfig']> {
     return this.configStore.saveAiDraftQueueConfig(...args);
+  }
+
+  /** Deletes current owner's local outreach state and resets affected leads for testing. */
+  async clearCurrentUserOutreachState(args: { organizationId: string; ownerUserId: string }) {
+    return this.prisma.$transaction(async tx => {
+      const ownerWhere = {
+        organizationId: args.organizationId,
+        ownerUserId: args.ownerUserId
+      };
+      const enrollments = await tx.crmSequenceEnrollment.findMany({
+        where: ownerWhere,
+        select: {
+          id: true,
+          accountId: true
+        }
+      });
+      const enrollmentIds = enrollments.map(enrollment => enrollment.id);
+      const accountIds = [...new Set(enrollments.map(enrollment => enrollment.accountId))];
+      const [
+        deletedMessageCount,
+        deletedDraftVersionCount,
+        deletedOpenEventCount,
+        deletedAiDraftTaskCount,
+        deletedAiDraftTaskItemCount
+      ] = await Promise.all([
+        enrollmentIds.length
+          ? tx.crmMessage.count({ where: { ...ownerWhere, enrollmentId: { in: enrollmentIds } } })
+          : Promise.resolve(0),
+        enrollmentIds.length
+          ? tx.crmMessageDraftVersion.count({ where: { ...ownerWhere, enrollmentId: { in: enrollmentIds } } })
+          : Promise.resolve(0),
+        enrollmentIds.length
+          ? tx.crmEmailOpenEvent.count({ where: { ...ownerWhere, enrollmentId: { in: enrollmentIds } } })
+          : Promise.resolve(0),
+        tx.crmAiDraftTask.count({ where: ownerWhere }),
+        tx.crmAiDraftTaskItem.count({ where: ownerWhere })
+      ]);
+      const [timelineDeleteResult, , enrollmentDeleteResult] = await Promise.all([
+        tx.crmTimelineEvent.deleteMany({
+          where: {
+            ...ownerWhere,
+            eventType: { in: outreachTimelineEventTypes }
+          }
+        }),
+        tx.crmAiDraftTask.deleteMany({ where: ownerWhere }),
+        tx.crmSequenceEnrollment.deleteMany({ where: ownerWhere })
+      ]);
+      const accountUpdateResult =
+        accountIds.length > 0
+          ? await tx.crmAccount.updateMany({
+              where: {
+                ...ownerWhere,
+                id: { in: accountIds },
+                status: { in: ['sequence_running', 'replied_pending', 'followed_up'] }
+              },
+              data: { status: 'ready' }
+            })
+          : { count: 0 };
+
+      return {
+        deletedAiDraftTaskCount,
+        deletedAiDraftTaskItemCount,
+        deletedDraftVersionCount,
+        deletedEnrollmentCount: enrollmentDeleteResult.count,
+        deletedMessageCount,
+        deletedOpenEventCount,
+        deletedTimelineEventCount: timelineDeleteResult.count,
+        resetAccountCount: accountUpdateResult.count
+      };
+    });
   }
 
   getSendPreference(

@@ -19,6 +19,9 @@ describe('AuthService', () => {
     assert.deepEqual(await service.getUserByAccessToken(token!.token), {
       userId: '1',
       userName: 'Super',
+      nickName: null,
+      phone: null,
+      email: null,
       roles: ['R_SUPER'],
       buttons: [...crmPermissionCodes],
       organizationId: 'org-default',
@@ -45,6 +48,9 @@ describe('AuthService', () => {
     assert.deepEqual(await restartedService.getUserByAccessToken(token!.token), {
       userId: '1',
       userName: 'Super',
+      nickName: null,
+      phone: null,
+      email: null,
       roles: ['R_SUPER'],
       buttons: [...crmPermissionCodes],
       organizationId: 'org-default',
@@ -236,6 +242,33 @@ describe('AuthService', () => {
     assert.equal(user.lockedUntil, null);
     assert.equal(await service.login('Super', '123456'), null);
     assert.equal(Boolean(await service.login('Super', 'abc123')), true);
+  });
+
+  it('updates current user profile fields and returns the refreshed user info', async () => {
+    const user = createUser();
+    const service = createService([user]);
+
+    const updated = await service.updateCurrentUserProfile(user.id, {
+      nickName: '  Alice Chen  ',
+      phone: '   ',
+      email: 'alice@example.com '
+    });
+
+    assert.equal(user.nickName, 'Alice Chen');
+    assert.equal(user.phone, null);
+    assert.equal(user.email, 'alice@example.com');
+    assert.deepEqual(updated, {
+      userId: '1',
+      userName: 'Super',
+      nickName: 'Alice Chen',
+      phone: null,
+      email: 'alice@example.com',
+      roles: ['R_SUPER'],
+      buttons: [...crmPermissionCodes],
+      organizationId: 'org-default',
+      organizationName: '默认组织',
+      organizationRole: 'admin'
+    });
   });
 
   it('rejects changing password when old password is wrong', async () => {

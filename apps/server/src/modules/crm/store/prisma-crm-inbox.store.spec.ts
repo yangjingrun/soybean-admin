@@ -147,6 +147,28 @@ describe('PrismaCrmInboxStore', () => {
     });
   });
 
+  it('keeps bounced inbox thread status when Gmail removes UNREAD', async () => {
+    const prisma = createInboxPrisma({ inboxThread: createPrismaInboxThread({ status: 'bounced' }) });
+    const store = new PrismaCrmInboxStore(prisma as never);
+
+    const result = await store.syncInboxThreadGmailState({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      mailboxId: 'mailbox-1',
+      providerThreadId: 'enrollment-1',
+      providerMessageId: 'gmail-message-1',
+      changeType: 'labels_removed',
+      labelIds: ['UNREAD']
+    });
+
+    assert.equal(result?.thread.status, 'bounced');
+    assert.equal(result?.thread.unreadCount, 0);
+    assert.deepEqual(prisma.crmInboxThread.updateCalls[0].data, {
+      status: 'bounced',
+      unreadCount: 0
+    });
+  });
+
   it('archives an inbox thread when Gmail removes INBOX without deleting local messages', async () => {
     const prisma = createInboxPrisma();
     const store = new PrismaCrmInboxStore(prisma as never);
@@ -421,7 +443,7 @@ describe('PrismaCrmInboxStore', () => {
   });
 
   it('marks contact unreachable when ingesting a bounce reply', async () => {
-    const prisma = createInboxPrisma();
+    const prisma = createInboxPrisma({ existingThread: false });
     const store = new PrismaCrmInboxStore(prisma as never);
     prisma.crmInboxMessage.findFirstResult = null;
 
@@ -436,6 +458,9 @@ describe('PrismaCrmInboxStore', () => {
     });
 
     assert.equal(result?.message.messageType, 'bounce');
+    assert.equal(result?.thread.status, 'bounced');
+    assert.equal(prisma.crmInboxThread.createCalls[0].data.status, 'bounced');
+    assert.equal(prisma.crmInboxThread.updateCalls[0].data.status, 'bounced');
     assert.deepEqual(prisma.crmContact.updateCalls[0], {
       where: { id: 'contact-1' },
       data: { emailStatus: 'unreachable' }
@@ -626,7 +651,9 @@ function createPrismaInboxThread(input: InboxPrismaRecord = {}) {
 /** Builds the smallest Prisma fake needed by the focused inbox repository tests. */
 function createInboxPrisma(
   options: {
+    existingThread?: boolean;
     inboxMessage?: ReturnType<typeof createPrismaInboxMessage>;
+    inboxThread?: ReturnType<typeof createPrismaInboxThread>;
   } = {}
 ) {
   const account = createPrismaAccount();
@@ -642,13 +669,14 @@ function createInboxPrisma(
   };
   const inboxMessage = options.inboxMessage ?? createPrismaInboxMessage();
   const inboxThread = {
-    ...createPrismaInboxThread(),
+    ...(options.inboxThread ?? createPrismaInboxThread()),
     account,
     contact,
     mailbox,
     enrollment,
     messages: [inboxMessage]
   };
+  const shouldFindExistingThread = options.existingThread ?? true;
 
   const prisma = {
     transactionCalls: 0,
@@ -730,6 +758,10 @@ function createInboxPrisma(
       },
       async findFirst(args: { where: InboxPrismaRecord; include?: InboxPrismaRecord }) {
         this.findFirstCalls.push(args);
+        if (!args.include && !shouldFindExistingThread) {
+          return null;
+        }
+
         return args.include
           ? inboxThread
           : {

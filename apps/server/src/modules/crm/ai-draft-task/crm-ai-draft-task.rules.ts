@@ -65,16 +65,8 @@ export function getAiDraftTaskItemSkipMessage(item: CrmSequenceReviewRecord, bla
     return '产品资料未启用 AI 写信';
   }
 
-  const sourceMessage = item.messages.at(-1)!;
-  const stepIndex = sourceMessage.stepIndex + 1;
-
   try {
-    const writingConfig = requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
-    const stepConfig = writingConfig.steps.find(step => step.stepIndex === stepIndex);
-
-    if (!stepConfig?.prompt) {
-      return `产品资料缺少第 ${stepIndex} 封 AI 写信提示词`;
-    }
+    requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
   } catch (error) {
     return error instanceof Error ? error.message : '产品资料 AI 写信配置不完整';
   }

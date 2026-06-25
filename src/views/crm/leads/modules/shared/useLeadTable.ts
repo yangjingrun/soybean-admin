@@ -4,6 +4,7 @@ import { NButton, useDialog, useMessage, useNotification } from 'naive-ui';
 import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
 import {
   archiveCrmAccount,
+  clearCurrentUserCrmOutreachState,
   createCrmContact,
   createCrmAccountNote,
   createCrmFirstOutreachAiDraftTask,
@@ -60,6 +61,7 @@ export function useLeadTable() {
   const contactDeletingId = shallowRef<string | null>(null);
   const statusSubmitting = shallowRef(false);
   const archiveOperatingId = shallowRef<string | null>(null);
+  const clearingOutreachState = shallowRef(false);
   const verifyingContactIds = shallowRef<string[]>([]);
   const refreshingEnrichmentProvider = shallowRef<Api.Crm.LeadEnrichmentProvider | null>(null);
   const sequenceCreateVisible = shallowRef(false);
@@ -700,6 +702,37 @@ export function useLeadTable() {
     });
   }
 
+  /** Clear current user's outreach test state from the customer workbench. */
+  async function handleClearOutreachState() {
+    if (clearingOutreachState.value) {
+      return;
+    }
+
+    clearingOutreachState.value = true;
+    try {
+      const { data, error } = await clearCurrentUserCrmOutreachState();
+
+      if (error) {
+        return;
+      }
+
+      message.success(`已清除 ${data.deletedEnrollmentCount} 个开发信任务，复位 ${data.resetAccountCount} 个客户`);
+      notifyCrmWorkbenchChanged();
+      checkedLeadRowKeys.value = [];
+      expandedLeadDetails.value = {};
+      expandedLeadFailedIds.value = [];
+      expandedLeadLoadingIds.value = [];
+      expandedRowKeys.value = [];
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+      }
+    } finally {
+      clearingOutreachState.value = false;
+    }
+  }
+
   /** Archive one lead, then refresh the list and close the matching detail drawer. */
   async function archiveLead(record: Api.Crm.LeadRecord) {
     archiveOperatingId.value = record.id;
@@ -774,6 +807,7 @@ export function useLeadTable() {
     accountSubmitting,
     contactDeletingId,
     contactSubmitting,
+    clearingOutreachState,
     detailActiveTab,
     detailActiveContactId,
     detailLoading,
@@ -786,6 +820,7 @@ export function useLeadTable() {
     checkedLeadRowKeys,
     checkedLeadSequenceTargets,
     handleArchiveLead,
+    handleClearOutreachState,
     handleUpdateAccount,
     handleCheckedLeadRowKeysUpdate,
     handleCreateSequencesFromTargets,

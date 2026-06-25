@@ -19,6 +19,7 @@ const emit = defineEmits<{
   createAiDraftTask: [];
   batchGenerateNextDrafts: [];
   batchStopSequences: [];
+  export: [];
   review: [record: Api.Crm.SequenceReviewItem];
   updateCheckedRowKeys: [keys: DataTableRowKey[]];
   updatePage: [page: number];
@@ -31,6 +32,7 @@ const props = defineProps<{
   batchNextDraftGenerating?: boolean;
   batchSequenceStopping?: boolean;
   checkedRowKeys: DataTableRowKey[];
+  exporting?: boolean;
   loading?: boolean;
   pagination: {
     current: number;
@@ -46,7 +48,8 @@ const batchBusy = computed(() =>
     props.batchDraftApproving ||
     props.aiDraftTaskCreating ||
     props.batchNextDraftGenerating ||
-    props.batchSequenceStopping
+    props.batchSequenceStopping ||
+    props.exporting
   )
 );
 const batchNextDraftResultDisplays = inject(sequenceBatchResultDisplayKey);
@@ -225,6 +228,16 @@ function getRowKey(row: Api.Crm.SequenceReviewItem) {
           已选 {{ batchSelectionSummary.selectedCount }} 条 · AI 可生成 {{ batchSelectionSummary.aiDraftTaskCount }} 条
           · 不可执行 {{ batchSelectionSummary.skippedCount }} 条
         </NText>
+        <NButton
+          size="small"
+          type="primary"
+          secondary
+          :disabled="pagination.total === 0 || batchBusy"
+          :loading="exporting"
+          @click="emit('export')"
+        >
+          导出表格
+        </NButton>
         <NButton
           size="small"
           type="primary"

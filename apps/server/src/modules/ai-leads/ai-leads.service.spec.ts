@@ -214,6 +214,9 @@ describe('AiLeadsService', () => {
   const user: UserInfo = {
     userId: 'u-1',
     userName: 'Super',
+    nickName: null,
+    phone: null,
+    email: null,
     roles: ['R_SUPER'],
     buttons: [],
     organizationId: 'org-1',
@@ -223,6 +226,9 @@ describe('AiLeadsService', () => {
   const ordinaryUser: UserInfo = {
     userId: 'u-2',
     userName: 'Operator',
+    nickName: null,
+    phone: null,
+    email: null,
     roles: ['R_USER'],
     buttons: [],
     organizationId: 'org-1',

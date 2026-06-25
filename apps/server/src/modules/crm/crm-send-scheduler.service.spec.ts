@@ -444,8 +444,8 @@ function createGlobalConfig(input: Partial<CrmGlobalConfigRecord> = {}): CrmGlob
     followUpDelayDays: {
       step2Days: 3,
       step3Days: 7,
-      step4Days: 14,
-      step5Days: 21
+      step4Days: 12,
+      step5Days: 18
     },
     sendWorkdays: input.sendWorkdays ?? [1, 2, 3, 4, 5],
     sendWindows: input.sendWindows ?? [

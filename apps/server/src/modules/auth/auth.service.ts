@@ -154,15 +154,27 @@ export class AuthService {
       data: { lastUsedAt: new Date() }
     });
 
-    return {
-      userId: user.userId,
-      userName: user.userName,
-      roles: user.roles,
-      buttons: user.buttons,
-      organizationId: user.organizationId,
-      organizationName: user.organizationName,
-      organizationRole: user.organizationRole
-    };
+    return this.toPublicUserInfo(user);
+  }
+
+  /** Update editable profile fields for the current authenticated user. */
+  async updateCurrentUserProfile(
+    userId: string,
+    input: { nickName?: string | null; phone?: string | null; email?: string | null }
+  ): Promise<UserInfo> {
+    const updated = await this.prisma.systemUser.update({
+      where: { id: userId },
+      data: {
+        ...(input.nickName !== undefined ? { nickName: normalizeNullableString(input.nickName) } : {}),
+        ...(input.phone !== undefined ? { phone: normalizeNullableString(input.phone) } : {}),
+        ...(input.email !== undefined ? { email: normalizeNullableString(input.email) } : {})
+      },
+      include: {
+        organization: true
+      }
+    });
+
+    return this.toPublicUserInfo(await this.toUserInfo(updated));
   }
 
   /** Rotate access and refresh tokens from an existing refresh token. */
@@ -371,6 +383,9 @@ export class AuthService {
     return {
       userId: user.id,
       userName: user.userName,
+      nickName: user.nickName,
+      phone: user.phone,
+      email: user.email,
       roles: user.roles,
       buttons: await this.resolveRolePermissions(user.roles),
       organizationId: user.organizationId,
@@ -379,6 +394,21 @@ export class AuthService {
       status: user.status,
       expireAt: user.expireAt?.toISOString() || null,
       lockedUntil: user.lockedUntil?.toISOString() || null
+    };
+  }
+
+  private toPublicUserInfo(user: UserInfoWithSession): UserInfo {
+    return {
+      userId: user.userId,
+      userName: user.userName,
+      nickName: user.nickName,
+      phone: user.phone,
+      email: user.email,
+      roles: user.roles,
+      buttons: user.buttons,
+      organizationId: user.organizationId,
+      organizationName: user.organizationName,
+      organizationRole: user.organizationRole
     };
   }
 
@@ -464,4 +494,10 @@ interface AuthSessionWriteData {
   loginIp: string | null;
   userAgent: string | null;
   lastUsedAt: Date;
+}
+
+function normalizeNullableString(value: string | null | undefined) {
+  const normalized = value?.trim();
+
+  return normalized || null;
 }

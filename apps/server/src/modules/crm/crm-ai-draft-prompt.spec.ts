@@ -169,12 +169,28 @@ describe('crm-ai-draft-prompt', () => {
   it('parses strict AI JSON draft output', () => {
     const output = parseCrmAiDraftOutput(
       JSON.stringify({
+        sendDecision: 'hold_for_review',
         subject: 'Bearing supply option',
         bodyText: 'Hi Alex, ...',
         reason: 'Focused on sourcing.',
+        roleNormalized: 'sourcing',
+        roleDecision: 'validate a new supplier',
+        operatingContext: 'industrial_supply',
+        industryAngle: 'supplier qualification',
+        ctaType: 'proof_review',
+        ctaObject: 'supplier qualification summary',
+        ctaResponseMode: 'yes_no',
         riskNotes: ['产品交期未配置'],
         usedAngles: ['sourcing reliability'],
         usedFacts: ['account.name'],
+        canonicalTermsUsed: ['bearing designation', 'supplier qualification'],
+        sequenceNovelty: {
+          newValueVsPrevious: 'Moved from relevance to supplier validation.',
+          ctaDifferentFromPrevious: true,
+          ctaObjectDifferentFromPrevious: true,
+          industryAngleDifferentFromPrevious: true,
+          subjectDifferentFromPrevious: true
+        },
         nextReviewHints: ['确认联系人职位'],
         qualityFlags: ['主题可再缩短'],
         polishChanges: ['删除模板开头']
@@ -182,9 +198,15 @@ describe('crm-ai-draft-prompt', () => {
     );
 
     assert.equal(output.subject, 'Bearing supply option');
+    assert.equal(output.sendDecision, 'hold_for_review');
+    assert.equal(output.roleNormalized, 'sourcing');
+    assert.equal(output.ctaType, 'proof_review');
+    assert.equal(output.ctaObject, 'supplier qualification summary');
     assert.equal(output.riskNotes[0], '产品交期未配置');
     assert.deepEqual(output.usedAngles, ['sourcing reliability']);
     assert.deepEqual(output.usedFacts, ['account.name']);
+    assert.deepEqual(output.canonicalTermsUsed, ['bearing designation', 'supplier qualification']);
+    assert.equal(output.sequenceNovelty?.ctaDifferentFromPrevious, true);
     assert.deepEqual(output.nextReviewHints, ['确认联系人职位']);
     assert.deepEqual(output.qualityFlags, ['主题可再缩短']);
     assert.deepEqual(output.polishChanges, ['删除模板开头']);

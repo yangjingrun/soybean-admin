@@ -13,6 +13,7 @@ export interface CrmAiDraftPromptAccount {
   timeZone?: string | null;
   domain: string | null;
   customerType: string | null;
+  sourceSnapshot?: Record<string, unknown> | null;
 }
 
 export interface CrmAiDraftPromptContact {
@@ -47,6 +48,17 @@ export interface CrmAiDraftBaseDraft {
   bodyText: string;
 }
 
+export interface CrmAiDraftStepStrategy {
+  taskDescription: string;
+  newValue: string;
+  wordRange: { min: number; max: number };
+  requiredFactGroups: string[];
+  mustDo?: string[];
+  mustAvoid?: string[];
+  ctaInstruction?: string;
+  selfCheck?: string[];
+}
+
 export interface CrmAiDraftPromptInput {
   account: CrmAiDraftPromptAccount;
   contact: CrmAiDraftPromptContact;
@@ -58,6 +70,7 @@ export interface CrmAiDraftPromptInput {
   templateLanguage?: string | null;
   baseDraft: CrmAiDraftBaseDraft;
   persona?: Pick<PersonaProfile, 'label' | 'focusText' | 'draftFocusText' | 'painPoints' | 'avoidText'> | null;
+  stepStrategy?: CrmAiDraftStepStrategy | null;
 }
 
 export interface CrmAiDraftPrompt {
@@ -66,13 +79,33 @@ export interface CrmAiDraftPrompt {
   riskNotes: string[];
 }
 
+export type CrmAiDraftSendDecision = 'send' | 'hold_for_review' | 'skip';
+
+export interface CrmAiDraftSequenceNovelty {
+  newValueVsPrevious: string;
+  ctaDifferentFromPrevious: boolean;
+  ctaObjectDifferentFromPrevious: boolean;
+  industryAngleDifferentFromPrevious: boolean;
+  subjectDifferentFromPrevious: boolean;
+}
+
 export interface CrmAiDraftOutput {
+  sendDecision?: CrmAiDraftSendDecision;
   subject: string;
   bodyText: string;
   reason: string;
+  roleNormalized?: string;
+  roleDecision?: string;
+  operatingContext?: string;
+  industryAngle?: string;
+  ctaType?: string;
+  ctaObject?: string;
+  ctaResponseMode?: string;
   riskNotes: string[];
   usedAngles: string[];
   usedFacts: string[];
+  canonicalTermsUsed?: string[];
+  sequenceNovelty?: CrmAiDraftSequenceNovelty | null;
   nextReviewHints: string[];
   qualityFlags: string[];
   polishChanges: string[];

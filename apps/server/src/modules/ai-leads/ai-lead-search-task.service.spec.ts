@@ -16,6 +16,9 @@ import type {
 const user: UserInfo = {
   userId: 'u-1',
   userName: 'AI外贸管理系统',
+  nickName: null,
+  phone: null,
+  email: null,
   roles: ['R_SUPER'],
   buttons: [],
   organizationId: 'org-1',

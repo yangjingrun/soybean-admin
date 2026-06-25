@@ -22,6 +22,12 @@ declare global {
         oldPassword: string;
         newPassword: string;
       }
+
+      interface UpdateCurrentUserProfilePayload {
+        nickName?: string | null;
+        phone?: string | null;
+        email?: string | null;
+      }
     }
   }
 }

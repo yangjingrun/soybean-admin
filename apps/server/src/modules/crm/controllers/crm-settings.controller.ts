@@ -94,6 +94,11 @@ export class CrmSettingsController extends CrmControllerBase {
     return ok(await this.sendQueueReconcileService.reconcileSendQueue({}, userContext));
   }
 
+  @Post('operations/current-user-outreach-state/clear')
+  async clearCurrentUserOutreachState(@CurrentContext() context: CrmUserContext | null = null) {
+    return ok(await this.settingsService.clearCurrentUserOutreachState(this.requireUserContext(context)));
+  }
+
   @Get('send-preference')
   async getSendPreference(@CurrentContext() context: CrmUserContext | null = null) {
     return ok(await this.settingsService.getSendPreference(this.requireUserContext(context)));

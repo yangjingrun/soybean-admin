@@ -24,8 +24,8 @@ export function createDefaultFollowUpDelayDays(): Api.Crm.FollowUpDelayDays {
   return {
     step2Days: 3,
     step3Days: 7,
-    step4Days: 14,
-    step5Days: 21
+    step4Days: 12,
+    step5Days: 18
   };
 }
 

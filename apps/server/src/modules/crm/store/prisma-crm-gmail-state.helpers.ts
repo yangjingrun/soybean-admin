@@ -26,28 +26,30 @@ export function resolveGmailThreadStateUpdate(
   }
 
   if (input.changeType === 'labels_removed' && labelIds.has('UNREAD')) {
-    if (thread.status === 'handled' && thread.unreadCount === 0) return null;
+    const nextStatus = thread.status === 'bounced' ? 'bounced' : 'handled';
+    if (thread.status === nextStatus && thread.unreadCount === 0) return null;
 
     return {
-      nextStatus: 'handled' as CrmInboxThreadStatus,
+      nextStatus: nextStatus as CrmInboxThreadStatus,
       eventType: 'gmail_label_synced',
       title: 'Gmail 状态同步为已读',
       data: {
-        status: 'handled',
+        status: nextStatus,
         unreadCount: 0
       }
     };
   }
 
   if (input.changeType === 'labels_added' && labelIds.has('UNREAD')) {
-    if (thread.status === 'pending' && thread.unreadCount > 0) return null;
+    const nextStatus = thread.status === 'bounced' ? 'bounced' : 'pending';
+    if (thread.status === nextStatus && thread.unreadCount > 0) return null;
 
     return {
-      nextStatus: 'pending' as CrmInboxThreadStatus,
+      nextStatus: nextStatus as CrmInboxThreadStatus,
       eventType: 'gmail_label_synced',
       title: 'Gmail 状态同步为未读',
       data: {
-        status: 'pending',
+        status: nextStatus,
         unreadCount: Math.max(thread.unreadCount, 1)
       }
     };

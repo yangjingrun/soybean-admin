@@ -491,12 +491,29 @@ export interface CrmAiDraftSnapshot {
   productLineName: string;
   stepIndex: CrmAiWritingStepIndex;
   writingConfig: CrmProductLineAiWritingConfig;
+  sourceSnapshot?: Record<string, unknown> | null;
+  stepStrategy?: {
+    taskDescription: string;
+    newValue: string;
+    wordRange: { min: number; max: number };
+    requiredFactGroups: string[];
+  } | null;
   reason: string;
   riskNotes: string[];
   selectedModules?: unknown[];
   publicFacts?: unknown[];
+  sendDecision?: string;
+  roleNormalized?: string;
+  roleDecision?: string;
+  operatingContext?: string;
+  industryAngle?: string;
+  ctaType?: string;
+  ctaObject?: string;
+  ctaResponseMode?: string;
   usedAngles?: string[];
   usedFacts?: string[];
+  canonicalTermsUsed?: string[];
+  sequenceNovelty?: unknown;
   nextReviewHints?: string[];
   qualityFlags?: string[];
   polishChanges?: string[];
@@ -1177,6 +1194,17 @@ export interface CrmStrategyStatRow {
 export interface CrmStrategyStatsRecord {
   generatedAt: Date;
   rows: Record<CrmStrategyStatDimension, CrmStrategyStatRow[]>;
+}
+
+export interface CrmCurrentUserOutreachStateClearResult {
+  deletedAiDraftTaskCount: number;
+  deletedAiDraftTaskItemCount: number;
+  deletedDraftVersionCount: number;
+  deletedEnrollmentCount: number;
+  deletedMessageCount: number;
+  deletedOpenEventCount: number;
+  deletedTimelineEventCount: number;
+  resetAccountCount: number;
 }
 
 export interface CrmWorkbenchOverviewRecord {

@@ -189,6 +189,8 @@ export const sequenceBatchResultDisplayKey = Symbol('sequence-batch-result-displ
   Readonly<Ref<SequenceBatchResultDisplayItem[]>>
 >;
 
+export const sequenceExportStepCount = 5;
+
 export const sequenceBatchResultStatusLabelMap: Record<Api.Crm.SequenceBatchItemStatus, string> = {
   success: '成功',
   skipped: '跳过',
@@ -347,8 +349,114 @@ export function formatSequenceDate(value: string) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
 }
 
+export function formatNullableSequenceDate(value: string | null | undefined) {
+  return value ? formatSequenceDate(value) : '';
+}
+
 export function formatNullableText(value: string | null | undefined) {
   return value || '-';
+}
+
+/** Build a CSV table with customer info and up to five generated outreach emails. */
+export function buildSequenceExportCsv(records: Api.Crm.SequenceReviewItem[]) {
+  const headers = buildSequenceExportHeaders();
+  const rows = records.map(record => buildSequenceExportRow(record));
+
+  return [headers, ...rows].map(row => row.map(escapeCsvCell).join(',')).join('\r\n');
+}
+
+function buildSequenceExportHeaders() {
+  const customerHeaders = [
+    '客户名称',
+    '客户域名',
+    '官网',
+    '国家',
+    '城市',
+    '客户类型',
+    '联系人',
+    '职位',
+    '邮箱',
+    '邮箱状态',
+    '序列状态',
+    '当前进度',
+    '产品资料',
+    '发送邮箱',
+    '序列策略',
+    '创建时间'
+  ];
+  const emailHeaders = Array.from({ length: sequenceExportStepCount }, (_, index) => {
+    const stepIndex = index + 1;
+
+    return [
+      `第 ${stepIndex} 封状态`,
+      `第 ${stepIndex} 封主题`,
+      `第 ${stepIndex} 封正文`,
+      `第 ${stepIndex} 封计划发送`,
+      `第 ${stepIndex} 封实际发送`
+    ];
+  }).flat();
+
+  return [...customerHeaders, ...emailHeaders];
+}
+
+function buildSequenceExportRow(record: Api.Crm.SequenceReviewItem) {
+  const messageByStep = buildSequenceMessageStepMap(record.messages);
+  const customerCells = [
+    record.account.name,
+    record.account.domain || '',
+    record.account.websiteUrl || '',
+    record.account.country || '',
+    record.account.city || '',
+    record.account.customerType || '',
+    record.contact.fullName || '',
+    record.contact.title || '',
+    record.contact.email,
+    record.contact.emailStatus,
+    sequenceStatusLabelMap[record.enrollment.status],
+    getSequenceProgressText(record.enrollment),
+    record.productLine?.name || '',
+    record.mailbox?.emailAddress || '',
+    record.policy?.name || '',
+    formatSequenceDate(record.enrollment.createdAt)
+  ];
+  const emailCells = Array.from({ length: sequenceExportStepCount }, (_, index) => {
+    const message = messageByStep.get(index + 1);
+
+    if (!message) {
+      return ['', '', '', '', ''];
+    }
+
+    return [
+      getMessageStatusView(message, record.enrollment.status).label,
+      message.subject,
+      message.bodyText,
+      formatNullableSequenceDate(message.scheduledAt),
+      formatNullableSequenceDate(message.sentAt)
+    ];
+  }).flat();
+
+  return [...customerCells, ...emailCells];
+}
+
+function buildSequenceMessageStepMap(messages: Api.Crm.MessageRecord[]) {
+  const messageByStep = new Map<number, Api.Crm.MessageRecord>();
+
+  [...messages]
+    .filter(message => message.stepIndex >= 1 && message.stepIndex <= sequenceExportStepCount)
+    .sort((left, right) => left.stepIndex - right.stepIndex || left.createdAt.localeCompare(right.createdAt))
+    .forEach(message => {
+      if (!messageByStep.has(message.stepIndex)) {
+        messageByStep.set(message.stepIndex, message);
+      }
+    });
+
+  return messageByStep;
+}
+
+function escapeCsvCell(value: string | number | null | undefined) {
+  const text = String(value ?? '');
+
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 /** Builds the top AI draft summary rows shown in review panels. */
@@ -387,6 +495,33 @@ export function buildAiDraftReviewTags(
       type: 'warning' as const
     }))
   ];
+}
+
+/** Builds reader-facing task and fact rows for AI draft review. */
+export function buildAiDraftFactRows(aiDraft: Api.Crm.AiDraftMetadata | null | undefined): AiDraftDescriptionRow[] {
+  const snapshot = aiDraft?.snapshot;
+  if (!snapshot) return [];
+
+  return [
+    snapshot.stepStrategy
+      ? {
+          key: 'stepStrategy',
+          label: '本封任务',
+          value: [
+            snapshot.stepStrategy.taskDescription,
+            `新增价值：${snapshot.stepStrategy.newValue}`,
+            `建议长度：${snapshot.stepStrategy.wordRange.min}-${snapshot.stepStrategy.wordRange.max} 英文词`
+          ].join('\n')
+        }
+      : null,
+    snapshot.usedFacts?.length ? { key: 'usedFacts', label: '使用事实', value: snapshot.usedFacts.join('、') } : null,
+    snapshot.usedAngles?.length
+      ? { key: 'usedAngles', label: '使用角度', value: snapshot.usedAngles.join('、') }
+      : null,
+    snapshot.qualityFlags?.length
+      ? { key: 'qualityFlags', label: '质检提醒', value: snapshot.qualityFlags.join('、') }
+      : null
+  ].filter((item): item is AiDraftDescriptionRow => Boolean(item));
 }
 
 /** Builds immutable prompt and module snapshot rows for AI draft review. */

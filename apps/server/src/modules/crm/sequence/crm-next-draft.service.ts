@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
 import { buildNextFollowUpDraft } from '../crm-follow-up-draft';
+import { getCrmOutreachStepStrategy, toCrmAiStepStrategy } from '../crm-outreach-step-strategy';
 import { buildPersonaMatch } from '../crm-persona-match';
 import { CRM_SEQUENCE_NEXT_DRAFT_REPOSITORY } from '../crm.tokens';
 import type {
@@ -16,6 +17,7 @@ import type {
   CrmSequenceReviewRecord,
   CrmUserContext
 } from '../crm.types';
+import { resolveCrmSenderName } from '../shared/crm-context';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { toMessageView, toSequenceEnrollmentView } from '../shared/crm-view-mappers';
 import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
@@ -145,7 +147,7 @@ export class CrmNextDraftService {
       followUpDelayDays: resolvedGenerationContext.globalConfig.followUpDelayDays,
       personaProfile: personaMatch.templatePersona,
       templateGroup: resolvedGenerationContext.defaultTemplateGroup,
-      senderName: context.userName
+      senderName: resolveCrmSenderName(context)
     });
 
     if (!baseNextMessage) {
@@ -282,8 +284,11 @@ export class CrmNextDraftService {
         account: {
           name: account.name,
           country: account.country,
+          city: account.city,
+          timeZone: account.timeZone,
           domain: account.domain,
-          customerType: account.customerType
+          customerType: account.customerType,
+          sourceSnapshot: account.sourceSnapshot
         },
         contact: {
           fullName: contact.fullName,
@@ -311,13 +316,14 @@ export class CrmNextDraftService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: context.userName,
+        senderName: resolveCrmSenderName(context),
         templateLanguage,
         baseDraft: {
           subject: fallbackDraft.subject,
           bodyText: fallbackDraft.bodyText
         },
-        persona: personaProfile ?? null
+        persona: personaProfile ?? null,
+        stepStrategy: toCrmAiStepStrategy(getCrmOutreachStepStrategy(stepIndex))
       },
       context
     );

@@ -26,6 +26,7 @@ export type InboxReplySubmitPayloadResult =
 
 export const inboxThreadStatusOptions = [
   { label: '待处理回信', value: 'pending' },
+  { label: '邮件退信', value: 'bounced' },
   { label: '已处理', value: 'handled' },
   { label: '已忽略', value: 'archived' }
 ] satisfies Array<{ label: string; value: Api.Crm.InboxThreadStatus }>;
@@ -37,12 +38,14 @@ export const inboxPageGuide = {
 
 export const inboxThreadStatusLabelMap: Record<Api.Crm.InboxThreadStatus, string> = {
   pending: '待处理回信',
+  bounced: '邮件退信',
   handled: '已处理',
   archived: '已忽略'
 };
 
 export const inboxThreadStatusTagTypeMap: Record<Api.Crm.InboxThreadStatus, NaiveUI.ThemeColor> = {
   pending: 'warning',
+  bounced: 'error',
   handled: 'success',
   archived: 'default'
 };

@@ -1964,6 +1964,9 @@ function createUserBase() {
   return {
     userId: 'user-1',
     userName: 'Alice',
+    nickName: null,
+    phone: null,
+    email: null,
     roles: ['R_USER'],
     buttons: [],
     organizationId: 'org-1',
@@ -2335,7 +2338,8 @@ function createMessageView(overrides: Partial<CrmMessageView> = {}): CrmMessageV
     stepIndex: 1,
     threadMode: 'new_subject',
     subject: 'Bearing Series for ABC Trading',
-    bodyText: 'Hi Ali,\n\nWould it be useful if I sent a short product list?\n\nBest regards,\nAlice',
+    bodyText:
+      'Hi Ali,\n\nWould comparing one current item, designation, or supply requirement be relevant?\n\nBest regards,\nAlice',
     status: 'draft_pending_review',
     scheduledAt: null,
     sentAt: null,
@@ -2506,8 +2510,8 @@ function createGlobalConfigView(overrides: Partial<CrmGlobalConfigView> = {}): C
     followUpDelayDays: {
       step2Days: 3,
       step3Days: 7,
-      step4Days: 14,
-      step5Days: 21
+      step4Days: 12,
+      step5Days: 18
     },
     updatedAt: '1970-01-01T00:00:00.000Z',
     ...overrides

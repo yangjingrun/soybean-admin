@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Patch, Post, Query, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { fail, ok } from '../../shared/api-response';
 import { requireRequestUserContext } from '../../shared/request-context';
@@ -7,6 +7,7 @@ import { SystemLogService } from '../system-log/system-log.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdateCurrentUserProfileDto } from './dto/update-current-user-profile.dto';
 import { CurrentContext, Public } from './auth.decorators';
 import { AuthService } from './auth.service';
 
@@ -112,6 +113,47 @@ export class AuthController {
     return ok(null);
   }
 
+  @Patch('profile')
+  async updateProfile(
+    @CurrentContext() context: RequestUserContext | null = null,
+    @Body() dto: UpdateCurrentUserProfileDto,
+    @Req() request: AuthRequestLike
+  ) {
+    const user = requireRequestUserContext(context);
+
+    try {
+      const updated = await this.authService.updateCurrentUserProfile(user.userId, dto);
+
+      await this.recordAuthLog({
+        level: 'info',
+        status: 'success',
+        action: 'update-profile',
+        message: '用户更新个人信息',
+        request,
+        userId: user.userId,
+        userName: user.userName,
+        metadata: {
+          changedFields: Object.keys(dto)
+        }
+      });
+
+      return ok(updated);
+    } catch (error) {
+      await this.recordAuthLog({
+        level: 'warn',
+        status: 'failed',
+        action: 'update-profile',
+        message: '用户更新个人信息失败',
+        request,
+        userId: user.userId,
+        userName: user.userName,
+        errorMessage: getErrorMessage(error)
+      });
+
+      throw error;
+    }
+  }
+
   @Post('change-password')
   async changePassword(
     @CurrentContext() context: RequestUserContext | null = null,
@@ -210,7 +252,7 @@ interface AuthRequestLike {
 interface AuthLogInput {
   level: 'info' | 'warn' | 'error';
   status: 'success' | 'failed';
-  action: 'login' | 'logout' | 'change-password';
+  action: 'login' | 'logout' | 'change-password' | 'update-profile';
   message: string;
   request: AuthRequestLike;
   userId?: string;

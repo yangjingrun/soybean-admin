@@ -137,7 +137,9 @@ const selectedContactProgress = computed(() =>
 );
 const canCreateSequenceFromSelectedContact = computed(() =>
   Boolean(
-    account.value && selectedContact.value && canCreateSequenceFromLeadAccountContact(account.value, selectedContact.value)
+    account.value &&
+    selectedContact.value &&
+    canCreateSequenceFromLeadAccountContact(account.value, selectedContact.value)
   )
 );
 const nextAction = computed(() => (account.value ? getLeadNextAction(account.value.status) : null));
@@ -209,7 +211,8 @@ const statusMetrics = computed<CommunicationMetric[]>(() => [
 const sequenceSummary = computed(() => {
   const progress = selectedContactProgress.value;
 
-  if (progress) return `${selectedContact.value?.fullName || selectedContact.value?.maskedEmail || '当前联系人'}：${progress.label}${progress.timeText === '-' ? '' : ` · ${progress.timeText}`}`;
+  if (progress)
+    return `${selectedContact.value?.fullName || selectedContact.value?.maskedEmail || '当前联系人'}：${progress.label}${progress.timeText === '-' ? '' : ` · ${progress.timeText}`}`;
 
   const status = account.value?.status;
 
@@ -644,13 +647,19 @@ function handleSelectCommunicationContact(contactId: string) {
             <NTag v-if="contacts.length" type="info" :bordered="false" size="small">
               {{ contacts.length }} 个联系人
             </NTag>
-            <NTag v-if="communicationHealth.label !== '-'" :type="communicationHealth.type" :bordered="false" size="small">
+            <NTag
+              v-if="communicationHealth.label !== '-'"
+              :type="communicationHealth.type"
+              :bordered="false"
+              size="small"
+            >
               {{ communicationHealth.label }}
             </NTag>
           </NSpace>
           <div v-if="account" class="modal-subtitle">
-            {{ formatLeadText(account.websiteUrl || account.domain) }} · {{ formatLeadText(selectedContact?.maskedEmail) }} ·
-            {{ formatLeadText(account.city || account.country) }} · {{ formatLeadText(account.timeZone) }}
+            {{ formatLeadText(account.websiteUrl || account.domain) }} ·
+            {{ formatLeadText(selectedContact?.maskedEmail) }} · {{ formatLeadText(account.city || account.country) }} ·
+            {{ formatLeadText(account.timeZone) }}
           </div>
         </div>
         <NSpace align="center" :size="8">
@@ -672,12 +681,7 @@ function handleSelectCommunicationContact(contactId: string) {
           </div>
         </div>
 
-        <NAlert
-          v-if="account.status === 'replied_pending'"
-          type="info"
-          :bordered="false"
-          title="客户已回复"
-        >
+        <NAlert v-if="account.status === 'replied_pending'" type="info" :bordered="false" title="客户已回复">
           后续未发送邮件会按当前 CRM 规则自动停止，优先到“邮件往来”处理回复。
         </NAlert>
 
@@ -845,11 +849,19 @@ function handleSelectCommunicationContact(contactId: string) {
                 <div class="section-title-row">
                   <div class="section-title">账户信息</div>
                   <NSpace :size="8">
-                    <NButton v-if="!accountEditing" size="small" secondary type="primary" @click="handleStartEditAccount">
+                    <NButton
+                      v-if="!accountEditing"
+                      size="small"
+                      secondary
+                      type="primary"
+                      @click="handleStartEditAccount"
+                    >
                       编辑
                     </NButton>
                     <template v-else>
-                      <NButton size="small" :disabled="accountSubmitting" @click="handleCancelEditAccount">取消</NButton>
+                      <NButton size="small" :disabled="accountSubmitting" @click="handleCancelEditAccount">
+                        取消
+                      </NButton>
                       <NButton size="small" type="primary" :loading="accountSubmitting" @click="handleSubmitAccount">
                         保存
                       </NButton>

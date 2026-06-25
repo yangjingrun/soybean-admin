@@ -201,9 +201,7 @@ class SmtpProbeSession {
 }
 
 function normalizeMxRecords(records: CrmEmailMxRecord[]) {
-  return records
-    .filter(record => record.exchange)
-    .toSorted((left, right) => left.priority - right.priority);
+  return records.filter(record => record.exchange).toSorted((left, right) => left.priority - right.priority);
 }
 
 function isLastSmtpResponseLine(line: string) {

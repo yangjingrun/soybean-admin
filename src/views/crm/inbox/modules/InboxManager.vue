@@ -3,15 +3,8 @@ import InboxStats from './InboxStats.vue';
 import InboxThreadTable from './InboxThreadTable.vue';
 import { useInboxTable } from './shared/useInboxTable';
 
-const {
-  handlePageSizeUpdate,
-  handlePageUpdate,
-  loading,
-  openThreadDetail,
-  pagination,
-  pendingTotal,
-  records
-} = useInboxTable();
+const { handlePageSizeUpdate, handlePageUpdate, loading, openThreadDetail, pagination, pendingTotal, records } =
+  useInboxTable();
 </script>
 
 <template>

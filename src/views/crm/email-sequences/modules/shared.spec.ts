@@ -4,9 +4,11 @@ import {
   buildDraftReviewOperationPayload,
   buildDraftVersionDiffSummary,
   buildDraftVersionListItems,
+  buildAiDraftFactRows,
   buildAiDraftPromptSnapshotRows,
   buildAiDraftReviewTags,
   buildAiDraftSummaryRows,
+  buildSequenceExportCsv,
   buildSequenceMessageTimelineItems,
   buildSequenceReviewSearchParams,
   buildSequencePolicyReviewHints,
@@ -230,6 +232,36 @@ function createAiDraftMetadata(): Api.Crm.AiDraftMetadata {
 }
 
 describe('email sequence review shared helpers', () => {
+  it('builds a CSV export with customer info and five sequence email slots', () => {
+    const item = createSequenceItem({
+      enrollment: { status: 'sequence_running', createdAt: '2026-06-19T01:00:00.000Z' },
+      messages: [
+        createMessage({
+          stepIndex: 1,
+          status: 'sent',
+          subject: 'First outreach',
+          bodyText: 'Hello Ali',
+          sentAt: '2026-06-19T02:00:00.000Z'
+        }),
+        createMessage({
+          stepIndex: 5,
+          status: 'draft_ready',
+          subject: 'Follow "up", please',
+          bodyText: 'Line 1\nLine 2',
+          scheduledAt: '2026-06-26T02:00:00.000Z'
+        })
+      ]
+    });
+
+    const csv = buildSequenceExportCsv([item]);
+
+    assert.match(csv, /^"客户名称","客户域名"/);
+    assert.match(csv, /"第 5 封状态","第 5 封主题","第 5 封正文"/);
+    assert.match(csv, /"ABC","abc\.example"/);
+    assert.match(csv, /"已发送","First outreach","Hello Ali"/);
+    assert.match(csv, /"等待发送","Follow ""up"", please","Line 1\nLine 2"/);
+  });
+
   it('builds AI draft rows for selected modules, facts, review hints and quality flags', () => {
     const aiDraft = createAiDraftMetadata();
 
@@ -255,6 +287,39 @@ describe('email sequence review shared helpers', () => {
         'polish-changes'
       ]
     );
+  });
+
+  it('builds AI draft step task and fact display rows', () => {
+    const rows = buildAiDraftFactRows({
+      generated: true,
+      reason: 'Used company product fact.',
+      riskNotes: ['客户地区信息缺失'],
+      snapshot: {
+        productLineId: 'line-1',
+        productLineName: 'Bearings',
+        stepIndex: 1,
+        writingConfig: {
+          enabled: true,
+          steps: []
+        },
+        reason: 'Used company product fact.',
+        riskNotes: ['客户地区信息缺失'],
+        stepStrategy: {
+          taskDescription: '建立相关性',
+          newValue: '公司事实 + 职位价值',
+          wordRange: { min: 50, max: 100 },
+          requiredFactGroups: ['company_profile']
+        },
+        usedFacts: ['account.name', 'source_snapshot.website_product_fact'],
+        qualityFlags: ['正文过长'],
+        selectedModules: [],
+        generatedAt: '2026-06-24T00:00:00.000Z'
+      }
+    });
+
+    assert.ok(rows.some(row => row.label === '本封任务'));
+    assert.ok(rows.some(row => row.label === '使用事实'));
+    assert.ok(rows.some(row => row.value.includes('source_snapshot.website_product_fact')));
   });
 
   it('uses business wording for development email follow-up', () => {

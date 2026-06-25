@@ -609,7 +609,6 @@ const logColumns = computed<DataTableColumns<Api.SystemLog.SystemLogRecord>>(() 
         发送队列修复结果：扫描 {{ sendQueueReconcileResult.scannedCount }} 条，修复
         {{ sendQueueReconcileResult.repairedCount }} 条，跳过 {{ sendQueueReconcileResult.skippedCount }} 条。
       </NAlert>
-
       <NGrid responsive="screen" :x-gap="12" :y-gap="12" cols="2 s:2 m:6">
         <NGi>
           <NStatistic label="待关注消息" :value="queueRows.length" />

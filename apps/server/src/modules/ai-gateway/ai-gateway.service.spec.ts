@@ -53,7 +53,10 @@ describe('AiGatewayService', () => {
         'crm_outreach_output_contract'
       ]
     );
-    assert.equal(crmSteps.every(step => step.channel === 'crm_email'), true);
+    assert.equal(
+      crmSteps.every(step => step.channel === 'crm_email'),
+      true
+    );
   });
 
   it('trims model config and delegates generation to the text generator', async () => {

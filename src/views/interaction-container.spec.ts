@@ -8,6 +8,10 @@ const productLineManagerSource = readFileSync(
   new URL('./crm/settings/modules/ProductLineManager.vue', import.meta.url),
   'utf8'
 );
+const productLineFormDrawerSource = readFileSync(
+  new URL('./crm/settings/modules/ProductLineFormDrawer.vue', import.meta.url),
+  'utf8'
+);
 const operationsPanelSource = readFileSync(
   new URL('./crm/settings/modules/CrmOperationsPanel.vue', import.meta.url),
   'utf8'
@@ -25,6 +29,11 @@ describe('management interaction containers', () => {
   it('uses a drawer container for the dense CRM product line form', () => {
     assert.match(productLineManagerSource, /ProductLineFormDrawer/);
     assert.doesNotMatch(productLineManagerSource, /ProductLineFormModal/);
+  });
+
+  it('keeps product line prompt tabs from animating inside the drawer scroll area', () => {
+    assert.match(productLineFormDrawerSource, /class="product-line-prompt-tabs"/);
+    assert.doesNotMatch(productLineFormDrawerSource, /<NTabs[^>]*type="segment"[^>]*\banimated\b/);
   });
 
   it('keeps CRM operation details wide enough for diagnostics fields', () => {

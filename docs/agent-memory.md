@@ -13,6 +13,38 @@
 
 ## 已确认经验
 
+### 2026-06-24 CRM 产品资料 AI 写信 step prompt 留空要走系统内置
+
+- 场景：产品资料启用 AI 写信后，配置页每封开发信提示词允许留空，页面文案说明“留空默认使用系统内置写法”。
+- 坑点：生成链路本身已支持空 step prompt 走系统内置规则，但批量 AI 草稿任务的前置校验如果继续要求 `step.prompt` 非空，会把任务跳过并提示“产品资料缺少第 N 封 AI 写信提示词”。
+- 正确做法：任务创建和 worker 重检只校验产品资料存在、状态 active、AI 写信已启用且配置可规范化；不要把空 step prompt 当成业务跳过。具体写法由 `crm-ai-draft-prompt` 和全局 prompt 模块兜底。
+- 相关文件：`apps/server/src/modules/crm/ai-draft-task/crm-ai-draft-task.rules.ts`、`apps/server/src/modules/crm/crm-ai-draft-task-worker.service.ts`、`apps/server/src/modules/crm/crm-ai-draft-prompt.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-draft-task/crm-ai-draft-task.rules.spec.ts apps/server/src/modules/crm/crm-ai-draft-task-worker.service.spec.ts`，确认空 step prompt 不再跳过任务。
+
+### 2026-06-24 CRM AI 草稿质量旗标要驱动润色压缩
+
+- 场景：CRM AI 开发信已经生成成功，但邮件正文过长、段落过多或产品型号堆叠，质量检查会写入 `qualityFlags`。
+- 坑点：如果 `auto_when_flagged` 只对“AI 味开头/无价值跟进”触发润色，正文过长和段落过多只会显示提醒，最终仍保存模板感强、目录堆叠的文案。
+- 正确做法：主 prompt 不要求保留 base draft 措辞，只把 base draft 当事实、CTA 和签名种子；质量检查遇到正文过长、段落过多、主题过长也触发一次 polish；polish prompt 要明确压缩正文、减少段落、保留事实和 CTA 强度。
+- 相关文件：`apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.ts`、`apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.ts`、`apps/server/src/modules/crm/crm-ai-draft.service.ts`、`apps/server/src/modules/ai-gateway/ai-gateway.constants.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts apps/server/src/modules/crm/crm-ai-draft.service.spec.ts`，确认过长草稿会触发二次 polish。
+
+### 2026-06-24 项目不要保留 TypeScript 编译出的 JS
+
+- 场景：本地运行 TypeScript 相关命令、IDE 自动编译或历史模板残留后，`src`、`packages`、`build`、根配置和脚本目录出现 `.js/.mjs/.cjs` 文件。
+- 坑点：这些 JS 多数是同名 `.ts` 的编译副本或构建产物；留在工作区会干扰排查，也会让 AI 误以为项目允许继续写 JS。
+- 正确做法：源码、脚本、配置默认写 `.ts` / `.vue`，不要新建 `.js` / `.mjs` / `.cjs`；发现同名 TS 旁边的 JS、`src/**/*.js`、`*.js.map` 或 `apps/server/dist` 这类生成产物时直接清理。根 `tsconfig.json` 保持 `noEmit: true`，避免 `tsc` 在源码旁生成 JS。
+- 相关文件：`tsconfig.json`、`.gitignore`、`AGENTS.md`、`package.json`、`scripts/run-tests.ts`、`scripts/dev-all.ts`。
+- 验证方式：运行 `find . \( -path './node_modules' -o -path './.git' -o -path './dist' -o -path '*/dist' \) -prune -o -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.js.map' \) -print`，应没有输出。
+
+### 2026-06-24 CRM 退信要写入独立收件箱状态并保留业务状态
+
+- 场景：Gmail history 同步到 `Delivery Status Notification (Failure)`、mailer-daemon 等退信后，CRM 客户回信列表需要展示邮件退信，而不是普通待处理回信。
+- 坑点：退信消息 `messageType=bounce`、联系人 `emailStatus=unreachable` 和时间线 `email_bounced` 即使都正确，如果 `CrmInboxThread.status` 仍统一写 `pending`，列表状态会继续显示“待处理回信”；后续 Gmail 已读/未读标签同步也可能把退信 thread 覆盖成 `handled/pending`。
+- 正确做法：退信入库时把 inbox thread 状态写为 `bounced`，前后端状态枚举和标签映射同步包含 `bounced`；Gmail UNREAD 标签同步只调整退信 thread 的 `unreadCount`，不覆盖 `bounced` 业务状态；已有 pending 退信用数据迁移回填。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm-inbox.store.ts`、`apps/server/src/modules/crm/store/prisma-crm-gmail-state.helpers.ts`、`src/views/crm/inbox/modules/shared.ts`、`prisma/migrations/20260624131000_mark_bounced_inbox_threads/migration.sql`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm-inbox.store.spec.ts` 和 `pnpm exec tsx --test src/views/crm/inbox/modules/shared.spec.ts`，确认退信 thread 状态为 `bounced` 且 Gmail 已读同步不会改成 `handled`。
+
 ### 2026-06-24 CRM 首封发送后列表进度要推进到下一封待处理邮件
 
 - 场景：CRM 首封开发信发送成功后，系统自动生成第二封并进入 `draft_ready` 待发送；开发信任务列表需要展示当前正在流转的邮件。

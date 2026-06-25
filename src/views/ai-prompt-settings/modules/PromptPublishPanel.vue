@@ -87,7 +87,7 @@ async function copyLatestTestRun() {
 </script>
 
 <template>
-  <NCard :bordered="false" class="card-wrapper publish-panel">
+  <NCard :bordered="false" class="card-wrapper publish-panel" content-class="publish-panel__card-content">
     <NScrollbar class="publish-panel__scroll">
       <div class="publish-panel__content">
         <div class="publish-panel__top">
@@ -233,7 +233,7 @@ async function copyLatestTestRun() {
   overflow: hidden;
 }
 
-.publish-panel :deep(.n-card-content) {
+.publish-panel :deep(.publish-panel__card-content) {
   display: flex;
   box-sizing: border-box;
   height: 100%;

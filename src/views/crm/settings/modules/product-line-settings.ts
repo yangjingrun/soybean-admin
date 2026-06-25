@@ -261,7 +261,11 @@ export function summarizeProductLineAiWritingConfig(
     languagePolicyLabel: findOptionLabel(productLineAiLanguagePolicyOptions, normalized.languagePolicy),
     toneLabel: findOptionLabel(productLineAiToneOptions, normalized.tone),
     ctaPreferenceLabel: findOptionLabel(productLineAiCtaPreferenceOptions, normalized.ctaPreference),
-    polishPolicyLabel: findOptionLabel(productLineAiPolishPolicyOptions, normalized.polishPolicy, '系统内置（每次去 AI 味润色）'),
+    polishPolicyLabel: findOptionLabel(
+      productLineAiPolishPolicyOptions,
+      normalized.polishPolicy,
+      '系统内置（每次去 AI 味润色）'
+    ),
     proofAssets: normalized.proofAssets ?? '',
     regionNotes: normalized.regionNotes ?? '',
     steps: normalized.steps.map(step => ({

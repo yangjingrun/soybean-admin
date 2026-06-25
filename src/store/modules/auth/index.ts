@@ -3,7 +3,7 @@ import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useLoading } from '@sa/hooks';
 import { DEFAULT_ORGANIZATION_ID, DEFAULT_ORGANIZATION_NAME } from '@soybean/shared';
-import { fetchGetUserInfo, fetchLogin, fetchLogout } from '@/service/api';
+import { fetchGetUserInfo, fetchLogin, fetchLogout, updateCurrentUserProfile } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
 import { SetupStoreId } from '@/enum';
@@ -25,6 +25,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   const userInfo: Api.Auth.UserInfo = reactive({
     userId: '',
     userName: '',
+    nickName: null,
+    phone: null,
+    email: null,
     roles: [],
     buttons: [],
     organizationId: DEFAULT_ORGANIZATION_ID,
@@ -41,6 +44,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   /** Is login */
   const isLogin = computed(() => Boolean(token.value));
+
+  /** Display name configured by current user, used by the app chrome and CRM sender identity. */
+  const userDisplayName = computed(() => userInfo.nickName || userInfo.userName);
 
   /** Reset auth store */
   async function resetStore() {
@@ -121,7 +127,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
         window.$notification?.success({
           title: $t('page.login.common.loginSuccess'),
-          content: $t('page.login.common.welcomeBack', { userName: userInfo.userName }),
+          content: $t('page.login.common.welcomeBack', { userName: userDisplayName.value }),
           duration: 4500
         });
       }
@@ -162,6 +168,18 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     return false;
   }
 
+  /** Update editable profile fields for the current login user. */
+  async function updateProfile(data: Api.Auth.UpdateCurrentUserProfilePayload) {
+    const { data: info, error } = await updateCurrentUserProfile(data);
+
+    if (!error) {
+      Object.assign(userInfo, info);
+      return true;
+    }
+
+    return false;
+  }
+
   async function initUserInfo() {
     const maybeToken = getToken();
 
@@ -186,10 +204,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     userInfo,
     isStaticSuper,
     isLogin,
+    userDisplayName,
     loginLoading,
     resetStore,
     logout,
     login,
+    updateProfile,
     initUserInfo
   };
 });

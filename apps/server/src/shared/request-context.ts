@@ -4,6 +4,7 @@ import type { OrganizationRole, UserInfo } from '@soybean/shared';
 export interface RequestUserContext {
   userId: string;
   userName: string;
+  nickName?: string | null;
   roles: string[];
   buttons?: string[];
   organizationId: string;
@@ -15,6 +16,7 @@ export function toRequestUserContext(user: UserInfo): RequestUserContext {
   return {
     userId: user.userId,
     userName: user.userName,
+    nickName: user.nickName,
     roles: user.roles,
     buttons: user.buttons,
     organizationId: user.organizationId,
@@ -29,4 +31,9 @@ export function requireRequestUserContext(context: RequestUserContext | null): R
   }
 
   return context;
+}
+
+/** Resolve the configured human-facing name for signatures and customer-visible copy. */
+export function resolveRequestUserDisplayName(context: Pick<RequestUserContext, 'nickName' | 'userName'>) {
+  return context.nickName?.trim() || context.userName;
 }

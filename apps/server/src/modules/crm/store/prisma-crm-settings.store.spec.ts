@@ -49,6 +49,41 @@ describe('PrismaCrmSettingsStore', () => {
       ]
     });
   });
+
+  it('clears current owner outreach state with organization and owner guards', async () => {
+    const prisma = new SettingsPrisma();
+    const store = new PrismaCrmSettingsStore(prisma as never);
+
+    const result = await store.clearCurrentUserOutreachState({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+
+    assert.deepEqual(result, {
+      deletedAiDraftTaskCount: 1,
+      deletedAiDraftTaskItemCount: 2,
+      deletedDraftVersionCount: 3,
+      deletedEnrollmentCount: 2,
+      deletedMessageCount: 5,
+      deletedOpenEventCount: 4,
+      deletedTimelineEventCount: 6,
+      resetAccountCount: 2
+    });
+    assert.deepEqual(prisma.crmSequenceEnrollment.deleteManyCalls[0].where, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.deepEqual(prisma.crmAccount.updateManyCalls[0], {
+      where: {
+        organizationId: 'org-1',
+        ownerUserId: 'user-1',
+        id: { in: ['account-1', 'account-2'] },
+        status: { in: ['sequence_running', 'replied_pending', 'followed_up'] }
+      },
+      data: { status: 'ready' }
+    });
+    assert.equal(prisma.transactionCallCount, 1);
+  });
 });
 
 interface ListCall {
@@ -60,6 +95,19 @@ interface ListCall {
 
 interface UniqueCall {
   where: unknown;
+}
+
+interface DeleteManyCall {
+  where: unknown;
+}
+
+interface CountCall {
+  where: unknown;
+}
+
+interface UpdateManyCall {
+  where: unknown;
+  data: unknown;
 }
 
 interface UpsertCall<TCreate, TUpdate> {
@@ -74,7 +122,7 @@ function createGlobalConfig() {
     emailVerificationCooldownDays: 30,
     ownerConcurrentSendLimit: 5,
     ownerDailySendLimitMax: 200,
-    followUpDelayDaysText: '3,7,14,21',
+    followUpDelayDaysText: '3,7,12,18',
     updatedById: null,
     updatedByName: null,
     updatedAt: new Date('2026-06-18T09:00:00.000Z')
@@ -119,6 +167,13 @@ function createProductLine(input: Record<string, unknown> = {}) {
 }
 
 class SettingsPrisma {
+  transactionCallCount = 0;
+
+  async $transaction<T>(callback: (tx: this) => Promise<T>) {
+    this.transactionCallCount += 1;
+    return callback(this);
+  }
+
   readonly crmGlobalConfig = {
     findUniqueCalls: [] as UniqueCall[],
     findUnique: async (args: UniqueCall) => {
@@ -152,6 +207,84 @@ class SettingsPrisma {
     count: async (args: { where: unknown }) => {
       this.crmProductLine.countCalls.push(args);
       return 1;
+    }
+  };
+
+  readonly crmSequenceEnrollment = {
+    findManyCalls: [] as Array<{ where: unknown; select: unknown }>,
+    deleteManyCalls: [] as DeleteManyCall[],
+    findMany: async (args: { where: unknown; select: unknown }) => {
+      this.crmSequenceEnrollment.findManyCalls.push(args);
+      return [
+        { id: 'enrollment-1', accountId: 'account-1' },
+        { id: 'enrollment-2', accountId: 'account-2' },
+        { id: 'enrollment-3', accountId: 'account-1' }
+      ];
+    },
+    deleteMany: async (args: DeleteManyCall) => {
+      this.crmSequenceEnrollment.deleteManyCalls.push(args);
+      return { count: 2 };
+    }
+  };
+
+  readonly crmMessage = {
+    countCalls: [] as CountCall[],
+    count: async (args: CountCall) => {
+      this.crmMessage.countCalls.push(args);
+      return 5;
+    }
+  };
+
+  readonly crmMessageDraftVersion = {
+    countCalls: [] as CountCall[],
+    count: async (args: CountCall) => {
+      this.crmMessageDraftVersion.countCalls.push(args);
+      return 3;
+    }
+  };
+
+  readonly crmEmailOpenEvent = {
+    countCalls: [] as CountCall[],
+    count: async (args: CountCall) => {
+      this.crmEmailOpenEvent.countCalls.push(args);
+      return 4;
+    }
+  };
+
+  readonly crmAiDraftTask = {
+    countCalls: [] as CountCall[],
+    deleteManyCalls: [] as DeleteManyCall[],
+    count: async (args: CountCall) => {
+      this.crmAiDraftTask.countCalls.push(args);
+      return 1;
+    },
+    deleteMany: async (args: DeleteManyCall) => {
+      this.crmAiDraftTask.deleteManyCalls.push(args);
+      return { count: 1 };
+    }
+  };
+
+  readonly crmAiDraftTaskItem = {
+    countCalls: [] as CountCall[],
+    count: async (args: CountCall) => {
+      this.crmAiDraftTaskItem.countCalls.push(args);
+      return 2;
+    }
+  };
+
+  readonly crmTimelineEvent = {
+    deleteManyCalls: [] as DeleteManyCall[],
+    deleteMany: async (args: DeleteManyCall) => {
+      this.crmTimelineEvent.deleteManyCalls.push(args);
+      return { count: 6 };
+    }
+  };
+
+  readonly crmAccount = {
+    updateManyCalls: [] as UpdateManyCall[],
+    updateMany: async (args: UpdateManyCall) => {
+      this.crmAccount.updateManyCalls.push(args);
+      return { count: 2 };
     }
   };
 }

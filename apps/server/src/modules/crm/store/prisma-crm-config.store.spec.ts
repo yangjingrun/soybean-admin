@@ -23,7 +23,7 @@ describe('PrismaCrmConfigStore', () => {
     });
 
     assert.equal(current.emailVerificationCooldownDays, 30);
-    assert.deepEqual(current.followUpDelayDays, { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 });
+    assert.deepEqual(current.followUpDelayDays, { step2Days: 3, step3Days: 7, step4Days: 12, step5Days: 18 });
     assert.deepEqual(current.sendWorkdays, [1, 2, 3, 4, 5]);
     assert.deepEqual(current.sendWindows, [
       { startMinute: 9 * 60, endMinute: 12 * 60 },
@@ -108,7 +108,7 @@ function createGlobalConfig(input: Partial<GlobalConfigRecord> = {}): GlobalConf
     emailVerificationCooldownDays: 30,
     ownerConcurrentSendLimit: 5,
     ownerDailySendLimitMax: 200,
-    followUpDelayDaysText: '3,7,14,21',
+    followUpDelayDaysText: '3,7,12,18',
     sendWorkdaysText: '1,2,3,4,5',
     sendWindowsText: '09:00-12:00,14:00-18:00',
     updatedById: null,

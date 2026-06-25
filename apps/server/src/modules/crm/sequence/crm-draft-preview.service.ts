@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
 import { renderEmailTemplateText, findPersonaProfile, type PersonaProfile } from '../crm-email-template-renderer';
+import { getCrmOutreachStepStrategy, toCrmAiStepStrategy } from '../crm-outreach-step-strategy';
 import { buildPersonaMatch, type ResolvedPersonaMatch } from '../crm-persona-match';
 import { CRM_ACCOUNT_REPOSITORY, CRM_SEQUENCE_REPOSITORY, CRM_SETTINGS_REPOSITORY } from '../crm.tokens';
 import type {
@@ -15,6 +16,7 @@ import type {
   CrmSequenceReviewRecord,
   CrmUserContext
 } from '../crm.types';
+import { resolveCrmSenderName } from '../shared/crm-context';
 import { createCrmOwnerFilter } from '../shared/crm-scope';
 import type {
   CrmDraftPreviewAccountRepository,
@@ -253,8 +255,11 @@ export class CrmDraftPreviewService {
         account: {
           name: account.name,
           country: account.country,
+          city: account.city,
+          timeZone: account.timeZone,
           domain: account.domain,
-          customerType: account.customerType
+          customerType: account.customerType,
+          sourceSnapshot: account.sourceSnapshot
         },
         contact: {
           fullName: contact.fullName,
@@ -282,13 +287,14 @@ export class CrmDraftPreviewService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: context.userName,
+        senderName: resolveCrmSenderName(context),
         templateLanguage,
         baseDraft: {
           subject: fallbackDraft.subject,
           bodyText: fallbackDraft.bodyText
         },
-        persona: personaProfile ?? findPersonaProfile(contact.title)
+        persona: personaProfile ?? findPersonaProfile(contact.title),
+        stepStrategy: toCrmAiStepStrategy(getCrmOutreachStepStrategy(stepIndex))
       },
       context
     );
@@ -324,10 +330,11 @@ function generateFirstDraft(options: {
 }): GeneratedDraft {
   const { account, contact, context, personaProfile, productLine, templateGroup } = options;
   const templateStep = templateGroup?.steps.find(step => step.stepIndex === initialDraftStepIndex);
-  const greetingName = contact.fullName || contact.title || 'there';
+  const greetingName = contact.fullName?.split(/\s+/)[0] || contact.title || 'there';
   const productName = productLine?.name || 'our product line';
-  const sellingPoint = productLine?.coreSellingPoints || `supporting ${account.customerType || 'B2B'} customers`;
+  const sellingPoint = productLine?.coreSellingPoints || 'role-specific supply checks';
   const persona = personaProfile ?? findPersonaProfile(contact.title);
+  const senderName = resolveCrmSenderName(context);
 
   if (templateGroup?.status === 'active' && templateStep) {
     return {
@@ -336,14 +343,14 @@ function generateFirstDraft(options: {
         contact,
         persona,
         productLine,
-        senderName: context.userName
+        senderName
       }),
       bodyText: renderEmailTemplateText(templateStep.bodyTemplate, {
         account,
         contact,
         persona,
         productLine,
-        senderName: context.userName
+        senderName
       })
     };
   }
@@ -353,19 +360,20 @@ function generateFirstDraft(options: {
     productLine?.leadTime ? `lead time: ${productLine.leadTime}` : null,
     productLine?.certifications ? `certifications: ${productLine.certifications}` : null
   ].filter(Boolean);
-  const subject = productLine ? `${productName} for ${account.name}` : `Potential cooperation with ${account.name}`;
+  const subject = productLine ? `${productName} comparison` : `Supply comparison`;
   const bodyLines = [
     `Hi ${greetingName},`,
     '',
-    `I noticed ${account.name}${account.country ? ` in ${account.country}` : ''} and thought this might be relevant to your team.`,
+    persona
+      ? `For ${persona.draftFocusText}, a narrow first check is usually better than a broad catalog.`
+      : `A narrow first check is usually better than a broad catalog when the right contact is not confirmed.`,
     `We work on ${productName}, mainly focused on ${sellingPoint}.`,
-    persona ? `For ${persona.label}, I kept this note focused on ${persona.draftFocusText}.` : null,
     supplyInfo.length ? `For reference, ${supplyInfo.join(', ')}.` : null,
     '',
-    'Would it be useful if I sent a short product list for your review?',
+    'Would comparing one current item, designation, or supply requirement be relevant?',
     '',
     'Best regards,',
-    context.userName || 'Sales team'
+    senderName || 'Sales team'
   ].filter((line): line is string => line !== null);
 
   return {

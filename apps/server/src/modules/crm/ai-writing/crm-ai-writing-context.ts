@@ -1,9 +1,11 @@
 import type { CrmAiDraftPromptInput } from '../crm-ai-draft.types';
+import { normalizeContactRoleLabel } from '../crm-email-template-renderer';
 import type {
   CrmAiWritingContext,
   CrmAiWritingFact,
   CrmAiWritingPreviousMessageContext
 } from './crm-ai-writing-module.types';
+import { buildCrmSourceSnapshotFacts } from './crm-ai-writing-source-facts';
 
 /** Builds a compact, fact-id based CRM context that is safe to pass to an LLM. */
 export function buildCrmAiWritingContext(input: CrmAiDraftPromptInput): CrmAiWritingContext {
@@ -17,9 +19,17 @@ export function buildCrmAiWritingContext(input: CrmAiDraftPromptInput): CrmAiWri
   addFact(publicFacts, 'account.timeZone', 'Account timezone', input.account.timeZone, 'account');
   addFact(publicFacts, 'account.domain', 'Account domain', input.account.domain, 'account');
   addFact(publicFacts, 'account.customerType', 'Account customer type', input.account.customerType, 'account');
+  publicFacts.push(...buildCrmSourceSnapshotFacts(input.account.sourceSnapshot));
 
   addFact(publicFacts, 'contact.fullName', 'Contact name', input.contact.fullName, 'contact');
   addFact(publicFacts, 'contact.title', 'Contact title', input.contact.title, 'contact');
+  addFact(
+    publicFacts,
+    'contact.normalizedRole',
+    'Normalized contact role',
+    normalizeContactRoleLabel(input.contact.title),
+    'contact'
+  );
   addFact(publicFacts, 'contact.emailStatus', 'Contact email status', input.contact.emailStatus, 'contact');
 
   addFact(publicFacts, 'product_line.name', 'Product line', input.productLine.name, 'product_line');
@@ -65,6 +75,65 @@ export function buildCrmAiWritingContext(input: CrmAiDraftPromptInput): CrmAiWri
     addFact(publicFacts, 'persona.draftFocusText', 'Persona draft focus', input.persona.draftFocusText, 'persona');
     addFact(publicFacts, 'persona.painPoints', 'Persona pain points', input.persona.painPoints, 'persona');
     addFact(publicFacts, 'persona.avoidText', 'Persona avoid text', input.persona.avoidText, 'persona');
+  }
+
+  if (input.stepStrategy) {
+    addFact(
+      publicFacts,
+      'sequence_strategy.task',
+      'Current step task',
+      input.stepStrategy.taskDescription,
+      'sequence_strategy'
+    );
+    addFact(
+      publicFacts,
+      'sequence_strategy.newValue',
+      'Current step new value',
+      input.stepStrategy.newValue,
+      'sequence_strategy'
+    );
+    addFact(
+      publicFacts,
+      'sequence_strategy.word_range',
+      'Suggested word range',
+      `${input.stepStrategy.wordRange.min}-${input.stepStrategy.wordRange.max} English words`,
+      'sequence_strategy'
+    );
+    addFact(
+      publicFacts,
+      'sequence_strategy.required_fact_groups',
+      'Required fact groups',
+      input.stepStrategy.requiredFactGroups.join(', '),
+      'sequence_strategy'
+    );
+    addFact(
+      publicFacts,
+      'sequence_strategy.must_do',
+      'Current step must-do rules',
+      input.stepStrategy.mustDo,
+      'sequence_strategy'
+    );
+    addFact(
+      publicFacts,
+      'sequence_strategy.must_avoid',
+      'Current step must-avoid rules',
+      input.stepStrategy.mustAvoid,
+      'sequence_strategy'
+    );
+    addFact(
+      publicFacts,
+      'sequence_strategy.cta',
+      'Current step CTA instruction',
+      input.stepStrategy.ctaInstruction,
+      'sequence_strategy'
+    );
+    addFact(
+      publicFacts,
+      'sequence_strategy.self_check',
+      'Current step self-check',
+      input.stepStrategy.selfCheck,
+      'sequence_strategy'
+    );
   }
 
   publicFacts.push(
@@ -138,5 +207,13 @@ function summarizeText(value: unknown) {
 }
 
 function normalizeString(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+      .map(item => `- ${item}`)
+      .join('\n');
+  }
+
   return typeof value === 'string' ? value.trim() : '';
 }

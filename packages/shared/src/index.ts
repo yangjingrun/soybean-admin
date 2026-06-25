@@ -254,6 +254,9 @@ export function hasPermission(input: { roles: readonly string[]; buttons?: reado
 export interface UserInfo {
   userId: string;
   userName: string;
+  nickName: string | null;
+  phone: string | null;
+  email: string | null;
   roles: string[];
   buttons: string[];
   organizationId: string;

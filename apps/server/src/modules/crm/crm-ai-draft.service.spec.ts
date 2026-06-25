@@ -24,12 +24,28 @@ describe('CrmAiDraftService', () => {
 
         return {
           text: JSON.stringify({
+            sendDecision: 'send',
             subject: 'Bearing supply option',
             bodyText: 'Hi Alex, ...',
             reason: 'Focused on sourcing angle.',
+            roleNormalized: 'purchasing',
+            roleDecision: 'compare one current bearing designation',
+            operatingContext: 'industrial_supply',
+            industryAngle: 'one-item supplier comparison',
+            ctaType: 'compare_one',
+            ctaObject: 'one current bearing designation',
+            ctaResponseMode: 'one_designation',
             riskNotes: ['产品交期未配置'],
             usedAngles: ['sourcing reliability'],
             usedFacts: ['account.name'],
+            canonicalTermsUsed: ['bearing designation'],
+            sequenceNovelty: {
+              newValueVsPrevious: 'First touch relevance.',
+              ctaDifferentFromPrevious: true,
+              ctaObjectDifferentFromPrevious: true,
+              industryAngleDifferentFromPrevious: true,
+              subjectDifferentFromPrevious: true
+            },
             nextReviewHints: ['确认职位'],
             qualityFlags: [],
             polishChanges: []
@@ -48,6 +64,11 @@ describe('CrmAiDraftService', () => {
     assert.equal(result.metadata.snapshot.productLineId, 'line-1');
     assert.equal(result.metadata.snapshot.stepIndex, 1);
     assert.equal(result.metadata.snapshot.writingConfig.steps.length, 5);
+    assert.equal(result.metadata.snapshot.sendDecision, 'send');
+    assert.equal(result.metadata.snapshot.roleNormalized, 'purchasing');
+    assert.equal(result.metadata.snapshot.ctaType, 'compare_one');
+    assert.equal(result.metadata.snapshot.ctaObject, 'one current bearing designation');
+    assert.deepEqual(result.metadata.snapshot.canonicalTermsUsed, ['bearing designation']);
     assert.deepEqual(result.metadata.snapshot.usedFacts, ['account.name']);
     assert.deepEqual(result.metadata.snapshot.usedAngles, ['sourcing reliability']);
     assert.deepEqual(result.metadata.snapshot.nextReviewHints, ['确认职位']);
@@ -170,6 +191,64 @@ describe('CrmAiDraftService', () => {
 
     assert.equal(result.subject, 'Bearing supply option');
     assert.equal(calls.length, 1);
+  });
+
+  it('polishes auto-flagged drafts when body length exceeds the step strategy', async () => {
+    const calls: Array<{ input: unknown; context: unknown }> = [];
+    const service = new CrmAiDraftService({
+      async getPrompt(promptKey: string) {
+        return {
+          promptKey,
+          title: `Prompt ${promptKey}`,
+          systemPrompt: `System prompt for ${promptKey}`,
+          updatedAt: '2026-06-24T00:00:00.000Z'
+        };
+      },
+      async generateText(input: unknown, context: unknown) {
+        calls.push({ input, context });
+        const isPolishCall = calls.length === 2;
+
+        return {
+          text: JSON.stringify({
+            subject: 'Models to compare',
+            bodyText: isPolishCall
+              ? 'Hi Alex,\n\nIs there one current bearing designation you would like us to cross-reference for supply coverage?\n\nBest,\nAlice'
+              : 'Hi Alex,\n\nFor import comparisons, the closest fit may be common ranges such as 6000, 6200, 6300, 302, 303, 322, 222, 223, UC, UCP, NU, NJ, and NUP bearing models for regular industrial stock.\n\nThese models are often used in machinery, motors, pumps, conveyors, agricultural equipment, and auto parts.\n\nCould you send 3-5 regular models to compare?\n\nBest,\nAlice',
+            reason: 'Focused on model comparison.',
+            riskNotes: [],
+            usedAngles: ['model comparison'],
+            usedFacts: ['product_line.commonModelsText'],
+            nextReviewHints: [],
+            qualityFlags: [],
+            polishChanges: isPolishCall ? ['Changed generic model list CTA to one designation cross-reference.'] : []
+          }),
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 }
+        };
+      }
+    } as never);
+
+    const result = await service.generateDraft(
+      {
+        ...createPromptInput({
+          ...createWritingConfig(),
+          polishPolicy: 'auto_when_flagged'
+        }),
+        stepIndex: 2,
+        stepStrategy: {
+          taskDescription: '具体产品和采购场景',
+          newValue: '具体型号/系列 + 应用 + 采购比较信息',
+          wordRange: { min: 40, max: 80 },
+          requiredFactGroups: ['product_models', 'application_match', 'supply_terms']
+        }
+      },
+      createContext()
+    );
+
+    assert.equal(calls.length, 2);
+    assert.deepEqual(result.metadata.snapshot.polishChanges, [
+      'Changed generic model list CTA to one designation cross-reference.'
+    ]);
   });
 
   it('rejects invalid AI JSON output', async () => {

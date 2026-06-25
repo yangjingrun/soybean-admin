@@ -23,7 +23,9 @@ const {
   filterModel,
   checkedLeadRowKeys,
   checkedLeadSequenceTargets,
+  clearingOutreachState,
   handleArchiveLead,
+  handleClearOutreachState,
   handleCheckedLeadRowKeysUpdate,
   handleUpdateAccount,
   handleCreateSequencesFromTargets,
@@ -81,7 +83,9 @@ const {
 
     <LeadFilterPanel
       :model="filterModel"
+      :clearing-outreach-state="clearingOutreachState"
       :loading="loading"
+      @clear-outreach-state="handleClearOutreachState"
       @create="openImportModal"
       @search="handleSearch"
       @reset="handleReset"

@@ -4,6 +4,7 @@ import type { CrmGmailOAuthFlowPort } from '../crm-gmail-oauth-flow';
 import { CrmGmailWatchService } from '../crm-gmail-watch.service';
 import { CRM_GMAIL_OAUTH_FLOW, CRM_MAILBOX_REPOSITORY } from '../crm.tokens';
 import type { CrmMailboxProvider, CrmMailboxRecord, CrmMailboxStatus, CrmUserContext } from '../crm.types';
+import { resolveCrmSenderName } from '../shared/crm-context';
 import { hashEmail, maskEmail } from '../shared/crm-email-utils';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
@@ -64,7 +65,7 @@ export class CrmMailboxService {
     const mailbox = await this.mailboxRepository.createMailbox({
       organizationId: context.organizationId,
       ownerUserId: context.userId,
-      ownerUserName: context.userName,
+      ownerUserName: resolveCrmSenderName(context),
       provider: gmailProvider,
       emailAddress,
       emailHash,
@@ -149,7 +150,7 @@ export class CrmMailboxService {
     const mailbox = await this.mailboxRepository.createMailbox({
       organizationId: context.organizationId,
       ownerUserId: context.userId,
-      ownerUserName: context.userName,
+      ownerUserName: resolveCrmSenderName(context),
       provider: gmailProvider,
       emailAddress,
       emailHash,

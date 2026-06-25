@@ -51,7 +51,8 @@ export class CrmAiDraftService {
       subject: firstOutput.subject,
       bodyText: firstOutput.bodyText,
       usedFacts: firstOutput.usedFacts,
-      allowedFactIds: writingContext.publicFacts.map(fact => fact.id)
+      allowedFactIds: writingContext.publicFacts.map(fact => fact.id),
+      stepStrategy: input.stepStrategy ?? undefined
     });
     const output = await this.maybePolishDraft({
       input,
@@ -79,6 +80,8 @@ export class CrmAiDraftService {
           productLineName: input.productLine.name,
           stepIndex: input.stepIndex,
           writingConfig: input.writingConfig,
+          sourceSnapshot: input.account.sourceSnapshot ?? null,
+          stepStrategy: input.stepStrategy ?? null,
           reason: output.reason,
           riskNotes,
           selectedModules: selectedModules.map(({ promptKey, title, reason, updatedAt }) => ({
@@ -88,8 +91,18 @@ export class CrmAiDraftService {
             updatedAt: updatedAt ?? null
           })),
           publicFacts: writingContext.publicFacts,
+          sendDecision: output.sendDecision,
+          roleNormalized: output.roleNormalized,
+          roleDecision: output.roleDecision,
+          operatingContext: output.operatingContext,
+          industryAngle: output.industryAngle,
+          ctaType: output.ctaType,
+          ctaObject: output.ctaObject,
+          ctaResponseMode: output.ctaResponseMode,
           usedAngles: output.usedAngles,
           usedFacts: output.usedFacts,
+          canonicalTermsUsed: output.canonicalTermsUsed,
+          sequenceNovelty: output.sequenceNovelty,
           nextReviewHints: output.nextReviewHints,
           qualityFlags,
           polishChanges: output.polishChanges,
@@ -121,7 +134,8 @@ export class CrmAiDraftService {
     );
     const polishPrompt = [
       'Rewrite only subject and bodyText to sound natural.',
-      'Keep facts, promises, CTA, reason, riskNotes, usedAngles, usedFacts, and review hints unchanged.',
+      'Resolve qualityFlags when possible, especially long body, too many paragraphs, long subject, and template-like wording.',
+      'Keep sendDecision, role fields, facts, promises, CTA fields, reason, riskNotes, usedAngles, usedFacts, canonicalTermsUsed, sequenceNovelty, and review hints unchanged.',
       'Return the same strict JSON contract.',
       '',
       JSON.stringify(input.firstOutput, null, 2)

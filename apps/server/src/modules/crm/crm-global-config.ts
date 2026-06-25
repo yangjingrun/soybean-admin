@@ -10,8 +10,8 @@ export const maxOwnerDailySendLimitMax = 1000;
 export const defaultFollowUpDelayDays = {
   step2Days: 3,
   step3Days: 7,
-  step4Days: 14,
-  step5Days: 21
+  step4Days: 12,
+  step5Days: 18
 };
 export const maxFollowUpDelayDays = 90;
 export const defaultCrmSendWorkdays = [1, 2, 3, 4, 5];

@@ -27,7 +27,15 @@ export interface CrmAiWritingFact {
   id: string;
   label: string;
   value: string;
-  source: 'account' | 'contact' | 'product_line' | 'persona' | 'previous_message' | 'base_draft';
+  source:
+    | 'account'
+    | 'contact'
+    | 'product_line'
+    | 'persona'
+    | 'previous_message'
+    | 'base_draft'
+    | 'source_snapshot'
+    | 'sequence_strategy';
 }
 
 export interface CrmAiWritingPreviousMessageContext {

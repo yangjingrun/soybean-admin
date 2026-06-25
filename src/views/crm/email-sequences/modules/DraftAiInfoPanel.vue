@@ -12,6 +12,7 @@ interface AiDraftReviewTag {
 }
 
 defineProps<{
+  factRows: AiDraftDescriptionRow[];
   promptSnapshotRows: AiDraftDescriptionRow[];
   reviewTags: AiDraftReviewTag[];
   summaryRows: AiDraftDescriptionRow[];
@@ -32,6 +33,12 @@ defineProps<{
           {{ tag.label }}
         </NTag>
       </NSpace>
+
+      <NDescriptions v-if="factRows.length" :column="1" bordered size="small" label-placement="left">
+        <NDescriptionsItem v-for="row in factRows" :key="row.key" :label="row.label">
+          <span class="ai-draft-text">{{ row.value }}</span>
+        </NDescriptionsItem>
+      </NDescriptions>
 
       <NCollapse v-if="promptSnapshotRows.length">
         <NCollapseItem title="Prompt 快照" name="prompt-snapshot">

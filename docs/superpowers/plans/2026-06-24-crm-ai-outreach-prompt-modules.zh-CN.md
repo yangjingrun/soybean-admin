@@ -49,6 +49,18 @@
 - 默认支持 1-5 封；推荐策略是 3 封核心序列，加第 4 封转介绍、第 5 封退出/收尾作为可选步骤。
 - 不改现有发送调度、同线程策略、客户回复后停发、邮箱发送限制和客户时区发送窗口逻辑。
 
+## Agent 执行边界
+
+- 执行前先读取 `docs/agent-memory.md` 和 `/Users/yjr/.codex/RTK.md`。
+- 本计划只改 CRM AI 写信 prompt 组合、产品线写信配置、Workbench 展示和审核展示；不要改 Gmail OAuth、发送调度、同邮箱错峰、客户回复停发、首页工作台、黑名单、退订或时区窗口逻辑。
+- 现有产品线 `steps` 继续保留，作为每个产品线对第 1-5 封的局部业务提示；新增全局 `crm_outreach_sequence_strategy` 只提供通用方法论，不替代产品线 step prompt。
+- 第一版不改变 `CrmSequenceEnrollment.totalSteps`、序列策略 step 数、发送 worker 的跟进生成数量，也不因为 `sequenceStrategy = core_3_step` 自动跳过第 4/5 封；`sequenceStrategy` 只进入 prompt，让 AI 对第 4/5 封使用转介绍/退出角度。
+- 第一版不新增 Prisma 字段存 `sourceSnapshot`。`publicFacts` 只从当前生成链路已经能拿到的真实字段构造：account、contact、productLine、persona、previousMessages、baseDraft、productLine proof assets / region notes。导入时写到 timeline 的 `sourceSnapshot` 后续可单独接入，本计划不强行读取。
+- 所有生成入口必须最终都走同一个 `CrmAiDraftService.generateDraft()`，不能在入口 service 里分别拼 prompt。
+- 确定性质检只拦截可验证问题：AI 味短语、无价值 follow-up 短语、主题长度、多个 CTA、引用不存在的 fact id、润色版新增 fact id。不能靠正则完美判断“新增承诺”，判断不了时写入 `qualityFlags`，不要写过度兜底。
+- 修改前端 helper 时注意本仓库存在同名 `.js` 文件；如果测试或运行仍引用 `.js`，需要同步更新，不能只改 `.ts`。
+- 完成后不运行 `npm run build`。
+
 ## 要编码进系统的方法论
 
 | 第几封 | 主题            | Hunter / Snov.io 规则                                            | 默认 CTA                           |
@@ -128,6 +140,27 @@
   - 把选中的 modules 传给 composer。
   - 第一版生成后，根据产品线策略和质检结果决定是否执行 avoid-ai-writing 二次润色。
   - 在 metadata snapshot 里保存选中 module key 和版本信息。
+
+- 修改 `apps/server/src/modules/crm/sequence/crm-draft-preview.service.ts`
+  - 保持预览入口通过 `CrmAiDraftService.generateDraft()` 生成，补齐新 metadata 断言。
+
+- 修改 `apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`
+  - 保持首封创建入口通过 `CrmAiDraftService.generateDraft()` 生成，补齐新 metadata 断言。
+
+- 修改 `apps/server/src/modules/crm/sequence/crm-draft.service.ts`
+  - 保持重生成入口通过 `CrmAiDraftService.generateDraft()` 生成，补齐新 metadata 断言。
+
+- 修改 `apps/server/src/modules/crm/sequence/crm-next-draft.service.ts`
+  - 保持单条下一封入口通过 `CrmAiDraftService.generateDraft()` 生成，补齐 previous messages / selected modules 断言。
+
+- 修改 `apps/server/src/modules/crm/crm-ai-draft-task-worker.service.ts`
+  - 保持批量首封和批量后续入口通过 `CrmAiDraftService.generateDraft()` 生成，补齐新 metadata 断言。
+
+- 修改 `apps/server/src/modules/crm/shared/crm-view-mappers.ts`
+  - 兼容读取新版 `metadata.aiDraft.snapshot`。
+
+- 修改 `apps/server/src/modules/crm/sequence/crm-sequence-review-view.ts`
+  - 兼容读取新版 `metadata.aiDraft.snapshot`。
 
 - 修改 `apps/server/src/modules/crm/crm-ai-draft.types.ts`
   - 增加可选 selected modules 和 source facts 字段。
@@ -252,6 +285,31 @@ Normalize 规则：
 - 缺失的可选字段保持缺失，或只在前端表单态里给 UI 默认值。
 - 后端 prompt composer 把缺失可选字段视为“没有额外指导”，不能当作业务事实。
 - `polishPolicy` 默认只在前端表单态展示为 `auto_when_flagged`；后端缺失时按 `auto_when_flagged` 处理，但不写回旧配置。
+- `steps` 仍按现有规则保留 5 封 prompt；本次不把第 4/5 封改成可空，避免和已有批量任务、重生成、后续生成校验产生行为差异。
+- `proofAssets`、`regionNotes` 是产品线管理员显式填写的可用事实/提示，允许进入 `publicFacts`；缺失时不生成替代事实。
+
+## Source Facts 口径
+
+第一版统一生成结构化事实，fact id 稳定、可被质检引用：
+
+```ts
+interface CrmAiWritingFact {
+  id: string;
+  label: string;
+  value: string;
+  source: 'account' | 'contact' | 'product_line' | 'persona' | 'previous_message' | 'base_draft';
+}
+```
+
+生成规则：
+
+- account facts：`account.name`、`country`、`city`、`timeZone`、`domain`、`customerType` 存在才加入。
+- contact facts：`contact.fullName`、`contact.title`、`contact.emailStatus` 存在才加入；`maskedEmail` 只用于上下文，不作为开发信内容事实。
+- product line facts：`name`、`targetCustomerType`、`coreSellingPoints`、`moq`、`leadTime`、`paymentTerms`、`certifications`、`catalogUrl`、`websiteUrl`、`commonModelsText`、`proofAssets`、`regionNotes` 存在才加入。
+- persona facts：`label`、`focusText`、`draftFocusText`、`painPoints`、`avoidText` 存在才加入。
+- previous message facts：只加入 `stepIndex`、`subject` 和正文摘要，用于避免重复角度，不允许模型把上一封里没有依据的表达当成新事实扩写。
+- base draft facts：只作为可改写素材，不计入 `usedFacts` 的真实业务事实。
+- 质检时 `usedFacts` 只能引用上述 `id`；引用不存在的 id 时写入 `qualityFlags`，该草稿仍进入人工审核，不静默接受为“已验证事实”。
 
 ## 任务拆解
 
@@ -261,15 +319,20 @@ Normalize 规则：
 
 - 修改 `apps/server/src/modules/ai-gateway/ai-gateway.constants.ts`
 - 修改 `apps/server/src/modules/ai-gateway/ai-gateway.types.ts`
+- 修改 `apps/server/src/modules/ai-gateway/dto/generate-ai-text.dto.ts`
+- 修改 `apps/server/src/modules/ai-gateway/dto/ai-prompt.dto.ts`
 - 修改 `src/typings/api/ai-gateway.d.ts`
 - 测试 `apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts`
+- 测试 `apps/server/src/modules/ai-gateway/ai-gateway.controller.spec.ts`
 - 测试 `src/views/ai-prompt-settings/modules/shared.spec.ts`
 
 - [ ] Step 1：增加失败测试，确认 `listPromptWorkbenchSteps()` 包含 10 个 CRM prompt module key，并且 group 为 `crm_outreach`。
 - [ ] Step 2：基于上面的公开资料依据，增加 CRM prompt definitions 和默认草稿。
-- [ ] Step 3：增加前端 prompt group 类型字段。
-- [ ] Step 4：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts`。
-- [ ] Step 5：运行 `pnpm exec tsx --test src/views/ai-prompt-settings/modules/shared.spec.ts`。
+- [ ] Step 3：把 `AiPromptStepSummary.channel` 扩展为 `'search_places' | 'maps' | 'analysis' | 'email' | 'crm_email'`，并给 `AiPromptStepSummary` 增加可选 `group`。
+- [ ] Step 4：确认 `aiPromptKeys` 来自 `aiPromptDefinitions` 后，DTO 的 `@IsIn(aiPromptKeys)` 自动接受新 key；若测试发现不接受，再同步 DTO。
+- [ ] Step 5：增加前端 prompt group/channel 类型字段。
+- [ ] Step 6：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.controller.spec.ts`。
+- [ ] Step 7：运行 `pnpm exec tsx --test src/views/ai-prompt-settings/modules/shared.spec.ts`。
 
 ### Task 2：增加 CRM Modules 的 Prompt 校验
 
@@ -308,10 +371,12 @@ Normalize 规则：
 - 新建 `apps/server/src/modules/crm/ai-writing/crm-ai-writing-context.ts`
 - 测试 `apps/server/src/modules/crm/ai-writing/crm-ai-writing-context.spec.ts`
 
-- [ ] Step 1：写测试，确认 source snapshot 字段只在存在时进入 `publicFacts`。
+- [ ] Step 1：写测试，确认 account/contact/productLine/persona 字段只在存在时进入 `publicFacts`，缺失字段不生成替代事实。
 - [ ] Step 2：写测试，确认职位/国家/产品事实缺失时生成 review notes，不编造 fallback facts。
-- [ ] Step 3：实现 account、contact、product line、persona、previous messages、source facts 的紧凑上下文构造。
-- [ ] Step 4：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-context.spec.ts`。
+- [ ] Step 3：写测试，确认 `proofAssets`、`regionNotes` 存在时进入 product_line facts，缺失时不进入。
+- [ ] Step 4：写测试，确认 previous messages 只作为避免重复角度的上下文，不能作为新产品事实。
+- [ ] Step 5：实现 account、contact、product line、persona、previous messages、base draft 的紧凑上下文构造，并输出稳定 fact id。
+- [ ] Step 6：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-context.spec.ts`。
 
 ### Task 5：新增 Prompt Composer
 
@@ -328,9 +393,10 @@ Normalize 规则：
 - [ ] Step 2：增加测试，确认存在 source facts 时注入 public-source grounding。
 - [ ] Step 3：增加测试，确认输出契约包含 `usedAngles`、`usedFacts`、`nextReviewHints`。
 - [ ] Step 4：增加质检测试，覆盖 AI 味短语、主题过长、多个 CTA、事实 ID 越界和无价值跟进句。
-- [ ] Step 5：实现 composer，组合 selected module texts 和结构化 CRM 上下文。
-- [ ] Step 6：实现 quality check，输出 `qualityFlags` 和可执行二次润色的判断。
-- [ ] Step 7：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-ai-draft-prompt.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts`。
+- [ ] Step 5：增加测试，确认润色版引用第一版没有使用过的 fact id 时会被标记为不可采用。
+- [ ] Step 6：实现 composer，组合 selected module texts 和结构化 CRM 上下文。
+- [ ] Step 7：实现 quality check，输出 `qualityFlags` 和可执行二次润色的判断；不能确定的新增承诺只写 flag，不阻断首版进入人工审核。
+- [ ] Step 8：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-ai-draft-prompt.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts`。
 
 ### Task 6：接入 AI 草稿生成链路
 
@@ -339,15 +405,28 @@ Normalize 规则：
 - 修改 `apps/server/src/modules/crm/crm-ai-draft.service.ts`
 - 修改 `apps/server/src/modules/crm/crm-ai-draft.service.spec.ts`
 - 修改 `apps/server/src/modules/crm/sequence/crm-draft-preview.service.ts`
+- 修改 `apps/server/src/modules/crm/sequence/crm-draft-preview.service.spec.ts`
 - 修改 `apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`
+- 修改 `apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts`
+- 修改 `apps/server/src/modules/crm/sequence/crm-draft.service.ts`
+- 修改 `apps/server/src/modules/crm/sequence/crm-draft.service.spec.ts`
+- 修改 `apps/server/src/modules/crm/sequence/crm-next-draft.service.ts`
+- 修改 `apps/server/src/modules/crm/sequence/crm-next-draft.service.spec.ts`
+- 修改 `apps/server/src/modules/crm/crm-ai-draft-task-worker.service.ts`
+- 修改 `apps/server/src/modules/crm/crm-ai-draft-task-worker.service.spec.ts`
+- 修改 `apps/server/src/modules/crm/shared/crm-view-mappers.ts`
+- 修改 `apps/server/src/modules/crm/sequence/crm-sequence-review-view.ts`
 
 - [ ] Step 1：增加测试，确认生成 metadata 包含 selected module keys 和 public facts。
-- [ ] Step 2：模型调用前通过 `AiGatewayService.getPrompt()` 解析全局 prompt modules。
-- [ ] Step 3：像现在一样把第一版最终 `systemPrompt` 和 `userPrompt` 传入 `generateText()`。
-- [ ] Step 4：第一版生成后运行 quality check；命中明显 AI 味且 `polishPolicy !== 'off'` 时，再调用一次 LLM 执行 `crm_outreach_ai_polish` 二次润色。
-- [ ] Step 5：校验润色版没有新增事实、承诺或 CTA；不通过时保留第一版并写入 `qualityFlags`。
-- [ ] Step 6：扩展 JSON 契约后，使用 `temperature: 0.4` 和 `maxOutputTokens: 1600`。
-- [ ] Step 7：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-ai-draft.service.spec.ts apps/server/src/modules/crm/sequence/crm-draft-preview.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts`。
+- [ ] Step 2：把 `CrmAiDraftService` 构造函数依赖从 `Pick<AiGatewayService, 'generateText'>` 扩成 `Pick<AiGatewayService, 'generateText' | 'getPrompt'>`，并保留 `@Inject(AiGatewayService)` 显式注入。
+- [ ] Step 3：模型调用前通过 `AiGatewayService.getPrompt(promptKey)` 读取 resolver 选中的全局 prompt modules；没有已发布版本时使用 `getPrompt()` 返回的默认草稿。
+- [ ] Step 4：像现在一样把第一版最终 `systemPrompt` 和 `userPrompt` 传入 `generateText()`。
+- [ ] Step 5：第一版生成后运行 quality check；命中明显 AI 味且 `polishPolicy !== 'off'` 时，再调用一次 LLM 执行 `crm_outreach_ai_polish` 二次润色。
+- [ ] Step 6：校验润色版没有新增事实、承诺或 CTA；不通过时保留第一版并写入 `qualityFlags`。
+- [ ] Step 7：扩展 JSON 契约后，使用 `temperature: 0.4` 和 `maxOutputTokens: 1600`。
+- [ ] Step 8：确认预览、首封创建、重生成、单条下一封、批量首封、批量下一封的调用输入都带上新增 product line 配置字段，并继续由 `CrmAiDraftService.generateDraft()` 统一生成。
+- [ ] Step 9：确认 `toMessageView()` 和 `toSequenceReviewView()` 能读取新版 `metadata.aiDraft.snapshot`，旧 metadata 仍返回旧面板可展示字段。
+- [ ] Step 10：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-ai-draft.service.spec.ts apps/server/src/modules/crm/sequence/crm-draft-preview.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-draft.service.spec.ts apps/server/src/modules/crm/sequence/crm-next-draft.service.spec.ts apps/server/src/modules/crm/crm-ai-draft-task-worker.service.spec.ts`。
 
 ### Task 7：扩展产品线 AI 写信设置
 
@@ -364,8 +443,10 @@ Normalize 规则：
 - [ ] Step 1：增加测试，确认旧配置缺少可选字段时仍能 normalize。
 - [ ] Step 2：增加测试，确认可选风格字段会 trim，并通过产品线 payload 保存。
 - [ ] Step 3：在产品线抽屉增加 Naive UI 控件：序列策略、语言策略、语气、CTA、二次润色策略、证据素材、地区备注。
-- [ ] Step 4：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/product-lines/crm-product-line.service.spec.ts`。
-- [ ] Step 5：运行 `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`。
+- [ ] Step 4：保持 5 个 step prompt 的现有必填校验；不要因为 `core_3_step` 放开第 4/5 封空 prompt。
+- [ ] Step 5：更新产品线 prompt 版本 diff/summary，把新增字段也展示出来。
+- [ ] Step 6：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/product-lines/crm-product-line.service.spec.ts`。
+- [ ] Step 7：运行 `pnpm exec tsx --test src/views/crm/settings/modules/shared.spec.ts`。
 
 ### Task 8：更新超级管理员 Prompt Workbench UI
 
@@ -394,9 +475,11 @@ Normalize 规则：
 - 测试 `src/views/crm/email-sequences/modules/shared.spec.ts`
 
 - [ ] Step 1：增加测试，确认 selected modules 和 public facts 能渲染成稳定 review rows。
-- [ ] Step 2：在当前 Prompt 快照折叠区下展示 module keys、module reasons、used facts、review hints、quality flags 和 polish changes。
-- [ ] Step 3：保留旧的产品线 prompt snapshot 展示，兼容历史 AI 草稿。
-- [ ] Step 4：运行 `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`。
+- [ ] Step 2：把 `DraftReviewModal.vue` 里现有 AI snapshot row 构造逻辑迁到 `shared.ts` 纯函数，避免继续堆 computed。
+- [ ] Step 3：在当前 Prompt 快照折叠区下展示 module keys、module reasons、used facts、review hints、quality flags 和 polish changes。
+- [ ] Step 4：保留旧的产品线 prompt snapshot 展示，兼容历史 AI 草稿。
+- [ ] Step 5：如果 `shared.js` 仍被测试或运行引用，同步更新 `src/views/crm/email-sequences/modules/shared.js`。
+- [ ] Step 6：运行 `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts`。
 
 ### Task 10：验证
 
@@ -407,7 +490,7 @@ Normalize 规则：
 - [ ] Step 1：运行 AI gateway 测试：
   - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-gateway/ai-prompt-validator.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.controller.spec.ts`
 - [ ] Step 2：运行 CRM AI 写信测试：
-  - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-module-resolver.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-context.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts apps/server/src/modules/crm/crm-ai-draft-prompt.spec.ts apps/server/src/modules/crm/crm-ai-draft.service.spec.ts`
+  - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-module-resolver.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-context.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts apps/server/src/modules/crm/crm-ai-draft-prompt.spec.ts apps/server/src/modules/crm/crm-ai-draft.service.spec.ts apps/server/src/modules/crm/sequence/crm-draft-preview.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-draft.service.spec.ts apps/server/src/modules/crm/sequence/crm-next-draft.service.spec.ts apps/server/src/modules/crm/crm-ai-draft-task-worker.service.spec.ts`
 - [ ] Step 3：运行产品线测试：
   - `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/product-lines/crm-product-line.service.spec.ts`
 - [ ] Step 4：运行前端 helper 测试：

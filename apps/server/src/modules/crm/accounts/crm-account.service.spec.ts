@@ -786,7 +786,7 @@ describe('CrmAccountService', () => {
             emailVerificationCooldownDays: 30,
             ownerConcurrentSendLimit: 5,
             ownerDailySendLimitMax: 200,
-            followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 },
+            followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 12, step5Days: 18 },
             updatedAt: new Date('2026-06-21T00:00:00Z')
           };
         }
@@ -931,7 +931,7 @@ function createGlobalConfigRepository() {
         emailVerificationCooldownDays: 30,
         ownerConcurrentSendLimit: 5,
         ownerDailySendLimitMax: 200,
-        followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 },
+        followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 12, step5Days: 18 },
         updatedAt: new Date('2026-06-21T00:00:00Z')
       };
     }

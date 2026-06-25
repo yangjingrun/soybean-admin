@@ -1,4 +1,5 @@
 import { findPersonaProfile, renderEmailTemplateText, type PersonaProfile } from './crm-email-template-renderer';
+import { getCrmOutreachStepStrategy } from './crm-outreach-step-strategy';
 import type {
   CrmEmailTemplateGroupRecord,
   CrmGlobalConfigRecord,
@@ -44,6 +45,7 @@ export function buildNextFollowUpDraft({
   const templateStep =
     templateGroup?.status === 'active' ? templateGroup.steps.find(step => step.stepIndex === nextStepIndex) : null;
   const policyStep = item.policy?.steps.find(step => step.stepIndex === nextStepIndex) ?? null;
+  const strategyStep = getCrmOutreachStepStrategy(nextStepIndex);
   const delayDays =
     policyStep?.delayDays ?? templateStep?.delayDays ?? getFollowUpDelayDays(nextStepIndex, followUpDelayDays);
 
@@ -51,8 +53,7 @@ export function buildNextFollowUpDraft({
     return null;
   }
 
-  const contactName = item.contact.fullName || item.contact.title || 'there';
-  const senderName = inputSenderName || item.mailbox?.ownerUserName || 'there';
+  const senderName = inputSenderName || item.enrollment.createdByName || item.mailbox?.ownerUserName || 'Sales team';
   const persona = personaProfile ?? findPersonaProfile(item.contact.title);
   const renderVars = {
     account: item.account,
@@ -66,10 +67,12 @@ export function buildNextFollowUpDraft({
     templateStep && templateStep.subjectTemplate
       ? renderEmailTemplateText(templateStep.subjectTemplate, renderVars)
       : null;
-  const subject = applyLinkPolicy(templateSubject || sourceMessage.subject, item.policy?.linkPolicy);
+  const strategySubject = strategyStep.subjectTemplate
+    ? renderEmailTemplateText(strategyStep.subjectTemplate, renderVars)
+    : null;
+  const subject = applyLinkPolicy(templateSubject || strategySubject || sourceMessage.subject, item.policy?.linkPolicy);
   const bodyText = applyLinkPolicy(
-    templateBodyText ||
-      `Hi ${contactName},\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\n${senderName}`,
+    templateBodyText || renderEmailTemplateText(strategyStep.bodyTemplate, renderVars),
     item.policy?.linkPolicy
   );
 
@@ -80,7 +83,7 @@ export function buildNextFollowUpDraft({
     contactId: sourceMessage.contactId,
     mailboxId: item.mailbox?.id ?? sourceMessage.mailboxId,
     stepIndex: nextStepIndex,
-    threadMode: policyStep?.threadMode ?? templateStep?.threadMode ?? 'same_thread',
+    threadMode: policyStep?.threadMode ?? templateStep?.threadMode ?? strategyStep.threadMode,
     subject,
     bodyText,
     status: 'draft_ready',

@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<AdminLayoutProps>(), {
   tabHeight: 48,
   siderVisible: true,
   siderCollapse: false,
-  siderWidth: 220,
+  siderWidth: 240,
   siderCollapsedWidth: 64,
   footerVisible: true,
   footerHeight: 48,

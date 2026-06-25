@@ -16,6 +16,7 @@ import type {
 } from './crm-ai-draft-task.types';
 import type { CrmAiDraftWorkerRepository } from './crm-ai-draft-worker.repository';
 import { buildNextFollowUpDraft } from './crm-follow-up-draft';
+import { getCrmOutreachStepStrategy, toCrmAiStepStrategy } from './crm-outreach-step-strategy';
 import { buildPersonaMatch } from './crm-persona-match';
 import { CRM_AI_DRAFT_WORKER_REPOSITORY } from './crm.tokens';
 import { CrmSendAvailabilityService } from './crm-send-availability.service';
@@ -242,8 +243,11 @@ export class CrmAiDraftTaskWorkerService {
         account: {
           name: reviewItem.account.name,
           country: reviewItem.account.country,
+          city: reviewItem.account.city,
+          timeZone: reviewItem.account.timeZone,
           domain: reviewItem.account.domain,
-          customerType: reviewItem.account.customerType
+          customerType: reviewItem.account.customerType,
+          sourceSnapshot: reviewItem.account.sourceSnapshot
         },
         contact: {
           fullName: reviewItem.contact.fullName,
@@ -285,7 +289,8 @@ export class CrmAiDraftTaskWorkerService {
               painPoints: personaMatch.templatePersona.painPoints,
               avoidText: personaMatch.templatePersona.avoidText
             }
-          : null
+          : null,
+        stepStrategy: toCrmAiStepStrategy(getCrmOutreachStepStrategy(stepIndex))
       },
       toTaskOwnerContext(task)
     );
@@ -383,8 +388,11 @@ export class CrmAiDraftTaskWorkerService {
         account: {
           name: reviewItem.account.name,
           country: reviewItem.account.country,
+          city: reviewItem.account.city,
+          timeZone: reviewItem.account.timeZone,
           domain: reviewItem.account.domain,
-          customerType: reviewItem.account.customerType
+          customerType: reviewItem.account.customerType,
+          sourceSnapshot: reviewItem.account.sourceSnapshot
         },
         contact: {
           fullName: reviewItem.contact.fullName,
@@ -422,7 +430,8 @@ export class CrmAiDraftTaskWorkerService {
               painPoints: personaMatch.templatePersona.painPoints,
               avoidText: personaMatch.templatePersona.avoidText
             }
-          : null
+          : null,
+        stepStrategy: toCrmAiStepStrategy(getCrmOutreachStepStrategy(1))
       },
       ownerContext
     );
@@ -521,12 +530,7 @@ export class CrmAiDraftTaskWorkerService {
     }
 
     try {
-      const writingConfig = requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
-      const firstStep = writingConfig.steps.find(step => step.stepIndex === 1);
-
-      if (!firstStep?.prompt) {
-        return '产品资料缺少第 1 封 AI 写信提示词';
-      }
+      requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
     } catch (error) {
       return error instanceof Error ? error.message : '产品资料 AI 写信配置不完整';
     }
@@ -558,16 +562,8 @@ export class CrmAiDraftTaskWorkerService {
       return '产品资料未启用 AI 写信';
     }
 
-    const sourceMessage = item.messages.at(-1)!;
-    const stepIndex = sourceMessage.stepIndex + 1;
-
     try {
-      const writingConfig = requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
-      const stepConfig = writingConfig.steps.find(step => step.stepIndex === stepIndex);
-
-      if (!stepConfig?.prompt) {
-        return `产品资料缺少第 ${stepIndex} 封 AI 写信提示词`;
-      }
+      requireEnabledCrmProductLineAiWritingConfig(item.productLine.aiWritingConfig);
     } catch (error) {
       return error instanceof Error ? error.message : '产品资料 AI 写信配置不完整';
     }

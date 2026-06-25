@@ -66,10 +66,7 @@ export function useInboxThreadDetail() {
   }
 
   /** Load the current thread detail and ignore stale route switches. */
-  async function loadThreadDetail(
-    id = selectedThreadId.value,
-    options: { markHandledOnOpen?: boolean } = {}
-  ) {
+  async function loadThreadDetail(id = selectedThreadId.value, options: { markHandledOnOpen?: boolean } = {}) {
     if (!id) {
       return;
     }

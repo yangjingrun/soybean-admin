@@ -4,7 +4,6 @@ import { isSuper } from '../../../shared/permission-policy';
 import { SystemLogService } from '../../system-log/system-log.service';
 import type { SystemLogRecorder } from '../../system-log/system-log.types';
 import { SystemNotificationService } from '../../system-notification/system-notification.service';
-import { normalizeCrmProductLineAiWritingConfig } from '../crm-ai-draft-prompt';
 import { CrmAiReplyDraftService } from '../crm-ai-reply-draft.service';
 import type { CrmAiReplyDraftPromptInput } from '../crm-ai-reply-draft.types';
 import { classifyCustomerReplyMessage } from '../crm-inbox-message-classifier';
@@ -30,6 +29,7 @@ import type { CrmProductLineRepository } from '../product-lines/crm-product-line
 import { CRM_PRODUCT_LINE_REPOSITORY } from '../product-lines/crm-product-line.repository';
 import type { CrmDraftRepository } from '../sequence/crm-draft.repository';
 import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
+import { resolveCrmSenderName } from '../shared/crm-context';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { normalizeLimitedContent, normalizeNullableString, normalizePositiveInteger } from '../shared/crm-normalizers';
 import { createCrmOwnerFilter } from '../shared/crm-scope';
@@ -523,8 +523,6 @@ export class CrmInboxService {
       bodyText: message.bodyText,
       receivedAt: message.receivedAt.toISOString()
     }));
-    const writingConfig = normalizeCrmProductLineAiWritingConfig(productLine?.aiWritingConfig);
-
     return {
       account: {
         name: detail.account.name,
@@ -559,12 +557,11 @@ export class CrmInboxService {
             certifications: productLine.certifications,
             catalogUrl: productLine.catalogUrl,
             websiteUrl: productLine.websiteUrl,
-            commonModelsText: productLine.commonModelsText,
-            forbiddenClaims: writingConfig?.forbiddenClaims ?? ''
+            commonModelsText: productLine.commonModelsText
           }
         : null,
       userTopicOrOutline: topic,
-      senderName: context.userName
+      senderName: resolveCrmSenderName(context)
     };
   }
 

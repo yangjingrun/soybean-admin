@@ -10,7 +10,8 @@ import {
   inboxPageGuide,
   inboxMessageTypeLabelMap,
   inboxMessageTypeTagTypeMap,
-  inboxThreadStatusLabelMap
+  inboxThreadStatusLabelMap,
+  inboxThreadStatusTagTypeMap
 } from './shared';
 
 describe('crm inbox shared helpers', () => {
@@ -79,8 +80,11 @@ describe('crm inbox shared helpers', () => {
     assert.match(inboxPageGuide.description, /待处理回信/);
     assert.match(inboxPageGuide.description, /不再联系名单/);
     assert.equal(inboxThreadStatusLabelMap.pending, '待处理回信');
+    assert.equal(inboxThreadStatusLabelMap.bounced, '邮件退信');
     assert.equal(inboxThreadStatusLabelMap.archived, '已忽略');
+    assert.equal(inboxThreadStatusTagTypeMap.bounced, 'error');
     assert.equal(inboxMessageTypeLabelMap.unsubscribe_review_pending, '疑似拒绝/退订');
+    assert.equal(inboxMessageTypeTagTypeMap.bounce, 'error');
     assert.equal(inboxMessageTypeTagTypeMap.unsubscribe_review_pending, 'warning');
   });
 

@@ -104,7 +104,7 @@ function createSequencePolicy(input: Partial<SequencePolicyRecord> = {}): Sequen
     description: null,
     status: 'active',
     isDefault: false,
-    stepDelayDaysText: '0,3,7,14,21',
+    stepDelayDaysText: '0,3,7,12,18',
     stepThreadModesText: 'new_subject,same_thread,new_subject,new_subject,new_subject',
     linkPolicy: 'preserve_template_links',
     allowLowRiskAutoSend: false,

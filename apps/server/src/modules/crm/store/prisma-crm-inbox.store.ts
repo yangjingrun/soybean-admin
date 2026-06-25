@@ -5,6 +5,7 @@ import type { CrmInboxRepository } from '../inbox/crm-inbox.repository';
 import type {
   CrmCustomerReplyIngestInput,
   CrmCustomerReplyIngestRecord,
+  CrmInboxMessageType,
   CrmInboxReplyDraftSaveInput,
   CrmInboxThreadDetailRecord,
   CrmInboxThreadGmailStateSyncInput,
@@ -88,6 +89,8 @@ export class PrismaCrmInboxStore implements CrmInboxRepository {
           }
         }
 
+        const messageType = input.messageType ?? 'customer_reply';
+        const nextThreadStatus = resolveInboxThreadStatusForMessage(messageType);
         const providerThreadId = input.providerThreadId ?? outboundMessage.enrollmentId;
         const threadIdentity = {
           organizationId: input.organizationId,
@@ -115,13 +118,12 @@ export class PrismaCrmInboxStore implements CrmInboxRepository {
               provider: 'gmail',
               providerThreadId,
               subject: input.subject,
-              status: 'pending',
+              status: nextThreadStatus,
               lastInboundAt: input.receivedAt,
               unreadCount: 0,
               messageCount: 0
             } as Prisma.CrmInboxThreadUncheckedCreateInput
           }));
-        const messageType = input.messageType ?? 'customer_reply';
         const inboxMessage = await tx.crmInboxMessage.create({
           data: {
             threadId: thread.id,
@@ -148,7 +150,7 @@ export class PrismaCrmInboxStore implements CrmInboxRepository {
           where: { id: thread.id },
           data: {
             subject: input.subject,
-            status: 'pending',
+            status: nextThreadStatus,
             lastInboundAt: input.receivedAt,
             unreadCount: { increment: 1 },
             messageCount: { increment: 1 }
@@ -776,4 +778,9 @@ export class PrismaCrmInboxStore implements CrmInboxRepository {
       };
     });
   }
+}
+
+/** Resolve the thread-level business status implied by the latest inbound message. */
+function resolveInboxThreadStatusForMessage(messageType: CrmInboxMessageType): CrmInboxThreadStatus {
+  return messageType === 'bounce' ? 'bounced' : 'pending';
 }

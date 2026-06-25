@@ -1,11 +1,7 @@
 import { computed, onMounted, reactive, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { fetchCrmInboxThreads, fetchCrmMailboxes } from '@/service/api';
-import {
-  buildInboxPendingCountParams,
-  buildInboxThreadSearchParams,
-  createDefaultInboxFilterModel
-} from '../shared';
+import { buildInboxPendingCountParams, buildInboxThreadSearchParams, createDefaultInboxFilterModel } from '../shared';
 
 /** Manage CRM inbox thread list, stats, mailbox filters and detail navigation. */
 export function useInboxTable() {

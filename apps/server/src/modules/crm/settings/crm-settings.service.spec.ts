@@ -4,6 +4,7 @@ import { ForbiddenException } from '@nestjs/common';
 import type { SystemLogRecordInput } from '../../system-log/system-log.types';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import type {
+  CrmCurrentUserOutreachStateClearResult,
   CrmGlobalConfigInput,
   CrmGlobalConfigRecord,
   CrmOrganizationConfigInput,
@@ -143,6 +144,23 @@ describe('CrmSettingsService', () => {
       ForbiddenException
     );
   });
+
+  it('clears current user outreach state for the current member and records an audit log', async () => {
+    const repository = createRepository();
+    const logs = createLogRecorder();
+    const service = createService(repository, logs.service);
+    const context = createContext();
+
+    const result = await service.clearCurrentUserOutreachState(context);
+
+    assert.equal(result.deletedEnrollmentCount, 2);
+    assert.deepEqual(repository.clearOutreachStateArgs, {
+      organizationId: 'org-1',
+      ownerUserId: 'user-1'
+    });
+    assert.equal(logs.records[0]?.action, 'clear-current-user-outreach-state');
+    assert.deepEqual(logs.records[0]?.metadata, result);
+  });
 });
 
 function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext {
@@ -159,6 +177,7 @@ function createContext(overrides: Partial<CrmUserContext> = {}): CrmUserContext 
 function createRepository(initialData: { globalConfig?: TestGlobalConfig } = {}) {
   const repository = {
     globalConfig: initialData.globalConfig ?? createGlobalConfig(),
+    clearOutreachStateArgs: null as { organizationId: string; ownerUserId: string } | null,
     sendPreference: null as TestSendPreference | null,
     organizationConfig: null as TestOrganizationConfig | null,
     async getGlobalConfig() {
@@ -194,10 +213,28 @@ function createRepository(initialData: { globalConfig?: TestGlobalConfig } = {})
       this.organizationConfig = createOrganizationConfig(input);
 
       return this.organizationConfig;
+    },
+    async clearCurrentUserOutreachState(input: { organizationId: string; ownerUserId: string }) {
+      this.clearOutreachStateArgs = input;
+
+      return createClearOutreachStateResult();
     }
   };
 
   return repository;
+}
+
+function createClearOutreachStateResult(): CrmCurrentUserOutreachStateClearResult {
+  return {
+    deletedAiDraftTaskCount: 1,
+    deletedAiDraftTaskItemCount: 2,
+    deletedDraftVersionCount: 3,
+    deletedEnrollmentCount: 2,
+    deletedMessageCount: 5,
+    deletedOpenEventCount: 4,
+    deletedTimelineEventCount: 6,
+    resetAccountCount: 2
+  };
 }
 
 function createService(repository: ReturnType<typeof createRepository>, crmLogger: CrmLoggerService) {
@@ -213,8 +250,8 @@ function createGlobalConfig(input: Partial<TestGlobalConfig> = {}): TestGlobalCo
     followUpDelayDays: input.followUpDelayDays ?? {
       step2Days: 3,
       step3Days: 7,
-      step4Days: 14,
-      step5Days: 21
+      step4Days: 12,
+      step5Days: 18
     },
     sendWorkdays: input.sendWorkdays ?? [1, 2, 3, 4, 5],
     sendWindows: input.sendWindows ?? [

@@ -315,7 +315,7 @@ model CrmGlobalConfig {
   emailVerificationCooldownDays Int      @default(30)
   ownerConcurrentSendLimit      Int      @default(5)
   ownerDailySendLimitMax        Int      @default(200)
-  followUpDelayDaysText         String   @default("3,7,14,21")
+  followUpDelayDaysText         String   @default("3,7,12,18")
   sendWorkdaysText              String   @default("1,2,3,4,5")
   sendWindowsText               String   @default("09:00-12:00,14:00-18:00")
   updatedById                   String?
@@ -627,7 +627,7 @@ model CrmSequencePolicy {
   description                     String?
   status                          String   @default("active")
   isDefault                       Boolean  @default(false)
-  stepDelayDaysText               String   @default("0,3,7,14,21")
+  stepDelayDaysText               String   @default("0,3,7,12,18")
   stepThreadModesText             String   @default("new_subject,same_thread,new_subject,new_subject,new_subject")
   linkPolicy                      String   @default("preserve_template_links")
   allowLowRiskAutoSend            Boolean  @default(false)

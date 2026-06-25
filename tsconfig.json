@@ -15,6 +15,7 @@
     "strict": true,
     "strictNullChecks": true,
     "noUnusedLocals": false,
+    "noEmit": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

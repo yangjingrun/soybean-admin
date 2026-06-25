@@ -18,6 +18,7 @@ describe('crm-ai-writing-context', () => {
         'account.customerType',
         'contact.fullName',
         'contact.title',
+        'contact.normalizedRole',
         'contact.emailStatus',
         'product_line.name',
         'product_line.targetCustomerType',
@@ -82,6 +83,54 @@ describe('crm-ai-writing-context', () => {
       true
     );
     assert.equal(context.publicFacts.find(item => item.id === 'previous_message.step_1')?.source, 'previous_message');
+  });
+
+  it('adds data-card facts, 来源可信度, and step strategy to AI context', () => {
+    const context = buildCrmAiWritingContext(
+      createInput({
+        account: {
+          name: 'ABC Bearings',
+          country: 'SA',
+          city: 'Riyadh',
+          timeZone: 'Asia/Riyadh',
+          domain: 'abc.example',
+          customerType: 'Distributor',
+          sourceSnapshot: {
+            website_product_fact: 'Supplies bearings and power-transmission parts',
+            recent_trigger: 'Hiring a supply chain specialist',
+            source_url: 'https://abc.example/careers',
+            source_date: '2026-06-20',
+            fact_or_inference: 'fact',
+            confidence_score: 86
+          }
+        },
+        stepStrategy: {
+          taskDescription: '建立相关性',
+          newValue: '公司事实 + 职位价值',
+          wordRange: { min: 50, max: 100 },
+          requiredFactGroups: ['company_profile'],
+          mustDo: ['Use a role-specific supply scenario.'],
+          mustAvoid: ['Do not use geography as the main personalization reason.'],
+          ctaInstruction: 'Ask whether a short list would be useful.',
+          selfCheck: ['one CTA only']
+        }
+      })
+    );
+
+    assert.ok(context.publicFacts.some(fact => fact.id === 'source_snapshot.website_product_fact'));
+    assert.ok(context.publicFacts.some(fact => fact.id === 'source_snapshot.recent_trigger'));
+    assert.ok(context.publicFacts.some(fact => fact.id === 'sequence_strategy.task'));
+    assert.ok(context.publicFacts.some(fact => fact.id === 'sequence_strategy.word_range'));
+    assert.match(
+      context.publicFacts.find(fact => fact.id === 'sequence_strategy.must_do')?.value ?? '',
+      /role-specific/
+    );
+    assert.match(
+      context.publicFacts.find(fact => fact.id === 'sequence_strategy.must_avoid')?.value ?? '',
+      /geography/
+    );
+    assert.match(context.publicFacts.find(fact => fact.id === 'sequence_strategy.cta')?.value ?? '', /short list/);
+    assert.match(context.publicFacts.find(fact => fact.id === 'sequence_strategy.self_check')?.value ?? '', /one CTA/);
   });
 });
 

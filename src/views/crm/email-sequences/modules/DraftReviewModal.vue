@@ -8,6 +8,7 @@ import SequenceMessageTimeline from './SequenceMessageTimeline.vue';
 import {
   formatNullableText,
   formatSequenceDate,
+  buildAiDraftFactRows,
   buildAiDraftPromptSnapshotRows,
   buildAiDraftReviewTags,
   buildAiDraftSummaryRows,
@@ -71,6 +72,7 @@ const emit = defineEmits<{
 type AiDraftDisplayInfo = Api.Crm.AiDraftMetadata & {
   qualityNotes?: string[];
 };
+type CopyableDraftField = keyof Pick<Api.Crm.MessageDraftPayload, 'subject' | 'bodyText'>;
 
 const message = useMessage();
 const modalVisible = computed({
@@ -81,6 +83,10 @@ const draftForm = reactive<Api.Crm.MessageDraftPayload>({
   subject: '',
   bodyText: ''
 });
+const draftFieldCopyLabelMap: Record<CopyableDraftField, string> = {
+  subject: '主题',
+  bodyText: '正文'
+};
 const selectedMessageId = shallowRef<string | null>(null);
 const reviewMessages = computed(() => {
   if (props.item?.messages.length) return props.item.messages;
@@ -157,6 +163,7 @@ const policyReviewHints = computed(() =>
   props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
 );
 const aiDraftInfo = computed<AiDraftDisplayInfo | null>(() => currentMessage.value?.aiDraft ?? null);
+const aiDraftFactRows = computed<AiDraftDescriptionRow[]>(() => buildAiDraftFactRows(aiDraftInfo.value));
 const aiDraftSummaryRows = computed<AiDraftDescriptionRow[]>(() => buildAiDraftSummaryRows(aiDraftInfo.value));
 const aiDraftPromptSnapshotRows = computed<AiDraftDescriptionRow[]>(() =>
   buildAiDraftPromptSnapshotRows(aiDraftInfo.value)
@@ -339,6 +346,17 @@ function handleRestoreVersion(versionId: string) {
   emit('restoreDraftVersion', { messageId, versionId });
 }
 
+/** Copies one visible draft field exactly as it appears in the review form. */
+async function copyDraftField(field: CopyableDraftField) {
+  const value = draftForm[field];
+
+  if (!value) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(value);
+  message.success(`${draftFieldCopyLabelMap[field]}已复制`);
+}
 </script>
 
 <template>
@@ -400,17 +418,55 @@ function handleRestoreVersion(versionId: string) {
                 </NAlert>
                 <NForm :model="draftForm" label-placement="top" size="small">
                   <NFormItem label="主题">
-                    <NInput v-model:value="draftForm.subject" :disabled="!canEdit" maxlength="200" show-count />
+                    <div class="draft-copy-field">
+                      <NInput v-model:value="draftForm.subject" :readonly="!canEdit" maxlength="200" show-count />
+                      <NTooltip trigger="hover">
+                        <template #trigger>
+                          <NButton
+                            class="draft-copy-field__button"
+                            size="tiny"
+                            tertiary
+                            circle
+                            :disabled="!draftForm.subject"
+                            @click="copyDraftField('subject')"
+                          >
+                            <template #icon>
+                              <SvgIcon icon="material-symbols:content-copy-outline" />
+                            </template>
+                          </NButton>
+                        </template>
+                        复制主题
+                      </NTooltip>
+                    </div>
                   </NFormItem>
                   <NFormItem label="正文">
-                    <NInput
-                      v-model:value="draftForm.bodyText"
-                      type="textarea"
-                      :disabled="!canEdit"
-                      maxlength="5000"
-                      show-count
-                      :autosize="{ minRows: 14, maxRows: 22 }"
-                    />
+                    <div class="draft-copy-field draft-copy-field--textarea">
+                      <NTooltip trigger="hover">
+                        <template #trigger>
+                          <NButton
+                            class="draft-copy-field__button"
+                            size="tiny"
+                            tertiary
+                            circle
+                            :disabled="!draftForm.bodyText"
+                            @click="copyDraftField('bodyText')"
+                          >
+                            <template #icon>
+                              <SvgIcon icon="material-symbols:content-copy-outline" />
+                            </template>
+                          </NButton>
+                        </template>
+                        复制正文
+                      </NTooltip>
+                      <NInput
+                        v-model:value="draftForm.bodyText"
+                        type="textarea"
+                        :readonly="!canEdit"
+                        maxlength="5000"
+                        show-count
+                        :autosize="{ minRows: 14, maxRows: 22 }"
+                      />
+                    </div>
                   </NFormItem>
                 </NForm>
               </div>
@@ -471,6 +527,7 @@ function handleRestoreVersion(versionId: string) {
 
             <NCollapseItem v-if="aiDraftInfo" title="AI 生成信息" name="ai-draft">
               <DraftAiInfoPanel
+                :fact-rows="aiDraftFactRows"
                 :summary-rows="aiDraftSummaryRows"
                 :review-tags="aiDraftReviewTags"
                 :prompt-snapshot-rows="aiDraftPromptSnapshotRows"
@@ -855,6 +912,24 @@ function handleRestoreVersion(versionId: string) {
 
 .status-alert {
   margin-bottom: 10px;
+}
+
+.draft-copy-field {
+  position: relative;
+  width: 100%;
+}
+
+.draft-copy-field__button {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 12px;
+  transform: translateY(-50%);
+}
+
+.draft-copy-field :deep(.n-input__input-el),
+.draft-copy-field :deep(.n-input__textarea-el) {
+  padding-right: 36px;
 }
 
 .modal-footer {

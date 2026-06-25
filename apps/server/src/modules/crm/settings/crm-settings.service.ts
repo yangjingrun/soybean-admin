@@ -16,6 +16,7 @@ import type {
   CrmSendPreferenceRecord,
   CrmUserContext
 } from '../crm.types';
+import { resolveCrmSenderName } from '../shared/crm-context';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import type { CrmSettingsRepository } from './crm-settings.repository';
 
@@ -110,7 +111,7 @@ export class CrmSettingsService {
     const record = await this.settingsRepository.saveSendPreference({
       organizationId: context.organizationId,
       ownerUserId: context.userId,
-      ownerUserName: context.userName,
+      ownerUserName: resolveCrmSenderName(context),
       dailySendLimit: normalizeOwnerDailySendLimit(dailySendLimit, ownerDailySendLimitMax),
       followUpSharePercent: normalizeFollowUpSharePercent(followUpSharePercent),
       updatedById: context.userId,
@@ -179,6 +180,20 @@ export class CrmSettingsService {
     });
 
     return toAiDraftQueueConfigView(config);
+  }
+
+  /** Clear the current owner's outreach records so test data can be regenerated from leads. */
+  async clearCurrentUserOutreachState(context: CrmUserContext) {
+    const result = await this.settingsRepository.clearCurrentUserOutreachState({
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    await this.crmLogger?.record('clear-current-user-outreach-state', '当前用户开发信状态已清除', context, {
+      ...result
+    });
+
+    return result;
   }
 }
 

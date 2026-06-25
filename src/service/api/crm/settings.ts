@@ -289,3 +289,11 @@ export function saveCrmAiDraftQueueConfig(data: Api.Crm.AiDraftQueueConfigPayloa
     data
   });
 }
+
+/** Clear current user's local CRM outreach state for test data regeneration. */
+export function clearCurrentUserCrmOutreachState() {
+  return request<Api.Crm.CurrentUserOutreachStateClearResult>({
+    url: '/crm/operations/current-user-outreach-state/clear',
+    method: 'post'
+  });
+}

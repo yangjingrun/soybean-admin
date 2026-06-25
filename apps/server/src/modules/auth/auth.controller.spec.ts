@@ -143,6 +143,55 @@ describe('AuthController', () => {
     });
   });
 
+  it('updates current user profile and records changed fields', async () => {
+    const logs = createLogRecorder();
+    const auth = createAuthService({ loginUserId: '1' });
+    const controller = new AuthController(auth, logs.service);
+
+    const result = await controller.updateProfile(
+      {
+        userId: '1',
+        userName: 'Super',
+        roles: ['R_SUPER'],
+        organizationId: 'org-default',
+        organizationRole: 'admin'
+      },
+      {
+        nickName: 'Alice Chen',
+        phone: null,
+        email: 'alice@example.com'
+      },
+      createRequest({ ip: '127.0.0.1', userAgent: 'Chrome' })
+    );
+
+    assert.equal(result.code, '0000');
+    assert.deepEqual(auth.updatedProfiles, [
+      {
+        userId: '1',
+        input: {
+          nickName: 'Alice Chen',
+          phone: null,
+          email: 'alice@example.com'
+        }
+      }
+    ]);
+    assert.equal(result.data.nickName, 'Alice Chen');
+    assert.deepEqual(logs.records[0], {
+      level: 'info',
+      status: 'success',
+      module: 'auth',
+      action: 'update-profile',
+      message: '用户更新个人信息',
+      userId: '1',
+      userName: 'Super',
+      metadata: {
+        ip: '127.0.0.1',
+        userAgent: 'Chrome',
+        changedFields: ['nickName', 'phone', 'email']
+      }
+    });
+  });
+
   it('records password change failure without swallowing the error', async () => {
     const logs = createLogRecorder();
     const auth = createAuthService({ loginUserId: '1', changePasswordError: new Error('原密码错误') });
@@ -200,6 +249,10 @@ function createLogRecorder() {
 
 function createAuthService(options: { loginUserId: string | null; changePasswordError?: Error }) {
   const revokedTokens: string[] = [];
+  const updatedProfiles: Array<{
+    userId: string;
+    input: { nickName?: string | null; phone?: string | null; email?: string | null };
+  }> = [];
   const changedPasswords: Array<{
     userId: string;
     oldPassword: string;
@@ -209,6 +262,9 @@ function createAuthService(options: { loginUserId: string | null; changePassword
   const user = {
     userId: '1',
     userName: 'Super',
+    nickName: null,
+    phone: null,
+    email: null,
     roles: ['R_SUPER'],
     buttons: [],
     organizationId: 'org-default',
@@ -218,6 +274,7 @@ function createAuthService(options: { loginUserId: string | null; changePassword
 
   return {
     revokedTokens,
+    updatedProfiles,
     changedPasswords,
     async login() {
       return options.loginUserId
@@ -233,6 +290,17 @@ function createAuthService(options: { loginUserId: string | null; changePassword
     logout(token: string) {
       revokedTokens.push(token);
     },
+    updateCurrentUserProfile(
+      userId: string,
+      input: { nickName?: string | null; phone?: string | null; email?: string | null }
+    ) {
+      updatedProfiles.push({ userId, input });
+
+      return {
+        ...user,
+        ...input
+      };
+    },
     changePassword(userId: string, oldPassword: string, newPassword: string, currentAccessToken: string) {
       if (options.changePasswordError) {
         throw options.changePasswordError;
@@ -240,7 +308,11 @@ function createAuthService(options: { loginUserId: string | null; changePassword
 
       changedPasswords.push({ userId, oldPassword, newPassword, currentAccessToken });
     }
-  } as unknown as AuthService & { revokedTokens: string[]; changedPasswords: typeof changedPasswords };
+  } as unknown as AuthService & {
+    revokedTokens: string[];
+    updatedProfiles: typeof updatedProfiles;
+    changedPasswords: typeof changedPasswords;
+  };
 }
 
 function createRequest(options: { ip: string; userAgent?: string; xForwardedFor?: string }) {

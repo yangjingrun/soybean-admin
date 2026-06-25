@@ -18,6 +18,7 @@ import {
   CRM_AI_DRAFT_TASK_REPOSITORY,
   CRM_AI_DRAFT_TASK_SOURCE_REPOSITORY
 } from '../crm.tokens';
+import { resolveCrmSenderName } from '../shared/crm-context';
 import { CrmLoggerService } from '../shared/crm-logger.service';
 import { CrmSettingsService } from '../settings/crm-settings.service';
 import type {
@@ -144,7 +145,7 @@ export class CrmAiDraftTaskService {
       organizationId: context.organizationId,
       organizationRole: context.organizationRole,
       ownerUserId: context.userId,
-      ownerUserName: context.userName,
+      ownerUserName: resolveCrmSenderName(context),
       status: pendingCount > 0 ? 'queued' : 'completed',
       requestedCount: enrollmentIds.length,
       items
@@ -213,7 +214,7 @@ export class CrmAiDraftTaskService {
       organizationId: context.organizationId,
       organizationRole: context.organizationRole,
       ownerUserId: context.userId,
-      ownerUserName: context.userName,
+      ownerUserName: resolveCrmSenderName(context),
       requestedCount: targetDetails.length,
       accountStatus: 'sequence_running',
       enrollments: targetDetails.map(({ account, contact }) => ({
@@ -231,7 +232,7 @@ export class CrmAiDraftTaskService {
           totalSteps: 5,
           runVersion: 1,
           createdById: context.userId,
-          createdByName: context.userName
+          createdByName: resolveCrmSenderName(context)
         },
         item: {
           accountId: account.id,

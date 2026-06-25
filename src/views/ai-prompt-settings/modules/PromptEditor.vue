@@ -61,7 +61,7 @@ watch(
 </script>
 
 <template>
-  <NCard :bordered="false" class="card-wrapper prompt-editor">
+  <NCard :bordered="false" class="card-wrapper prompt-editor" content-class="prompt-editor__card-content">
     <NScrollbar class="prompt-editor__scroll">
       <NSpin :show="loading">
         <div class="prompt-editor__header">
@@ -135,7 +135,7 @@ watch(
   overflow: hidden;
 }
 
-.prompt-editor :deep(.n-card-content) {
+.prompt-editor :deep(.prompt-editor__card-content) {
   display: flex;
   box-sizing: border-box;
   height: 100%;
@@ -272,9 +272,17 @@ watch(
     overflow: visible;
   }
 
-  .prompt-editor :deep(.n-card-content) {
+  .prompt-editor :deep(.prompt-editor__card-content) {
     height: auto;
     overflow: visible;
+  }
+
+  .prompt-editor__scroll,
+  .prompt-editor :deep(.n-spin-container),
+  .prompt-editor :deep(.n-spin-content),
+  .prompt-editor__scroll :deep(.n-scrollbar-container) {
+    height: auto;
+    max-height: none;
   }
 
   .prompt-editor__body {

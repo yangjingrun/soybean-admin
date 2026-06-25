@@ -127,6 +127,38 @@ describe('CrmAiDraftTaskWorkerService', () => {
     assert.equal(store.task.status, 'completed');
   });
 
+  it('generates first outreach with built-in defaults when product-line step prompts are empty', async () => {
+    const store = createWorkerStore({
+      items: [
+        createTaskItem({
+          stepIndex: 1,
+          metadata: { kind: 'first_outreach' }
+        })
+      ],
+      reviewItem: createReviewItem({
+        enrollment: createEnrollment({ status: 'draft_review_pending' }),
+        firstMessage: null,
+        messages: [],
+        mailbox: createMailbox(),
+        productLine: createProductLine({ aiWritingConfig: createEmptyPromptAiWritingConfig() })
+      })
+    });
+    const aiDraftService = createAiDraftService();
+    const worker = new CrmAiDraftTaskWorkerService(
+      store as never,
+      aiDraftService as never,
+      undefined,
+      createAvailabilityService() as never
+    );
+
+    await worker.processTaskJob(createJob());
+
+    assert.equal(aiDraftService.calls.length, 1);
+    assert.equal(store.firstOutreachBundles.length, 1);
+    assert.equal(store.itemUpdates.at(-1)?.patch.status, 'succeeded');
+    assert.equal(store.task.status, 'completed');
+  });
+
   it('generates one eligible local follow-up draft and completes the task with notification', async () => {
     const store = createWorkerStore();
     const aiDraftService = createAiDraftService();
@@ -421,7 +453,7 @@ function createWorkerStore(
     },
     async getGlobalConfig() {
       return {
-        followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 21 }
+        followUpDelayDays: { step2Days: 3, step3Days: 7, step4Days: 12, step5Days: 18 }
       };
     },
     async getAiDraftQueueConfig() {
@@ -814,5 +846,15 @@ function createAiWritingConfig(): NonNullable<CrmProductLineRecord['aiWritingCon
       { stepIndex: 4, prompt: 'Mention quality.' },
       { stepIndex: 5, prompt: 'Close politely.' }
     ]
+  };
+}
+
+function createEmptyPromptAiWritingConfig(): NonNullable<CrmProductLineRecord['aiWritingConfig']> {
+  return {
+    enabled: true,
+    steps: [1, 2, 3, 4, 5].map(stepIndex => ({
+      stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
+      prompt: ''
+    }))
   };
 }

@@ -173,6 +173,9 @@ function createUser(roles = ['R_ADMIN'], organizationRole: 'admin' | 'member' = 
   return {
     userId: 'u-1',
     userName: 'tester',
+    nickName: null,
+    phone: null,
+    email: null,
     roles,
     buttons: [],
     organizationId: 'org-default',

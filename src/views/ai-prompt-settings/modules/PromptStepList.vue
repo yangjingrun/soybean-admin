@@ -26,7 +26,7 @@ const stepCount = computed(() => props.steps.length);
 </script>
 
 <template>
-  <NCard :bordered="false" class="card-wrapper prompt-step-panel">
+  <NCard :bordered="false" class="card-wrapper prompt-step-panel" content-class="prompt-step-panel__content">
     <div class="prompt-step-panel__header">
       <div>
         <NText strong>内置业务步骤</NText>
@@ -68,16 +68,15 @@ const stepCount = computed(() => props.steps.length);
 <style scoped>
 .prompt-step-panel {
   height: 100%;
+  max-height: 100%;
   overflow: hidden;
 }
 
-.prompt-step-panel :deep(.n-card-content) {
+.prompt-step-panel :deep(.prompt-step-panel__content) {
   display: flex;
   box-sizing: border-box;
   height: 100%;
-  max-height: 100%;
   min-height: 0;
-  flex: 1;
   flex-direction: column;
   overflow: hidden;
 }
@@ -198,10 +197,11 @@ const stepCount = computed(() => props.steps.length);
 @media (max-width: 1280px) {
   .prompt-step-panel {
     height: auto;
+    max-height: none;
     overflow: visible;
   }
 
-  .prompt-step-panel :deep(.n-card-content) {
+  .prompt-step-panel :deep(.prompt-step-panel__content) {
     display: block;
     height: auto;
     overflow: visible;
@@ -210,6 +210,11 @@ const stepCount = computed(() => props.steps.length);
   .prompt-step-panel__scroll {
     height: auto;
     min-height: auto;
+  }
+
+  .prompt-step-panel__scroll :deep(.n-scrollbar-container) {
+    height: auto;
+    max-height: none;
   }
 }
 </style>

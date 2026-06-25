@@ -68,7 +68,7 @@ describe('CrmSendWorkerService', () => {
         threadMode: 'same_thread',
         subject: 'Bearing Series for ABC Trading',
         bodyText:
-          'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
+          'Hi Ali,\n\nFor the next check, it may be better to compare one specific item instead of sending a wider list.\n\nIf your team handles selected models, we can compare one designation, replacement item, configuration, or supply condition.\n\nIs there one current designation or requirement you would like us to cross-reference?\n\nBest,\nAlice',
         status: 'draft_ready',
         scheduledAt: new Date(store.completed[0].sentAt.getTime() + 3 * 24 * 60 * 60 * 1000),
         providerThreadId: 'mock-thread:enrollment-1'
@@ -130,7 +130,7 @@ describe('CrmSendWorkerService', () => {
       threadMode: 'same_thread',
       subject: 'Bearing Series for ABC Trading',
       bodyText:
-        'Hi Ali Hassan,\n\nJust following up in case this is relevant for your current sourcing plan.\n\nBest regards,\nAlice',
+        'Hi Ali,\n\nIf risk is the next question, the useful check is usually one verification route before any regular supply discussion.\n\nFor selected products, that may mean designation accuracy, configuration consistency, sample validation, inspection, packaging or marking, or supplier documents when those facts are available.\n\nWhich is normally required first on your side: a sample, dimensional check, or supplier documents?\n\nBest,\nAlice',
       status: 'draft_ready',
       scheduledAt: new Date(store.completed[0].sentAt.getTime() + 7 * 24 * 60 * 60 * 1000),
       providerThreadId: 'mock-thread:enrollment-1'
@@ -238,7 +238,7 @@ describe('CrmSendWorkerService', () => {
       threadMode: 'new_subject',
       subject: 'New sourcing idea for ABC Trading',
       bodyText:
-        'Hi Ali Hassan,\n\nCould another angle around our product line help with price, MOQ, lead time, and payment terms?\n\nBest regards,\nAlice',
+        'Hi Ali,\n\nCould another angle around selected products help with one-item comparison, MOQ, lead time, purchasing conditions, and backup supply?\n\nBest regards,\nAlice',
       status: 'draft_ready',
       scheduledAt: new Date(store.completed[0].sentAt.getTime() + 5 * 24 * 60 * 60 * 1000),
       providerThreadId: 'mock-thread:enrollment-1'
@@ -699,6 +699,12 @@ function createContact(input: Partial<CrmContactRecord> = {}): CrmContactRecord 
     isPublicEmail: input.isPublicEmail ?? false,
     emailStatus: input.emailStatus || 'valid',
     sourceTaskId: input.sourceTaskId ?? null,
+    emailProgressStatus: input.emailProgressStatus ?? 'not_generated',
+    emailProgressLabel: input.emailProgressLabel ?? '未生成',
+    emailProgressAt: input.emailProgressAt ?? null,
+    emailProgressMessageId: input.emailProgressMessageId ?? null,
+    emailProgressStepIndex: input.emailProgressStepIndex ?? null,
+    emailProgressTotalSteps: input.emailProgressTotalSteps ?? null,
     createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
     updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };
@@ -737,8 +743,8 @@ function createGlobalConfig(input: Partial<CrmGlobalConfigRecord> = {}): CrmGlob
     followUpDelayDays: input.followUpDelayDays ?? {
       step2Days: 3,
       step3Days: 7,
-      step4Days: 14,
-      step5Days: 21
+      step4Days: 12,
+      step5Days: 18
     },
     sendWorkdays: input.sendWorkdays ?? [1, 2, 3, 4, 5],
     sendWindows: input.sendWindows ?? [
@@ -846,7 +852,9 @@ function createMessage(input: Partial<CrmMessageRecord> = {}): CrmMessageRecord 
     stepIndex: input.stepIndex ?? 1,
     threadMode: input.threadMode || 'new_subject',
     subject: input.subject || 'Bearing Series for ABC Trading',
-    bodyText: input.bodyText || 'Hi Ali,\n\nWould it be useful if I sent a short product list?\n\nBest regards,\nAlice',
+    bodyText:
+      input.bodyText ||
+      'Hi Ali,\n\nWould comparing one current item, designation, or supply requirement be relevant?\n\nBest regards,\nAlice',
     status: input.status || 'queued',
     scheduledAt: input.scheduledAt ?? new Date('2026-06-18T10:00:00.000Z'),
     sentAt: input.sentAt ?? null,

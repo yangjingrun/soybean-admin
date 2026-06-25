@@ -48,12 +48,17 @@ describe('CrmSequenceReviewCreationService', () => {
     );
 
     const created = createdBundles[0];
+    const timelineMetadata = created.timelineEvent.metadata as {
+      fitScore?: { recommendedColdSteps: number };
+    };
 
     assert.equal(created.enrollment.status, 'sequence_running');
+    assert.equal(created.enrollment.totalSteps, 2);
     assert.equal(created.message.status, 'draft_ready');
     assert.ok(created.message.scheduledAt instanceof Date);
     assert.equal(created.accountStatus, 'sequence_running');
     assert.equal(created.timelineEvent.eventType, 'message_send_scheduled');
+    assert.equal(timelineMetadata.fitScore?.recommendedColdSteps, 2);
     assert.equal(result.item.enrollment.status, 'sequence_running');
     assert.equal(result.item.firstMessage?.status, 'draft_ready');
   });
@@ -315,8 +320,8 @@ function createGlobalConfig(overrides: Partial<CrmGlobalConfigRecord> = {}): Crm
     followUpDelayDays: {
       step2Days: 3,
       step3Days: 7,
-      step4Days: 14,
-      step5Days: 21
+      step4Days: 12,
+      step5Days: 18
     },
     sendWorkdays: [1, 2, 3, 4, 5],
     sendWindows: [
@@ -388,7 +393,10 @@ function createAccount(overrides: Partial<CrmAccountRecord> = {}): CrmAccountRec
     city: 'Los Angeles',
     address: null,
     timeZone: 'America/Los_Angeles',
-    customerType: null,
+    customerType: 'Distributor',
+    sourceSnapshot: {
+      website_product_fact: 'Supplies bearings and power-transmission parts'
+    },
     status: 'candidate',
     sourceTaskId: null,
     archivedAt: null,

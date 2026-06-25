@@ -173,12 +173,7 @@ function handleMessageListScroll() {
 </script>
 
 <template>
-  <NCard
-    :bordered="false"
-    class="card-wrapper inbox-reply-panel"
-    size="small"
-    :segmented="{ content: true }"
-  >
+  <NCard :bordered="false" class="card-wrapper inbox-reply-panel" size="small" :segmented="{ content: true }">
     <template #header>
       <div class="panel-header">
         <div class="panel-heading">

@@ -74,9 +74,7 @@ export function approveCrmMessageDraft(id: string) {
 
 /** Generate the next local follow-up draft for one sequence without queueing it. */
 export function generateCrmNextSequenceDraft(enrollmentId: string) {
-  return request<Api.Crm.MessageNextDraftGenerateResult>(
-    buildGenerateCrmNextSequenceDraftRequestConfig(enrollmentId)
-  );
+  return request<Api.Crm.MessageNextDraftGenerateResult>(buildGenerateCrmNextSequenceDraftRequestConfig(enrollmentId));
 }
 
 /** Generate next local follow-up drafts for selected sequences without queueing Gmail sends. */

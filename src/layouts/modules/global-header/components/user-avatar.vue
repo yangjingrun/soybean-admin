@@ -6,6 +6,7 @@ import { useRouterPush } from '@/hooks/common/router';
 import { useSvgIcon } from '@/hooks/common/icon';
 import { $t } from '@/locales';
 import ChangePasswordModal from './change-password/ChangePasswordModal.vue';
+import UserProfileModal from './user-profile/UserProfileModal.vue';
 
 defineOptions({
   name: 'UserAvatar'
@@ -14,13 +15,14 @@ defineOptions({
 const authStore = useAuthStore();
 const { routerPushByKey, toLogin } = useRouterPush();
 const { SvgIconVNode } = useSvgIcon();
+const userProfileVisible = shallowRef(false);
 const changePasswordVisible = shallowRef(false);
 
 function loginOrRegister() {
   toLogin();
 }
 
-type DropdownKey = 'changePassword' | 'logout';
+type DropdownKey = 'profile' | 'changePassword' | 'logout';
 
 type DropdownOption =
   | {
@@ -35,6 +37,11 @@ type DropdownOption =
 
 const options = computed(() => {
   const opts: DropdownOption[] = [
+    {
+      label: '个人信息',
+      key: 'profile',
+      icon: SvgIconVNode({ icon: 'ph:user-gear', fontSize: 18 })
+    },
     {
       label: '修改密码',
       key: 'changePassword',
@@ -67,7 +74,9 @@ function logout() {
 }
 
 function handleDropdown(key: DropdownKey) {
-  if (key === 'changePassword') {
+  if (key === 'profile') {
+    userProfileVisible.value = true;
+  } else if (key === 'changePassword') {
     changePasswordVisible.value = true;
   } else if (key === 'logout') {
     logout();
@@ -86,10 +95,11 @@ function handleDropdown(key: DropdownKey) {
     <div>
       <ButtonIcon>
         <SvgIcon icon="ph:user-circle" class="text-icon-large" />
-        <span class="text-16px font-medium">{{ authStore.userInfo.userName }}</span>
+        <span class="text-16px font-medium">{{ authStore.userDisplayName }}</span>
       </ButtonIcon>
     </div>
   </NDropdown>
+  <UserProfileModal v-model:show="userProfileVisible" />
   <ChangePasswordModal v-model:show="changePasswordVisible" />
 </template>
 

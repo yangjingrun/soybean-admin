@@ -1446,6 +1446,9 @@ function createUser(): UserInfo {
   return {
     userId: 'u-1',
     userName: 'Super',
+    nickName: null,
+    phone: null,
+    email: null,
     roles: ['R_SUPER'],
     buttons: [],
     organizationId: 'org-1',

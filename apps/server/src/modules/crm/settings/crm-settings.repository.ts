@@ -1,5 +1,6 @@
 import type { CrmAiDraftQueueConfigInput, CrmAiDraftQueueConfigRecord } from '../crm-ai-draft-task.types';
 import type {
+  CrmCurrentUserOutreachStateClearResult,
   CrmGlobalConfigInput,
   CrmGlobalConfigRecord,
   CrmOrganizationConfigInput,
@@ -26,4 +27,8 @@ export interface CrmSettingsRepository
   saveOrganizationConfig(input: CrmOrganizationConfigInput): Promise<CrmOrganizationConfigRecord>;
   getAiDraftQueueConfig(): Promise<CrmAiDraftQueueConfigRecord>;
   saveAiDraftQueueConfig(input: CrmAiDraftQueueConfigInput): Promise<CrmAiDraftQueueConfigRecord>;
+  clearCurrentUserOutreachState(args: {
+    organizationId: string;
+    ownerUserId: string;
+  }): Promise<CrmCurrentUserOutreachStateClearResult>;
 }

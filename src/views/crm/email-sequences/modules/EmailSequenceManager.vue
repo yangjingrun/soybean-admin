@@ -46,6 +46,7 @@ const {
   handleCreateReviewItem,
   handleCreateVisibleUpdate,
   handleDrawerVisibleUpdate,
+  handleExportSequences,
   handleGenerateNextDraft,
   handleRegenerateAiDraft,
   handleResumeSequence,
@@ -76,6 +77,7 @@ const {
   sendStarting,
   sendRetrying,
   sequenceResuming,
+  sequenceExporting,
   sequencePolicySelectOptions,
   sequenceStopping
 } = useEmailSequenceTable();
@@ -91,6 +93,7 @@ const {
       :batch-next-draft-generating="batchNextDraftGenerating"
       :batch-sequence-stopping="batchSequenceStopping"
       :checked-row-keys="checkedRowKeys"
+      :exporting="sequenceExporting"
       :loading="loading"
       :pagination="pagination"
       :records="records"
@@ -98,6 +101,7 @@ const {
       @create-ai-draft-task="handleCreateAiDraftTask"
       @batch-generate-next-drafts="handleBatchGenerateNextDrafts"
       @batch-stop-sequences="handleBatchStopSequences"
+      @export="handleExportSequences"
       @review="openDraftDrawer"
       @update-checked-row-keys="handleCheckedRowKeysUpdate"
       @update-page="handlePageUpdate"

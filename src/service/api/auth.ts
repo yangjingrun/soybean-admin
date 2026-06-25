@@ -63,6 +63,15 @@ export function changeCurrentUserPassword(data: Api.Auth.ChangePasswordPayload) 
   });
 }
 
+/** Update current user's editable profile. */
+export function updateCurrentUserProfile(data: Api.Auth.UpdateCurrentUserProfilePayload) {
+  return request<Api.Auth.UserInfo>({
+    url: '/auth/profile',
+    method: 'patch',
+    data
+  });
+}
+
 /**
  * return custom backend error
  *

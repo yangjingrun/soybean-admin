@@ -136,8 +136,8 @@ describe('crm settings shared helpers', () => {
       followUpDelayDays: {
         step2Days: 3,
         step3Days: 7,
-        step4Days: 14,
-        step5Days: 21
+        step4Days: 12,
+        step5Days: 18
       },
       sendWorkdays: [1, 2, 3, 4, 5],
       sendWindows: [
@@ -223,12 +223,12 @@ describe('crm settings shared helpers', () => {
     assert.deepEqual(createDefaultFollowUpDelayDays(), {
       step2Days: 3,
       step3Days: 7,
-      step4Days: 14,
-      step5Days: 21
+      step4Days: 12,
+      step5Days: 18
     });
     assert.equal(isValidFollowUpDelayDays({ step2Days: 1, step3Days: 7, step4Days: 14, step5Days: 90 }), true);
-    assert.equal(isValidFollowUpDelayDays({ step2Days: 0, step3Days: 7, step4Days: 14, step5Days: 21 }), false);
-    assert.equal(isValidFollowUpDelayDays({ step2Days: 3, step3Days: 7.5, step4Days: 14, step5Days: 21 }), false);
+    assert.equal(isValidFollowUpDelayDays({ step2Days: 0, step3Days: 7, step4Days: 12, step5Days: 18 }), false);
+    assert.equal(isValidFollowUpDelayDays({ step2Days: 3, step3Days: 7.5, step4Days: 12, step5Days: 18 }), false);
     assert.equal(isValidFollowUpDelayDays({ step2Days: 3, step3Days: 7, step4Days: 14, step5Days: 91 }), false);
   });
 

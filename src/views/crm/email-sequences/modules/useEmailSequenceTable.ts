@@ -10,6 +10,7 @@ import {
 } from '@/service/api';
 import {
   buildSequenceBatchResultDisplayItems,
+  buildSequenceExportCsv,
   buildSequenceReviewSearchParams,
   canApproveSequenceDraftInBatch,
   canGenerateNextSequenceDraft,
@@ -34,6 +35,7 @@ export function useEmailSequenceTable() {
   const batchDraftApproving = shallowRef(false);
   const batchNextDraftGenerating = shallowRef(false);
   const batchSequenceStopping = shallowRef(false);
+  const sequenceExporting = shallowRef(false);
   const handledFocusKey = shallowRef('');
   let latestListRequestId = 0;
 
@@ -268,6 +270,65 @@ export function useEmailSequenceTable() {
     }
   }
 
+  /** Export every sequence row under current filters as a CSV table. */
+  async function handleExportSequences() {
+    if (pagination.total === 0) {
+      message.warning('暂无可导出的开发信任务');
+      return;
+    }
+
+    sequenceExporting.value = true;
+
+    try {
+      const exportRecords = await fetchSequenceExportRecords();
+
+      if (exportRecords.length === 0) {
+        message.warning('暂无可导出的开发信任务');
+        return;
+      }
+
+      downloadCsvFile({
+        content: buildSequenceExportCsv(exportRecords),
+        filename: `开发信任务导出-${formatExportFilenameDate(new Date())}.csv`
+      });
+      message.success(`已导出 ${exportRecords.length} 条开发信任务`);
+    } finally {
+      sequenceExporting.value = false;
+    }
+  }
+
+  async function fetchSequenceExportRecords() {
+    const pageSize = 100;
+    let current = 1;
+    let total = pagination.total;
+    const exportRecords: Api.Crm.SequenceReviewItem[] = [];
+
+    while (exportRecords.length < total || (current === 1 && total === 0)) {
+      const { data, error } = await fetchCrmSequenceReviewItems(
+        buildSequenceReviewSearchParams({
+          current,
+          size: pageSize,
+          filterModel
+        })
+      );
+
+      if (error) {
+        return [];
+      }
+
+      total = data.total;
+      exportRecords.push(...data.records);
+
+      if (data.records.length === 0 || exportRecords.length >= total) {
+        break;
+      }
+
+      current += 1;
+    }
+
+    return exportRecords;
+  }
+
   function handleSearch() {
     pagination.current = 1;
     void loadSequences();
@@ -359,6 +420,7 @@ export function useEmailSequenceTable() {
     handleCreateReviewItem: createFlow.handleCreateReviewItem,
     handleCreateVisibleUpdate: createFlow.handleCreateVisibleUpdate,
     handleDrawerVisibleUpdate: draftReviewFlow.handleDrawerVisibleUpdate,
+    handleExportSequences,
     handleGenerateNextDraft: draftReviewFlow.handleGenerateNextDraft,
     handleRegenerateAiDraft: draftReviewFlow.handleRegenerateAiDraft,
     handleResumeSequence: draftReviewFlow.handleResumeSequence,
@@ -392,6 +454,7 @@ export function useEmailSequenceTable() {
     returnEditing: draftReviewFlow.returnEditing,
     sendStarting: draftReviewFlow.sendStarting,
     sendRetrying: draftReviewFlow.sendRetrying,
+    sequenceExporting,
     sequenceResuming: draftReviewFlow.sequenceResuming,
     sequencePolicySelectOptions: createFlow.sequencePolicySelectOptions,
     sequenceStopping: draftReviewFlow.sequenceStopping
@@ -440,4 +503,28 @@ function isMessageStatus(value: string): value is Api.Crm.MessageStatus {
 
 function isSequenceReviewCreatedAtScope(value: string): value is Api.Crm.SequenceReviewCreatedAtScope {
   return ['today', 'yesterday', 'last_3_days', 'last_7_days', 'last_30_days'].includes(value);
+}
+
+function downloadCsvFile(input: { content: string; filename: string }) {
+  const blob = new Blob([`\uFEFF${input.content}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = input.filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function formatExportFilenameDate(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds())
+  ].join('');
 }

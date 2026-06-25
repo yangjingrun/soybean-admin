@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CrmAiDraftService } from '../crm-ai-draft.service';
 import { findPersonaProfile, type PersonaProfile } from '../crm-email-template-renderer';
+import { getCrmOutreachStepStrategy, toCrmAiStepStrategy } from '../crm-outreach-step-strategy';
 import { CRM_SEQUENCE_DRAFT_REPOSITORY } from '../crm.tokens';
 import type {
   CrmAccountRecord,
@@ -14,6 +15,7 @@ import type {
 } from '../crm.types';
 import { normalizeLimitedContent } from '../shared/crm-normalizers';
 import { CrmLoggerService } from '../shared/crm-logger.service';
+import { resolveCrmSenderName } from '../shared/crm-context';
 import { toMessageDraftVersionView, toMessageView } from '../shared/crm-view-mappers';
 import type { CrmDraftRepository } from './crm-draft.repository';
 
@@ -300,8 +302,11 @@ export class CrmDraftService {
         account: {
           name: account.name,
           country: account.country,
+          city: account.city,
+          timeZone: account.timeZone,
           domain: account.domain,
-          customerType: account.customerType
+          customerType: account.customerType,
+          sourceSnapshot: account.sourceSnapshot
         },
         contact: {
           fullName: contact.fullName,
@@ -329,12 +334,13 @@ export class CrmDraftService {
           subject: message.subject,
           bodyText: message.bodyText
         })),
-        senderName: context.userName,
+        senderName: resolveCrmSenderName(context),
         baseDraft: {
           subject: fallbackDraft.subject,
           bodyText: fallbackDraft.bodyText
         },
-        persona: personaProfile ?? findPersonaProfile(contact.title)
+        persona: personaProfile ?? findPersonaProfile(contact.title),
+        stepStrategy: toCrmAiStepStrategy(getCrmOutreachStepStrategy(stepIndex))
       },
       context
     );
