@@ -1,0 +1,9 @@
+{
+  "id": "LKVwnMDd1kYwMGi",
+  "json": "{\"id\":\"LKVwnMDd1kYwMGi\",\"url\":\"https://www.kginternational.com/\",\"loadedUrl\":\"https://www.kginternational.com/\",\"uniqueKey\":\"9:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.kginternational.com/\",\"uniqueKey\":\"9:/\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"kginternational.com\",\"companyName\":\"KG International\",\"homepage\":\"https://www.kginternational.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:24.880Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "9:/",
+  "url": "https://www.kginternational.com/"
+}

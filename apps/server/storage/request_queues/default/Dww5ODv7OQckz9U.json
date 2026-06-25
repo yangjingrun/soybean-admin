@@ -1,0 +1,9 @@
+{
+  "id": "Dww5ODv7OQckz9U",
+  "json": "{\"id\":\"Dww5ODv7OQckz9U\",\"url\":\"http://www.bearingsglobal.ae/contact\",\"loadedUrl\":\"https://bearingsglobal.ae/contact-us/\",\"uniqueKey\":\"6:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.bearingsglobal.ae/contact\",\"uniqueKey\":\"6:/contact\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"bearingsglobal.ae\",\"companyName\":\"Bearings Global FZCO\",\"homepage\":\"http://www.bearingsglobal.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:09.719Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "6:/contact",
+  "url": "http://www.bearingsglobal.ae/contact"
+}

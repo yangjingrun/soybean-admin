@@ -1,0 +1,9 @@
+{
+  "id": "kVwH4RgZa97Xk2J",
+  "json": "{\"id\":\"kVwH4RgZa97Xk2J\",\"url\":\"https://raka.ae/contact-us\",\"loadedUrl\":\"https://raka.ae/contact-us\",\"uniqueKey\":\"10:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://raka.ae/contact-us\",\"uniqueKey\":\"10:/contact-us\",\"userData\":{\"candidateIndex\":10,\"dedupeKey\":\"raka.ae\",\"companyName\":\"RAKA TRADING - F.Z.E (Dubai Local Shop)\",\"homepage\":\"https://raka.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:28.986Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "10:/contact-us",
+  "url": "https://raka.ae/contact-us"
+}

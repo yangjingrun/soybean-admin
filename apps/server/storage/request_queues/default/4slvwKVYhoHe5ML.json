@@ -1,0 +1,9 @@
+{
+  "id": "4slvwKVYhoHe5ML",
+  "json": "{\"id\":\"4slvwKVYhoHe5ML\",\"url\":\"https://www.rolman.com/about-us\",\"loadedUrl\":\"https://rolman.com/about-us\",\"uniqueKey\":\"13:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.rolman.com/about-us\",\"uniqueKey\":\"13:/about-us\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"rolman.com\",\"companyName\":\"Rolman World (HQ)\",\"homepage\":\"https://www.rolman.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:47.685Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "13:/about-us",
+  "url": "https://www.rolman.com/about-us"
+}

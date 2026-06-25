@@ -1,0 +1,9 @@
+{
+  "id": "6KxoPlrIAoErAge",
+  "json": "{\"id\":\"6KxoPlrIAoErAge\",\"url\":\"http://www.bearingsworld.ae/about-us\",\"loadedUrl\":\"http://www.bearingsworld.ae/about-us\",\"uniqueKey\":\"0:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.bearingsworld.ae/about-us\",\"uniqueKey\":\"0:/about-us\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"bearingsworld.ae\",\"companyName\":\"Bearings World Trading LLC. Dubai\",\"homepage\":\"http://www.bearingsworld.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:15.709Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "0:/about-us",
+  "url": "http://www.bearingsworld.ae/about-us"
+}

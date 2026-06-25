@@ -1,0 +1,9 @@
+{
+  "id": "qmc2BB5aO7w4N8o",
+  "json": "{\"id\":\"qmc2BB5aO7w4N8o\",\"url\":\"https://mcb.ae/contact\",\"loadedUrl\":\"https://mcb.ae/contact/\",\"uniqueKey\":\"2:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://mcb.ae/contact\",\"uniqueKey\":\"2:/contact\",\"userData\":{\"candidateIndex\":2,\"dedupeKey\":\"mcb.ae\",\"companyName\":\"Mineral Circles Bearings FZCO\",\"homepage\":\"https://mcb.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:29.469Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "2:/contact",
+  "url": "https://mcb.ae/contact"
+}

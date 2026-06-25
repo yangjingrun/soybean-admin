@@ -1,0 +1,9 @@
+{
+  "id": "6p7Q8jx4kIUmNIt",
+  "json": "{\"id\":\"6p7Q8jx4kIUmNIt\",\"url\":\"http://www.mribearings.com/\",\"loadedUrl\":\"https://mribearings.inappsglobal.com/Home/Login\",\"uniqueKey\":\"8:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.mribearings.com/\",\"uniqueKey\":\"8:/\",\"userData\":{\"candidateIndex\":8,\"dedupeKey\":\"mribearings.com\",\"companyName\":\"MRI Bearings - Koyo, Nsk, Ntn, Nachi, Timken\",\"homepage\":\"http://www.mribearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:22.406Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "8:/",
+  "url": "http://www.mribearings.com/"
+}

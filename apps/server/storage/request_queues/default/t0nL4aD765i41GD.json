@@ -1,0 +1,9 @@
+{
+  "id": "t0nL4aD765i41GD",
+  "json": "{\"id\":\"t0nL4aD765i41GD\",\"url\":\"https://www.kginternational.com/contact-us\",\"loadedUrl\":\"https://www.kginternational.com/get-in-touch-with-us/\",\"uniqueKey\":\"9:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.kginternational.com/contact-us\",\"uniqueKey\":\"9:/contact-us\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"kginternational.com\",\"companyName\":\"KG International\",\"homepage\":\"https://www.kginternational.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:25.562Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "9:/contact-us",
+  "url": "https://www.kginternational.com/contact-us"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "BGLHpDmVcjxBy63",
+  "json": "{\"id\":\"BGLHpDmVcjxBy63\",\"url\":\"https://vwimpex.com/elevator\",\"loadedUrl\":\"https://vwimpex.com/elevator\",\"uniqueKey\":\"12:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://vwimpex.com/elevator\",\"uniqueKey\":\"12:/elevator\",\"userData\":{\"candidateIndex\":12,\"dedupeKey\":\"vwimpex.com\",\"companyName\":\"VWIMPEX INDUSTRIAL MOTION - FZCO\",\"homepage\":\"https://vwimpex.com/contact-us\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:37.128Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "12:/elevator",
+  "url": "https://vwimpex.com/elevator"
+}

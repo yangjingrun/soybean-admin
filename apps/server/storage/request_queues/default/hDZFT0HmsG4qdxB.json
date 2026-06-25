@@ -1,0 +1,9 @@
+{
+  "id": "hDZFT0HmsG4qdxB",
+  "json": "{\"id\":\"hDZFT0HmsG4qdxB\",\"url\":\"http://www.gtbearing.co/contact-us\",\"loadedUrl\":\"http://gtbearing.co/contact-us/\",\"uniqueKey\":\"5:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.gtbearing.co/contact-us\",\"uniqueKey\":\"5:/contact-us\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"gtbearing.co\",\"companyName\":\"Great Trust Bearing Trading Co LLC\",\"homepage\":\"http://www.gtbearing.co\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:59.199Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "5:/contact-us",
+  "url": "http://www.gtbearing.co/contact-us"
+}

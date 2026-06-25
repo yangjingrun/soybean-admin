@@ -1,0 +1,9 @@
+{
+  "id": "aREFQM66H6H77yf",
+  "json": "{\"id\":\"aREFQM66H6H77yf\",\"url\":\"https://www.bearingsworld.net/\",\"loadedUrl\":\"https://bearingsworld.net/\",\"uniqueKey\":\"16:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.bearingsworld.net/\",\"uniqueKey\":\"16:/\",\"userData\":{\"candidateIndex\":16,\"dedupeKey\":\"bearingsworld.net\",\"companyName\":\"Bearings World Trdg. Sharjah (SKF, FAG, INA, NSK, KOYO, NTN, HIWIN, THK)\",\"homepage\":\"https://www.bearingsworld.net\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:53.023Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "16:/",
+  "url": "https://www.bearingsworld.net/"
+}

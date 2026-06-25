@@ -1,0 +1,9 @@
+{
+  "id": "7q3Jk0lpnp7Xtf4",
+  "json": "{\"id\":\"7q3Jk0lpnp7Xtf4\",\"url\":\"https://www.kginternational.com/about-us\",\"loadedUrl\":\"https://www.kginternational.com/about-us/\",\"uniqueKey\":\"9:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.kginternational.com/about-us\",\"uniqueKey\":\"9:/about-us\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"kginternational.com\",\"companyName\":\"KG International\",\"homepage\":\"https://www.kginternational.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:25.412Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "9:/about-us",
+  "url": "https://www.kginternational.com/about-us"
+}

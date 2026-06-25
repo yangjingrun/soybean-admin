@@ -1,0 +1,9 @@
+{
+  "id": "vjfxCreC5mRUJAp",
+  "json": "{\"id\":\"vjfxCreC5mRUJAp\",\"url\":\"https://jtekt.ae/\",\"loadedUrl\":\"https://jtekt.ae/\",\"uniqueKey\":\"14:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://jtekt.ae/\",\"uniqueKey\":\"14:/\",\"userData\":{\"candidateIndex\":14,\"dedupeKey\":\"jtekt.ae\",\"companyName\":\"JTEKT Sales Middle East FZCO\",\"homepage\":\"https://jtekt.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:49.074Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "14:/",
+  "url": "https://jtekt.ae/"
+}

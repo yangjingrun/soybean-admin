@@ -1,0 +1,37 @@
+{
+  "requestsFinished": 8,
+  "requestsFailed": 0,
+  "requestsRetries": 1,
+  "requestsFailedPerMinute": 0,
+  "requestsFinishedPerMinute": 22,
+  "requestMinDurationMillis": 1708,
+  "requestMaxDurationMillis": 10068,
+  "requestTotalFailedDurationMillis": 0,
+  "requestTotalFinishedDurationMillis": 49823,
+  "crawlerStartedAt": "2026-06-25T10:57:22.924Z",
+  "crawlerFinishedAt": "2026-06-25T10:57:44.878Z",
+  "statsPersistedAt": "2026-06-25T10:57:44.878Z",
+  "crawlerRuntimeMillis": 21964,
+  "crawlerLastStartTimestamp": 1782385042914,
+  "requestRetryHistogram": [7, 1],
+  "statsId": 2,
+  "requestAvgFailedDurationMillis": null,
+  "requestAvgFinishedDurationMillis": 6228,
+  "requestTotalDurationMillis": 49823,
+  "requestsTotal": 8,
+  "requestsWithStatusCode": {
+    "404": 3
+  },
+  "errors": {},
+  "retryErrors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74": {
+      "missing error code": {
+        "Error": {
+          "request timed out after 15 seconds.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "DqySsQU8cvnShtW",
+  "json": "{\"id\":\"DqySsQU8cvnShtW\",\"url\":\"https://www.revobearings.com/elevator\",\"loadedUrl\":\"https://www.revobearings.com/elevator\",\"uniqueKey\":\"11:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.revobearings.com/elevator\",\"uniqueKey\":\"11:/elevator\",\"userData\":{\"candidateIndex\":11,\"dedupeKey\":\"revobearings.com\",\"companyName\":\"Revo Bearings is a trusted bearings supplier in UAE we deal in (SKF, NACHI, NTN, KOYO, NSK, HIWIN & OILSEALS)\",\"homepage\":\"https://www.revobearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:31.835Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "11:/elevator",
+  "url": "https://www.revobearings.com/elevator"
+}

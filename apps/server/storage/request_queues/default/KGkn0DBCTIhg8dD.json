@@ -1,0 +1,9 @@
+{
+  "id": "KGkn0DBCTIhg8dD",
+  "json": "{\"id\":\"KGkn0DBCTIhg8dD\",\"url\":\"https://vwimpex.com/products\",\"loadedUrl\":\"https://vwimpex.com/products\",\"uniqueKey\":\"12:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://vwimpex.com/products\",\"uniqueKey\":\"12:/products\",\"userData\":{\"candidateIndex\":12,\"dedupeKey\":\"vwimpex.com\",\"companyName\":\"VWIMPEX INDUSTRIAL MOTION - FZCO\",\"homepage\":\"https://vwimpex.com/contact-us\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:37.033Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "12:/products",
+  "url": "https://vwimpex.com/products"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "VBN28UiTDaz97UI",
+  "json": "{\"id\":\"VBN28UiTDaz97UI\",\"url\":\"https://jtekt.ae/contact-us\",\"loadedUrl\":\"https://jtekt.ae/contact-us\",\"uniqueKey\":\"14:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://jtekt.ae/contact-us\",\"uniqueKey\":\"14:/contact-us\",\"userData\":{\"candidateIndex\":14,\"dedupeKey\":\"jtekt.ae\",\"companyName\":\"JTEKT Sales Middle East FZCO\",\"homepage\":\"https://jtekt.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:49.194Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "14:/contact-us",
+  "url": "https://jtekt.ae/contact-us"
+}

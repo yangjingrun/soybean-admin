@@ -1,0 +1,9 @@
+{
+  "id": "sRZdymGGKRQPObc",
+  "json": "{\"id\":\"sRZdymGGKRQPObc\",\"url\":\"http://www.robelbearings.com/about\",\"loadedUrl\":\"https://www.robelbearings.com/about\",\"uniqueKey\":\"3:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.robelbearings.com/about\",\"uniqueKey\":\"3:/about\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"robelbearings.com\",\"companyName\":\"Robel Bearings (Robel Trading Co LLC)\",\"homepage\":\"http://www.robelbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:48.871Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "3:/about",
+  "url": "http://www.robelbearings.com/about"
+}

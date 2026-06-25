@@ -1,0 +1,9 @@
+{
+  "id": "aXnH8LlIIC7BOa5",
+  "json": "{\"id\":\"aXnH8LlIIC7BOa5\",\"url\":\"http://www.smsbearings.com/elevator\",\"loadedUrl\":\"https://www.smsbearings.com/elevator\",\"uniqueKey\":\"7:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.smsbearings.com/elevator\",\"uniqueKey\":\"7:/elevator\",\"userData\":{\"candidateIndex\":7,\"dedupeKey\":\"smsbearings.com\",\"companyName\":\"SMS Bearings FZCO\",\"homepage\":\"http://www.smsbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:14.350Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "7:/elevator",
+  "url": "http://www.smsbearings.com/elevator"
+}

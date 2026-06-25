@@ -1,0 +1,9 @@
+{
+  "id": "NB77FzEzFK3k3KE",
+  "json": "{\"id\":\"NB77FzEzFK3k3KE\",\"url\":\"https://www.rolman.com/contact-us\",\"loadedUrl\":\"https://rolman.com/contact-us\",\"uniqueKey\":\"13:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.rolman.com/contact-us\",\"uniqueKey\":\"13:/contact-us\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"rolman.com\",\"companyName\":\"Rolman World (HQ)\",\"homepage\":\"https://www.rolman.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:42.442Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "13:/contact-us",
+  "url": "https://www.rolman.com/contact-us"
+}

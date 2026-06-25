@@ -1,0 +1,9 @@
+{
+  "id": "PmHXTsrovZcifnJ",
+  "json": "{\"id\":\"PmHXTsrovZcifnJ\",\"url\":\"https://vwimpex.com/\",\"loadedUrl\":\"https://vwimpex.com/\",\"uniqueKey\":\"12:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://vwimpex.com/\",\"uniqueKey\":\"12:/\",\"userData\":{\"candidateIndex\":12,\"dedupeKey\":\"vwimpex.com\",\"companyName\":\"VWIMPEX INDUSTRIAL MOTION - FZCO\",\"homepage\":\"https://vwimpex.com/contact-us\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:37.041Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "12:/",
+  "url": "https://vwimpex.com/"
+}

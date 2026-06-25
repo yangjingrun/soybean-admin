@@ -1,0 +1,9 @@
+{
+  "id": "j7lrZg3UcYDAVR2",
+  "json": "{\"id\":\"j7lrZg3UcYDAVR2\",\"url\":\"https://jtekt.ae/elevator\",\"loadedUrl\":\"https://jtekt.ae/elevator\",\"uniqueKey\":\"14:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://jtekt.ae/elevator\",\"uniqueKey\":\"14:/elevator\",\"userData\":{\"candidateIndex\":14,\"dedupeKey\":\"jtekt.ae\",\"companyName\":\"JTEKT Sales Middle East FZCO\",\"homepage\":\"https://jtekt.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:50.245Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "14:/elevator",
+  "url": "https://jtekt.ae/elevator"
+}

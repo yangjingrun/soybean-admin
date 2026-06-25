@@ -1,0 +1,9 @@
+{
+  "id": "0OtW5Zbcz5yfOXP",
+  "json": "{\"id\":\"0OtW5Zbcz5yfOXP\",\"url\":\"http://www.qualitybearingsdubai.com/about-us\",\"loadedUrl\":\"https://www.qualitybearingsdubai.com/about-us\",\"uniqueKey\":\"1:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.qualitybearingsdubai.com/about-us\",\"uniqueKey\":\"1:/about-us\",\"userData\":{\"candidateIndex\":1,\"dedupeKey\":\"qualitybearingsdubai.com\",\"companyName\":\"QUALITY BEARINGS (NSK SKF RHP INA FYH IKO TIMKEN) - V BELTS, SPRINGS, PULLEYS, ROLLER CHAINS, SPROCKETS, COUPLINGS, SEALS\",\"homepage\":\"http://www.qualitybearingsdubai.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:21.265Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "1:/about-us",
+  "url": "http://www.qualitybearingsdubai.com/about-us"
+}

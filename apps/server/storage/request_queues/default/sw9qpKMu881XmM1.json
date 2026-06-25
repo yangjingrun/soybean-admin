@@ -1,0 +1,9 @@
+{
+  "id": "sw9qpKMu881XmM1",
+  "json": "{\"id\":\"sw9qpKMu881XmM1\",\"url\":\"http://www.robelbearings.com/elevator\",\"loadedUrl\":\"https://www.robelbearings.com/elevator\",\"uniqueKey\":\"3:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.robelbearings.com/elevator\",\"uniqueKey\":\"3:/elevator\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"robelbearings.com\",\"companyName\":\"Robel Bearings (Robel Trading Co LLC)\",\"homepage\":\"http://www.robelbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:50.408Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "3:/elevator",
+  "url": "http://www.robelbearings.com/elevator"
+}

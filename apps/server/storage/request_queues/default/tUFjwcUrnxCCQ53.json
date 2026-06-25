@@ -1,0 +1,9 @@
+{
+  "id": "tUFjwcUrnxCCQ53",
+  "json": "{\"id\":\"tUFjwcUrnxCCQ53\",\"url\":\"https://www.rolman.com/products\",\"loadedUrl\":\"https://rolman.com/products\",\"uniqueKey\":\"13:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.rolman.com/products\",\"uniqueKey\":\"13:/products\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"rolman.com\",\"companyName\":\"Rolman World (HQ)\",\"homepage\":\"https://www.rolman.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:46.033Z\"}",
+  "method": "GET",
+  "orderNo": null,
+  "retryCount": 0,
+  "uniqueKey": "13:/products",
+  "url": "https://www.rolman.com/products"
+}
