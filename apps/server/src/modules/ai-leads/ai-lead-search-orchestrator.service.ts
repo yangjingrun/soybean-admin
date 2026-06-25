@@ -501,7 +501,7 @@ export class AiLeadSearchOrchestrator {
       type: 'step_started',
       stepKey: 'crawl_websites',
       title: '采集官网证据',
-      description: `正在补充 ${candidates.length} 个客户的官网公开信息`,
+      description: `正在深度采集 ${candidates.length} 个客户信息`,
       progressPercent: 90,
       metrics: this.toProgressMetrics(0, candidates.length, candidates.length, 0)
     });
