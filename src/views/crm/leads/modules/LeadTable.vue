@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NButton, NDataTable, NDropdown, NEmpty, NSpace, NSpin, NTag } from 'naive-ui';
+import { NButton, NDataTable, NDropdown, NEmpty, NSpace, NSpin, NTag, NTooltip } from 'naive-ui';
 import type { DataTableColumns, DataTableRowKey } from 'naive-ui';
+import SvgIcon from '@/components/custom/svg-icon.vue';
 import {
   buildLeadEmailProgressView,
   buildLeadExpandedContactView,
@@ -9,6 +10,7 @@ import {
   canCreateSequenceFromLeadAccountContact,
   canCreateSequenceFromLeadRecord,
   formatLeadDate,
+  getLeadCompanySocialLinks,
   getWebsiteHref,
   leadEmailStatusLabelMap,
   leadEmailStatusTagTypeMap,
@@ -49,6 +51,7 @@ const emit = defineEmits<{
 
 function renderCompany(row: Api.Crm.LeadRecord) {
   const href = row.websiteUrl || row.domain ? getWebsiteHref(row.websiteUrl || row.domain || '') : '';
+  const socialLinks = getLeadCompanySocialLinks(row);
   const companyNode = href
     ? h(
         'a',
@@ -63,7 +66,41 @@ function renderCompany(row: Api.Crm.LeadRecord) {
       )
     : h('span', { class: 'lead-company-name' }, row.name);
 
-  return h('div', { class: 'lead-company-cell' }, companyNode);
+  return h('div', { class: 'lead-company-cell' }, [
+    companyNode,
+    socialLinks.length
+      ? h(
+          'div',
+          { class: 'lead-company-social-row' },
+          socialLinks.map(link => renderCompanySocialLink(link))
+        )
+      : null
+  ]);
+}
+
+function renderCompanySocialLink(link: ReturnType<typeof getLeadCompanySocialLinks>[number]) {
+  return h(
+    NTooltip,
+    {
+      trigger: 'hover',
+      placement: 'top'
+    },
+    {
+      trigger: () =>
+        h(
+          'a',
+          {
+            class: 'lead-company-social-link',
+            href: link.url,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            'aria-label': `打开 ${link.label}`
+          },
+          h(SvgIcon, { icon: link.icon, class: 'lead-company-social-icon' })
+        ),
+      default: () => link.label
+    }
+  );
 }
 
 function renderContactSummary(row: Api.Crm.LeadRecord) {
@@ -375,7 +412,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'name',
       title: '公司 / 官网',
-      width: 220,
+      width: 250,
       render: row => renderCompany(row)
     },
     {
@@ -541,7 +578,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1270"
+        :scroll-x="1300"
         size="small"
         remote
         @update:checked-row-keys="handleCheckedRowKeysUpdate"
@@ -582,7 +619,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 }
 
 :deep(.lead-company-cell) {
-  max-width: 200px;
+  max-width: 230px;
 }
 
 :deep(.lead-contact-cell),
@@ -624,6 +661,41 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 
 :deep(.lead-company-link:hover) {
   color: rgb(var(--primary-color) / 0.82);
+}
+
+:deep(.lead-company-social-row) {
+  display: flex;
+  align-items: center;
+  flex-flow: row wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+:deep(.lead-company-social-link) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgb(var(--border-color));
+  border-radius: 6px;
+  color: var(--n-text-color-2);
+  text-decoration: none;
+  background-color: var(--n-color);
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+:deep(.lead-company-social-link:hover) {
+  border-color: rgb(var(--primary-color) / 0.42);
+  color: rgb(var(--primary-color) / 0.92);
+  background-color: rgb(var(--primary-color) / 0.08);
+}
+
+:deep(.lead-company-social-icon) {
+  font-size: 15px;
 }
 
 .table-pagination {

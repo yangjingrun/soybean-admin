@@ -15,6 +15,7 @@ import {
   formatLeadProgressTime,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
+  getLeadCompanySocialLinks,
   getLeadNextAction,
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
@@ -326,6 +327,47 @@ describe('crm lead shared helpers', () => {
     assert.equal(formatLeadWebsiteDisplay({ websiteUrl: null, domain: null }), '-');
   });
 
+  it('reads company social links from imported website evidence', () => {
+    const links = getLeadCompanySocialLinks(
+      createLeadRecord({
+        sourceSnapshot: {
+          websiteEvidence: {
+            socialLinks: [
+              'https://www.linkedin.com/company/bearing-house/',
+              'https://facebook.com/bearinghouse',
+              'https://www.linkedin.com/company/bearing-house'
+            ],
+            whatsappLinks: ['https://wa.me/902163128000']
+          }
+        }
+      })
+    );
+
+    assert.deepEqual(
+      links.map(link => ({ channel: link.channel, label: link.label, icon: link.icon, url: link.url })),
+      [
+        {
+          channel: 'linkedin',
+          label: 'LinkedIn',
+          icon: 'mdi:linkedin',
+          url: 'https://www.linkedin.com/company/bearing-house/'
+        },
+        {
+          channel: 'facebook',
+          label: 'Facebook',
+          icon: 'mdi:facebook',
+          url: 'https://facebook.com/bearinghouse'
+        },
+        {
+          channel: 'whatsapp',
+          label: 'WhatsApp',
+          icon: 'mdi:whatsapp',
+          url: 'https://wa.me/902163128000'
+        }
+      ]
+    );
+  });
+
   it('formats contact email progress with full datetime text', () => {
     assert.equal(formatLeadProgressTime('2026-06-24T08:20:00.000Z'), '2026-06-24 16:20:00');
     assert.equal(formatLeadProgressTime(null), '-');
@@ -575,6 +617,7 @@ function createLeadRecord(input: Partial<Api.Crm.LeadRecord> = {}): Api.Crm.Lead
     customerType: input.customerType ?? null,
     status: input.status ?? 'candidate',
     sourceTaskId: input.sourceTaskId ?? null,
+    sourceSnapshot: input.sourceSnapshot ?? null,
     archivedAt: input.archivedAt ?? null,
     archiveReason: input.archiveReason ?? null,
     archiveSlimmedAt: input.archiveSlimmedAt ?? null,

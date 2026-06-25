@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { getCrmRegionKeywords } from '@/utils/crm-region-cascader';
+import { buildSocialLinkViews, type SocialLinkView } from '@/utils/social-links';
 
 export const leadStatusOptions = [
   { label: '候选线索', value: 'candidate' },
@@ -22,6 +23,8 @@ export const crmLeadPageGuide = {
   title: '客户开发台承接 AI 获客结果',
   description: '以公司管理客户、以联系人推进触达；可开发联系人生成开发信后，可直接查看邮箱进度和调度信息。'
 };
+
+export type CrmLeadCompanySocialLink = SocialLinkView;
 
 export const leadStatusLabelMap: Record<Api.Crm.CrmAccountStatus, string> = {
   candidate: '候选线索',
@@ -691,4 +694,34 @@ export function formatLeadWebsiteDisplay(input: Pick<Api.Crm.LeadRecord, 'websit
   if (!input.websiteUrl) return '-';
 
   return new URL(getWebsiteHref(input.websiteUrl)).hostname;
+}
+
+/** Reads company-level social channels saved from AI lead website evidence. */
+export function getLeadCompanySocialLinks(
+  record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>
+): CrmLeadCompanySocialLink[] {
+  const evidence = readLeadWebsiteEvidence(record.sourceSnapshot);
+
+  return buildSocialLinkViews([
+    ...readStringArray(evidence?.socialLinks),
+    ...readStringArray(evidence?.whatsappLinks)
+  ]);
+}
+
+function readLeadWebsiteEvidence(sourceSnapshot: Record<string, unknown> | null | undefined) {
+  const evidence = sourceSnapshot?.websiteEvidence;
+
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) {
+    return null;
+  }
+
+  return evidence as { socialLinks?: unknown; whatsappLinks?: unknown };
+}
+
+function readStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()));
 }

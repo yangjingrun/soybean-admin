@@ -87,6 +87,7 @@ declare namespace Api {
       customerType: string | null;
       status: CrmAccountStatus;
       sourceTaskId: string | null;
+      sourceSnapshot?: Record<string, unknown> | null;
       archivedAt: string | null;
       archiveReason: string | null;
       archiveSlimmedAt: string | null;

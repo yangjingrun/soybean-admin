@@ -144,6 +144,7 @@ export interface CrmAccountRecord {
   customerType: string | null;
   status: CrmAccountStatus;
   sourceTaskId: string | null;
+  sourceSnapshot?: Record<string, unknown> | null;
   archivedAt: Date | null;
   archiveReason: string | null;
   archiveSlimmedAt: Date | null;
