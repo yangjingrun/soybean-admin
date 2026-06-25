@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-25 AI 获客 BullMQ failed 必须回写业务任务状态
+
+- 场景：AI 获客任务停在“分析客户精准度”94%，日志里 `lead_match_analyze` 已开始调用 OpenRouter 大模型，但没有成功/失败日志；随后 BullMQ job 记录 `job stalled more than allowable limit`。
+- 坑点：BullMQ job 已经 failed 不等于 `AiLeadSearchTask.status` 会自动变更。如果 worker host 的 `failed` 监听只写系统日志、不按 `taskId + runVersion` 回写任务，前端会一直按 `running` 轮询并显示卡在旧进度。另一个展示坑是任务已 completed/failed 时，如果前端继续沿用最后一条 running progress event，会出现“已结束但进度 94%”或“失败但标题仍在分析”的错觉。
+- 正确做法：`worker.on('failed')` 要调用 worker service，用 `status + runVersion` guard 把仍处于 `queued/running` 的业务任务置为 `failed`，写任务事件并发失败通知；AI SDK 调用要设置总超时，避免外部模型长期无返回；前端恢复 completed/failed 任务时以任务终态为准，completed 强制 100%，failed 强制失败标题和描述。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-search-task-worker-host.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`apps/server/src/modules/ai-gateway/ai-gateway.service.ts`、`apps/server/src/modules/ai-gateway/ai-sdk-text-generator.service.ts`、`src/views/ai-leads/modules/search-progress.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts` 和 `pnpm exec tsx --test src/views/ai-leads/modules/search-progress.spec.ts`，确认 BullMQ failed 会回写任务失败、发通知，大模型参数包含超时，前端终态显示不再残留旧进度。
+
 ### 2026-06-25 AI 获客 crawler 证据导入 CRM 必须持久化 sourceSnapshot
 
 - 场景：AI 获客任务的官网 crawler 已经采到 `websiteEvidence.socialLinks/whatsappLinks/emails/contactLinks`，但 CRM 客户开发台“社媒”列显示 `-`。

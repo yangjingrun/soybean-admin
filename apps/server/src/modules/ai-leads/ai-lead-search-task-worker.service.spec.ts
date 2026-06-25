@@ -709,6 +709,55 @@ describe('AiLeadSearchTaskWorkerService', () => {
     assert.ok(task.result);
   });
 
+  it('marks the running task failed when BullMQ reports the active job failed', async () => {
+    const events: AiLeadSearchTaskEventInput[] = [];
+    const notifications: Array<{ type: string; title: string; content: string }> = [];
+    const task = createTask({ status: 'running', bullJobId: 'ai-lead-search-task__task-1__1' });
+    const store = createTaskStore({
+      task,
+      queries: [],
+      onEvent(input) {
+        events.push(input);
+      }
+    });
+    const notificationService = {
+      async create(input: { type: string; title: string; content: string }) {
+        notifications.push(input);
+      }
+    };
+    const worker = new AiLeadSearchTaskWorkerService(
+      store,
+      {} as AiLeadSearchOrchestrator,
+      notificationService as never
+    );
+
+    await (
+      worker as unknown as {
+        handleQueueJobFailed(job: { taskId: string; runVersion: number }, error: Error): Promise<void>;
+      }
+    ).handleQueueJobFailed(
+      { taskId: task.id, runVersion: task.runVersion },
+      new Error('job stalled more than allowable limit')
+    );
+
+    assert.equal(task.status, 'failed');
+    assert.equal(task.errorMessage, 'job stalled more than allowable limit');
+    assert.equal(task.finishedAt instanceof Date, true);
+    assert.deepEqual(events[0], {
+      taskId: task.id,
+      eventType: 'task_queue_job_failed',
+      title: '采集任务队列执行失败',
+      message: 'job stalled more than allowable limit',
+      fromStatus: 'running',
+      toStatus: 'failed',
+      metadata: null
+    });
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].type, 'task_failed');
+    assert.equal(notifications[0].title, '采集任务失败');
+    assert.equal(notifications[0].content, 'job stalled more than allowable limit');
+  });
+
   it('does not recover running tasks that still have active queue jobs', async () => {
     const recoveredJobIdGroups: string[][] = [];
     const task = createTask({ status: 'running', bullJobId: 'task-live:1' });
@@ -803,9 +852,14 @@ describe('AiLeadSearchTaskWorkerService', () => {
 
   it('records worker host failed jobs through the injected log service', async () => {
     const logRecorder = createLogRecorder();
+    const failedJobs: Array<{ taskId: string; runVersion: number }> = [];
     const host = new AiLeadSearchTaskWorkerHost(
       { createBullMqConnectionOptions: () => ({}) } as never,
-      {} as AiLeadSearchTaskWorkerService,
+      {
+        async handleQueueJobFailed(job: { taskId: string; runVersion: number }) {
+          failedJobs.push(job);
+        }
+      } as unknown as AiLeadSearchTaskWorkerService,
       {
         async getConfig() {
           return { configKey: 'ai-lead-search', workerConcurrency: 1, priorityStrategy: 'fifo', updatedAt: new Date() };
@@ -826,6 +880,7 @@ describe('AiLeadSearchTaskWorkerService', () => {
       new Error('worker failed')
     );
 
+    assert.deepEqual(failedJobs, [{ taskId: 'task-1', runVersion: 1, priority: 0 }]);
     assert.deepEqual(logRecorder.records[0], {
       level: 'error',
       status: 'failed',

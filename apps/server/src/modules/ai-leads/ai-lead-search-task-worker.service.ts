@@ -64,6 +64,50 @@ export class AiLeadSearchTaskWorkerService {
     );
   }
 
+  /** Mirrors BullMQ terminal job failures back to the persisted business task. */
+  async handleQueueJobFailed(job: Pick<AiLeadSearchTaskQueueJob, 'taskId' | 'runVersion'> | undefined, error: unknown) {
+    if (!job) {
+      return;
+    }
+
+    const task = await this.taskStore.findTaskById(job.taskId);
+
+    if (!task || isStaleRunVersion(task, job.runVersion) || !['queued', 'running'].includes(task.status)) {
+      return;
+    }
+
+    const fromStatus = task.status;
+    const message = error instanceof Error ? error.message : String(error);
+    const failedTask = await this.taskStore.updateTask(
+      task.id,
+      {
+        status: 'failed',
+        errorMessage: message,
+        finishedAt: new Date()
+      },
+      {
+        status: ['queued', 'running'],
+        runVersion: job.runVersion
+      }
+    );
+
+    if (!failedTask) {
+      return;
+    }
+
+    await this.createTaskEventSafely(
+      createTaskStateChangeEvent({
+        taskId: task.id,
+        eventType: 'task_queue_job_failed',
+        fromStatus,
+        toStatus: 'failed',
+        title: '采集任务队列执行失败',
+        message
+      })
+    );
+    await this.createTaskNotificationSafely(task, 'task_failed', '采集任务失败', message || 'AI 获客采集任务失败');
+  }
+
   /** Processes one BullMQ job and persists query checkpoints for resume/retry. */
   async processTaskJob(job: AiLeadSearchTaskQueueJob) {
     const task = await this.taskStore.findTaskById(job.taskId);

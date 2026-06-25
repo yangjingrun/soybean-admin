@@ -106,7 +106,8 @@ describe('AiGatewayService', () => {
       systemPrompt: 'You generate B2B search keywords.',
       prompt: '找沙特轴承进口商',
       temperature: 0.2,
-      maxOutputTokens: 400
+      maxOutputTokens: 400,
+      timeout: { totalMs: 300_000 }
     });
     assert.equal(result.text, '["bearing importer saudi arabia"]');
     assert.equal(result.usage.totalTokens, 20);
@@ -429,8 +430,11 @@ describe('AiGatewayService', () => {
     assert.equal(result.success, true);
     assert.equal(result.validationResult?.ok, true);
     assert.equal(result.outputText, createValidMapsOutputText());
-    assert.equal(captured?.systemPrompt, createValidMapsPromptText());
-    assert.equal(captured?.prompt, '找纽约轴承经销商');
+    const promptDraftParams = captured as AiTextGenerateParams | null;
+
+    assert.ok(promptDraftParams);
+    assert.equal(promptDraftParams.systemPrompt, createValidMapsPromptText());
+    assert.equal(promptDraftParams.prompt, '找纽约轴承经销商');
     assert.equal((await promptStore.getLatestPromptTestRun('lead_maps_keyword_optimize'))?.success, true);
   });
 

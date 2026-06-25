@@ -20,6 +20,7 @@ export interface AiTextGenerateParams {
   promptKey?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  timeout?: { totalMs: number };
 }
 
 export interface AiTextGenerator {

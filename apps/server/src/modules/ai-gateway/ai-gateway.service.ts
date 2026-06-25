@@ -53,6 +53,8 @@ import type {
   TestAiPromptDraftPayload
 } from './ai-gateway.types';
 
+const defaultAiTextGenerationTimeoutMs = 5 * 60 * 1000;
+
 @Injectable()
 export class AiGatewayService {
   constructor(
@@ -316,7 +318,8 @@ export class AiGatewayService {
         systemPrompt,
         promptKey,
         temperature: modelConfig.temperature,
-        maxOutputTokens: modelConfig.maxOutputTokens
+        maxOutputTokens: modelConfig.maxOutputTokens,
+        timeout: { totalMs: defaultAiTextGenerationTimeoutMs }
       });
       const validationResult = validateAiPromptOutput(promptKey, result.text);
       const record = await this.promptStore.recordPromptTestRun({
@@ -554,7 +557,8 @@ export class AiGatewayService {
       prompt: dto.prompt.trim(),
       systemPrompt,
       temperature: dto.temperature ?? modelConfig.temperature,
-      maxOutputTokens: dto.maxOutputTokens ?? modelConfig.maxOutputTokens
+      maxOutputTokens: dto.maxOutputTokens ?? modelConfig.maxOutputTokens,
+      timeout: { totalMs: defaultAiTextGenerationTimeoutMs }
     };
 
     if (promptKey) {

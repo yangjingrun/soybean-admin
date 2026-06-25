@@ -63,6 +63,9 @@ export function createLeadSearchProgressStateFromTask(task: Api.AiLeads.TaskReco
     return {
       ...progressState,
       status: 'failed',
+      steps: progressState.steps.map(step => (step.status === 'active' ? { ...step, status: 'failed' } : step)),
+      currentTitle: baseState.currentTitle,
+      currentDescription: baseState.currentDescription,
       errorMessage: task.errorMessage || progressState.errorMessage || '后台采集任务失败，请稍后重试'
     };
   }
@@ -71,12 +74,18 @@ export function createLeadSearchProgressStateFromTask(task: Api.AiLeads.TaskReco
     return progressState;
   }
 
+  const isProgressCompleted = progressState.status === 'completed';
+
   return {
     ...progressState,
     status: 'completed',
-    currentTitle: progressState.currentTitle || '搜索采集完成',
-    currentDescription: progressState.currentDescription || '后台采集任务已完成。',
-    progressPercent: progressState.progressPercent ?? 100,
+    steps: progressState.steps.map(step => (step.status === 'active' ? { ...step, status: 'completed' } : step)),
+    currentTitle: '搜索采集完成',
+    currentDescription:
+      isProgressCompleted && progressState.currentDescription
+        ? progressState.currentDescription
+        : baseState.currentDescription,
+    progressPercent: 100,
     result: task.result ? normalizeTaskSearchResult(task.result) : progressState.result
   };
 }

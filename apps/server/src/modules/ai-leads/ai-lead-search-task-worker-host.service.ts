@@ -67,6 +67,7 @@ export class AiLeadSearchTaskWorkerHost implements OnModuleInit, OnModuleDestroy
 
   /** Records BullMQ failed events so queue operations failures are visible in business logs. */
   async recordWorkerJobFailed(job: Job<AiLeadSearchTaskQueueJob> | undefined, error: Error) {
+    await this.workerService.handleQueueJobFailed(job?.data, error);
     await this.recordWorkerLog('worker-job-failed', 'AI 获客 worker job 执行失败', error, {
       jobId: job?.id,
       taskId: job?.data.taskId,

@@ -234,6 +234,35 @@ describe('ai leads search progress state', () => {
     assert.equal(state.result?.warnings?.[0], '部分线索缺少电话');
   });
 
+  it('forces completed task progress to 100 when the last persisted event is still running', () => {
+    const state = createLeadSearchProgressStateFromTask(
+      createTaskRecord({
+        status: 'completed',
+        progressState: {
+          type: 'step_started',
+          runId: 'run-1',
+          sequence: 9,
+          emittedAt: '2026-06-18T00:00:09.000Z',
+          stepKey: 'analyze_precision',
+          title: '分析客户精准度',
+          progressPercent: 94
+        },
+        result: {
+          keywordOptimization: createKeywordPlan(),
+          keywordOptimizationText: JSON.stringify(createKeywordPlan()),
+          serperRequests: [],
+          serperResults: [],
+          decisions: [],
+          candidates: [],
+          stopReason: '所有查询已完成'
+        }
+      })
+    );
+
+    assert.equal(state.status, 'completed');
+    assert.equal(state.progressPercent, 100);
+  });
+
   it('normalizes raw organic task candidates into public candidate fields', () => {
     const state = createLeadSearchProgressStateFromTask(
       createTaskRecord({
@@ -339,6 +368,8 @@ describe('ai leads search progress state', () => {
     );
 
     assert.equal(state.status, 'failed');
+    assert.equal(state.currentTitle, '采集任务失败');
+    assert.equal(state.currentDescription, 'Serper 调用失败');
     assert.equal(state.errorMessage, 'Serper 调用失败');
     assert.equal(state.progressPercent, 46);
   });

@@ -19,7 +19,8 @@ export class AiSdkTextGenerator implements AiTextGenerator {
         prompt: params.prompt,
         system: params.systemPrompt,
         temperature: params.temperature,
-        maxOutputTokens: params.maxOutputTokens
+        maxOutputTokens: params.maxOutputTokens,
+        timeout: params.timeout
       });
 
       return {
