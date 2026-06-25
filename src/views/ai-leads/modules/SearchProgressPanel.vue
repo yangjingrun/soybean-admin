@@ -148,7 +148,7 @@ const socialColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
               h(
                 'a',
                 {
-                  class: 'candidate-social-link',
+                  class: ['candidate-social-link', `social-brand-link--${link.channel}`],
                   href: link.url,
                   target: '_blank',
                   rel: 'noopener noreferrer',
@@ -775,8 +775,8 @@ function getPrecisionTooltipItems(row: AiLeadCandidateImportRow) {
   justify-content: center;
   border: 1px solid #dbe4f0;
   border-radius: 6px;
-  color: #3f587c;
-  background: #ffffff;
+  color: var(--social-brand-color, #3f587c);
+  background: var(--social-brand-bg, #ffffff);
   text-decoration: none;
   transition:
     border-color 0.2s ease,
@@ -785,9 +785,9 @@ function getPrecisionTooltipItems(row: AiLeadCandidateImportRow) {
 }
 
 :deep(.candidate-social-link:hover) {
-  border-color: var(--progress-primary);
-  color: var(--progress-primary);
-  background: var(--progress-primary-soft);
+  border-color: var(--social-brand-border, var(--progress-primary));
+  color: var(--social-brand-color, var(--progress-primary));
+  background: var(--social-brand-bg-hover, var(--progress-primary-soft));
 }
 
 :deep(.candidate-social-icon) {

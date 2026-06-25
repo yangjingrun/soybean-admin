@@ -94,7 +94,7 @@ function renderCompanySocialLink(link: ReturnType<typeof getLeadCompanySocialLin
         h(
           'a',
           {
-            class: 'lead-company-social-link',
+            class: ['lead-company-social-link', `social-brand-link--${link.channel}`],
             href: link.url,
             target: '_blank',
             rel: 'noopener noreferrer',
@@ -689,9 +689,9 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   height: 24px;
   border: 1px solid rgb(var(--border-color));
   border-radius: 6px;
-  color: var(--n-text-color-2);
+  color: var(--social-brand-color, var(--n-text-color-2));
   text-decoration: none;
-  background-color: var(--n-color);
+  background-color: var(--social-brand-bg, var(--n-color));
   transition:
     color 0.2s,
     border-color 0.2s,
@@ -699,9 +699,9 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 }
 
 :deep(.lead-company-social-link:hover) {
-  border-color: rgb(var(--primary-color) / 0.42);
-  color: rgb(var(--primary-color) / 0.92);
-  background-color: rgb(var(--primary-color) / 0.08);
+  border-color: var(--social-brand-border, rgb(var(--primary-color) / 0.42));
+  color: var(--social-brand-color, rgb(var(--primary-color) / 0.92));
+  background-color: var(--social-brand-bg-hover, rgb(var(--primary-color) / 0.08));
 }
 
 :deep(.lead-company-social-icon) {
