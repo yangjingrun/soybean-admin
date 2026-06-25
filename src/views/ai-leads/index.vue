@@ -331,6 +331,7 @@ async function handleStartKeywordResultEdit() {
   --ai-leads-error: rgb(var(--error-color));
   --ai-leads-ink: #1f2937;
   --ai-leads-text-weak: #667085;
+  container: ai-leads-content / inline-size;
   min-width: 0;
 }
 
@@ -545,7 +546,7 @@ async function handleStartKeywordResultEdit() {
   min-height: 320px;
 }
 
-@media (max-width: 768px) {
+@container ai-leads-content (max-width: 900px) {
   .task-card :deep(.n-card__content) {
     padding: 10px 12px;
   }
@@ -646,7 +647,7 @@ async function handleStartKeywordResultEdit() {
   }
 }
 
-@media (max-width: 480px) {
+@container ai-leads-content (max-width: 520px) {
   .task-card :deep(.n-card__content),
   .result-card :deep(.result-card-content) {
     padding: 10px;
@@ -669,6 +670,12 @@ async function handleStartKeywordResultEdit() {
   .result-empty,
   .lead-workflow-skeleton {
     min-height: 260px;
+  }
+}
+
+@media (max-width: 640px) {
+  .skeleton-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

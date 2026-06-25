@@ -133,12 +133,13 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /\.result-card\s+:deep\(\.result-card-content\)\s*\{[^}]*padding: 16px;/);
   });
 
-  it('keeps the AI leads workspace usable on small screens', () => {
-    assert.match(pageSource, /@media \(max-width: 768px\)/);
+  it('keeps the right content workspace usable when the main area is narrow', () => {
+    assert.match(pageSource, /container: ai-leads-content \/ inline-size;/);
+    assert.match(pageSource, /@container ai-leads-content \(max-width: 900px\)/);
     assert.match(pageSource, /\.lead-source-mode\s+:deep\(\.n-radio-group\)\s*\{[^}]*width: 100%;/);
     assert.match(pageSource, /\.lead-count-input\s*\{[^}]*width: 100%;/);
     assert.match(pageSource, /\.task-toolbar-actions\s+:deep\(\.n-space-item\)\s*\{[^}]*flex: 1 1 132px;/);
     assert.match(pageSource, /\.result-actions\s+:deep\(\.n-space-item\)\s*\{[^}]*flex: 1 1 132px;/);
-    assert.match(pageSource, /@media \(max-width: 480px\)/);
+    assert.match(pageSource, /@container ai-leads-content \(max-width: 520px\)/);
   });
 });
