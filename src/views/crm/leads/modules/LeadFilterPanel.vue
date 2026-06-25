@@ -6,13 +6,10 @@ import { leadStatusOptions } from './shared';
 
 defineProps<{
   model: Api.Crm.LeadFilterModel;
-  clearingOutreachState?: boolean;
   loading?: boolean;
 }>();
 
 const emit = defineEmits<{
-  clearOutreachState: [];
-  create: [];
   reset: [];
   search: [];
 }>();
@@ -44,15 +41,6 @@ const emit = defineEmits<{
       <NDatePicker v-model:value="model.updatedAtRange" clearable type="daterange" class="lead-filter-date" />
     </NFormItemGi>
     <template #actions>
-      <NButton type="primary" ghost @click="emit('create')">新增客户</NButton>
-      <NPopconfirm positive-text="确认清除" negative-text="取消" @positive-click="emit('clearOutreachState')">
-        <template #trigger>
-          <NButton type="error" secondary :loading="clearingOutreachState" :disabled="loading || clearingOutreachState">
-            清除开发信状态
-          </NButton>
-        </template>
-        会删除当前用户的开发信任务、邮件草稿、AI 草稿任务和相关开发信时间线，并将相关客户恢复为可触达。
-      </NPopconfirm>
       <NButton :loading="loading" type="primary" @click="emit('search')">查询</NButton>
       <NButton :disabled="loading" @click="emit('reset')">重置</NButton>
     </template>

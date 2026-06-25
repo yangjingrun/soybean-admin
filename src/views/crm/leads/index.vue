@@ -83,10 +83,7 @@ const {
 
     <LeadFilterPanel
       :model="filterModel"
-      :clearing-outreach-state="clearingOutreachState"
       :loading="loading"
-      @clear-outreach-state="handleClearOutreachState"
-      @create="openImportModal"
       @search="handleSearch"
       @reset="handleReset"
     />
@@ -98,6 +95,7 @@ const {
       :checked-row-keys="checkedLeadRowKeys"
       :checked-sequence-target-count="checkedLeadSequenceTargets.length"
       :loading="loading"
+      :clearing-outreach-state="clearingOutreachState"
       :archive-operating-id="archiveOperatingId"
       :expanded-lead-details="expandedLeadDetails"
       :expanded-lead-failed-ids="expandedLeadFailedIds"
@@ -110,6 +108,8 @@ const {
       @open-communication="openLeadDetail"
       @archive="handleArchiveLead"
       @batch-create-sequence="handleOpenBatchSequenceCreateModal"
+      @clear-outreach-state="handleClearOutreachState"
+      @create="openImportModal"
       @create-sequence="handleCreateSequenceFromContact"
       @load-expanded-contacts="loadExpandedLeadDetail"
       @restore="handleRestoreLead"

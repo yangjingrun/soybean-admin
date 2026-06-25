@@ -25,6 +25,7 @@ const props = defineProps<{
   records: Api.Crm.LeadRecord[];
   loading?: boolean;
   archiveOperatingId?: string | null;
+  clearingOutreachState?: boolean;
   expandedLeadDetails?: Record<string, Api.Crm.LeadDetail>;
   expandedLeadFailedIds?: string[];
   expandedLeadLoadingIds?: string[];
@@ -38,6 +39,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   archive: [record: Api.Crm.LeadRecord];
   batchCreateSequence: [];
+  clearOutreachState: [];
+  create: [];
   createSequence: [contact: Api.Crm.LeadContact];
   loadExpandedContacts: [accountId: string];
   restore: [record: Api.Crm.LeadRecord];
@@ -570,15 +573,35 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   <NCard :bordered="false" size="small" class="card-wrapper" title="">
     <NSpace vertical :size="12">
       <div class="table-toolbar">
-        <span class="lead-secondary-text">已选 {{ checkedSequenceTargetCount ?? 0 }} 个可生成联系人</span>
-        <NButton
-          size="small"
-          type="primary"
-          :disabled="!checkedSequenceTargetCount"
-          @click="emit('batchCreateSequence')"
-        >
-          批量生成开发信
-        </NButton>
+        <NSpace align="center" :size="8" wrap>
+          <NButton size="small" type="primary" ghost @click="emit('create')">新增客户</NButton>
+          <NPopconfirm positive-text="确认清除" negative-text="取消" @positive-click="emit('clearOutreachState')">
+            <template #trigger>
+              <NButton
+                size="small"
+                type="error"
+                secondary
+                :loading="clearingOutreachState"
+                :disabled="loading || clearingOutreachState"
+              >
+                清除开发信状态
+              </NButton>
+            </template>
+            会删除当前用户的开发信任务、邮件草稿、AI 草稿任务和相关开发信时间线，并将相关客户恢复为可触达。
+          </NPopconfirm>
+        </NSpace>
+
+        <NSpace align="center" :size="8" wrap>
+          <span class="lead-secondary-text">已选 {{ checkedSequenceTargetCount ?? 0 }} 个可生成联系人</span>
+          <NButton
+            size="small"
+            type="primary"
+            :disabled="!checkedSequenceTargetCount"
+            @click="emit('batchCreateSequence')"
+          >
+            批量生成开发信
+          </NButton>
+        </NSpace>
       </div>
 
       <NDataTable
@@ -716,8 +739,9 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 .table-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .lead-expanded-panel {
