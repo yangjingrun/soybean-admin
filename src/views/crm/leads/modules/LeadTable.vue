@@ -20,6 +20,13 @@ import {
   type LeadCommunicationTab
 } from './shared';
 
+/** 客户表格内长文本 tooltip 统一换行，避免英文长句或 URL 撑出屏幕。 */
+const leadTableTooltipProps = {
+  trigger: 'hover',
+  placement: 'top',
+  contentClass: 'lead-table-tooltip-content'
+} as const;
+
 const props = defineProps<{
   checkedRowKeys?: string[];
   checkedSequenceTargetCount?: number;
@@ -149,10 +156,7 @@ function renderLeadSource(row: Api.Crm.LeadRecord) {
 
   return h(
     NTooltip,
-    {
-      trigger: 'hover',
-      placement: 'top'
-    },
+    leadTableTooltipProps,
     {
       trigger: () => h('div', { class: 'lead-source-cell' }, [labelTag]),
       default: () => source.sourceReason || source.sourceUrl || source.sourceTypeLabel
@@ -174,9 +178,8 @@ function renderLeadCustomerClassification(row: Api.Crm.LeadRecord) {
       h(
         NTooltip,
         {
+          ...leadTableTooltipProps,
           key: tag.key,
-          trigger: 'hover',
-          placement: 'top'
         },
         {
           trigger: () =>
@@ -205,10 +208,7 @@ function renderLeadPrecision(row: Api.Crm.LeadRecord) {
 
   return h(
     NTooltip,
-    {
-      trigger: 'hover',
-      placement: 'top'
-    },
+    leadTableTooltipProps,
     {
       trigger: () =>
         h('div', { class: 'lead-precision-cell' }, [
@@ -261,10 +261,7 @@ function renderLeadLocation(row: Api.Crm.LeadRecord) {
 function renderCompanySocialLink(link: ReturnType<typeof getLeadCompanySocialLinks>[number]) {
   return h(
     NTooltip,
-    {
-      trigger: 'hover',
-      placement: 'top'
-    },
+    leadTableTooltipProps,
     {
       trigger: () =>
         h(
@@ -804,6 +801,14 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 
 :deep(.lead-precision-tooltip) {
   max-width: 320px;
+}
+
+:deep(.lead-table-tooltip-content) {
+  max-width: min(520px, calc(100vw - 48px));
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 :deep(.lead-precision-tooltip-line) {
