@@ -501,7 +501,8 @@ describe('crm lead shared helpers', () => {
       })
     );
 
-    assert.equal(source.sourceLabel, '公开线索');
+    assert.equal(source.sourceLabel, '官网获客');
+    assert.equal(source.sourceTagType, 'info');
     assert.equal(source.sourceUrl, 'https://google.example/result');
     assert.deepEqual(
       source.classificationTags.map(tag => ({ key: tag.key, label: tag.label, type: tag.type })),
@@ -542,9 +543,12 @@ describe('crm lead shared helpers', () => {
       })
     );
 
-    assert.equal(searchSource.sourceLabel, '公开线索');
-    assert.equal(placeSource.sourceLabel, '本地商家线索');
-    assert.equal(mapsSource.sourceLabel, '地图线索');
+    assert.equal(searchSource.sourceLabel, '官网获客');
+    assert.equal(searchSource.sourceTagType, 'info');
+    assert.equal(placeSource.sourceLabel, '本地商家');
+    assert.equal(placeSource.sourceTagType, 'success');
+    assert.equal(mapsSource.sourceLabel, '地图获客');
+    assert.equal(mapsSource.sourceTagType, 'primary');
   });
 
   it('reads source product line snapshots from imported AI leads', () => {

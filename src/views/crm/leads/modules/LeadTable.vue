@@ -149,7 +149,7 @@ function renderLeadSource(row: Api.Crm.LeadRecord) {
     {
       bordered: false,
       size: 'small',
-      type: source.sourceLabel === '公开线索' ? 'info' : 'default'
+      type: source.sourceTagType
     },
     { default: () => source.sourceLabel }
   );

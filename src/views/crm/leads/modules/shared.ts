@@ -180,6 +180,7 @@ export interface LeadWebsiteEvidenceView {
 
 export interface LeadSourceListView {
   sourceLabel: string;
+  sourceTagType: NaiveUI.ThemeColor;
   sourceTypeLabel: string;
   sourceUrl: string;
   sourceReason: string;
@@ -902,9 +903,11 @@ export function buildLeadWebsiteEvidenceView(
 export function buildLeadSourceListView(record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>): LeadSourceListView {
   const evidence = buildLeadWebsiteEvidenceView(record);
   const precision = evidence.precisionAnalysis;
+  const sourceLabel = formatLeadSourceLabel(evidence.sourceLabel, evidence.sourceType);
 
   return {
-    sourceLabel: formatLeadSourceLabel(evidence.sourceLabel, evidence.sourceType),
+    sourceLabel,
+    sourceTagType: getLeadSourceTagType(sourceLabel),
     sourceTypeLabel: formatLeadSourceTypeLabel(evidence.sourceType),
     sourceUrl: evidence.sourceUrl || evidence.sourceWebsite || evidence.finalUrl,
     sourceReason: evidence.sourceReason || precision?.reason || '',
@@ -1011,12 +1014,12 @@ function buildLeadSourcePrecisionView(evidence: LeadWebsiteEvidenceView): LeadSo
 
 function formatLeadSourceTypeLabel(sourceType: string) {
   const labelMap: Record<string, string> = {
-    organic: '公开线索',
-    search: '公开线索',
-    place: '本地商家线索',
-    local: '本地商家线索',
-    places: '地图商家',
-    maps: '地图商家'
+    organic: '官网获客',
+    search: '官网获客',
+    place: '本地商家',
+    local: '本地商家',
+    places: '本地商家',
+    maps: '地图获客'
   };
 
   return labelMap[sourceType] || sourceType || '-';
@@ -1035,19 +1038,27 @@ function formatLeadSourceLabel(sourceLabel: string, sourceType: string) {
 
   const sourceKey = normalizedLabel.toLowerCase().replace(/[\s_-]+/g, '');
 
-  if (['organic', 'search', 'googlesearch', 'publiclead', 'publicsource'].includes(sourceKey)) {
-    return '公开线索';
+  if (['organic', 'search', 'googlesearch', 'officiallead', 'websitelead', 'website', 'publiclead'].includes(sourceKey)) {
+    return '官网获客';
   }
 
   if (['place', 'local', 'places', 'googleplaces', 'locallead', 'localbusiness'].includes(sourceKey)) {
-    return '本地商家线索';
+    return '本地商家';
   }
 
   if (['maps', 'googlemaps', 'maplead'].includes(sourceKey)) {
-    return '地图线索';
+    return '地图获客';
   }
 
   return formatLeadSourceTypeLabel(sourceType);
+}
+
+function getLeadSourceTagType(sourceLabel: string): NaiveUI.ThemeColor {
+  if (sourceLabel.includes('地图')) return 'primary';
+  if (sourceLabel.includes('本地')) return 'success';
+  if (sourceLabel.includes('官网')) return 'info';
+
+  return 'default';
 }
 
 function formatPrecisionPriorityLabel(priority: string) {
