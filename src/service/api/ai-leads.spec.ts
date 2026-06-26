@@ -90,6 +90,7 @@ describe('ai leads api helpers', () => {
     const payload = {
       requirement: '找沙特轴承进口商',
       targetLeadCount: 20,
+      productLineId: 'product-line-1',
       keywordPlan: {
         resolvedProductKeywords: '6204 bearing',
         resolvedTargetRegions: '沙特阿拉伯',

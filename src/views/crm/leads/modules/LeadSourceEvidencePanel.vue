@@ -81,6 +81,20 @@ function formatOptionalNumber(value: number | null) {
             </a>
             <span v-else>-</span>
           </NDescriptionsItem>
+          <NDescriptionsItem label="来源产品线">
+            <div v-if="evidence.sourceProductLine" class="evidence-product-line">
+              <span class="evidence-product-line-name">
+                {{ evidence.sourceProductLine.name || evidence.sourceProductLine.id }}
+              </span>
+              <span v-if="evidence.sourceProductLine.targetCustomerType" class="evidence-muted">
+                {{ evidence.sourceProductLine.targetCustomerType }}
+              </span>
+              <span v-if="evidence.sourceProductLine.commonModelsText" class="evidence-muted">
+                {{ evidence.sourceProductLine.commonModelsText }}
+              </span>
+            </div>
+            <span v-else>-</span>
+          </NDescriptionsItem>
           <NDescriptionsItem label="最终页面">
             <a v-if="evidence.finalUrl" :href="evidence.finalUrl" target="_blank" rel="noopener noreferrer">
               {{ evidence.finalUrl }}
@@ -220,6 +234,12 @@ function formatOptionalNumber(value: number | null) {
           </div>
         </template>
       </div>
+
+      <NCollapse v-if="evidence.rawSourceSnapshotText" class="evidence-raw-collapse">
+        <NCollapseItem title="原始抓取数据" name="raw-source-snapshot">
+          <NCode :code="evidence.rawSourceSnapshotText" language="json" word-wrap />
+        </NCollapseItem>
+      </NCollapse>
     </template>
   </div>
 </template>
@@ -260,6 +280,21 @@ function formatOptionalNumber(value: number | null) {
 .evidence-panel {
   gap: 8px;
   min-height: 0;
+}
+
+.evidence-product-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.evidence-product-line-name {
+  overflow: hidden;
+  color: var(--n-text-color);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .evidence-panel-heading {
@@ -357,6 +392,17 @@ function formatOptionalNumber(value: number | null) {
 .evidence-link-list a,
 .lead-source-evidence :deep(.n-descriptions-table-content a) {
   overflow-wrap: anywhere;
+}
+
+.evidence-raw-collapse {
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  padding-inline: 10px;
+}
+
+.evidence-raw-collapse :deep(.n-code) {
+  max-height: 360px;
+  overflow: auto;
 }
 
 .snippet-list {

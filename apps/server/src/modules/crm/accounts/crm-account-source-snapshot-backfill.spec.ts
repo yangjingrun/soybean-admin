@@ -24,6 +24,12 @@ describe('crm-account-source-snapshot-backfill', () => {
         return [
           {
             id: 'task-1',
+            productLineSnapshot: {
+              id: 'product-line-1',
+              name: 'Deep groove ball bearings',
+              targetCustomerType: '进口商和经销商',
+              commonModelsText: '6203, 6204'
+            },
             result: {
               candidates: [
                 {
@@ -52,6 +58,12 @@ describe('crm-account-source-snapshot-backfill', () => {
         id: 'account-1',
         sourceSnapshot: {
           website: 'https://abc.example',
+          productLine: {
+            id: 'product-line-1',
+            name: 'Deep groove ball bearings',
+            targetCustomerType: '进口商和经销商',
+            commonModelsText: '6203, 6204'
+          },
           websiteEvidence: {
             crawlStatus: 'completed',
             socialLinks: ['https://www.linkedin.com/company/abc-bearing'],

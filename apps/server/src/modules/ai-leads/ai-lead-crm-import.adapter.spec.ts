@@ -4,51 +4,63 @@ import { mapAiLeadTaskResultToCrmImportInputs } from './ai-lead-crm-import.adapt
 
 describe('mapAiLeadTaskResultToCrmImportInputs', () => {
   it('maps completed task candidates to CRM import inputs and skips blank titles', () => {
-    const inputs = mapAiLeadTaskResultToCrmImportInputs('task-1', {
-      candidates: [
-        {
-          title: 'ABC Bearing',
-          website: 'https://abc.example',
-          url: 'https://fallback.example',
-          snippet: 'Bearing distributor in Riyadh',
-          city: ' Riyadh ',
-          address: 'Riyadh',
-          phoneNumber: '+966 11 000 0000',
-          latitude: 24.7136,
-          longitude: 46.6753,
-          sourceType: 'places',
-          country: 'SA',
-          score: 82,
-          reason: 'Matches bearing supplier intent',
-          sourceUrl: 'https://google.serper.dev/places',
-          websiteEvidence: {
-            crawlStatus: 'completed',
-            pageCount: 1,
-            emails: ['sales@abc.example'],
-            phones: [],
-            socialLinks: [],
-            whatsappLinks: [],
-            mapLinks: [],
-            contactLinks: ['https://abc.example/contact'],
-            keywordHits: ['bearing'],
-            evidenceSnippets: ['Bearing distributor'],
-            failureReason: null
-          },
-          precisionAnalysis: {
+    const productLineSnapshot = {
+      id: 'product-line-1',
+      name: 'Deep groove ball bearings',
+      targetCustomerType: '进口商和经销商',
+      commonModelsText: '6203, 6204'
+    };
+    const inputs = mapAiLeadTaskResultToCrmImportInputs(
+      {
+        id: 'task-1',
+        productLineSnapshot
+      },
+      {
+        candidates: [
+          {
+            title: 'ABC Bearing',
+            website: 'https://abc.example',
+            url: 'https://fallback.example',
+            snippet: 'Bearing distributor in Riyadh',
+            city: ' Riyadh ',
+            address: 'Riyadh',
+            phoneNumber: '+966 11 000 0000',
+            latitude: 24.7136,
+            longitude: 46.6753,
+            sourceType: 'places',
+            country: 'SA',
             score: 82,
-            priority: 'high',
-            buyerType: 'bearing distributor',
             reason: 'Matches bearing supplier intent',
-            matchedSignals: ['bearing'],
-            risks: [],
-            recommendedAction: '优先开发',
-            reviewRequired: false
-          }
-        },
-        { title: '  ', website: 'https://blank.example' },
-        { title: 'XYZ Trading', url: 'https://xyz.example' }
-      ]
-    });
+            sourceUrl: 'https://google.serper.dev/places',
+            websiteEvidence: {
+              crawlStatus: 'completed',
+              pageCount: 1,
+              emails: ['sales@abc.example'],
+              phones: [],
+              socialLinks: [],
+              whatsappLinks: [],
+              mapLinks: [],
+              contactLinks: ['https://abc.example/contact'],
+              keywordHits: ['bearing'],
+              evidenceSnippets: ['Bearing distributor'],
+              failureReason: null
+            },
+            precisionAnalysis: {
+              score: 82,
+              priority: 'high',
+              buyerType: 'bearing distributor',
+              reason: 'Matches bearing supplier intent',
+              matchedSignals: ['bearing'],
+              risks: [],
+              recommendedAction: '优先开发',
+              reviewRequired: false
+            }
+          },
+          { title: '  ', website: 'https://blank.example' },
+          { title: 'XYZ Trading', url: 'https://xyz.example' }
+        ]
+      }
+    );
 
     assert.deepEqual(inputs, [
       {
@@ -97,7 +109,8 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
             risks: [],
             recommendedAction: '优先开发',
             reviewRequired: false
-          }
+          },
+          productLine: productLineSnapshot
         }
       },
       {
@@ -106,14 +119,15 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
         sourceTaskId: 'task-1',
         contact: null,
         sourceSnapshot: {
-          url: 'https://xyz.example'
+          url: 'https://xyz.example',
+          productLine: productLineSnapshot
         }
       }
     ]);
   });
 
   it('returns an empty list when result candidates are missing', () => {
-    assert.deepEqual(mapAiLeadTaskResultToCrmImportInputs('task-1', null), []);
-    assert.deepEqual(mapAiLeadTaskResultToCrmImportInputs('task-1', {}), []);
+    assert.deepEqual(mapAiLeadTaskResultToCrmImportInputs({ id: 'task-1' }, null), []);
+    assert.deepEqual(mapAiLeadTaskResultToCrmImportInputs({ id: 'task-1' }, {}), []);
   });
 });

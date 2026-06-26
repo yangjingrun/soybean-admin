@@ -5,6 +5,21 @@ declare namespace Api {
     interface KeywordOptimizePayload {
       requirement: string;
       leadSourceMode?: LeadSourceMode;
+      productLineSnapshot?: ProductLineSnapshot | null;
+    }
+
+    interface ProductLineSnapshot {
+      id: string;
+      name: string;
+      targetCustomerType?: string | null;
+      coreSellingPoints?: string | null;
+      moq?: string | null;
+      leadTime?: string | null;
+      paymentTerms?: string | null;
+      certifications?: string | null;
+      catalogUrl?: string | null;
+      websiteUrl?: string | null;
+      commonModelsText?: string | null;
     }
 
     interface BuyerSegment {
@@ -106,6 +121,7 @@ declare namespace Api {
       serperPlacesQueries?: SerperPlacesQuery[];
       serperMapsQueries?: SerperMapsQuery[];
       searchExecutionRules: SearchExecutionRules;
+      productLineSnapshot?: ProductLineSnapshot | null;
     }
 
     interface KeywordHistoryRecord {
@@ -166,6 +182,7 @@ declare namespace Api {
     interface CreateSearchTaskPayload {
       requirement: string;
       targetLeadCount: number;
+      productLineId: string;
       keywordPlan: OptimizedKeywordPlan;
     }
 
@@ -177,6 +194,8 @@ declare namespace Api {
       organizationRole: OrganizationRole;
       requirement: string;
       targetLeadCount: number;
+      productLineId: string | null;
+      productLineSnapshot: ProductLineSnapshot | null;
       keywordPlan: OptimizedKeywordPlan;
       status: TaskStatus;
       priority: number;

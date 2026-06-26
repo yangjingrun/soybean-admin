@@ -15,6 +15,11 @@ function createTask(overrides: Partial<Api.AiLeads.TaskRecord> = {}): Api.AiLead
     organizationRole: 'member',
     requirement: 'Find buyers',
     targetLeadCount: 20,
+    productLineId: 'product-line-1',
+    productLineSnapshot: {
+      id: 'product-line-1',
+      name: 'Bearing line'
+    },
     keywordPlan: {
       resolvedProductKeywords: 'bearing',
       resolvedTargetRegions: 'Saudi Arabia',

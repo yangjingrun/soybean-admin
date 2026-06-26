@@ -7,6 +7,7 @@ import {
   createLeadSearchTask,
   deleteLeadKeywordHistory,
   discardLeadSearchTask,
+  fetchCrmProductLines,
   fetchLeadKeywordHistories,
   fetchCurrentLeadSearchTask,
   fetchLeadSearchTask,
@@ -35,13 +36,17 @@ import {
 } from './useAiLeadSearchTask';
 import {
   buildKeywordHistoryUpdatePayload,
+  buildProductLineSummaryItems,
   cloneKeywordPlan,
   createAiResultFromKeywordHistory,
+  createAiLeadProductLineSnapshot,
   createKeywordOptimizationViewModel,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
+  isKeywordPlanForProductLine,
   isValidTargetLeadCount,
   parseKeywordOptimizationPlan,
+  resolveKeywordPlanProductLineId,
   resolveTargetLeadCountAfterOptimization
 } from './shared';
 
@@ -89,6 +94,7 @@ export function useAiLeadPage() {
   const generatingRequestId = shallowRef(0);
   const isSearchTaskSubmitting = shallowRef(false);
   const isSearchTaskActionLoading = shallowRef(false);
+  const isProductLineLoading = shallowRef(false);
   const isHistoryLoading = shallowRef(false);
   const isHistorySaving = shallowRef(false);
   const isHistoryDrawerVisible = shallowRef(false);
@@ -98,6 +104,7 @@ export function useAiLeadPage() {
   const aiResult = shallowRef<Api.AiGateway.AiTextResult | null>(null);
   const searchProgress = ref<LeadSearchProgressState>(createLeadSearchProgressState());
   const currentSearchTask = shallowRef<Api.AiLeads.TaskRecord | null>(null);
+  const productLines = ref<Api.Crm.ProductLineRecord[]>([]);
   const keywordQualityWarnings = ref<string[]>([]);
   const historyRecords = ref<Api.AiLeads.KeywordHistoryRecord[]>([]);
   const editableKeywordPlan = ref<Api.AiLeads.OptimizedKeywordPlan | null>(null);
@@ -106,7 +113,18 @@ export function useAiLeadPage() {
   const isTargetLeadCountTouched = shallowRef(false);
   const keywordResultOrigin = shallowRef<KeywordResultOrigin>('none');
 
-  const canGenerate = computed(() => Boolean(form.requirement.trim()));
+  const selectedProductLine = computed(() => productLines.value.find(item => item.id === form.productLineId) ?? null);
+  const selectedProductLineSnapshot = computed(() =>
+    selectedProductLine.value ? createAiLeadProductLineSnapshot(selectedProductLine.value) : null
+  );
+  const selectedProductLineSummaryItems = computed(() => buildProductLineSummaryItems(selectedProductLine.value));
+  const productLineSelectOptions = computed(() =>
+    productLines.value.map(productLine => ({
+      label: productLine.name,
+      value: productLine.id
+    }))
+  );
+  const canGenerate = computed(() => Boolean(form.productLineId && form.requirement.trim()));
   const isTargetLeadCountValid = computed(() => isValidTargetLeadCount(form.targetLeadCount));
   const targetLeadCountValidationStatus = computed(() => (isTargetLeadCountValid.value ? undefined : 'error'));
   const targetLeadCountFeedback = computed(() =>
@@ -156,6 +174,7 @@ export function useAiLeadPage() {
     () =>
       canGenerate.value &&
       hasKeywordPlan.value &&
+      isKeywordPlanForProductLine(keywordOptimizationPlan.value, form.productLineId) &&
       isTargetLeadCountValid.value &&
       !isGenerating.value &&
       !isSearching.value &&
@@ -167,6 +186,7 @@ export function useAiLeadPage() {
       canGenerate.value &&
       isTargetLeadCountValid.value &&
       !isLeadWorkflowRunning.value &&
+      !isProductLineLoading.value &&
       canCreateSearchTask.value &&
       !isHistorySaving.value &&
       !isHistoryDeleting.value
@@ -241,14 +261,43 @@ export function useAiLeadPage() {
   });
 
   async function initPage() {
-    await loadKeywordHistories();
+    await Promise.all([loadProductLines(), loadKeywordHistories()]);
     await restoreCurrentSearchTask(normalizeRouteTaskId(route.query.taskId));
+  }
+
+  /** Loads active CRM product lines used as the fixed matching baseline for AI leads. */
+  async function loadProductLines() {
+    isProductLineLoading.value = true;
+
+    try {
+      const { data, error } = await fetchCrmProductLines({ current: 1, size: 100, status: 'active' });
+
+      if (error) {
+        return;
+      }
+
+      productLines.value = data.records;
+      if (!form.productLineId && data.records.length === 1) {
+        form.productLineId = data.records[0].id;
+      }
+    } finally {
+      isProductLineLoading.value = false;
+    }
   }
 
   /** Calls the AI leads keyword optimization workflow. */
   async function handleGenerate() {
     if (isSearchTaskBlockingForm.value) {
       message.warning('请先处理当前采集任务');
+      return;
+    }
+
+    if (!ensureSelectedProductLine()) {
+      return;
+    }
+
+    if (!form.requirement.trim()) {
+      message.warning('请填写本次开发要求');
       return;
     }
 
@@ -266,7 +315,8 @@ export function useAiLeadPage() {
     try {
       const { data: result, error } = await optimizeLeadKeywords({
         requirement: form.requirement.trim(),
-        leadSourceMode: form.leadSourceMode
+        leadSourceMode: form.leadSourceMode,
+        productLineSnapshot: selectedProductLineSnapshot.value
       });
 
       if (error) {
@@ -309,8 +359,12 @@ export function useAiLeadPage() {
 
   /** Starts the simplest lead workflow: reuse a matching strategy or optimize first, then collect. */
   async function handleStartLeadWorkflow() {
-    if (!canGenerate.value) {
-      message.warning('请先填写获客需求');
+    if (!ensureSelectedProductLine()) {
+      return;
+    }
+
+    if (!form.requirement.trim()) {
+      message.warning('请填写本次开发要求');
       return;
     }
 
@@ -430,9 +484,22 @@ export function useAiLeadPage() {
       return;
     }
 
+    if (!ensureSelectedProductLine()) {
+      return;
+    }
+
+    if (!isKeywordPlanForProductLine(keywordPlan, form.productLineId)) {
+      message.warning('当前搜索策略不是按所选产品线生成，请重新优化关键词');
+      return;
+    }
+
     const targetLeadCount = getRequiredTargetLeadCount();
     if (!targetLeadCount) {
       message.warning('请输入 1-200 的采集数量');
+      return;
+    }
+
+    if (!(await discardRecoverableSearchTaskForNextWorkflow())) {
       return;
     }
 
@@ -452,6 +519,7 @@ export function useAiLeadPage() {
       const { data: task, error } = await createLeadSearchTask({
         requirement: form.requirement.trim(),
         targetLeadCount,
+        productLineId: form.productLineId || '',
         keywordPlan: cloneKeywordPlan(keywordPlan)
       });
 
@@ -480,7 +548,8 @@ export function useAiLeadPage() {
     try {
       const { data: result, error } = await optimizeLeadKeywords({
         requirement: form.requirement.trim(),
-        leadSourceMode: form.leadSourceMode
+        leadSourceMode: form.leadSourceMode,
+        productLineSnapshot: selectedProductLineSnapshot.value
       });
 
       if (error || requestId !== generatingRequestId.value) {
@@ -515,7 +584,11 @@ export function useAiLeadPage() {
   function resolveReusableKeywordPlan() {
     const keywordPlan = keywordOptimizationPlan.value;
 
-    if (!keywordPlan || resolveLeadSourceMode(keywordPlan) !== form.leadSourceMode) {
+    if (
+      !keywordPlan ||
+      resolveLeadSourceMode(keywordPlan) !== form.leadSourceMode ||
+      !isKeywordPlanForProductLine(keywordPlan, form.productLineId)
+    ) {
       return null;
     }
 
@@ -565,6 +638,7 @@ export function useAiLeadPage() {
     }
 
     resetSearchProgress();
+    form.productLineId = productLines.value.length === 1 ? productLines.value[0].id : null;
     form.requirement = '';
     form.targetLeadCount = defaultTargetLeadCount;
     form.leadSourceMode = 'search';
@@ -737,6 +811,7 @@ export function useAiLeadPage() {
     keywordResultOrigin.value = options.origin ?? 'history';
     form.requirement = record.requirement;
     form.leadSourceMode = resolveLeadSourceMode(record.keywordPlan);
+    syncFormProductLineFromKeywordPlan(record.keywordPlan);
     if (options.syncTargetLeadCount !== false) {
       form.targetLeadCount = resolveTargetLeadCountAfterOptimization({
         currentValue: defaultTargetLeadCount,
@@ -760,6 +835,7 @@ export function useAiLeadPage() {
     currentSearchTask.value = task;
     form.requirement = task.requirement;
     form.targetLeadCount = task.targetLeadCount;
+    form.productLineId = task.productLineId || resolveKeywordPlanProductLineId(task.keywordPlan) || form.productLineId;
     form.leadSourceMode = resolveLeadSourceMode(task.keywordPlan);
     isTargetLeadCountTouched.value = false;
     aiResult.value = createAiResultFromSearchTask(task);
@@ -802,6 +878,28 @@ export function useAiLeadPage() {
   /** Reads the required target lead count after form validation has passed. */
   function getRequiredTargetLeadCount() {
     return isTargetLeadCountValid.value ? form.targetLeadCount : null;
+  }
+
+  function ensureSelectedProductLine() {
+    if (!form.productLineId) {
+      message.warning('请选择产品线');
+      return false;
+    }
+
+    if (!selectedProductLine.value) {
+      message.warning('当前产品线不可用，请重新选择 active 产品线');
+      return false;
+    }
+
+    return true;
+  }
+
+  function syncFormProductLineFromKeywordPlan(plan: Api.AiLeads.OptimizedKeywordPlan) {
+    const productLineId = resolveKeywordPlanProductLineId(plan);
+
+    if (productLineId) {
+      form.productLineId = productLineId;
+    }
   }
 
   /** Tracks direct edits so AI optimization does not overwrite an explicit user count. */
@@ -1008,6 +1106,7 @@ export function useAiLeadPage() {
     isHistoryDrawerVisible,
     isHistoryLoading,
     isHistorySaving,
+    isProductLineLoading,
     isRestoredKeywordHistory,
     isSearchTaskActionLoading,
     isSearchTaskBlockingForm,
@@ -1019,8 +1118,11 @@ export function useAiLeadPage() {
     keywordQualityWarnings,
     leadWorkflowStatusLabel,
     maxLeadSearchRepeatRounds,
+    productLineSelectOptions,
     searchProgress,
     searchTaskActionState,
+    selectedProductLine,
+    selectedProductLineSummaryItems,
     selectedHistoryId,
     targetLeadCountFeedback,
     targetLeadCountValidationStatus

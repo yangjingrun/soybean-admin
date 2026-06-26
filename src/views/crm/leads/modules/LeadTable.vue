@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
-import { NButton, NDataTable, NDropdown, NEmpty, NSpace, NSpin, NTag, NTooltip } from 'naive-ui';
+import { NButton, NDataTable, NEmpty, NSpace, NSpin, NTag, NTooltip } from 'naive-ui';
 import type { DataTableColumns, DataTableRowKey } from 'naive-ui';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import {
   buildLeadEmailProgressView,
   buildLeadExpandedContactView,
   buildLeadRowContactView,
-  canCreateSequenceFromLeadAccountContact,
   canCreateSequenceFromLeadRecord,
   formatLeadDate,
   getLeadCompanyOfficialEmails,
@@ -236,16 +235,6 @@ function renderEmailProgress(contact: Api.Crm.LeadContact | null) {
   ]);
 }
 
-function canCreateSequenceFromExpandedContact(contact: Api.Crm.LeadContact) {
-  const account = props.records.find(record => record.id === contact.accountId);
-
-  return account ? canCreateSequenceFromLeadAccountContact(account, contact) : false;
-}
-
-function isContactVerifying(contactId: string) {
-  return props.verifyingContactIds?.includes(contactId) ?? false;
-}
-
 function formatContactPreview(contact: Api.Crm.LeadContact) {
   return [contact.fullName || contact.email, contact.title].filter(Boolean).join(' / ');
 }
@@ -301,7 +290,7 @@ const expandedContactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>((
   {
     key: 'operate',
     title: '操作',
-    width: 240,
+    width: 140,
     fixed: 'right',
     render: row =>
       h(
@@ -319,19 +308,9 @@ const expandedContactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>((
                 size: 'small',
                 text: true,
                 type: 'primary',
-                onClick: () => openContactCommunication(row, 'profile')
+                onClick: () => openContactCommunication(row, 'overview')
               },
               { default: () => '详情' }
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                text: true,
-                type: 'success',
-                onClick: () => openContactCommunication(row, 'sequence')
-              },
-              { default: () => '进度' }
             ),
             h(
               NButton,
@@ -341,40 +320,7 @@ const expandedContactColumns = computed<DataTableColumns<Api.Crm.LeadContact>>((
                 type: 'info',
                 onClick: () => openContactCommunication(row, 'inbox')
               },
-              { default: () => '邮件' }
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                text: true,
-                type: 'primary',
-                onClick: () => openContactCommunication(row, 'schedule')
-              },
-              { default: () => '调度' }
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                text: true,
-                type: 'primary',
-                loading: isContactVerifying(row.id),
-                disabled: isContactVerifying(row.id),
-                onClick: () => emit('verifyContactEmail', row)
-              },
-              { default: () => '验证' }
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                text: true,
-                type: 'success',
-                disabled: !canCreateSequenceFromExpandedContact(row),
-                onClick: () => emit('createSequence', row)
-              },
-              { default: () => '开发信' }
+              { default: () => '邮箱' }
             )
           ]
         }
@@ -445,22 +391,6 @@ function handleExpandedRowKeysUpdate(keys: DataTableRowKey[]) {
 
 function handleCheckedRowKeysUpdate(keys: DataTableRowKey[]) {
   emit('updateCheckedRowKeys', keys.map(String));
-}
-
-function handleMoreAction(key: string | number, row: Api.Crm.LeadRecord) {
-  if (key === 'createSequence' && row.primaryContact) {
-    emit('createSequence', row.primaryContact);
-    return;
-  }
-
-  if (key === 'restore') {
-    emit('restore', row);
-    return;
-  }
-
-  if (key === 'archive') {
-    emit('archive', row);
-  }
 }
 
 const hasMultipleContactRows = computed(() =>
@@ -552,7 +482,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
       title: '操作',
       align: 'center',
       titleAlign: 'center',
-      width: 260,
+      width: 140,
       fixed: 'right',
       render: row =>
         h(
@@ -570,19 +500,9 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                   size: 'small',
                   text: true,
                   type: 'primary',
-                  onClick: () => emit('openCommunication', row, 'profile', row.primaryContact?.id)
+                  onClick: () => emit('openCommunication', row, 'overview', row.primaryContact?.id)
                 },
                 { default: () => '详情' }
-              ),
-              h(
-                NButton,
-                {
-                  size: 'small',
-                  text: true,
-                  type: 'success',
-                  onClick: () => emit('openCommunication', row, 'sequence', row.primaryContact?.id)
-                },
-                { default: () => '进度' }
               ),
               h(
                 NButton,
@@ -592,48 +512,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
                   type: 'info',
                   onClick: () => emit('openCommunication', row, 'inbox', row.primaryContact?.id)
                 },
-                { default: () => '邮件' }
-              ),
-              h(
-                NButton,
-                {
-                  size: 'small',
-                  text: true,
-                  type: 'primary',
-                  onClick: () => emit('openCommunication', row, 'schedule', row.primaryContact?.id)
-                },
-                { default: () => '调度' }
-              ),
-              h(
-                NDropdown,
-                {
-                  options: [
-                    {
-                      label: '生成开发信',
-                      key: 'createSequence',
-                      disabled: !canCreateSequenceFromLeadRecord(row)
-                    },
-                    {
-                      label: row.status === 'archived' ? '重新开发' : '暂不开发',
-                      key: row.status === 'archived' ? 'restore' : 'archive',
-                      disabled: props.archiveOperatingId === row.id
-                    }
-                  ],
-                  onSelect: (key: string | number) => handleMoreAction(key, row)
-                },
-                {
-                  default: () =>
-                    h(
-                      NButton,
-                      {
-                        size: 'small',
-                        text: true,
-                        type: 'primary',
-                        loading: props.archiveOperatingId === row.id
-                      },
-                      { default: () => '更多' }
-                    )
-                }
+                { default: () => '邮箱' }
               )
             ]
           }

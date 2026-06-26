@@ -24,6 +24,11 @@ import { toLeadSearchPublicResult, type LeadSearchProgressReporter } from './ai-
 import { AI_LEAD_KEYWORD_HISTORY_STORE } from './ai-leads.tokens';
 import type { AiLeadKeywordHistoryRecord, AiLeadKeywordHistoryStore } from './ai-leads.types';
 import {
+  attachProductLineSnapshotToKeywordPlan,
+  normalizeAiLeadProductLineSnapshot,
+  type AiLeadProductLineSnapshot
+} from './ai-lead-product-line-context';
+import {
   buildMapsKeywordOptimizePrompt,
   buildKeywordOptimizePrompt,
   buildKeywordOptimizeRepairPrompt,
@@ -50,16 +55,19 @@ export class AiLeadsService {
   async optimizeKeywords(dto: KeywordOptimizeDto, context: AiLeadsContext = {}) {
     const user = this.requireUser(context);
     const requirement = dto.requirement.trim();
+    const productLineSnapshot = normalizeAiLeadProductLineSnapshot(dto.productLineSnapshot);
     const { result, keywordPlan, qualityWarnings } = await this.generateKeywordPlanWithRepair(
       requirement,
       dto.leadSourceMode ?? 'search',
+      productLineSnapshot,
       context
     );
+    const resultText = JSON.stringify(keywordPlan);
     const historyRecord = await this.keywordHistoryStore.create({
       userId: user.userId,
       userName: user.userName,
       requirement,
-      resultText: result.text,
+      resultText,
       keywordPlan,
       finishReason: result.finishReason,
       inputTokens: result.usage.inputTokens,
@@ -77,6 +85,7 @@ export class AiLeadsService {
 
     return {
       ...result,
+      text: resultText,
       keywordPlan,
       historyRecord: this.toKeywordHistoryView(historyRecord),
       qualityWarnings
@@ -87,6 +96,7 @@ export class AiLeadsService {
   private async generateKeywordPlanWithRepair(
     requirement: string,
     leadSourceMode: NonNullable<KeywordOptimizeDto['leadSourceMode']>,
+    productLineSnapshot: AiLeadProductLineSnapshot | null,
     context: AiLeadsContext
   ) {
     if (leadSourceMode === 'maps') {
@@ -94,26 +104,30 @@ export class AiLeadsService {
         {
           modelConfigKey: defaultAiModelConfigKey,
           promptKey: leadMapsKeywordOptimizePromptKey,
-          prompt: buildMapsKeywordOptimizePrompt(requirement),
+          prompt: buildMapsKeywordOptimizePrompt(requirement, productLineSnapshot),
           maxOutputTokens: keywordOptimizeMaxOutputTokens
         },
         context
       );
 
-      return { result, keywordPlan: parseKeywordPlan(result.text), qualityWarnings: [] };
+      return {
+        result,
+        keywordPlan: attachProductLineSnapshotToKeywordPlan(parseKeywordPlan(result.text), productLineSnapshot),
+        qualityWarnings: []
+      };
     }
 
     const result = await this.aiGatewayService.generateText(
       {
         modelConfigKey: defaultAiModelConfigKey,
         promptKey: leadKeywordOptimizePromptKey,
-        prompt: buildKeywordOptimizePrompt(requirement),
+        prompt: buildKeywordOptimizePrompt(requirement, productLineSnapshot),
         // 关键词优化只需要结构化建议，限制输出长度避免长时间阻塞请求。
         maxOutputTokens: keywordOptimizeMaxOutputTokens
       },
       context
     );
-    const keywordPlan = parseKeywordPlan(result.text);
+    const keywordPlan = attachProductLineSnapshotToKeywordPlan(parseKeywordPlan(result.text), productLineSnapshot);
     const issues = validateKeywordPlanLocalLanguages(requirement, keywordPlan);
 
     if (issues.length === 0) {
@@ -124,12 +138,15 @@ export class AiLeadsService {
       {
         modelConfigKey: defaultAiModelConfigKey,
         promptKey: leadKeywordOptimizePromptKey,
-        prompt: buildKeywordOptimizeRepairPrompt(requirement, issues, keywordPlan),
+        prompt: buildKeywordOptimizeRepairPrompt(requirement, issues, keywordPlan, productLineSnapshot),
         maxOutputTokens: keywordOptimizeMaxOutputTokens
       },
       context
     );
-    const repairedKeywordPlan = parseKeywordPlan(repairResult.text);
+    const repairedKeywordPlan = attachProductLineSnapshotToKeywordPlan(
+      parseKeywordPlan(repairResult.text),
+      productLineSnapshot
+    );
     const qualityWarnings = validateKeywordPlanLocalLanguages(requirement, repairedKeywordPlan);
 
     return { result: repairResult, keywordPlan: repairedKeywordPlan, qualityWarnings };

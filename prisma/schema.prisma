@@ -1095,6 +1095,8 @@ model AiLeadSearchTask {
   organizationRole String  @default("member")
   requirement     String
   targetLeadCount Int
+  productLineId   String?
+  productLineSnapshot Json?
   keywordPlan     Json
   status          AiLeadSearchTaskStatus @default(queued)
   priority        Int      @default(0)
@@ -1117,6 +1119,7 @@ model AiLeadSearchTask {
   @@index([userId, organizationId, status, updatedAt])
   @@index([userId, status, updatedAt])
   @@index([organizationId, status, updatedAt])
+  @@index([organizationId, productLineId, updatedAt])
   @@index([status, createdAt])
   @@index([bullJobId])
 }

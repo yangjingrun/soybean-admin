@@ -101,6 +101,19 @@ export interface LeadSequenceTarget {
   contactName: string;
   contactTitle: string;
   maskedEmail: string;
+  sourceProductLineId: string | null;
+  sourceProductLineName: string;
+}
+
+export interface LeadSourceProductLineView {
+  id: string;
+  name: string;
+  targetCustomerType: string;
+  coreSellingPoints: string;
+  commonModelsText: string;
+  certifications: string;
+  moq: string;
+  leadTime: string;
 }
 
 export type LeadRowContactView =
@@ -139,6 +152,7 @@ export interface LeadWebsiteEvidenceView {
   sourceSnippet: string;
   sourceScore: number | null;
   sourceReason: string;
+  sourceProductLine: LeadSourceProductLineView | null;
   crawlStatus: string;
   crawlStatusLabel: string;
   crawlStatusTagType: NaiveUI.ThemeColor;
@@ -157,6 +171,7 @@ export interface LeadWebsiteEvidenceView {
   negativeEvidenceSnippets: string[];
   failureReason: string;
   precisionAnalysis: LeadWebsitePrecisionAnalysisView | null;
+  rawSourceSnapshotText: string;
 }
 
 const leadPendingStatuses = new Set<Api.Crm.CrmAccountStatus>([
@@ -572,15 +587,19 @@ export function canCreateSequenceFromLeadRecord(record: Api.Crm.LeadRecord) {
 /** Build the readonly target shown before creating first-email drafts from the customer page. */
 export function buildLeadSequenceTarget(
   contact: Api.Crm.LeadContact,
-  account: Pick<Api.Crm.LeadRecord, 'id' | 'name'> | null | undefined
+  account: Pick<Api.Crm.LeadRecord, 'id' | 'name' | 'sourceSnapshot'> | null | undefined
 ): LeadSequenceTarget {
+  const sourceProductLine = account ? readLeadSourceProductLine(account) : null;
+
   return {
     accountId: contact.accountId,
     accountName: account?.name || '当前客户',
     contactId: contact.id,
     contactName: contact.fullName || contact.maskedEmail || contact.email,
     contactTitle: contact.title || '-',
-    maskedEmail: contact.maskedEmail || contact.email
+    maskedEmail: contact.maskedEmail || contact.email,
+    sourceProductLineId: sourceProductLine?.id || null,
+    sourceProductLineName: sourceProductLine?.name || ''
   };
 }
 
@@ -600,6 +619,34 @@ export function buildLeadSequenceTargetsFromCheckedRows(
 
     return targets;
   }, []);
+}
+
+/** Resolve one shared source product line for a first-email batch. */
+export function resolveCommonLeadSequenceProductLineId(targets: LeadSequenceTarget[]) {
+  if (!targets.length) return null;
+
+  const sourceIds = targets.map(target => target.sourceProductLineId).filter((id): id is string => Boolean(id));
+  const uniqueIds = new Set(sourceIds);
+
+  if (uniqueIds.size !== 1 || sourceIds.length !== targets.length) {
+    return null;
+  }
+
+  return sourceIds[0];
+}
+
+/** Detect batches that mix multiple CRM source product lines. */
+export function hasMixedLeadSequenceProductLines(targets: LeadSequenceTarget[]) {
+  const sourceIds = targets.map(target => target.sourceProductLineId).filter((id): id is string => Boolean(id));
+
+  return new Set(sourceIds).size > 1;
+}
+
+/** Detect batches where some contacts have source product lines while others do not. */
+export function hasPartialLeadSequenceProductLineSources(targets: LeadSequenceTarget[]) {
+  const sourceCount = targets.filter(target => Boolean(target.sourceProductLineId)).length;
+
+  return sourceCount > 0 && sourceCount < targets.length;
 }
 
 /** Describe the next human action for one lead status. */
@@ -753,6 +800,31 @@ export function getLeadCompanyOfficialEmails(record: Pick<Api.Crm.LeadRecord, 's
   return readStringArray(evidence?.emails);
 }
 
+/** Reads the product line snapshot saved when AI lead results were imported. */
+export function readLeadSourceProductLine(
+  record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>
+): LeadSourceProductLineView | null {
+  const sourceSnapshot = readObject(record.sourceSnapshot);
+  const productLine = readObject(sourceSnapshot?.productLine);
+  const id = readString(productLine?.id);
+  const name = readString(productLine?.name);
+
+  if (!id && !name) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    targetCustomerType: readString(productLine?.targetCustomerType),
+    coreSellingPoints: readString(productLine?.coreSellingPoints),
+    commonModelsText: readString(productLine?.commonModelsText),
+    certifications: readString(productLine?.certifications),
+    moq: readString(productLine?.moq),
+    leadTime: readString(productLine?.leadTime)
+  };
+}
+
 /** Build a readonly detail view from original website crawl and precision-analysis data. */
 export function buildLeadWebsiteEvidenceView(
   record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>
@@ -770,6 +842,7 @@ export function buildLeadWebsiteEvidenceView(
     sourceSnippet: readString(sourceSnapshot?.snippet),
     sourceScore: readNumber(sourceSnapshot?.score),
     sourceReason: readString(sourceSnapshot?.reason),
+    sourceProductLine: readLeadSourceProductLine(record),
     crawlStatus,
     crawlStatusLabel: formatCrawlStatusLabel(crawlStatus),
     crawlStatusTagType: getCrawlStatusTagType(crawlStatus),
@@ -790,7 +863,8 @@ export function buildLeadWebsiteEvidenceView(
     negativeKeywordHits: readStringArray(evidence?.negativeKeywordHits),
     negativeEvidenceSnippets: readStringArray(evidence?.negativeEvidenceSnippets),
     failureReason: readString(evidence?.failureReason),
-    precisionAnalysis: readPrecisionAnalysis(sourceSnapshot?.precisionAnalysis)
+    precisionAnalysis: readPrecisionAnalysis(sourceSnapshot?.precisionAnalysis),
+    rawSourceSnapshotText: sourceSnapshot ? JSON.stringify(sourceSnapshot, null, 2) : ''
   };
 }
 

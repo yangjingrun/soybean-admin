@@ -15,6 +15,12 @@ export class CreateSearchTaskDto {
   @Type(() => Number)
   targetLeadCount!: number;
 
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  @Transform(trimStringValue)
+  productLineId!: string;
+
   @IsObject()
   keywordPlan!: Record<string, unknown>;
 }

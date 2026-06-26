@@ -1,5 +1,6 @@
 import type { ImportCrmLeadInput } from '../crm/crm.types';
 import { buildCandidateCountryPatch } from './ai-lead-candidate-country';
+import type { AiLeadProductLineSnapshot } from './ai-lead-product-line-context';
 
 interface AiLeadCandidateLike {
   title?: unknown;
@@ -21,7 +22,10 @@ interface AiLeadCandidateLike {
 }
 
 /** Maps completed AI lead candidates to CRM import inputs. */
-export function mapAiLeadTaskResultToCrmImportInputs(taskId: string, result: unknown): ImportCrmLeadInput[] {
+export function mapAiLeadTaskResultToCrmImportInputs(
+  task: { id: string; productLineSnapshot?: AiLeadProductLineSnapshot | null },
+  result: unknown
+): ImportCrmLeadInput[] {
   const candidates = readCandidates(result);
 
   return candidates.flatMap(candidate => {
@@ -38,9 +42,9 @@ export function mapAiLeadTaskResultToCrmImportInputs(taskId: string, result: unk
         ...buildCandidateCountryPatch(candidate),
         ...buildCandidateLocationPatch(candidate),
         ...buildCandidateCoordinatePatch(candidate),
-        sourceTaskId: taskId,
+        sourceTaskId: task.id,
         contact: null,
-        sourceSnapshot: buildCandidateSourceSnapshot(candidate)
+        sourceSnapshot: buildCandidateSourceSnapshot(candidate, task.productLineSnapshot ?? null)
       }
     ];
   });
@@ -88,7 +92,7 @@ function buildCandidateCoordinatePatch(candidate: AiLeadCandidateLike) {
   };
 }
 
-function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
+function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike, productLineSnapshot: AiLeadProductLineSnapshot | null) {
   const snapshot: Record<string, unknown> = {};
   const stringFields = [
     'snippet',
@@ -121,6 +125,10 @@ function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike) {
     if (candidate[field] && typeof candidate[field] === 'object') {
       snapshot[field] = candidate[field];
     }
+  }
+
+  if (productLineSnapshot) {
+    snapshot.productLine = productLineSnapshot;
   }
 
   return Object.keys(snapshot).length ? snapshot : null;

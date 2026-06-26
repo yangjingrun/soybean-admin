@@ -37,7 +37,7 @@ describe('AiLeadSearchTaskService', () => {
     const appliedConcurrency: number[] = [];
     const taskStore = createTaskStore();
     const queueConfigStore = createQueueConfigStore({ workerConcurrency: 3 });
-    const service = new AiLeadSearchTaskService(taskStore, queueConfigStore, {
+    const service = createSearchTaskService(taskStore, queueConfigStore, {
       async enqueueSearchTask(input) {
         enqueued.push(input);
         return { jobId: `job-${input.taskId}` };
@@ -52,6 +52,7 @@ describe('AiLeadSearchTaskService', () => {
       {
         requirement: ' 找沙特轴承进口商 ',
         targetLeadCount: 20,
+        productLineId: 'product-line-1',
         keywordPlan: { serperSearchQueries: [] }
       },
       { user }
@@ -59,6 +60,21 @@ describe('AiLeadSearchTaskService', () => {
 
     assert.equal(task.status, 'queued');
     assert.equal(task.requirement, '找沙特轴承进口商');
+    assert.equal(task.productLineId, 'product-line-1');
+    assert.deepEqual(task.productLineSnapshot, {
+      id: 'product-line-1',
+      name: '6204 Bearing',
+      targetCustomerType: '进口商和经销商',
+      coreSellingPoints: '供货稳定',
+      moq: '100 pcs',
+      leadTime: '7 days',
+      paymentTerms: 'T/T',
+      certifications: 'ISO',
+      catalogUrl: 'https://example.com/catalog.pdf',
+      websiteUrl: 'https://example.com/bearing',
+      commonModelsText: '6204, 6205'
+    });
+    assert.deepEqual((task.keywordPlan as Record<string, unknown>).productLineSnapshot, task.productLineSnapshot);
     assert.equal(task.bullJobId, 'job-task-1');
     assert.deepEqual(enqueued, [{ taskId: 'task-1', runVersion: 1, priority: 0 }]);
     assert.deepEqual(appliedConcurrency, [3]);
@@ -71,7 +87,7 @@ describe('AiLeadSearchTaskService', () => {
         events.push(input);
       }
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask(input) {
         return { jobId: `job-${input.taskId}` };
       },
@@ -83,6 +99,7 @@ describe('AiLeadSearchTaskService', () => {
       {
         requirement: '找沙特轴承进口商',
         targetLeadCount: 20,
+        productLineId: 'product-line-1',
         keywordPlan: { serperSearchQueries: [] }
       },
       { user }
@@ -106,7 +123,7 @@ describe('AiLeadSearchTaskService', () => {
         capturedInputs.push(input as unknown as Record<string, unknown>);
       }
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask(input) {
         return { jobId: `job-${input.taskId}` };
       },
@@ -118,6 +135,7 @@ describe('AiLeadSearchTaskService', () => {
       {
         requirement: '找沙特轴承进口商',
         targetLeadCount: 20,
+        productLineId: 'product-line-1',
         keywordPlan: { serperSearchQueries: [] }
       },
       { user }
@@ -131,7 +149,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       activeTask: createTask({ id: 'active-1', status: 'running' })
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('should not enqueue');
       },
@@ -145,6 +163,7 @@ describe('AiLeadSearchTaskService', () => {
           {
             requirement: '找沙特轴承进口商',
             targetLeadCount: 20,
+            productLineId: 'product-line-1',
             keywordPlan: { serperSearchQueries: [] }
           },
           { user }
@@ -155,7 +174,7 @@ describe('AiLeadSearchTaskService', () => {
 
   it('marks a just-created task failed when BullMQ enqueue is unavailable', async () => {
     const taskStore = createTaskStore();
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('queue unavailable');
       },
@@ -169,6 +188,7 @@ describe('AiLeadSearchTaskService', () => {
           {
             requirement: '找沙特轴承进口商',
             targetLeadCount: 20,
+            productLineId: 'product-line-1',
             keywordPlan: { serperSearchQueries: [] }
           },
           { user }
@@ -187,7 +207,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       failEventTypes: ['task_queued']
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask(input) {
         enqueued.push(input);
         return { jobId: `job-${input.taskId}` };
@@ -200,6 +220,7 @@ describe('AiLeadSearchTaskService', () => {
       {
         requirement: '找沙特轴承进口商',
         targetLeadCount: 20,
+        productLineId: 'product-line-1',
         keywordPlan: { serperSearchQueries: [] }
       },
       { user }
@@ -215,7 +236,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'running', bullJobId: 'job-task-1' })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('should not enqueue');
       },
@@ -236,7 +257,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'queued', bullJobId: 'job-task-1' })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('should not enqueue');
       },
@@ -257,7 +278,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'failed' })]
     });
-    const service = new AiLeadSearchTaskService(
+    const service = createSearchTaskService(
       taskStore,
       createQueueConfigStore(),
       {
@@ -291,7 +312,7 @@ describe('AiLeadSearchTaskService', () => {
         events.push(eventType);
       }
     });
-    const service = new AiLeadSearchTaskService(
+    const service = createSearchTaskService(
       taskStore,
       createQueueConfigStore(),
       {
@@ -324,7 +345,7 @@ describe('AiLeadSearchTaskService', () => {
         events.push(eventType);
       }
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('should not enqueue');
       },
@@ -345,7 +366,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'interrupted', runVersion: 1 })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask(input) {
         enqueued.push(input);
         return { jobId: `job-${input.taskId}-${input.runVersion}` };
@@ -366,7 +387,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'interrupted', runVersion: 1 })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask(input) {
         const task = await taskStore.findTaskById(input.taskId);
 
@@ -390,7 +411,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'failed', runVersion: 1 })]
     });
-    const service = new AiLeadSearchTaskService(
+    const service = createSearchTaskService(
       taskStore,
       createQueueConfigStore(),
       {
@@ -425,7 +446,7 @@ describe('AiLeadSearchTaskService', () => {
         events.push(eventType);
       }
     });
-    const service = new AiLeadSearchTaskService(
+    const service = createSearchTaskService(
       taskStore,
       createQueueConfigStore(),
       {
@@ -455,7 +476,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'interrupted', runVersion: 1 })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask(input) {
         await taskStore.updateTask(
           input.taskId,
@@ -497,7 +518,7 @@ describe('AiLeadSearchTaskService', () => {
         })
       ]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask(input) {
         return { jobId: `job-${input.taskId}-${input.runVersion}` };
       },
@@ -518,7 +539,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'failed' })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('should not enqueue');
       },
@@ -534,7 +555,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'completed', readAt: null })]
     });
-    const service = new AiLeadSearchTaskService(
+    const service = createSearchTaskService(
       taskStore,
       createQueueConfigStore(),
       {
@@ -564,7 +585,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'completed', result: createCompletedTaskResult() })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('not used');
       },
@@ -579,8 +600,13 @@ describe('AiLeadSearchTaskService', () => {
       serperResults: unknown[];
     };
 
-    assert.deepEqual(result.summary, { candidateCount: 1 });
-    assert.equal('sourceLabel' in result.candidates[0], false);
+    assert.deepEqual(result.summary, {
+      candidateCount: 1,
+      actionCount: 1,
+      qualityCheckCount: 1,
+      stopReason: '所有查询已完成'
+    });
+    assert.equal('sourceLabel' in result.candidates[0], true);
     assert.deepEqual(result.serperResults, []);
   });
 
@@ -589,7 +615,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-1', status: 'completed', result: rawResult })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('not used');
       },
@@ -608,7 +634,7 @@ describe('AiLeadSearchTaskService', () => {
         createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'completed' })
       ]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('not used');
       },
@@ -623,7 +649,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore({
       records: [createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'running' })]
     });
-    const service = new AiLeadSearchTaskService(taskStore, createQueueConfigStore(), {
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
       async enqueueSearchTask() {
         throw new Error('not used');
       },
@@ -639,7 +665,7 @@ describe('AiLeadSearchTaskService', () => {
     const taskStore = createTaskStore();
     const queueConfigStore = createQueueConfigStore({ workerConcurrency: 4 });
     const appliedConcurrency: number[] = [];
-    const service = new AiLeadSearchTaskService(
+    const service = createSearchTaskService(
       taskStore,
       queueConfigStore,
       {
@@ -697,6 +723,8 @@ function createTaskStore(
         organizationRole: input.organizationRole,
         requirement: input.requirement,
         targetLeadCount: input.targetLeadCount,
+        productLineId: input.productLineId,
+        productLineSnapshot: input.productLineSnapshot,
         keywordPlan: input.keywordPlan,
         status: 'queued',
         priority: input.priority,
@@ -818,6 +846,53 @@ function createQueueConfigStore(overrides: Partial<AiLeadQueueConfigRecord> = {}
   return store;
 }
 
+function createSearchTaskService(
+  taskStore: AiLeadSearchTaskStore,
+  queueConfigStore: AiLeadQueueConfigStore,
+  taskQueue: ConstructorParameters<typeof AiLeadSearchTaskService>[2],
+  workerHost?: ConstructorParameters<typeof AiLeadSearchTaskService>[3],
+  systemLogService?: ConstructorParameters<typeof AiLeadSearchTaskService>[4],
+  notificationService?: ConstructorParameters<typeof AiLeadSearchTaskService>[5],
+  productLineService: ConstructorParameters<typeof AiLeadSearchTaskService>[6] = createProductLineService()
+) {
+  return new AiLeadSearchTaskService(
+    taskStore,
+    queueConfigStore,
+    taskQueue,
+    workerHost,
+    systemLogService,
+    notificationService,
+    productLineService
+  );
+}
+
+function createProductLineService(): ConstructorParameters<typeof AiLeadSearchTaskService>[6] {
+  return {
+    async requireActiveProductLine(id: string, context: { organizationId: string }) {
+      return {
+        id,
+        organizationId: context.organizationId,
+        name: '6204 Bearing',
+        targetCustomerType: '进口商和经销商',
+        coreSellingPoints: '供货稳定',
+        moq: '100 pcs',
+        leadTime: '7 days',
+        paymentTerms: 'T/T',
+        certifications: 'ISO',
+        catalogUrl: 'https://example.com/catalog.pdf',
+        websiteUrl: 'https://example.com/bearing',
+        commonModelsText: '6204, 6205',
+        aiWritingConfig: null,
+        status: 'active',
+        createdById: 'u-1',
+        createdByName: 'AI外贸管理系统',
+        createdAt: new Date('2026-06-18T00:00:00Z'),
+        updatedAt: new Date('2026-06-18T00:00:00Z')
+      };
+    }
+  } as ConstructorParameters<typeof AiLeadSearchTaskService>[6];
+}
+
 function createLogRecorder() {
   return {
     records: [] as SystemLogRecordInput[],
@@ -836,6 +911,11 @@ function createTask(overrides: Partial<AiLeadSearchTaskRecord>): AiLeadSearchTas
     organizationRole: 'admin',
     requirement: '找沙特轴承进口商',
     targetLeadCount: 20,
+    productLineId: 'product-line-1',
+    productLineSnapshot: {
+      id: 'product-line-1',
+      name: '6204 Bearing'
+    },
     keywordPlan: {},
     status: 'queued',
     priority: 0,

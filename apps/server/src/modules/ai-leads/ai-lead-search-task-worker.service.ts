@@ -280,7 +280,7 @@ export class AiLeadSearchTaskWorkerService {
 
   /** Imports completed search candidates into CRM without blocking task completion. */
   private async importCrmLeadsSafely(task: AiLeadSearchTaskRecord, result: unknown) {
-    const inputs = mapAiLeadTaskResultToCrmImportInputs(task.id, result);
+    const inputs = mapAiLeadTaskResultToCrmImportInputs(task, result);
 
     if (!this.crmAccountService || inputs.length === 0) {
       return;

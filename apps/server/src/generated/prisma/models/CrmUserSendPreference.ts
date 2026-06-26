@@ -42,6 +42,7 @@ export type CrmUserSendPreferenceMinAggregateOutputType = {
   ownerUserName: string | null;
   dailySendLimit: number | null;
   followUpSharePercent: number | null;
+  emailOpenTrackingEnabled: boolean | null;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date | null;
@@ -55,6 +56,7 @@ export type CrmUserSendPreferenceMaxAggregateOutputType = {
   ownerUserName: string | null;
   dailySendLimit: number | null;
   followUpSharePercent: number | null;
+  emailOpenTrackingEnabled: boolean | null;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date | null;
@@ -68,6 +70,7 @@ export type CrmUserSendPreferenceCountAggregateOutputType = {
   ownerUserName: number;
   dailySendLimit: number;
   followUpSharePercent: number;
+  emailOpenTrackingEnabled: number;
   updatedById: number;
   updatedByName: number;
   createdAt: number;
@@ -92,6 +95,7 @@ export type CrmUserSendPreferenceMinAggregateInputType = {
   ownerUserName?: true;
   dailySendLimit?: true;
   followUpSharePercent?: true;
+  emailOpenTrackingEnabled?: true;
   updatedById?: true;
   updatedByName?: true;
   createdAt?: true;
@@ -105,6 +109,7 @@ export type CrmUserSendPreferenceMaxAggregateInputType = {
   ownerUserName?: true;
   dailySendLimit?: true;
   followUpSharePercent?: true;
+  emailOpenTrackingEnabled?: true;
   updatedById?: true;
   updatedByName?: true;
   createdAt?: true;
@@ -118,6 +123,7 @@ export type CrmUserSendPreferenceCountAggregateInputType = {
   ownerUserName?: true;
   dailySendLimit?: true;
   followUpSharePercent?: true;
+  emailOpenTrackingEnabled?: true;
   updatedById?: true;
   updatedByName?: true;
   createdAt?: true;
@@ -223,6 +229,7 @@ export type CrmUserSendPreferenceGroupByOutputType = {
   ownerUserName: string | null;
   dailySendLimit: number;
   followUpSharePercent: number;
+  emailOpenTrackingEnabled: boolean;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date;
@@ -256,6 +263,7 @@ export type CrmUserSendPreferenceWhereInput = {
   ownerUserName?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
   dailySendLimit?: Prisma.IntFilter<'CrmUserSendPreference'> | number;
   followUpSharePercent?: Prisma.IntFilter<'CrmUserSendPreference'> | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFilter<'CrmUserSendPreference'> | boolean;
   updatedById?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
   updatedByName?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
   createdAt?: Prisma.DateTimeFilter<'CrmUserSendPreference'> | Date | string;
@@ -270,6 +278,7 @@ export type CrmUserSendPreferenceOrderByWithRelationInput = {
   ownerUserName?: Prisma.SortOrderInput | Prisma.SortOrder;
   dailySendLimit?: Prisma.SortOrder;
   followUpSharePercent?: Prisma.SortOrder;
+  emailOpenTrackingEnabled?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder;
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -289,6 +298,7 @@ export type CrmUserSendPreferenceWhereUniqueInput = Prisma.AtLeast<
     ownerUserName?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
     dailySendLimit?: Prisma.IntFilter<'CrmUserSendPreference'> | number;
     followUpSharePercent?: Prisma.IntFilter<'CrmUserSendPreference'> | number;
+    emailOpenTrackingEnabled?: Prisma.BoolFilter<'CrmUserSendPreference'> | boolean;
     updatedById?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
     updatedByName?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
     createdAt?: Prisma.DateTimeFilter<'CrmUserSendPreference'> | Date | string;
@@ -305,6 +315,7 @@ export type CrmUserSendPreferenceOrderByWithAggregationInput = {
   ownerUserName?: Prisma.SortOrderInput | Prisma.SortOrder;
   dailySendLimit?: Prisma.SortOrder;
   followUpSharePercent?: Prisma.SortOrder;
+  emailOpenTrackingEnabled?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder;
   updatedByName?: Prisma.SortOrderInput | Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -330,6 +341,7 @@ export type CrmUserSendPreferenceScalarWhereWithAggregatesInput = {
   ownerUserName?: Prisma.StringNullableWithAggregatesFilter<'CrmUserSendPreference'> | string | null;
   dailySendLimit?: Prisma.IntWithAggregatesFilter<'CrmUserSendPreference'> | number;
   followUpSharePercent?: Prisma.IntWithAggregatesFilter<'CrmUserSendPreference'> | number;
+  emailOpenTrackingEnabled?: Prisma.BoolWithAggregatesFilter<'CrmUserSendPreference'> | boolean;
   updatedById?: Prisma.StringNullableWithAggregatesFilter<'CrmUserSendPreference'> | string | null;
   updatedByName?: Prisma.StringNullableWithAggregatesFilter<'CrmUserSendPreference'> | string | null;
   createdAt?: Prisma.DateTimeWithAggregatesFilter<'CrmUserSendPreference'> | Date | string;
@@ -342,6 +354,7 @@ export type CrmUserSendPreferenceCreateInput = {
   ownerUserName?: string | null;
   dailySendLimit?: number;
   followUpSharePercent?: number;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -356,6 +369,7 @@ export type CrmUserSendPreferenceUncheckedCreateInput = {
   ownerUserName?: string | null;
   dailySendLimit?: number;
   followUpSharePercent?: number;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -368,6 +382,7 @@ export type CrmUserSendPreferenceUpdateInput = {
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   dailySendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpSharePercent?: Prisma.IntFieldUpdateOperationsInput | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -382,6 +397,7 @@ export type CrmUserSendPreferenceUncheckedUpdateInput = {
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   dailySendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpSharePercent?: Prisma.IntFieldUpdateOperationsInput | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -395,6 +411,7 @@ export type CrmUserSendPreferenceCreateManyInput = {
   ownerUserName?: string | null;
   dailySendLimit?: number;
   followUpSharePercent?: number;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -407,6 +424,7 @@ export type CrmUserSendPreferenceUpdateManyMutationInput = {
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   dailySendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpSharePercent?: Prisma.IntFieldUpdateOperationsInput | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -420,6 +438,7 @@ export type CrmUserSendPreferenceUncheckedUpdateManyInput = {
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   dailySendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpSharePercent?: Prisma.IntFieldUpdateOperationsInput | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -448,6 +467,7 @@ export type CrmUserSendPreferenceCountOrderByAggregateInput = {
   ownerUserName?: Prisma.SortOrder;
   dailySendLimit?: Prisma.SortOrder;
   followUpSharePercent?: Prisma.SortOrder;
+  emailOpenTrackingEnabled?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrder;
   updatedByName?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -466,6 +486,7 @@ export type CrmUserSendPreferenceMaxOrderByAggregateInput = {
   ownerUserName?: Prisma.SortOrder;
   dailySendLimit?: Prisma.SortOrder;
   followUpSharePercent?: Prisma.SortOrder;
+  emailOpenTrackingEnabled?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrder;
   updatedByName?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -479,6 +500,7 @@ export type CrmUserSendPreferenceMinOrderByAggregateInput = {
   ownerUserName?: Prisma.SortOrder;
   dailySendLimit?: Prisma.SortOrder;
   followUpSharePercent?: Prisma.SortOrder;
+  emailOpenTrackingEnabled?: Prisma.SortOrder;
   updatedById?: Prisma.SortOrder;
   updatedByName?: Prisma.SortOrder;
   createdAt?: Prisma.SortOrder;
@@ -582,6 +604,7 @@ export type CrmUserSendPreferenceCreateWithoutOrganizationInput = {
   ownerUserName?: string | null;
   dailySendLimit?: number;
   followUpSharePercent?: number;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -594,6 +617,7 @@ export type CrmUserSendPreferenceUncheckedCreateWithoutOrganizationInput = {
   ownerUserName?: string | null;
   dailySendLimit?: number;
   followUpSharePercent?: number;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -653,6 +677,7 @@ export type CrmUserSendPreferenceScalarWhereInput = {
   ownerUserName?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
   dailySendLimit?: Prisma.IntFilter<'CrmUserSendPreference'> | number;
   followUpSharePercent?: Prisma.IntFilter<'CrmUserSendPreference'> | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFilter<'CrmUserSendPreference'> | boolean;
   updatedById?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
   updatedByName?: Prisma.StringNullableFilter<'CrmUserSendPreference'> | string | null;
   createdAt?: Prisma.DateTimeFilter<'CrmUserSendPreference'> | Date | string;
@@ -665,6 +690,7 @@ export type CrmUserSendPreferenceCreateManyOrganizationInput = {
   ownerUserName?: string | null;
   dailySendLimit?: number;
   followUpSharePercent?: number;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: string | null;
   updatedByName?: string | null;
   createdAt?: Date | string;
@@ -677,6 +703,7 @@ export type CrmUserSendPreferenceUpdateWithoutOrganizationInput = {
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   dailySendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpSharePercent?: Prisma.IntFieldUpdateOperationsInput | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -689,6 +716,7 @@ export type CrmUserSendPreferenceUncheckedUpdateWithoutOrganizationInput = {
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   dailySendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpSharePercent?: Prisma.IntFieldUpdateOperationsInput | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -701,6 +729,7 @@ export type CrmUserSendPreferenceUncheckedUpdateManyWithoutOrganizationInput = {
   ownerUserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   dailySendLimit?: Prisma.IntFieldUpdateOperationsInput | number;
   followUpSharePercent?: Prisma.IntFieldUpdateOperationsInput | number;
+  emailOpenTrackingEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean;
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   updatedByName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
@@ -717,6 +746,7 @@ export type CrmUserSendPreferenceSelect<
     ownerUserName?: boolean;
     dailySendLimit?: boolean;
     followUpSharePercent?: boolean;
+    emailOpenTrackingEnabled?: boolean;
     updatedById?: boolean;
     updatedByName?: boolean;
     createdAt?: boolean;
@@ -736,6 +766,7 @@ export type CrmUserSendPreferenceSelectCreateManyAndReturn<
     ownerUserName?: boolean;
     dailySendLimit?: boolean;
     followUpSharePercent?: boolean;
+    emailOpenTrackingEnabled?: boolean;
     updatedById?: boolean;
     updatedByName?: boolean;
     createdAt?: boolean;
@@ -755,6 +786,7 @@ export type CrmUserSendPreferenceSelectUpdateManyAndReturn<
     ownerUserName?: boolean;
     dailySendLimit?: boolean;
     followUpSharePercent?: boolean;
+    emailOpenTrackingEnabled?: boolean;
     updatedById?: boolean;
     updatedByName?: boolean;
     createdAt?: boolean;
@@ -771,6 +803,7 @@ export type CrmUserSendPreferenceSelectScalar = {
   ownerUserName?: boolean;
   dailySendLimit?: boolean;
   followUpSharePercent?: boolean;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: boolean;
   updatedByName?: boolean;
   createdAt?: boolean;
@@ -786,6 +819,7 @@ export type CrmUserSendPreferenceOmit<
   | 'ownerUserName'
   | 'dailySendLimit'
   | 'followUpSharePercent'
+  | 'emailOpenTrackingEnabled'
   | 'updatedById'
   | 'updatedByName'
   | 'createdAt'
@@ -823,6 +857,7 @@ export type $CrmUserSendPreferencePayload<
       ownerUserName: string | null;
       dailySendLimit: number;
       followUpSharePercent: number;
+      emailOpenTrackingEnabled: boolean;
       updatedById: string | null;
       updatedByName: string | null;
       createdAt: Date;
@@ -1381,6 +1416,7 @@ export interface CrmUserSendPreferenceFieldRefs {
   readonly ownerUserName: Prisma.FieldRef<'CrmUserSendPreference', 'String'>;
   readonly dailySendLimit: Prisma.FieldRef<'CrmUserSendPreference', 'Int'>;
   readonly followUpSharePercent: Prisma.FieldRef<'CrmUserSendPreference', 'Int'>;
+  readonly emailOpenTrackingEnabled: Prisma.FieldRef<'CrmUserSendPreference', 'Boolean'>;
   readonly updatedById: Prisma.FieldRef<'CrmUserSendPreference', 'String'>;
   readonly updatedByName: Prisma.FieldRef<'CrmUserSendPreference', 'String'>;
   readonly createdAt: Prisma.FieldRef<'CrmUserSendPreference', 'DateTime'>;

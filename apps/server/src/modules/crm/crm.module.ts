@@ -6,6 +6,7 @@ import { SystemLogModule } from '../system-log/system-log.module';
 import { SystemNotificationModule } from '../system-notification/system-notification.module';
 import { AiGatewayModule } from '../ai-gateway/ai-gateway.module';
 import { CrmAccountService } from './accounts/crm-account.service';
+import { CrmProductLineService } from './product-lines/crm-product-line.service';
 import {
   crmControllers,
   crmDomainServices,
@@ -27,6 +28,6 @@ import {
     ...crmQueueProviders,
     ...crmIntegrationProviders
   ],
-  exports: [CrmAccountService]
+  exports: [CrmAccountService, CrmProductLineService]
 })
 export class CrmModule {}

@@ -25,6 +25,7 @@ describe('AI leads request DTOs', () => {
       plainToInstance(CreateSearchTaskDto, {
         requirement: ' 找沙特轴承进口商 ',
         targetLeadCount: 20,
+        productLineId: ' product-line-1 ',
         keywordPlan: {}
       }).requirement,
       '找沙特轴承进口商'
@@ -43,12 +44,28 @@ describe('AI leads request DTOs', () => {
       plainToInstance(CreateSearchTaskDto, {
         requirement: '   ',
         targetLeadCount: 20,
+        productLineId: 'product-line-1',
         keywordPlan: {}
       })
     );
 
     assert.equal(
       errors.some(error => error.property === 'requirement'),
+      true
+    );
+  });
+
+  it('requires a product line when creating background search tasks', async () => {
+    const errors = await validate(
+      plainToInstance(CreateSearchTaskDto, {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20,
+        keywordPlan: {}
+      })
+    );
+
+    assert.equal(
+      errors.some(error => error.property === 'productLineId'),
       true
     );
   });

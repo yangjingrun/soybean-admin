@@ -31,7 +31,10 @@ import {
   canCreateSequenceFromLeadAccountContact,
   createDefaultLeadFilterModel,
   createDefaultLeadImportForm,
+  hasMixedLeadSequenceProductLines,
+  hasPartialLeadSequenceProductLineSources,
   patchLeadEmailProgressForContacts,
+  resolveCommonLeadSequenceProductLineId,
   type LeadCommunicationTab,
   type LeadEmailProgressPatch,
   type LeadSequenceTarget
@@ -438,7 +441,10 @@ export function useLeadTable() {
       ]);
 
       if (!mailboxes.error) sequenceMailboxOptions.value = mailboxes.data.records;
-      if (!productLines.error) sequenceProductLineOptions.value = productLines.data.records;
+      if (!productLines.error) {
+        sequenceProductLineOptions.value = productLines.data.records;
+        applySourceProductLineDefault(productLines.data.records);
+      }
       if (!sequencePolicies.error) sequencePolicyOptions.value = sequencePolicies.data.records;
     } finally {
       sequenceResourceLoading.value = false;
@@ -922,8 +928,32 @@ export function useLeadTable() {
   function openSequenceCreateModal(targets: LeadSequenceTarget[]) {
     sequenceTargets.value = targets;
     Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+
+    if (hasMixedLeadSequenceProductLines(targets)) {
+      message.warning('所选客户来自多个产品线，建议按产品线分组生成开发信');
+    } else if (hasPartialLeadSequenceProductLineSources(targets)) {
+      message.warning('部分客户没有来源产品线，请手动选择本次开发信使用的产品线');
+    }
+
     sequenceCreateVisible.value = true;
     void loadSequenceCreateResources();
+  }
+
+  /** 默认沿用 AI 获客来源产品线；归档产品线不自动套用。 */
+  function applySourceProductLineDefault(productLines: Api.Crm.ProductLineRecord[]) {
+    const sourceProductLineId = resolveCommonLeadSequenceProductLineId(sequenceTargets.value);
+
+    if (!sourceProductLineId || sequenceCreateForm.productLineId) {
+      return;
+    }
+
+    const activeProductLine = productLines.find(productLine => productLine.id === sourceProductLineId);
+
+    if (activeProductLine) {
+      sequenceCreateForm.productLineId = activeProductLine.id;
+    } else {
+      message.warning('来源产品线已归档或不可用，请重新选择当前可用产品线');
+    }
   }
 
   /** Keep the visible customer table and open drawers aligned with submitted background generation. */

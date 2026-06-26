@@ -24,6 +24,11 @@ export interface KeywordOptimizationViewModel {
   showQueryDetails: boolean;
 }
 
+export interface ProductLineSummaryItem {
+  label: string;
+  value: string;
+}
+
 export interface AiLeadCandidateImportState {
   key: string;
   canImport: boolean;
@@ -165,6 +170,56 @@ export function buildKeywordHistoryUpdatePayload(
 /** Clones a keyword plan before editing so history selection does not mutate source records. */
 export function cloneKeywordPlan(plan: Api.AiLeads.OptimizedKeywordPlan): Api.AiLeads.OptimizedKeywordPlan {
   return JSON.parse(JSON.stringify(plan)) as Api.AiLeads.OptimizedKeywordPlan;
+}
+
+/** Builds the product-line snapshot sent into AI lead keyword optimization. */
+export function createAiLeadProductLineSnapshot(
+  productLine: Api.Crm.ProductLineRecord
+): Api.AiLeads.ProductLineSnapshot {
+  return {
+    id: productLine.id,
+    name: productLine.name,
+    targetCustomerType: productLine.targetCustomerType,
+    coreSellingPoints: productLine.coreSellingPoints,
+    moq: productLine.moq,
+    leadTime: productLine.leadTime,
+    paymentTerms: productLine.paymentTerms,
+    certifications: productLine.certifications,
+    catalogUrl: productLine.catalogUrl,
+    websiteUrl: productLine.websiteUrl,
+    commonModelsText: productLine.commonModelsText
+  };
+}
+
+/** Builds compact product-line facts for the AI leads form. */
+export function buildProductLineSummaryItems(
+  productLine: Api.Crm.ProductLineRecord | Api.AiLeads.ProductLineSnapshot | null | undefined
+): ProductLineSummaryItem[] {
+  if (!productLine) {
+    return [];
+  }
+
+  return [
+    { label: '目标客户', value: productLine.targetCustomerType || '' },
+    { label: '核心卖点', value: productLine.coreSellingPoints || '' },
+    { label: '常见型号', value: productLine.commonModelsText || '' },
+    { label: '认证', value: productLine.certifications || '' },
+    { label: 'MOQ', value: productLine.moq || '' },
+    { label: '交期', value: productLine.leadTime || '' }
+  ].filter(item => item.value);
+}
+
+/** Reads the product-line id embedded in a keyword plan snapshot. */
+export function resolveKeywordPlanProductLineId(plan: Api.AiLeads.OptimizedKeywordPlan | null | undefined) {
+  return plan?.productLineSnapshot?.id ?? null;
+}
+
+/** Checks whether a reusable keyword plan belongs to the selected product line. */
+export function isKeywordPlanForProductLine(
+  plan: Api.AiLeads.OptimizedKeywordPlan | null | undefined,
+  productLineId: string | null | undefined
+) {
+  return Boolean(productLineId && resolveKeywordPlanProductLineId(plan) === productLineId);
 }
 
 /** Checks whether a target lead count can be sent to the search workflow. */

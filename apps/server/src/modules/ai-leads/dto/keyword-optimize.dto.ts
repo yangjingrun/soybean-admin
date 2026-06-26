@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { trimStringValue } from '../../../shared/dto-transformers';
 
 export const leadSourceModes = ['search', 'maps'] as const;
@@ -15,4 +15,8 @@ export class KeywordOptimizeDto {
   @IsOptional()
   @IsIn(leadSourceModes)
   leadSourceMode?: LeadSourceMode;
+
+  @IsOptional()
+  @IsObject()
+  productLineSnapshot?: Record<string, unknown>;
 }

@@ -59,6 +59,11 @@ function createTask(overrides: Partial<AiLeadSearchTaskRecord>): AiLeadSearchTas
     organizationRole: 'admin',
     requirement: '找沙特轴承进口商',
     targetLeadCount: 20,
+    productLineId: 'product-line-1',
+    productLineSnapshot: {
+      id: 'product-line-1',
+      name: '6204 Bearing'
+    },
     keywordPlan: {},
     status: 'queued',
     priority: 0,

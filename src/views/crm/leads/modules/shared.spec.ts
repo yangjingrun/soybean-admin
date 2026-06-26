@@ -21,9 +21,13 @@ import {
   getLeadNextAction,
   getArchivedFingerprintMatchEvents,
   getLeadTimelineItemType,
+  hasMixedLeadSequenceProductLines,
+  hasPartialLeadSequenceProductLineSources,
   leadStatusLabelMap,
   patchLeadEmailProgressForContacts,
   readArchivedFingerprintMatches,
+  readLeadSourceProductLine,
+  resolveCommonLeadSequenceProductLineId,
   createDefaultLeadImportForm,
   normalizeLeadImportPayload
 } from './shared';
@@ -392,6 +396,16 @@ describe('crm lead shared helpers', () => {
           website: 'https://www.schaeffler.ae/en/',
           score: 14,
           reason: '品牌区域机构而非独立经销商',
+          productLine: {
+            id: 'product-line-1',
+            name: 'Deep groove ball bearings',
+            targetCustomerType: '进口商和经销商',
+            coreSellingPoints: '稳定供货',
+            commonModelsText: '6203, 6204',
+            certifications: 'ISO',
+            moq: '100 pcs',
+            leadTime: '7 days'
+          },
           websiteEvidence: {
             crawlStatus: 'completed',
             pageCount: 8,
@@ -441,6 +455,46 @@ describe('crm lead shared helpers', () => {
     assert.equal(evidence.precisionAnalysis?.score, 14);
     assert.equal(evidence.precisionAnalysis?.priorityTagType, 'error');
     assert.equal(evidence.precisionAnalysis?.buyerType, '品牌方/区域销售公司');
+    assert.deepEqual(evidence.sourceProductLine, {
+      id: 'product-line-1',
+      name: 'Deep groove ball bearings',
+      targetCustomerType: '进口商和经销商',
+      coreSellingPoints: '稳定供货',
+      commonModelsText: '6203, 6204',
+      certifications: 'ISO',
+      moq: '100 pcs',
+      leadTime: '7 days'
+    });
+  });
+
+  it('reads source product line snapshots from imported AI leads', () => {
+    const productLine = readLeadSourceProductLine(
+      createLeadRecord({
+        sourceSnapshot: {
+          productLine: {
+            id: 'line-1',
+            name: 'Bearing line',
+            targetCustomerType: '进口商',
+            coreSellingPoints: '低 MOQ',
+            commonModelsText: '6204',
+            certifications: 'ISO',
+            moq: '100 pcs',
+            leadTime: '7 days'
+          }
+        }
+      })
+    );
+
+    assert.deepEqual(productLine, {
+      id: 'line-1',
+      name: 'Bearing line',
+      targetCustomerType: '进口商',
+      coreSellingPoints: '低 MOQ',
+      commonModelsText: '6204',
+      certifications: 'ISO',
+      moq: '100 pcs',
+      leadTime: '7 days'
+    });
   });
 
   it('formats contact email progress with full datetime text', () => {
@@ -626,7 +680,9 @@ describe('crm lead shared helpers', () => {
       contactId: 'contact-1',
       contactName: 'Alex Buyer',
       contactTitle: 'Buyer',
-      maskedEmail: 'a***@example.com'
+      maskedEmail: 'a***@example.com',
+      sourceProductLineId: null,
+      sourceProductLineName: ''
     });
 
     assert.deepEqual(
@@ -640,6 +696,53 @@ describe('crm lead shared helpers', () => {
       ),
       [buildLeadSequenceTarget(validContact, createLeadRecord({ id: 'lead-1', name: 'ABC Trading' }))]
     );
+  });
+
+  it('defaults first-email product line only when selected targets share the same source product line', () => {
+    const contactOne = createLeadContact({ id: 'contact-1', accountId: 'lead-1', emailStatus: 'valid' });
+    const contactTwo = createLeadContact({ id: 'contact-2', accountId: 'lead-2', emailStatus: 'valid' });
+    const sharedProductLineSnapshot = {
+      productLine: {
+        id: 'line-1',
+        name: 'Bearing line'
+      }
+    };
+    const sharedTargets = [
+      buildLeadSequenceTarget(
+        contactOne,
+        createLeadRecord({ id: 'lead-1', sourceSnapshot: sharedProductLineSnapshot })
+      ),
+      buildLeadSequenceTarget(
+        contactTwo,
+        createLeadRecord({ id: 'lead-2', sourceSnapshot: sharedProductLineSnapshot })
+      )
+    ];
+    const mixedTargets = [
+      sharedTargets[0],
+      buildLeadSequenceTarget(
+        contactTwo,
+        createLeadRecord({
+          id: 'lead-2',
+          sourceSnapshot: {
+            productLine: {
+              id: 'line-2',
+              name: 'Seal line'
+            }
+          }
+        })
+      )
+    ];
+    const partialTargets = [sharedTargets[0], buildLeadSequenceTarget(contactTwo, createLeadRecord({ id: 'lead-2' }))];
+
+    assert.equal(resolveCommonLeadSequenceProductLineId(sharedTargets), 'line-1');
+    assert.equal(hasMixedLeadSequenceProductLines(sharedTargets), false);
+    assert.equal(hasPartialLeadSequenceProductLineSources(sharedTargets), false);
+    assert.equal(resolveCommonLeadSequenceProductLineId(mixedTargets), null);
+    assert.equal(hasMixedLeadSequenceProductLines(mixedTargets), true);
+    assert.equal(hasPartialLeadSequenceProductLineSources(mixedTargets), false);
+    assert.equal(resolveCommonLeadSequenceProductLineId(partialTargets), null);
+    assert.equal(hasMixedLeadSequenceProductLines(partialTargets), false);
+    assert.equal(hasPartialLeadSequenceProductLineSources(partialTargets), true);
   });
 
   it('builds province/state region keyword params from cascader filters', () => {

@@ -3,17 +3,19 @@ import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import dayjs from 'dayjs';
 import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
+import LeadProductLineContext from './modules/LeadProductLineContext.vue';
 import SearchProgressPanel from './modules/SearchProgressPanel.vue';
 import { useAiLeadPage } from './modules/useAiLeadPage';
 
 const {
   aiFinishReasonLabel,
   aiResult,
+  canGenerate,
   canManageKeywordStrategy,
   canViewSerperDetails,
   canReturnToKeywordStep,
   canSaveHistory,
-  canStartLeadWorkflow,
+  canSearchCustomers,
   canStopLeadWorkflow,
   currentHistoryRecord,
   currentSearchTask,
@@ -24,11 +26,12 @@ const {
   handleCopyResult,
   handleDeleteCurrentHistory,
   handleDeleteHistory,
+  handleGenerate,
+  handleSearchCustomers,
   handleProcessCollectedLeads,
   handleReturnToKeywordOptimization,
   handleSaveHistory,
   handleSelectHistory,
-  handleStartLeadWorkflow,
   handleStartEdit,
   handleStopLeadWorkflow,
   handleTargetLeadCountUpdate,
@@ -40,16 +43,21 @@ const {
   isHistoryDrawerVisible,
   isHistoryLoading,
   isHistorySaving,
+  isProductLineLoading,
   isRestoredKeywordHistory,
   isSearchTaskActionLoading,
   isSearchTaskBlockingForm,
   isSearchTaskPending,
   isSearchTaskSubmitting,
+  isSearching,
   isLeadWorkflowRunning,
   keywordOptimizationViewModel,
   keywordQualityWarnings,
   leadWorkflowStatusLabel,
+  productLineSelectOptions,
   searchProgress,
+  selectedProductLine,
+  selectedProductLineSummaryItems,
   selectedHistoryId,
   targetLeadCountFeedback
 } = useAiLeadPage();
@@ -84,13 +92,22 @@ async function handleStartKeywordResultEdit() {
   <NSpace vertical :size="12" class="ai-leads-page">
     <NCard :bordered="false" size="small" class="card-wrapper task-card">
       <NForm :model="form" label-placement="top" size="small" class="lead-form">
-        <NFormItem label="获客需求">
+        <LeadProductLineContext
+          v-model:product-line-id="form.productLineId"
+          :disabled="isSearchTaskBlockingForm"
+          :loading="isProductLineLoading"
+          :options="productLineSelectOptions"
+          :product-line="selectedProductLine"
+          :summary-items="selectedProductLineSummaryItems"
+        />
+
+        <NFormItem label="本次开发要求">
           <NInput
             v-model:value="form.requirement"
             type="textarea"
             :disabled="isSearchTaskBlockingForm"
             :autosize="{ minRows: 2, maxRows: 6 }"
-            placeholder="描述产品、地区、目标市场、客户类型和产品优势。例如：我是中国河北卖轴承的，主打 6204 bearing，想找沙特阿拉伯进口商和经销商，产品优势是供货稳定、价格有竞争力。"
+            placeholder="填写本次目标市场、客户类型、搜索关键词和补充判断规则。例如：阿联酋轴承进口商和经销商，只找海外客户，排除中国供应商。"
           />
         </NFormItem>
 
@@ -146,14 +163,23 @@ async function handleStartKeywordResultEdit() {
               历史
             </NButton>
             <NButton
+              size="small"
+              secondary
+              :loading="isGenerating"
+              :disabled="!canGenerate || isSearchTaskBlockingForm || isSearching || isSearchTaskActionLoading"
+              @click="handleGenerate"
+            >
+              优化关键词
+            </NButton>
+            <NButton
               v-if="!isLeadWorkflowRunning"
               size="small"
               type="primary"
-              :disabled="!canStartLeadWorkflow"
+              :disabled="!canSearchCustomers"
               data-action="start-leads"
-              @click="handleStartLeadWorkflow"
+              @click="handleSearchCustomers"
             >
-              开始获客
+              开始采集
             </NButton>
             <NButton v-else size="small" type="primary" loading disabled data-action="start-leads">
               {{ leadWorkflowStatusLabel || '正在获客' }}

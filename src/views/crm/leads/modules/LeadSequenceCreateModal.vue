@@ -33,6 +33,13 @@ const selectedProductLineAiWritingStatus = computed(() =>
     ? getProductLineAiWritingStatus(selectedProductLineOption.value.aiWritingConfig)
     : null
 );
+const sourceProductLineNames = computed(() =>
+  Array.from(new Set(props.targets.map(target => target.sourceProductLineName).filter(Boolean)))
+);
+const hasTargetsWithoutSourceProductLine = computed(() => props.targets.some(target => !target.sourceProductLineId));
+const hasSingleCompleteSourceProductLine = computed(
+  () => props.targets.length > 0 && !hasTargetsWithoutSourceProductLine.value && sourceProductLineNames.value.length === 1
+);
 const modalTitle = computed(() => (props.targets.length > 1 ? '批量生成开发信' : '生成开发信'));
 </script>
 
@@ -43,6 +50,20 @@ const modalTitle = computed(() => (props.targets.length > 1 ? '批量生成开�
         <div class="target-count">
           <span class="target-count-label">已选择</span>
           <NTag :bordered="false" size="small" type="info">{{ targets.length }} 个联系人</NTag>
+          <NTag
+            v-if="hasSingleCompleteSourceProductLine"
+            :bordered="false"
+            size="small"
+            type="success"
+          >
+            来源产品线：{{ sourceProductLineNames[0] }}
+          </NTag>
+          <NTag v-else-if="sourceProductLineNames.length > 1" :bordered="false" size="small" type="warning">
+            多产品线
+          </NTag>
+          <NTag v-else-if="hasTargetsWithoutSourceProductLine && sourceProductLineNames.length" :bordered="false" size="small" type="warning">
+            部分无来源产品线
+          </NTag>
         </div>
 
         <NForm :model="formModel" label-placement="top">
@@ -53,7 +74,7 @@ const modalTitle = computed(() => (props.targets.length > 1 ? '批量生成开�
                 filterable
                 clearable
                 :options="productLineOptions"
-                placeholder="可选，建议选择"
+                placeholder="默认按来源产品线，可手动调整"
               />
               <NSpace v-if="selectedProductLineAiWritingStatus" align="center" :size="8">
                 <NText depth="3">AI 状态</NText>

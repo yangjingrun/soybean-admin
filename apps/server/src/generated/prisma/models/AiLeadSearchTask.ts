@@ -45,6 +45,7 @@ export type AiLeadSearchTaskMinAggregateOutputType = {
   organizationRole: string | null;
   requirement: string | null;
   targetLeadCount: number | null;
+  productLineId: string | null;
   status: $Enums.AiLeadSearchTaskStatus | null;
   priority: number | null;
   runVersion: number | null;
@@ -66,6 +67,7 @@ export type AiLeadSearchTaskMaxAggregateOutputType = {
   organizationRole: string | null;
   requirement: string | null;
   targetLeadCount: number | null;
+  productLineId: string | null;
   status: $Enums.AiLeadSearchTaskStatus | null;
   priority: number | null;
   runVersion: number | null;
@@ -87,6 +89,8 @@ export type AiLeadSearchTaskCountAggregateOutputType = {
   organizationRole: number;
   requirement: number;
   targetLeadCount: number;
+  productLineId: number;
+  productLineSnapshot: number;
   keywordPlan: number;
   status: number;
   priority: number;
@@ -124,6 +128,7 @@ export type AiLeadSearchTaskMinAggregateInputType = {
   organizationRole?: true;
   requirement?: true;
   targetLeadCount?: true;
+  productLineId?: true;
   status?: true;
   priority?: true;
   runVersion?: true;
@@ -145,6 +150,7 @@ export type AiLeadSearchTaskMaxAggregateInputType = {
   organizationRole?: true;
   requirement?: true;
   targetLeadCount?: true;
+  productLineId?: true;
   status?: true;
   priority?: true;
   runVersion?: true;
@@ -166,6 +172,8 @@ export type AiLeadSearchTaskCountAggregateInputType = {
   organizationRole?: true;
   requirement?: true;
   targetLeadCount?: true;
+  productLineId?: true;
+  productLineSnapshot?: true;
   keywordPlan?: true;
   status?: true;
   priority?: true;
@@ -278,6 +286,8 @@ export type AiLeadSearchTaskGroupByOutputType = {
   organizationRole: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId: string | null;
+  productLineSnapshot: runtime.JsonValue | null;
   keywordPlan: runtime.JsonValue;
   status: $Enums.AiLeadSearchTaskStatus;
   priority: number;
@@ -322,6 +332,8 @@ export type AiLeadSearchTaskWhereInput = {
   organizationRole?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   requirement?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   targetLeadCount?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
+  productLineId?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+  productLineSnapshot?: Prisma.JsonNullableFilter<'AiLeadSearchTask'>;
   keywordPlan?: Prisma.JsonFilter<'AiLeadSearchTask'>;
   status?: Prisma.EnumAiLeadSearchTaskStatusFilter<'AiLeadSearchTask'> | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
@@ -349,6 +361,8 @@ export type AiLeadSearchTaskOrderByWithRelationInput = {
   organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
+  productLineId?: Prisma.SortOrderInput | Prisma.SortOrder;
+  productLineSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder;
   keywordPlan?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   priority?: Prisma.SortOrder;
@@ -380,6 +394,8 @@ export type AiLeadSearchTaskWhereUniqueInput = Prisma.AtLeast<
     organizationRole?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
     requirement?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
     targetLeadCount?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
+    productLineId?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+    productLineSnapshot?: Prisma.JsonNullableFilter<'AiLeadSearchTask'>;
     keywordPlan?: Prisma.JsonFilter<'AiLeadSearchTask'>;
     status?: Prisma.EnumAiLeadSearchTaskStatusFilter<'AiLeadSearchTask'> | $Enums.AiLeadSearchTaskStatus;
     priority?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
@@ -409,6 +425,8 @@ export type AiLeadSearchTaskOrderByWithAggregationInput = {
   organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
+  productLineId?: Prisma.SortOrderInput | Prisma.SortOrder;
+  productLineSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder;
   keywordPlan?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   priority?: Prisma.SortOrder;
@@ -441,6 +459,8 @@ export type AiLeadSearchTaskScalarWhereWithAggregatesInput = {
   organizationRole?: Prisma.StringWithAggregatesFilter<'AiLeadSearchTask'> | string;
   requirement?: Prisma.StringWithAggregatesFilter<'AiLeadSearchTask'> | string;
   targetLeadCount?: Prisma.IntWithAggregatesFilter<'AiLeadSearchTask'> | number;
+  productLineId?: Prisma.StringNullableWithAggregatesFilter<'AiLeadSearchTask'> | string | null;
+  productLineSnapshot?: Prisma.JsonNullableWithAggregatesFilter<'AiLeadSearchTask'>;
   keywordPlan?: Prisma.JsonWithAggregatesFilter<'AiLeadSearchTask'>;
   status?: Prisma.EnumAiLeadSearchTaskStatusWithAggregatesFilter<'AiLeadSearchTask'> | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntWithAggregatesFilter<'AiLeadSearchTask'> | number;
@@ -464,6 +484,8 @@ export type AiLeadSearchTaskCreateInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -491,6 +513,8 @@ export type AiLeadSearchTaskUncheckedCreateInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -516,6 +540,8 @@ export type AiLeadSearchTaskUpdateInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -543,6 +569,8 @@ export type AiLeadSearchTaskUncheckedUpdateInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -569,6 +597,8 @@ export type AiLeadSearchTaskCreateManyInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -592,6 +622,8 @@ export type AiLeadSearchTaskUpdateManyMutationInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -616,6 +648,8 @@ export type AiLeadSearchTaskUncheckedUpdateManyInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -650,6 +684,8 @@ export type AiLeadSearchTaskCountOrderByAggregateInput = {
   organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
+  productLineId?: Prisma.SortOrder;
+  productLineSnapshot?: Prisma.SortOrder;
   keywordPlan?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   priority?: Prisma.SortOrder;
@@ -680,6 +716,7 @@ export type AiLeadSearchTaskMaxOrderByAggregateInput = {
   organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
+  productLineId?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   priority?: Prisma.SortOrder;
   runVersion?: Prisma.SortOrder;
@@ -701,6 +738,7 @@ export type AiLeadSearchTaskMinOrderByAggregateInput = {
   organizationRole?: Prisma.SortOrder;
   requirement?: Prisma.SortOrder;
   targetLeadCount?: Prisma.SortOrder;
+  productLineId?: Prisma.SortOrder;
   status?: Prisma.SortOrder;
   priority?: Prisma.SortOrder;
   runVersion?: Prisma.SortOrder;
@@ -874,6 +912,8 @@ export type AiLeadSearchTaskCreateWithoutOrganizationInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -899,6 +939,8 @@ export type AiLeadSearchTaskUncheckedCreateWithoutOrganizationInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -969,6 +1011,8 @@ export type AiLeadSearchTaskScalarWhereInput = {
   organizationRole?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   requirement?: Prisma.StringFilter<'AiLeadSearchTask'> | string;
   targetLeadCount?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
+  productLineId?: Prisma.StringNullableFilter<'AiLeadSearchTask'> | string | null;
+  productLineSnapshot?: Prisma.JsonNullableFilter<'AiLeadSearchTask'>;
   keywordPlan?: Prisma.JsonFilter<'AiLeadSearchTask'>;
   status?: Prisma.EnumAiLeadSearchTaskStatusFilter<'AiLeadSearchTask'> | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFilter<'AiLeadSearchTask'> | number;
@@ -992,6 +1036,8 @@ export type AiLeadSearchTaskCreateWithoutQueriesInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -1018,6 +1064,8 @@ export type AiLeadSearchTaskUncheckedCreateWithoutQueriesInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -1070,6 +1118,8 @@ export type AiLeadSearchTaskUpdateWithoutQueriesInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -1096,6 +1146,8 @@ export type AiLeadSearchTaskUncheckedUpdateWithoutQueriesInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -1120,6 +1172,8 @@ export type AiLeadSearchTaskCreateWithoutEventsInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -1146,6 +1200,8 @@ export type AiLeadSearchTaskUncheckedCreateWithoutEventsInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -1198,6 +1254,8 @@ export type AiLeadSearchTaskUpdateWithoutEventsInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -1224,6 +1282,8 @@ export type AiLeadSearchTaskUncheckedUpdateWithoutEventsInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -1248,6 +1308,8 @@ export type AiLeadSearchTaskCreateManyOrganizationInput = {
   organizationRole?: string;
   requirement: string;
   targetLeadCount: number;
+  productLineId?: string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: $Enums.AiLeadSearchTaskStatus;
   priority?: number;
@@ -1271,6 +1333,8 @@ export type AiLeadSearchTaskUpdateWithoutOrganizationInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -1296,6 +1360,8 @@ export type AiLeadSearchTaskUncheckedUpdateWithoutOrganizationInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -1321,6 +1387,8 @@ export type AiLeadSearchTaskUncheckedUpdateManyWithoutOrganizationInput = {
   organizationRole?: Prisma.StringFieldUpdateOperationsInput | string;
   requirement?: Prisma.StringFieldUpdateOperationsInput | string;
   targetLeadCount?: Prisma.IntFieldUpdateOperationsInput | number;
+  productLineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+  productLineSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue;
   keywordPlan?: Prisma.JsonNullValueInput | runtime.InputJsonValue;
   status?: Prisma.EnumAiLeadSearchTaskStatusFieldUpdateOperationsInput | $Enums.AiLeadSearchTaskStatus;
   priority?: Prisma.IntFieldUpdateOperationsInput | number;
@@ -1394,6 +1462,8 @@ export type AiLeadSearchTaskSelect<
     organizationRole?: boolean;
     requirement?: boolean;
     targetLeadCount?: boolean;
+    productLineId?: boolean;
+    productLineSnapshot?: boolean;
     keywordPlan?: boolean;
     status?: boolean;
     priority?: boolean;
@@ -1427,6 +1497,8 @@ export type AiLeadSearchTaskSelectCreateManyAndReturn<
     organizationRole?: boolean;
     requirement?: boolean;
     targetLeadCount?: boolean;
+    productLineId?: boolean;
+    productLineSnapshot?: boolean;
     keywordPlan?: boolean;
     status?: boolean;
     priority?: boolean;
@@ -1457,6 +1529,8 @@ export type AiLeadSearchTaskSelectUpdateManyAndReturn<
     organizationRole?: boolean;
     requirement?: boolean;
     targetLeadCount?: boolean;
+    productLineId?: boolean;
+    productLineSnapshot?: boolean;
     keywordPlan?: boolean;
     status?: boolean;
     priority?: boolean;
@@ -1484,6 +1558,8 @@ export type AiLeadSearchTaskSelectScalar = {
   organizationRole?: boolean;
   requirement?: boolean;
   targetLeadCount?: boolean;
+  productLineId?: boolean;
+  productLineSnapshot?: boolean;
   keywordPlan?: boolean;
   status?: boolean;
   priority?: boolean;
@@ -1510,6 +1586,8 @@ export type AiLeadSearchTaskOmit<
   | 'organizationRole'
   | 'requirement'
   | 'targetLeadCount'
+  | 'productLineId'
+  | 'productLineSnapshot'
   | 'keywordPlan'
   | 'status'
   | 'priority'
@@ -1563,6 +1641,8 @@ export type $AiLeadSearchTaskPayload<
       organizationRole: string;
       requirement: string;
       targetLeadCount: number;
+      productLineId: string | null;
+      productLineSnapshot: runtime.JsonValue | null;
       keywordPlan: runtime.JsonValue;
       status: $Enums.AiLeadSearchTaskStatus;
       priority: number;
@@ -2121,6 +2201,8 @@ export interface AiLeadSearchTaskFieldRefs {
   readonly organizationRole: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
   readonly requirement: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
   readonly targetLeadCount: Prisma.FieldRef<'AiLeadSearchTask', 'Int'>;
+  readonly productLineId: Prisma.FieldRef<'AiLeadSearchTask', 'String'>;
+  readonly productLineSnapshot: Prisma.FieldRef<'AiLeadSearchTask', 'Json'>;
   readonly keywordPlan: Prisma.FieldRef<'AiLeadSearchTask', 'Json'>;
   readonly status: Prisma.FieldRef<'AiLeadSearchTask', 'AiLeadSearchTaskStatus'>;
   readonly priority: Prisma.FieldRef<'AiLeadSearchTask', 'Int'>;

@@ -7,6 +7,7 @@ import {
   type CrmAccountSourceSnapshotBackfillDatabase
 } from '../modules/crm/accounts/crm-account-source-snapshot-backfill';
 import { loadAppConfig } from '../modules/app-config/app-config.loader';
+import { normalizeAiLeadProductLineSnapshot } from '../modules/ai-leads/ai-lead-product-line-context';
 
 async function main() {
   loadNearestDotEnv();
@@ -82,13 +83,22 @@ function createDatabaseAdapter(prisma: PrismaClient): CrmAccountSourceSnapshotBa
       });
     },
     findTasksByIds(ids: string[]) {
-      return prisma.aiLeadSearchTask.findMany({
-        where: { id: { in: ids } },
-        select: {
-          id: true,
-          result: true
-        }
-      });
+      return prisma.aiLeadSearchTask
+        .findMany({
+          where: { id: { in: ids } },
+          select: {
+            id: true,
+            productLineSnapshot: true,
+            result: true
+          }
+        })
+        .then(tasks =>
+          tasks.map(task => ({
+            id: task.id,
+            productLineSnapshot: normalizeAiLeadProductLineSnapshot(task.productLineSnapshot),
+            result: task.result
+          }))
+        );
     },
     updateAccountSourceSnapshot(id: string, sourceSnapshot: Record<string, unknown>) {
       return prisma.crmAccount.update({

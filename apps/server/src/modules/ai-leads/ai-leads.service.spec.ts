@@ -315,6 +315,78 @@ describe('AiLeadsService', () => {
     assert.deepEqual(result.keywordPlan, keywordPlan);
   });
 
+  it('keeps product-line context in keyword optimization prompt and saved keyword plan', async () => {
+    let capturedDto: GenerateAiTextDto | null = null;
+    let capturedHistoryInput: SaveKeywordHistoryInput | null = null;
+    const productLineSnapshot = {
+      id: 'product-line-1',
+      name: 'Deep groove ball bearings',
+      targetCustomerType: '进口商和经销商',
+      coreSellingPoints: '稳定供货',
+      commonModelsText: '6203, 6204',
+      certifications: 'ISO',
+      moq: '100 pcs',
+      leadTime: '7 days'
+    };
+    const normalizedProductLineSnapshot = {
+      ...productLineSnapshot,
+      paymentTerms: null,
+      catalogUrl: null,
+      websiteUrl: null
+    };
+    const expectedKeywordPlan = {
+      ...keywordPlan,
+      productLineSnapshot: normalizedProductLineSnapshot
+    };
+    const aiGatewayService = {
+      async generateText(dto: GenerateAiTextDto) {
+        capturedDto = dto;
+
+        return {
+          text: JSON.stringify(keywordPlan),
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 12,
+            outputTokens: 8,
+            totalTokens: 20
+          }
+        };
+      }
+    } as unknown as AiGatewayService;
+    const historyStore = createHistoryStore({
+      async create(input) {
+        capturedHistoryInput = input;
+
+        return createHistoryRecord({
+          id: 'history-product-line',
+          ...input,
+          createdAt: new Date('2026-06-18T01:00:00.000Z'),
+          updatedAt: new Date('2026-06-18T01:00:00.000Z')
+        });
+      }
+    });
+    const service = new AiLeadsService(aiGatewayService, historyStore);
+
+    const result = await service.optimizeKeywords(
+      {
+        requirement: '找阿联酋轴承进口商',
+        productLineSnapshot
+      },
+      { user }
+    );
+
+    const optimizeDto = capturedDto as GenerateAiTextDto | null;
+    const historyInput = capturedHistoryInput as SaveKeywordHistoryInput | null;
+
+    assert.ok(optimizeDto);
+    assert.ok(historyInput);
+    assert.match(optimizeDto.prompt, /Deep groove ball bearings/);
+    assert.match(optimizeDto.prompt, /6203, 6204/);
+    assert.deepEqual(result.keywordPlan, expectedKeywordPlan);
+    assert.deepEqual(JSON.parse(historyInput.resultText), expectedKeywordPlan);
+    assert.deepEqual(historyInput.keywordPlan, expectedKeywordPlan);
+  });
+
   it('uses the Maps keyword prompt when the lead source mode is maps', async () => {
     let capturedDto: GenerateAiTextDto | null = null;
     const mapsKeywordPlan = {
@@ -356,10 +428,13 @@ describe('AiLeadsService', () => {
       { requirement: '用地图找美国轴承经销商', leadSourceMode: 'maps' },
       { user }
     );
+    const mapsDto = capturedDto as GenerateAiTextDto | null;
+    const mapsQueries = result.keywordPlan.serperMapsQueries as NonNullable<typeof mapsKeywordPlan.serperMapsQueries>;
 
-    assert.equal(capturedDto?.promptKey, leadMapsKeywordOptimizePromptKey);
+    assert.ok(mapsDto);
+    assert.equal(mapsDto.promptKey, leadMapsKeywordOptimizePromptKey);
     assert.deepEqual(result.qualityWarnings, []);
-    assert.equal(result.keywordPlan.serperMapsQueries?.[0]?.requestBody.q, 'bearing distributor');
+    assert.equal(mapsQueries[0]?.requestBody.q, 'bearing distributor');
   });
 
   it('adds generic local-language query requirements when optimizing non-English markets', async () => {
@@ -708,9 +783,12 @@ describe('AiLeadsService', () => {
     };
 
     assert.deepEqual(result.summary, {
-      candidateCount: 1
+      candidateCount: 1,
+      actionCount: 1,
+      qualityCheckCount: 1,
+      stopReason: '所有查询已完成'
     });
-    assert.equal('sourceLabel' in result.candidates[0], false);
+    assert.equal('sourceLabel' in result.candidates[0], true);
     assert.deepEqual(result.serperResults, []);
     assert.equal('decisions' in result, false);
   });

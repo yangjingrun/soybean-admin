@@ -1,4 +1,5 @@
 import type { RequestUserContext } from '../../shared/request-context';
+import type { AiLeadProductLineSnapshot } from './ai-lead-product-line-context';
 
 export const aiLeadSearchTaskStatuses = [
   'queued',
@@ -23,6 +24,8 @@ export interface AiLeadSearchTaskRecord {
   organizationRole: RequestUserContext['organizationRole'];
   requirement: string;
   targetLeadCount: number;
+  productLineId: string | null;
+  productLineSnapshot: AiLeadProductLineSnapshot | null;
   keywordPlan: unknown;
   status: AiLeadSearchTaskStatus;
   priority: number;
@@ -46,6 +49,8 @@ export interface AiLeadSearchTaskCreateInput {
   organizationRole: RequestUserContext['organizationRole'];
   requirement: string;
   targetLeadCount: number;
+  productLineId: string;
+  productLineSnapshot: AiLeadProductLineSnapshot;
   keywordPlan: unknown;
   priority: number;
 }

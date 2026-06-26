@@ -11,9 +11,14 @@ import { canTransitionTaskStatus, createTaskStateChangeEvent } from '../../share
 import { SystemNotificationService } from '../system-notification/system-notification.service';
 import { SystemLogService } from '../system-log/system-log.service';
 import type { SystemLogRecorder } from '../system-log/system-log.types';
+import { CrmProductLineService } from '../crm/product-lines/crm-product-line.service';
 import { AI_LEAD_QUEUE_CONFIG_STORE, AI_LEAD_SEARCH_TASK_QUEUE, AI_LEAD_SEARCH_TASK_STORE } from './ai-leads.tokens';
 import { aiLeadSearchTaskTransitionRules, normalizeAiLeadQueueConcurrency } from './ai-lead-search-task-state';
 import { toLeadSearchPublicResult } from './ai-lead-search-progress';
+import {
+  attachProductLineSnapshotToKeywordPlan,
+  buildAiLeadProductLineSnapshot
+} from './ai-lead-product-line-context';
 import type {
   AiLeadQueueConfigStore,
   AiLeadSearchTaskContext,
@@ -29,6 +34,7 @@ import { AiLeadSearchTaskWorkerHost } from './ai-lead-search-task-worker-host.se
 interface CreateAiLeadSearchTaskDto {
   requirement: string;
   targetLeadCount: number;
+  productLineId: string;
   keywordPlan: unknown;
 }
 
@@ -40,7 +46,8 @@ export class AiLeadSearchTaskService {
     @Inject(AI_LEAD_SEARCH_TASK_QUEUE) private readonly taskQueue: AiLeadSearchTaskQueuePort,
     @Optional() @Inject(AiLeadSearchTaskWorkerHost) private readonly workerHost?: AiLeadSearchTaskWorkerHost,
     @Optional() @Inject(SystemLogService) private readonly systemLogService?: SystemLogRecorder,
-    @Optional() @Inject(SystemNotificationService) private readonly notificationService?: SystemNotificationService
+    @Optional() @Inject(SystemNotificationService) private readonly notificationService?: SystemNotificationService,
+    @Optional() @Inject(CrmProductLineService) private readonly productLineService?: CrmProductLineService
   ) {}
 
   /** Creates one queued search task for the current user and submits it to BullMQ. */
@@ -57,6 +64,13 @@ export class AiLeadSearchTaskService {
       throw new BadRequestException('请先优化关键词，再开始采集');
     }
 
+    const productLineId = dto.productLineId.trim();
+    const productLineSnapshot = await this.resolveTaskProductLineSnapshot(productLineId, user);
+    const keywordPlan = attachProductLineSnapshotToKeywordPlan(
+      dto.keywordPlan as Record<string, unknown>,
+      productLineSnapshot
+    );
+
     const task = await this.taskStore.createTaskIfNoCurrent({
       userId: user.userId,
       userName: user.userName,
@@ -64,7 +78,9 @@ export class AiLeadSearchTaskService {
       organizationRole: user.organizationRole,
       requirement,
       targetLeadCount,
-      keywordPlan: dto.keywordPlan,
+      productLineId,
+      productLineSnapshot,
+      keywordPlan,
       priority: 0
     });
 
@@ -358,6 +374,20 @@ export class AiLeadSearchTaskService {
     }
 
     return value;
+  }
+
+  private async resolveTaskProductLineSnapshot(productLineId: string, user: NonNullable<AiLeadSearchTaskContext['user']>) {
+    if (!productLineId) {
+      throw new BadRequestException('请选择产品线');
+    }
+
+    if (!this.productLineService) {
+      throw new BadRequestException('产品线服务未初始化');
+    }
+
+    const productLine = await this.productLineService.requireActiveProductLine(productLineId, user);
+
+    return buildAiLeadProductLineSnapshot(productLine);
   }
 
   private async markTaskFailedAfterEnqueueError(task: AiLeadSearchTaskRecord, error: unknown) {

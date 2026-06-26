@@ -1,4 +1,5 @@
 import { mapAiLeadTaskResultToCrmImportInputs } from '../../ai-leads/ai-lead-crm-import.adapter';
+import type { AiLeadProductLineSnapshot } from '../../ai-leads/ai-lead-product-line-context';
 import { normalizeCrmDomain, normalizeCrmName } from '../shared/crm-normalizers';
 
 export interface CrmAccountSourceSnapshotBackfillAccount {
@@ -12,6 +13,7 @@ export interface CrmAccountSourceSnapshotBackfillAccount {
 
 export interface CrmAccountSourceSnapshotBackfillTask {
   id: string;
+  productLineSnapshot?: AiLeadProductLineSnapshot | null;
   result: unknown;
 }
 
@@ -86,7 +88,7 @@ export async function backfillCrmAccountSourceSnapshots(
 
 function buildCandidateSnapshotMatches(tasks: CrmAccountSourceSnapshotBackfillTask[]) {
   return tasks.flatMap(task =>
-    mapAiLeadTaskResultToCrmImportInputs(task.id, task.result).flatMap(input => {
+    mapAiLeadTaskResultToCrmImportInputs(task, task.result).flatMap(input => {
       if (!input.sourceSnapshot) return [];
 
       return [

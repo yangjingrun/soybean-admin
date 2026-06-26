@@ -116,7 +116,7 @@ export class AiLeadPrecisionAnalysisService {
 function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
   return JSON.stringify({
     instruction:
-      '你是外贸获客质检助手。只根据 Serper 候选信息和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。必须先判断客户群体、官网归属地和目标市场匹配度；若官网地址、页脚、联系页、电话或官网证据明确显示中国公司，而用户目标是海外/非中国客户，必须标为 outside_target、priority=reject、score<=30，并说明官网证据。若无归属地冲突但官网当前产品页、标题、描述、URL 或页面片段明确命中目标产品，不要直接 reject，应至少给 low 并标记 reviewRequired。',
+      '你是外贸获客质检助手。只根据 Serper 候选信息、CRM 产品线基准和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。必须先判断客户群体、官网归属地、目标市场匹配度、产品线匹配度；产品线是固定参照，用户输入只是本次搜索条件。若官网地址、页脚、联系页、电话或官网证据明确显示中国公司，而用户目标是海外/非中国客户，必须标为 outside_target、priority=reject、score<=30，并说明官网证据。若无归属地冲突但官网当前产品页、标题、描述、URL 或页面片段明确命中产品线或目标产品，不要直接 reject，应至少给 low 并标记 reviewRequired。',
     outputContract: {
       candidates: [
         {
@@ -139,7 +139,8 @@ function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
     keywordPlan: {
       resolvedProductKeywords: input.keywordPlan.resolvedProductKeywords || '',
       resolvedTargetRegions: input.keywordPlan.resolvedTargetRegions || '',
-      resolvedTargetCustomerProfile: input.keywordPlan.resolvedTargetCustomerProfile || ''
+      resolvedTargetCustomerProfile: input.keywordPlan.resolvedTargetCustomerProfile || '',
+      productLineSnapshot: input.keywordPlan.productLineSnapshot || null
     },
     candidates: input.candidates.map(candidate => ({
       dedupeKey: candidate.dedupeKey,
@@ -359,6 +360,7 @@ function collectProductPhrases(input: AnalyzeCandidatesInput) {
   return uniqueStrings(
     [
       input.keywordPlan.resolvedProductKeywords,
+      ...collectProductLineKeywordSources(input.keywordPlan),
       ...splitKeywordText(input.keywordPlan.resolvedProductKeywords),
       ...splitKeywordText(input.requirement)
     ]
@@ -372,7 +374,8 @@ function collectProductTokens(input: AnalyzeCandidatesInput) {
   const sourceText = [
     input.requirement,
     input.keywordPlan.resolvedProductKeywords,
-    input.keywordPlan.resolvedTargetCustomerProfile
+    input.keywordPlan.resolvedTargetCustomerProfile,
+    ...collectProductLineKeywordSources(input.keywordPlan)
   ].join(' ');
 
   return uniqueStrings(
@@ -389,6 +392,26 @@ function splitKeywordText(value: string | undefined) {
     .split(/[,，;；|、/]+/)
     .map(item => item.trim())
     .filter(Boolean);
+}
+
+function collectProductLineKeywordSources(keywordPlan: OptimizedKeywordPlan) {
+  const productLine = keywordPlan.productLineSnapshot;
+
+  if (!productLine || typeof productLine !== 'object' || Array.isArray(productLine)) {
+    return [];
+  }
+
+  return [
+    'name',
+    'targetCustomerType',
+    'coreSellingPoints',
+    'commonModelsText',
+    'certifications',
+    'moq',
+    'leadTime'
+  ]
+    .map(key => (productLine as Record<string, unknown>)[key])
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
 }
 
 function hasProductKeywordHit(evidence: AiLeadWebsiteEvidence, productTokens: string[]) {

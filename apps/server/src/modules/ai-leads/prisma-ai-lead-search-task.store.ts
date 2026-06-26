@@ -228,6 +228,8 @@ function toTaskCreateData(input: AiLeadSearchTaskCreateInput): Prisma.AiLeadSear
     organizationRole: input.organizationRole,
     requirement: input.requirement,
     targetLeadCount: input.targetLeadCount,
+    productLineId: input.productLineId,
+    productLineSnapshot: input.productLineSnapshot as unknown as Prisma.AiLeadSearchTaskUncheckedCreateInput['productLineSnapshot'],
     keywordPlan: input.keywordPlan as Prisma.AiLeadSearchTaskUncheckedCreateInput['keywordPlan'],
     status: 'queued',
     priority: input.priority
@@ -277,6 +279,8 @@ function toTaskRecord(record: AiLeadSearchTaskModel): AiLeadSearchTaskRecord {
     organizationRole: record.organizationRole as AiLeadSearchTaskRecord['organizationRole'],
     requirement: record.requirement,
     targetLeadCount: record.targetLeadCount,
+    productLineId: record.productLineId,
+    productLineSnapshot: record.productLineSnapshot as AiLeadSearchTaskRecord['productLineSnapshot'],
     keywordPlan: record.keywordPlan,
     status: record.status as AiLeadSearchTaskStatus,
     priority: record.priority,

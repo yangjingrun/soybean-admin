@@ -36,7 +36,13 @@ describe('AiLeadPrecisionAnalysisService', () => {
         requirement: '找电梯曳引机轴承客户',
         keywordPlan: {
           resolvedProductKeywords: 'traction machine bearing',
-          resolvedTargetCustomerProfile: 'elevator component distributor'
+          resolvedTargetCustomerProfile: 'elevator component distributor',
+          productLineSnapshot: {
+            id: 'product-line-1',
+            name: 'Elevator traction machine bearings',
+            targetCustomerType: '电梯配件经销商',
+            commonModelsText: '6204, 6305'
+          }
         },
         candidates: [
           {
@@ -73,6 +79,8 @@ describe('AiLeadPrecisionAnalysisService', () => {
 
     assert.equal(aiGateway.calls[0].promptKey, leadMatchAnalyzePromptKey);
     assert.match(aiGateway.calls[0].prompt, /找电梯曳引机轴承客户/);
+    assert.match(aiGateway.calls[0].prompt, /Elevator traction machine bearings/);
+    assert.match(aiGateway.calls[0].prompt, /6204, 6305/);
     assert.match(aiGateway.calls[0].prompt, /sales@abc\.example\.com/);
     assert.equal(result[0].score, 88);
     assert.equal(result[0].reason, '官网展示 elevator bearing 和 contact 邮箱');
