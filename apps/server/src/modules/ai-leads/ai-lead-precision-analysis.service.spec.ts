@@ -37,6 +37,38 @@ describe('AiLeadPrecisionAnalysisService', () => {
         keywordPlan: {
           resolvedProductKeywords: 'traction machine bearing',
           resolvedTargetCustomerProfile: 'elevator component distributor',
+          leadContextSnapshot: {
+            targetRegion: {
+              value: 'country:TR:Turkey',
+              label: '土耳其',
+              countryCode: 'TR'
+            },
+            targetCustomerTypes: [
+              {
+                key: 'distributor_dealer',
+                label: '经销商/代理商',
+                description: '服务本地渠道或行业客户',
+                promptHint: 'distributor, dealer'
+              }
+            ],
+            exclusionRules: [
+              {
+                key: 'china_supplier',
+                label: '中国供应商/出口商',
+                description: '排除中国官网、中国制造商、Alibaba/Made-in-China 等供应商来源',
+                promptHint: 'exclude China supplier'
+              },
+              {
+                key: 'b2c_only',
+                label: '纯 B2C 零售站',
+                description: '排除只面向个人消费者的购物站',
+                promptHint: 'exclude B2C-only shops'
+              }
+            ],
+            keywordText: 'traction machine bearing',
+            supplementalRequirement: '只找本地经销商',
+            targetLeadCount: 20
+          },
           productLineSnapshot: {
             id: 'product-line-1',
             name: 'Elevator traction machine bearings',
@@ -81,6 +113,9 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.match(aiGateway.calls[0].prompt, /找电梯曳引机轴承客户/);
     assert.match(aiGateway.calls[0].prompt, /Elevator traction machine bearings/);
     assert.match(aiGateway.calls[0].prompt, /6204, 6305/);
+    assert.match(aiGateway.calls[0].prompt, /leadContextSnapshot/);
+    assert.match(aiGateway.calls[0].prompt, /中国供应商\/出口商/);
+    assert.match(aiGateway.calls[0].prompt, /纯 B2C 零售站/);
     assert.match(aiGateway.calls[0].prompt, /sales@abc\.example\.com/);
     assert.equal(result[0].score, 88);
     assert.equal(result[0].reason, '官网展示 elevator bearing 和 contact 邮箱');
@@ -207,6 +242,88 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.match(result[0].reason ?? '', /官网地址显示中国公司/);
     assert.match(result[0].precisionAnalysis?.matchedSignals.join(' ') ?? '', /Xinjing/);
     assert.match(result[0].precisionAnalysis?.risks.join(' ') ?? '', /产品页命中目标产品/);
+  });
+
+  it('honors user-selected China supplier exclusion during precision analysis', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          candidates: [
+            {
+              dedupeKey: 'cn-bearing.example.com',
+              score: 78,
+              priority: 'high',
+              buyerType: 'bearing supplier',
+              customerGroup: '轴承供应商',
+              companyCountry: '',
+              targetMarketFit: 'uncertain',
+              reason: '官网产品页命中 6203 bearing',
+              matchedSignals: ['6203 bearing'],
+              risks: [],
+              recommendedAction: '可开发',
+              reviewRequired: false
+            }
+          ]
+        })
+      }
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const result = await service.analyzeCandidates(
+      {
+        requirement: '找轴承客户',
+        keywordPlan: {
+          resolvedProductKeywords: '6203 bearing',
+          leadContextSnapshot: {
+            exclusionRules: [
+              {
+                key: 'china_supplier',
+                label: '中国供应商/出口商',
+                description: '排除中国官网、中国制造商、Alibaba/Made-in-China 等供应商来源',
+                promptHint: 'exclude China supplier'
+              }
+            ]
+          }
+        },
+        candidates: [
+          {
+            dedupeKey: 'cn-bearing.example.com',
+            sourceType: 'organic',
+            title: '6203 Deep Groove Ball Bearing',
+            website: 'https://cn-bearing.example.com/products/6203-bearing',
+            snippet: '6203 deep groove ball bearing supplier.',
+            websiteEvidence: {
+              crawlStatus: 'completed',
+              pageCount: 2,
+              finalUrl: 'https://cn-bearing.example.com/products/6203-bearing',
+              title: '6203 Deep Groove Ball Bearing',
+              description: '6203 bearing supplier',
+              emails: ['sales@cn-bearing.example.com'],
+              phones: ['+86 592 5803997'],
+              socialLinks: [],
+              whatsappLinks: [],
+              mapLinks: [],
+              contactLinks: ['https://cn-bearing.example.com/contact'],
+              keywordHits: ['6203 bearing'],
+              evidenceSnippets: ['6203 deep groove ball bearing supplier'],
+              companyAddressEvidence: ['Address: Xiamen, Fujian, China'],
+              companyCountrySignals: ['中国'],
+              negativeKeywordHits: [],
+              negativeEvidenceSnippets: [],
+              failureReason: null
+            }
+          } as AiLeadSearchCandidate
+        ]
+      },
+      {}
+    );
+
+    assert.equal(result[0].score, 25);
+    assert.equal(result[0].precisionAnalysis?.priority, 'reject');
+    assert.equal(result[0].precisionAnalysis?.companyCountry, '中国');
+    assert.equal(result[0].precisionAnalysis?.targetMarketFit, 'outside_target');
+    assert.match(result[0].reason ?? '', /官网地址显示中国公司/);
+    assert.match(result[0].precisionAnalysis?.matchedSignals.join(' ') ?? '', /Xiamen/);
   });
 });
 

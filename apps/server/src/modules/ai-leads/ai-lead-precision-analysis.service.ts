@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { defaultAiModelConfigKey, leadMatchAnalyzePromptKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { AiLeadSearchContext, OptimizedKeywordPlan } from './ai-lead-search-orchestrator.service';
+import { normalizeAiLeadKeywordContextSnapshot } from './ai-lead-keyword-context';
 import type {
   AiLeadPrecisionAnalysis,
   AiLeadPrecisionPriority,
@@ -114,9 +115,11 @@ export class AiLeadPrecisionAnalysisService {
 }
 
 function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
+  const leadContextSnapshot = normalizeAiLeadKeywordContextSnapshot(input.keywordPlan.leadContextSnapshot);
+
   return JSON.stringify({
     instruction:
-      '你是外贸获客质检助手。只根据 Serper 候选信息、CRM 产品线基准和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。必须先判断客户群体、官网归属地、目标市场匹配度、产品线匹配度；产品线是固定参照，用户输入只是本次搜索条件。若官网地址、页脚、联系页、电话或官网证据明确显示中国公司，而用户目标是海外/非中国客户，必须标为 outside_target、priority=reject、score<=30，并说明官网证据。若无归属地冲突但官网当前产品页、标题、描述、URL 或页面片段明确命中产品线或目标产品，不要直接 reject，应至少给 low 并标记 reviewRequired。',
+      '你是外贸获客质检助手。只根据 Serper 候选信息、CRM 产品线基准、用户结构化获客条件 leadContextSnapshot 和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。必须先判断客户群体、官网归属地、目标市场匹配度、产品线匹配度；产品线是固定参照，用户输入只是本次搜索条件。若 leadContextSnapshot.exclusionRules 存在用户勾选的排除类型，必须逐条检查候选官网证据；命中排除规则时要在 risks 写明命中的排除类型和证据，严重命中时 priority=reject。若官网地址、页脚、联系页、电话或官网证据明确显示中国公司，而用户目标是海外/非中国客户，或用户排除类型包含中国供应商/出口商，必须标为 outside_target、priority=reject、score<=30，并说明官网证据。若无归属地冲突但官网当前产品页、标题、描述、URL 或页面片段明确命中产品线或目标产品，不要直接 reject，应至少给 low 并标记 reviewRequired。',
     outputContract: {
       candidates: [
         {
@@ -140,7 +143,8 @@ function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
       resolvedProductKeywords: input.keywordPlan.resolvedProductKeywords || '',
       resolvedTargetRegions: input.keywordPlan.resolvedTargetRegions || '',
       resolvedTargetCustomerProfile: input.keywordPlan.resolvedTargetCustomerProfile || '',
-      productLineSnapshot: input.keywordPlan.productLineSnapshot || null
+      productLineSnapshot: input.keywordPlan.productLineSnapshot || null,
+      leadContextSnapshot
     },
     candidates: input.candidates.map(candidate => ({
       dedupeKey: candidate.dedupeKey,
@@ -207,7 +211,7 @@ function enforceOfficialCountryMismatch(
 ): AiLeadPrecisionAnalysis {
   const officialCountry = detectOfficialCompanyCountry(candidate.websiteEvidence);
 
-  if (officialCountry !== officialChinaCountry || !isTargetingNonChinaMarket(input)) {
+  if (officialCountry !== officialChinaCountry || !shouldRejectOfficialChinaCompany(input)) {
     return analysis;
   }
 
@@ -302,11 +306,20 @@ function collectOfficialCountryEvidence(evidence: AiLeadWebsiteEvidence | undefi
 }
 
 function isTargetingNonChinaMarket(input: AnalyzeCandidatesInput) {
+  const leadContextSnapshot = normalizeAiLeadKeywordContextSnapshot(input.keywordPlan.leadContextSnapshot);
+  const leadContextRegions = leadContextSnapshot
+    ? [
+        leadContextSnapshot.targetRegion?.label,
+        leadContextSnapshot.targetRegion?.countryCode,
+        ...leadContextSnapshot.targetRegions.flatMap(region => [region.label, region.countryCode])
+      ]
+    : [];
   const targetText = normalizeComparableText(
     [
       input.keywordPlan.resolvedTargetRegions,
       input.keywordPlan.resolvedTargetCustomerProfile,
-      input.requirement
+      input.requirement,
+      ...leadContextRegions
     ].join(' ')
   );
 
@@ -321,6 +334,16 @@ function isTargetingNonChinaMarket(input: AnalyzeCandidatesInput) {
   return /(?:阿联酋|迪拜|沙特|土耳其|中东|海外|国外|外贸|\buae\b|\bdubai\b|\bsaudi\b|\bturkey\b|\boverseas\b|\bforeign\b|\bimporter\b|\bdistributor\b)/i.test(
     targetText
   );
+}
+
+function shouldRejectOfficialChinaCompany(input: AnalyzeCandidatesInput) {
+  return isTargetingNonChinaMarket(input) || hasSelectedLeadContextExclusion(input, 'china_supplier');
+}
+
+function hasSelectedLeadContextExclusion(input: AnalyzeCandidatesInput, ruleKey: string) {
+  const leadContextSnapshot = normalizeAiLeadKeywordContextSnapshot(input.keywordPlan.leadContextSnapshot);
+
+  return leadContextSnapshot?.exclusionRules.some(rule => rule.key === ruleKey) ?? false;
 }
 
 function collectStrongProductEvidence(input: AnalyzeCandidatesInput, candidate: AiLeadWebsiteEnrichedCandidate) {
