@@ -84,7 +84,7 @@ describe('AiLeadCrmPrecheckService', () => {
     assert.equal(result.summary.domainlessCandidateCount, 2);
   });
 
-  it('allows archived or paused matches only after the cooldown window', async () => {
+  it('skips archived or paused matches at Serper precheck to avoid provider quota waste', async () => {
     const crmService = {
       async findLeadImportPrecheckMatches() {
         return [
@@ -124,12 +124,10 @@ describe('AiLeadCrmPrecheckService', () => {
       now: new Date('2026-06-21T00:00:00Z')
     });
 
-    assert.deepEqual(
-      result.acceptedCandidates.map(candidate => candidate.title),
-      ['Old', 'Paused']
-    );
-    assert.equal(result.summary.cooldownSkippedCount, 1);
-    assert.equal(result.summary.reactivatedCandidateCount, 2);
+    assert.deepEqual(result.acceptedCandidates, []);
+    assert.equal(result.summary.cooldownSkippedCount, 3);
+    assert.equal(result.summary.existingSkippedCount, 0);
+    assert.equal(result.summary.reactivatedCandidateCount, 0);
   });
 });
 

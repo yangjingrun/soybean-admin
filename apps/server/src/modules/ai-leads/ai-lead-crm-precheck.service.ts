@@ -5,7 +5,6 @@ import type { CrmAccountRecord } from '../crm/crm.types';
 import { normalizeCrmDomain, normalizeCrmName } from '../crm/shared/crm-normalizers';
 import type { AiLeadSearchCandidate } from './ai-lead-search-orchestrator.service';
 
-const defaultLeadReactivationCooldownDays = 90;
 const activeSkipStatuses = new Set([
   'customer',
   'blocked',
@@ -82,7 +81,7 @@ export class AiLeadCrmPrecheckService {
         continue;
       }
 
-      const decision = shouldAcceptExistingMatch(match, input.now ?? new Date());
+      const decision = shouldAcceptExistingMatch(match);
 
       if (decision.accepted) {
         acceptedCandidates.push(candidate);
@@ -146,7 +145,7 @@ function buildMatchIndex(matches: CrmAccountRecord[]) {
   return { byDomain, byName };
 }
 
-function shouldAcceptExistingMatch(match: CrmAccountRecord, now: Date) {
+function shouldAcceptExistingMatch(match: CrmAccountRecord) {
   if (activeSkipStatuses.has(match.status)) {
     return {
       accepted: false,
@@ -155,18 +154,9 @@ function shouldAcceptExistingMatch(match: CrmAccountRecord, now: Date) {
   }
 
   if (cooldownStatuses.has(match.status)) {
-    const referenceAt = match.archivedAt ?? match.updatedAt;
-
-    if (!isPastCooldown(referenceAt, now)) {
-      return {
-        accepted: false,
-        summaryKey: 'cooldownSkippedCount' as const
-      };
-    }
-
     return {
-      accepted: true,
-      summaryKey: null
+      accepted: false,
+      summaryKey: 'cooldownSkippedCount' as const
     };
   }
 
@@ -174,10 +164,6 @@ function shouldAcceptExistingMatch(match: CrmAccountRecord, now: Date) {
     accepted: false,
     summaryKey: 'existingSkippedCount' as const
   };
-}
-
-function isPastCooldown(date: Date, now: Date) {
-  return now.getTime() - date.getTime() > defaultLeadReactivationCooldownDays * 24 * 60 * 60 * 1000;
 }
 
 function getCandidateDomain(candidate: AiLeadSearchCandidate) {

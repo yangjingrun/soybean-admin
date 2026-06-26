@@ -520,6 +520,81 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.equal(result.candidates[0].url, 'https://www.bearing-example.com');
   });
 
+  it('filters marketplace places before candidate enrichment providers can spend quota', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'places',
+            requestBody: {
+              q: '',
+              gl: 'tw',
+              hl: 'zh',
+              location: 'Taiwan',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      {
+        places: [
+          {
+            title: '6203 Bearing PChome 商城',
+            website: 'https://24h.pchome.com.tw/prod/abc',
+            address: 'Taipei'
+          },
+          {
+            title: 'ABC Bearing Distributor',
+            website: 'https://abc-bearing.example.com',
+            address: 'Taichung'
+          }
+        ]
+      }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '找台湾轴承客户',
+        targetLeadCount: 10,
+        keywordPlan: {
+          resolvedProductKeywords: '6203 bearing',
+          resolvedTargetRegions: '台湾',
+          resolvedTargetCustomerProfile: '台湾 B2B 经销商',
+          resolvedTargetLeadCount: 10,
+          serperSearchQueries: [],
+          serperPlacesQueries: [
+            {
+              requestBody: {
+                q: 'bearing distributor Taiwan',
+                gl: 'tw',
+                hl: 'en',
+                location: 'Taiwan',
+                num: 10,
+                page: 1
+              },
+              priority: '高'
+            }
+          ]
+        }
+      },
+      { user: createUser() }
+    );
+
+    assert.equal(result.candidates.length, 1);
+    assert.equal(result.candidates[0].website, 'https://abc-bearing.example.com');
+  });
+
   it('continues to the next Search page when the decision action is paginate', async () => {
     const aiGateway = createAiGateway([
       {
