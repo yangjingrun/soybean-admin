@@ -6,7 +6,12 @@ import SvgIcon from '@/components/custom/svg-icon.vue';
 import { useRouterPush } from '@/hooks/common/router';
 import { getMetricDisplayText } from './search-progress';
 import type { LeadSearchProgressState } from './search-progress';
-import { buildAiLeadCandidateImportRows, getAiLeadCandidateSocialLinks, type AiLeadCandidateImportRow } from './shared';
+import {
+  buildAiLeadCandidateImportRows,
+  getAiLeadCandidateClassificationTags,
+  getAiLeadCandidateSocialLinks,
+  type AiLeadCandidateImportRow
+} from './shared';
 import { resolveConfigHintTarget } from './config-hint';
 
 const props = defineProps<{
@@ -81,6 +86,9 @@ const showSocialColumn = computed(() =>
 );
 const showPrecisionColumn = computed(() =>
   candidateRows.value.some(row => typeof row.candidate.score === 'number' || Boolean(row.candidate.precisionAnalysis))
+);
+const showClassificationColumn = computed(() =>
+  candidateRows.value.some(row => getAiLeadCandidateClassificationTags(row.candidate).length > 0)
 );
 const importedCount = computed(() => candidateRows.value.filter(row => row.importState.canImport).length);
 const skippedCount = computed(() => candidateRows.value.length - importedCount.value);
@@ -203,6 +211,42 @@ const precisionColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
     );
   }
 };
+const classificationColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
+  title: '客户判断',
+  key: 'classification',
+  minWidth: 180,
+  render: row => {
+    const tags = getAiLeadCandidateClassificationTags(row.candidate);
+
+    if (!tags.length) {
+      return '-';
+    }
+
+    return h(
+      'div',
+      { class: 'candidate-classification-cell' },
+      tags.map(tag =>
+        h(
+          NTooltip,
+          { key: tag.key, trigger: 'hover', placement: 'top' },
+          {
+            trigger: () =>
+              h(
+                NTag,
+                {
+                  size: 'small',
+                  bordered: false,
+                  type: tag.type
+                },
+                { default: () => tag.label }
+              ),
+            default: () => tag.tooltip || tag.label
+          }
+        )
+      )
+    );
+  }
+};
 
 const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(() => {
   const columns: DataTableColumns<AiLeadCandidateImportRow> = [
@@ -282,6 +326,11 @@ const candidateColumns = computed<DataTableColumns<AiLeadCandidateImportRow>>(()
 
   if (showSourceColumn.value) {
     columns.splice(insertIndex, 0, sourceColumn);
+    insertIndex += 1;
+  }
+
+  if (showClassificationColumn.value) {
+    columns.splice(insertIndex, 0, classificationColumn);
     insertIndex += 1;
   }
 
@@ -792,6 +841,14 @@ function getPrecisionTooltipItems(row: AiLeadCandidateImportRow) {
 
 :deep(.candidate-social-icon) {
   font-size: 16px;
+}
+
+:deep(.candidate-classification-cell) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 :deep(.candidate-precision-cell) {

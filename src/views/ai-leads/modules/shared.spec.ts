@@ -8,6 +8,7 @@ import {
   createAiResultFromKeywordHistory,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
+  getAiLeadCandidateClassificationTags,
   getAiLeadCandidateSocialLinks,
   parseKeywordOptimizationPlan,
   normalizeAiLeadCandidateDomain,
@@ -297,6 +298,9 @@ describe('ai leads keyword optimization helpers', () => {
         score: 88,
         priority: 'high',
         buyerType: 'bearing distributor',
+        customerGroup: '海外轴承经销商',
+        companyCountry: 'Saudi Arabia',
+        targetMarketFit: 'target',
         reason: 'Good buyer signal',
         matchedSignals: ['bearing'],
         risks: [],
@@ -344,6 +348,9 @@ describe('ai leads keyword optimization helpers', () => {
           score: 88,
           priority: 'high',
           buyerType: 'bearing distributor',
+          customerGroup: '海外轴承经销商',
+          companyCountry: 'Saudi Arabia',
+          targetMarketFit: 'target',
           reason: 'Good buyer signal',
           matchedSignals: ['bearing'],
           risks: [],
@@ -352,6 +359,50 @@ describe('ai leads keyword optimization helpers', () => {
         }
       }
     });
+  });
+
+  it('builds customer classification tags from match analysis and official country evidence', () => {
+    const tags = getAiLeadCandidateClassificationTags({
+      precisionAnalysis: {
+        score: 25,
+        priority: 'reject',
+        buyerType: 'bearing supplier',
+        customerGroup: '中国供应商 / 非目标海外客户',
+        companyCountry: '中国',
+        targetMarketFit: 'outside_target',
+        reason: '官网地址显示中国公司，不符合阿联酋海外客户开发目标',
+        matchedSignals: ['Xiamen, Fujian, China'],
+        risks: ['产品页命中目标产品但公司归属为中国'],
+        recommendedAction: '不纳入开发名单',
+        reviewRequired: false
+      },
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        pageCount: 1,
+        emails: ['susan@xmjuda.com'],
+        phones: ['+86-592-5803997'],
+        socialLinks: [],
+        whatsappLinks: [],
+        mapLinks: [],
+        contactLinks: [],
+        keywordHits: ['6203 bearing'],
+        evidenceSnippets: ['6203 deep groove ball bearing'],
+        companyAddressEvidence: ['Xinjing, Jiahe Road, Siming, Xiamen, Fujian, China'],
+        companyCountrySignals: ['中国'],
+        failureReason: null
+      }
+    });
+
+    assert.deepEqual(
+      tags.map(tag => ({ key: tag.key, label: tag.label, type: tag.type })),
+      [
+        { key: 'outside-target', label: '非目标市场', type: 'error' },
+        { key: 'company-country', label: '中国公司', type: 'warning' },
+        { key: 'customer-group', label: '中国供应商 / 非目标海外客户', type: 'default' }
+      ]
+    );
+    assert.match(tags[0].tooltip ?? '', /官网地址显示中国公司/);
+    assert.match(tags[1].tooltip ?? '', /Xinjing/);
   });
 
   it('normalizes candidate social links for icon display', () => {

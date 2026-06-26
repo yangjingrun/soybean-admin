@@ -221,6 +221,7 @@ declare namespace Api {
 
     type LeadWebsiteCrawlStatus = 'completed' | 'failed' | 'skipped';
     type LeadPrecisionPriority = 'high' | 'medium' | 'low' | 'reject';
+    type LeadTargetMarketFit = 'target' | 'uncertain' | 'outside_target';
 
     interface LeadSearchWebsiteEvidence {
       crawlStatus: LeadWebsiteCrawlStatus;
@@ -236,6 +237,8 @@ declare namespace Api {
       contactLinks: string[];
       keywordHits: string[];
       evidenceSnippets: string[];
+      companyAddressEvidence?: string[];
+      companyCountrySignals?: string[];
       negativeKeywordHits?: string[];
       negativeEvidenceSnippets?: string[];
       failureReason: string | null;
@@ -245,6 +248,9 @@ declare namespace Api {
       score: number;
       priority: LeadPrecisionPriority;
       buyerType: string;
+      customerGroup?: string;
+      companyCountry?: string;
+      targetMarketFit?: LeadTargetMarketFit;
       reason: string;
       matchedSignals: string[];
       risks: string[];

@@ -16,6 +16,10 @@ export interface AiLeadWebsitePageEvidence {
   contactLinks: string[];
   keywordHits: string[];
   evidenceSnippets: string[];
+  companyAddressEvidence: string[];
+  companyCountrySignals: string[];
+  negativeKeywordHits: string[];
+  negativeEvidenceSnippets: string[];
 }
 
 export interface AiLeadWebsiteEvidence {
@@ -32,6 +36,8 @@ export interface AiLeadWebsiteEvidence {
   contactLinks: string[];
   keywordHits: string[];
   evidenceSnippets: string[];
+  companyAddressEvidence: string[];
+  companyCountrySignals: string[];
   negativeKeywordHits: string[];
   negativeEvidenceSnippets: string[];
   failureReason: string | null;
@@ -50,11 +56,15 @@ export interface AiLeadWebsiteEvidenceKeywordOptions {
 }
 
 export type AiLeadPrecisionPriority = 'high' | 'medium' | 'low' | 'reject';
+export type AiLeadTargetMarketFit = 'target' | 'uncertain' | 'outside_target';
 
 export interface AiLeadPrecisionAnalysis {
   score: number;
   priority: AiLeadPrecisionPriority;
   buyerType: string;
+  customerGroup: string;
+  companyCountry: string;
+  targetMarketFit: AiLeadTargetMarketFit;
   reason: string;
   matchedSignals: string[];
   risks: string[];

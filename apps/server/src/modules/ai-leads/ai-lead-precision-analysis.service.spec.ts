@@ -16,6 +16,9 @@ describe('AiLeadPrecisionAnalysisService', () => {
               score: 88,
               priority: 'high',
               buyerType: 'elevator component distributor',
+              customerGroup: '海外电梯配件经销商',
+              companyCountry: '土耳其',
+              targetMarketFit: 'target',
               reason: '官网展示 elevator bearing 和 contact 邮箱',
               matchedSignals: ['elevator bearing', 'sales@abc.example.com'],
               risks: [],
@@ -56,6 +59,10 @@ describe('AiLeadPrecisionAnalysisService', () => {
               contactLinks: ['https://abc.example.com/contact'],
               keywordHits: ['bearing', 'elevator'],
               evidenceSnippets: ['elevator bearing supplier'],
+              companyAddressEvidence: [],
+              companyCountrySignals: [],
+              negativeKeywordHits: [],
+              negativeEvidenceSnippets: [],
               failureReason: null
             }
           } as AiLeadSearchCandidate
@@ -70,6 +77,9 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].score, 88);
     assert.equal(result[0].reason, '官网展示 elevator bearing 和 contact 邮箱');
     assert.equal(result[0].precisionAnalysis?.priority, 'high');
+    assert.equal(result[0].precisionAnalysis?.customerGroup, '海外电梯配件经销商');
+    assert.equal(result[0].precisionAnalysis?.companyCountry, '土耳其');
+    assert.equal(result[0].precisionAnalysis?.targetMarketFit, 'target');
   });
 
   it('marks failed-crawl candidates for manual review when AI omits a result', async () => {
@@ -97,6 +107,10 @@ describe('AiLeadPrecisionAnalysisService', () => {
               contactLinks: [],
               keywordHits: [],
               evidenceSnippets: [],
+              companyAddressEvidence: [],
+              companyCountrySignals: [],
+              negativeKeywordHits: [],
+              negativeEvidenceSnippets: [],
               failureReason: 'TLS failed'
             }
           } as AiLeadSearchCandidate
@@ -110,7 +124,7 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
   });
 
-  it('keeps strong product-page evidence reviewable when AI incorrectly rejects the candidate', async () => {
+  it('rejects official China companies for overseas lead requirements even when product page evidence is strong', async () => {
     const aiGateway = createAiGateway([
       {
         text: JSON.stringify({
@@ -134,9 +148,10 @@ describe('AiLeadPrecisionAnalysisService', () => {
 
     const result = await service.analyzeCandidates(
       {
-        requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找进口商和经销商',
+        requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找阿联酋进口商和经销商',
         keywordPlan: {
           resolvedProductKeywords: '6203 bearing',
+          resolvedTargetRegions: '阿联酋',
           resolvedTargetCustomerProfile: 'bearing importer and distributor'
         },
         candidates: [
@@ -161,6 +176,10 @@ describe('AiLeadPrecisionAnalysisService', () => {
               contactLinks: ['https://www.fluorined-chemical.com/contact-us'],
               keywordHits: ['6203 bearing', 'bearing', 'products'],
               evidenceSnippets: ['6203 deep groove ball bearing professional supplier'],
+              companyAddressEvidence: [
+                'العنوان:الغرفة 1102، الوحدة C، مركز Xinjing، رقم 25 طريق Jiahe، منطقة Siming، Xiamen، Fujan، الصين'
+              ],
+              companyCountrySignals: ['中国'],
               negativeKeywordHits: ['chemical'],
               negativeEvidenceSnippets: ['fluorinated chemical products'],
               failureReason: null
@@ -171,11 +190,15 @@ describe('AiLeadPrecisionAnalysisService', () => {
       {}
     );
 
-    assert.equal(result[0].score, 40);
-    assert.equal(result[0].precisionAnalysis?.priority, 'low');
-    assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
-    assert.match(result[0].reason ?? '', /官网产品页命中目标产品/);
-    assert.match(result[0].precisionAnalysis?.risks.join(' ') ?? '', /AI 原判 reject/);
+    assert.equal(result[0].score, 25);
+    assert.equal(result[0].precisionAnalysis?.priority, 'reject');
+    assert.equal(result[0].precisionAnalysis?.customerGroup, '中国供应商 / 非目标海外客户');
+    assert.equal(result[0].precisionAnalysis?.companyCountry, '中国');
+    assert.equal(result[0].precisionAnalysis?.targetMarketFit, 'outside_target');
+    assert.equal(result[0].precisionAnalysis?.reviewRequired, false);
+    assert.match(result[0].reason ?? '', /官网地址显示中国公司/);
+    assert.match(result[0].precisionAnalysis?.matchedSignals.join(' ') ?? '', /Xinjing/);
+    assert.match(result[0].precisionAnalysis?.risks.join(' ') ?? '', /产品页命中目标产品/);
   });
 });
 

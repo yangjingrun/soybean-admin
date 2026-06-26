@@ -37,6 +37,8 @@ const buyerSignalKeywords = [
 const whatsappPattern = /(?:wa\.me|whatsapp\.com)/i;
 const mapPattern = /(?:maps\.google|goo\.gl\/maps|google\.[^/]+\/maps)/i;
 const contactPathPattern = /(?:contact|about|iletisim|hakkimizda|support|sales|dealer|distributor|export)/i;
+const addressEvidencePattern =
+  /(?:address|地址|公司地址|联系地址|العنوان|xiamen|fujian|fujan|jiahe|siming|xinjing|istanbul|turkey|china|الصين)/i;
 const socialHostDomains = [
   'linkedin.com',
   'facebook.com',
@@ -47,6 +49,16 @@ const socialHostDomains = [
   'twitter.com',
   'tiktok.com',
   'pinterest.com'
+];
+const companyCountrySignalRules = [
+  {
+    label: '中国',
+    pattern: /(?:\bchina\b|中国|中國|الصين|\bxiamen\b|\bfujian\b|\bfujan\b|\bjiahe\b|\bsiming\b|\+86[\s().-]*)/i
+  },
+  {
+    label: '土耳其',
+    pattern: /(?:\bturkey\b|\bturkiye\b|\btürkiye\b|\bistanbul\b|\+90[\s().-]*)/i
+  }
 ];
 
 interface ExtractWebsitePageEvidenceInput {
@@ -85,6 +97,8 @@ export function extractWebsitePageEvidence(
     ),
     keywordHits: targetKeywords.filter(keyword => matchesKeyword(combined, keyword)),
     evidenceSnippets: unique(extractEvidenceSnippets(text, targetKeywords), 6),
+    companyAddressEvidence: extractCompanyAddressEvidence(text),
+    companyCountrySignals: extractCompanyCountrySignals(combined),
     negativeKeywordHits: negativeKeywords.filter(keyword => matchesKeyword(combined, keyword)),
     negativeEvidenceSnippets: unique(extractEvidenceSnippets(text, negativeKeywords), 6)
   };
@@ -132,6 +146,14 @@ export function mergeWebsitePageEvidence(pages: AiLeadWebsitePageEvidence[]): Ai
       pages.flatMap(page => page.evidenceSnippets),
       8
     ),
+    companyAddressEvidence: unique(
+      pages.flatMap(page => page.companyAddressEvidence),
+      8
+    ),
+    companyCountrySignals: unique(
+      pages.flatMap(page => page.companyCountrySignals),
+      8
+    ),
     negativeKeywordHits: unique(
       pages.flatMap(page => page.negativeKeywordHits),
       24
@@ -164,6 +186,8 @@ function createEmptyWebsiteEvidence(crawlStatus: 'failed' | 'skipped', reason: s
     contactLinks: [],
     keywordHits: [],
     evidenceSnippets: [],
+    companyAddressEvidence: [],
+    companyCountrySignals: [],
     negativeKeywordHits: [],
     negativeEvidenceSnippets: [],
     failureReason: reason
@@ -222,6 +246,31 @@ function extractEvidenceSnippets(text: string, targetKeywords: string[]) {
   });
 }
 
+function extractCompanyAddressEvidence(text: string) {
+  const chunks = text
+    .split(/(?<=[。.!?؛;])\s+|\s{2,}/)
+    .map(normalizeText)
+    .filter(Boolean);
+  const matchedChunks = chunks.filter(chunk => addressEvidencePattern.test(chunk));
+
+  if (matchedChunks.length > 0) {
+    return unique(matchedChunks.map(chunk => trimEvidenceChunk(chunk)), 8);
+  }
+
+  return unique(
+    companyCountrySignalRules.flatMap(rule => {
+      const match = text.match(new RegExp(`.{0,100}${rule.pattern.source}.{0,140}`, 'i'));
+
+      return match ? [trimEvidenceChunk(match[0])] : [];
+    }),
+    8
+  );
+}
+
+function extractCompanyCountrySignals(text: string) {
+  return companyCountrySignalRules.filter(rule => rule.pattern.test(text)).map(rule => rule.label);
+}
+
 function resolveTargetKeywords(options: AiLeadWebsiteEvidenceKeywordOptions) {
   const profileKeywords = options.matchProfile
     ? [...options.matchProfile.positiveKeywords, ...options.matchProfile.productLineKeywords]
@@ -251,6 +300,12 @@ function readFirstMatch(value: string, pattern: RegExp) {
 
 function normalizeText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function trimEvidenceChunk(value: string) {
+  const normalized = normalizeText(value);
+
+  return normalized.length > 220 ? `${normalized.slice(0, 220)}...` : normalized;
 }
 
 function decodeHtml(value: string) {

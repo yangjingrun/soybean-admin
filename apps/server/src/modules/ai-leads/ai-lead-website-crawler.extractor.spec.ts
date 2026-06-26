@@ -52,6 +52,29 @@ describe('ai lead website crawler extractor', () => {
     assert.deepEqual(page.negativeEvidenceSnippets, []);
   });
 
+  it('extracts official China address and country signals from website footer text', () => {
+    const page = extractWebsitePageEvidence({
+      url: 'https://www.fluorined-chemical.com/others/ball-bearing/radial-load-bearings-6203-deep-groove-ball.html',
+      loadedUrl:
+        'https://www.fluorined-chemical.com/others/ball-bearing/radial-load-bearings-6203-deep-groove-ball.html',
+      statusCode: 200,
+      html: `
+        <html>
+          <body>
+            <h1>6203 Deep Groove Ball Bearing Suppliers</h1>
+            <div class="foot-con">
+              العنوان:الغرفة 1102، الوحدة C، مركز Xinjing، رقم 25 طريق Jiahe، منطقة Siming، Xiamen، Fujan، الصين
+            </div>
+          </body>
+        </html>
+      `
+    });
+
+    assert.deepEqual(page.companyCountrySignals, ['中国']);
+    assert.match(page.companyAddressEvidence.join(' '), /Xinjing/);
+    assert.match(page.companyAddressEvidence.join(' '), /Xiamen/);
+  });
+
   it('does not classify regular company domains containing x.com as social links', () => {
     const page = extractWebsitePageEvidence({
       url: 'https://vwimpex.com',
@@ -86,6 +109,8 @@ describe('ai lead website crawler extractor', () => {
         contactLinks: ['https://bearing.example.com/contact'],
         keywordHits: ['bearing', 'elevator'],
         evidenceSnippets: ['Bearing supplier for elevator projects'],
+        companyAddressEvidence: [],
+        companyCountrySignals: [],
         negativeKeywordHits: [],
         negativeEvidenceSnippets: []
       },
@@ -103,6 +128,8 @@ describe('ai lead website crawler extractor', () => {
         contactLinks: ['https://bearing.example.com/contact'],
         keywordHits: ['bearing', 'traction'],
         evidenceSnippets: ['Traction machine bearing stock'],
+        companyAddressEvidence: ['Address: 10 Bearing Street, Istanbul, Turkey'],
+        companyCountrySignals: ['土耳其'],
         negativeKeywordHits: ['school'],
         negativeEvidenceSnippets: ['School maintenance team only']
       }
@@ -122,6 +149,8 @@ describe('ai lead website crawler extractor', () => {
       contactLinks: ['https://bearing.example.com/contact'],
       keywordHits: ['bearing', 'elevator', 'traction'],
       evidenceSnippets: ['Bearing supplier for elevator projects', 'Traction machine bearing stock'],
+      companyAddressEvidence: ['Address: 10 Bearing Street, Istanbul, Turkey'],
+      companyCountrySignals: ['土耳其'],
       negativeKeywordHits: ['school'],
       negativeEvidenceSnippets: ['School maintenance team only'],
       failureReason: null

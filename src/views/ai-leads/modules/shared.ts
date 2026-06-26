@@ -40,6 +40,13 @@ export type AiLeadCandidateSocialChannel = SocialLinkChannel;
 
 export type AiLeadCandidateSocialLink = SocialLinkView;
 
+export interface AiLeadCandidateClassificationTag {
+  key: string;
+  label: string;
+  type: 'default' | 'success' | 'info' | 'warning' | 'error';
+  tooltip?: string;
+}
+
 const businessGlossary = [
   ['auto_parts_wholesaler', '汽配批发商'],
   ['industrial_supplier', '工业用品供应商'],
@@ -298,6 +305,47 @@ export function getAiLeadCandidateSocialLinks(
     ...(candidate.websiteEvidence?.socialLinks ?? []),
     ...(candidate.websiteEvidence?.whatsappLinks ?? [])
   ]);
+}
+
+/** Builds customer-group tags from match analysis and official website country evidence. */
+export function getAiLeadCandidateClassificationTags(
+  candidate: Pick<Api.AiLeads.LeadSearchCandidateView, 'precisionAnalysis' | 'websiteEvidence'>
+): AiLeadCandidateClassificationTag[] {
+  const analysis = candidate.precisionAnalysis;
+  const tags: AiLeadCandidateClassificationTag[] = [];
+
+  if (analysis?.targetMarketFit === 'outside_target') {
+    tags.push({
+      key: 'outside-target',
+      label: '非目标市场',
+      type: 'error',
+      tooltip: analysis.reason
+    });
+  }
+
+  const companyCountry = analysis?.companyCountry?.trim();
+
+  if (companyCountry) {
+    tags.push({
+      key: 'company-country',
+      label: companyCountry === '中国' ? '中国公司' : `${companyCountry}公司`,
+      type: companyCountry === '中国' ? 'warning' : 'info',
+      tooltip: candidate.websiteEvidence?.companyAddressEvidence?.slice(0, 2).join('；') || analysis?.reason
+    });
+  }
+
+  const customerGroup = analysis?.customerGroup?.trim();
+
+  if (customerGroup) {
+    tags.push({
+      key: 'customer-group',
+      label: customerGroup,
+      type: analysis?.targetMarketFit === 'target' ? 'success' : 'default',
+      tooltip: analysis?.reason
+    });
+  }
+
+  return tags;
 }
 
 /** Normalize the candidate website into a comparable domain key. */
