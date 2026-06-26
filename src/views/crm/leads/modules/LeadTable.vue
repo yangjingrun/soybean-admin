@@ -85,6 +85,21 @@ function renderCompanySocialLinks(row: Api.Crm.LeadRecord) {
   );
 }
 
+/** 展示客户国家和已结构化的城市/地区。 */
+function renderLeadLocation(row: Api.Crm.LeadRecord) {
+  const country = row.country?.trim();
+  const city = row.city?.trim();
+
+  if (!country && !city) {
+    return h('span', { class: 'lead-empty-text' }, '-');
+  }
+
+  return h('div', { class: 'lead-location-cell' }, [
+    country ? h('span', { class: 'lead-primary-text' }, country) : null,
+    city ? h('span', { class: 'lead-secondary-text' }, city) : null
+  ]);
+}
+
 function renderCompanySocialLink(link: ReturnType<typeof getLeadCompanySocialLinks>[number]) {
   return h(
     NTooltip,
@@ -424,8 +439,17 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
       render: row => renderCompany(row)
     },
     {
+      key: 'country',
+      title: '国家 / 地区',
+      align: 'center',
+      titleAlign: 'center',
+      width: 120,
+      render: row => renderLeadLocation(row)
+    },
+    {
       key: 'socialLinks',
       title: '社媒',
+      align: 'center',
       titleAlign: 'center',
       width: 120,
       render: row => renderCompanySocialLinks(row)
@@ -433,6 +457,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'contacts',
       title: '联系人',
+      align: 'center',
       titleAlign: 'center',
       width: 220,
       render: row => renderContactSummary(row)
@@ -440,6 +465,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'status',
       title: '客户阶段',
+      align: 'center',
       titleAlign: 'center',
       width: 150,
       render: row =>
@@ -456,6 +482,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'emailProgress',
       title: '邮箱进度',
+      align: 'center',
       titleAlign: 'center',
       width: 150,
       render: row => renderEmailProgress(row.primaryContact)
@@ -463,6 +490,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'updatedAt',
       title: '更新时间',
+      align: 'center',
       titleAlign: 'center',
       width: 180,
       render: row => formatLeadDate(row.updatedAt)
@@ -470,6 +498,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'operate',
       title: '操作',
+      align: 'center',
       titleAlign: 'center',
       width: 260,
       fixed: 'right',
@@ -618,7 +647,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1420"
+        :scroll-x="1520"
         size="small"
         remote
         @update:checked-row-keys="handleCheckedRowKeysUpdate"
@@ -646,6 +675,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 
 <style scoped>
 :deep(.lead-company-cell),
+:deep(.lead-location-cell),
 :deep(.lead-stack-cell),
 :deep(.lead-contact-cell),
 :deep(.lead-contact-summary) {
@@ -662,13 +692,21 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   max-width: 200px;
 }
 
+:deep(.lead-location-cell) {
+  align-items: center;
+  max-width: 110px;
+  margin: 0 auto;
+}
+
 :deep(.lead-contact-cell),
 :deep(.lead-contact-summary) {
   max-width: 200px;
 }
 
 :deep(.lead-stack-cell) {
+  align-items: center;
   max-width: 140px;
+  margin: 0 auto;
 }
 
 :deep(.lead-company-name),
@@ -706,9 +744,12 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 :deep(.lead-company-social-row) {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-flow: row wrap;
   gap: 6px;
-  max-width: 110px;
+  width: 100%;
+  max-width: 96px;
+  margin: 0 auto;
 }
 
 :deep(.lead-company-social-link) {
