@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { AiLeadWebsiteCrawlerService, createCrawleeRequestSources } from './ai-lead-website-crawler.service';
+import { AiLeadDirectorySourceRuleService } from './ai-lead-directory-source-rule.service';
 import type { AiLeadSearchCandidate } from './ai-lead-search-orchestrator.service';
 
 describe('AiLeadWebsiteCrawlerService', () => {
@@ -101,7 +102,7 @@ describe('AiLeadWebsiteCrawlerService', () => {
 
         return [];
       }
-    });
+    }, createDirectoryRuleService());
 
     const candidates = await service.enrichCandidates([
       createCandidate({
@@ -186,4 +187,32 @@ function createCandidate(overrides: Partial<AiLeadSearchCandidate>): AiLeadSearc
     snippet: 'bearing supplier',
     ...overrides
   };
+}
+
+function createDirectoryRuleService() {
+  return new AiLeadDirectorySourceRuleService({
+    async listRules() {
+      return [
+        {
+          id: 'builtin-yellowpages-uae-com',
+          value: 'yellowpages-uae.com',
+          matchMode: 'domain_suffix',
+          enabled: true,
+          builtin: true,
+          description: '系统内置黄页/目录域名',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+    },
+    async createRule() {
+      throw new Error('not-used');
+    },
+    async updateRule() {
+      throw new Error('not-used');
+    },
+    async deleteRule() {
+      throw new Error('not-used');
+    }
+  });
 }

@@ -344,7 +344,7 @@ export class AiLeadSearchOrchestrator {
         });
 
         const rawCandidates = applySerperRequestCountry(
-          extractCandidates(decisionSerperResult, currentRequest.endpoint),
+          extractCandidates(decisionSerperResult, currentRequest.endpoint, providerFilterResult.directoryRules),
           currentRequest.requestBody
         );
         const precheckResult = await this.precheckCandidates(rawCandidates, context);
@@ -689,9 +689,12 @@ export class AiLeadSearchOrchestrator {
   private async filterSerperResultForLeadDecision(result: unknown, endpoint: SerperEndpoint) {
     const rules = this.directorySourceRuleService
       ? await this.directorySourceRuleService.listEnabledMatcherRules()
-      : undefined;
+      : [];
 
-    return filterSerperResultForLeadDecision(result, endpoint, rules);
+    return {
+      ...filterSerperResultForLeadDecision(result, endpoint, rules),
+      directoryRules: rules
+    };
   }
 
   private async decideNextStep(input: {
@@ -1123,7 +1126,11 @@ function compactSerperRequestBody(body: SerperRequestBody): SerperRequestBody {
   ) as SerperRequestBody;
 }
 
-function extractCandidates(result: unknown, endpoint: SerperEndpoint): AiLeadSearchCandidate[] {
+function extractCandidates(
+  result: unknown,
+  endpoint: SerperEndpoint,
+  directoryRules: AiLeadDirectorySourceMatcherRule[] = []
+): AiLeadSearchCandidate[] {
   if (!result || typeof result !== 'object') {
     return [];
   }
@@ -1132,7 +1139,7 @@ function extractCandidates(result: unknown, endpoint: SerperEndpoint): AiLeadSea
   const placeSourceType = endpoint === 'maps' ? 'maps' : 'place';
 
   return [
-    ...extractOrganicCandidates(record.organic),
+    ...extractOrganicCandidates(record.organic, directoryRules),
     ...extractPlaceCandidates(record.places, placeSourceType),
     ...extractPlaceCandidates(record.localResults, 'local')
   ];
@@ -1142,7 +1149,7 @@ function extractCandidates(result: unknown, endpoint: SerperEndpoint): AiLeadSea
 function filterSerperResultForLeadDecision(
   result: unknown,
   endpoint: SerperEndpoint,
-  directoryRules?: AiLeadDirectorySourceMatcherRule[]
+  directoryRules: AiLeadDirectorySourceMatcherRule[] = []
 ) {
   const emptySummary: ProviderFilteredSummary = {
     rawOrganicCount: 0,
@@ -1197,7 +1204,10 @@ function filterSerperResultForLeadDecision(
   };
 }
 
-function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
+function extractOrganicCandidates(
+  value: unknown,
+  directoryRules: AiLeadDirectorySourceMatcherRule[] = []
+): AiLeadSearchCandidate[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -1209,7 +1219,7 @@ function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
       const title = stringValue(record.title);
       const dedupeKey = getDomain(url) || title;
 
-      if (!dedupeKey || isDirectorySourceUrl(url) || isBlockedLeadCandidate({ url, title })) {
+      if (!dedupeKey || isDirectorySourceUrl(url, directoryRules) || isBlockedLeadCandidate({ url, title })) {
         return null;
       }
 

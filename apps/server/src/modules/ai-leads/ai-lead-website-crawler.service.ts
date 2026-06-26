@@ -7,7 +7,12 @@ import {
   extractWebsitePageEvidence,
   mergeWebsitePageEvidence
 } from './ai-lead-website-crawler.extractor';
-import { isDirectorySourceUrl, normalizeOfficialWebsiteUrl } from './ai-lead-source-url';
+import { AiLeadDirectorySourceRuleService } from './ai-lead-directory-source-rule.service';
+import {
+  type AiLeadDirectorySourceMatcherRule,
+  isDirectorySourceUrl,
+  normalizeOfficialWebsiteUrl
+} from './ai-lead-source-url';
 import type {
   AiLeadWebsiteCrawlPageResult,
   AiLeadWebsiteCrawlRequest,
@@ -35,7 +40,10 @@ const websitePagePaths = [
 @Injectable()
 export class AiLeadWebsiteCrawlerService {
   constructor(
-    @Optional() @Inject('AI_LEAD_WEBSITE_CRAWLER_FETCHER') private readonly fetcher?: AiLeadWebsiteCrawlerPageFetcher
+    @Optional() @Inject('AI_LEAD_WEBSITE_CRAWLER_FETCHER') private readonly fetcher?: AiLeadWebsiteCrawlerPageFetcher,
+    @Optional()
+    @Inject(AiLeadDirectorySourceRuleService)
+    private readonly directorySourceRuleService?: AiLeadDirectorySourceRuleService
   ) {}
 
   /** Enriches Serper candidates with public website contact and product evidence. */
@@ -45,14 +53,17 @@ export class AiLeadWebsiteCrawlerService {
   ): Promise<AiLeadWebsiteEnrichedCandidate[]> {
     const output: AiLeadWebsiteEnrichedCandidate[] = [];
     const pageFetcher = this.fetcher ?? new CrawleeWebsitePageFetcher();
+    const directoryRules = this.directorySourceRuleService
+      ? await this.directorySourceRuleService.listEnabledMatcherRules()
+      : [];
 
     for (let index = 0; index < candidates.length; index += 1) {
       const candidate = candidates[index];
-      const homepage = normalizeCandidateWebsite(candidate);
+      const homepage = normalizeCandidateWebsite(candidate, directoryRules);
 
       if (!homepage) {
         const failureReason =
-          isDirectorySourceUrl(candidate.website) || isDirectorySourceUrl(candidate.url)
+          isDirectorySourceUrl(candidate.website, directoryRules) || isDirectorySourceUrl(candidate.url, directoryRules)
             ? '目录/黄页来源页，不作为公司官网采集'
             : '缺少官网';
 
@@ -161,8 +172,13 @@ function buildCandidateRequests(candidate: AiLeadSearchCandidate, homepage: stri
   });
 }
 
-function normalizeCandidateWebsite(candidate: AiLeadSearchCandidate) {
-  const value = normalizeOfficialWebsiteUrl(candidate.website) || normalizeOfficialWebsiteUrl(candidate.url);
+function normalizeCandidateWebsite(
+  candidate: AiLeadSearchCandidate,
+  directoryRules: AiLeadDirectorySourceMatcherRule[]
+) {
+  const value =
+    normalizeOfficialWebsiteUrl(candidate.website, directoryRules) ||
+    normalizeOfficialWebsiteUrl(candidate.url, directoryRules);
 
   if (!value) {
     return '';

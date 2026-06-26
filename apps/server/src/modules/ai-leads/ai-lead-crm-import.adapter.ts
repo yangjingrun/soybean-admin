@@ -2,7 +2,7 @@ import type { ImportCrmLeadInput } from '../crm/crm.types';
 import { buildCandidateCountryPatch } from './ai-lead-candidate-country';
 import { normalizeAiLeadEmailWritingContext } from './ai-lead-email-writing-context';
 import type { AiLeadProductLineSnapshot } from './ai-lead-product-line-context';
-import { normalizeOfficialWebsiteUrl } from './ai-lead-source-url';
+import { type AiLeadDirectorySourceMatcherRule, normalizeOfficialWebsiteUrl } from './ai-lead-source-url';
 
 interface AiLeadCandidateLike {
   title?: unknown;
@@ -27,7 +27,8 @@ interface AiLeadCandidateLike {
 /** Maps completed AI lead candidates to CRM import inputs. */
 export function mapAiLeadTaskResultToCrmImportInputs(
   task: { id: string; productLineSnapshot?: AiLeadProductLineSnapshot | null },
-  result: unknown
+  result: unknown,
+  directoryRules: AiLeadDirectorySourceMatcherRule[] = []
 ): ImportCrmLeadInput[] {
   const candidates = readCandidates(result);
 
@@ -41,7 +42,9 @@ export function mapAiLeadTaskResultToCrmImportInputs(
     return [
       {
         name,
-        websiteUrl: normalizeOfficialWebsiteUrl(normalizeString(candidate.website)) || normalizeOfficialWebsiteUrl(normalizeString(candidate.url)),
+        websiteUrl:
+          normalizeOfficialWebsiteUrl(normalizeString(candidate.website), directoryRules) ||
+          normalizeOfficialWebsiteUrl(normalizeString(candidate.url), directoryRules),
         ...buildCandidateCountryPatch(candidate),
         ...buildCandidateLocationPatch(candidate),
         ...buildCandidateCoordinatePatch(candidate),

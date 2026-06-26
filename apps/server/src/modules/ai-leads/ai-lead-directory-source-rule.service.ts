@@ -1,6 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
-  builtinDirectorySourceRules,
   isDirectorySourceUrl,
   normalizeDirectorySourceRuleValue,
   type AiLeadDirectorySourceMatcherRule
@@ -23,9 +22,7 @@ export class AiLeadDirectorySourceRuleService {
 
   /** 返回内置规则和超级管理员配置的自定义规则。 */
   async listRules() {
-    const customRules = await this.listCustomRules();
-
-    return [...this.listBuiltinRules(), ...customRules];
+    return this.listStoredRules();
   }
 
   /** 返回搜索过滤可直接使用的启用规则。 */
@@ -61,22 +58,7 @@ export class AiLeadDirectorySourceRuleService {
     return isDirectorySourceUrl(value, await this.listEnabledMatcherRules());
   }
 
-  private listBuiltinRules(): AiLeadDirectorySourceRuleRecord[] {
-    const now = new Date(0);
-
-    return builtinDirectorySourceRules.map(rule => ({
-      id: `builtin:${rule.matchMode}:${rule.value}`,
-      value: rule.value,
-      matchMode: rule.matchMode,
-      enabled: rule.enabled !== false,
-      builtin: true,
-      description: '系统内置黄页/目录域名',
-      createdAt: now,
-      updatedAt: now
-    }));
-  }
-
-  private listCustomRules() {
+  private listStoredRules() {
     return this.ruleStore?.listRules() ?? Promise.resolve([]);
   }
 

@@ -7,6 +7,7 @@ import { SystemNotificationService } from '../system-notification/system-notific
 import type { SearchRequestTrace } from './ai-lead-search-orchestrator.service';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 import { mapAiLeadTaskResultToCrmImportInputs } from './ai-lead-crm-import.adapter';
+import { AiLeadDirectorySourceRuleService } from './ai-lead-directory-source-rule.service';
 import { AiLeadHunterEnrichmentService, type AiLeadHunterEnrichmentResult } from './ai-lead-hunter-enrichment.service';
 import { createLeadSearchProgressEmitter, type LeadSearchProgressEvent } from './ai-lead-search-progress';
 import { AI_LEAD_SEARCH_TASK_STORE } from './ai-leads.tokens';
@@ -43,7 +44,10 @@ export class AiLeadSearchTaskWorkerService {
     @Optional() @Inject(CrmAccountService) private readonly crmAccountService?: CrmAccountService,
     @Optional()
     @Inject(AiLeadHunterEnrichmentService)
-    private readonly hunterEnrichmentService?: AiLeadHunterEnrichmentService
+    private readonly hunterEnrichmentService?: AiLeadHunterEnrichmentService,
+    @Optional()
+    @Inject(AiLeadDirectorySourceRuleService)
+    private readonly directorySourceRuleService?: AiLeadDirectorySourceRuleService
   ) {}
 
   /** Interrupts tasks left running by a previous process before accepting new jobs. */
@@ -280,7 +284,10 @@ export class AiLeadSearchTaskWorkerService {
 
   /** Imports completed search candidates into CRM without blocking task completion. */
   private async importCrmLeadsSafely(task: AiLeadSearchTaskRecord, result: unknown) {
-    const inputs = mapAiLeadTaskResultToCrmImportInputs(task, result);
+    const directoryRules = this.directorySourceRuleService
+      ? await this.directorySourceRuleService.listEnabledMatcherRules()
+      : [];
+    const inputs = mapAiLeadTaskResultToCrmImportInputs(task, result, directoryRules);
 
     if (!this.crmAccountService || inputs.length === 0) {
       return;

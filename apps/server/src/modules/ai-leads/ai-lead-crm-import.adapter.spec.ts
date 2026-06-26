@@ -211,7 +211,8 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
             }
           }
         ]
-      }
+      },
+      [{ value: 'yellowpages-uae.com', matchMode: 'domain_suffix' }]
     );
 
     assert.equal(inputs[0].websiteUrl, '');

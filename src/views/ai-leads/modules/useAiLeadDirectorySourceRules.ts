@@ -6,6 +6,7 @@ import {
   fetchLeadDirectorySourceRules,
   updateLeadDirectorySourceRule
 } from '@/service/api';
+import { parseDirectorySourceRuleValues } from './directory-source-rules';
 
 interface RuleFormModel {
   value: string;
@@ -33,8 +34,10 @@ export function useAiLeadDirectorySourceRules() {
 
   const customRecords = computed(() => records.value.filter(record => !record.builtin));
   const builtinRecords = computed(() => records.value.filter(record => record.builtin));
+  const isEditingRule = computed(() => Boolean(editingRuleId.value));
+  const ruleValues = computed(() => parseDirectorySourceRuleValues(form.value));
   const formTitle = computed(() => (editingRuleId.value ? '编辑过滤规则' : '新增过滤规则'));
-  const canSubmit = computed(() => Boolean(form.value.trim()) && !isSaving.value);
+  const canSubmit = computed(() => ruleValues.value.length > 0 && !isSaving.value);
 
   async function loadRules() {
     isLoading.value = true;
@@ -75,14 +78,15 @@ export function useAiLeadDirectorySourceRules() {
     isSaving.value = true;
 
     try {
-      const payload = toPayload(form);
-
       if (editingRuleId.value) {
-        await updateLeadDirectorySourceRule(editingRuleId.value, payload);
+        await updateLeadDirectorySourceRule(editingRuleId.value, toPayload(form, ruleValues.value[0]));
         message.success('过滤规则已更新');
       } else {
-        await createLeadDirectorySourceRule(payload);
-        message.success('过滤规则已新增');
+        for (const value of ruleValues.value) {
+          await createLeadDirectorySourceRule(toPayload(form, value));
+        }
+
+        message.success(`已新增 ${ruleValues.value.length} 条过滤规则`);
       }
 
       isFormVisible.value = false;
@@ -123,6 +127,7 @@ export function useAiLeadDirectorySourceRules() {
     deletingRuleId,
     form,
     formTitle,
+    isEditingRule,
     isFormVisible,
     isLoading,
     isSaving,
@@ -135,9 +140,9 @@ export function useAiLeadDirectorySourceRules() {
   };
 }
 
-function toPayload(form: RuleFormModel): Api.AiLeads.SaveDirectorySourceRulePayload {
+function toPayload(form: RuleFormModel, value = form.value): Api.AiLeads.SaveDirectorySourceRulePayload {
   return {
-    value: form.value,
+    value,
     matchMode: form.matchMode,
     enabled: form.enabled,
     description: form.description || null

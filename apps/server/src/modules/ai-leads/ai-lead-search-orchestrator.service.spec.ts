@@ -6,6 +6,7 @@ import { leadKeywordOptimizePromptKey, leadSearchResultDecidePromptKey } from '.
 import type { SerperClient } from '../ai-gateway/serper-client.service';
 import type { SystemLogRecordInput } from '../system-log/system-log.types';
 import type { LeadSearchProgressEventInput } from './ai-lead-search-progress';
+import { AiLeadDirectorySourceRuleService } from './ai-lead-directory-source-rule.service';
 import { AiLeadSearchOrchestrator } from './ai-lead-search-orchestrator.service';
 
 describe('AiLeadSearchOrchestrator', () => {
@@ -34,7 +35,11 @@ describe('AiLeadSearchOrchestrator', () => {
     const service = new AiLeadSearchOrchestrator(
       aiGateway as unknown as AiGatewayService,
       serper as unknown as SerperClient,
-      createLogRecorder()
+      createLogRecorder(),
+      undefined,
+      undefined,
+      undefined,
+      createDirectoryRuleService()
     );
     const executedKeys: string[] = [];
 
@@ -236,7 +241,11 @@ describe('AiLeadSearchOrchestrator', () => {
     const service = new AiLeadSearchOrchestrator(
       aiGateway as unknown as AiGatewayService,
       serper as unknown as SerperClient,
-      createLogRecorder()
+      createLogRecorder(),
+      undefined,
+      undefined,
+      undefined,
+      createDirectoryRuleService()
     );
 
     const result = await service.searchWithKeywordPlan(
@@ -1862,6 +1871,34 @@ function createLogRecorder() {
       return { ...input, id: String(this.records.length), createdAt: new Date() };
     }
   };
+}
+
+function createDirectoryRuleService() {
+  return new AiLeadDirectorySourceRuleService({
+    async listRules() {
+      return [
+        {
+          id: 'builtin-yellowpages-uae-com',
+          value: 'yellowpages-uae.com',
+          matchMode: 'domain_suffix',
+          enabled: true,
+          builtin: true,
+          description: '系统内置黄页/目录域名',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+    },
+    async createRule() {
+      throw new Error('not-used');
+    },
+    async updateRule() {
+      throw new Error('not-used');
+    },
+    async deleteRule() {
+      throw new Error('not-used');
+    }
+  });
 }
 
 function createUser(): UserInfo {

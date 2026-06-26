@@ -11,6 +11,7 @@ const {
   deletingRuleId,
   form,
   formTitle,
+  isEditingRule,
   isFormVisible,
   isLoading,
   isSaving,
@@ -27,7 +28,7 @@ const matchModeOptions = [
   { label: 'URL 包含', value: 'url_contains' }
 ];
 
-const allRecords = computed(() => [...customRecords.value, ...builtinRecords.value]);
+const allRecords = computed(() => [...builtinRecords.value, ...customRecords.value]);
 
 watch(
   show,
@@ -114,8 +115,13 @@ function closeForm() {
 
   <NModal v-model:show="isFormVisible" preset="card" :title="formTitle" class="directory-rule-modal">
     <NForm :model="form" label-placement="top" size="small">
-      <NFormItem label="匹配值" path="value">
-        <NInput v-model:value="form.value" placeholder="yellowpages.example.com" />
+      <NFormItem :label="isEditingRule ? '匹配值' : '匹配值（一行一个）'" path="value">
+        <NInput
+          v-model:value="form.value"
+          type="textarea"
+          :placeholder="isEditingRule ? 'yellowpages.example.com' : 'yellowpages.example.com\nhttps://directory.example.com/listing'"
+          :autosize="{ minRows: isEditingRule ? 2 : 5, maxRows: 10 }"
+        />
       </NFormItem>
       <NFormItem label="匹配方式" path="matchMode">
         <NSelect v-model:value="form.matchMode" :options="matchModeOptions" />

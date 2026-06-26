@@ -14,6 +14,7 @@ interface AiLeadDirectorySourceRuleRow {
   value: string;
   matchMode: string;
   enabled: boolean;
+  builtin: boolean;
   description: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -25,9 +26,9 @@ export class PrismaAiLeadDirectorySourceRuleStore implements AiLeadDirectorySour
 
   async listRules() {
     const rows = await this.prisma.$queryRaw<AiLeadDirectorySourceRuleRow[]>`
-      SELECT id, value, "matchMode", enabled, description, "createdAt", "updatedAt"
+      SELECT id, value, "matchMode", enabled, builtin, description, "createdAt", "updatedAt"
       FROM "AiLeadDirectorySourceRule"
-      ORDER BY "createdAt" ASC
+      ORDER BY builtin DESC, "createdAt" ASC
     `;
 
     return rows.map(toRuleRecord);
@@ -58,6 +59,7 @@ export class PrismaAiLeadDirectorySourceRuleStore implements AiLeadDirectorySour
           "updatedByName" = ${input.user?.userName ?? null},
           "updatedAt" = now()
       WHERE id = ${input.id}
+        AND builtin = false
     `;
 
     return this.findRuleById(input.id);
@@ -67,6 +69,7 @@ export class PrismaAiLeadDirectorySourceRuleStore implements AiLeadDirectorySour
     const result = await this.prisma.$executeRaw`
       DELETE FROM "AiLeadDirectorySourceRule"
       WHERE id = ${id}
+        AND builtin = false
     `;
 
     return result > 0;
@@ -74,7 +77,7 @@ export class PrismaAiLeadDirectorySourceRuleStore implements AiLeadDirectorySour
 
   private async findRuleById(id: string) {
     const rows = await this.prisma.$queryRaw<AiLeadDirectorySourceRuleRow[]>`
-      SELECT id, value, "matchMode", enabled, description, "createdAt", "updatedAt"
+      SELECT id, value, "matchMode", enabled, builtin, description, "createdAt", "updatedAt"
       FROM "AiLeadDirectorySourceRule"
       WHERE id = ${id}
       LIMIT 1
@@ -90,7 +93,7 @@ function toRuleRecord(row: AiLeadDirectorySourceRuleRow): AiLeadDirectorySourceR
     value: row.value,
     matchMode: row.matchMode as AiLeadDirectorySourceRuleMatchMode,
     enabled: row.enabled,
-    builtin: false,
+    builtin: row.builtin,
     description: row.description,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt

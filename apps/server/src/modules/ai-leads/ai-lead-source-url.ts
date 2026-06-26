@@ -8,29 +8,10 @@ export interface AiLeadDirectorySourceMatcherRule {
   enabled?: boolean;
 }
 
-export const builtinDirectorySourceRules: AiLeadDirectorySourceMatcherRule[] = [
-  { value: 'yellowpages-uae.com', matchMode: 'domain_suffix' },
-  { value: 'yellowpages.ae', matchMode: 'domain_suffix' },
-  { value: 'reachuae.com', matchMode: 'domain_suffix' },
-  { value: 'atninfo.com', matchMode: 'domain_suffix' },
-  { value: 'dcciinfo.com', matchMode: 'domain_suffix' },
-  { value: 'saudiyellowpagesonline.com', matchMode: 'domain_suffix' },
-  { value: 'saudiayp.com', matchMode: 'domain_suffix' },
-  { value: 'ksadirectoryonline.com', matchMode: 'domain_suffix' },
-  { value: 'kuwaityellowpagesonline.com', matchMode: 'domain_suffix' },
-  { value: 'yellowpages.qa', matchMode: 'domain_suffix' },
-  { value: 'omanyellowpagesonline.com', matchMode: 'domain_suffix' },
-  { value: 'bahrainyellowpagesonline.com', matchMode: 'domain_suffix' },
-  { value: 'arabiantalks.com', matchMode: 'domain_suffix' },
-  { value: 'gulfyp.com', matchMode: 'domain_suffix' },
-  { value: 'mymidlist.com', matchMode: 'domain_suffix' },
-  { value: 'yellowpagegulf.com', matchMode: 'domain_suffix' }
-];
-
 /** Returns true for B2B directory or yellow-page URLs that should stay source evidence only. */
 export function isDirectorySourceUrl(
   value: string | null | undefined,
-  rules: AiLeadDirectorySourceMatcherRule[] = builtinDirectorySourceRules
+  rules: AiLeadDirectorySourceMatcherRule[]
 ) {
   if (!value) return false;
 
@@ -81,10 +62,13 @@ export function normalizeDirectorySourceRuleValue(value: string, matchMode: AiLe
 }
 
 /** Keeps only URLs that can reasonably represent a company-owned website. */
-export function normalizeOfficialWebsiteUrl(value: string | null | undefined) {
+export function normalizeOfficialWebsiteUrl(
+  value: string | null | undefined,
+  directoryRules: AiLeadDirectorySourceMatcherRule[] = []
+) {
   const normalized = typeof value === 'string' ? value.trim() : '';
 
-  if (!normalized || isDirectorySourceUrl(normalized)) {
+  if (!normalized || isDirectorySourceUrl(normalized, directoryRules)) {
     return '';
   }
 

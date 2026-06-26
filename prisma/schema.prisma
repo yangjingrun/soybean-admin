@@ -1198,6 +1198,7 @@ model AiLeadDirectorySourceRule {
   value         String
   matchMode     String   @default("domain_suffix")
   enabled       Boolean  @default(true)
+  builtin       Boolean  @default(false)
   description   String?
   createdById   String?
   createdByName String?
@@ -1208,4 +1209,5 @@ model AiLeadDirectorySourceRule {
 
   @@unique([value, matchMode])
   @@index([enabled])
+  @@index([builtin])
 }
