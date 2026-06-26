@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { defaultAiModelConfigKey, leadMatchAnalyzePromptKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { AiLeadSearchContext, OptimizedKeywordPlan } from './ai-lead-search-orchestrator.service';
-import { normalizeAiLeadKeywordContextSnapshot } from './ai-lead-keyword-context';
+import { buildAiLeadExclusionDecisionRules, normalizeAiLeadKeywordContextSnapshot } from './ai-lead-keyword-context';
 import type {
   AiLeadPrecisionAnalysis,
   AiLeadPrecisionPriority,
@@ -121,6 +121,7 @@ export class AiLeadPrecisionAnalysisService {
 
 function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
   const leadContextSnapshot = normalizeAiLeadKeywordContextSnapshot(input.keywordPlan.leadContextSnapshot);
+  const exclusionDecisionRules = buildAiLeadExclusionDecisionRules(leadContextSnapshot?.exclusionRules);
 
   return JSON.stringify({
     instruction:
@@ -149,7 +150,8 @@ function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
       resolvedTargetRegions: input.keywordPlan.resolvedTargetRegions || '',
       resolvedTargetCustomerProfile: input.keywordPlan.resolvedTargetCustomerProfile || '',
       productLineSnapshot: input.keywordPlan.productLineSnapshot || null,
-      leadContextSnapshot
+      leadContextSnapshot,
+      exclusionDecisionRules
     },
     candidates: input.candidates.map(candidate => ({
       dedupeKey: candidate.dedupeKey,

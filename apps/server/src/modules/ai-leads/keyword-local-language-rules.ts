@@ -179,6 +179,9 @@ export function buildKeywordOptimizePrompt(
 
 【目标市场本地语言查询强约束】
 你必须先识别目标国家/地区的主要商业语言；如果目标市场主要语言不是英语，Search 和 Places 都必须同时覆盖英文查询和当地语言查询。${marketRulesText}
+- 如果 leadContext.exclusionRules 存在，必须把每条排除类型转成 searchExecutionRules.exclude 的可执行规则，并在相关查询的 meta.reason 中说明如何避开低价值来源。
+- 平台/目录、品牌总部、新闻博客、无官网证据这类来源可以作为二次挖掘入口，但不能作为最终客户；查询规划应优先指向真实公司官网、Products/About/Contact/Brands/Distribution/Wholesale 页面。
+- 中国供应商排除只按公司地址、电话 +86、Contact/footer、工商主体、Alibaba/Made-in-China 店铺等强证据处理；China brands、made in China、manufacturer in China 只是产品来源弱信号，不要把它写成硬排除依据。
 - searchExecutionRules.marketLanguagePlan 必须输出目标市场语言计划，数组项包含 marketName、languageName、languageCode、localQueryRequired、reason；即使目标市场不在常见国家列表，也要由你根据当地商业环境判断。
 - serperSearchQueries：每个非英语目标市场至少输出 2 条当地语言查询，且单一目标市场时，前 6 条 Search 查询中至少出现 1 条当地语言查询。
 - serperPlacesQueries：只要输出 Places 查询，每个非英语目标市场至少输出 2 条当地语言本地商家查询。

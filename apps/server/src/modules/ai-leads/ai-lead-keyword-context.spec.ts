@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatAiLeadKeywordContextPromptBlock, normalizeAiLeadKeywordContextSnapshot } from './ai-lead-keyword-context';
+import {
+  buildAiLeadExclusionDecisionRules,
+  formatAiLeadKeywordContextPromptBlock,
+  normalizeAiLeadKeywordContextSnapshot
+} from './ai-lead-keyword-context';
 
 describe('AI lead keyword context', () => {
   it('normalizes target region levels and formats them for keyword prompts', () => {
@@ -45,5 +49,27 @@ describe('AI lead keyword context', () => {
     assert.match(promptBlock, /市场归类：中东/);
     assert.match(promptBlock, /国家市场：阿联酋、沙特阿拉伯/);
     assert.match(promptBlock, /城市\/区域：沙特阿拉伯 \/ Riyadh/);
+  });
+
+  it('formats selected exclusion rules with executable decision guidance', () => {
+    const snapshot = normalizeAiLeadKeywordContextSnapshot({
+      targetRegion: { value: 'market:middle_east', label: '中东', scope: 'market_region' },
+      targetCustomerTypes: [{ key: 'importer', label: '进口商' }],
+      exclusionRules: [
+        { key: 'china_supplier', label: '中国供应商/出口商' },
+        { key: 'marketplace_listing', label: '平台/目录聚合页' },
+        { key: 'no_official_website', label: '无官网或证据不足' },
+        { key: 'official_brand_hq', label: '品牌总部/竞争品牌官网' }
+      ]
+    });
+    const promptBlock = formatAiLeadKeywordContextPromptBlock(snapshot);
+    const rules = buildAiLeadExclusionDecisionRules(snapshot?.exclusionRules);
+
+    assert.equal(rules.length, 4);
+    assert.match(promptBlock, /排除类型判定细则/);
+    assert.match(promptBlock, /China brands、made in China、manufacturer in China/);
+    assert.match(promptBlock, /目录页本身不是客户/);
+    assert.match(promptBlock, /地图标题、地址、电话强命中目标买家时/);
+    assert.match(promptBlock, /品牌官网的 dealer\/distributor finder 页面可用于反挖本地经销商/);
   });
 });

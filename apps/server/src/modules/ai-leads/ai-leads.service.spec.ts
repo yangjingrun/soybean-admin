@@ -335,8 +335,24 @@ describe('AiLeadsService', () => {
       websiteUrl: null
     };
     const leadContext = {
-      targetRegion: { value: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B', label: '阿联酋', countryCode: 'AE' },
-      targetRegions: [{ value: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B', label: '阿联酋', countryCode: 'AE' }],
+      targetRegion: {
+        value: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B',
+        label: '阿联酋',
+        countryCode: 'AE',
+        scope: 'country',
+        marketRegionCode: null,
+        marketRegionLabel: null
+      },
+      targetRegions: [
+        {
+          value: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B',
+          label: '阿联酋',
+          countryCode: 'AE',
+          scope: 'country',
+          marketRegionCode: null,
+          marketRegionLabel: null
+        }
+      ],
       targetCustomerTypes: [
         {
           key: 'importer',
@@ -410,6 +426,9 @@ describe('AiLeadsService', () => {
     assert.match(optimizeDto.prompt, /结构化获客条件 leadContext/);
     assert.match(optimizeDto.prompt, /客户类型：进口商/);
     assert.match(optimizeDto.prompt, /排除类型：中国供应商\/出口商/);
+    assert.match(optimizeDto.prompt, /排除类型判定细则/);
+    assert.match(optimizeDto.prompt, /China brands、made in China、manufacturer in China/);
+    assert.match(optimizeDto.prompt, /searchExecutionRules\.exclude/);
     assert.deepEqual(result.keywordPlan, expectedKeywordPlan);
     assert.deepEqual(JSON.parse(historyInput.resultText), expectedKeywordPlan);
     assert.deepEqual(historyInput.keywordPlan, expectedKeywordPlan);

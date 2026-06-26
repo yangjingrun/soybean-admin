@@ -114,7 +114,9 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.match(aiGateway.calls[0].prompt, /Elevator traction machine bearings/);
     assert.match(aiGateway.calls[0].prompt, /6204, 6305/);
     assert.match(aiGateway.calls[0].prompt, /leadContextSnapshot/);
+    assert.match(aiGateway.calls[0].prompt, /exclusionDecisionRules/);
     assert.match(aiGateway.calls[0].prompt, /中国供应商\/出口商/);
+    assert.match(aiGateway.calls[0].prompt, /China brands、made in China、manufacturer in China/);
     assert.match(aiGateway.calls[0].prompt, /纯 B2C 零售站/);
     assert.match(aiGateway.calls[0].prompt, /sales@abc\.example\.com/);
     assert.equal(result[0].score, 88);

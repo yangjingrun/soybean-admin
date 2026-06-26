@@ -155,50 +155,58 @@ export const aiLeadExclusionRuleOptions: AiLeadContextOption[] = [
   {
     key: 'china_supplier',
     label: '中国供应商/出口商',
-    description: '排除中国官网、中国制造商、Alibaba/Made-in-China 等供应商来源。',
-    promptHint: 'exclude China supplier, Chinese manufacturer, Alibaba, Made-in-China'
+    description: '排除公司地址/电话/主体明确在中国的供应商；销售 China brands 不等于中国公司。',
+    promptHint:
+      'exclude China company only when official address/contact/footer/business entity, +86 phone, Alibaba/Made-in-China store proves China supplier; do not reject only for China brands or made in China product origin'
   },
   {
     key: 'wrong_market',
     label: '非目标国家客户',
-    description: '官网地址、电话、业务主体明显不在本次目标国家/地区时降级或排除。',
-    promptHint: 'exclude companies outside the selected target market'
+    description: '官网地址、电话、业务主体明显不在本次目标国家/地区时降级或排除；大区选择允许区内国家。',
+    promptHint:
+      'exclude companies outside selected country/region; if target is a market region keep countries inside that region, but downgrade clear out-of-region companies'
   },
   {
     key: 'b2c_only',
     label: '纯 B2C 零售站',
-    description: '排除只面向个人消费者、购物车商品页、低客单零售店。',
-    promptHint: 'exclude B2C-only shops and consumer-only stores'
+    description: '排除只面向个人消费者、购物车商品页、低客单零售店；有批发/经销入口可复核。',
+    promptHint:
+      'exclude consumer-only shop, shopping cart product page, low-value retail store; keep or review if wholesale, dealer, trade account or B2B inquiry evidence exists'
   },
   {
     key: 'marketplace_listing',
     label: '平台/目录聚合页',
-    description: '排除 Amazon、eBay、AliExpress、黄页、SEO 聚合目录等非官网结果。',
-    promptHint: 'exclude marketplace listings, directory-only pages, SEO aggregators'
+    description: '排除 Amazon、eBay、AliExpress、黄页、SEO 聚合目录等非官网结果；可作为二次挖掘来源。',
+    promptHint:
+      'exclude marketplace listing, yellow pages, directory-only page, SEO aggregator, catalog portal; use as source to find real company websites, not as final lead'
   },
   {
     key: 'no_official_website',
     label: '无官网或证据不足',
-    description: '没有官网、官网打不开、只有社媒/地图页且无法证明 B2B 采购身份时降级。',
-    promptHint: 'exclude leads without official website or enough website evidence'
+    description: '没有官网、官网打不开、只有社媒/地图页且无法证明 B2B 采购身份时降级；地图强信号可人工复核。',
+    promptHint:
+      'exclude or downgrade when no official website, failed crawl, social-only or map-only evidence cannot prove B2B buyer identity; keep medium review if map title/address/phone strongly match target buyer'
   },
   {
     key: 'irrelevant_product',
     label: '产品线不匹配',
-    description: '官网产品线与 CRM 产品线无关联，或只出现弱泛词时不进入开发名单。',
-    promptHint: 'exclude websites whose product line does not match the selected CRM product line'
+    description: '官网产品线与 CRM 产品线无关联，或只出现弱泛词时不进入开发名单；强产品页命中则复核。',
+    promptHint:
+      'exclude when official product line does not match selected CRM product line; do not reject if current official page, title, URL or snippets strongly match target product, mark review instead'
   },
   {
     key: 'job_news_blog',
     label: '招聘/新闻/博客内容',
-    description: '排除招聘、媒体、新闻、百科、博客文章等非采购主体页面。',
-    promptHint: 'exclude job sites, media, news, blogs and encyclopedia pages'
+    description: '排除招聘、媒体、新闻、百科、博客文章等非采购主体页面；公司官网主体页仍可保留。',
+    promptHint:
+      'exclude job, media, news, blog, encyclopedia or article-only pages; keep if the same domain has official products/about/contact pages proving a buyer company'
   },
   {
     key: 'official_brand_hq',
     label: '品牌总部/竞争品牌官网',
     description: '排除只作为品牌方总部展示的官网；若有代理/分销入口再保留。',
-    promptHint: 'exclude brand headquarters unless distributor or dealer pages show buying relevance'
+    promptHint:
+      'exclude brand headquarters, manufacturer official sites and competitor brand corporate pages; keep distributor/dealer finder pages only as secondary source to find local dealers'
   }
 ];
 
