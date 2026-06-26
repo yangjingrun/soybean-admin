@@ -172,25 +172,25 @@ function renderRegionLabel(option: CascaderOption): VNodeChild {
   const regionOption = option as CrmRegionCascaderOption;
   const label = String(regionOption.label ?? '');
 
-  if (regionOption.nodeType !== 'country') {
+  if (!canSelectRegionByLabel(regionOption)) {
     return label;
   }
 
   return h(
     'span',
     {
-      class: 'crm-region-cascader-country-label',
+      class: 'crm-region-cascader-selectable-label',
       onClick: (event: MouseEvent) => handleRegionLabelClick(event, regionOption)
     },
     [
-      h('span', { class: 'crm-region-cascader-country-label__flag' }, regionOption.flag ?? ''),
-      h('span', { class: 'crm-region-cascader-country-label__text' }, label)
+      regionOption.flag ? h('span', { class: 'crm-region-cascader-selectable-label__flag' }, regionOption.flag) : null,
+      h('span', { class: 'crm-region-cascader-selectable-label__text' }, label)
     ]
   );
 }
 
-function renderEmptyRegionPrefix() {
-  return null;
+function renderRegionPrefix({ node }: { node: VNodeChild }) {
+  return props.multiple ? node : null;
 }
 </script>
 
@@ -210,7 +210,7 @@ function renderEmptyRegionPrefix() {
     :options="regionOptions"
     :placeholder="placeholder"
     :render-label="renderRegionLabel"
-    :render-prefix="renderEmptyRegionPrefix"
+    :render-prefix="renderRegionPrefix"
     show-path
     :show="cascaderShow"
     @update:show="handleRegionShowUpdate"
@@ -219,7 +219,7 @@ function renderEmptyRegionPrefix() {
 </template>
 
 <style scoped>
-:global(.crm-region-cascader-country-label) {
+:global(.crm-region-cascader-selectable-label) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -227,7 +227,7 @@ function renderEmptyRegionPrefix() {
   white-space: nowrap;
 }
 
-:global(.crm-region-cascader-country-label__flag) {
+:global(.crm-region-cascader-selectable-label__flag) {
   flex: 0 0 auto;
   width: 20px;
   font-size: 16px;
@@ -235,7 +235,7 @@ function renderEmptyRegionPrefix() {
   text-align: center;
 }
 
-:global(.crm-region-cascader-country-label__text) {
+:global(.crm-region-cascader-selectable-label__text) {
   overflow: visible;
   text-overflow: clip;
 }

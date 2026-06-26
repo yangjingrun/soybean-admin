@@ -23,7 +23,8 @@ describe('crm region cascader component', () => {
     assert.match(componentSource, /\.crm-region-cascader-menu--single \.n-cascader-option__prefix/);
     assert.match(componentSource, /\.crm-region-cascader-menu--single \.n-cascader-option \.n-checkbox/);
     assert.match(componentSource, /display:\s*none/);
-    assert.match(componentSource, /:render-prefix="renderEmptyRegionPrefix"/);
+    assert.match(componentSource, /:render-prefix="renderRegionPrefix"/);
+    assert.match(componentSource, /props\.multiple \? node : null/);
   });
 
   it('keeps compact option spacing after checkbox prefixes are removed', () => {
@@ -38,7 +39,7 @@ describe('crm region cascader component', () => {
     assert.match(componentSource, /max-height:\s*var\(--n-menu-height\)/);
   });
 
-  it('selects country nodes when clicking the rendered country label', () => {
+  it('selects country and market region nodes when clicking the rendered label', () => {
     assert.match(componentSource, /function handleRegionLabelClick/);
     assert.match(componentSource, /function canSelectRegionByLabel/);
     assert.match(componentSource, /option\.nodeType === 'country'/);
@@ -47,6 +48,7 @@ describe('crm region cascader component', () => {
     assert.match(componentSource, /toggleSelectedRegionValue/);
     assert.match(componentSource, /emitRegionSelection/);
     assert.match(componentSource, /onClick: \(event: MouseEvent\) => handleRegionLabelClick/);
+    assert.match(componentSource, /crm-region-cascader-selectable-label/);
   });
 
   it('emits selected path for form consumers that need country and province text', () => {
