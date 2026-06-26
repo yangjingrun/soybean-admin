@@ -19,6 +19,10 @@ const chinaAddressSignalPattern =
   /(?:中国|中國|中华人民共和国|الصين|جمهورية\s*الصين|الصين\s*الشعبية|китай|кнр|중국|चीन|\bchina\b|\bprc\b|\bxiamen\b|\bfujian\b|\bfujan\b|\bjiahe\b|\bsiming\b|\bxinjing\b|\bshenzhen\b|\bguangzhou\b|\bguangdong\b|\bningbo\b|\bzhejiang\b|\bshanghai\b|\bbeijing\b|\bjiangsu\b|\bhebei\b|\bshandong\b|\bwenzhou\b|\bfoshan\b|\bdongguan\b|\bcixi\b|\byuyao\b|\bquanzhou\b)/i;
 const weakChinaOriginPattern =
   /(?:china\s+brands?|chinese\s+brands?|made\s+in\s+china|from\s+china|manufacturer\s+in\s+china|china\s+manufacturer|china\s+made|brands?\s+from\s+china|#\s*\d+\s+.*\bin\s+china)/i;
+const regionNetworkPattern =
+  /(?:across|regional|localized|operations?|network|global|worldwide|asia|countries|subsidiar|distributors?|partners?)/i;
+const nonChinaCountryPattern =
+  /(?:south\s+korea|korea|singapore|thailand|india|japan|malaysia|indonesia|vietnam|uae|united\s+arab\s+emirates|saudi\s+arabia|turkey|europe|america)/gi;
 const buyerSignalKeywords = new Set([
   'supplier',
   'manufacturer',
@@ -334,7 +338,14 @@ function hasOfficialChinaAddressSignal(value: string) {
     .split(/(?<=[。.!?؛;])\s+|\s{2,}| \| /)
     .map(normalizeString)
     .filter(Boolean)
-    .some(chunk => chinaAddressSignalPattern.test(chunk) && !weakChinaOriginPattern.test(chunk));
+    .some(chunk => chinaAddressSignalPattern.test(chunk) && !weakChinaOriginPattern.test(chunk) && !isRegionNetworkChunk(chunk));
+}
+
+/** 判断是否只是多国家网络/区域介绍，不作为公司归属地证据。 */
+function isRegionNetworkChunk(chunk: string) {
+  const countryMatches = chunk.match(nonChinaCountryPattern) ?? [];
+
+  return regionNetworkPattern.test(chunk) && countryMatches.length > 0;
 }
 
 function isTargetingNonChinaMarket(input: AnalyzeCandidatesInput) {

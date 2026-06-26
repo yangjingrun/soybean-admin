@@ -408,6 +408,90 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].precisionAnalysis?.targetMarketFit, 'target');
     assert.doesNotMatch(result[0].reason ?? '', /官网地址显示中国公司/);
   });
+
+  it('does not force reject when China only appears in a regional network description', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          candidates: [
+            {
+              dedupeKey: 'ntn.com.sg',
+              score: 78,
+              priority: 'medium',
+              buyerType: 'bearing distributor',
+              customerGroup: '沙特本地经销商',
+              companyCountry: '沙特阿拉伯',
+              targetMarketFit: 'target',
+              reason: 'Saudi Arabia 页面展示本地 Dammam 联系方式和轴承产品信息',
+              matchedSignals: ['Dammam Head Office', 'sales@universalbearings-sa.com'],
+              risks: ['官网 about 页面有亚洲区网络介绍，需人工确认代理关系'],
+              recommendedAction: '人工复核后开发',
+              reviewRequired: true
+            }
+          ]
+        })
+      }
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const result = await service.analyzeCandidates(
+      {
+        requirement: '找沙特轴承进口商和经销商',
+        keywordPlan: {
+          resolvedProductKeywords: 'bearing',
+          resolvedTargetRegions: '沙特阿拉伯',
+          leadContextSnapshot: {
+            exclusionRules: [
+              {
+                key: 'china_supplier',
+                label: '中国供应商/出口商',
+                description: '排除中国供应商',
+                promptHint: 'exclude China supplier'
+              }
+            ]
+          }
+        },
+        candidates: [
+          {
+            dedupeKey: 'ntn.com.sg',
+            sourceType: 'organic',
+            title: 'Saudi Arabia - NTN Bearing Singapore',
+            website: 'https://www.ntn.com.sg/saudi-arabia/',
+            snippet: 'NTN bearing distributor in Saudi Arabia',
+            websiteEvidence: {
+              crawlStatus: 'completed',
+              pageCount: 2,
+              finalUrl: 'https://www.ntn.com.sg/saudi-arabia/',
+              title: 'Saudi Arabia - NTN Bearing Singapore',
+              description: 'bearing distributor',
+              emails: ['sales@universalbearings-sa.com'],
+              phones: ['(966) 138326164'],
+              socialLinks: [],
+              whatsappLinks: [],
+              mapLinks: [],
+              contactLinks: ['https://www.ntn.com.sg/contacts/'],
+              keywordHits: ['bearing'],
+              evidenceSnippets: ['Dammam Head Office', 'bearing products'],
+              companyAddressEvidence: [
+                'DAMMAM Head Office, 10 street, Dammam, 31421',
+                'Across Asia, NTN meets regional needs with value-added products and localized operations in China, South Korea, Singapore, Thailand, and India'
+              ],
+              companyCountrySignals: ['中国'],
+              negativeKeywordHits: [],
+              negativeEvidenceSnippets: [],
+              failureReason: null
+            }
+          } as AiLeadSearchCandidate
+        ]
+      },
+      {}
+    );
+
+    assert.equal(result[0].precisionAnalysis?.priority, 'medium');
+    assert.equal(result[0].precisionAnalysis?.companyCountry, '沙特阿拉伯');
+    assert.equal(result[0].precisionAnalysis?.targetMarketFit, 'target');
+    assert.doesNotMatch(result[0].reason ?? '', /官网地址显示中国公司/);
+  });
 });
 
 function createAiGateway(results: Array<{ text: string }>) {

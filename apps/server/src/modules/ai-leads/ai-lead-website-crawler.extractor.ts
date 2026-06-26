@@ -48,6 +48,10 @@ const addressEvidencePattern = new RegExp(
 );
 const weakChinaOriginPattern =
   /(?:china\s+brands?|chinese\s+brands?|made\s+in\s+china|from\s+china|manufacturer\s+in\s+china|china\s+manufacturer|china\s+made|brands?\s+from\s+china|#\s*\d+\s+.*\bin\s+china)/i;
+const regionNetworkPattern =
+  /(?:across|regional|localized|operations?|network|global|worldwide|asia|countries|subsidiar|distributors?|partners?)/i;
+const nonChinaCountryPattern =
+  /(?:south\s+korea|korea|singapore|thailand|india|japan|malaysia|indonesia|vietnam|uae|united\s+arab\s+emirates|saudi\s+arabia|turkey|europe|america)/gi;
 const socialHostDomains = [
   'linkedin.com',
   'facebook.com',
@@ -300,7 +304,7 @@ function hasChinaCompanyAddressSignal(value: string) {
     .split(/(?<=[。.!?؛;])\s+|\s{2,}| \| /)
     .map(normalizeText)
     .filter(Boolean)
-    .some(chunk => chinaAddressLocationPattern.test(chunk) && !weakChinaOriginPattern.test(chunk));
+    .some(chunk => chinaAddressLocationPattern.test(chunk) && !weakChinaOriginPattern.test(chunk) && !isRegionNetworkChunk(chunk));
 }
 
 function isAddressEvidenceChunk(chunk: string) {
@@ -316,7 +320,18 @@ function isAddressEvidenceChunk(chunk: string) {
     return false;
   }
 
+  if (isRegionNetworkChunk(chunk)) {
+    return false;
+  }
+
   return chinaAddressLocationPattern.test(chunk) || turkeyAddressLocationPattern.test(chunk);
+}
+
+/** 判断是否只是多国家网络/区域介绍，不作为公司归属地证据。 */
+function isRegionNetworkChunk(chunk: string) {
+  const countryMatches = chunk.match(nonChinaCountryPattern) ?? [];
+
+  return regionNetworkPattern.test(chunk) && countryMatches.length > 0;
 }
 
 function resolveTargetKeywords(options: AiLeadWebsiteEvidenceKeywordOptions) {

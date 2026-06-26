@@ -96,6 +96,29 @@ describe('ai lead website crawler extractor', () => {
     assert.doesNotMatch(page.companyAddressEvidence.join(' '), /China brands|manufacturer in China/);
   });
 
+  it('does not treat multi-country regional network text as official China address evidence', () => {
+    const page = extractWebsitePageEvidence({
+      url: 'https://www.ntn.com.sg/about-us/',
+      loadedUrl: 'https://www.ntn.com.sg/about-us/',
+      statusCode: 200,
+      html: `
+        <html>
+          <body>
+            <h1>About NTN Singapore</h1>
+            <section>
+              Across Asia, NTN meets regional needs with value-added products and localized operations in China,
+              South Korea, Singapore, Thailand, and India.
+            </section>
+            <footer>Address: 9 Clementi Loop, Singapore. Tel: (65) 64698066</footer>
+          </body>
+        </html>
+      `
+    });
+
+    assert.deepEqual(page.companyCountrySignals, []);
+    assert.doesNotMatch(page.companyAddressEvidence.join(' '), /localized operations in China/);
+  });
+
   it('does not classify regular company domains containing x.com as social links', () => {
     const page = extractWebsitePageEvidence({
       url: 'https://vwimpex.com',
