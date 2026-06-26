@@ -17,11 +17,14 @@ const hasWebsiteContactEvidence = computed(
 
 const hasKeywordEvidence = computed(
   () =>
+    Boolean(props.evidence.sourceSnippet) ||
     props.evidence.keywordHits.length > 0 ||
     props.evidence.evidenceSnippets.length > 0 ||
     props.evidence.negativeKeywordHits.length > 0 ||
     props.evidence.negativeEvidenceSnippets.length > 0
 );
+
+const hasOfficialIntro = computed(() => Boolean(props.evidence.title || props.evidence.description));
 
 function formatOptionalText(value: string) {
   return value || '-';
@@ -52,6 +55,18 @@ function formatOptionalNumber(value: number | null) {
     <NEmpty v-if="!evidence.hasSnapshot" description="暂无官网采集原始数据" />
 
     <template v-else>
+      <div class="evidence-panel evidence-official-intro">
+        <div class="evidence-panel-heading">
+          <div class="evidence-panel-title">官方介绍</div>
+          <div class="evidence-panel-subtitle">官网页面标题和描述，默认按公司级信息展示。</div>
+        </div>
+        <NEmpty v-if="!hasOfficialIntro" description="官网未采集到页面介绍" />
+        <template v-else>
+          <div v-if="evidence.title" class="evidence-intro-title">{{ evidence.title }}</div>
+          <div v-if="evidence.description" class="evidence-intro-text">{{ evidence.description }}</div>
+        </template>
+      </div>
+
       <div class="evidence-grid">
         <NDescriptions :column="1" label-placement="left" bordered size="small">
           <NDescriptionsItem label="来源 URL">
@@ -72,9 +87,6 @@ function formatOptionalNumber(value: number | null) {
             </a>
             <span v-else>-</span>
           </NDescriptionsItem>
-          <NDescriptionsItem label="页面标题">{{ formatOptionalText(evidence.title) }}</NDescriptionsItem>
-          <NDescriptionsItem label="页面描述">{{ formatOptionalText(evidence.description) }}</NDescriptionsItem>
-          <NDescriptionsItem label="来源摘要">{{ formatOptionalText(evidence.sourceSnippet) }}</NDescriptionsItem>
           <NDescriptionsItem label="来源分数">{{ formatOptionalNumber(evidence.sourceScore) }}</NDescriptionsItem>
           <NDescriptionsItem label="来源原因">{{ formatOptionalText(evidence.sourceReason) }}</NDescriptionsItem>
           <NDescriptionsItem label="失败原因">{{ formatOptionalText(evidence.failureReason) }}</NDescriptionsItem>
@@ -109,7 +121,7 @@ function formatOptionalNumber(value: number | null) {
             <NEmpty v-if="!hasWebsiteContactEvidence" description="官网未采集到联系方式" />
             <template v-else>
               <div v-if="evidence.emails.length" class="evidence-line">
-                <span class="evidence-label">邮箱</span>
+                <span class="evidence-label">公司邮箱</span>
                 <NTag v-for="email in evidence.emails" :key="email" size="small" :bordered="false">
                   {{ email }}
                 </NTag>
@@ -165,9 +177,15 @@ function formatOptionalNumber(value: number | null) {
       </div>
 
       <div class="evidence-panel">
-        <div class="evidence-panel-title">关键词与页面证据</div>
+        <div class="evidence-panel-heading">
+          <div class="evidence-panel-title">证据线索</div>
+          <div class="evidence-panel-subtitle">搜索摘要、关键词命中、官网页面片段和负面线索。</div>
+        </div>
         <NEmpty v-if="!hasKeywordEvidence" description="暂无关键词和页面片段" />
         <template v-else>
+          <div v-if="evidence.sourceSnippet" class="snippet-list">
+            <div class="snippet-item snippet-item--source">{{ evidence.sourceSnippet }}</div>
+          </div>
           <div v-if="evidence.keywordHits.length" class="evidence-line">
             <span class="evidence-label">命中词</span>
             <NTag v-for="keyword in evidence.keywordHits" :key="keyword" size="small" type="success" :bordered="false">
@@ -244,10 +262,44 @@ function formatOptionalNumber(value: number | null) {
   min-height: 0;
 }
 
+.evidence-panel-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .evidence-panel-title {
   color: var(--n-text-color);
   font-size: 13px;
   font-weight: 600;
+}
+
+.evidence-panel-subtitle {
+  color: var(--n-text-color-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.evidence-official-intro {
+  padding: 10px 12px;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background-color: var(--n-color);
+}
+
+.evidence-intro-title {
+  color: var(--n-text-color);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.evidence-intro-text {
+  color: var(--n-text-color-2);
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 
 .evidence-line {
@@ -317,6 +369,10 @@ function formatOptionalNumber(value: number | null) {
   font-size: 12px;
   line-height: 1.55;
   padding-left: 8px;
+}
+
+.snippet-item--source {
+  border-left-color: var(--n-info-color);
 }
 
 .snippet-item--warning {

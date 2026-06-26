@@ -16,6 +16,7 @@ import {
   formatLeadProgressTime,
   formatArchivedFingerprintTypeLabel,
   formatLeadWebsiteDisplay,
+  getLeadCompanyOfficialEmails,
   getLeadCompanySocialLinks,
   getLeadNextAction,
   getArchivedFingerprintMatchEvents,
@@ -367,6 +368,20 @@ describe('crm lead shared helpers', () => {
         }
       ]
     );
+  });
+
+  it('reads company official emails from imported website evidence', () => {
+    const emails = getLeadCompanyOfficialEmails(
+      createLeadRecord({
+        sourceSnapshot: {
+          websiteEvidence: {
+            emails: ['sales@example.com', 'info@example.com']
+          }
+        }
+      })
+    );
+
+    assert.deepEqual(emails, ['sales@example.com', 'info@example.com']);
   });
 
   it('builds website evidence view from imported source snapshot', () => {

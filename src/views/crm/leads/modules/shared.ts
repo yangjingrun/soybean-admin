@@ -746,6 +746,13 @@ export function getLeadCompanySocialLinks(
   return buildSocialLinkViews([...readStringArray(evidence?.socialLinks), ...readStringArray(evidence?.whatsappLinks)]);
 }
 
+/** Reads company-level official emails saved from website crawl evidence. */
+export function getLeadCompanyOfficialEmails(record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>): string[] {
+  const evidence = readLeadWebsiteEvidence(record.sourceSnapshot);
+
+  return readStringArray(evidence?.emails);
+}
+
 /** Build a readonly detail view from original website crawl and precision-analysis data. */
 export function buildLeadWebsiteEvidenceView(
   record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>

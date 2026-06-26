@@ -10,6 +10,7 @@ import {
   canCreateSequenceFromLeadAccountContact,
   canCreateSequenceFromLeadRecord,
   formatLeadDate,
+  getLeadCompanyOfficialEmails,
   getLeadCompanySocialLinks,
   getWebsiteHref,
   leadEmailStatusLabelMap,
@@ -82,6 +83,49 @@ function renderCompanySocialLinks(row: Api.Crm.LeadRecord) {
     'div',
     { class: 'lead-company-social-row' },
     socialLinks.map(link => renderCompanySocialLink(link))
+  );
+}
+
+function renderCompanyOfficialEmails(row: Api.Crm.LeadRecord) {
+  const emails = getLeadCompanyOfficialEmails(row);
+
+  if (!emails.length) {
+    return h('span', { class: 'lead-empty-text' }, '-');
+  }
+
+  const visibleEmails = emails.slice(0, 2);
+
+  return h(
+    'div',
+    {
+      class: 'lead-company-email-cell',
+      title: `官网采集公司邮箱：${emails.join(' / ')}`
+    },
+    [
+      ...visibleEmails.map(email =>
+        h(
+          NTag,
+          {
+            key: email,
+            bordered: false,
+            size: 'small',
+            type: 'info'
+          },
+          { default: () => email }
+        )
+      ),
+      emails.length > visibleEmails.length
+        ? h(
+            NTag,
+            {
+              bordered: false,
+              size: 'small'
+            },
+            { default: () => `+${emails.length - visibleEmails.length}` }
+          )
+        : null,
+      h('span', { class: 'lead-secondary-text' }, '官网采集')
+    ]
   );
 }
 
@@ -455,6 +499,14 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
       render: row => renderCompanySocialLinks(row)
     },
     {
+      key: 'companyEmails',
+      title: '公司邮箱',
+      align: 'center',
+      titleAlign: 'center',
+      width: 190,
+      render: row => renderCompanyOfficialEmails(row)
+    },
+    {
       key: 'contacts',
       title: '联系人',
       align: 'center',
@@ -647,7 +699,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1520"
+        :scroll-x="1710"
         size="small"
         remote
         @update:checked-row-keys="handleCheckedRowKeysUpdate"
@@ -675,6 +727,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 
 <style scoped>
 :deep(.lead-company-cell),
+:deep(.lead-company-email-cell),
 :deep(.lead-location-cell),
 :deep(.lead-stack-cell),
 :deep(.lead-contact-cell),
@@ -701,6 +754,12 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 :deep(.lead-contact-cell),
 :deep(.lead-contact-summary) {
   max-width: 200px;
+}
+
+:deep(.lead-company-email-cell) {
+  align-items: center;
+  max-width: 170px;
+  margin: 0 auto;
 }
 
 :deep(.lead-stack-cell) {
