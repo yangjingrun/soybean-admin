@@ -334,9 +334,32 @@ describe('AiLeadsService', () => {
       catalogUrl: null,
       websiteUrl: null
     };
+    const leadContext = {
+      targetRegion: { value: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B', label: '阿联酋', countryCode: 'AE' },
+      targetCustomerTypes: [
+        {
+          key: 'importer',
+          label: '进口商',
+          description: '海外本地进口贸易商',
+          promptHint: 'importer, import company'
+        }
+      ],
+      exclusionRules: [
+        {
+          key: 'china_supplier',
+          label: '中国供应商/出口商',
+          description: '排除中国供应商',
+          promptHint: 'exclude China supplier'
+        }
+      ],
+      keywordText: '6203 bearing',
+      supplementalRequirement: '只找有官网和邮箱的公司',
+      targetLeadCount: 20
+    };
     const expectedKeywordPlan = {
       ...keywordPlan,
-      productLineSnapshot: normalizedProductLineSnapshot
+      productLineSnapshot: normalizedProductLineSnapshot,
+      leadContextSnapshot: leadContext
     };
     const aiGatewayService = {
       async generateText(dto: GenerateAiTextDto) {
@@ -370,7 +393,8 @@ describe('AiLeadsService', () => {
     const result = await service.optimizeKeywords(
       {
         requirement: '找阿联酋轴承进口商',
-        productLineSnapshot
+        productLineSnapshot,
+        leadContext
       },
       { user }
     );
@@ -382,6 +406,9 @@ describe('AiLeadsService', () => {
     assert.ok(historyInput);
     assert.match(optimizeDto.prompt, /Deep groove ball bearings/);
     assert.match(optimizeDto.prompt, /6203, 6204/);
+    assert.match(optimizeDto.prompt, /结构化获客条件 leadContext/);
+    assert.match(optimizeDto.prompt, /客户类型：进口商/);
+    assert.match(optimizeDto.prompt, /排除类型：中国供应商\/出口商/);
     assert.deepEqual(result.keywordPlan, expectedKeywordPlan);
     assert.deepEqual(JSON.parse(historyInput.resultText), expectedKeywordPlan);
     assert.deepEqual(historyInput.keywordPlan, expectedKeywordPlan);

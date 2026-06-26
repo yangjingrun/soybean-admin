@@ -1,5 +1,7 @@
 import type { AiLeadProductLineSnapshot } from './ai-lead-product-line-context';
 import { formatAiLeadProductLinePromptBlock } from './ai-lead-product-line-context';
+import type { AiLeadKeywordContextSnapshot } from './ai-lead-keyword-context';
+import { formatAiLeadKeywordContextPromptBlock } from './ai-lead-keyword-context';
 
 interface MarketLanguageRule {
   marketName: string;
@@ -158,17 +160,22 @@ const marketLanguageRules: MarketLanguageRule[] = [
 ];
 
 /** Adds market-language requirements that survive saved prompt overrides. */
-export function buildKeywordOptimizePrompt(requirement: string, productLineSnapshot?: AiLeadProductLineSnapshot | null) {
+export function buildKeywordOptimizePrompt(
+  requirement: string,
+  productLineSnapshot?: AiLeadProductLineSnapshot | null,
+  leadContextSnapshot?: AiLeadKeywordContextSnapshot | null
+) {
   const trimmedRequirement = requirement.trim();
   const detectedRules = detectMarketLanguageRules(trimmedRequirement);
   const productLineBlock = formatAiLeadProductLinePromptBlock(productLineSnapshot ?? null);
+  const leadContextBlock = formatAiLeadKeywordContextPromptBlock(leadContextSnapshot ?? null);
   const marketRulesText = detectedRules.length
     ? `\n已识别目标市场语言：${detectedRules
         .map(rule => `${rule.marketName}=${rule.languageName}，hl=${rule.languageCode}`)
         .join('；')}`
     : '';
 
-  return `${trimmedRequirement}${productLineBlock}
+  return `${trimmedRequirement}${leadContextBlock}${productLineBlock}
 
 【目标市场本地语言查询强约束】
 你必须先识别目标国家/地区的主要商业语言；如果目标市场主要语言不是英语，Search 和 Places 都必须同时覆盖英文查询和当地语言查询。${marketRulesText}
@@ -182,8 +189,14 @@ export function buildKeywordOptimizePrompt(requirement: string, productLineSnaps
 }
 
 /** Adds Maps-only keyword requirements inspired by AI_Find_Customer's Google Maps strategy. */
-export function buildMapsKeywordOptimizePrompt(requirement: string, productLineSnapshot?: AiLeadProductLineSnapshot | null) {
-  return `${requirement.trim()}${formatAiLeadProductLinePromptBlock(productLineSnapshot ?? null)}
+export function buildMapsKeywordOptimizePrompt(
+  requirement: string,
+  productLineSnapshot?: AiLeadProductLineSnapshot | null,
+  leadContextSnapshot?: AiLeadKeywordContextSnapshot | null
+) {
+  return `${requirement.trim()}${formatAiLeadKeywordContextPromptBlock(
+    leadContextSnapshot ?? null
+  )}${formatAiLeadProductLinePromptBlock(productLineSnapshot ?? null)}
 
 【Google Maps 获客强约束】
 本次是地图获客模式，只生成 Serper Maps 查询计划，不生成 Search 或 Places 查询。
@@ -210,9 +223,12 @@ export function buildKeywordOptimizeRepairPrompt(
   requirement: string,
   issues: string[],
   keywordPlan: unknown,
-  productLineSnapshot?: AiLeadProductLineSnapshot | null
+  productLineSnapshot?: AiLeadProductLineSnapshot | null,
+  leadContextSnapshot?: AiLeadKeywordContextSnapshot | null
 ) {
-  return `${requirement.trim()}${formatAiLeadProductLinePromptBlock(productLineSnapshot ?? null)}
+  return `${requirement.trim()}${formatAiLeadKeywordContextPromptBlock(
+    leadContextSnapshot ?? null
+  )}${formatAiLeadProductLinePromptBlock(productLineSnapshot ?? null)}
 
 【关键词优化结果需要修复】
 上一次输出的 JSON 没有通过后端质量门，请只根据下面的问题修复查询计划，并重新输出一个完整合法 JSON 对象。

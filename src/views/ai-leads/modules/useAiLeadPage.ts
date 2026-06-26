@@ -3,6 +3,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { aiLeadsKeywordStrategyManagePermission, hasPermission } from '@soybean/shared';
 import { useAuthStore } from '@/store/modules/auth';
+import type { CrmRegionCascaderOption } from '@/utils/crm-region-cascader';
 import {
   createLeadSearchTask,
   deleteLeadKeywordHistory,
@@ -36,8 +37,14 @@ import {
 } from './useAiLeadSearchTask';
 import {
   buildKeywordHistoryUpdatePayload,
+  aiLeadExclusionRuleOptions,
+  aiLeadTargetCustomerTypeOptions,
+  buildAiLeadStructuredRequirement,
   buildProductLineSummaryItems,
   cloneKeywordPlan,
+  createAiLeadContextSnapshot,
+  createDefaultAiLeadExclusionRuleKeys,
+  createDefaultAiLeadTargetCustomerTypeKeys,
   createAiResultFromKeywordHistory,
   createAiLeadProductLineSnapshot,
   createKeywordOptimizationViewModel,
@@ -46,6 +53,8 @@ import {
   isKeywordPlanForProductLine,
   isValidTargetLeadCount,
   parseKeywordOptimizationPlan,
+  resolveAiLeadContextKeysFromSnapshot,
+  resolveKeywordPlanLeadContextSnapshot,
   resolveKeywordPlanProductLineId,
   resolveTargetLeadCountAfterOptimization
 } from './shared';
@@ -124,15 +133,35 @@ export function useAiLeadPage() {
       value: productLine.id
     }))
   );
-  const canGenerate = computed(() => Boolean(form.productLineId && form.requirement.trim()));
+  const customerTypeOptions = computed(() => aiLeadTargetCustomerTypeOptions);
+  const exclusionRuleOptions = computed(() => aiLeadExclusionRuleOptions);
+  const currentLeadContextSnapshot = computed(() =>
+    createAiLeadContextSnapshot({
+      targetRegionValue: form.targetRegionValue,
+      targetRegionLabel: form.targetRegionLabel,
+      targetRegionCountryCode: form.targetRegionCountryCode,
+      targetCustomerTypeKeys: form.targetCustomerTypeKeys,
+      exclusionRuleKeys: form.exclusionRuleKeys,
+      keywordText: form.keywordText,
+      supplementalRequirement: form.requirement,
+      targetLeadCount: form.targetLeadCount
+    })
+  );
+  const currentStructuredRequirement = computed(() =>
+    buildAiLeadStructuredRequirement(currentLeadContextSnapshot.value)
+  );
+  const hasRequiredLeadContext = computed(
+    () =>
+      Boolean(currentLeadContextSnapshot.value.targetRegion?.label) &&
+      currentLeadContextSnapshot.value.targetCustomerTypes.length > 0
+  );
+  const canGenerate = computed(() => Boolean(form.productLineId && hasRequiredLeadContext.value));
   const isTargetLeadCountValid = computed(() => isValidTargetLeadCount(form.targetLeadCount));
   const targetLeadCountValidationStatus = computed(() => (isTargetLeadCountValid.value ? undefined : 'error'));
   const targetLeadCountFeedback = computed(() =>
     isTargetLeadCountValid.value ? undefined : '请输入 1-200 的采集数量'
   );
-  const canSaveHistory = computed(() =>
-    Boolean(selectedHistoryId.value && editableKeywordPlan.value && form.requirement.trim())
-  );
+  const canSaveHistory = computed(() => Boolean(selectedHistoryId.value && editableKeywordPlan.value));
   const isHistoryDeleting = computed(() => Boolean(deletingKeywordHistoryId.value));
   const canManageKeywordStrategy = computed(() =>
     hasPermission(authStore.userInfo, aiLeadsKeywordStrategyManagePermission)
@@ -296,8 +325,7 @@ export function useAiLeadPage() {
       return;
     }
 
-    if (!form.requirement.trim()) {
-      message.warning('请填写本次开发要求');
+    if (!ensureRequiredLeadContext()) {
       return;
     }
 
@@ -314,9 +342,10 @@ export function useAiLeadPage() {
 
     try {
       const { data: result, error } = await optimizeLeadKeywords({
-        requirement: form.requirement.trim(),
+        requirement: currentStructuredRequirement.value,
         leadSourceMode: form.leadSourceMode,
-        productLineSnapshot: selectedProductLineSnapshot.value
+        productLineSnapshot: selectedProductLineSnapshot.value,
+        leadContext: currentLeadContextSnapshot.value
       });
 
       if (error) {
@@ -363,8 +392,7 @@ export function useAiLeadPage() {
       return;
     }
 
-    if (!form.requirement.trim()) {
-      message.warning('请填写本次开发要求');
+    if (!ensureRequiredLeadContext()) {
       return;
     }
 
@@ -488,6 +516,10 @@ export function useAiLeadPage() {
       return;
     }
 
+    if (!ensureRequiredLeadContext()) {
+      return;
+    }
+
     if (!isKeywordPlanForProductLine(keywordPlan, form.productLineId)) {
       message.warning('当前搜索策略不是按所选产品线生成，请重新优化关键词');
       return;
@@ -517,7 +549,7 @@ export function useAiLeadPage() {
 
     try {
       const { data: task, error } = await createLeadSearchTask({
-        requirement: form.requirement.trim(),
+        requirement: currentStructuredRequirement.value,
         targetLeadCount,
         productLineId: form.productLineId || '',
         keywordPlan: cloneKeywordPlan(keywordPlan)
@@ -547,9 +579,10 @@ export function useAiLeadPage() {
 
     try {
       const { data: result, error } = await optimizeLeadKeywords({
-        requirement: form.requirement.trim(),
+        requirement: currentStructuredRequirement.value,
         leadSourceMode: form.leadSourceMode,
-        productLineSnapshot: selectedProductLineSnapshot.value
+        productLineSnapshot: selectedProductLineSnapshot.value,
+        leadContext: currentLeadContextSnapshot.value
       });
 
       if (error || requestId !== generatingRequestId.value) {
@@ -592,7 +625,7 @@ export function useAiLeadPage() {
       return null;
     }
 
-    const currentRequirement = normalizeLeadRequirement(form.requirement);
+    const currentRequirement = normalizeLeadRequirement(currentStructuredRequirement.value);
     const reusableRequirement = currentHistoryRecord.value?.requirement || currentSearchTask.value?.requirement || '';
 
     return normalizeLeadRequirement(reusableRequirement) === currentRequirement ? cloneKeywordPlan(keywordPlan) : null;
@@ -639,6 +672,7 @@ export function useAiLeadPage() {
 
     resetSearchProgress();
     form.productLineId = productLines.value.length === 1 ? productLines.value[0].id : null;
+    resetLeadContextForm();
     form.requirement = '';
     form.targetLeadCount = defaultTargetLeadCount;
     form.leadSourceMode = 'search';
@@ -784,9 +818,11 @@ export function useAiLeadPage() {
     isHistorySaving.value = true;
 
     try {
+      const keywordPlan = cloneKeywordPlan(editableKeywordPlan.value);
+      keywordPlan.leadContextSnapshot = currentLeadContextSnapshot.value;
       const { data: record, error } = await updateLeadKeywordHistory(
         selectedHistoryId.value,
-        buildKeywordHistoryUpdatePayload(form.requirement, editableKeywordPlan.value)
+        buildKeywordHistoryUpdatePayload(currentStructuredRequirement.value, keywordPlan)
       );
 
       if (error) {
@@ -809,7 +845,7 @@ export function useAiLeadPage() {
   ) {
     selectedHistoryId.value = record.id;
     keywordResultOrigin.value = options.origin ?? 'history';
-    form.requirement = record.requirement;
+    restoreLeadContextForm(record.keywordPlan, record.requirement);
     form.leadSourceMode = resolveLeadSourceMode(record.keywordPlan);
     syncFormProductLineFromKeywordPlan(record.keywordPlan);
     if (options.syncTargetLeadCount !== false) {
@@ -833,7 +869,7 @@ export function useAiLeadPage() {
     const previousStatus = currentSearchTask.value?.status ?? null;
 
     currentSearchTask.value = task;
-    form.requirement = task.requirement;
+    restoreLeadContextForm(task.keywordPlan, task.requirement);
     form.targetLeadCount = task.targetLeadCount;
     form.productLineId = task.productLineId || resolveKeywordPlanProductLineId(task.keywordPlan) || form.productLineId;
     form.leadSourceMode = resolveLeadSourceMode(task.keywordPlan);
@@ -894,12 +930,77 @@ export function useAiLeadPage() {
     return true;
   }
 
+  function ensureRequiredLeadContext() {
+    if (!currentLeadContextSnapshot.value.targetRegion?.label) {
+      message.warning('请选择目标国家/地区');
+      return false;
+    }
+
+    if (currentLeadContextSnapshot.value.targetCustomerTypes.length === 0) {
+      message.warning('请选择客户类型');
+      return false;
+    }
+
+    return true;
+  }
+
   function syncFormProductLineFromKeywordPlan(plan: Api.AiLeads.OptimizedKeywordPlan) {
     const productLineId = resolveKeywordPlanProductLineId(plan);
 
     if (productLineId) {
       form.productLineId = productLineId;
     }
+  }
+
+  function resetLeadContextForm() {
+    form.targetRegionValue = '';
+    form.targetRegionLabel = '';
+    form.targetRegionCountryCode = null;
+    form.targetCustomerTypeKeys = createDefaultAiLeadTargetCustomerTypeKeys();
+    form.exclusionRuleKeys = createDefaultAiLeadExclusionRuleKeys();
+    form.keywordText = '';
+  }
+
+  function restoreLeadContextForm(plan: Api.AiLeads.OptimizedKeywordPlan, fallbackRequirement: string) {
+    const snapshot = resolveKeywordPlanLeadContextSnapshot(plan);
+
+    if (!snapshot) {
+      resetLeadContextForm();
+      form.targetRegionLabel = plan.resolvedTargetRegions || '';
+      form.keywordText = plan.resolvedProductKeywords || '';
+      form.requirement = fallbackRequirement;
+      return;
+    }
+
+    form.targetRegionValue = snapshot.targetRegion?.value || '';
+    form.targetRegionLabel = snapshot.targetRegion?.label || '';
+    form.targetRegionCountryCode = snapshot.targetRegion?.countryCode || null;
+    form.targetCustomerTypeKeys = resolveAiLeadContextKeysFromSnapshot(
+      snapshot.targetCustomerTypes,
+      aiLeadTargetCustomerTypeOptions,
+      createDefaultAiLeadTargetCustomerTypeKeys()
+    );
+    form.exclusionRuleKeys = resolveAiLeadContextKeysFromSnapshot(
+      snapshot.exclusionRules,
+      aiLeadExclusionRuleOptions,
+      createDefaultAiLeadExclusionRuleKeys()
+    );
+    form.keywordText = snapshot.keywordText || '';
+    form.requirement = snapshot.supplementalRequirement || '';
+  }
+
+  /** Stores the selected region label so it can be sent as structured AI context. */
+  function handleTargetRegionPathUpdate(path: CrmRegionCascaderOption[]) {
+    const selected = path[path.length - 1];
+
+    if (!selected) {
+      form.targetRegionLabel = '';
+      form.targetRegionCountryCode = null;
+      return;
+    }
+
+    form.targetRegionLabel = path.map(formatRegionPathItem).join(' / ');
+    form.targetRegionCountryCode = selected.countryCode || path[0]?.countryCode || null;
   }
 
   /** Tracks direct edits so AI optimization does not overwrite an explicit user count. */
@@ -1078,8 +1179,10 @@ export function useAiLeadPage() {
     currentSearchTaskStatusLabel,
     currentSearchTaskStatusType,
     currentWorkflowStepLabel,
+    customerTypeOptions,
     deletingKeywordHistoryId,
     editableKeywordPlan,
+    exclusionRuleOptions,
     form,
     handleCancelEdit,
     handleClear,
@@ -1098,6 +1201,7 @@ export function useAiLeadPage() {
     handleStartEdit,
     handleStopLeadWorkflow,
     handleTargetLeadCountUpdate,
+    handleTargetRegionPathUpdate,
     hasSearchProgress,
     historyRecords,
     isEditingResult,
@@ -1139,6 +1243,10 @@ function normalizeRouteTaskId(taskId: string | null | Array<string | null> | und
 
 function normalizeLeadRequirement(requirement: string) {
   return requirement.trim().replace(/\s+/g, ' ');
+}
+
+function formatRegionPathItem(option: CrmRegionCascaderOption) {
+  return option.displayName || option.regionName || option.cityName || option.label;
 }
 
 function resolveLeadSourceMode(plan: Api.AiLeads.OptimizedKeywordPlan): Api.AiLeads.LeadSourceMode {

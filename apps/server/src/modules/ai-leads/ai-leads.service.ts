@@ -29,6 +29,11 @@ import {
   type AiLeadProductLineSnapshot
 } from './ai-lead-product-line-context';
 import {
+  attachLeadContextSnapshotToKeywordPlan,
+  normalizeAiLeadKeywordContextSnapshot,
+  type AiLeadKeywordContextSnapshot
+} from './ai-lead-keyword-context';
+import {
   buildMapsKeywordOptimizePrompt,
   buildKeywordOptimizePrompt,
   buildKeywordOptimizeRepairPrompt,
@@ -56,10 +61,12 @@ export class AiLeadsService {
     const user = this.requireUser(context);
     const requirement = dto.requirement.trim();
     const productLineSnapshot = normalizeAiLeadProductLineSnapshot(dto.productLineSnapshot);
+    const leadContextSnapshot = normalizeAiLeadKeywordContextSnapshot(dto.leadContext);
     const { result, keywordPlan, qualityWarnings } = await this.generateKeywordPlanWithRepair(
       requirement,
       dto.leadSourceMode ?? 'search',
       productLineSnapshot,
+      leadContextSnapshot,
       context
     );
     const resultText = JSON.stringify(keywordPlan);
@@ -80,7 +87,8 @@ export class AiLeadsService {
       searchQueryCount: readArrayLength(keywordPlan, 'serperSearchQueries'),
       placesQueryCount: readArrayLength(keywordPlan, 'serperPlacesQueries'),
       mapsQueryCount: readArrayLength(keywordPlan, 'serperMapsQueries'),
-      leadSourceMode: dto.leadSourceMode ?? 'search'
+      leadSourceMode: dto.leadSourceMode ?? 'search',
+      hasLeadContext: Boolean(leadContextSnapshot)
     });
 
     return {
@@ -97,6 +105,7 @@ export class AiLeadsService {
     requirement: string,
     leadSourceMode: NonNullable<KeywordOptimizeDto['leadSourceMode']>,
     productLineSnapshot: AiLeadProductLineSnapshot | null,
+    leadContextSnapshot: AiLeadKeywordContextSnapshot | null,
     context: AiLeadsContext
   ) {
     if (leadSourceMode === 'maps') {
@@ -104,7 +113,7 @@ export class AiLeadsService {
         {
           modelConfigKey: defaultAiModelConfigKey,
           promptKey: leadMapsKeywordOptimizePromptKey,
-          prompt: buildMapsKeywordOptimizePrompt(requirement, productLineSnapshot),
+          prompt: buildMapsKeywordOptimizePrompt(requirement, productLineSnapshot, leadContextSnapshot),
           maxOutputTokens: keywordOptimizeMaxOutputTokens
         },
         context
@@ -112,7 +121,11 @@ export class AiLeadsService {
 
       return {
         result,
-        keywordPlan: attachProductLineSnapshotToKeywordPlan(parseKeywordPlan(result.text), productLineSnapshot),
+        keywordPlan: attachKeywordPlanRuntimeSnapshots(
+          parseKeywordPlan(result.text),
+          productLineSnapshot,
+          leadContextSnapshot
+        ),
         qualityWarnings: []
       };
     }
@@ -121,13 +134,17 @@ export class AiLeadsService {
       {
         modelConfigKey: defaultAiModelConfigKey,
         promptKey: leadKeywordOptimizePromptKey,
-        prompt: buildKeywordOptimizePrompt(requirement, productLineSnapshot),
+        prompt: buildKeywordOptimizePrompt(requirement, productLineSnapshot, leadContextSnapshot),
         // 关键词优化只需要结构化建议，限制输出长度避免长时间阻塞请求。
         maxOutputTokens: keywordOptimizeMaxOutputTokens
       },
       context
     );
-    const keywordPlan = attachProductLineSnapshotToKeywordPlan(parseKeywordPlan(result.text), productLineSnapshot);
+    const keywordPlan = attachKeywordPlanRuntimeSnapshots(
+      parseKeywordPlan(result.text),
+      productLineSnapshot,
+      leadContextSnapshot
+    );
     const issues = validateKeywordPlanLocalLanguages(requirement, keywordPlan);
 
     if (issues.length === 0) {
@@ -138,14 +155,21 @@ export class AiLeadsService {
       {
         modelConfigKey: defaultAiModelConfigKey,
         promptKey: leadKeywordOptimizePromptKey,
-        prompt: buildKeywordOptimizeRepairPrompt(requirement, issues, keywordPlan, productLineSnapshot),
+        prompt: buildKeywordOptimizeRepairPrompt(
+          requirement,
+          issues,
+          keywordPlan,
+          productLineSnapshot,
+          leadContextSnapshot
+        ),
         maxOutputTokens: keywordOptimizeMaxOutputTokens
       },
       context
     );
-    const repairedKeywordPlan = attachProductLineSnapshotToKeywordPlan(
+    const repairedKeywordPlan = attachKeywordPlanRuntimeSnapshots(
       parseKeywordPlan(repairResult.text),
-      productLineSnapshot
+      productLineSnapshot,
+      leadContextSnapshot
     );
     const qualityWarnings = validateKeywordPlanLocalLanguages(requirement, repairedKeywordPlan);
 
@@ -304,6 +328,17 @@ function parseKeywordPlan(text: string) {
   } catch {
     throw new BadGatewayException('关键词优化结果不是合法 JSON');
   }
+}
+
+function attachKeywordPlanRuntimeSnapshots(
+  keywordPlan: Record<string, unknown>,
+  productLineSnapshot: AiLeadProductLineSnapshot | null,
+  leadContextSnapshot: AiLeadKeywordContextSnapshot | null
+) {
+  return attachLeadContextSnapshotToKeywordPlan(
+    attachProductLineSnapshotToKeywordPlan(keywordPlan, productLineSnapshot),
+    leadContextSnapshot
+  );
 }
 
 function readArrayLength(value: unknown, key: string) {

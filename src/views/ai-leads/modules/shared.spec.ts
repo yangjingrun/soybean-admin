@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  buildAiLeadStructuredRequirement,
   buildAiLeadCandidateImportPayload,
   buildAiLeadCandidateImportRows,
   buildKeywordHistoryUpdatePayload,
+  createAiLeadContextSnapshot,
   createKeywordOptimizationViewModel,
   createAiResultFromKeywordHistory,
+  createDefaultAiLeadExclusionRuleKeys,
+  createDefaultAiLeadTargetCustomerTypeKeys,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
   getAiLeadCandidateClassificationTags,
@@ -95,6 +99,27 @@ const keywordPlan: Api.AiLeads.OptimizedKeywordPlan = {
 };
 
 describe('ai leads keyword optimization helpers', () => {
+  it('builds structured lead context from foreign-trade customer and exclusion dictionaries', () => {
+    const snapshot = createAiLeadContextSnapshot({
+      targetRegionValue: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B',
+      targetRegionLabel: '阿联酋',
+      targetRegionCountryCode: 'AE',
+      targetCustomerTypeKeys: createDefaultAiLeadTargetCustomerTypeKeys(),
+      exclusionRuleKeys: createDefaultAiLeadExclusionRuleKeys(),
+      keywordText: '6203 bearing',
+      supplementalRequirement: '只找有官网和邮箱的公司',
+      targetLeadCount: 20
+    });
+    const requirement = buildAiLeadStructuredRequirement(snapshot);
+
+    assert.equal(snapshot.targetRegion?.label, '阿联酋');
+    assert.equal(snapshot.targetCustomerTypes[0].label, '进口商');
+    assert.equal(snapshot.exclusionRules[0].label, '中国供应商/出口商');
+    assert.match(requirement, /目标客户类型：进口商、经销商\/代理商/);
+    assert.match(requirement, /排除类型：中国供应商\/出口商/);
+    assert.match(requirement, /补充判断规则：只找有官网和邮箱的公司/);
+  });
+
   it('parses the AI keyword optimization JSON text', () => {
     const result = parseKeywordOptimizationPlan(JSON.stringify(keywordPlan));
 

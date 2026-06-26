@@ -19,4 +19,8 @@ export class KeywordOptimizeDto {
   @IsOptional()
   @IsObject()
   productLineSnapshot?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsObject()
+  leadContext?: Record<string, unknown>;
 }

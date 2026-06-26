@@ -29,6 +29,24 @@ export interface ProductLineSummaryItem {
   value: string;
 }
 
+export interface AiLeadContextOption {
+  key: string;
+  label: string;
+  description: string;
+  promptHint: string;
+}
+
+export interface AiLeadContextSnapshotInput {
+  targetRegionValue: string;
+  targetRegionLabel: string;
+  targetRegionCountryCode?: string | null;
+  targetCustomerTypeKeys: string[];
+  exclusionRuleKeys: string[];
+  keywordText: string;
+  supplementalRequirement: string;
+  targetLeadCount: number | null;
+}
+
 export interface AiLeadCandidateImportState {
   key: string;
   canImport: boolean;
@@ -51,6 +69,150 @@ export interface AiLeadCandidateClassificationTag {
   type: 'default' | 'success' | 'info' | 'warning' | 'error';
   tooltip?: string;
 }
+
+export const aiLeadTargetCustomerTypeOptions: AiLeadContextOption[] = [
+  {
+    key: 'importer',
+    label: '进口商',
+    description: '海外本地进口贸易商，有跨境采购、清关和批量补货需求。',
+    promptHint: 'importer, import company, import/export company'
+  },
+  {
+    key: 'distributor_dealer',
+    label: '经销商/代理商',
+    description: '服务本地渠道或行业客户，常见 Products、Brands、Catalog、Distribution 信号。',
+    promptHint: 'distributor, dealer, authorized dealer, local distributor'
+  },
+  {
+    key: 'wholesaler_stockist',
+    label: '批发商/库存商',
+    description: '有库存、批量补货和价格/MOQ/交期敏感度，适合找稳定供货机会。',
+    promptHint: 'wholesaler, stockist, wholesale supplier, stock supplier'
+  },
+  {
+    key: 'industrial_supplier',
+    label: '工业品供应商',
+    description: '面向工厂、维修、工程客户供货，适合工业零部件、耗材和设备类产品。',
+    promptHint: 'industrial supplier, industrial distributor, industrial supplies'
+  },
+  {
+    key: 'mro_spare_parts',
+    label: 'MRO/备件商',
+    description: '维护维修和替换件采购场景明确，适合轴承、机械件、电气件、耗材。',
+    promptHint: 'MRO supplier, spare parts supplier, maintenance supplier'
+  },
+  {
+    key: 'oem_manufacturer',
+    label: 'OEM/设备制造商',
+    description: '把产品装进整机、BOM 或生产线，关注规格、稳定性、样品和验证。',
+    promptHint: 'OEM manufacturer, equipment manufacturer, machinery manufacturer'
+  },
+  {
+    key: 'project_contractor',
+    label: '项目方/EPC/承包商',
+    description: '按项目采购，适合设备、工程配套、安装维护、招标和批量交付。',
+    promptHint: 'contractor, EPC, project company, engineering contractor'
+  },
+  {
+    key: 'system_integrator_installer',
+    label: '集成商/安装商',
+    description: '有方案集成、安装和现场服务需求，适合设备、电子、电气和工程类产品。',
+    promptHint: 'system integrator, installer, installation company'
+  },
+  {
+    key: 'repair_service',
+    label: '维修服务商',
+    description: '围绕维修、翻新、替换件采购，官网常见 Services、Repair、Maintenance。',
+    promptHint: 'repair service, maintenance service, service center'
+  },
+  {
+    key: 'trading_company',
+    label: '贸易公司/采购代理',
+    description: '可作为补充线索，需要官网证据确认是否真的服务目标市场客户。',
+    promptHint: 'trading company, procurement agent, sourcing company'
+  },
+  {
+    key: 'brand_agent',
+    label: '品牌代理/授权代理',
+    description: '代理同类或竞品品牌，适合从品牌替代、备选供应角度开发。',
+    promptHint: 'authorized distributor, brand agent, brand dealer'
+  },
+  {
+    key: 'retailer_chain',
+    label: '零售/连锁门店',
+    description: '适合消费品和门店型批发；工业 B2B 场景通常设为低优先级。',
+    promptHint: 'retailer, chain store, showroom'
+  }
+];
+
+export const aiLeadExclusionRuleOptions: AiLeadContextOption[] = [
+  {
+    key: 'china_supplier',
+    label: '中国供应商/出口商',
+    description: '排除中国官网、中国制造商、Alibaba/Made-in-China 等供应商来源。',
+    promptHint: 'exclude China supplier, Chinese manufacturer, Alibaba, Made-in-China'
+  },
+  {
+    key: 'wrong_market',
+    label: '非目标国家客户',
+    description: '官网地址、电话、业务主体明显不在本次目标国家/地区时降级或排除。',
+    promptHint: 'exclude companies outside the selected target market'
+  },
+  {
+    key: 'b2c_only',
+    label: '纯 B2C 零售站',
+    description: '排除只面向个人消费者、购物车商品页、低客单零售店。',
+    promptHint: 'exclude B2C-only shops and consumer-only stores'
+  },
+  {
+    key: 'marketplace_listing',
+    label: '平台/目录聚合页',
+    description: '排除 Amazon、eBay、AliExpress、黄页、SEO 聚合目录等非官网结果。',
+    promptHint: 'exclude marketplace listings, directory-only pages, SEO aggregators'
+  },
+  {
+    key: 'no_official_website',
+    label: '无官网或证据不足',
+    description: '没有官网、官网打不开、只有社媒/地图页且无法证明 B2B 采购身份时降级。',
+    promptHint: 'exclude leads without official website or enough website evidence'
+  },
+  {
+    key: 'irrelevant_product',
+    label: '产品线不匹配',
+    description: '官网产品线与 CRM 产品线无关联，或只出现弱泛词时不进入开发名单。',
+    promptHint: 'exclude websites whose product line does not match the selected CRM product line'
+  },
+  {
+    key: 'job_news_blog',
+    label: '招聘/新闻/博客内容',
+    description: '排除招聘、媒体、新闻、百科、博客文章等非采购主体页面。',
+    promptHint: 'exclude job sites, media, news, blogs and encyclopedia pages'
+  },
+  {
+    key: 'official_brand_hq',
+    label: '品牌总部/竞争品牌官网',
+    description: '排除只作为品牌方总部展示的官网；若有代理/分销入口再保留。',
+    promptHint: 'exclude brand headquarters unless distributor or dealer pages show buying relevance'
+  }
+];
+
+const defaultTargetCustomerTypeKeys = [
+  'importer',
+  'distributor_dealer',
+  'wholesaler_stockist',
+  'industrial_supplier',
+  'mro_spare_parts'
+];
+
+const defaultExclusionRuleKeys = [
+  'china_supplier',
+  'wrong_market',
+  'b2c_only',
+  'marketplace_listing',
+  'no_official_website',
+  'irrelevant_product',
+  'job_news_blog'
+];
 
 const businessGlossary = [
   ['auto_parts_wholesaler', '汽配批发商'],
@@ -165,6 +327,85 @@ export function buildKeywordHistoryUpdatePayload(
     requirement: requirement.trim(),
     keywordPlan
   };
+}
+
+/** Returns the default foreign-trade buyer groups for a new AI leads session. */
+export function createDefaultAiLeadTargetCustomerTypeKeys() {
+  return [...defaultTargetCustomerTypeKeys];
+}
+
+/** Returns the default exclusion rules used before user-specific history is restored. */
+export function createDefaultAiLeadExclusionRuleKeys() {
+  return [...defaultExclusionRuleKeys];
+}
+
+/** Builds the per-user lead context snapshot sent with keyword optimization. */
+export function createAiLeadContextSnapshot(
+  input: AiLeadContextSnapshotInput
+): Api.AiLeads.LeadContextSnapshot {
+  const targetRegionLabel = input.targetRegionLabel.trim();
+  const targetRegionValue = input.targetRegionValue.trim();
+  const keywordText = input.keywordText.trim();
+  const supplementalRequirement = input.supplementalRequirement.trim();
+
+  return {
+    targetRegion: targetRegionLabel
+      ? {
+          value: targetRegionValue,
+          label: targetRegionLabel,
+          countryCode: input.targetRegionCountryCode?.trim() || null
+        }
+      : null,
+    targetCustomerTypes: resolveAiLeadContextOptions(input.targetCustomerTypeKeys, aiLeadTargetCustomerTypeOptions),
+    exclusionRules: resolveAiLeadContextOptions(input.exclusionRuleKeys, aiLeadExclusionRuleOptions),
+    keywordText: keywordText || null,
+    supplementalRequirement: supplementalRequirement || null,
+    targetLeadCount: input.targetLeadCount
+  };
+}
+
+/** Builds the stable requirement text persisted in the current user's keyword history. */
+export function buildAiLeadStructuredRequirement(snapshot: Api.AiLeads.LeadContextSnapshot) {
+  const lines = [
+    `目标国家/地区：${snapshot.targetRegion?.label || ''}`,
+    `目标客户类型：${snapshot.targetCustomerTypes.map(item => item.label).join('、')}`,
+    `搜索关键词/型号：${snapshot.keywordText || '按产品线资料自动扩展'}`,
+    `排除类型：${snapshot.exclusionRules.map(item => item.label).join('、') || '无'}`,
+    snapshot.supplementalRequirement ? `补充判断规则：${snapshot.supplementalRequirement}` : '',
+    snapshot.targetLeadCount ? `采集数量：${snapshot.targetLeadCount}` : ''
+  ].filter(Boolean);
+
+  return lines.join('\n');
+}
+
+/** Reads one saved lead-context snapshot from a keyword plan. */
+export function resolveKeywordPlanLeadContextSnapshot(plan: Api.AiLeads.OptimizedKeywordPlan | null | undefined) {
+  return plan?.leadContextSnapshot ?? null;
+}
+
+/** Restores selected option keys from a saved snapshot while ignoring removed dictionary keys. */
+export function resolveAiLeadContextKeysFromSnapshot(
+  items: Api.AiLeads.LeadContextOptionSnapshot[] | null | undefined,
+  options: AiLeadContextOption[],
+  fallbackKeys: string[]
+) {
+  const optionKeys = new Set(options.map(item => item.key));
+  const keys = (items ?? []).map(item => item.key).filter(key => optionKeys.has(key));
+
+  return keys.length ? keys : [...fallbackKeys];
+}
+
+function resolveAiLeadContextOptions(keys: string[], options: AiLeadContextOption[]) {
+  const selectedKeys = new Set(keys);
+
+  return options
+    .filter(option => selectedKeys.has(option.key))
+    .map(option => ({
+      key: option.key,
+      label: option.label,
+      description: option.description,
+      promptHint: option.promptHint
+    }));
 }
 
 /** Clones a keyword plan before editing so history selection does not mutate source records. */

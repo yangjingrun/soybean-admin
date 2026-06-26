@@ -54,6 +54,9 @@ const {
   keywordOptimizationViewModel,
   keywordQualityWarnings,
   leadWorkflowStatusLabel,
+  customerTypeOptions,
+  exclusionRuleOptions,
+  handleTargetRegionPathUpdate,
   productLineSelectOptions,
   searchProgress,
   selectedProductLine,
@@ -94,22 +97,20 @@ async function handleStartKeywordResultEdit() {
       <NForm :model="form" label-placement="top" size="small" class="lead-form">
         <LeadProductLineContext
           v-model:product-line-id="form.productLineId"
+          v-model:target-region-value="form.targetRegionValue"
+          v-model:target-customer-type-keys="form.targetCustomerTypeKeys"
+          v-model:exclusion-rule-keys="form.exclusionRuleKeys"
+          v-model:keyword-text="form.keywordText"
+          v-model:requirement="form.requirement"
           :disabled="isSearchTaskBlockingForm"
           :loading="isProductLineLoading"
           :options="productLineSelectOptions"
           :product-line="selectedProductLine"
           :summary-items="selectedProductLineSummaryItems"
+          :customer-type-options="customerTypeOptions"
+          :exclusion-rule-options="exclusionRuleOptions"
+          @update:target-region-path="handleTargetRegionPathUpdate"
         />
-
-        <NFormItem label="本次开发要求">
-          <NInput
-            v-model:value="form.requirement"
-            type="textarea"
-            :disabled="isSearchTaskBlockingForm"
-            :autosize="{ minRows: 2, maxRows: 6 }"
-            placeholder="填写本次目标市场、客户类型、搜索关键词和补充判断规则。例如：阿联酋轴承进口商和经销商，只找海外客户，排除中国供应商。"
-          />
-        </NFormItem>
 
         <div class="task-toolbar">
           <div class="task-toolbar-left">

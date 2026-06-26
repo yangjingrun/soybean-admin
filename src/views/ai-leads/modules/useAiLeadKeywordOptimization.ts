@@ -1,5 +1,13 @@
+import { createDefaultAiLeadExclusionRuleKeys, createDefaultAiLeadTargetCustomerTypeKeys } from './shared';
+
 export interface LeadSearchForm {
   productLineId: string | null;
+  targetRegionValue: string;
+  targetRegionLabel: string;
+  targetRegionCountryCode: string | null;
+  targetCustomerTypeKeys: string[];
+  exclusionRuleKeys: string[];
+  keywordText: string;
   requirement: string;
   targetLeadCount: number | null;
   leadSourceMode: Api.AiLeads.LeadSourceMode;
@@ -9,6 +17,12 @@ export interface LeadSearchForm {
 export function createDefaultLeadSearchForm(defaultTargetLeadCount: number): LeadSearchForm {
   return {
     productLineId: null,
+    targetRegionValue: '',
+    targetRegionLabel: '',
+    targetRegionCountryCode: null,
+    targetCustomerTypeKeys: createDefaultAiLeadTargetCustomerTypeKeys(),
+    exclusionRuleKeys: createDefaultAiLeadExclusionRuleKeys(),
+    keywordText: '',
     requirement: '',
     targetLeadCount: defaultTargetLeadCount,
     leadSourceMode: 'search'

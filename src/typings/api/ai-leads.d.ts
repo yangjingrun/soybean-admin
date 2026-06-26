@@ -6,6 +6,7 @@ declare namespace Api {
       requirement: string;
       leadSourceMode?: LeadSourceMode;
       productLineSnapshot?: ProductLineSnapshot | null;
+      leadContext?: LeadContextSnapshot | null;
     }
 
     interface ProductLineSnapshot {
@@ -29,6 +30,28 @@ declare namespace Api {
       priorityContacts: string[];
       priorityLevel: string;
       preferredSerperChannel?: string;
+    }
+
+    interface LeadContextTargetRegion {
+      value: string;
+      label: string;
+      countryCode?: string | null;
+    }
+
+    interface LeadContextOptionSnapshot {
+      key: string;
+      label: string;
+      description?: string | null;
+      promptHint?: string | null;
+    }
+
+    interface LeadContextSnapshot {
+      targetRegion: LeadContextTargetRegion | null;
+      targetCustomerTypes: LeadContextOptionSnapshot[];
+      exclusionRules: LeadContextOptionSnapshot[];
+      keywordText?: string | null;
+      supplementalRequirement?: string | null;
+      targetLeadCount?: number | null;
     }
 
     interface SerperQueryRequestBody {
@@ -122,6 +145,7 @@ declare namespace Api {
       serperMapsQueries?: SerperMapsQuery[];
       searchExecutionRules: SearchExecutionRules;
       productLineSnapshot?: ProductLineSnapshot | null;
+      leadContextSnapshot?: LeadContextSnapshot | null;
     }
 
     interface KeywordHistoryRecord {
