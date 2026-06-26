@@ -2,6 +2,7 @@ import type { ImportCrmLeadInput } from '../crm/crm.types';
 import { buildCandidateCountryPatch } from './ai-lead-candidate-country';
 import { normalizeAiLeadEmailWritingContext } from './ai-lead-email-writing-context';
 import type { AiLeadProductLineSnapshot } from './ai-lead-product-line-context';
+import { normalizeOfficialWebsiteUrl } from './ai-lead-source-url';
 
 interface AiLeadCandidateLike {
   title?: unknown;
@@ -40,7 +41,7 @@ export function mapAiLeadTaskResultToCrmImportInputs(
     return [
       {
         name,
-        websiteUrl: normalizeString(candidate.website) || normalizeString(candidate.url),
+        websiteUrl: normalizeOfficialWebsiteUrl(normalizeString(candidate.website)) || normalizeOfficialWebsiteUrl(normalizeString(candidate.url)),
         ...buildCandidateCountryPatch(candidate),
         ...buildCandidateLocationPatch(candidate),
         ...buildCandidateCoordinatePatch(candidate),

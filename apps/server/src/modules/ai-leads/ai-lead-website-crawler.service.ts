@@ -7,6 +7,7 @@ import {
   extractWebsitePageEvidence,
   mergeWebsitePageEvidence
 } from './ai-lead-website-crawler.extractor';
+import { isDirectorySourceUrl, normalizeOfficialWebsiteUrl } from './ai-lead-source-url';
 import type {
   AiLeadWebsiteCrawlPageResult,
   AiLeadWebsiteCrawlRequest,
@@ -50,9 +51,14 @@ export class AiLeadWebsiteCrawlerService {
       const homepage = normalizeCandidateWebsite(candidate);
 
       if (!homepage) {
+        const failureReason =
+          isDirectorySourceUrl(candidate.website) || isDirectorySourceUrl(candidate.url)
+            ? '目录/黄页来源页，不作为公司官网采集'
+            : '缺少官网';
+
         output.push({
           ...candidate,
-          websiteEvidence: createSkippedWebsiteEvidence('缺少官网')
+          websiteEvidence: createSkippedWebsiteEvidence(failureReason)
         });
         continue;
       }
@@ -156,7 +162,7 @@ function buildCandidateRequests(candidate: AiLeadSearchCandidate, homepage: stri
 }
 
 function normalizeCandidateWebsite(candidate: AiLeadSearchCandidate) {
-  const value = (candidate.website || candidate.url || '').trim();
+  const value = normalizeOfficialWebsiteUrl(candidate.website) || normalizeOfficialWebsiteUrl(candidate.url);
 
   if (!value) {
     return '';

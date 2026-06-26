@@ -182,4 +182,39 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
     assert.deepEqual(mapAiLeadTaskResultToCrmImportInputs({ id: 'task-1' }, null), []);
     assert.deepEqual(mapAiLeadTaskResultToCrmImportInputs({ id: 'task-1' }, {}), []);
   });
+
+  it('does not import directory source pages as company websites', () => {
+    const inputs = mapAiLeadTaskResultToCrmImportInputs(
+      { id: 'task-1' },
+      {
+        candidates: [
+          {
+            title: 'Industrial Bearing Suppliers in UAE',
+            url: 'https://www.yellowpages-uae.com/uae/industrial-bearing',
+            sourceType: 'organic',
+            websiteEvidence: {
+              crawlStatus: 'skipped',
+              pageCount: 0,
+              emails: [],
+              phones: [],
+              socialLinks: [],
+              whatsappLinks: [],
+              mapLinks: [],
+              contactLinks: [],
+              keywordHits: [],
+              evidenceSnippets: [],
+              companyAddressEvidence: [],
+              companyCountrySignals: [],
+              negativeKeywordHits: [],
+              negativeEvidenceSnippets: [],
+              failureReason: '目录/黄页来源页，不作为公司官网采集'
+            }
+          }
+        ]
+      }
+    );
+
+    assert.equal(inputs[0].websiteUrl, '');
+    assert.equal(inputs[0].sourceSnapshot?.url, 'https://www.yellowpages-uae.com/uae/industrial-bearing');
+  });
 });

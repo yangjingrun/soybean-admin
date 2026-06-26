@@ -93,6 +93,29 @@ describe('AiLeadWebsiteCrawlerService', () => {
     assert.equal(candidates[0].websiteEvidence?.failureReason, '缺少官网');
   });
 
+  it('skips directory pages instead of treating them as company websites', async () => {
+    const requestedUrls: string[] = [];
+    const service = new AiLeadWebsiteCrawlerService({
+      async crawl(requests) {
+        requestedUrls.push(...requests.map(request => request.url));
+
+        return [];
+      }
+    });
+
+    const candidates = await service.enrichCandidates([
+      createCandidate({
+        title: 'Industrial Bearing Suppliers in UAE',
+        url: 'https://www.yellowpages-uae.com/uae/industrial-bearing',
+        website: ''
+      })
+    ]);
+
+    assert.deepEqual(requestedUrls, []);
+    assert.equal(candidates[0].websiteEvidence?.crawlStatus, 'skipped');
+    assert.equal(candidates[0].websiteEvidence?.failureReason, '目录/黄页来源页，不作为公司官网采集');
+  });
+
   it('extracts website evidence with dynamic industry keywords', async () => {
     const service = new AiLeadWebsiteCrawlerService({
       async crawl(requests) {
