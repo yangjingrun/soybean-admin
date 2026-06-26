@@ -316,6 +316,7 @@ describe('crm settings shared helpers', () => {
     assert.equal(config.tone, undefined);
     assert.equal(config.ctaPreference, undefined);
     assert.equal(config.polishPolicy, undefined);
+    assert.equal(config.promptTemplateKey, 'crm_outreach_general');
     assert.equal(config.steps.length, 5);
     assert.deepEqual(
       config.steps.map(step => step.stepIndex),
@@ -341,11 +342,12 @@ describe('crm settings shared helpers', () => {
     assert.equal('productEmphasis' in (normalized ?? {}), false);
     assert.equal(normalized?.proofAssets, 'GCC distributor proof');
     assert.equal(normalized?.regionNotes, 'Saudi buyers ask about stock');
+    assert.equal(normalized?.promptTemplateKey, 'crm_outreach_general');
     assert.equal(normalized?.steps[4].prompt, 'Step 5');
     assert.equal(validateProductLineAiWritingConfig(config), null);
   });
 
-  it('allows enabled product line AI writing config to use system built-in step prompts', () => {
+  it('allows enabled product line AI writing config to omit product-specific step additions', () => {
     const config = createDefaultProductLineAiWritingConfig();
     config.enabled = true;
     config.steps.forEach(step => {
@@ -391,11 +393,12 @@ describe('crm settings shared helpers', () => {
 
     assert.deepEqual(summarizeProductLineAiWritingConfig(config), {
       enabledLabel: '已开启',
-      sequenceStrategyLabel: '系统内置',
-      languagePolicyLabel: '系统内置',
-      toneLabel: '系统内置',
-      ctaPreferenceLabel: '系统内置',
-      polishPolicyLabel: '系统内置（每次去 AI 味润色）',
+      promptTemplateLabel: '通用模板',
+      sequenceStrategyLabel: '默认策略',
+      languagePolicyLabel: '默认策略',
+      toneLabel: '默认策略',
+      ctaPreferenceLabel: '默认策略',
+      polishPolicyLabel: '默认策略（每次去 AI 味润色）',
       proofAssets: '',
       regionNotes: '',
       steps: [

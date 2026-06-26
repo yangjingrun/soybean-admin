@@ -94,9 +94,11 @@ export function composeCrmAiWritingPrompt(composerInput: CrmAiWritingPromptCompo
       `Template language:\n${normalizeString(input.templateLanguage) || 'en'}`,
       `Sender:\n${input.senderName || 'Sales team'}`,
       '',
-      'Null product-line writing config values mean: use the system built-in guidance from the selected global modules.',
+      'Product-line writing config only selects the published global prompt template and optional product-specific additions.',
+      'Empty product-line stepPrompt means no extra product-specific requirement for this step; do not treat it as a missing global template.',
       `Product-line writing config:\n${JSON.stringify(
         {
+          promptTemplateKey: input.writingConfig.promptTemplateKey ?? null,
           sequenceStrategy: input.writingConfig.sequenceStrategy ?? null,
           languagePolicy: input.writingConfig.languagePolicy ?? null,
           tone: input.writingConfig.tone ?? null,

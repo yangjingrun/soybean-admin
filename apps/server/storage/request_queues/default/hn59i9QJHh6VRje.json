@@ -1,9 +1,9 @@
 {
-  "id": "hn59i9QJHh6VRje",
-  "json": "{\"id\":\"hn59i9QJHh6VRje\",\"url\":\"http://www.bearingsworld.ae/product\",\"loadedUrl\":\"http://www.bearingsworld.ae/product\",\"uniqueKey\":\"0:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.bearingsworld.ae/product\",\"uniqueKey\":\"0:/product\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"bearingsworld.ae\",\"companyName\":\"Bearings World Trading LLC. Dubai\",\"homepage\":\"http://www.bearingsworld.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:16.113Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "0:/product",
-  "url": "http://www.bearingsworld.ae/product"
+	"id": "hn59i9QJHh6VRje",
+	"json": "{\"id\":\"hn59i9QJHh6VRje\",\"url\":\"https://alkhalij.com/product\",\"loadedUrl\":\"https://alkhalij.com/dubai/products/\",\"uniqueKey\":\"0:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://alkhalij.com/product\",\"uniqueKey\":\"0:/product\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"alkhalij.com\",\"companyName\":\"Bearing number 1 distributor in Dubai and UAE\",\"homepage\":\"https://alkhalij.com/dubai/products/bearings-units-housing/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:22:53.616Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "0:/product",
+	"url": "https://alkhalij.com/product"
 }

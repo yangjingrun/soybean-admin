@@ -1,9 +1,0 @@
-{
-  "id": "ywH9uziYnBXn1s8",
-  "json": "{\"id\":\"ywH9uziYnBXn1s8\",\"url\":\"http://www.laziobearing.com/about\",\"loadedUrl\":\"http://www.laziobearing.com/about\",\"uniqueKey\":\"17:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.laziobearing.com/about\",\"uniqueKey\":\"17:/about\",\"userData\":{\"candidateIndex\":17,\"dedupeKey\":\"laziobearing.com\",\"companyName\":\"Lazio Bearings\",\"homepage\":\"http://www.laziobearing.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:55.236Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "17:/about",
-  "url": "http://www.laziobearing.com/about"
-}

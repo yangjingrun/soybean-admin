@@ -4,7 +4,7 @@ import {
   buildPromptSectionAnchors,
   groupPromptWorkbenchSteps,
   formatLatestPromptTestRunForCopy,
-  resolvePromptPublishBlockReason,
+  resolvePromptEffectiveSource,
   resolvePromptValidationSection,
   resolvePromptLineStartOffset,
   summarizePromptValidation,
@@ -20,6 +20,12 @@ describe('ai prompt settings shared helpers', () => {
         title: '基础规则',
         channel: 'crm_email',
         group: 'crm_outreach'
+      }),
+      createPromptStep({
+        promptKey: 'crm_outreach_general_step_1_relevance',
+        title: '通用模板第 1 封',
+        channel: 'crm_email',
+        group: 'crm_outreach'
       })
     ]);
 
@@ -27,79 +33,122 @@ describe('ai prompt settings shared helpers', () => {
       groups.map(group => ({
         key: group.key,
         title: group.title,
-        promptKeys: group.steps.map(step => step.promptKey)
+        treeNodes: group.treeNodes.map(node => ({
+          title: node.title,
+          promptKeys: node.steps.map(step => step.promptKey)
+        }))
       })),
       [
         {
           key: 'ai_leads',
           title: 'AI 获客',
-          promptKeys: ['lead_keyword_optimize']
+          treeNodes: [
+            {
+              title: '获客流程',
+              promptKeys: ['lead_keyword_optimize']
+            }
+          ]
         },
         {
           key: 'crm_outreach',
-          title: 'CRM 写信方法论',
-          promptKeys: ['crm_outreach_base_rules']
+          title: '开发信',
+          treeNodes: [
+            {
+              title: '公共规则',
+              promptKeys: ['crm_outreach_base_rules']
+            },
+            {
+              title: '通用模板',
+              promptKeys: ['crm_outreach_general_step_1_relevance']
+            }
+          ]
         }
       ]
     );
   });
 
-  it('prioritizes draft and failed test states in step status labels', () => {
+  it('shows source states in step status labels', () => {
+    assert.deepEqual(resolvePromptStepStatus(createPromptStep()).label, '内置生效');
     assert.deepEqual(
-      resolvePromptStepStatus({
-        promptKey: 'lead_maps_keyword_optimize',
-        title: '地图关键词优化',
-        usage: '',
-        channel: 'maps',
-        published: null,
-        draft: {
-          id: 'draft',
-          promptKey: 'lead_maps_keyword_optimize',
-          title: '地图关键词优化',
-          version: 0,
-          lifecycle: 'draft',
-          systemPrompt: 'prompt',
-          validationResult: null,
-          changeNote: null,
-          createdById: null,
-          createdByName: null,
-          publishedAt: null,
-          createdAt: '',
-          updatedAt: ''
-        },
-        latestTestRun: null
-      }).label,
-      '有草稿'
+      resolvePromptStepStatus(
+        createPromptStep({
+          promptKey: 'crm_outreach_base_rules',
+          channel: 'crm_email',
+          group: 'crm_outreach'
+        })
+      ).label,
+      '待发布'
     );
 
     assert.deepEqual(
-      resolvePromptStepStatus({
-        promptKey: 'lead_maps_keyword_optimize',
-        title: '地图关键词优化',
-        usage: '',
-        channel: 'maps',
-        published: {
-          promptKey: 'lead_maps_keyword_optimize',
-          title: '地图关键词优化',
-          systemPrompt: 'prompt',
-          updatedAt: ''
-        },
-        draft: null,
-        latestTestRun: {
-          id: 'test',
-          promptKey: 'lead_maps_keyword_optimize',
-          inputPrompt: 'test',
-          outputText: null,
-          validationResult: null,
-          success: false,
-          durationMs: 200,
-          errorMessage: 'failed',
-          createdById: null,
-          createdByName: null,
-          createdAt: ''
-        }
-      }).label,
-      '测试失败'
+      resolvePromptStepStatus(
+        createPromptStep({
+          published: {
+            promptKey: 'lead_maps_keyword_optimize',
+            title: '地图关键词优化',
+            systemPrompt: 'prompt',
+            updatedAt: ''
+          }
+        })
+      ).label,
+      '已发布覆盖'
+    );
+    assert.deepEqual(
+      resolvePromptStepStatus(
+        createPromptStep({
+          promptKey: 'crm_outreach_base_rules',
+          channel: 'crm_email',
+          group: 'crm_outreach',
+          published: {
+            promptKey: 'crm_outreach_base_rules',
+            title: 'CRM 开发信基础规则',
+            systemPrompt: 'prompt',
+            updatedAt: ''
+          }
+        })
+      ).label,
+      '数据库已发布'
+    );
+
+  });
+
+  it('resolves the prompt source currently used by business generation', () => {
+    assert.deepEqual(resolvePromptEffectiveSource(createPromptStep()), {
+      label: '业务使用：系统内置',
+      type: 'info'
+    });
+
+    assert.deepEqual(
+      resolvePromptEffectiveSource(
+        createPromptStep({
+          promptKey: 'crm_outreach_base_rules',
+          channel: 'crm_email',
+          group: 'crm_outreach',
+          published: {
+            promptKey: 'crm_outreach_base_rules',
+            title: 'CRM 开发信基础规则',
+            systemPrompt: 'published prompt',
+            updatedAt: ''
+          }
+        })
+      ),
+      {
+        label: '业务使用：数据库已发布',
+        type: 'success'
+      }
+    );
+    assert.deepEqual(
+      resolvePromptEffectiveSource(
+        createPromptStep({
+          promptKey: 'crm_outreach_base_rules',
+          channel: 'crm_email',
+          group: 'crm_outreach'
+        })
+      ),
+      {
+        label: '业务使用：待超级管理员发布',
+        type: 'warning'
+      }
     );
   });
 
@@ -224,47 +273,6 @@ searchExecutionRules
     );
   });
 
-  it('resolves publish blocker message by priority', () => {
-    assert.equal(
-      resolvePromptPublishBlockReason({
-        hasDraft: true,
-        isDirty: true,
-        hasFreshValidationResult: true,
-        validationPassed: true
-      }),
-      ''
-    );
-
-    assert.equal(
-      resolvePromptPublishBlockReason({
-        hasDraft: true,
-        isDirty: false,
-        hasFreshValidationResult: false,
-        validationPassed: false
-      }),
-      '请先重新校验或运行测试'
-    );
-
-    assert.equal(
-      resolvePromptPublishBlockReason({
-        hasDraft: true,
-        isDirty: false,
-        hasFreshValidationResult: true,
-        validationPassed: false
-      }),
-      '请先修复校验问题后再发布'
-    );
-
-    assert.equal(
-      resolvePromptPublishBlockReason({
-        hasDraft: true,
-        isDirty: false,
-        hasFreshValidationResult: true,
-        validationPassed: true
-      }),
-      ''
-    );
-  });
 });
 
 function createPromptStep(

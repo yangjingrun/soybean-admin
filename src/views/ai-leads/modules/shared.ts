@@ -37,14 +37,19 @@ export interface AiLeadContextOption {
 }
 
 export interface AiLeadContextSnapshotInput {
-  targetRegionValue: string;
-  targetRegionLabel: string;
-  targetRegionCountryCode?: string | null;
+  targetRegionValues: string[];
+  targetRegionLabels: string[];
+  targetRegionCountryCodes?: string[];
   targetCustomerTypeKeys: string[];
   exclusionRuleKeys: string[];
   keywordText: string;
   supplementalRequirement: string;
   targetLeadCount: number | null;
+}
+
+export interface AiLeadGeneratedContextFormHints {
+  keywordText: string;
+  supplementalRequirement: string;
 }
 
 export interface AiLeadCandidateImportState {
@@ -343,19 +348,13 @@ export function createDefaultAiLeadExclusionRuleKeys() {
 export function createAiLeadContextSnapshot(
   input: AiLeadContextSnapshotInput
 ): Api.AiLeads.LeadContextSnapshot {
-  const targetRegionLabel = input.targetRegionLabel.trim();
-  const targetRegionValue = input.targetRegionValue.trim();
+  const targetRegions = createAiLeadTargetRegionSnapshots(input);
   const keywordText = input.keywordText.trim();
   const supplementalRequirement = input.supplementalRequirement.trim();
 
   return {
-    targetRegion: targetRegionLabel
-      ? {
-          value: targetRegionValue,
-          label: targetRegionLabel,
-          countryCode: input.targetRegionCountryCode?.trim() || null
-        }
-      : null,
+    targetRegion: targetRegions[0] ?? null,
+    targetRegions,
     targetCustomerTypes: resolveAiLeadContextOptions(input.targetCustomerTypeKeys, aiLeadTargetCustomerTypeOptions),
     exclusionRules: resolveAiLeadContextOptions(input.exclusionRuleKeys, aiLeadExclusionRuleOptions),
     keywordText: keywordText || null,
@@ -366,8 +365,9 @@ export function createAiLeadContextSnapshot(
 
 /** Builds the stable requirement text persisted in the current user's keyword history. */
 export function buildAiLeadStructuredRequirement(snapshot: Api.AiLeads.LeadContextSnapshot) {
+  const targetRegionLabel = getAiLeadTargetRegionLabel(snapshot);
   const lines = [
-    `目标国家/地区：${snapshot.targetRegion?.label || ''}`,
+    `目标国家/地区：${targetRegionLabel}`,
     `目标客户类型：${snapshot.targetCustomerTypes.map(item => item.label).join('、')}`,
     `搜索关键词/型号：${snapshot.keywordText || '按产品线资料自动扩展'}`,
     `排除类型：${snapshot.exclusionRules.map(item => item.label).join('、') || '无'}`,
@@ -376,6 +376,32 @@ export function buildAiLeadStructuredRequirement(snapshot: Api.AiLeads.LeadConte
   ].filter(Boolean);
 
   return lines.join('\n');
+}
+
+/** Formats all selected target regions while keeping legacy single-region history readable. */
+export function getAiLeadTargetRegionLabel(snapshot: Api.AiLeads.LeadContextSnapshot) {
+  const labels = getAiLeadTargetRegions(snapshot).map(item => item.label).filter(Boolean);
+
+  return labels.join('、') || snapshot.targetRegion?.label || '';
+}
+
+/** Returns multi-region snapshots, falling back to the legacy single-region field. */
+export function getAiLeadTargetRegions(snapshot: Api.AiLeads.LeadContextSnapshot) {
+  if (snapshot.targetRegions?.length) {
+    return snapshot.targetRegions;
+  }
+
+  return snapshot.targetRegion ? [snapshot.targetRegion] : [];
+}
+
+/** 从 AI 优化结果提取可回填到表单的关键词和人工判断规则。 */
+export function buildGeneratedLeadContextFormHints(
+  plan: Api.AiLeads.OptimizedKeywordPlan
+): AiLeadGeneratedContextFormHints {
+  return {
+    keywordText: normalizeSingleLineText(plan.resolvedProductKeywords),
+    supplementalRequirement: buildGeneratedSupplementalRequirement(plan.searchExecutionRules)
+  };
 }
 
 /** Reads one saved lead-context snapshot from a keyword plan. */
@@ -406,6 +432,44 @@ function resolveAiLeadContextOptions(keys: string[], options: AiLeadContextOptio
       description: option.description,
       promptHint: option.promptHint
     }));
+}
+
+function createAiLeadTargetRegionSnapshots(input: AiLeadContextSnapshotInput): Api.AiLeads.LeadContextTargetRegion[] {
+  return input.targetRegionLabels.flatMap((rawLabel, index) => {
+    const label = rawLabel.trim();
+
+    if (!label) {
+      return [];
+    }
+
+    return [
+      {
+        value: input.targetRegionValues[index]?.trim() || '',
+        label,
+        countryCode: input.targetRegionCountryCodes?.[index]?.trim() || null
+      }
+    ];
+  });
+}
+
+function buildGeneratedSupplementalRequirement(rules: Api.AiLeads.SearchExecutionRules | undefined) {
+  return [
+    formatRuleList('优先保留', rules?.keep),
+    formatRuleList('排除', rules?.exclude),
+    formatRuleList('官网重点核验', rules?.websiteCheckPages)
+  ]
+    .filter(Boolean)
+    .join('；');
+}
+
+function formatRuleList(label: string, values: string[] | undefined) {
+  const text = (values ?? []).map(normalizeSingleLineText).filter(Boolean).join('、');
+
+  return text ? `${label}：${text}` : '';
+}
+
+function normalizeSingleLineText(value: string | null | undefined) {
+  return (value ?? '').replace(/\s+/g, ' ').trim();
 }
 
 /** Clones a keyword plan before editing so history selection does not mutate source records. */

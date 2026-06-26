@@ -9,15 +9,17 @@ describe('crm region cascader component', () => {
     assert.doesNotMatch(componentSource, /check-strategy="child"/);
   });
 
-  it('explicitly keeps the picker in single-select non-cascade mode', () => {
-    assert.match(componentSource, /:multiple="false"/);
+  it('keeps the picker single-select by default and allows opt-in multiple mode', () => {
+    assert.match(componentSource, /multiple:\s*false/);
+    assert.match(componentSource, /:multiple="multiple"/);
     assert.match(componentSource, /:cascade="false"/);
     assert.doesNotMatch(componentSource, /<NCascader[\s\S]*\n\s+cascade\b/);
   });
 
-  it('hides checkbox prefixes if Naive UI renders them from cached state', () => {
-    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option__prefix/);
-    assert.match(componentSource, /\.crm-region-cascader-menu \.n-cascader-option \.n-checkbox/);
+  it('hides checkbox prefixes only for single-select menus', () => {
+    assert.match(componentSource, /crm-region-cascader-menu--single/);
+    assert.match(componentSource, /\.crm-region-cascader-menu--single \.n-cascader-option__prefix/);
+    assert.match(componentSource, /\.crm-region-cascader-menu--single \.n-cascader-option \.n-checkbox/);
     assert.match(componentSource, /display:\s*none/);
     assert.match(componentSource, /:render-prefix="renderEmptyRegionPrefix"/);
   });
@@ -38,7 +40,14 @@ describe('crm region cascader component', () => {
     assert.match(componentSource, /function handleRegionLabelClick/);
     assert.match(componentSource, /option\.nodeType !== 'country'/);
     assert.match(componentSource, /event\.stopPropagation\(\)/);
-    assert.match(componentSource, /handleRegionUpdate\(option\.value\)/);
+    assert.match(componentSource, /handleRegionUpdate\(option\.value, option, \[option\]\)/);
     assert.match(componentSource, /onClick: \(event: MouseEvent\) => handleRegionLabelClick/);
+  });
+
+  it('emits selected path for form consumers that need country and province text', () => {
+    assert.match(componentSource, /'update:selectedPath': \[path: CrmRegionCascaderOption\[\]\]/);
+    assert.match(componentSource, /'update:selectedPaths': \[paths: CrmRegionCascaderOption\[\]\[\]\]/);
+    assert.match(componentSource, /emit\('update:selectedPath', paths\[0\] \?\? \[\]\)/);
+    assert.match(componentSource, /emit\('update:selectedPaths', paths\)/);
   });
 });

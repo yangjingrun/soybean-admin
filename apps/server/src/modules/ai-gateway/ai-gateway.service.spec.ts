@@ -50,7 +50,12 @@ describe('AiGatewayService', () => {
         'crm_outreach_subject_line',
         'crm_outreach_deliverability_guard',
         'crm_outreach_ai_polish',
-        'crm_outreach_output_contract'
+        'crm_outreach_output_contract',
+        'crm_outreach_general_step_1_relevance',
+        'crm_outreach_general_step_2_decision',
+        'crm_outreach_general_step_3_risk_validation',
+        'crm_outreach_general_step_4_choice_followup',
+        'crm_outreach_general_step_5_light_exit'
       ]
     );
     assert.equal(
@@ -289,7 +294,61 @@ describe('AiGatewayService', () => {
     assert.match(generatedParams.systemPrompt || '', /严禁生成真实公司名/);
   });
 
-  it('returns the built-in prompt draft even when a saved prompt exists', async () => {
+  it('rejects CRM outreach prompt reads when the published database prompt is missing', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await assert.rejects(() => service.getPrompt('crm_outreach_general_step_1_relevance'), /请超级管理员先发布 CRM 开发信提示词/);
+  });
+
+  it('initializes CRM outreach prompts only when the database has no CRM prompt config', async () => {
+    const promptStore = createMemoryPromptStore();
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      promptStore,
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    await service.onModuleInit();
+
+    assert.match((await promptStore.getPrompt('crm_outreach_general_step_1_relevance'))?.systemPrompt || '', /相关性与初始价值/);
+    assert.match((await promptStore.getPrompt('crm_outreach_general_step_5_light_exit'))?.systemPrompt || '', /轻退出与未来入口/);
+    assert.equal((await promptStore.listPromptVersions('crm_outreach_general_step_1_relevance', 10)).length, 1);
+
+    await service.onModuleInit();
+
+    assert.equal((await promptStore.listPromptVersions('crm_outreach_general_step_1_relevance', 10)).length, 1);
+  });
+
+  it('uses the upgraded lead match prompt with customer group and official country rules by default', async () => {
+    const service = new AiGatewayService(
+      createMemoryTextGenerator(),
+      createMemoryPromptStore(),
+      createMemoryModelConfigStore(),
+      createMemoryUserModelConfigStore(),
+      createMemoryLogRecorder()
+    );
+
+    const draft = await service.getDefaultPromptDraft('lead_match_analyze');
+
+    assert.match(draft.systemPrompt, /customerGroup/);
+    assert.match(draft.systemPrompt, /companyCountry/);
+    assert.match(draft.systemPrompt, /targetMarketFit/);
+    assert.match(draft.systemPrompt, /companyAddressEvidence/);
+    assert.match(draft.systemPrompt, /中国公司/);
+    assert.match(draft.systemPrompt, /outside_target/);
+    assert.doesNotMatch(draft.systemPrompt, /我的产品：\[填写产品\]/);
+    assert.doesNotMatch(draft.systemPrompt, /潜在客户官网：\[粘贴官网链接/);
+  });
+
+  it('returns the initialization prompt draft even when a saved prompt exists', async () => {
     const promptStore = createMemoryPromptStore();
     const service = new AiGatewayService(
       createMemoryTextGenerator(),
@@ -314,7 +373,7 @@ describe('AiGatewayService', () => {
     assert.equal(draft.updatedAt, '');
   });
 
-  it('saves prompt drafts without changing the published prompt used by generation', async () => {
+  it('keeps saved prompt drafts out of the workbench effective prompt', async () => {
     const promptStore = createMemoryPromptStore();
     const service = new AiGatewayService(
       createMemoryTextGenerator(),
@@ -344,11 +403,11 @@ describe('AiGatewayService', () => {
     assert.equal(draft.lifecycle, 'draft');
     assert.equal(draft.validationResult?.ok, true);
     assert.equal(published.systemPrompt, 'published prompt');
-    assert.equal(detail.draft?.systemPrompt, createValidMapsPromptText());
+    assert.equal(detail.draft, null);
     assert.equal(detail.published?.systemPrompt, 'published prompt');
   });
 
-  it('publishes the current draft as the prompt used by generation', async () => {
+  it('publishes the provided prompt text as the prompt used by generation', async () => {
     const promptStore = createMemoryPromptStore();
     const service = new AiGatewayService(
       createMemoryTextGenerator(),
@@ -358,18 +417,11 @@ describe('AiGatewayService', () => {
       createMemoryLogRecorder()
     );
 
-    await service.savePromptDraft(
+    const version = await service.publishPromptVersion(
       {
         promptKey: 'lead_maps_keyword_optimize',
         title: '地图关键词优化',
         systemPrompt: createValidMapsPromptText(),
-        changeNote: '准备发布'
-      },
-      createUserContext('u-1')
-    );
-    const version = await service.publishPromptDraft(
-      {
-        promptKey: 'lead_maps_keyword_optimize',
         changeNote: '发布地图规则'
       },
       createUserContext('u-1')
@@ -448,34 +500,20 @@ describe('AiGatewayService', () => {
       createMemoryLogRecorder()
     );
 
-    await service.savePromptDraft(
+    const oldVersion = await service.publishPromptVersion(
       {
         promptKey: 'lead_maps_keyword_optimize',
         title: '地图关键词优化',
         systemPrompt: createValidMapsPromptText('旧版本'),
-        changeNote: '旧版本'
-      },
-      createUserContext('u-1')
-    );
-    const oldVersion = await service.publishPromptDraft(
-      {
-        promptKey: 'lead_maps_keyword_optimize',
         changeNote: '发布旧版本'
       },
       createUserContext('u-1')
     );
-    await service.savePromptDraft(
+    await service.publishPromptVersion(
       {
         promptKey: 'lead_maps_keyword_optimize',
         title: '地图关键词优化',
         systemPrompt: createValidMapsPromptText('新版本'),
-        changeNote: '新版本'
-      },
-      createUserContext('u-1')
-    );
-    await service.publishPromptDraft(
-      {
-        promptKey: 'lead_maps_keyword_optimize',
         changeNote: '发布新版本'
       },
       createUserContext('u-1')
@@ -1211,6 +1249,38 @@ function createMemoryPromptStore(): AiPromptStore {
         promptKey: input.promptKey,
         title: draft.title,
         systemPrompt: draft.systemPrompt,
+        updatedAt: now
+      });
+
+      return published;
+    },
+    async publishPromptVersion(input) {
+      const nextVersion =
+        [...versions.values()]
+          .filter(record => record.promptKey === input.promptKey && record.version > 0)
+          .reduce((maxVersion, record) => Math.max(maxVersion, record.version), 0) + 1;
+      const now = new Date().toISOString();
+      const published: AiPromptVersionRecord = {
+        id: `${input.promptKey}-v${nextVersion}`,
+        promptKey: input.promptKey,
+        title: input.title,
+        version: nextVersion,
+        lifecycle: 'published',
+        systemPrompt: input.systemPrompt,
+        validationResult: input.validationResult,
+        changeNote: input.changeNote ?? null,
+        createdById: input.userId ?? null,
+        createdByName: input.userName ?? null,
+        publishedAt: now,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      versions.set(toVersionKey(input.promptKey, nextVersion), published);
+      prompts.set(input.promptKey, {
+        promptKey: input.promptKey,
+        title: input.title,
+        systemPrompt: input.systemPrompt,
         updatedAt: now
       });
 

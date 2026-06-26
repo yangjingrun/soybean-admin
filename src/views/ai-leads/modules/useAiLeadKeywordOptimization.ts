@@ -2,9 +2,9 @@ import { createDefaultAiLeadExclusionRuleKeys, createDefaultAiLeadTargetCustomer
 
 export interface LeadSearchForm {
   productLineId: string | null;
-  targetRegionValue: string;
-  targetRegionLabel: string;
-  targetRegionCountryCode: string | null;
+  targetRegionValues: string[];
+  targetRegionLabels: string[];
+  targetRegionCountryCodes: string[];
   targetCustomerTypeKeys: string[];
   exclusionRuleKeys: string[];
   keywordText: string;
@@ -17,9 +17,9 @@ export interface LeadSearchForm {
 export function createDefaultLeadSearchForm(defaultTargetLeadCount: number): LeadSearchForm {
   return {
     productLineId: null,
-    targetRegionValue: '',
-    targetRegionLabel: '',
-    targetRegionCountryCode: null,
+    targetRegionValues: [],
+    targetRegionLabels: [],
+    targetRegionCountryCodes: [],
     targetCustomerTypeKeys: createDefaultAiLeadTargetCustomerTypeKeys(),
     exclusionRuleKeys: createDefaultAiLeadExclusionRuleKeys(),
     keywordText: '',

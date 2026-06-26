@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 
 defineProps<{
   versions: Api.AiGateway.AiPromptVersionRecord[];
+  canRollback?: boolean;
   rollingBackVersionId?: string | null;
 }>();
 
@@ -43,7 +44,7 @@ function formatDate(value: string | null) {
                 size="tiny"
                 secondary
                 :loading="rollingBackVersionId === version.id"
-                :disabled="Boolean(rollingBackVersionId)"
+                :disabled="!canRollback || Boolean(rollingBackVersionId)"
                 @click="emit('rollback', version)"
               >
                 回滚

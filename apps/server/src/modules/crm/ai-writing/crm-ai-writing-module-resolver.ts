@@ -1,4 +1,13 @@
 import type { CrmAiWritingModuleResolveInput, CrmAiWritingSelectedModule } from './crm-ai-writing-module.types';
+import { resolveCrmAiWritingStepPromptKey } from './crm-ai-writing-prompt-template';
+
+const stepModuleTitles: Record<number, string> = {
+  1: '通用模板第 1 封：相关性与初始价值',
+  2: '通用模板第 2 封：具体产品或采购判断',
+  3: '通用模板第 3 封：采购风险与验证路径',
+  4: '通用模板第 4 封：选择题跟进',
+  5: '通用模板第 5 封：轻退出与未来入口'
+};
 
 const baseModules: CrmAiWritingSelectedModule[] = [
   {
@@ -42,6 +51,16 @@ const baseModules: CrmAiWritingSelectedModule[] = [
 export function resolveCrmAiWritingModules(input: CrmAiWritingModuleResolveInput): CrmAiWritingSelectedModule[] {
   const modules = baseModules.map(module => ({ ...module }));
   const roleBucket = resolveRoleBucket(input.contactTitle);
+  const stepPromptKey = resolveCrmAiWritingStepPromptKey({
+    templateKey: input.promptTemplateKey,
+    stepIndex: input.stepIndex
+  });
+
+  modules.splice(3, 0, {
+    promptKey: stepPromptKey,
+    title: stepModuleTitles[input.stepIndex],
+    reason: `Required published prompt template for CRM outreach step ${input.stepIndex}.`
+  });
 
   if (input.stepIndex > 1 || input.previousMessages.length > 0) {
     const sequenceModule = modules.find(module => module.promptKey === 'crm_outreach_sequence_strategy');

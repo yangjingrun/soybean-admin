@@ -1,27 +1,51 @@
 {
-  "requestsFinished": 8,
-  "requestsFailed": 0,
-  "requestsRetries": 0,
-  "requestsFailedPerMinute": 0,
-  "requestsFinishedPerMinute": 97,
-  "requestMinDurationMillis": 1507,
-  "requestMaxDurationMillis": 3216,
-  "requestTotalFailedDurationMillis": 0,
-  "requestTotalFinishedDurationMillis": 17860,
-  "crawlerStartedAt": "2026-06-25T10:58:06.558Z",
-  "crawlerFinishedAt": "2026-06-25T10:58:11.508Z",
-  "statsPersistedAt": "2026-06-25T10:58:11.508Z",
-  "crawlerRuntimeMillis": 4961,
-  "crawlerLastStartTimestamp": 1782385086547,
-  "requestRetryHistogram": [8],
+  "requestsFinished": 5,
+  "requestsFailed": 3,
+  "requestsRetries": 3,
+  "requestsFailedPerMinute": 8,
+  "requestsFinishedPerMinute": 15,
+  "requestMinDurationMillis": 589,
+  "requestMaxDurationMillis": 3654,
+  "requestTotalFailedDurationMillis": 23185,
+  "requestTotalFinishedDurationMillis": 11676,
+  "crawlerStartedAt": "2026-06-25T13:24:31.220Z",
+  "crawlerFinishedAt": "2026-06-25T13:24:51.479Z",
+  "statsPersistedAt": "2026-06-25T13:24:51.479Z",
+  "crawlerRuntimeMillis": 20272,
+  "crawlerLastStartTimestamp": 1782393871207,
+  "requestRetryHistogram": [
+    5,
+    3
+  ],
   "statsId": 5,
-  "requestAvgFailedDurationMillis": null,
-  "requestAvgFinishedDurationMillis": 2233,
-  "requestTotalDurationMillis": 17860,
+  "requestAvgFailedDurationMillis": 7728,
+  "requestAvgFinishedDurationMillis": 2335,
+  "requestTotalDurationMillis": 34861,
   "requestsTotal": 8,
   "requestsWithStatusCode": {
-    "404": 1
+    "404": 4,
+    "500": 6
   },
-  "errors": {},
-  "retryErrors": {}
+  "errors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:496:19": {
+      "missing error code": {
+        "Error": {
+          "500 - Internal Server Error: ": {
+            "count": 3
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:496:19": {
+      "missing error code": {
+        "Error": {
+          "500 - Internal Server Error: ": {
+            "count": 3
+          }
+        }
+      }
+    }
+  }
 }

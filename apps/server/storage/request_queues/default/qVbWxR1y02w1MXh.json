@@ -1,9 +1,9 @@
 {
-  "id": "qVbWxR1y02w1MXh",
-  "json": "{\"id\":\"qVbWxR1y02w1MXh\",\"url\":\"https://www.bearingsworld.net/contact-us\",\"loadedUrl\":\"https://www.bearingsworld.net/contact-us\",\"uniqueKey\":\"16:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.bearingsworld.net/contact-us\",\"uniqueKey\":\"16:/contact-us\",\"userData\":{\"candidateIndex\":16,\"dedupeKey\":\"bearingsworld.net\",\"companyName\":\"Bearings World Trdg. Sharjah (SKF, FAG, INA, NSK, KOYO, NTN, HIWIN, THK)\",\"homepage\":\"https://www.bearingsworld.net\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:53.682Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "16:/contact-us",
-  "url": "https://www.bearingsworld.net/contact-us"
+	"id": "qVbWxR1y02w1MXh",
+	"json": "{\"id\":\"qVbWxR1y02w1MXh\",\"url\":\"https://www.fluorined-chemical.com/contact-us\",\"loadedUrl\":\"https://www.fluorined-chemical.com/contact-us\",\"uniqueKey\":\"16:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.fluorined-chemical.com/contact-us\",\"uniqueKey\":\"16:/contact-us\",\"userData\":{\"candidateIndex\":16,\"dedupeKey\":\"fluorined-chemical.com\",\"companyName\":\"6203 محمل كروي ذو أخدود عميق - موردو المبردات، عوامل إطفاء الحرائق\",\"homepage\":\"https://www.fluorined-chemical.com/others/ball-bearing/radial-load-bearings-6203-deep-groove-ball.html\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:26:20.548Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "16:/contact-us",
+	"url": "https://www.fluorined-chemical.com/contact-us"
 }

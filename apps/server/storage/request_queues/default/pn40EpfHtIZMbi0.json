@@ -1,9 +1,9 @@
 {
-  "id": "pn40EpfHtIZMbi0",
-  "json": "{\"id\":\"pn40EpfHtIZMbi0\",\"url\":\"https://mcb.ae/about\",\"loadedUrl\":\"https://mcb.ae/company/about-us/\",\"uniqueKey\":\"2:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://mcb.ae/about\",\"uniqueKey\":\"2:/about\",\"userData\":{\"candidateIndex\":2,\"dedupeKey\":\"mcb.ae\",\"companyName\":\"Mineral Circles Bearings FZCO\",\"homepage\":\"https://mcb.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:28.788Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "2:/about",
-  "url": "https://mcb.ae/about"
+	"id": "pn40EpfHtIZMbi0",
+	"json": "{\"id\":\"pn40EpfHtIZMbi0\",\"url\":\"https://www.yellowpages-uae.com/about\",\"uniqueKey\":\"2:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: Request blocked - received 403 status code.\\n    at CheerioCrawler._throwOnBlockedRequest (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19)\\n    at CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:324:22)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\\n    at async CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+cheerio@3.17.0/node_modules/@crawlee/cheerio/internals/cheerio-crawler.js:153:9)\\n    at async wrap (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:78:27)\",\"Error: Request blocked - received 403 status code.\\n    at CheerioCrawler._throwOnBlockedRequest (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19)\\n    at CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:324:22)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\\n    at async CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+cheerio@3.17.0/node_modules/@crawlee/cheerio/internals/cheerio-crawler.js:153:9)\\n    at async wrap (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:78:27)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.yellowpages-uae.com/about\",\"uniqueKey\":\"2:/about\",\"userData\":{\"candidateIndex\":2,\"dedupeKey\":\"yellowpages-uae.com\",\"companyName\":\"Snr Bearings Distributors And Suppliers In UAE Authorized Dealers\",\"homepage\":\"https://www.yellowpages-uae.com/uae/snr-bearings\"}},\"__crawlee\":{\"state\":5}},\"handledAt\":\"2026-06-25T13:23:43.893Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "2:/about",
+	"url": "https://www.yellowpages-uae.com/about"
 }

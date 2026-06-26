@@ -85,26 +85,14 @@ declare namespace Api {
       systemPrompt: string;
     }
 
-    interface SavePromptDraftPayload extends SavePromptPayload {
+    interface PublishPromptVersionPayload extends SavePromptPayload {
       changeNote?: string | null;
     }
 
-    interface ValidatePromptDraftPayload {
+    interface RollbackPromptVersionPayload {
       promptKey: string;
-      systemPrompt: string;
-    }
-
-    interface TestPromptDraftPayload extends ValidatePromptDraftPayload {
-      inputPrompt: string;
-    }
-
-    interface PublishPromptDraftPayload {
-      promptKey: string;
-      changeNote?: string | null;
-    }
-
-    interface RollbackPromptVersionPayload extends PublishPromptDraftPayload {
       versionId: string;
+      changeNote?: string | null;
     }
 
     interface AiModelConfigRecord {

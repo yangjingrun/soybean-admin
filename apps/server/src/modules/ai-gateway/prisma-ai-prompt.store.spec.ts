@@ -242,6 +242,76 @@ describe('PrismaAiPromptStore', () => {
     ]);
   });
 
+  it('publishes one prompt body directly and updates the current prompt config', async () => {
+    const now = new Date('2026-06-21T10:45:00.000Z');
+    const calls: string[] = [];
+    const tx = {
+      aiPromptVersion: {
+        async aggregate(args: unknown) {
+          calls.push(JSON.stringify(args));
+
+          return {
+            _max: {
+              version: 3
+            }
+          };
+        },
+        async create(args: unknown) {
+          calls.push(JSON.stringify(args));
+
+          return {
+            id: 'published-v4',
+            promptKey: 'crm_outreach_base_rules',
+            title: 'CRM 开发信基础规则',
+            version: 4,
+            lifecycle: 'published',
+            systemPrompt: 'CRM prompt',
+            validationResult: { ok: true, items: [] },
+            changeNote: '直接发布全局版本',
+            createdById: 'u-1',
+            createdByName: 'Super',
+            publishedAt: now,
+            createdAt: now,
+            updatedAt: now
+          };
+        }
+      },
+      aiPromptConfig: {
+        async upsert(args: unknown) {
+          calls.push(JSON.stringify(args));
+        }
+      }
+    };
+    const prisma = {
+      async $transaction(callback: (transaction: typeof tx) => Promise<unknown>) {
+        return callback(tx);
+      }
+    } as unknown as PrismaService;
+    const store = new PrismaAiPromptStore(prisma);
+
+    const record = await store.publishPromptVersion({
+      promptKey: 'crm_outreach_base_rules',
+      title: 'CRM 开发信基础规则',
+      systemPrompt: 'CRM prompt',
+      validationResult: { ok: true, items: [] },
+      changeNote: '直接发布全局版本',
+      userId: 'u-1',
+      userName: 'Super'
+    });
+
+    const createCall = JSON.parse(calls[1] || '{}') as { data: { publishedAt?: string } };
+    assert.match(createCall.data.publishedAt || '', /^\d{4}-\d{2}-\d{2}T/);
+    createCall.data.publishedAt = '<published-at>';
+    calls[1] = JSON.stringify(createCall);
+    assert.equal(record.version, 4);
+    assert.equal(record.lifecycle, 'published');
+    assert.deepEqual(calls, [
+      '{"where":{"promptKey":"crm_outreach_base_rules","version":{"gt":0}},"_max":{"version":true}}',
+      '{"data":{"promptKey":"crm_outreach_base_rules","title":"CRM 开发信基础规则","version":4,"lifecycle":"published","systemPrompt":"CRM prompt","validationResult":{"ok":true,"items":[]},"changeNote":"直接发布全局版本","createdById":"u-1","createdByName":"Super","publishedAt":"<published-at>"}}',
+      '{"where":{"promptKey":"crm_outreach_base_rules"},"create":{"promptKey":"crm_outreach_base_rules","title":"CRM 开发信基础规则","systemPrompt":"CRM prompt"},"update":{"title":"CRM 开发信基础规则","systemPrompt":"CRM prompt"}}'
+    ]);
+  });
+
   it('lists published prompt versions newest first', async () => {
     const updatedAt = new Date('2026-06-21T11:00:00.000Z');
     const prisma = {

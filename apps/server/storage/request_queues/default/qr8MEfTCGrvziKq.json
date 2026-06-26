@@ -1,9 +1,9 @@
 {
-  "id": "qr8MEfTCGrvziKq",
-  "json": "{\"id\":\"qr8MEfTCGrvziKq\",\"url\":\"https://raka.ae/\",\"loadedUrl\":\"https://raka.ae/\",\"uniqueKey\":\"10:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://raka.ae/\",\"uniqueKey\":\"10:/\",\"userData\":{\"candidateIndex\":10,\"dedupeKey\":\"raka.ae\",\"companyName\":\"RAKA TRADING - F.Z.E (Dubai Local Shop)\",\"homepage\":\"https://raka.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:28.990Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "10:/",
-  "url": "https://raka.ae/"
+	"id": "qr8MEfTCGrvziKq",
+	"json": "{\"id\":\"qr8MEfTCGrvziKq\",\"url\":\"https://sealsstore.net/\",\"loadedUrl\":\"https://sealsstore.net/\",\"uniqueKey\":\"10:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://sealsstore.net/\",\"uniqueKey\":\"10:/\",\"userData\":{\"candidateIndex\":10,\"dedupeKey\":\"sealsstore.net\",\"companyName\":\"Ball Bearing Manufacturer, Exporter, Supplier in UAE, Dubai\",\"homepage\":\"https://sealsstore.net/products/ball-bearing/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:27.419Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "10:/",
+	"url": "https://sealsstore.net/"
 }

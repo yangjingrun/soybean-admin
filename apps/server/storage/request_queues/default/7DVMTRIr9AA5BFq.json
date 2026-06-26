@@ -1,9 +1,9 @@
 {
-  "id": "7DVMTRIr9AA5BFq",
-  "json": "{\"id\":\"7DVMTRIr9AA5BFq\",\"url\":\"https://www.kginternational.com/elevator\",\"loadedUrl\":\"https://www.kginternational.com/elevator/\",\"uniqueKey\":\"9:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.kginternational.com/elevator\",\"uniqueKey\":\"9:/elevator\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"kginternational.com\",\"companyName\":\"KG International\",\"homepage\":\"https://www.kginternational.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:26.773Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "9:/elevator",
-  "url": "https://www.kginternational.com/elevator"
+	"id": "7DVMTRIr9AA5BFq",
+	"json": "{\"id\":\"7DVMTRIr9AA5BFq\",\"url\":\"https://www.smsbearings.com/elevator\",\"loadedUrl\":\"https://www.smsbearings.com/elevator\",\"uniqueKey\":\"9:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.smsbearings.com/elevator\",\"uniqueKey\":\"9:/elevator\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"smsbearings.com\",\"companyName\":\"SMS Bearings | Premium Bearings Supplier in UAE\",\"homepage\":\"https://www.smsbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:21.841Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "9:/elevator",
+	"url": "https://www.smsbearings.com/elevator"
 }

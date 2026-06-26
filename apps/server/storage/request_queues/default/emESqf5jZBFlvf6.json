@@ -1,9 +1,9 @@
 {
-  "id": "emESqf5jZBFlvf6",
-  "json": "{\"id\":\"emESqf5jZBFlvf6\",\"url\":\"http://www.qualitybearingsdubai.com/\",\"loadedUrl\":\"https://www.qualitybearingsdubai.com/\",\"uniqueKey\":\"1:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.qualitybearingsdubai.com/\",\"uniqueKey\":\"1:/\",\"userData\":{\"candidateIndex\":1,\"dedupeKey\":\"qualitybearingsdubai.com\",\"companyName\":\"QUALITY BEARINGS (NSK SKF RHP INA FYH IKO TIMKEN) - V BELTS, SPRINGS, PULLEYS, ROLLER CHAINS, SPROCKETS, COUPLINGS, SEALS\",\"homepage\":\"http://www.qualitybearingsdubai.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:19.611Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "1:/",
-  "url": "http://www.qualitybearingsdubai.com/"
+	"id": "emESqf5jZBFlvf6",
+	"json": "{\"id\":\"emESqf5jZBFlvf6\",\"url\":\"https://mcb.ae/\",\"uniqueKey\":\"1:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: request timed out after 15 seconds.\\n    at Timeout._onTimeout (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74)\\n    at listOnTimeout (node:internal/timers:581:17)\\n    at process.processTimers (node:internal/timers:519:7)\",\"Error: request timed out after 15 seconds.\\n    at Timeout._onTimeout (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74)\\n    at listOnTimeout (node:internal/timers:581:17)\\n    at process.processTimers (node:internal/timers:519:7)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://mcb.ae/\",\"uniqueKey\":\"1:/\",\"userData\":{\"candidateIndex\":1,\"dedupeKey\":\"mcb.ae\",\"companyName\":\"Bearing Manufacturer & Supplier - UAE | MENA | AFRICA\",\"homepage\":\"https://mcb.ae\"}},\"__crawlee\":{\"state\":5}},\"handledAt\":\"2026-06-25T13:23:24.924Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "1:/",
+	"url": "https://mcb.ae/"
 }

@@ -40,6 +40,7 @@ import {
   aiLeadExclusionRuleOptions,
   aiLeadTargetCustomerTypeOptions,
   buildAiLeadStructuredRequirement,
+  buildGeneratedLeadContextFormHints,
   buildProductLineSummaryItems,
   cloneKeywordPlan,
   createAiLeadContextSnapshot,
@@ -50,6 +51,7 @@ import {
   createKeywordOptimizationViewModel,
   formatAiFinishReason,
   formatKeywordOptimizationVisibleText,
+  getAiLeadTargetRegions,
   isKeywordPlanForProductLine,
   isValidTargetLeadCount,
   parseKeywordOptimizationPlan,
@@ -137,9 +139,9 @@ export function useAiLeadPage() {
   const exclusionRuleOptions = computed(() => aiLeadExclusionRuleOptions);
   const currentLeadContextSnapshot = computed(() =>
     createAiLeadContextSnapshot({
-      targetRegionValue: form.targetRegionValue,
-      targetRegionLabel: form.targetRegionLabel,
-      targetRegionCountryCode: form.targetRegionCountryCode,
+      targetRegionValues: form.targetRegionValues,
+      targetRegionLabels: form.targetRegionLabels,
+      targetRegionCountryCodes: form.targetRegionCountryCodes,
       targetCustomerTypeKeys: form.targetCustomerTypeKeys,
       exclusionRuleKeys: form.exclusionRuleKeys,
       keywordText: form.keywordText,
@@ -337,6 +339,8 @@ export function useAiLeadPage() {
     generatingRequestId.value = requestId;
     const targetLeadCount = form.targetLeadCount;
     const isTargetLeadCountManuallyEdited = isTargetLeadCountTouched.value;
+    const shouldFillKeywordText = !form.keywordText.trim();
+    const shouldFillRequirement = !form.requirement.trim();
     isGenerating.value = true;
     resetSearchProgress();
 
@@ -360,6 +364,10 @@ export function useAiLeadPage() {
       keywordQualityWarnings.value = result.qualityWarnings ?? [];
       upsertHistoryRecord(result.historyRecord);
       applyKeywordHistoryRecord(result.historyRecord, { syncTargetLeadCount: false, origin: 'generated' });
+      applyGeneratedLeadContextFormHints(result.historyRecord.keywordPlan, {
+        fillKeywordText: shouldFillKeywordText,
+        fillRequirement: shouldFillRequirement
+      });
       form.targetLeadCount = resolveTargetLeadCountAfterOptimization({
         currentValue: targetLeadCount,
         resolvedValue: result.historyRecord.keywordPlan.resolvedTargetLeadCount,
@@ -552,7 +560,7 @@ export function useAiLeadPage() {
         requirement: currentStructuredRequirement.value,
         targetLeadCount,
         productLineId: form.productLineId || '',
-        keywordPlan: cloneKeywordPlan(keywordPlan)
+        keywordPlan: buildSearchTaskKeywordPlan(keywordPlan)
       });
 
       if (error) {
@@ -574,6 +582,8 @@ export function useAiLeadPage() {
     const requestId = generatingRequestId.value + 1;
     generatingRequestId.value = requestId;
     const isTargetLeadCountManuallyEdited = isTargetLeadCountTouched.value;
+    const shouldFillKeywordText = !form.keywordText.trim();
+    const shouldFillRequirement = !form.requirement.trim();
     isGenerating.value = true;
     resetSearchProgress();
 
@@ -593,6 +603,10 @@ export function useAiLeadPage() {
       keywordQualityWarnings.value = result.qualityWarnings ?? [];
       upsertHistoryRecord(result.historyRecord);
       applyKeywordHistoryRecord(result.historyRecord, { syncTargetLeadCount: false, origin: 'generated' });
+      applyGeneratedLeadContextFormHints(result.historyRecord.keywordPlan, {
+        fillKeywordText: shouldFillKeywordText,
+        fillRequirement: shouldFillRequirement
+      });
 
       const resolvedTargetLeadCount = resolveTargetLeadCountAfterOptimization({
         currentValue: targetLeadCount,
@@ -952,10 +966,32 @@ export function useAiLeadPage() {
     }
   }
 
+  function applyGeneratedLeadContextFormHints(
+    plan: Api.AiLeads.OptimizedKeywordPlan,
+    options: { fillKeywordText: boolean; fillRequirement: boolean }
+  ) {
+    const hints = buildGeneratedLeadContextFormHints(plan);
+
+    if (options.fillKeywordText && hints.keywordText) {
+      form.keywordText = hints.keywordText;
+    }
+
+    if (options.fillRequirement && hints.supplementalRequirement) {
+      form.requirement = hints.supplementalRequirement;
+    }
+  }
+
+  function buildSearchTaskKeywordPlan(plan: Api.AiLeads.OptimizedKeywordPlan) {
+    const keywordPlan = cloneKeywordPlan(plan);
+    keywordPlan.leadContextSnapshot = currentLeadContextSnapshot.value;
+
+    return keywordPlan;
+  }
+
   function resetLeadContextForm() {
-    form.targetRegionValue = '';
-    form.targetRegionLabel = '';
-    form.targetRegionCountryCode = null;
+    form.targetRegionValues = [];
+    form.targetRegionLabels = [];
+    form.targetRegionCountryCodes = [];
     form.targetCustomerTypeKeys = createDefaultAiLeadTargetCustomerTypeKeys();
     form.exclusionRuleKeys = createDefaultAiLeadExclusionRuleKeys();
     form.keywordText = '';
@@ -963,18 +999,21 @@ export function useAiLeadPage() {
 
   function restoreLeadContextForm(plan: Api.AiLeads.OptimizedKeywordPlan, fallbackRequirement: string) {
     const snapshot = resolveKeywordPlanLeadContextSnapshot(plan);
+    const generatedHints = buildGeneratedLeadContextFormHints(plan);
 
     if (!snapshot) {
       resetLeadContextForm();
-      form.targetRegionLabel = plan.resolvedTargetRegions || '';
-      form.keywordText = plan.resolvedProductKeywords || '';
-      form.requirement = fallbackRequirement;
+      form.targetRegionLabels = plan.resolvedTargetRegions ? [plan.resolvedTargetRegions] : [];
+      form.keywordText = generatedHints.keywordText;
+      form.requirement = generatedHints.supplementalRequirement || fallbackRequirement;
       return;
     }
 
-    form.targetRegionValue = snapshot.targetRegion?.value || '';
-    form.targetRegionLabel = snapshot.targetRegion?.label || '';
-    form.targetRegionCountryCode = snapshot.targetRegion?.countryCode || null;
+    const targetRegions = getAiLeadTargetRegions(snapshot);
+
+    form.targetRegionValues = targetRegions.map(item => item.value).filter(Boolean);
+    form.targetRegionLabels = targetRegions.map(item => item.label).filter(Boolean);
+    form.targetRegionCountryCodes = targetRegions.map(item => item.countryCode || '');
     form.targetCustomerTypeKeys = resolveAiLeadContextKeysFromSnapshot(
       snapshot.targetCustomerTypes,
       aiLeadTargetCustomerTypeOptions,
@@ -985,22 +1024,22 @@ export function useAiLeadPage() {
       aiLeadExclusionRuleOptions,
       createDefaultAiLeadExclusionRuleKeys()
     );
-    form.keywordText = snapshot.keywordText || '';
-    form.requirement = snapshot.supplementalRequirement || '';
+    form.keywordText = snapshot.keywordText || generatedHints.keywordText;
+    form.requirement = snapshot.supplementalRequirement || generatedHints.supplementalRequirement;
+  }
+
+  /** Stores the selected region label so it can be sent as structured AI context. */
+  function handleTargetRegionPathsUpdate(paths: CrmRegionCascaderOption[][]) {
+    form.targetRegionLabels = paths.map(path => path.map(formatRegionPathItem).join(' / ')).filter(Boolean);
+    form.targetRegionCountryCodes = paths.map(path => {
+      const selected = path[path.length - 1];
+      return selected?.countryCode || path[0]?.countryCode || '';
+    });
   }
 
   /** Stores the selected region label so it can be sent as structured AI context. */
   function handleTargetRegionPathUpdate(path: CrmRegionCascaderOption[]) {
-    const selected = path[path.length - 1];
-
-    if (!selected) {
-      form.targetRegionLabel = '';
-      form.targetRegionCountryCode = null;
-      return;
-    }
-
-    form.targetRegionLabel = path.map(formatRegionPathItem).join(' / ');
-    form.targetRegionCountryCode = selected.countryCode || path[0]?.countryCode || null;
+    handleTargetRegionPathsUpdate(path.length ? [path] : []);
   }
 
   /** Tracks direct edits so AI optimization does not overwrite an explicit user count. */
@@ -1202,6 +1241,7 @@ export function useAiLeadPage() {
     handleStopLeadWorkflow,
     handleTargetLeadCountUpdate,
     handleTargetRegionPathUpdate,
+    handleTargetRegionPathsUpdate,
     hasSearchProgress,
     historyRecords,
     isEditingResult,

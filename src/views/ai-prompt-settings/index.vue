@@ -12,6 +12,7 @@ const authStore = useAuthStore();
 const canManagePrompt = computed(
   () => authStore.isStaticSuper || hasPermission(authStore.userInfo, aiSettingsPromptManagePermission)
 );
+const canEditGlobalPrompt = computed(() => authStore.isStaticSuper || authStore.userInfo.roles.includes('R_SUPER'));
 
 const page = usePromptSettingsPage();
 const versionDrawerVisible = shallowRef(false);
@@ -42,6 +43,7 @@ watch(
     <PromptEditor
       v-model:system-prompt="page.systemPrompt.value"
       :detail="page.detail.value"
+      :can-edit="canEditGlobalPrompt"
       :focus-section-request="page.focusSectionRequest.value"
       :loading="page.loadingDetail.value"
       :version-count="page.versions.value.length"
@@ -51,25 +53,13 @@ watch(
 
     <div class="prompt-workbench__side">
       <PromptPublishPanel
-        v-model:test-input="page.testInput.value"
         v-model:change-note="page.changeNote.value"
-        :validation-result="page.validationResult.value"
-        :latest-test-run="page.latestTestRun.value"
+        :can-edit="canEditGlobalPrompt"
         :is-dirty="page.isDirty.value"
-        :can-save-draft="page.canSaveDraft.value"
-        :can-validate="page.canValidate.value"
-        :can-test="page.canTest.value"
-        :can-publish="page.canPublish.value"
+        :can-publish="canEditGlobalPrompt && page.canPublish.value"
         :publish-readiness-hint="page.publishReadinessHint.value"
-        :saving-draft="page.savingDraft.value"
-        :validating="page.validating.value"
-        :testing="page.testing.value"
         :publishing="page.publishing.value"
-        @validate="page.validateCurrentPrompt"
-        @save-draft="page.saveCurrentDraft"
-        @test="page.testCurrentDraft"
-        @focus-section="page.focusPromptSection"
-        @publish="page.publishCurrentDraft"
+        @publish="page.publishCurrentPrompt"
       />
     </div>
 
@@ -77,6 +67,7 @@ watch(
       <NDrawerContent title="版本记录" closable>
         <PromptVersionTimeline
           :versions="page.versions.value"
+          :can-rollback="canEditGlobalPrompt"
           :rolling-back-version-id="page.rollingBackVersionId.value"
           @rollback="page.rollbackVersion"
         />

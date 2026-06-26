@@ -30,7 +30,7 @@ export function getDefaultAiPrompt(promptKey: string) {
   return request<Api.AiGateway.AiPromptRecord>(buildGetDefaultAiPromptRequestConfig(promptKey));
 }
 
-/** List built-in prompt workbench steps with publish, draft, and latest test states. */
+/** List built-in prompt workbench steps with current publish states. */
 export function fetchAiPromptWorkbenchSteps() {
   return request<Api.AiGateway.AiPromptStepSummary[]>(
     buildAiPromptWorkbenchRequestConfig({
@@ -48,44 +48,11 @@ export function fetchAiPromptWorkbenchDetail(promptKey: string) {
   );
 }
 
-/** Validate prompt draft text without calling the model. */
-export function validateAiPromptDraft(data: Api.AiGateway.ValidatePromptDraftPayload) {
-  return request<Api.AiGateway.AiPromptValidationResult>(
-    buildAiPromptWorkbenchRequestConfig({
-      url: '/ai-gateway/prompt-workbench/drafts/validate',
-      method: 'post',
-      data
-    })
-  );
-}
-
-/** Save one prompt draft without publishing it. */
-export function saveAiPromptDraft(data: Api.AiGateway.SavePromptDraftPayload) {
+/** Publish the current prompt text as the global version. */
+export function publishAiPromptVersion(data: Api.AiGateway.PublishPromptVersionPayload) {
   return request<Api.AiGateway.AiPromptVersionRecord>(
     buildAiPromptWorkbenchRequestConfig({
-      url: '/ai-gateway/prompt-workbench/drafts',
-      method: 'post',
-      data
-    })
-  );
-}
-
-/** Test one prompt draft through the current user's model config. */
-export function testAiPromptDraft(data: Api.AiGateway.TestPromptDraftPayload) {
-  return request<Api.AiGateway.AiPromptTestRunRecord>(
-    buildAiPromptWorkbenchRequestConfig({
-      url: '/ai-gateway/prompt-workbench/drafts/test',
-      method: 'post',
-      data
-    })
-  );
-}
-
-/** Publish the current prompt draft as the global version. */
-export function publishAiPromptDraft(data: Api.AiGateway.PublishPromptDraftPayload) {
-  return request<Api.AiGateway.AiPromptVersionRecord>(
-    buildAiPromptWorkbenchRequestConfig({
-      url: '/ai-gateway/prompt-workbench/drafts/publish',
+      url: '/ai-gateway/prompt-workbench/versions/publish',
       method: 'post',
       data
     })

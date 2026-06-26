@@ -1,9 +1,9 @@
 {
-  "id": "hln7VClOofwxPny",
-  "json": "{\"id\":\"hln7VClOofwxPny\",\"url\":\"http://www.robelbearings.com/contact\",\"loadedUrl\":\"https://www.robelbearings.com/contact\",\"uniqueKey\":\"3:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.robelbearings.com/contact\",\"uniqueKey\":\"3:/contact\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"robelbearings.com\",\"companyName\":\"Robel Bearings (Robel Trading Co LLC)\",\"homepage\":\"http://www.robelbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:48.869Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "3:/contact",
-  "url": "http://www.robelbearings.com/contact"
+	"id": "hln7VClOofwxPny",
+	"json": "{\"id\":\"hln7VClOofwxPny\",\"url\":\"https://www.atninfo.com/contact\",\"loadedUrl\":\"https://www.atninfo.com/contact\",\"uniqueKey\":\"3:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: request timed out after 15 seconds.\\n    at Timeout._onTimeout (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74)\\n    at listOnTimeout (node:internal/timers:581:17)\\n    at process.processTimers (node:internal/timers:519:7)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.atninfo.com/contact\",\"uniqueKey\":\"3:/contact\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"atninfo.com\",\"companyName\":\"Top Bearings Suppliers in UAE - Dubai - Atninfo\",\"homepage\":\"https://www.atninfo.com/uae/all/bearings-118\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:25.736Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "3:/contact",
+	"url": "https://www.atninfo.com/contact"
 }

@@ -13,6 +13,7 @@ export interface AiLeadContextOptionSnapshot {
 
 export interface AiLeadKeywordContextSnapshot {
   targetRegion: AiLeadContextTargetRegion | null;
+  targetRegions: AiLeadContextTargetRegion[];
   targetCustomerTypes: AiLeadContextOptionSnapshot[];
   exclusionRules: AiLeadContextOptionSnapshot[];
   keywordText?: string | null;
@@ -29,9 +30,11 @@ export function normalizeAiLeadKeywordContextSnapshot(value: unknown): AiLeadKey
   }
 
   const input = value as Record<string, unknown>;
+  const targetRegions = normalizeTargetRegions(input);
 
   return {
-    targetRegion: normalizeTargetRegion(input.targetRegion),
+    targetRegion: targetRegions[0] ?? null,
+    targetRegions,
     targetCustomerTypes: normalizeContextOptions(input.targetCustomerTypes),
     exclusionRules: normalizeContextOptions(input.exclusionRules),
     keywordText: normalizeNullableString(input.keywordText),
@@ -62,7 +65,7 @@ export function formatAiLeadKeywordContextPromptBlock(snapshot: AiLeadKeywordCon
   }
 
   const lines = [
-    `目标国家/地区：${snapshot.targetRegion?.label || '-'}`,
+    `目标国家/地区：${formatTargetRegions(snapshot) || '-'}`,
     `搜索关键词/型号：${snapshot.keywordText || '按产品线资料自动扩展'}`,
     `客户类型：${formatContextOptions(snapshot.targetCustomerTypes) || '-'}`,
     `排除类型：${formatContextOptions(snapshot.exclusionRules) || '无'}`,
@@ -94,6 +97,29 @@ function normalizeTargetRegion(value: unknown): AiLeadContextTargetRegion | null
     label,
     countryCode: normalizeNullableString(input.countryCode)
   };
+}
+
+function normalizeTargetRegions(input: Record<string, unknown>) {
+  const regions = normalizeTargetRegionList(input.targetRegions);
+  const legacyRegion = normalizeTargetRegion(input.targetRegion);
+
+  if (regions.length) {
+    return regions;
+  }
+
+  return legacyRegion ? [legacyRegion] : [];
+}
+
+function normalizeTargetRegionList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.slice(0, maxContextItemCount).flatMap(item => {
+    const region = normalizeTargetRegion(item);
+
+    return region ? [region] : [];
+  });
 }
 
 function normalizeContextOptions(value: unknown): AiLeadContextOptionSnapshot[] {
@@ -133,6 +159,12 @@ function formatContextOptions(items: AiLeadContextOptionSnapshot[]) {
       return details.length ? `${item.label}（${details.join('；')}）` : item.label;
     })
     .join('；');
+}
+
+function formatTargetRegions(snapshot: AiLeadKeywordContextSnapshot) {
+  const regions = snapshot.targetRegions.length ? snapshot.targetRegions : snapshot.targetRegion ? [snapshot.targetRegion] : [];
+
+  return regions.map(item => item.label).join('、');
 }
 
 function normalizeTargetLeadCount(value: unknown) {

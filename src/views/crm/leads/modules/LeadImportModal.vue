@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import type { FormInst, FormRules } from 'naive-ui';
+import CrmRegionCascader from '@/components/common/crm-region-cascader.vue';
+import type { CrmRegionCascaderOption } from '@/utils/crm-region-cascader';
 import { normalizeLeadImportPayload } from './shared';
-import { useLeadLocationOptions } from './useLeadLocationOptions';
 
 const visible = defineModel<boolean>('visible', { required: true });
 const formModel = defineModel<Api.Crm.LeadImportFormModel>('modelValue', { required: true });
@@ -16,17 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const formRef = ref<FormInst | null>(null);
-const {
-  countryLoading,
-  cityLoading,
-  countryOptions,
-  cityOptions,
-  selectedCountryCode,
-  hasSelectedCountry,
-  loadCities,
-  handleCountryChange,
-  handleCityChange
-} = useLeadLocationOptions(formModel, visible);
+const selectedRegion = ref('');
 const rules = reactive<FormRules>({
   name: [
     {
@@ -41,10 +32,24 @@ watch(
   () => visible.value,
   show => {
     if (show) {
+      selectedRegion.value = '';
       formRef.value?.restoreValidation();
     }
   }
 );
+
+/** 将公共地区级联的选择结果写回手动导入表单。 */
+function handleRegionPathUpdate(path: CrmRegionCascaderOption[]) {
+  const [country, region] = path;
+
+  formModel.value.country = country?.label ?? '';
+  formModel.value.city = region ? getRegionDisplayName(region) : '';
+  formModel.value.timeZone = '';
+}
+
+function getRegionDisplayName(region: CrmRegionCascaderOption) {
+  return region.displayName || region.regionName || region.cityName || region.label;
+}
 
 /** Validate and submit one manual CRM lead import payload. */
 async function handleSubmit() {
@@ -76,33 +81,15 @@ async function handleSubmit() {
 
         <NGi span="24 m:12">
           <NFormItem label="地区">
-            <NInputGroup>
-              <NSelect
-                v-model:value="selectedCountryCode"
-                clearable
-                filterable
-                :loading="countryLoading"
-                :options="countryOptions"
-                placeholder="国家/地区"
-                @update:value="handleCountryChange"
-              />
-              <NSelect
-                v-model:value="formModel.city"
-                clearable
-                filterable
-                remote
-                :disabled="!hasSelectedCountry"
-                :loading="cityLoading"
-                :options="cityOptions"
-                placeholder="城市"
-                @search="loadCities"
-                @update:value="handleCityChange"
-              />
-            </NInputGroup>
+            <CrmRegionCascader
+              v-model="selectedRegion"
+              placeholder="国家 / 省州"
+              @update:selected-path="handleRegionPathUpdate"
+            />
           </NFormItem>
         </NGi>
 
-        <NGi span="24">
+        <NGi span="24 m:12">
           <NFormItem label="地址">
             <NInput v-model:value="formModel.address" clearable />
           </NFormItem>

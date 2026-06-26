@@ -11,6 +11,7 @@ import { buildCrmAiWritingContext } from './ai-writing/crm-ai-writing-context';
 import { resolveCrmAiWritingModules } from './ai-writing/crm-ai-writing-module-resolver';
 import { composeCrmAiWritingPrompt } from './ai-writing/crm-ai-writing-prompt-composer';
 import type { CrmAiWritingContext, CrmAiWritingSelectedModule } from './ai-writing/crm-ai-writing-module.types';
+import { normalizeCrmPromptTemplateKey } from './ai-writing/crm-ai-writing-prompt-template';
 
 const stepIndexes: CrmAiWritingStepIndex[] = [1, 2, 3, 4, 5];
 
@@ -24,6 +25,7 @@ export function normalizeCrmProductLineAiWritingConfig(value: unknown): CrmProdu
 
   return {
     enabled,
+    promptTemplateKey: normalizeCrmPromptTemplateKey(record.promptTemplateKey),
     ...normalizeOptionalAiWritingStyle(record),
     steps: stepIndexes.map(stepIndex => {
       const step = steps.find(item => Number(item?.stepIndex) === stepIndex);
@@ -65,7 +67,7 @@ function pickTrimmedOptional<Key extends keyof CrmProductLineAiWritingConfig>(va
   return normalized ? { [key]: normalized } : {};
 }
 
-/** Returns an enabled config; empty prompts intentionally fall back to built-in rules. */
+/** Returns an enabled config; empty step prompts mean no extra product-specific requirement. */
 export function requireEnabledCrmProductLineAiWritingConfig(value: unknown): CrmProductLineAiWritingConfig {
   const config = normalizeCrmProductLineAiWritingConfig(value);
 
@@ -87,6 +89,7 @@ export function buildCrmAiDraftPrompt(
     options.selectedModules ??
     resolveCrmAiWritingModules({
       stepIndex: input.stepIndex,
+      promptTemplateKey: config.promptTemplateKey,
       contactTitle: input.contact.title,
       account: input.account,
       previousMessages: input.previousMessages

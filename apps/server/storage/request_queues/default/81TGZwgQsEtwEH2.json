@@ -1,9 +1,9 @@
 {
-  "id": "81TGZwgQsEtwEH2",
-  "json": "{\"id\":\"81TGZwgQsEtwEH2\",\"url\":\"https://www.rolman.com/about\",\"loadedUrl\":\"https://rolman.com/about\",\"uniqueKey\":\"13:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.rolman.com/about\",\"uniqueKey\":\"13:/about\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"rolman.com\",\"companyName\":\"Rolman World (HQ)\",\"homepage\":\"https://www.rolman.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:41.998Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "13:/about",
-  "url": "https://www.rolman.com/about"
+	"id": "81TGZwgQsEtwEH2",
+	"json": "{\"id\":\"81TGZwgQsEtwEH2\",\"url\":\"https://oilfieldmaterial.com/about\",\"loadedUrl\":\"https://oilfieldmaterial.com/about\",\"uniqueKey\":\"13:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://oilfieldmaterial.com/about\",\"uniqueKey\":\"13:/about\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"oilfieldmaterial.com\",\"companyName\":\"SKF BEARING 6203 - Oilfield material supplier in uae\",\"homepage\":\"https://oilfieldmaterial.com/bearings/skf-bearing-6203/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:53.697Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "13:/about",
+	"url": "https://oilfieldmaterial.com/about"
 }

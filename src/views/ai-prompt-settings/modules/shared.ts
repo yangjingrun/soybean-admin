@@ -3,8 +3,20 @@ export interface PromptStepStatusView {
   type: 'default' | 'info' | 'success' | 'warning' | 'error';
 }
 
+export interface PromptEffectiveSourceView {
+  label: string;
+  type: 'info' | 'success' | 'warning';
+}
+
 export interface PromptStepGroupView {
   key: 'ai_leads' | 'crm_outreach';
+  title: string;
+  steps: Api.AiGateway.AiPromptStepSummary[];
+  treeNodes: PromptStepTreeNodeView[];
+}
+
+export interface PromptStepTreeNodeView {
+  key: string;
   title: string;
   steps: Api.AiGateway.AiPromptStepSummary[];
 }
@@ -27,13 +39,6 @@ export interface PromptValidationSummary {
   warnCount: number;
   failCount: number;
   label: string;
-}
-
-export interface PromptPublishGuardState {
-  hasDraft: boolean;
-  isDirty: boolean;
-  hasFreshValidationResult: boolean;
-  validationPassed: boolean;
 }
 
 export interface PromptSectionAnchor {
@@ -119,49 +124,84 @@ const validationItemSectionMap: Partial<Record<Api.AiGateway.AiPromptValidationI
 export function groupPromptWorkbenchSteps(steps: Api.AiGateway.AiPromptStepSummary[]): PromptStepGroupView[] {
   const aiLeadSteps = steps.filter(step => step.group !== 'crm_outreach');
   const crmOutreachSteps = steps.filter(step => step.group === 'crm_outreach');
+  const crmGeneralTemplateSteps = crmOutreachSteps.filter(isCrmGeneralTemplateStep);
+  const crmCommonSteps = crmOutreachSteps.filter(step => !isCrmGeneralTemplateStep(step));
 
   const groups: PromptStepGroupView[] = [
     {
       key: 'ai_leads',
       title: 'AI 获客',
-      steps: aiLeadSteps
+      steps: aiLeadSteps,
+      treeNodes: [
+        {
+          key: 'ai-leads-steps',
+          title: '获客流程',
+          steps: aiLeadSteps
+        }
+      ]
     },
     {
       key: 'crm_outreach',
-      title: 'CRM 写信方法论',
-      steps: crmOutreachSteps
+      title: '开发信',
+      steps: crmOutreachSteps,
+      treeNodes: [
+        {
+          key: 'crm-outreach-common',
+          title: '公共规则',
+          steps: crmCommonSteps
+        },
+        {
+          key: 'crm-outreach-general-template',
+          title: '通用模板',
+          steps: crmGeneralTemplateSteps
+        }
+      ].filter(node => node.steps.length > 0)
     }
   ];
 
   return groups.filter(group => group.steps.length > 0);
 }
 
-/** Resolves the compact status badge shown in the built-in prompt step list. */
+function isCrmGeneralTemplateStep(step: Api.AiGateway.AiPromptStepSummary) {
+  return step.promptKey.startsWith('crm_outreach_general_step_');
+}
+
+/** Resolves the compact status badge shown in the prompt configuration tree. */
 export function resolvePromptStepStatus(step: Api.AiGateway.AiPromptStepSummary): PromptStepStatusView {
-  if (step.draft) {
-    return {
-      label: '有草稿',
-      type: step.draft.validationResult?.ok === false ? 'warning' : 'info'
-    };
-  }
-
-  if (step.latestTestRun && !step.latestTestRun.success) {
-    return {
-      label: '测试失败',
-      type: 'error'
-    };
-  }
-
   if (step.published) {
     return {
-      label: '已发布',
+      label: step.group === 'crm_outreach' ? '数据库已发布' : '已发布覆盖',
       type: 'success'
     };
   }
 
+  if (step.group === 'crm_outreach') {
+    return {
+      label: '待发布',
+      type: 'warning'
+    };
+  }
+
   return {
-    label: '未发布',
-    type: 'default'
+    label: '内置生效',
+    type: 'info'
+  };
+}
+
+/** Resolves which prompt source is currently used by live business generation. */
+export function resolvePromptEffectiveSource(
+  step: Pick<Api.AiGateway.AiPromptStepSummary, 'published' | 'group'> | null
+): PromptEffectiveSourceView {
+  if (step?.group === 'crm_outreach') {
+    return {
+      label: step.published ? '业务使用：数据库已发布' : '业务使用：待超级管理员发布',
+      type: step.published ? 'success' : 'warning'
+    };
+  }
+
+  return {
+    label: step?.published ? '业务使用：已发布覆盖' : '业务使用：系统内置',
+    type: step?.published ? 'success' : 'info'
   };
 }
 
@@ -291,17 +331,4 @@ export function formatLatestPromptTestRunForCopy(run: Api.AiGateway.AiPromptTest
   }
 
   return lines.join('\n').trim();
-}
-
-/** Resolves the clearest next step before a draft can be published. */
-export function resolvePromptPublishBlockReason(state: PromptPublishGuardState): string {
-  if (!state.hasFreshValidationResult) {
-    return '请先重新校验或运行测试';
-  }
-
-  if (!state.validationPassed) {
-    return '请先修复校验问题后再发布';
-  }
-
-  return '';
 }

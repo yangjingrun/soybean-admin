@@ -1,9 +1,9 @@
 {
-  "id": "EdXSf1ThD8SSgg6",
-  "json": "{\"id\":\"EdXSf1ThD8SSgg6\",\"url\":\"http://www.smsbearings.com/contact-us\",\"loadedUrl\":\"https://www.smsbearings.com/contact-us\",\"uniqueKey\":\"7:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.smsbearings.com/contact-us\",\"uniqueKey\":\"7:/contact-us\",\"userData\":{\"candidateIndex\":7,\"dedupeKey\":\"smsbearings.com\",\"companyName\":\"SMS Bearings FZCO\",\"homepage\":\"http://www.smsbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:13.487Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "7:/contact-us",
-  "url": "http://www.smsbearings.com/contact-us"
+	"id": "EdXSf1ThD8SSgg6",
+	"json": "{\"id\":\"EdXSf1ThD8SSgg6\",\"url\":\"https://www.schaeffler.ae/contact-us\",\"loadedUrl\":\"https://www.schaeffler.ae/contact-us\",\"uniqueKey\":\"7:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.schaeffler.ae/contact-us\",\"uniqueKey\":\"7:/contact-us\",\"userData\":{\"candidateIndex\":7,\"dedupeKey\":\"schaeffler.ae\",\"companyName\":\"Schaeffler Middle East FZE\",\"homepage\":\"https://www.schaeffler.ae/en/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:12.298Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "7:/contact-us",
+	"url": "https://www.schaeffler.ae/contact-us"
 }

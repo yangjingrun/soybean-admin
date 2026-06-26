@@ -2,7 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { RequestUserContext } from '../../shared/request-context';
 import { defaultAiModelConfigKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
-import { buildCrmAiDraftPrompt, parseCrmAiDraftOutput } from './crm-ai-draft-prompt';
+import {
+  buildCrmAiDraftPrompt,
+  parseCrmAiDraftOutput,
+  requireEnabledCrmProductLineAiWritingConfig
+} from './crm-ai-draft-prompt';
 import type { CrmAiDraftGenerateResult, CrmAiDraftPromptInput } from './crm-ai-draft.types';
 import { buildCrmAiWritingContext } from './ai-writing/crm-ai-writing-context';
 import { resolveCrmAiWritingModules } from './ai-writing/crm-ai-writing-module-resolver';
@@ -25,16 +29,21 @@ export class CrmAiDraftService {
 
   /** Generates a review-only CRM draft from product-line AI writing configuration. */
   async generateDraft(input: CrmAiDraftPromptInput, context: RequestUserContext): Promise<CrmAiDraftGenerateResult> {
-    const writingContext = buildCrmAiWritingContext(input);
+    const normalizedInput: CrmAiDraftPromptInput = {
+      ...input,
+      writingConfig: requireEnabledCrmProductLineAiWritingConfig(input.writingConfig)
+    };
+    const writingContext = buildCrmAiWritingContext(normalizedInput);
     const selectedModules = await this.loadPromptModules(
       resolveCrmAiWritingModules({
-        stepIndex: input.stepIndex,
-        contactTitle: input.contact.title,
-        account: input.account,
-        previousMessages: input.previousMessages
+        stepIndex: normalizedInput.stepIndex,
+        promptTemplateKey: normalizedInput.writingConfig.promptTemplateKey,
+        contactTitle: normalizedInput.contact.title,
+        account: normalizedInput.account,
+        previousMessages: normalizedInput.previousMessages
       })
     );
-    const prompt = buildCrmAiDraftPrompt(input, { selectedModules, writingContext });
+    const prompt = buildCrmAiDraftPrompt(normalizedInput, { selectedModules, writingContext });
     const result = await this.aiGatewayService.generateText(
       {
         prompt: prompt.userPrompt,
@@ -47,15 +56,15 @@ export class CrmAiDraftService {
     );
     const firstOutput = parseCrmAiDraftOutput(result.text);
     const quality = checkCrmAiDraftQuality({
-      stepIndex: input.stepIndex,
+      stepIndex: normalizedInput.stepIndex,
       subject: firstOutput.subject,
       bodyText: firstOutput.bodyText,
       usedFacts: firstOutput.usedFacts,
       allowedFactIds: writingContext.publicFacts.map(fact => fact.id),
-      stepStrategy: input.stepStrategy ?? undefined
+      stepStrategy: normalizedInput.stepStrategy ?? undefined
     });
     const output = await this.maybePolishDraft({
-      input,
+      input: normalizedInput,
       context,
       selectedModules,
       firstOutput: {
@@ -78,10 +87,10 @@ export class CrmAiDraftService {
         snapshot: {
           productLineId: input.productLine.id,
           productLineName: input.productLine.name,
-          stepIndex: input.stepIndex,
-          writingConfig: input.writingConfig,
+          stepIndex: normalizedInput.stepIndex,
+          writingConfig: normalizedInput.writingConfig,
           sourceSnapshot: input.account.sourceSnapshot ?? null,
-          stepStrategy: input.stepStrategy ?? null,
+          stepStrategy: normalizedInput.stepStrategy ?? null,
           reason: output.reason,
           riskNotes,
           selectedModules: selectedModules.map(({ promptKey, title, reason, updatedAt }) => ({

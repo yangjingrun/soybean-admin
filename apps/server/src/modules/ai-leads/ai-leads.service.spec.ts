@@ -336,6 +336,7 @@ describe('AiLeadsService', () => {
     };
     const leadContext = {
       targetRegion: { value: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B', label: '阿联酋', countryCode: 'AE' },
+      targetRegions: [{ value: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B', label: '阿联酋', countryCode: 'AE' }],
       targetCustomerTypes: [
         {
           key: 'importer',

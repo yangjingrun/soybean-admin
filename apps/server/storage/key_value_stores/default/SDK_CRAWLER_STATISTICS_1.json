@@ -1,27 +1,84 @@
 {
-  "requestsFinished": 8,
-  "requestsFailed": 0,
-  "requestsRetries": 0,
-  "requestsFailedPerMinute": 0,
-  "requestsFinishedPerMinute": 74,
-  "requestMinDurationMillis": 839,
-  "requestMaxDurationMillis": 5570,
-  "requestTotalFailedDurationMillis": 0,
-  "requestTotalFinishedDurationMillis": 23868,
-  "crawlerStartedAt": "2026-06-25T10:57:16.164Z",
-  "crawlerFinishedAt": "2026-06-25T10:57:22.649Z",
-  "statsPersistedAt": "2026-06-25T10:57:22.649Z",
-  "crawlerRuntimeMillis": 6495,
-  "crawlerLastStartTimestamp": 1782385036154,
-  "requestRetryHistogram": [8],
+  "requestsFinished": 0,
+  "requestsFailed": 8,
+  "requestsRetries": 8,
+  "requestsFailedPerMinute": 10,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 53952,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2026-06-25T13:22:53.741Z",
+  "crawlerFinishedAt": "2026-06-25T13:23:38.955Z",
+  "statsPersistedAt": "2026-06-25T13:23:38.955Z",
+  "crawlerRuntimeMillis": 45222,
+  "crawlerLastStartTimestamp": 1782393773733,
+  "requestRetryHistogram": [
+    null,
+    8
+  ],
   "statsId": 1,
-  "requestAvgFailedDurationMillis": null,
-  "requestAvgFinishedDurationMillis": 2984,
-  "requestTotalDurationMillis": 23868,
+  "requestAvgFailedDurationMillis": 6744,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 53952,
   "requestsTotal": 8,
-  "requestsWithStatusCode": {
-    "404": 3
+  "requestsWithStatusCode": {},
+  "errors": {
+    "file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:868:107": {
+      "HPE_INVALID_CONSTANT": {
+        "RequestError": {
+          "Parse Error: Expected HTTP/, RTSP/ or ICE/": {
+            "count": 5
+          }
+        }
+      }
+    },
+    "node:_http_client:544:22": {
+      "HPE_INVALID_CONSTANT": {
+        "Error": {
+          "Parse Error: Expected HTTP/, RTSP/ or ICE/": {
+            "count": 5
+          }
+        }
+      }
+    },
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74": {
+      "missing error code": {
+        "Error": {
+          "request timed out after 15 seconds.": {
+            "count": 3
+          }
+        }
+      }
+    }
   },
-  "errors": {},
-  "retryErrors": {}
+  "retryErrors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74": {
+      "missing error code": {
+        "Error": {
+          "request timed out after 15 seconds.": {
+            "count": 5
+          }
+        }
+      }
+    },
+    "file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:868:107": {
+      "HPE_INVALID_CONSTANT": {
+        "RequestError": {
+          "Parse Error: Expected HTTP/, RTSP/ or ICE/": {
+            "count": 3
+          }
+        }
+      }
+    },
+    "node:_http_client:544:22": {
+      "HPE_INVALID_CONSTANT": {
+        "Error": {
+          "Parse Error: Expected HTTP/, RTSP/ or ICE/": {
+            "count": 3
+          }
+        }
+      }
+    }
+  }
 }

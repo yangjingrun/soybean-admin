@@ -1,9 +1,9 @@
 {
-  "id": "hqPZVC1lZVLot76",
-  "json": "{\"id\":\"hqPZVC1lZVLot76\",\"url\":\"http://www.gtbearing.co/about-us\",\"loadedUrl\":\"http://gtbearing.co/about-us/\",\"uniqueKey\":\"5:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.gtbearing.co/about-us\",\"uniqueKey\":\"5:/about-us\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"gtbearing.co\",\"companyName\":\"Great Trust Bearing Trading Co LLC\",\"homepage\":\"http://www.gtbearing.co\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:02.652Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "5:/about-us",
-  "url": "http://www.gtbearing.co/about-us"
+	"id": "hqPZVC1lZVLot76",
+	"json": "{\"id\":\"hqPZVC1lZVLot76\",\"url\":\"https://www.rollsbearing.com/about-us\",\"uniqueKey\":\"5:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: 500 - Internal Server Error: \\n    at CheerioCrawler._parseResponse (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:496:19)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\\n    at async CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:305:28)\\n    at async CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+cheerio@3.17.0/node_modules/@crawlee/cheerio/internals/cheerio-crawler.js:153:9)\\n    at async wrap (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:78:27)\",\"Error: 500 - Internal Server Error: \\n    at CheerioCrawler._parseResponse (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:496:19)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\\n    at async CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:305:28)\\n    at async CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+cheerio@3.17.0/node_modules/@crawlee/cheerio/internals/cheerio-crawler.js:153:9)\\n    at async wrap (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:78:27)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.rollsbearing.com/about-us\",\"uniqueKey\":\"5:/about-us\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"rollsbearing.com\",\"companyName\":\"Top 10 roller bearing suppliers in UAE in 2023\",\"homepage\":\"https://www.rollsbearing.com/23156-10-roller-bearing-suppliers-in-uae.html\"}},\"__crawlee\":{\"state\":5}},\"handledAt\":\"2026-06-25T13:24:49.732Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "5:/about-us",
+	"url": "https://www.rollsbearing.com/about-us"
 }

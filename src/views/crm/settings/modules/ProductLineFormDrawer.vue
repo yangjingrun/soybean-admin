@@ -8,6 +8,7 @@ import {
   productLineAiCtaPreferenceOptions,
   productLineAiLanguagePolicyOptions,
   productLineAiPolishPolicyOptions,
+  productLineAiPromptTemplateOptions,
   productLineAiSequenceStrategyOptions,
   productLineAiToneOptions,
   validateProductLineAiWritingConfig
@@ -45,8 +46,8 @@ const productLinePlaceholders = {
   websiteUrl: '例如：https://www.example.com',
   commonModelsText: '例如：6000/6200/6300 系列；302/303/322 系列；UC/UCP 外球面轴承'
 } as const;
-const aiSelectPlaceholder = '不选默认使用系统内置';
-const aiPromptPlaceholder = '留空默认使用系统内置写法';
+const aiSelectPlaceholder = '不选使用默认策略';
+const aiPromptPlaceholder = '留空表示不追加产品额外要求';
 const canManageAiWritingConfig = computed(() => {
   if (typeof props.canManageAiWritingConfig === 'boolean') return props.canManageAiWritingConfig;
 
@@ -225,6 +226,18 @@ async function handleSubmit() {
                 item-responsive
               >
                 <NGi span="24 m:12">
+                  <NFormItem label="提示词模板">
+                    <NSelect
+                      v-model:value="formModel.aiWritingConfig.promptTemplateKey"
+                      :options="productLineAiPromptTemplateOptions"
+                      :disabled="isAiWritingConfigReadonly"
+                      :clearable="false"
+                      placeholder="请选择提示词模板"
+                    />
+                  </NFormItem>
+                </NGi>
+
+                <NGi span="24 m:12">
                   <NFormItem label="序列策略">
                     <NSelect
                       v-model:value="formModel.aiWritingConfig.sequenceStrategy"
@@ -291,7 +304,7 @@ async function handleSubmit() {
                       type="textarea"
                       :autosize="{ minRows: 2, maxRows: 4 }"
                       :disabled="isAiWritingConfigReadonly"
-                      placeholder="留空默认使用系统内置；例如：可公开使用的客户类型、认证、交付记录或案例素材"
+                      placeholder="留空表示不追加证据素材；例如：可公开使用的客户类型、认证、交付记录或案例素材"
                     />
                   </NFormItem>
                 </NGi>
@@ -303,7 +316,7 @@ async function handleSubmit() {
                       type="textarea"
                       :autosize="{ minRows: 2, maxRows: 4 }"
                       :disabled="isAiWritingConfigReadonly"
-                      placeholder="留空默认使用系统内置；例如：特定地区常见采购关注点、表达偏好或需避开的说法"
+                      placeholder="留空表示不追加地区备注；例如：特定地区常见采购关注点、表达偏好或需避开的说法"
                     />
                   </NFormItem>
                 </NGi>
@@ -321,7 +334,7 @@ async function handleSubmit() {
                         type="textarea"
                         :autosize="{ minRows: 4, maxRows: 7 }"
                         :disabled="isAiWritingConfigReadonly"
-                        :placeholder="`第 ${step.stepIndex} 封：${aiPromptPlaceholder}`"
+                        :placeholder="`第 ${step.stepIndex} 封额外要求：${aiPromptPlaceholder}`"
                       />
                     </NTabPane>
                   </NTabs>

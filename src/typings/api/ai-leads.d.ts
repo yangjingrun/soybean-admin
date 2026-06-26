@@ -47,6 +47,7 @@ declare namespace Api {
 
     interface LeadContextSnapshot {
       targetRegion: LeadContextTargetRegion | null;
+      targetRegions?: LeadContextTargetRegion[];
       targetCustomerTypes: LeadContextOptionSnapshot[];
       exclusionRules: LeadContextOptionSnapshot[];
       keywordText?: string | null;

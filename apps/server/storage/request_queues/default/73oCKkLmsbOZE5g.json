@@ -1,9 +1,9 @@
 {
-  "id": "73oCKkLmsbOZE5g",
-  "json": "{\"id\":\"73oCKkLmsbOZE5g\",\"url\":\"https://www.revobearings.com/product\",\"loadedUrl\":\"https://www.revobearings.com/product\",\"uniqueKey\":\"11:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.revobearings.com/product\",\"uniqueKey\":\"11:/product\",\"userData\":{\"candidateIndex\":11,\"dedupeKey\":\"revobearings.com\",\"companyName\":\"Revo Bearings is a trusted bearings supplier in UAE we deal in (SKF, NACHI, NTN, KOYO, NSK, HIWIN & OILSEALS)\",\"homepage\":\"https://www.revobearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:31.316Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "11:/product",
-  "url": "https://www.revobearings.com/product"
+	"id": "73oCKkLmsbOZE5g",
+	"json": "{\"id\":\"73oCKkLmsbOZE5g\",\"url\":\"https://www.robelbearings.com/product\",\"loadedUrl\":\"https://www.robelbearings.com/product\",\"uniqueKey\":\"11:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.robelbearings.com/product\",\"uniqueKey\":\"11:/product\",\"userData\":{\"candidateIndex\":11,\"dedupeKey\":\"robelbearings.com\",\"companyName\":\"Welcome to Robel Bearings Dubai UAE : Leading Bearings Importers ...\",\"homepage\":\"https://www.robelbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:45.316Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "11:/product",
+	"url": "https://www.robelbearings.com/product"
 }

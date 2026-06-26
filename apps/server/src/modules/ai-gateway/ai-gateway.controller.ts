@@ -9,7 +9,7 @@ import { AiGatewayService } from './ai-gateway.service';
 import { AiModelConfigKeyParamDto, SaveAiModelConfigDto, SaveMyAiModelConfigDto } from './dto/ai-model-config.dto';
 import {
   AiPromptKeyParamDto,
-  PublishAiPromptDraftDto,
+  PublishAiPromptVersionDto,
   RollbackAiPromptVersionDto,
   SaveAiPromptDraftDto,
   SaveAiPromptDto,
@@ -56,7 +56,7 @@ export class AiGatewayController {
     @Body() dto: SaveAiPromptDraftDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+    const user = requireSuperUserContext(currentContext, '只有超级管理员能修改全局提示词');
 
     return ok(await this.aiGatewayService.savePromptDraft(dto, user));
   }
@@ -67,19 +67,19 @@ export class AiGatewayController {
     @Body() dto: TestAiPromptDraftDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+    const user = requireSuperUserContext(currentContext, '只有超级管理员能测试全局提示词');
 
     return ok(await this.aiGatewayService.testPromptDraft(dto, user));
   }
 
-  @Post('prompt-workbench/drafts/publish')
-  async publishPromptDraft(
-    @Body() dto: PublishAiPromptDraftDto,
+  @Post('prompt-workbench/versions/publish')
+  async publishPromptVersion(
+    @Body() dto: PublishAiPromptVersionDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+    const user = requireSuperUserContext(currentContext, '只有超级管理员能发布全局提示词');
 
-    return ok(await this.aiGatewayService.publishPromptDraft(dto, user));
+    return ok(await this.aiGatewayService.publishPromptVersion(dto, user));
   }
 
   @Post('prompt-workbench/versions/rollback')
@@ -87,14 +87,14 @@ export class AiGatewayController {
     @Body() dto: RollbackAiPromptVersionDto,
     @CurrentContext() currentContext: RequestUserContext | null = null
   ) {
-    const user = this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+    const user = requireSuperUserContext(currentContext, '只有超级管理员能回滚全局提示词');
 
     return ok(await this.aiGatewayService.rollbackPromptVersion(dto, user));
   }
 
   @Post('prompts')
   async savePrompt(@Body() dto: SaveAiPromptDto, @CurrentContext() currentContext: RequestUserContext | null = null) {
-    this.requireAiConfigPermission(currentContext, aiSettingsPromptManagePermission);
+    requireSuperUserContext(currentContext, '只有超级管理员能修改全局提示词');
 
     return ok(await this.aiGatewayService.savePrompt(dto));
   }

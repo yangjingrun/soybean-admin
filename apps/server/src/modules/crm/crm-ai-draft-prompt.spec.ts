@@ -16,6 +16,7 @@ describe('crm-ai-draft-prompt', () => {
     assert.equal('commonRequirements' in (config ?? {}), false);
     assert.equal('forbiddenClaims' in (config ?? {}), false);
     assert.equal('productEmphasis' in (config ?? {}), false);
+    assert.equal(config?.promptTemplateKey, 'crm_outreach_general');
     assert.equal(config?.steps.length, 5);
     assert.equal(config?.steps[1].prompt, 'Step 2 prompt');
   });
@@ -40,7 +41,7 @@ describe('crm-ai-draft-prompt', () => {
     assert.equal(styled?.regionNotes, 'Saudi buyers often ask about stock availability.');
   });
 
-  it('allows enabled AI writing config to omit step prompts for built-in defaults', () => {
+  it('allows enabled AI writing config to omit product-specific step additions', () => {
     const config = createWritingConfig({
       steps: [
         { stepIndex: 1, prompt: 'Step 1 prompt' },
@@ -221,6 +222,7 @@ describe('crm-ai-draft-prompt', () => {
 function createWritingConfig(overrides: Partial<CrmProductLineAiWritingConfig> = {}): CrmProductLineAiWritingConfig {
   return {
     enabled: true,
+    promptTemplateKey: 'crm_outreach_general',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: `Step ${stepIndex} prompt`

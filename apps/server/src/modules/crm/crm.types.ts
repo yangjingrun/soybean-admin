@@ -464,6 +464,7 @@ export interface CrmProductLineRecord {
 }
 
 export type CrmAiWritingStepIndex = 1 | 2 | 3 | 4 | 5;
+export type CrmPromptTemplateKey = 'crm_outreach_general';
 
 export interface CrmProductLineAiWritingStepConfig {
   stepIndex: CrmAiWritingStepIndex;
@@ -472,6 +473,7 @@ export interface CrmProductLineAiWritingStepConfig {
 
 export interface CrmProductLineAiWritingConfig {
   enabled: boolean;
+  promptTemplateKey?: CrmPromptTemplateKey;
   steps: CrmProductLineAiWritingStepConfig[];
   sequenceStrategy?: 'core_3_step' | 'full_5_step';
   languagePolicy?: 'account_locale_or_english' | 'english' | 'local_language';

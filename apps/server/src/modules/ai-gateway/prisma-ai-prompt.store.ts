@@ -10,6 +10,7 @@ import type {
   AiPromptValidationResult,
   AiPromptVersionRecord,
   PublishAiPromptDraftInput,
+  PublishAiPromptVersionInput,
   SaveAiPromptDraftInput,
   SaveAiPromptTestRunInput
 } from './ai-gateway.types';
@@ -159,6 +160,56 @@ export class PrismaAiPromptStore implements AiPromptStore {
             promptKey: input.promptKey,
             version: 0
           }
+        }
+      });
+
+      return toPromptVersionRecord(published);
+    });
+  }
+
+  /** Publishes one prompt body directly as a numbered version and refreshes the read model. */
+  async publishPromptVersion(input: PublishAiPromptVersionInput): Promise<AiPromptVersionRecord> {
+    return this.prisma.$transaction(async tx => {
+      const versionAggregate = await tx.aiPromptVersion.aggregate({
+        where: {
+          promptKey: input.promptKey,
+          version: {
+            gt: 0
+          }
+        },
+        _max: {
+          version: true
+        }
+      });
+      const { _max: maxAggregate } = versionAggregate;
+      const nextVersion = (maxAggregate.version ?? 0) + 1;
+      const published = await tx.aiPromptVersion.create({
+        data: {
+          promptKey: input.promptKey,
+          title: input.title,
+          version: nextVersion,
+          lifecycle: 'published',
+          systemPrompt: input.systemPrompt,
+          validationResult: input.validationResult,
+          changeNote: input.changeNote,
+          createdById: input.userId,
+          createdByName: input.userName,
+          publishedAt: new Date()
+        }
+      });
+
+      await tx.aiPromptConfig.upsert({
+        where: {
+          promptKey: input.promptKey
+        },
+        create: {
+          promptKey: input.promptKey,
+          title: input.title,
+          systemPrompt: input.systemPrompt
+        },
+        update: {
+          title: input.title,
+          systemPrompt: input.systemPrompt
         }
       });
 

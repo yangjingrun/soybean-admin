@@ -123,7 +123,7 @@ function getVersionAiConfigMeta(config: Api.Crm.ProductLineAiWritingConfig | nul
   const summary = summarizeProductLineAiWritingConfig(config);
   const filledStepCount = summary.steps.filter(step => step.prompt).length;
 
-  return `${summary.enabledLabel} · Step Prompt ${filledStepCount}/5`;
+  return `${summary.enabledLabel} · ${summary.promptTemplateLabel} · 额外要求 ${filledStepCount}/5`;
 }
 </script>
 
@@ -202,9 +202,10 @@ function getVersionAiConfigMeta(config: Api.Crm.ProductLineAiWritingConfig | nul
               <NSpace vertical :size="12">
                 <NDescriptions :column="1" bordered size="small" label-placement="left">
                   <NDescriptionsItem label="启用状态">{{ selectedSummary.enabledLabel }}</NDescriptionsItem>
+                  <NDescriptionsItem label="提示词模板">{{ selectedSummary.promptTemplateLabel }}</NDescriptionsItem>
                 </NDescriptions>
 
-                <NDivider class="prompt-version-divider">当前 step prompt 概览</NDivider>
+                <NDivider class="prompt-version-divider">当前 1-5 封额外要求</NDivider>
                 <NList bordered>
                   <NListItem v-for="step in selectedSummary.steps" :key="step.stepIndex">
                     <NThing :title="`第 ${step.stepIndex} 封`" :description="step.preview || '未填写'" />

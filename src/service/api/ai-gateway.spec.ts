@@ -15,17 +15,18 @@ describe('ai gateway api helpers', () => {
   it('disables the common 10s timeout for prompt workbench requests', () => {
     const payload = {
       promptKey: 'crm_outreach_base_rules',
+      title: 'CRM 开发信基础规则',
       systemPrompt: 'CRM outreach prompt'
     };
     const config = buildAiPromptWorkbenchRequestConfig({
-      url: '/ai-gateway/prompt-workbench/drafts/test',
+      url: '/ai-gateway/prompt-workbench/versions/publish',
       method: 'post',
       data: payload
     });
 
     assert.equal(config.timeout, aiPromptWorkbenchRequestTimeout);
     assert.equal(config.timeout, 0);
-    assert.equal(config.url, '/ai-gateway/prompt-workbench/drafts/test');
+    assert.equal(config.url, '/ai-gateway/prompt-workbench/versions/publish');
     assert.equal(config.method, 'post');
     assert.deepEqual(config.data, payload);
   });

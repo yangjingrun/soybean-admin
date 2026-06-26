@@ -1,89 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useMessage } from 'naive-ui';
-import { formatLatestPromptTestRunForCopy, resolvePromptValidationSection, summarizePromptValidation } from './shared';
-import type { PromptSectionKey } from './shared';
-
-const props = defineProps<{
-  validationResult: Api.AiGateway.AiPromptValidationResult | null;
-  latestTestRun: Api.AiGateway.AiPromptTestRunRecord | null;
+defineProps<{
+  canEdit?: boolean;
   isDirty?: boolean;
-  canSaveDraft?: boolean;
-  canValidate?: boolean;
-  canTest?: boolean;
   canPublish?: boolean;
   publishReadinessHint?: string;
-  savingDraft?: boolean;
-  validating?: boolean;
-  testing?: boolean;
   publishing?: boolean;
 }>();
 
 const emit = defineEmits<{
-  validate: [];
-  saveDraft: [];
-  test: [];
-  focusSection: [key: PromptSectionKey];
   publish: [];
 }>();
 
-const testInput = defineModel<string>('testInput', { required: true });
 const changeNote = defineModel<string>('changeNote', { required: true });
-const message = useMessage();
-const statusLabelMap: Record<Api.AiGateway.AiPromptValidationStatus, string> = {
-  pass: '通过',
-  warn: '预警',
-  fail: '失败'
-};
-const statusTypeMap: Record<Api.AiGateway.AiPromptValidationStatus, 'success' | 'warning' | 'error'> = {
-  pass: 'success',
-  warn: 'warning',
-  fail: 'error'
-};
-const validationSummary = computed(() => summarizePromptValidation(props.validationResult));
-const validationItems = computed(
-  () =>
-    props.validationResult?.items.map(item => ({
-      ...item,
-      target: resolvePromptValidationSection(item)
-    })) ?? []
-);
-const latestOutput = computed(() => props.latestTestRun?.outputText || '');
-const latestTestRunCopyText = computed(() => formatLatestPromptTestRunForCopy(props.latestTestRun));
-const latestValidationIssues = computed(
-  () =>
-    props.latestTestRun?.validationResult?.items
-      .filter(item => item.status !== 'pass')
-      .map(item => ({
-        ...item,
-        target: resolvePromptValidationSection(item)
-      })) ?? []
-);
-const latestFailureGuide = computed(() => {
-  if (props.latestTestRun?.success || !props.latestTestRun?.errorMessage) {
-    return '';
-  }
-
-  if (props.latestTestRun.errorMessage === '系统提示词未通过校验') {
-    return '这次测试还没有真正调用模型，先修复系统提示词本身的规则问题，再重新运行测试。';
-  }
-
-  if (props.latestTestRun.errorMessage === '模型输出未通过提示词规则校验') {
-    return '模型已经运行，但输出结果不符合当前步骤规则。请根据下面的问题收紧提示词。';
-  }
-
-  return '最近一次测试没有通过，请先处理下面的问题。';
-});
-
-/** Copies the latest visible test result block for quick reuse. */
-async function copyLatestTestRun() {
-  if (!latestTestRunCopyText.value) {
-    return;
-  }
-
-  await navigator.clipboard.writeText(latestTestRunCopyText.value);
-  message.success('最近测试结果已复制');
-}
 </script>
 
 <template>
@@ -92,132 +20,45 @@ async function copyLatestTestRun() {
       <div class="publish-panel__content">
         <div class="publish-panel__top">
           <div>
-            <div class="publish-panel__eyebrow">发布闸口</div>
-            <NText strong>测试与发布检查</NText>
-            <p class="publish-panel__desc">{{ validationSummary.label }}</p>
+            <div class="publish-panel__eyebrow">发布入口</div>
+            <NText strong>全局版本发布</NText>
+            <p class="publish-panel__desc">发布后业务会立即使用当前提示词版本。</p>
           </div>
-          <NTag :type="validationSummary.ok ? 'success' : 'warning'" :bordered="false">
-            {{ validationSummary.ok ? '可发布' : '待检查' }}
+          <NTag :type="canPublish ? 'success' : 'warning'" :bordered="false">
+            {{ canPublish ? '可发布' : '待检查' }}
           </NTag>
         </div>
 
-        <div class="publish-panel__stats">
-          <div class="publish-panel__stat publish-panel__stat--pass">
-            <span>{{ validationSummary.passCount }}</span>
-            <small>通过</small>
-          </div>
-          <div class="publish-panel__stat publish-panel__stat--warn">
-            <span>{{ validationSummary.warnCount }}</span>
-            <small>预警</small>
-          </div>
-          <div class="publish-panel__stat publish-panel__stat--fail">
-            <span>{{ validationSummary.failCount }}</span>
-            <small>失败</small>
-          </div>
-        </div>
+        <NAlert type="info" :bordered="false">
+          CRM 开发信按数据库已发布版本生效；缺少发布版本时，需要超级管理员先发布提示词。
+        </NAlert>
 
-        <NAlert v-if="isDirty" type="warning" :bordered="false">当前内容有未保存修改，发布前需要先保存草稿。</NAlert>
+        <NAlert v-if="!canEdit" type="warning" :bordered="false">
+          当前账号仅可查看提示词配置，发布和回滚请使用超级管理员账号。
+        </NAlert>
+
+        <NAlert v-if="isDirty" type="warning" :bordered="false">
+          当前内容与正在生效的版本不同，点击发布后会直接覆盖为新的全局版本。
+        </NAlert>
 
         <section class="publish-panel__section">
           <div class="publish-panel__section-title">
-            <NText strong>规则校验</NText>
-            <NButton size="tiny" :loading="validating" :disabled="!canValidate" @click="emit('validate')">
-              重新校验
-            </NButton>
+            <NText strong>变更说明</NText>
+            <NText depth="3" class="publish-panel__section-note">选填</NText>
           </div>
-          <NEmpty v-if="!validationResult" description="尚未校验" size="small" />
-          <div v-else class="publish-panel__check-list">
-            <div
-              v-for="item in validationItems"
-              :key="item.key"
-              class="publish-panel__check"
-              :class="`publish-panel__check--${item.status}`"
-            >
-              <NTag size="small" :type="statusTypeMap[item.status]" :bordered="false">
-                {{ statusLabelMap[item.status] }}
-              </NTag>
-              <div class="publish-panel__check-body">
-                <div class="publish-panel__check-title">{{ item.label }}</div>
-                <div class="publish-panel__check-message">{{ item.message }}</div>
-              </div>
-              <NButton
-                v-if="item.target"
-                size="tiny"
-                text
-                type="primary"
-                class="publish-panel__check-action"
-                @click="emit('focusSection', item.target.key)"
-              >
-                定位
-              </NButton>
-            </div>
-          </div>
+          <NInput v-model:value="changeNote" :disabled="!canEdit" placeholder="例如：收紧 CRM 事实边界" />
         </section>
 
         <section class="publish-panel__section">
-          <div class="publish-panel__section-title">
-            <NText strong>测试样例</NText>
-            <NText depth="3" class="publish-panel__section-note">运行后更新最近输出</NText>
-          </div>
-          <NInput
-            v-model:value="testInput"
-            type="textarea"
-            :autosize="{ minRows: 3, maxRows: 5 }"
-            placeholder="填写测试上下文，例如获客需求或 CRM 客户/产品线 JSON"
-          />
-          <NButton block secondary :loading="testing" :disabled="!canTest" @click="emit('test')">运行测试</NButton>
-          <div v-if="latestTestRun" class="publish-panel__test-result">
-            <NSpace align="center" justify="space-between">
-              <NText strong>最近测试</NText>
-              <NSpace align="center" :size="8">
-                <NButton size="tiny" tertiary :disabled="!latestTestRunCopyText" @click="copyLatestTestRun">
-                  复制
-                </NButton>
-                <NTag size="small" :type="latestTestRun.success ? 'success' : 'error'" :bordered="false">
-                  {{ latestTestRun.success ? '通过' : '失败' }}
-                </NTag>
-              </NSpace>
-            </NSpace>
-            <NAlert v-if="latestFailureGuide" type="error" :bordered="false">{{ latestFailureGuide }}</NAlert>
-            <NText v-if="latestTestRun.errorMessage" type="error">{{ latestTestRun.errorMessage }}</NText>
-            <div v-if="latestValidationIssues.length > 0" class="publish-panel__check-list">
-              <div
-                v-for="item in latestValidationIssues"
-                :key="item.key"
-                class="publish-panel__check"
-                :class="`publish-panel__check--${item.status}`"
-              >
-                <NTag size="small" :type="statusTypeMap[item.status]" :bordered="false">
-                  {{ statusLabelMap[item.status] }}
-                </NTag>
-                <div class="publish-panel__check-body">
-                  <div class="publish-panel__check-title">{{ item.label }}</div>
-                  <div class="publish-panel__check-message">{{ item.message }}</div>
-                </div>
-                <NButton
-                  v-if="item.target"
-                  size="tiny"
-                  text
-                  type="primary"
-                  class="publish-panel__check-action"
-                  @click="emit('focusSection', item.target.key)"
-                >
-                  定位
-                </NButton>
-              </div>
-            </div>
-            <pre v-if="latestOutput" class="publish-panel__output">{{ latestOutput }}</pre>
-          </div>
-        </section>
-
-        <section class="publish-panel__section">
-          <NInput v-model:value="changeNote" placeholder="变更说明，例如：收紧 Maps q 规则" />
-          <NSpace :size="8" justify="end">
-            <NButton :loading="savingDraft" :disabled="!canSaveDraft" @click="emit('saveDraft')">保存草稿</NButton>
-            <NButton type="primary" :loading="publishing" :disabled="publishing" @click="emit('publish')">
-              发布全局版本
-            </NButton>
-          </NSpace>
+          <NButton
+            type="primary"
+            block
+            :loading="publishing"
+            :disabled="!canEdit || !canPublish || publishing"
+            @click="emit('publish')"
+          >
+            发布全局版本
+          </NButton>
           <NText depth="3" class="publish-panel__publish-hint" :type="canPublish ? 'success' : 'warning'">
             {{ publishReadinessHint }}
           </NText>
@@ -280,50 +121,7 @@ async function copyLatestTestRun() {
   margin: 4px 0 0;
   color: var(--prompt-workbench-subtle);
   font-size: 13px;
-}
-
-.publish-panel__publish-hint {
-  display: block;
-  margin-top: 8px;
-}
-
-.publish-panel__stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.publish-panel__stat {
-  display: grid;
-  gap: 2px;
-  padding: 8px;
-  border: 1px solid var(--prompt-workbench-border);
-  border-radius: 6px;
-  background: var(--prompt-workbench-muted);
-}
-
-.publish-panel__stat span {
-  color: var(--prompt-workbench-ink);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.publish-panel__stat small {
-  color: var(--prompt-workbench-subtle);
-  font-size: 12px;
-}
-
-.publish-panel__stat--pass span {
-  color: rgb(var(--success-color));
-}
-
-.publish-panel__stat--warn span {
-  color: rgb(var(--warning-color));
-}
-
-.publish-panel__stat--fail span {
-  color: rgb(var(--error-color));
+  line-height: 1.5;
 }
 
 .publish-panel__section {
@@ -337,74 +135,27 @@ async function copyLatestTestRun() {
   font-size: 12px;
 }
 
-.publish-panel__check-list {
-  display: grid;
-  gap: 8px;
-}
-
-.publish-panel__check {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 8px;
-  padding: 9px;
-  border: 1px solid var(--prompt-workbench-border);
-  border-left-width: 3px;
-  border-radius: 6px;
-  background: #fff;
-}
-
-.publish-panel__check--pass {
-  border-left-color: rgb(var(--success-color));
-}
-
-.publish-panel__check--warn {
-  border-left-color: rgb(var(--warning-color));
-}
-
-.publish-panel__check--fail {
-  border-left-color: rgb(var(--error-color));
-}
-
-.publish-panel__check-body {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.publish-panel__check-title {
-  color: var(--prompt-workbench-ink);
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.publish-panel__check-message {
-  color: var(--prompt-workbench-subtle);
-  font-size: 12px;
+.publish-panel__publish-hint {
+  display: block;
   line-height: 1.5;
 }
 
-.publish-panel__check-action {
-  margin-top: 1px;
-}
+@media (max-width: 1280px) {
+  .publish-panel {
+    height: auto;
+    overflow: visible;
+  }
 
-.publish-panel__test-result {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--prompt-workbench-border);
-  border-radius: 6px;
-  background: var(--prompt-workbench-muted);
-}
+  .publish-panel :deep(.publish-panel__card-content) {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
 
-.publish-panel__output {
-  overflow: auto;
-  max-height: 180px;
-  margin: 0;
-  padding: 10px;
-  border-radius: 6px;
-  background: var(--n-code-color);
-  font-size: 12px;
-  white-space: pre-wrap;
+  .publish-panel__scroll,
+  .publish-panel__scroll :deep(.n-scrollbar-container) {
+    height: auto;
+    max-height: none;
+  }
 }
 </style>

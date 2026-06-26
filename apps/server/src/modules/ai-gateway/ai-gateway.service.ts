@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional, type OnModuleInit } from '@nestjs/common';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import { createSystemLogErrorMetadata } from '../system-log/system-log-error-taxonomy';
 import { SystemLogService } from '../system-log/system-log.service';
@@ -8,9 +8,11 @@ import {
   aiPromptChannels,
   aiPromptDefinitions,
   aiPromptKeys,
+  crmOutreachPromptKeys,
   defaultAiPromptSystemPrompts,
   defaultAiModelConfigKey,
-  defaultAiTemperature
+  defaultAiTemperature,
+  isCrmOutreachPromptKey
 } from './ai-gateway.constants';
 import { validateAiPromptOutput, validateAiPromptText } from './ai-prompt-validator';
 import {
@@ -45,7 +47,7 @@ import type {
   AiPromptStore,
   AiTextGenerateParams,
   AiTextGenerator,
-  PublishAiPromptDraftPayload,
+  PublishAiPromptVersionPayload,
   RollbackAiPromptVersionPayload,
   SaveAiPromptDraftPayload,
   SerperConfigRecord,
@@ -56,7 +58,7 @@ import type {
 const defaultAiTextGenerationTimeoutMs = 5 * 60 * 1000;
 
 @Injectable()
-export class AiGatewayService {
+export class AiGatewayService implements OnModuleInit {
   constructor(
     @Inject(AI_TEXT_GENERATOR) private readonly textGenerator: AiTextGenerator,
     @Inject(AI_PROMPT_STORE) private readonly promptStore: AiPromptStore,
@@ -65,6 +67,10 @@ export class AiGatewayService {
     @Inject(SystemLogService) private readonly systemLogService: SystemLogRecorder,
     @Optional() @Inject(AiProviderConfigService) private readonly providerConfigService?: AiProviderConfigService
   ) {}
+
+  async onModuleInit() {
+    await this.initializeCrmOutreachPrompts();
+  }
 
   /** Saves a fixed system prompt that can be referenced by promptKey during generation. */
   async savePrompt(dto: SaveAiPromptDto): Promise<AiPromptRecord> {
@@ -212,13 +218,17 @@ export class AiGatewayService {
     const record = await this.promptStore.getPrompt(normalizedKey);
 
     if (!record) {
+      if (isCrmOutreachPromptKey(normalizedKey)) {
+        throw new BadRequestException('请超级管理员先发布 CRM 开发信提示词');
+      }
+
       return createPromptDraft(normalizedKey);
     }
 
     return record;
   }
 
-  /** Reads the code-level built-in prompt draft, ignoring any saved global override. */
+  /** Reads the code-level initialization prompt draft, ignoring any saved global override. */
   async getDefaultPromptDraft(promptKey: string): Promise<AiPromptRecord> {
     return createPromptDraft(normalizePromptKey(promptKey));
   }
@@ -358,23 +368,26 @@ export class AiGatewayService {
     }
   }
 
-  /** Publishes the current draft so business workflows start using it. */
-  async publishPromptDraft(dto: PublishAiPromptDraftPayload, user: RequestUserContext): Promise<AiPromptVersionRecord> {
+  /** Publishes the provided prompt text directly so business workflows start using it. */
+  async publishPromptVersion(dto: PublishAiPromptVersionPayload, user: RequestUserContext): Promise<AiPromptVersionRecord> {
     const promptKey = normalizePromptKey(dto.promptKey);
-    const draft = await this.promptStore.getDraftPromptVersion(promptKey);
+    const systemPrompt = dto.systemPrompt.trim();
 
-    if (!draft) {
-      throw new BadRequestException('请先保存提示词草稿');
+    if (!systemPrompt) {
+      throw new BadRequestException('系统提示词不能为空');
     }
 
-    const validationResult = validateAiPromptText(promptKey, draft.systemPrompt);
+    const validationResult = validateAiPromptText(promptKey, systemPrompt);
 
     if (!validationResult.ok) {
-      throw new BadRequestException('提示词草稿未通过校验，不能发布');
+      throw new BadRequestException('提示词未通过校验，不能发布');
     }
 
-    const record = await this.promptStore.publishDraftPromptVersion({
+    const record = await this.promptStore.publishPromptVersion({
       promptKey,
+      title: dto.title.trim() || this.getPromptDefinition(promptKey).title,
+      systemPrompt,
+      validationResult,
       changeNote: dto.changeNote?.trim() || null,
       userId: user.userId,
       userName: user.userName
@@ -400,17 +413,11 @@ export class AiGatewayService {
       throw new NotFoundException('未找到可回滚的提示词版本');
     }
 
-    await this.promptStore.saveDraftPromptVersion({
+    const record = await this.promptStore.publishPromptVersion({
       promptKey,
       title: version.title,
       systemPrompt: version.systemPrompt,
       validationResult: validateAiPromptText(promptKey, version.systemPrompt),
-      changeNote: dto.changeNote?.trim() || `回滚到 v${version.version}`,
-      userId: user.userId,
-      userName: user.userName
-    });
-    const record = await this.promptStore.publishDraftPromptVersion({
-      promptKey,
       changeNote: dto.changeNote?.trim() || `回滚到 v${version.version}`,
       userId: user.userId,
       userName: user.userName
@@ -602,9 +609,8 @@ export class AiGatewayService {
   private async createPromptStepSummary(promptKey: string): Promise<AiPromptStepSummary> {
     const normalizedKey = normalizePromptKey(promptKey);
     const definition = this.getPromptDefinition(normalizedKey);
-    const [published, draft, latestTestRun] = await Promise.all([
+    const [published, latestTestRun] = await Promise.all([
       this.promptStore.getPrompt(normalizedKey),
-      this.promptStore.getDraftPromptVersion(normalizedKey),
       this.promptStore.getLatestPromptTestRun(normalizedKey)
     ]);
 
@@ -615,9 +621,41 @@ export class AiGatewayService {
       channel: aiPromptChannels[normalizedKey as keyof typeof aiPromptChannels],
       group: 'group' in definition ? definition.group : undefined,
       published,
-      draft,
+      draft: null,
       latestTestRun
     };
+  }
+
+  private async initializeCrmOutreachPrompts() {
+    const existingRecords = await Promise.all(crmOutreachPromptKeys.map(promptKey => this.promptStore.getPrompt(promptKey)));
+
+    if (existingRecords.some(Boolean)) {
+      return;
+    }
+
+    for (const promptKey of crmOutreachPromptKeys) {
+      const draft = createPromptDraft(promptKey);
+
+      if (!draft.systemPrompt.trim()) {
+        throw new BadRequestException(`CRM 开发信初始化提示词缺失：${promptKey}`);
+      }
+
+      const validationResult = validateAiPromptText(promptKey, draft.systemPrompt);
+
+      if (!validationResult.ok) {
+        throw new BadRequestException(`CRM 开发信初始化提示词未通过校验：${promptKey}`);
+      }
+
+      await this.promptStore.publishPromptVersion({
+        promptKey,
+        title: draft.title,
+        systemPrompt: draft.systemPrompt,
+        validationResult,
+        changeNote: '系统初始化：CRM 开发信通用模板',
+        userId: null,
+        userName: 'System'
+      });
+    }
   }
 
   private getPromptDefinition(promptKey: string) {

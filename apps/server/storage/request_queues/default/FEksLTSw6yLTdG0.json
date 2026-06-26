@@ -1,9 +1,9 @@
 {
-  "id": "FEksLTSw6yLTdG0",
-  "json": "{\"id\":\"FEksLTSw6yLTdG0\",\"url\":\"http://www.bearingsglobal.ae/contact-us\",\"loadedUrl\":\"https://bearingsglobal.ae/contact-us/\",\"uniqueKey\":\"6:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.bearingsglobal.ae/contact-us\",\"uniqueKey\":\"6:/contact-us\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"bearingsglobal.ae\",\"companyName\":\"Bearings Global FZCO\",\"homepage\":\"http://www.bearingsglobal.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:09.715Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "6:/contact-us",
-  "url": "http://www.bearingsglobal.ae/contact-us"
+	"id": "FEksLTSw6yLTdG0",
+	"json": "{\"id\":\"FEksLTSw6yLTdG0\",\"url\":\"https://www.reachuae.com/contact-us\",\"loadedUrl\":\"https://www.reachuae.com/contact-us\",\"uniqueKey\":\"6:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: request timed out after 15 seconds.\\n    at Timeout._onTimeout (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74)\\n    at listOnTimeout (node:internal/timers:581:17)\\n    at process.processTimers (node:internal/timers:519:7)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.reachuae.com/contact-us\",\"uniqueKey\":\"6:/contact-us\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"reachuae.com\",\"companyName\":\"FAG Suppliers and Dealers in UAE - Dubai\",\"homepage\":\"https://www.reachuae.com/brands/fag-b8716\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:08.995Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "6:/contact-us",
+	"url": "https://www.reachuae.com/contact-us"
 }

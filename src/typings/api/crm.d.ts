@@ -549,6 +549,7 @@ declare namespace Api {
 
     interface ProductLineAiWritingConfig {
       enabled: boolean;
+      promptTemplateKey?: 'crm_outreach_general';
       steps: ProductLineAiWritingStepConfig[];
       sequenceStrategy?: 'core_3_step' | 'full_5_step';
       languagePolicy?: 'account_locale_or_english' | 'english' | 'local_language';

@@ -35,6 +35,7 @@ const {
   handleStartEdit,
   handleStopLeadWorkflow,
   handleTargetLeadCountUpdate,
+  handleTargetRegionPathsUpdate,
   hasSearchProgress,
   historyRecords,
   isEditingResult,
@@ -97,7 +98,7 @@ async function handleStartKeywordResultEdit() {
       <NForm :model="form" label-placement="top" size="small" class="lead-form">
         <LeadProductLineContext
           v-model:product-line-id="form.productLineId"
-          v-model:target-region-value="form.targetRegionValue"
+          v-model:target-region-values="form.targetRegionValues"
           v-model:target-customer-type-keys="form.targetCustomerTypeKeys"
           v-model:exclusion-rule-keys="form.exclusionRuleKeys"
           v-model:keyword-text="form.keywordText"
@@ -110,6 +111,7 @@ async function handleStartKeywordResultEdit() {
           :customer-type-options="customerTypeOptions"
           :exclusion-rule-options="exclusionRuleOptions"
           @update:target-region-path="handleTargetRegionPathUpdate"
+          @update:target-region-paths="handleTargetRegionPathsUpdate"
         />
 
         <div class="task-toolbar">

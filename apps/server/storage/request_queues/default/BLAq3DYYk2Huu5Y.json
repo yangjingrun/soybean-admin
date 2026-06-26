@@ -1,9 +1,9 @@
 {
-  "id": "BLAq3DYYk2Huu5Y",
-  "json": "{\"id\":\"BLAq3DYYk2Huu5Y\",\"url\":\"http://www.bearingsworld.ae/elevator\",\"loadedUrl\":\"http://www.bearingsworld.ae/elevator\",\"uniqueKey\":\"0:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.bearingsworld.ae/elevator\",\"uniqueKey\":\"0:/elevator\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"bearingsworld.ae\",\"companyName\":\"Bearings World Trading LLC. Dubai\",\"homepage\":\"http://www.bearingsworld.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:57:16.123Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "0:/elevator",
-  "url": "http://www.bearingsworld.ae/elevator"
+	"id": "BLAq3DYYk2Huu5Y",
+	"json": "{\"id\":\"BLAq3DYYk2Huu5Y\",\"url\":\"https://alkhalij.com/elevator\",\"loadedUrl\":\"https://alkhalij.com/elevator\",\"uniqueKey\":\"0:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://alkhalij.com/elevator\",\"uniqueKey\":\"0:/elevator\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"alkhalij.com\",\"companyName\":\"Bearing number 1 distributor in Dubai and UAE\",\"homepage\":\"https://alkhalij.com/dubai/products/bearings-units-housing/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:22:53.062Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "0:/elevator",
+	"url": "https://alkhalij.com/elevator"
 }

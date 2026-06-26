@@ -31,6 +31,7 @@ export interface ProductLineAiWritingStepSummary {
 
 export interface ProductLineAiWritingConfigSummary {
   enabledLabel: string;
+  promptTemplateLabel: string;
   sequenceStrategyLabel: string;
   languagePolicyLabel: string;
   toneLabel: string;
@@ -52,6 +53,10 @@ export const productLineAiSequenceStrategyOptions = [
   { label: '3 封核心 + 可选转介绍/退出', value: 'core_3_step' },
   { label: '完整 5 封序列', value: 'full_5_step' }
 ] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['sequenceStrategy']> }>;
+
+export const productLineAiPromptTemplateOptions = [
+  { label: '通用模板', value: 'crm_outreach_general' }
+] satisfies Array<{ label: string; value: NonNullable<Api.Crm.ProductLineAiWritingConfig['promptTemplateKey']> }>;
 
 export const productLineAiLanguagePolicyOptions = [
   { label: '客户语言优先，否则英文', value: 'account_locale_or_english' },
@@ -98,6 +103,7 @@ export function createDefaultProductLineForm(): Api.Crm.ProductLineFormModel {
 export function createDefaultProductLineAiWritingConfig(): Api.Crm.ProductLineAiWritingConfig {
   return {
     enabled: false,
+    promptTemplateKey: 'crm_outreach_general',
     proofAssets: '',
     regionNotes: '',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
@@ -183,6 +189,7 @@ export function normalizeProductLineAiWritingConfig(
 
   const normalized: Api.Crm.ProductLineAiWritingConfig = {
     enabled: Boolean(config.enabled),
+    promptTemplateKey: normalizeProductLineAiPromptTemplateKey(config.promptTemplateKey),
     proofAssets: config.proofAssets?.trim() ?? '',
     regionNotes: config.regionNotes?.trim() ?? '',
     steps: [1, 2, 3, 4, 5].map(stepIndex => {
@@ -195,7 +202,7 @@ export function normalizeProductLineAiWritingConfig(
     })
   };
 
-  // Empty select values mean the backend should use its built-in prompt defaults.
+  // Empty select values mean the backend should use the default strategy inside the published template.
   assignOptionalSelectValue(normalized, 'sequenceStrategy', config.sequenceStrategy);
   assignOptionalSelectValue(normalized, 'languagePolicy', config.languagePolicy);
   assignOptionalSelectValue(normalized, 'tone', config.tone);
@@ -257,6 +264,7 @@ export function summarizeProductLineAiWritingConfig(
 
   return {
     enabledLabel: normalized.enabled ? '已开启' : '未开启',
+    promptTemplateLabel: findOptionLabel(productLineAiPromptTemplateOptions, normalized.promptTemplateKey),
     sequenceStrategyLabel: findOptionLabel(productLineAiSequenceStrategyOptions, normalized.sequenceStrategy),
     languagePolicyLabel: findOptionLabel(productLineAiLanguagePolicyOptions, normalized.languagePolicy),
     toneLabel: findOptionLabel(productLineAiToneOptions, normalized.tone),
@@ -264,7 +272,7 @@ export function summarizeProductLineAiWritingConfig(
     polishPolicyLabel: findOptionLabel(
       productLineAiPolishPolicyOptions,
       normalized.polishPolicy,
-      '系统内置（每次去 AI 味润色）'
+      '默认策略（每次去 AI 味润色）'
     ),
     proofAssets: normalized.proofAssets ?? '',
     regionNotes: normalized.regionNotes ?? '',
@@ -291,6 +299,13 @@ export function buildProductLineAiPromptVersionDiffItems(
     '启用状态',
     versionSummary.enabledLabel,
     currentSummary.enabledLabel
+  );
+  pushProductLinePromptDiffItem(
+    diffItems,
+    'promptTemplateKey',
+    '提示词模板',
+    versionSummary.promptTemplateLabel,
+    currentSummary.promptTemplateLabel
   );
   pushProductLinePromptDiffItem(
     diffItems,
@@ -351,9 +366,15 @@ export function buildProductLineAiPromptVersionDiffItems(
 }
 
 function createProductLinePromptPreview(prompt: string) {
-  if (!prompt) return '系统内置';
+  if (!prompt) return '未填写额外要求';
 
   return prompt.length > 80 ? `${prompt.slice(0, 80)}...` : prompt;
+}
+
+function normalizeProductLineAiPromptTemplateKey(
+  value: unknown
+): NonNullable<Api.Crm.ProductLineAiWritingConfig['promptTemplateKey']> {
+  return value === 'crm_outreach_general' ? value : 'crm_outreach_general';
 }
 
 function assignOptionalSelectValue<Key extends keyof Api.Crm.ProductLineAiWritingConfig>(
@@ -369,7 +390,7 @@ function assignOptionalSelectValue<Key extends keyof Api.Crm.ProductLineAiWritin
 function findOptionLabel<T extends string>(
   options: Array<{ label: string; value: T }>,
   value: T | undefined,
-  emptyLabel = '系统内置'
+  emptyLabel = '默认策略'
 ) {
   return options.find(option => option.value === value)?.label ?? emptyLabel;
 }

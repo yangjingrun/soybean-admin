@@ -4,6 +4,7 @@ import {
   buildAiLeadStructuredRequirement,
   buildAiLeadCandidateImportPayload,
   buildAiLeadCandidateImportRows,
+  buildGeneratedLeadContextFormHints,
   buildKeywordHistoryUpdatePayload,
   createAiLeadContextSnapshot,
   createKeywordOptimizationViewModel,
@@ -101,9 +102,9 @@ const keywordPlan: Api.AiLeads.OptimizedKeywordPlan = {
 describe('ai leads keyword optimization helpers', () => {
   it('builds structured lead context from foreign-trade customer and exclusion dictionaries', () => {
     const snapshot = createAiLeadContextSnapshot({
-      targetRegionValue: 'country:AE:%E9%98%BF%E8%81%94%E9%85%8B',
-      targetRegionLabel: '阿联酋',
-      targetRegionCountryCode: 'AE',
+      targetRegionValues: ['country:AE:%E9%98%BF%E8%81%94%E9%85%8B', 'country:SA:%E6%B2%99%E7%89%B9'],
+      targetRegionLabels: ['阿联酋', '沙特阿拉伯'],
+      targetRegionCountryCodes: ['AE', 'SA'],
       targetCustomerTypeKeys: createDefaultAiLeadTargetCustomerTypeKeys(),
       exclusionRuleKeys: createDefaultAiLeadExclusionRuleKeys(),
       keywordText: '6203 bearing',
@@ -113,9 +114,14 @@ describe('ai leads keyword optimization helpers', () => {
     const requirement = buildAiLeadStructuredRequirement(snapshot);
 
     assert.equal(snapshot.targetRegion?.label, '阿联酋');
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => item.label),
+      ['阿联酋', '沙特阿拉伯']
+    );
     assert.equal(snapshot.targetCustomerTypes[0].label, '进口商');
     assert.equal(snapshot.exclusionRules[0].label, '中国供应商/出口商');
     assert.match(requirement, /目标客户类型：进口商、经销商\/代理商/);
+    assert.match(requirement, /目标国家\/地区：阿联酋、沙特阿拉伯/);
     assert.match(requirement, /排除类型：中国供应商\/出口商/);
     assert.match(requirement, /补充判断规则：只找有官网和邮箱的公司/);
   });
@@ -125,6 +131,15 @@ describe('ai leads keyword optimization helpers', () => {
 
     assert.equal(result.resolvedProductKeywords, keywordPlan.resolvedProductKeywords);
     assert.equal(result.serperSearchQueries[0].requestBody?.q, '6204 bearing importer Saudi Arabia');
+  });
+
+  it('builds generated form hints from keyword optimization rules', () => {
+    const hints = buildGeneratedLeadContextFormHints(keywordPlan);
+
+    assert.equal(hints.keywordText, '6204 bearing, deep groove ball bearing');
+    assert.match(hints.supplementalRequirement, /优先保留：importer/);
+    assert.match(hints.supplementalRequirement, /排除：school/);
+    assert.match(hints.supplementalRequirement, /官网重点核验：Products/);
   });
 
   it('keeps business summary visible while hiding query details for regular users', () => {

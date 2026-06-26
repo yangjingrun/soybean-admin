@@ -14,6 +14,7 @@ describe('crm-ai-writing-prompt-composer', () => {
         baseDraft: { subject: 'Re: Bearing fit', bodyText: 'Following up.' },
         writingConfig: {
           enabled: true,
+          promptTemplateKey: 'crm_outreach_general',
           steps: [
             { stepIndex: 1, prompt: 'Step 1' },
             { stepIndex: 2, prompt: '' },
@@ -106,7 +107,9 @@ describe('crm-ai-writing-prompt-composer', () => {
     assert.match(prompt.userPrompt, /For step 5, politely close the automatic sequence/);
     assert.match(prompt.userPrompt, /Low-friction action guide/);
     assert.match(prompt.userPrompt, /do not tell the person "you are a distributor/);
-    assert.match(prompt.userPrompt, /system built-in guidance/);
+    assert.match(prompt.userPrompt, /published global prompt template/);
+    assert.match(prompt.userPrompt, /no extra product-specific requirement/);
+    assert.match(prompt.userPrompt, /"promptTemplateKey": "crm_outreach_general"/);
     assert.match(prompt.userPrompt, /"stepPrompt": null/);
     assert.match(prompt.userPrompt, /"sendDecision": "send"/);
     assert.match(prompt.userPrompt, /"ctaType": "string"/);
@@ -169,6 +172,7 @@ function createPromptInputForSpec(overrides: Partial<CrmAiDraftPromptInput> = {}
     baseDraft: { subject: 'Bearing fit', bodyText: 'Hi Alex,\n\nShort note.\n\nAlice' },
     writingConfig: {
       enabled: true,
+      promptTemplateKey: 'crm_outreach_general',
       steps: [1, 2, 3, 4, 5].map(stepIndex => ({
         stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
         prompt: `Step ${stepIndex}`

@@ -49,7 +49,7 @@ export class TestAiPromptDraftDto extends ValidateAiPromptDraftDto {
   inputPrompt!: string;
 }
 
-export class PublishAiPromptDraftDto extends AiPromptKeyParamDto {
+export class PublishAiPromptVersionDto extends SaveAiPromptDto {
   @IsOptional()
   @IsString()
   @MaxLength(240)
@@ -57,10 +57,16 @@ export class PublishAiPromptDraftDto extends AiPromptKeyParamDto {
   changeNote?: string;
 }
 
-export class RollbackAiPromptVersionDto extends PublishAiPromptDraftDto {
+export class RollbackAiPromptVersionDto extends AiPromptKeyParamDto {
   @IsString()
   @MinLength(1)
   @MaxLength(80)
   @Transform(trimStringValue)
   versionId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  @Transform(trimStringValue)
+  changeNote?: string;
 }

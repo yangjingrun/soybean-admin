@@ -1,0 +1,9 @@
+{
+	"id": "SM7e3YDt3QwLG1x",
+	"json": "{\"id\":\"SM7e3YDt3QwLG1x\",\"url\":\"https://www.tradeling.com/elevator\",\"loadedUrl\":\"https://www.tradeling.com/ae-en/elevator\",\"uniqueKey\":\"15:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.tradeling.com/elevator\",\"uniqueKey\":\"15:/elevator\",\"userData\":{\"candidateIndex\":15,\"dedupeKey\":\"tradeling.com\",\"companyName\":\"Buy 6203 Ball Bearing 40x17x12 mm Online in UAE | Tradeling\",\"homepage\":\"https://www.tradeling.com/ae-en/product-details/6203-ball-bearing-40x17x12-mm-6034d3b08cfcfa9a6f2a2695-601a5c3def4272001bddcc85\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:26:17.832Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "15:/elevator",
+	"url": "https://www.tradeling.com/elevator"
+}

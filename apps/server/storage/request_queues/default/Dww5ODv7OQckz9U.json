@@ -1,9 +1,9 @@
 {
-  "id": "Dww5ODv7OQckz9U",
-  "json": "{\"id\":\"Dww5ODv7OQckz9U\",\"url\":\"http://www.bearingsglobal.ae/contact\",\"loadedUrl\":\"https://bearingsglobal.ae/contact-us/\",\"uniqueKey\":\"6:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.bearingsglobal.ae/contact\",\"uniqueKey\":\"6:/contact\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"bearingsglobal.ae\",\"companyName\":\"Bearings Global FZCO\",\"homepage\":\"http://www.bearingsglobal.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:09.719Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "6:/contact",
-  "url": "http://www.bearingsglobal.ae/contact"
+	"id": "Dww5ODv7OQckz9U",
+	"json": "{\"id\":\"Dww5ODv7OQckz9U\",\"url\":\"https://www.reachuae.com/contact\",\"loadedUrl\":\"https://www.reachuae.com/contact\",\"uniqueKey\":\"6:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.reachuae.com/contact\",\"uniqueKey\":\"6:/contact\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"reachuae.com\",\"companyName\":\"FAG Suppliers and Dealers in UAE - Dubai\",\"homepage\":\"https://www.reachuae.com/brands/fag-b8716\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:56.532Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "6:/contact",
+	"url": "https://www.reachuae.com/contact"
 }

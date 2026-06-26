@@ -1,9 +1,9 @@
 {
-  "id": "xwXY8m1vw41C6H7",
-  "json": "{\"id\":\"xwXY8m1vw41C6H7\",\"url\":\"http://www.mribearings.com/product\",\"loadedUrl\":\"https://mribearings.inappsglobal.com/Home/Login/product\",\"uniqueKey\":\"8:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.mribearings.com/product\",\"uniqueKey\":\"8:/product\",\"userData\":{\"candidateIndex\":8,\"dedupeKey\":\"mribearings.com\",\"companyName\":\"MRI Bearings - Koyo, Nsk, Ntn, Nachi, Timken\",\"homepage\":\"http://www.mribearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:23.716Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "8:/product",
-  "url": "http://www.mribearings.com/product"
+	"id": "xwXY8m1vw41C6H7",
+	"json": "{\"id\":\"xwXY8m1vw41C6H7\",\"url\":\"https://jtekt.ae/product\",\"loadedUrl\":\"https://jtekt.ae/product\",\"uniqueKey\":\"8:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://jtekt.ae/product\",\"uniqueKey\":\"8:/product\",\"userData\":{\"candidateIndex\":8,\"dedupeKey\":\"jtekt.ae\",\"companyName\":\"U.A.E. DISTRIBUTORS - JTEKT Sales Middle East\",\"homepage\":\"https://jtekt.ae/distributors-uae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:15.950Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "8:/product",
+	"url": "https://jtekt.ae/product"
 }

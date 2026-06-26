@@ -1,25 +1,66 @@
 {
-  "requestsFinished": 8,
-  "requestsFailed": 0,
-  "requestsRetries": 0,
-  "requestsFailedPerMinute": 0,
-  "requestsFinishedPerMinute": 46,
-  "requestMinDurationMillis": 2969,
-  "requestMaxDurationMillis": 5690,
-  "requestTotalFailedDurationMillis": 0,
-  "requestTotalFinishedDurationMillis": 35170,
-  "crawlerStartedAt": "2026-06-25T10:58:37.401Z",
-  "crawlerFinishedAt": "2026-06-25T10:58:47.715Z",
-  "statsPersistedAt": "2026-06-25T10:58:47.715Z",
-  "crawlerRuntimeMillis": 10332,
-  "crawlerLastStartTimestamp": 1782385117383,
-  "requestRetryHistogram": [8],
+  "requestsFinished": 0,
+  "requestsFailed": 8,
+  "requestsRetries": 8,
+  "requestsFailedPerMinute": 78,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 5462,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2026-06-25T13:25:45.434Z",
+  "crawlerFinishedAt": "2026-06-25T13:25:51.533Z",
+  "statsPersistedAt": "2026-06-25T13:25:51.533Z",
+  "crawlerRuntimeMillis": 6121,
+  "crawlerLastStartTimestamp": 1782393945412,
+  "requestRetryHistogram": [
+    null,
+    8
+  ],
   "statsId": 12,
-  "requestAvgFailedDurationMillis": null,
-  "requestAvgFinishedDurationMillis": 4396,
-  "requestTotalDurationMillis": 35170,
+  "requestAvgFailedDurationMillis": 683,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 5462,
   "requestsTotal": 8,
   "requestsWithStatusCode": {},
-  "errors": {},
-  "retryErrors": {}
+  "errors": {
+    "file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:198:21": {
+      "ECONNRESET": {
+        "RequestError": {
+          "Client network socket disconnected before secure TLS connection was established": {
+            "count": 8
+          }
+        }
+      }
+    },
+    "node:_tls_wrap:1748:19": {
+      "ECONNRESET": {
+        "Error": {
+          "Client network socket disconnected before secure TLS connection was established": {
+            "count": 8
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:198:21": {
+      "ECONNRESET": {
+        "RequestError": {
+          "Client network socket disconnected before secure TLS connection was established": {
+            "count": 8
+          }
+        }
+      }
+    },
+    "node:_tls_wrap:1748:19": {
+      "ECONNRESET": {
+        "Error": {
+          "Client network socket disconnected before secure TLS connection was established": {
+            "count": 8
+          }
+        }
+      }
+    }
+  }
 }

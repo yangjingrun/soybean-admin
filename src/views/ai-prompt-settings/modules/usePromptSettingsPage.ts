@@ -4,17 +4,10 @@ import { defaultAiPromptKey, type AiPromptKey } from '@/constants/ai-gateway';
 import {
   fetchAiPromptWorkbenchDetail,
   fetchAiPromptWorkbenchSteps,
-  publishAiPromptDraft,
-  rollbackAiPromptVersion,
-  saveAiPromptDraft,
-  testAiPromptDraft,
-  validateAiPromptDraft
+  publishAiPromptVersion,
+  rollbackAiPromptVersion
 } from '@/service/api';
-import { resolvePromptPublishBlockReason } from './shared';
 import type { PromptFocusSectionRequest, PromptSectionKey } from './shared';
-
-const defaultTestInput =
-  '测试上下文：河北轴承供应商，目标客户 ABC Trading，国家 SA，城市 Riyadh，联系人 Sourcing Manager，产品线 Bearings，目标是生成第 1 封开发信。';
 
 /** Owns prompt workbench state and backend actions for the route view. */
 export function usePromptSettingsPage() {
@@ -24,16 +17,9 @@ export function usePromptSettingsPage() {
   const selectedPromptKey = shallowRef<AiPromptKey>(defaultAiPromptKey);
   const systemPrompt = shallowRef('');
   const changeNote = shallowRef('');
-  const testInput = shallowRef(defaultTestInput);
-  const validationResult = shallowRef<Api.AiGateway.AiPromptValidationResult | null>(null);
-  const latestTestRun = shallowRef<Api.AiGateway.AiPromptTestRunRecord | null>(null);
-  const validatedPromptText = shallowRef('');
   const focusSectionRequest = shallowRef<PromptFocusSectionRequest | null>(null);
   const loadingSteps = shallowRef(false);
   const loadingDetail = shallowRef(false);
-  const savingDraft = shallowRef(false);
-  const validating = shallowRef(false);
-  const testing = shallowRef(false);
   const publishing = shallowRef(false);
   const rollingBackVersionId = shallowRef<string | null>(null);
   let detailRequestId = 0;
@@ -43,41 +29,15 @@ export function usePromptSettingsPage() {
   );
   const versions = computed(() => detail.value?.versions ?? []);
   const basePrompt = computed(
-    () =>
-      detail.value?.draft?.systemPrompt ||
-      detail.value?.published?.systemPrompt ||
-      detail.value?.defaultPrompt.systemPrompt ||
-      ''
+    () => detail.value?.published?.systemPrompt || detail.value?.defaultPrompt.systemPrompt || ''
   );
   const isDirty = computed(() => systemPrompt.value.trim() !== basePrompt.value.trim());
-  const canSaveDraft = computed(() => Boolean(systemPrompt.value.trim()) && !savingDraft.value);
-  const canValidate = computed(() => Boolean(systemPrompt.value.trim()) && !validating.value);
-  const canTest = computed(() => Boolean(systemPrompt.value.trim() && testInput.value.trim()) && !testing.value);
-  const hasFreshValidationResult = computed(
-    () => Boolean(validationResult.value) && validatedPromptText.value === systemPrompt.value.trim()
+  const canPublish = computed(() => Boolean(systemPrompt.value.trim()) && !publishing.value);
+  const publishReadinessHint = computed(() =>
+    canPublish.value ? '点击后会直接发布为全局版本' : '系统提示词不能为空'
   );
-  const publishBlockedReason = computed(() =>
-    resolvePromptPublishBlockReason({
-      hasDraft: Boolean(detail.value?.draft),
-      isDirty: isDirty.value,
-      hasFreshValidationResult: hasFreshValidationResult.value,
-      validationPassed: Boolean(validationResult.value?.ok)
-    })
-  );
-  const canPublish = computed(() => !publishBlockedReason.value && !publishing.value);
-  const publishReadinessHint = computed(() => {
-    if (publishBlockedReason.value) {
-      return publishBlockedReason.value;
-    }
 
-    if (isDirty.value || !detail.value?.draft) {
-      return '测试通过后可直接发布，发布时会自动保存当前修改';
-    }
-
-    return '当前草稿已满足发布条件';
-  });
-
-  /** Loads built-in prompt steps and opens the selected prompt detail. */
+  /** Loads prompt configuration steps and opens the selected prompt detail. */
   async function loadSteps(preferredPromptKey: string = selectedPromptKey.value) {
     loadingSteps.value = true;
 
@@ -119,10 +79,7 @@ export function usePromptSettingsPage() {
       }
 
       detail.value = data;
-      systemPrompt.value = data.draft?.systemPrompt || data.published?.systemPrompt || data.defaultPrompt.systemPrompt;
-      validationResult.value = data.draft?.validationResult ?? null;
-      validatedPromptText.value = data.draft?.validationResult ? systemPrompt.value.trim() : '';
-      latestTestRun.value = data.latestTestRun;
+      systemPrompt.value = data.published?.systemPrompt || data.defaultPrompt.systemPrompt;
       changeNote.value = '';
     } finally {
       if (requestId === detailRequestId) {
@@ -131,118 +88,23 @@ export function usePromptSettingsPage() {
     }
   }
 
-  async function validateCurrentPrompt() {
-    if (!canValidate.value) {
+  async function publishCurrentPrompt() {
+    if (!systemPrompt.value.trim()) {
+      message.warning('系统提示词不能为空');
       return;
     }
 
-    validating.value = true;
-
-    try {
-      const { data, error } = await validateAiPromptDraft({
-        promptKey: selectedPromptKey.value,
-        systemPrompt: systemPrompt.value
-      });
-
-      if (error || !data) {
-        return;
-      }
-
-      validationResult.value = data;
-      validatedPromptText.value = systemPrompt.value.trim();
-      message[data.ok ? 'success' : 'warning'](data.ok ? '校验通过' : '校验发现需要修复的规则');
-    } finally {
-      validating.value = false;
-    }
-  }
-
-  async function saveCurrentDraft(options?: { silent?: boolean; skipReload?: boolean }) {
-    if (!canSaveDraft.value || !selectedStep.value) {
-      return false;
-    }
-
-    savingDraft.value = true;
-
-    try {
-      const { data, error } = await saveAiPromptDraft({
-        promptKey: selectedPromptKey.value,
-        title: selectedStep.value.title,
-        systemPrompt: systemPrompt.value,
-        changeNote: changeNote.value
-      });
-
-      if (error || !data) {
-        return false;
-      }
-
-      if (!options?.silent) {
-        message.success('草稿已保存');
-      }
-
-      if (options?.skipReload) {
-        return true;
-      }
-
-      await Promise.all([loadSteps(selectedPromptKey.value), loadDetail(selectedPromptKey.value)]);
-      return true;
-    } finally {
-      savingDraft.value = false;
-    }
-  }
-
-  async function testCurrentDraft() {
-    if (!canTest.value) {
-      return;
-    }
-
-    testing.value = true;
-
-    try {
-      const { data, error } = await testAiPromptDraft({
-        promptKey: selectedPromptKey.value,
-        systemPrompt: systemPrompt.value,
-        inputPrompt: testInput.value
-      });
-
-      if (error || !data) {
-        return;
-      }
-
-      latestTestRun.value = data;
-      validationResult.value = data.validationResult;
-      validatedPromptText.value = systemPrompt.value.trim();
-      message[data.success ? 'success' : 'warning'](data.success ? '测试通过' : '测试输出未通过校验');
-      await loadSteps(selectedPromptKey.value);
-    } finally {
-      testing.value = false;
-    }
-  }
-
-  async function publishCurrentDraft() {
-    if (publishBlockedReason.value) {
-      message.warning(publishBlockedReason.value);
-      return;
-    }
-
-    if (publishing.value) {
+    if (publishing.value || !selectedStep.value) {
       return;
     }
 
     publishing.value = true;
 
     try {
-      const shouldAutoSave = isDirty.value || !detail.value?.draft;
-
-      if (shouldAutoSave) {
-        const saved = await saveCurrentDraft({ silent: true, skipReload: true });
-
-        if (!saved) {
-          return;
-        }
-      }
-
-      const { error } = await publishAiPromptDraft({
+      const { error } = await publishAiPromptVersion({
         promptKey: selectedPromptKey.value,
+        title: selectedStep.value.title,
+        systemPrompt: systemPrompt.value,
         changeNote: changeNote.value
       });
 
@@ -250,7 +112,7 @@ export function usePromptSettingsPage() {
         return;
       }
 
-      message.success(shouldAutoSave ? '当前内容已自动保存并发布' : '全局版本已发布');
+      message.success('全局版本已发布');
       await Promise.all([loadSteps(selectedPromptKey.value), loadDetail(selectedPromptKey.value)]);
     } finally {
       publishing.value = false;
@@ -288,8 +150,6 @@ export function usePromptSettingsPage() {
     }
 
     systemPrompt.value = detail.value.defaultPrompt.systemPrompt;
-    validationResult.value = null;
-    validatedPromptText.value = '';
   }
 
   /** Requests the prompt editor to focus one known section. */
@@ -307,30 +167,18 @@ export function usePromptSettingsPage() {
     selectedStep,
     systemPrompt,
     changeNote,
-    testInput,
-    validationResult,
-    latestTestRun,
     focusSectionRequest,
     versions,
     loadingSteps,
     loadingDetail,
-    savingDraft,
-    validating,
-    testing,
     publishing,
     rollingBackVersionId,
     isDirty,
-    canSaveDraft,
-    canValidate,
-    canTest,
     canPublish,
     publishReadinessHint,
     loadSteps,
     selectPrompt,
-    validateCurrentPrompt,
-    saveCurrentDraft,
-    testCurrentDraft,
-    publishCurrentDraft,
+    publishCurrentPrompt,
     rollbackVersion,
     useDefaultPrompt,
     focusPromptSection

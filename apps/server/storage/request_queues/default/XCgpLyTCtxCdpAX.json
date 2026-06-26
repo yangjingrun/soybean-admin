@@ -1,9 +1,9 @@
 {
-  "id": "XCgpLyTCtxCdpAX",
-  "json": "{\"id\":\"XCgpLyTCtxCdpAX\",\"url\":\"http://www.bearingsglobal.ae/elevator\",\"loadedUrl\":\"https://bearingsglobal.ae/elevator\",\"uniqueKey\":\"6:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.bearingsglobal.ae/elevator\",\"uniqueKey\":\"6:/elevator\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"bearingsglobal.ae\",\"companyName\":\"Bearings Global FZCO\",\"homepage\":\"http://www.bearingsglobal.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:11.493Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "6:/elevator",
-  "url": "http://www.bearingsglobal.ae/elevator"
+	"id": "XCgpLyTCtxCdpAX",
+	"json": "{\"id\":\"XCgpLyTCtxCdpAX\",\"url\":\"https://www.reachuae.com/elevator\",\"loadedUrl\":\"https://www.reachuae.com/elevator\",\"uniqueKey\":\"6:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.reachuae.com/elevator\",\"uniqueKey\":\"6:/elevator\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"reachuae.com\",\"companyName\":\"FAG Suppliers and Dealers in UAE - Dubai\",\"homepage\":\"https://www.reachuae.com/brands/fag-b8716\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:57.610Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "6:/elevator",
+	"url": "https://www.reachuae.com/elevator"
 }

@@ -4,7 +4,7 @@ import type { CrmSequenceReviewRecord } from '../crm.types';
 import { getAiDraftTaskItemSkipMessage } from './crm-ai-draft-task.rules';
 
 describe('crm-ai-draft-task.rules', () => {
-  it('allows enabled AI writing config to leave step prompts empty for built-in defaults', () => {
+  it('allows enabled AI writing config to leave product-specific step additions empty', () => {
     const item = createReviewItemWithEmptyPrompts();
 
     assert.equal(getAiDraftTaskItemSkipMessage(item, new Set()), null);
@@ -28,6 +28,7 @@ function createReviewItemWithEmptyPrompts(): CrmSequenceReviewRecord {
       status: 'active',
       aiWritingConfig: {
         enabled: true,
+        promptTemplateKey: 'crm_outreach_general',
         steps: [1, 2, 3, 4, 5].map(stepIndex => ({
           stepIndex,
           prompt: ''

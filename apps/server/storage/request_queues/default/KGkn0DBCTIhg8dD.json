@@ -1,9 +1,9 @@
 {
-  "id": "KGkn0DBCTIhg8dD",
-  "json": "{\"id\":\"KGkn0DBCTIhg8dD\",\"url\":\"https://vwimpex.com/products\",\"loadedUrl\":\"https://vwimpex.com/products\",\"uniqueKey\":\"12:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://vwimpex.com/products\",\"uniqueKey\":\"12:/products\",\"userData\":{\"candidateIndex\":12,\"dedupeKey\":\"vwimpex.com\",\"companyName\":\"VWIMPEX INDUSTRIAL MOTION - FZCO\",\"homepage\":\"https://vwimpex.com/contact-us\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:37.033Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "12:/products",
-  "url": "https://vwimpex.com/products"
+	"id": "KGkn0DBCTIhg8dD",
+	"json": "{\"id\":\"KGkn0DBCTIhg8dD\",\"url\":\"https://sharafico.com/products\",\"uniqueKey\":\"12:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"RequestError: Client network socket disconnected before secure TLS connection was established\\n    at Request._beforeError (file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:198:21)\\n    at Request.flush (file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:187:18)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\\n    at TLSSocket.onConnectEnd (node:_tls_wrap:1748:19)\\n    at TLSSocket.emit (node:events:536:35)\\n    at endReadableNT (node:internal/streams/readable:1698:12)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)\",\"RequestError: Client network socket disconnected before secure TLS connection was established\\n    at Request._beforeError (file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:198:21)\\n    at Request.flush (file:///Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/got@14.6.6/node_modules/got/dist/source/core/index.js:187:18)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\\n    at TLSSocket.onConnectEnd (node:_tls_wrap:1748:19)\\n    at TLSSocket.emit (node:events:536:35)\\n    at endReadableNT (node:internal/streams/readable:1698:12)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://sharafico.com/products\",\"uniqueKey\":\"12:/products\",\"userData\":{\"candidateIndex\":12,\"dedupeKey\":\"sharafico.com\",\"companyName\":\"Sharafi Co - Bearing Trading in UAE - Dubai - Home\",\"homepage\":\"https://sharafico.com\"}},\"__crawlee\":{\"state\":5}},\"handledAt\":\"2026-06-25T13:25:51.505Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "12:/products",
+	"url": "https://sharafico.com/products"
 }

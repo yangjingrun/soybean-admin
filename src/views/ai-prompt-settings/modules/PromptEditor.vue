@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { InputInst } from 'naive-ui';
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
-import { buildPromptSectionAnchors, resolvePromptLineStartOffset } from './shared';
+import { buildPromptSectionAnchors, resolvePromptEffectiveSource, resolvePromptLineStartOffset } from './shared';
 import type { PromptFocusSectionRequest, PromptSectionAnchor } from './shared';
 
 const props = defineProps<{
   detail: Api.AiGateway.AiPromptWorkbenchDetail | null;
+  canEdit?: boolean;
   focusSectionRequest?: PromptFocusSectionRequest | null;
   loading?: boolean;
   versionCount?: number;
@@ -21,9 +22,10 @@ const activeTab = shallowRef<'prompt' | 'default'>('prompt');
 const editorInputRef = useTemplateRef<InputInst>('editorInput');
 const anchors = computed(() => buildPromptSectionAnchors(systemPrompt.value));
 const selectedTitle = computed(() => props.detail?.title || '提示词配置');
-const selectedUsage = computed(() => props.detail?.usage || '维护 AI 业务内置步骤的系统提示词。');
+const selectedUsage = computed(() => props.detail?.usage || '维护 AI 业务已发布系统提示词。');
 const selectedPromptKey = computed(() => props.detail?.promptKey || '-');
 const defaultPromptPreview = computed(() => props.detail?.defaultPrompt.systemPrompt || '');
+const effectiveSource = computed(() => resolvePromptEffectiveSource(props.detail));
 
 /** Moves the textarea caret to the selected prompt section and lets the browser scroll it into view. */
 async function handleAnchorClick(anchor: PromptSectionAnchor) {
@@ -72,6 +74,7 @@ watch(
             <div class="prompt-editor__meta">
               <span>{{ selectedPromptKey }}</span>
               <span>{{ props.detail?.channel || '-' }}</span>
+              <NTag size="small" :type="effectiveSource.type" :bordered="false">{{ effectiveSource.label }}</NTag>
             </div>
           </div>
           <NSpace :size="8" class="prompt-editor__actions">
@@ -87,8 +90,8 @@ watch(
               </template>
               版本记录
             </NTooltip>
-            <NTag type="warning" :bordered="false">仅超级管理员</NTag>
-            <NButton size="small" @click="emit('useDefault')">恢复默认</NButton>
+            <NTag type="warning" :bordered="false">仅超级管理员可修改</NTag>
+            <NButton size="small" :disabled="!canEdit" @click="emit('useDefault')">使用初始化模板</NButton>
           </NSpace>
         </div>
 
@@ -115,11 +118,12 @@ watch(
                 type="textarea"
                 class="prompt-editor__textarea"
                 :autosize="{ minRows: 26, maxRows: 34 }"
+                :disabled="!canEdit"
                 placeholder="写入模型必须遵守的固定规则"
               />
             </div>
           </NTabPane>
-          <NTabPane name="default" tab="默认模板">
+          <NTabPane name="default" tab="初始化模板">
             <pre class="prompt-editor__preview">{{ defaultPromptPreview }}</pre>
           </NTabPane>
         </NTabs>

@@ -83,6 +83,36 @@ export const aiPromptDefinitions = [
     title: '输出结构契约',
     usage: 'CRM 写信方法论：约束模型只输出严格 JSON，并返回 usedFacts、qualityFlags 等审核字段。',
     group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_general_step_1_relevance',
+    title: '通用模板第 1 封：相关性与初始价值',
+    usage: 'CRM 通用模板：首封建立客户、职位、产品之间的相关性，并给出一个低摩擦下一步。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_general_step_2_decision',
+    title: '通用模板第 2 封：具体产品或采购判断',
+    usage: 'CRM 通用模板：第二封推进一个具体产品、技术或采购判断对象，避免泛泛发目录。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_general_step_3_risk_validation',
+    title: '通用模板第 3 封：采购风险与验证路径',
+    usage: 'CRM 通用模板：第三封围绕一个采购风险或验证路径展开，只使用已发布事实。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_general_step_4_choice_followup',
+    title: '通用模板第 4 封：选择题跟进',
+    usage: 'CRM 通用模板：第四封用岗位化 A/B/C/D/E 选择题降低回复成本。',
+    group: 'crm_outreach'
+  },
+  {
+    promptKey: 'crm_outreach_general_step_5_light_exit',
+    title: '通用模板第 5 封：轻退出与未来入口',
+    usage: 'CRM 通用模板：第五封礼貌结束本轮自动序列，只保留关闭、转介绍或未来触发点。',
+    group: 'crm_outreach'
   }
 ] as const;
 
@@ -105,7 +135,12 @@ export const aiPromptChannels: Record<AiPromptKey, 'search_places' | 'maps' | 'a
   crm_outreach_subject_line: 'crm_email',
   crm_outreach_deliverability_guard: 'crm_email',
   crm_outreach_ai_polish: 'crm_email',
-  crm_outreach_output_contract: 'crm_email'
+  crm_outreach_output_contract: 'crm_email',
+  crm_outreach_general_step_1_relevance: 'crm_email',
+  crm_outreach_general_step_2_decision: 'crm_email',
+  crm_outreach_general_step_3_risk_validation: 'crm_email',
+  crm_outreach_general_step_4_choice_followup: 'crm_email',
+  crm_outreach_general_step_5_light_exit: 'crm_email'
 };
 
 export const aiPromptOutputTopLevelFields: Record<AiPromptKey, string[]> = {
@@ -144,7 +179,12 @@ export const aiPromptOutputTopLevelFields: Record<AiPromptKey, string[]> = {
   crm_outreach_subject_line: [],
   crm_outreach_deliverability_guard: [],
   crm_outreach_ai_polish: [],
-  crm_outreach_output_contract: []
+  crm_outreach_output_contract: [],
+  crm_outreach_general_step_1_relevance: [],
+  crm_outreach_general_step_2_decision: [],
+  crm_outreach_general_step_3_risk_validation: [],
+  crm_outreach_general_step_4_choice_followup: [],
+  crm_outreach_general_step_5_light_exit: []
 };
 
 export const aiPromptRequiredTextRules: Record<AiPromptKey, string[]> = {
@@ -162,7 +202,7 @@ export const aiPromptRequiredTextRules: Record<AiPromptKey, string[]> = {
     '不要新增 JSON 顶层字段'
   ],
   lead_search_result_decide: ['只输出一个合法 JSON 对象'],
-  lead_match_analyze: ['只输出一个合法 JSON 对象'],
+  lead_match_analyze: ['只输出一个合法 JSON 对象', 'customerGroup', 'companyCountry', 'targetMarketFit'],
   lead_email_generate: ['开发信'],
   crm_outreach_base_rules: ['只输出一个合法 JSON 对象', '不编造事实', '只使用公开/CRM 已提供事实'],
   crm_outreach_cold_email_core: ['只输出一个合法 JSON 对象', '不编造事实', '只使用公开/CRM 已提供事实'],
@@ -184,8 +224,30 @@ export const aiPromptRequiredTextRules: Record<AiPromptKey, string[]> = {
     'subject line 避免 spam/clickbait',
     'ai_polish 只能润色表达，不能新增事实、承诺或 CTA'
   ],
-  crm_outreach_output_contract: ['只输出一个合法 JSON 对象', '不编造事实', '只使用公开/CRM 已提供事实']
+  crm_outreach_output_contract: ['只输出一个合法 JSON 对象', '不编造事实', '只使用公开/CRM 已提供事实'],
+  crm_outreach_general_step_1_relevance: ['只输出一个合法 JSON 对象', '不编造事实', '只使用公开/CRM 已提供事实'],
+  crm_outreach_general_step_2_decision: ['只输出一个合法 JSON 对象', '不编造事实', '只使用公开/CRM 已提供事实'],
+  crm_outreach_general_step_3_risk_validation: [
+    '只输出一个合法 JSON 对象',
+    '不编造事实',
+    '只使用公开/CRM 已提供事实'
+  ],
+  crm_outreach_general_step_4_choice_followup: [
+    '只输出一个合法 JSON 对象',
+    '不编造事实',
+    '只使用公开/CRM 已提供事实'
+  ],
+  crm_outreach_general_step_5_light_exit: ['只输出一个合法 JSON 对象', '不编造事实', '只使用公开/CRM 已提供事实']
 };
+
+export const crmOutreachPromptKeys = aiPromptDefinitions
+  .filter(definition => 'group' in definition && definition.group === 'crm_outreach')
+  .map(definition => definition.promptKey);
+
+/** Checks whether one prompt key belongs to the CRM outreach rule set. */
+export function isCrmOutreachPromptKey(promptKey: string): promptKey is Extract<AiPromptKey, `crm_outreach_${string}`> {
+  return crmOutreachPromptKeys.includes(promptKey as (typeof crmOutreachPromptKeys)[number]);
+}
 
 const crmOutreachDefaultPromptRules = `
 你是 CRM AI 外贸开发信生成与质检模块，也是一名 B2B 外贸销售邮件优化顾问。
@@ -202,6 +264,7 @@ const crmOutreachDefaultPromptRules = `
 事实边界：
 - 只输出一个合法 JSON 对象，不要 Markdown、注释或额外解释。
 - 只使用公开/CRM 已提供事实，包括 CRM 字段、productLine 配置、verifiedFacts、publicFacts、previousEmails 和用户明确输入。
+- 不编造事实；没有公开/CRM 已提供依据时，只能保守提问或写入 riskNotes。
 - 不编造型号、系列、产品类别、材质、尺寸、公差、性能、寿命、精度、噪音、库存、MOQ、交期、价格、付款方式、工厂规模、产能、出口国家、客户案例、合作品牌、认证、测试报告、检验能力、样品政策、OEM/ODM、定制、包装、追溯、质保。
 - 型号、designation、series、SKU、part number、应用示例和证明材料只能来自已提供事实；不要自行补充未配置的型号范围、轴承类型或应用场景。
 - 可以做保守岗位推断，例如 supplier comparison、designation checks、replenishment planning、replacement sourcing、supplier qualification、range review，但必须写成 may be relevant / if this is part of your review / when comparing 这类可能性，不能写成已确认事实。
@@ -669,18 +732,33 @@ tbs 规则：
   lead_match_analyze: `
 你是外贸 B2B 客户精准度分析助手。本步骤只做 MatchAnalyze：根据用户需求、关键词计划、Serper 候选信息和官网公开抓取证据，判断候选客户是否值得开发。
 
+输入说明：
+- 用户需求、产品关键词、目标市场和目标客户画像会在业务输入中提供，不要要求用户再填写产品、国家、官网链接。
+- 每个候选客户会包含 Serper 线索字段和 websiteEvidence。websiteEvidence 是官网深度采集后的证据，可能包含 emails、phones、contactLinks、keywordHits、evidenceSnippets、companyAddressEvidence、companyCountrySignals、negativeKeywordHits、negativeEvidenceSnippets。
+- candidate.country/sourceCountry/sourceLabel 可能只是搜索目标或 Serper 来源标签，不等于官网归属国家；官网归属优先看 companyAddressEvidence、companyCountrySignals、联系页、页脚、电话区号和官网正文证据。
+
 硬性规则：
 - 只输出一个合法 JSON 对象，不要 Markdown、注释或额外解释。
 - 不允许编造官网没有的事实，不允许补充未知联系人、邮箱、电话、地址、公司业务或采购意图。
 - 只能引用输入里的 Serper 信息和 websiteEvidence 证据。
 - 如果官网抓取失败、跳过或证据不足，仍可基于 Serper 信息保守评分，但 reviewRequired 必须为 true。
 - score 必须是 0-100 数字；priority 只能是 high、medium、low、reject。
+- 必须先判断客户群体 customerGroup、官网归属地 companyCountry、目标市场匹配 targetMarketFit，再判断是否适合开发。
+- 如果官网地址、页脚、联系页、电话区号或 companyCountrySignals 明确显示这是中国公司，而用户目标是海外/非中国客户，必须输出 targetMarketFit=outside_target、priority=reject、score<=30，并在 reason 和 matchedSignals 中引用官网地址或国家证据。
+- 如果官网当前产品页、标题、描述、URL 或证据片段明确命中目标产品，但官网归属地不符合目标市场，不得因为产品匹配就纳入开发名单；应标为非目标市场，并把“产品命中但公司归属不符”写入 risks。
+- 如果没有归属地冲突，且官网产品页/Products/Categories 明确命中目标产品，不要仅因网站还有其他类目就直接 reject，可给 low/medium 并设置 reviewRequired。
+
+重点检查的官网信号：
+- Products / Categories：产品线、型号、品类是否匹配用户产品。
+- Wholesale / Trade / Dealer / Distributor / Stockist：是否存在 B2B 合作、进口、批发、经销、库存商信号。
+- About / Team / Contact：公司真实性、地址、电话区号、邮箱、联系人线索和官网归属地。
+- News / Blog / Social：公司是否仍在运营，有无近期动态或社媒链接。
 
 评分参考：
 - 80-100：官网或候选信息同时命中产品/品类和明确采购角色，例如 importer、distributor、dealer、stockist、wholesaler、industrial supplier、MRO supplier、spare parts supplier。
 - 60-79：有相关行业、产品页、联系页或渠道信号，但采购角色不够明确。
 - 40-59：只有弱相关摘要、目录页、地址电话或单一泛行业信号，需要人工复核。
-- 0-39：明显不相关、B2C/平台/媒体/学校/政府/协会本身、无采购可能或证据矛盾。
+- 0-39：明显不相关、B2C/平台/媒体/学校/政府/协会本身、无采购可能、证据矛盾，或官网归属地明确不符合目标市场。
 
 输出 JSON 结构必须严格如下：
 {
@@ -690,6 +768,9 @@ tbs 规则：
       "score": 0,
       "priority": "high/medium/low/reject",
       "buyerType": "客户类型",
+      "customerGroup": "客户群体判断，例如海外经销商/本地进口商/中国供应商/非目标海外客户",
+      "companyCountry": "官网证据显示的公司归属国家；没有证据则为空字符串",
+      "targetMarketFit": "target/uncertain/outside_target",
       "reason": "一句中文原因，必须基于输入证据",
       "matchedSignals": ["命中的 Serper 或官网证据信号"],
       "risks": ["不确定或不匹配风险"],
@@ -744,7 +825,45 @@ Object.assign(defaultAiPromptSystemPrompts, {
 模块重点：删除 I hope this email finds you well、I came across your profile、My name is、I found your company、came up as a company、based in 这类 AI 味或弱个性化开头；删除 For distributors/as an importer/you are a stockist 这类客户类型标签句；压缩过长正文和过多段落；把目录堆叠改成当前步骤最相关的 1 个判断点；把轴承邮件里的 model、fit、equivalent、stock、drawing-based matching 等不安全术语改成更准确表达；保留事实、承诺、CTA 意图和结构化字段。`,
   crm_outreach_output_contract: `${crmOutreachDefaultPromptRules}
 
-模块重点：严格输出 sendDecision、subject、bodyText、reason、roleNormalized、roleDecision、operatingContext、industryAngle、ctaType、ctaObject、ctaResponseMode、usedAngles、usedFacts、canonicalTermsUsed、sequenceNovelty、riskNotes、nextReviewHints、qualityFlags、polishChanges。`
+模块重点：严格输出 sendDecision、subject、bodyText、reason、roleNormalized、roleDecision、operatingContext、industryAngle、ctaType、ctaObject、ctaResponseMode、usedAngles、usedFacts、canonicalTermsUsed、sequenceNovelty、riskNotes、nextReviewHints、qualityFlags、polishChanges。`,
+  crm_outreach_general_step_1_relevance: `${crmOutreachDefaultPromptRules}
+
+通用模板第 1 封重点：相关性与初始价值。
+- 建立客户、联系人岗位和产品资料之间的一个真实相关性假设。
+- 只选 1 个产品/产品族/designation/配置/供应价值，不发目录，不堆型号。
+- CTA 优先 permission_send、compare_one、micro_input 或 confirm_relevance。
+- 不能用地理位置、客户类型标签或“我看到你们公司”当作主要个性化。
+- 目标是让客户觉得这封邮件和自己的岗位判断有关，而不是收到一封供应商介绍。`,
+  crm_outreach_general_step_2_decision: `${crmOutreachDefaultPromptRules}
+
+通用模板第 2 封重点：具体产品或采购判断。
+- 必须补充一个和第 1 封不同的具体判断对象。
+- 优先 one designation comparison、series coverage question、replacement cross-reference、configuration check、availability check、MOQ/lead-time comparison、assortment gap、application-specific item 或 packaging/supply condition。
+- 禁止 short model list、2-3 regular options、brief overview、quick product list。
+- CTA 只围绕一个可回复对象，不能再次泛泛介绍产品范围。`,
+  crm_outreach_general_step_3_risk_validation: `${crmOutreachDefaultPromptRules}
+
+通用模板第 3 封重点：采购风险与验证路径。
+- 只解决一个采购或技术验证风险，例如 designation accuracy、dimensional/configuration consistency、sample approval、inspection、marking、packaging、traceability、qualification documents、trial quantity、pre-shipment verification 或 supplier onboarding。
+- 证明材料必须来自 CRM 或公开事实；没有事实时，问客户通常先需要哪一种验证。
+- 不能再发型号清单，不能编造认证、检测报告、库存、样品政策或客户案例。
+- CTA 优先 proof_review、sample_or_trial 或 micro_input。`,
+  crm_outreach_general_step_4_choice_followup: `${crmOutreachDefaultPromptRules}
+
+通用模板第 4 封重点：选择题跟进。
+- 用 A/B/C/D/E 降低回复成本，客户只需回一个字母。
+- A/B/C 必须是三个不同的实际动作，不是同义改写。
+- D 固定处理 wrong contact / redirect，E 固定处理 not reviewing now / no current requirement。
+- 选择题要按联系人岗位定制，不要所有职位共用同一套选项。
+- CTA 类型使用 choice_reply，响应模式使用 one_letter。`,
+  crm_outreach_general_step_5_light_exit: `${crmOutreachDefaultPromptRules}
+
+通用模板第 5 封重点：轻退出与未来入口。
+- 礼貌结束本轮自动序列，不制造 last chance、final chance 或压迫感。
+- 只提供 close_loop、redirect 或 timing_check 三类低压力动作。
+- 可以给未来触发点，例如下次比较供应商、替换型号、验证样品、补货或项目启动时再联系。
+- 禁止 send a short overview for future reference、再发目录、再发型号清单或继续推销。
+- 如果客户不回复，系统应停止本轮自动序列。`
 } satisfies Partial<Record<AiPromptKey, string>>);
 
 export const leadKeywordOptimizePromptKey = 'lead_keyword_optimize';

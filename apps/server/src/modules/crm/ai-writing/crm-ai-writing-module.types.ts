@@ -14,6 +14,7 @@ export interface CrmAiWritingSelectedModule {
 
 export interface CrmAiWritingModuleResolveInput {
   stepIndex: CrmAiDraftPromptInput['stepIndex'];
+  promptTemplateKey: CrmAiDraftPromptInput['writingConfig']['promptTemplateKey'];
   contactTitle: string | null;
   account: {
     country?: string | null;

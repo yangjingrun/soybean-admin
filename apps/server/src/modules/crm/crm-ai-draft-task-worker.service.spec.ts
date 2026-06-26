@@ -127,7 +127,7 @@ describe('CrmAiDraftTaskWorkerService', () => {
     assert.equal(store.task.status, 'completed');
   });
 
-  it('generates first outreach with built-in defaults when product-line step prompts are empty', async () => {
+  it('generates first outreach with published template when product-line step additions are empty', async () => {
     const store = createWorkerStore({
       items: [
         createTaskItem({
@@ -839,6 +839,7 @@ function createProductLine(input: Partial<CrmProductLineRecord> = {}): CrmProduc
 function createAiWritingConfig(): NonNullable<CrmProductLineRecord['aiWritingConfig']> {
   return {
     enabled: true,
+    promptTemplateKey: 'crm_outreach_general',
     steps: [
       { stepIndex: 1, prompt: 'First touch.' },
       { stepIndex: 2, prompt: 'Follow up with a new angle.' },
@@ -852,6 +853,7 @@ function createAiWritingConfig(): NonNullable<CrmProductLineRecord['aiWritingCon
 function createEmptyPromptAiWritingConfig(): NonNullable<CrmProductLineRecord['aiWritingConfig']> {
   return {
     enabled: true,
+    promptTemplateKey: 'crm_outreach_general',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: ''

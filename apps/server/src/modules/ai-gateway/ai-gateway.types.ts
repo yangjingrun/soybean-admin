@@ -81,6 +81,16 @@ export interface PublishAiPromptDraftInput {
   userName?: string | null;
 }
 
+export interface PublishAiPromptVersionInput {
+  promptKey: string;
+  title: string;
+  systemPrompt: string;
+  validationResult: AiPromptValidationResult;
+  changeNote?: string | null;
+  userId?: string | null;
+  userName?: string | null;
+}
+
 export interface AiPromptTestRunRecord {
   id: string;
   promptKey: string;
@@ -118,8 +128,10 @@ export interface SaveAiPromptDraftPayload {
   changeNote?: string | null;
 }
 
-export interface PublishAiPromptDraftPayload {
+export interface PublishAiPromptVersionPayload {
   promptKey: string;
+  title: string;
+  systemPrompt: string;
   changeNote?: string | null;
 }
 
@@ -153,6 +165,7 @@ export interface AiPromptStore {
   getDraftPromptVersion(promptKey: string): Promise<AiPromptVersionRecord | null>;
   saveDraftPromptVersion(input: SaveAiPromptDraftInput): Promise<AiPromptVersionRecord>;
   publishDraftPromptVersion(input: PublishAiPromptDraftInput): Promise<AiPromptVersionRecord>;
+  publishPromptVersion(input: PublishAiPromptVersionInput): Promise<AiPromptVersionRecord>;
   getPromptVersionById(id: string): Promise<AiPromptVersionRecord | null>;
   listPromptVersions(promptKey: string, limit: number): Promise<AiPromptVersionRecord[]>;
   recordPromptTestRun(input: SaveAiPromptTestRunInput): Promise<AiPromptTestRunRecord>;

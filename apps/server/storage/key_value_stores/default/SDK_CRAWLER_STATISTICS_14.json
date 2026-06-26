@@ -1,34 +1,36 @@
 {
-  "requestsFinished": 3,
-  "requestsFailed": 5,
-  "requestsRetries": 6,
-  "requestsFailedPerMinute": 94,
-  "requestsFinishedPerMinute": 57,
-  "requestMinDurationMillis": 896,
-  "requestMaxDurationMillis": 3009,
-  "requestTotalFailedDurationMillis": 1114,
-  "requestTotalFinishedDurationMillis": 6253,
-  "crawlerStartedAt": "2026-06-25T10:58:50.556Z",
-  "crawlerFinishedAt": "2026-06-25T10:58:53.702Z",
-  "statsPersistedAt": "2026-06-25T10:58:53.702Z",
-  "crawlerRuntimeMillis": 3168,
-  "crawlerLastStartTimestamp": 1782385130534,
-  "requestRetryHistogram": [2, 6],
+  "requestsFinished": 0,
+  "requestsFailed": 8,
+  "requestsRetries": 8,
+  "requestsFailedPerMinute": 102,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 7641,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2026-06-25T13:25:55.438Z",
+  "crawlerFinishedAt": "2026-06-25T13:26:00.112Z",
+  "statsPersistedAt": "2026-06-25T13:26:00.112Z",
+  "crawlerRuntimeMillis": 4696,
+  "crawlerLastStartTimestamp": 1782393955416,
+  "requestRetryHistogram": [
+    null,
+    8
+  ],
   "statsId": 14,
-  "requestAvgFailedDurationMillis": 223,
-  "requestAvgFinishedDurationMillis": 2084,
-  "requestTotalDurationMillis": 7367,
+  "requestAvgFailedDurationMillis": 955,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 7641,
   "requestsTotal": 8,
   "requestsWithStatusCode": {
-    "403": 11,
-    "404": 2
+    "403": 16
   },
   "errors": {
     "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
       "missing error code": {
         "Error": {
           "Request blocked - received 403 status code.": {
-            "count": 5
+            "count": 8
           }
         }
       }
@@ -39,7 +41,7 @@
       "missing error code": {
         "Error": {
           "Request blocked - received 403 status code.": {
-            "count": 6
+            "count": 8
           }
         }
       }

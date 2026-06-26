@@ -5,7 +5,7 @@ import type { CrmRegionCascaderOption } from '@/utils/crm-region-cascader';
 import type { AiLeadContextOption, ProductLineSummaryItem } from './shared';
 
 const productLineId = defineModel<string | null>('productLineId', { required: true });
-const targetRegionValue = defineModel<string>('targetRegionValue', { required: true });
+const targetRegionValues = defineModel<string[]>('targetRegionValues', { required: true });
 const targetCustomerTypeKeys = defineModel<string[]>('targetCustomerTypeKeys', { required: true });
 const exclusionRuleKeys = defineModel<string[]>('exclusionRuleKeys', { required: true });
 const keywordText = defineModel<string>('keywordText', { required: true });
@@ -23,6 +23,7 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:targetRegionPath': [path: CrmRegionCascaderOption[]];
+  'update:targetRegionPaths': [paths: CrmRegionCascaderOption[][]];
 }>();
 </script>
 
@@ -45,10 +46,12 @@ const emit = defineEmits<{
       <NGi span="24 m:12">
         <NFormItem label="目标国家/地区" required>
           <CrmRegionCascader
-            v-model="targetRegionValue"
+            v-model="targetRegionValues"
             :disabled="disabled"
+            multiple
             placeholder="选择目标国家 / 省州"
             @update:selected-path="emit('update:targetRegionPath', $event)"
+            @update:selected-paths="emit('update:targetRegionPaths', $event)"
           />
         </NFormItem>
       </NGi>
@@ -75,7 +78,7 @@ const emit = defineEmits<{
             v-model:value="keywordText"
             clearable
             :disabled="disabled"
-            placeholder="可选，例如 6203、deep groove ball bearing"
+            placeholder="默认不用填；优化关键词后 AI 会回显，可再补充型号/品牌"
           />
         </NFormItem>
       </NGi>
@@ -86,7 +89,7 @@ const emit = defineEmits<{
             v-model:value="requirement"
             clearable
             :disabled="disabled"
-            placeholder="可选，例如只找有官网和邮箱的公司"
+            placeholder="默认不用填；优化关键词后 AI 会回显判断规则，可人工补充"
           />
         </NFormItem>
       </NGi>
@@ -185,14 +188,15 @@ const emit = defineEmits<{
 }
 
 .context-option-grid {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 8px;
 }
 
 .context-option {
-  width: 100%;
+  flex: 1 1 220px;
+  max-width: 360px;
   align-items: flex-start;
   padding: 8px;
   border: 1px solid var(--n-border-color);
@@ -203,6 +207,7 @@ const emit = defineEmits<{
 .context-option :deep(.n-checkbox__label) {
   min-width: 0;
   padding-left: 8px;
+  white-space: normal;
 }
 
 .context-option-title,

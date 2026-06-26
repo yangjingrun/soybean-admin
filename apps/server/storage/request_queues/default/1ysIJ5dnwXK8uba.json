@@ -1,9 +1,9 @@
 {
-  "id": "1ysIJ5dnwXK8uba",
-  "json": "{\"id\":\"1ysIJ5dnwXK8uba\",\"url\":\"http://www.gtbearing.co/contact\",\"loadedUrl\":\"https://gtbearing.co/contact-us/\",\"uniqueKey\":\"5:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"http://www.gtbearing.co/contact\",\"uniqueKey\":\"5:/contact\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"gtbearing.co\",\"companyName\":\"Great Trust Bearing Trading Co LLC\",\"homepage\":\"http://www.gtbearing.co\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T10:58:00.500Z\"}",
-  "method": "GET",
-  "orderNo": null,
-  "retryCount": 0,
-  "uniqueKey": "5:/contact",
-  "url": "http://www.gtbearing.co/contact"
+	"id": "1ysIJ5dnwXK8uba",
+	"json": "{\"id\":\"1ysIJ5dnwXK8uba\",\"url\":\"https://www.rollsbearing.com/contact\",\"loadedUrl\":\"https://www.rollsbearing.com/contact\",\"uniqueKey\":\"5:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.rollsbearing.com/contact\",\"uniqueKey\":\"5:/contact\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"rollsbearing.com\",\"companyName\":\"Top 10 roller bearing suppliers in UAE in 2023\",\"homepage\":\"https://www.rollsbearing.com/23156-10-roller-bearing-suppliers-in-uae.html\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:35.013Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "5:/contact",
+	"url": "https://www.rollsbearing.com/contact"
 }

@@ -63,6 +63,7 @@ describe('CrmAiDraftService', () => {
     assert.equal(result.metadata.reason, 'Focused on sourcing angle.');
     assert.equal(result.metadata.snapshot.productLineId, 'line-1');
     assert.equal(result.metadata.snapshot.stepIndex, 1);
+    assert.equal(result.metadata.snapshot.writingConfig.promptTemplateKey, 'crm_outreach_general');
     assert.equal(result.metadata.snapshot.writingConfig.steps.length, 5);
     assert.equal(result.metadata.snapshot.sendDecision, 'send');
     assert.equal(result.metadata.snapshot.roleNormalized, 'purchasing');
@@ -86,6 +87,7 @@ describe('CrmAiDraftService', () => {
     );
     assert.ok(firstCall);
     assert.equal(promptKeys.includes('crm_outreach_base_rules'), true);
+    assert.equal(promptKeys.includes('crm_outreach_general_step_1_relevance'), true);
     assert.equal((firstCall.input as { modelConfigKey?: string }).modelConfigKey, 'default');
     assert.equal((firstCall.input as { maxOutputTokens?: number }).maxOutputTokens, 1600);
     assert.equal((firstCall.context as { user?: RequestUserContext }).user?.userId, 'u-owner');
@@ -357,6 +359,7 @@ function createContext(): RequestUserContext {
 function createWritingConfig(): CrmProductLineAiWritingConfig {
   return {
     enabled: true,
+    promptTemplateKey: 'crm_outreach_general',
     steps: [1, 2, 3, 4, 5].map(stepIndex => ({
       stepIndex: stepIndex as 1 | 2 | 3 | 4 | 5,
       prompt: `Step ${stepIndex} prompt`

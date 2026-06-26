@@ -19,7 +19,7 @@ describe('AiGatewayController', () => {
     );
   });
 
-  it('requires prompt permission before reading the built-in default prompt draft', async () => {
+  it('requires prompt permission before reading the initialization prompt draft', async () => {
     let called = false;
     const controller = new AiGatewayController({
       async getDefaultPromptDraft() {
@@ -35,7 +35,7 @@ describe('AiGatewayController', () => {
     assert.equal(called, false);
   });
 
-  it('allows platform super users to read the built-in default prompt draft', async () => {
+  it('allows platform super users to read the initialization prompt draft', async () => {
     const controller = new AiGatewayController({
       async getDefaultPromptDraft(promptKey: string) {
         return { promptKey, systemPrompt: 'default prompt' };
@@ -287,8 +287,7 @@ describe('AiGatewayController', () => {
     assert.equal(called, false);
   });
 
-  it('passes the current user context through prompt workbench actions', async () => {
-    const receivedUsers: string[] = [];
+  it('allows prompt permission users to read and validate prompt workbench content', async () => {
     const controller = new AiGatewayController({
       async listPromptWorkbenchSteps() {
         return [{ promptKey: 'lead_maps_keyword_optimize' }];
@@ -298,22 +297,6 @@ describe('AiGatewayController', () => {
       },
       validatePromptDraft(promptKey: string) {
         return { ok: true, items: [{ key: promptKey }] };
-      },
-      async savePromptDraft(_dto: unknown, user: RequestUserContext) {
-        receivedUsers.push(user.userId);
-        return { lifecycle: 'draft' };
-      },
-      async testPromptDraft(_dto: unknown, user: RequestUserContext) {
-        receivedUsers.push(user.userId);
-        return { success: true };
-      },
-      async publishPromptDraft(_dto: unknown, user: RequestUserContext) {
-        receivedUsers.push(user.userId);
-        return { version: 1 };
-      },
-      async rollbackPromptVersion(_dto: unknown, user: RequestUserContext) {
-        receivedUsers.push(user.userId);
-        return { version: 2 };
       }
     } as never);
     const user = createUser([aiSettingsPromptManagePermission]);
@@ -337,6 +320,98 @@ describe('AiGatewayController', () => {
       ).data,
       { ok: true, items: [{ key: 'lead_maps_keyword_optimize' }] }
     );
+  });
+
+  it('requires platform super role before mutating prompt workbench actions', async () => {
+    const controller = new AiGatewayController({
+      async savePromptDraft() {
+        return { lifecycle: 'draft' };
+      },
+      async testPromptDraft() {
+        return { success: true };
+      },
+      async publishPromptVersion() {
+        return { version: 1 };
+      },
+      async rollbackPromptVersion() {
+        return { version: 2 };
+      }
+    } as never);
+    const user = createUser([aiSettingsPromptManagePermission]);
+
+    await assert.rejects(
+      () =>
+        controller.savePromptDraft(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            title: '地图关键词优化',
+            systemPrompt: 'prompt'
+          },
+          user
+        ),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () =>
+        controller.testPromptDraft(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            systemPrompt: 'prompt',
+            inputPrompt: '找纽约轴承经销商'
+          },
+          user
+        ),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () =>
+        controller.publishPromptVersion(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            title: '地图关键词优化',
+            systemPrompt: 'prompt',
+            changeNote: '发布'
+          },
+          user
+        ),
+      ForbiddenException
+    );
+    await assert.rejects(
+      () =>
+        controller.rollbackPromptVersion(
+          {
+            promptKey: 'lead_maps_keyword_optimize',
+            versionId: 'version-1',
+            changeNote: '回滚'
+          },
+          user
+        ),
+      ForbiddenException
+    );
+  });
+
+  it('passes the super user context through prompt workbench mutation actions', async () => {
+    const receivedUsers: string[] = [];
+    const controller = new AiGatewayController({
+      async savePromptDraft(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { lifecycle: 'draft' };
+      },
+      async testPromptDraft(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { success: true };
+      },
+      async publishPromptVersion(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { version: 1 };
+      },
+      async rollbackPromptVersion(_dto: unknown, user: RequestUserContext) {
+        receivedUsers.push(user.userId);
+        return { version: 2 };
+      }
+    } as never);
+    const user = createSuperUser();
+
     assert.deepEqual(
       (
         await controller.savePromptDraft(
@@ -365,9 +440,11 @@ describe('AiGatewayController', () => {
     );
     assert.deepEqual(
       (
-        await controller.publishPromptDraft(
+        await controller.publishPromptVersion(
           {
             promptKey: 'lead_maps_keyword_optimize',
+            title: '地图关键词优化',
+            systemPrompt: 'prompt',
             changeNote: '发布'
           },
           user

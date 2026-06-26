@@ -6,9 +6,9 @@ describe('AI lead keyword optimization state helpers', () => {
   it('creates an empty requirement form with the default target lead count', () => {
     assert.deepEqual(createDefaultLeadSearchForm(20), {
       productLineId: null,
-      targetRegionValue: '',
-      targetRegionLabel: '',
-      targetRegionCountryCode: null,
+      targetRegionValues: [],
+      targetRegionLabels: [],
+      targetRegionCountryCodes: [],
       targetCustomerTypeKeys: [
         'importer',
         'distributor_dealer',
