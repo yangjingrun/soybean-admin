@@ -6,6 +6,7 @@ import {
   buildLeadSearchParams,
   buildLeadEmailProgressView,
   buildLeadExpandedContactView,
+  buildLeadSourceListView,
   buildLeadWebsiteEvidenceView,
   buildLeadRowContactView,
   buildLeadSequenceTarget,
@@ -455,6 +456,7 @@ describe('crm lead shared helpers', () => {
     assert.equal(evidence.precisionAnalysis?.score, 14);
     assert.equal(evidence.precisionAnalysis?.priorityTagType, 'error');
     assert.equal(evidence.precisionAnalysis?.buyerType, '品牌方/区域销售公司');
+    assert.equal(evidence.precisionAnalysis?.customerGroup, '');
     assert.deepEqual(evidence.sourceProductLine, {
       id: 'product-line-1',
       name: 'Deep groove ball bearings',
@@ -465,6 +467,52 @@ describe('crm lead shared helpers', () => {
       moq: '100 pcs',
       leadTime: '7 days'
     });
+  });
+
+  it('builds source list view with source, classification, and precision data', () => {
+    const source = buildLeadSourceListView(
+      createLeadRecord({
+        sourceSnapshot: {
+          sourceType: 'search',
+          sourceUrl: 'https://google.example/result',
+          score: 92,
+          reason: '官网和产品线高度匹配',
+          websiteEvidence: {
+            emails: ['sales@example.com'],
+            phones: ['+971 44 91 0000'],
+            socialLinks: ['https://www.linkedin.com/company/bearing-house/'],
+            contactLinks: ['https://example.com/contact'],
+            evidenceSnippets: ['Industrial bearing distributor']
+          },
+          precisionAnalysis: {
+            score: 92,
+            priority: 'high',
+            customerGroup: '中东本地经销商',
+            companyCountry: '阿联酋',
+            targetMarketFit: 'target',
+            reason: '官网归属和客户类型匹配',
+            matchedSignals: ['distributor'],
+            risks: [],
+            recommendedAction: '可以优先跟进',
+            reviewRequired: false
+          }
+        }
+      })
+    );
+
+    assert.equal(source.sourceLabel, '公开线索');
+    assert.equal(source.sourceUrl, 'https://google.example/result');
+    assert.deepEqual(
+      source.classificationTags.map(tag => ({ key: tag.key, label: tag.label, type: tag.type })),
+      [
+        { key: 'company-country', label: '阿联酋公司', type: 'info' },
+        { key: 'customer-group', label: '中东本地经销商', type: 'success' }
+      ]
+    );
+    assert.equal(source.precision?.score, 92);
+    assert.equal(source.precision?.priorityLabel, '高');
+    assert.equal(source.precision?.scoreTagType, 'success');
+    assert.match(source.precision?.tooltipItems.join('\n') ?? '', /官网归属和客户类型匹配/);
   });
 
   it('reads source product line snapshots from imported AI leads', () => {

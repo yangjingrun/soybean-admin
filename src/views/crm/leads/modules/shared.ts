@@ -136,6 +136,9 @@ export interface LeadWebsitePrecisionAnalysisView {
   priority: string;
   priorityTagType: NaiveUI.ThemeColor;
   buyerType: string;
+  customerGroup: string;
+  companyCountry: string;
+  targetMarketFit: string;
   reason: string;
   matchedSignals: string[];
   risks: string[];
@@ -148,6 +151,7 @@ export interface LeadWebsiteEvidenceView {
   sourceUrl: string;
   sourceWebsite: string;
   sourceType: string;
+  sourceLabel: string;
   sourceCountry: string;
   sourceSnippet: string;
   sourceScore: number | null;
@@ -172,6 +176,31 @@ export interface LeadWebsiteEvidenceView {
   failureReason: string;
   precisionAnalysis: LeadWebsitePrecisionAnalysisView | null;
   rawSourceSnapshotText: string;
+}
+
+export interface LeadSourceListView {
+  sourceLabel: string;
+  sourceTypeLabel: string;
+  sourceUrl: string;
+  sourceReason: string;
+  classificationTags: LeadSourceClassificationTag[];
+  precision: LeadSourcePrecisionView | null;
+}
+
+export interface LeadSourceClassificationTag {
+  key: string;
+  label: string;
+  type: NaiveUI.ThemeColor;
+  tooltip: string;
+}
+
+export interface LeadSourcePrecisionView {
+  score: number;
+  priority: string;
+  priorityLabel: string;
+  priorityTagType: NaiveUI.ThemeColor;
+  scoreTagType: NaiveUI.ThemeColor;
+  tooltipItems: string[];
 }
 
 const leadPendingStatuses = new Set<Api.Crm.CrmAccountStatus>([
@@ -835,9 +864,10 @@ export function buildLeadWebsiteEvidenceView(
 
   return {
     hasSnapshot: Boolean(sourceSnapshot),
-    sourceUrl: readString(sourceSnapshot?.url),
+    sourceUrl: readString(sourceSnapshot?.sourceUrl) || readString(sourceSnapshot?.url),
     sourceWebsite: readString(sourceSnapshot?.website),
     sourceType: readString(sourceSnapshot?.sourceType),
+    sourceLabel: readString(sourceSnapshot?.sourceLabel),
     sourceCountry: readString(sourceSnapshot?.country),
     sourceSnippet: readString(sourceSnapshot?.snippet),
     sourceScore: readNumber(sourceSnapshot?.score),
@@ -868,6 +898,21 @@ export function buildLeadWebsiteEvidenceView(
   };
 }
 
+/** Build compact source, classification, and precision data for the CRM lead table. */
+export function buildLeadSourceListView(record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>): LeadSourceListView {
+  const evidence = buildLeadWebsiteEvidenceView(record);
+  const precision = evidence.precisionAnalysis;
+
+  return {
+    sourceLabel: evidence.sourceLabel || formatLeadSourceTypeLabel(evidence.sourceType),
+    sourceTypeLabel: formatLeadSourceTypeLabel(evidence.sourceType),
+    sourceUrl: evidence.sourceUrl || evidence.sourceWebsite || evidence.finalUrl,
+    sourceReason: evidence.sourceReason || precision?.reason || '',
+    classificationTags: buildLeadSourceClassificationTags(evidence),
+    precision: precision?.score === null ? null : buildLeadSourcePrecisionView(evidence)
+  };
+}
+
 function readLeadWebsiteEvidence(sourceSnapshot: Record<string, unknown> | null | undefined) {
   const evidence = sourceSnapshot?.websiteEvidence;
 
@@ -890,12 +935,107 @@ function readPrecisionAnalysis(value: unknown): LeadWebsitePrecisionAnalysisView
     priority,
     priorityTagType: getPrecisionPriorityTagType(priority),
     buyerType: readString(precision.buyerType),
+    customerGroup: readString(precision.customerGroup),
+    companyCountry: readString(precision.companyCountry),
+    targetMarketFit: readString(precision.targetMarketFit),
     reason: readString(precision.reason),
     matchedSignals: readStringArray(precision.matchedSignals),
     risks: readStringArray(precision.risks),
     recommendedAction: readString(precision.recommendedAction),
     reviewRequired: readBoolean(precision.reviewRequired)
   };
+}
+
+function buildLeadSourceClassificationTags(evidence: LeadWebsiteEvidenceView): LeadSourceClassificationTag[] {
+  const analysis = evidence.precisionAnalysis;
+  const tags: LeadSourceClassificationTag[] = [];
+
+  if (analysis?.targetMarketFit === 'outside_target') {
+    tags.push({
+      key: 'outside-target',
+      label: '非目标市场',
+      type: 'error',
+      tooltip: analysis.reason
+    });
+  }
+
+  if (analysis?.companyCountry) {
+    tags.push({
+      key: 'company-country',
+      label: analysis.companyCountry === '中国' ? '中国公司' : `${analysis.companyCountry}公司`,
+      type: analysis.companyCountry === '中国' ? 'warning' : 'info',
+      tooltip: analysis.reason
+    });
+  }
+
+  const customerGroup = analysis?.customerGroup || analysis?.buyerType;
+
+  if (customerGroup) {
+    tags.push({
+      key: 'customer-group',
+      label: customerGroup,
+      type: analysis?.targetMarketFit === 'target' ? 'success' : 'default',
+      tooltip: analysis?.reason || evidence.sourceReason
+    });
+  }
+
+  return tags;
+}
+
+function buildLeadSourcePrecisionView(evidence: LeadWebsiteEvidenceView): LeadSourcePrecisionView | null {
+  const analysis = evidence.precisionAnalysis;
+
+  if (!analysis || analysis.score === null) {
+    return null;
+  }
+
+  const tooltipItems = [
+    analysis.reason || evidence.sourceReason,
+    evidence.emails.length ? `邮箱：${evidence.emails.slice(0, 3).join('、')}` : '',
+    evidence.phones.length ? `电话：${evidence.phones.slice(0, 3).join('、')}` : '',
+    evidence.socialLinks.length ? `社媒：${evidence.socialLinks.slice(0, 2).map(link => link.url).join('、')}` : '',
+    evidence.contactLinks.length ? `联系页：${evidence.contactLinks.slice(0, 2).join('、')}` : '',
+    evidence.evidenceSnippets.length ? `证据：${evidence.evidenceSnippets.slice(0, 2).join('；')}` : '',
+    analysis.reviewRequired ? '需要人工复核' : ''
+  ].filter(Boolean);
+
+  return {
+    score: analysis.score,
+    priority: analysis.priority,
+    priorityLabel: formatPrecisionPriorityLabel(analysis.priority),
+    priorityTagType: analysis.priorityTagType,
+    scoreTagType: getPrecisionScoreTagType(analysis.score),
+    tooltipItems: tooltipItems.length ? tooltipItems : ['暂无证据']
+  };
+}
+
+function formatLeadSourceTypeLabel(sourceType: string) {
+  const labelMap: Record<string, string> = {
+    search: '公开线索',
+    places: '地图商家',
+    maps: '地图商家'
+  };
+
+  return labelMap[sourceType] || sourceType || '-';
+}
+
+function formatPrecisionPriorityLabel(priority: string) {
+  const labelMap: Record<string, string> = {
+    high: '高',
+    medium: '中',
+    low: '低',
+    reject: '拒绝'
+  };
+
+  return labelMap[priority] || priority || '未分级';
+}
+
+function getPrecisionScoreTagType(score: number): NaiveUI.ThemeColor {
+  if (score >= 80) return 'success';
+  if (score >= 60) return 'info';
+  if (score >= 40) return 'warning';
+
+  return 'error';
 }
 
 function formatCrawlStatusLabel(status: string) {

@@ -7,6 +7,7 @@ import {
   buildLeadEmailProgressView,
   buildLeadExpandedContactView,
   buildLeadRowContactView,
+  buildLeadSourceListView,
   canCreateSequenceFromLeadRecord,
   formatLeadDate,
   getLeadCompanyOfficialEmails,
@@ -125,6 +126,120 @@ function renderCompanyOfficialEmails(row: Api.Crm.LeadRecord) {
         : null,
       h('span', { class: 'lead-secondary-text' }, '官网采集')
     ]
+  );
+}
+
+/** 展示 AI 获客导入时保留的来源渠道。 */
+function renderLeadSource(row: Api.Crm.LeadRecord) {
+  const source = buildLeadSourceListView(row);
+
+  if (!source.sourceLabel || source.sourceLabel === '-') {
+    return h('span', { class: 'lead-empty-text' }, '-');
+  }
+
+  const labelTag = h(
+    NTag,
+    {
+      bordered: false,
+      size: 'small',
+      type: source.sourceLabel === '公开线索' ? 'info' : 'default'
+    },
+    { default: () => source.sourceLabel }
+  );
+
+  return h(
+    NTooltip,
+    {
+      trigger: 'hover',
+      placement: 'top'
+    },
+    {
+      trigger: () => h('div', { class: 'lead-source-cell' }, [labelTag]),
+      default: () => source.sourceReason || source.sourceUrl || source.sourceTypeLabel
+    }
+  );
+}
+
+function renderLeadCustomerClassification(row: Api.Crm.LeadRecord) {
+  const source = buildLeadSourceListView(row);
+
+  if (!source.classificationTags.length) {
+    return h('span', { class: 'lead-empty-text' }, '-');
+  }
+
+  return h(
+    'div',
+    { class: 'lead-classification-cell' },
+    source.classificationTags.map(tag =>
+      h(
+        NTooltip,
+        {
+          key: tag.key,
+          trigger: 'hover',
+          placement: 'top'
+        },
+        {
+          trigger: () =>
+            h(
+              NTag,
+              {
+                bordered: false,
+                size: 'small',
+                type: tag.type
+              },
+              { default: () => tag.label }
+            ),
+          default: () => tag.tooltip || tag.label
+        }
+      )
+    )
+  );
+}
+
+function renderLeadPrecision(row: Api.Crm.LeadRecord) {
+  const precision = buildLeadSourceListView(row).precision;
+
+  if (!precision) {
+    return h('span', { class: 'lead-empty-text' }, '-');
+  }
+
+  return h(
+    NTooltip,
+    {
+      trigger: 'hover',
+      placement: 'top'
+    },
+    {
+      trigger: () =>
+        h('div', { class: 'lead-precision-cell' }, [
+          h(
+            NTag,
+            {
+              bordered: false,
+              size: 'small',
+              type: precision.scoreTagType
+            },
+            { default: () => `${precision.score}分` }
+          ),
+          precision.priority
+            ? h(
+                NTag,
+                {
+                  bordered: false,
+                  size: 'small',
+                  type: precision.priorityTagType
+                },
+                { default: () => precision.priorityLabel }
+              )
+            : null
+        ]),
+      default: () =>
+        h(
+          'div',
+          { class: 'lead-precision-tooltip' },
+          precision.tooltipItems.map(item => h('div', { class: 'lead-precision-tooltip-line' }, item))
+        )
+    }
   );
 }
 
@@ -437,6 +552,30 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
       render: row => renderCompanyOfficialEmails(row)
     },
     {
+      key: 'source',
+      title: '来源',
+      align: 'center',
+      titleAlign: 'center',
+      width: 110,
+      render: row => renderLeadSource(row)
+    },
+    {
+      key: 'classification',
+      title: '客户判断',
+      align: 'center',
+      titleAlign: 'center',
+      width: 180,
+      render: row => renderLeadCustomerClassification(row)
+    },
+    {
+      key: 'precision',
+      title: '精准度',
+      align: 'center',
+      titleAlign: 'center',
+      width: 140,
+      render: row => renderLeadPrecision(row)
+    },
+    {
       key: 'contacts',
       title: '联系人',
       align: 'center',
@@ -578,7 +717,7 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
         :expanded-row-keys="expandedRowKeys"
         :loading="loading"
         :row-key="row => row.id"
-        :scroll-x="1710"
+        :scroll-x="2140"
         size="small"
         remote
         @update:checked-row-keys="handleCheckedRowKeysUpdate"
@@ -610,7 +749,10 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 :deep(.lead-location-cell),
 :deep(.lead-stack-cell),
 :deep(.lead-contact-cell),
-:deep(.lead-contact-summary) {
+:deep(.lead-contact-summary),
+:deep(.lead-source-cell),
+:deep(.lead-classification-cell),
+:deep(.lead-precision-cell) {
   display: flex;
   align-items: flex-start;
   flex-direction: column;
@@ -645,6 +787,27 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
   align-items: center;
   max-width: 140px;
   margin: 0 auto;
+}
+
+:deep(.lead-source-cell),
+:deep(.lead-classification-cell),
+:deep(.lead-precision-cell) {
+  align-items: center;
+  max-width: 160px;
+  margin: 0 auto;
+}
+
+:deep(.lead-classification-cell),
+:deep(.lead-precision-cell) {
+  gap: 4px;
+}
+
+:deep(.lead-precision-tooltip) {
+  max-width: 320px;
+}
+
+:deep(.lead-precision-tooltip-line) {
+  line-height: 1.5;
 }
 
 :deep(.lead-company-name),
