@@ -43,6 +43,24 @@ describe('AiLeadWebsiteCrawlerService', () => {
     assert.deepEqual(candidates[0].websiteEvidence?.emails, ['sales@abc.example.com']);
   });
 
+  it('uses website URLs as crawl keys to avoid cross-task queue collisions', async () => {
+    const requestedKeys: string[] = [];
+    const service = new AiLeadWebsiteCrawlerService({
+      async crawl(requests) {
+        requestedKeys.push(...requests.map(request => request.uniqueKey));
+
+        return [];
+      }
+    });
+
+    await service.enrichCandidates([createCandidate({ title: 'ABC Bearing', website: 'https://abc.example.com' })]);
+    await service.enrichCandidates([createCandidate({ title: 'XYZ Bearing', website: 'https://xyz.example.com' })]);
+
+    assert.equal(requestedKeys[0], 'https://abc.example.com/');
+    assert.equal(requestedKeys[12], 'https://xyz.example.com/');
+    assert.equal(new Set(requestedKeys).size, requestedKeys.length);
+  });
+
   it('marks candidates without websites as skipped', async () => {
     const service = new AiLeadWebsiteCrawlerService({
       async crawl() {

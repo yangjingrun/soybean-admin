@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { CheerioCrawler } from 'crawlee';
+import { CheerioCrawler, RequestList } from 'crawlee';
 import type { AiLeadSearchCandidate } from './ai-lead-search-orchestrator.service';
 import {
   createFailedWebsiteEvidence,
@@ -96,7 +96,9 @@ export class AiLeadWebsiteCrawlerService {
 class CrawleeWebsitePageFetcher implements AiLeadWebsiteCrawlerPageFetcher {
   async crawl(requests: AiLeadWebsiteCrawlRequest[]): Promise<AiLeadWebsiteCrawlPageResult[]> {
     const pages: AiLeadWebsiteCrawlPageResult[] = [];
+    const requestList = await RequestList.open(null, requests);
     const crawler = new CheerioCrawler({
+      requestList,
       maxRequestsPerCrawl: requests.length,
       maxConcurrency: 4,
       maxRequestRetries: 1,
@@ -114,15 +116,7 @@ class CrawleeWebsitePageFetcher implements AiLeadWebsiteCrawlerPageFetcher {
       }
     });
 
-    await crawler.run(
-      requests.map(request => ({
-        url: request.url,
-        uniqueKey: request.uniqueKey,
-        userData: {
-          sourceRequest: request
-        }
-      }))
-    );
+    await crawler.run();
 
     return pages;
   }
@@ -134,16 +128,20 @@ function buildCandidateRequests(candidate: AiLeadSearchCandidate, homepage: stri
   const dedupeKey = candidate.dedupeKey || homepage;
   const companyName = candidate.title || homepage;
 
-  return websitePagePaths.slice(0, maxPagesPerCandidate).map(path => ({
-    url: new URL(path, baseUrl).toString(),
-    uniqueKey: `${candidateIndex}:${path}`,
-    userData: {
-      candidateIndex,
-      dedupeKey,
-      companyName,
-      homepage
-    }
-  }));
+  return websitePagePaths.slice(0, maxPagesPerCandidate).map(path => {
+    const url = new URL(path, baseUrl).toString();
+
+    return {
+      url,
+      uniqueKey: url,
+      userData: {
+        candidateIndex,
+        dedupeKey,
+        companyName,
+        homepage
+      }
+    };
+  });
 }
 
 function normalizeCandidateWebsite(candidate: AiLeadSearchCandidate) {

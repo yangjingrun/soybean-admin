@@ -13,6 +13,14 @@
 
 ## 已确认经验
 
+### 2026-06-26 AI 获客官网 crawler 不能用默认持久队列跑固定 URL 列表
+
+- 场景：AI 获客新任务完成后，`result.candidates[].websiteEvidence` 全部是 `crawlStatus=failed`、`failureReason=官网未返回可解析页面`，CRM 客户没有社媒信息。
+- 坑点：`CheerioCrawler.run(requests)` 会把请求写进默认持久化 request queue；如果请求 `uniqueKey` 只用候选序号和路径（例如 `0:/`、`6:/contact`），后续任务会和历史队列记录撞 key，Crawlee 直接显示 `Total 0 requests`，handler 不执行，业务层拿到空 `pages` 后误记为官网未返回可解析页面。
+- 正确做法：固定官网页面集合采集优先用 `RequestList.open(null, requests)` 作为本次 crawl 的静态列表，再调用 `crawler.run()`；请求 `uniqueKey` 使用完整 URL，避免同一轮内不同官网/路径撞 key。排查时可对同一 URL 对比默认 storage 和临时 `APIFY_LOCAL_STORAGE_DIR`，如果临时目录能抓到 200，说明是本地 Crawlee 队列状态污染。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts`。
+- 验证方式：运行 `./node_modules/.bin/tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts`，并用默认 storage 下的 Crawlee 最小复现确认 `RequestList` 会实际处理请求、不再被历史 request queue 跳过。
+
 ### 2026-06-25 AI 获客 BullMQ failed 必须回写业务任务状态
 
 - 场景：AI 获客任务停在“分析客户精准度”94%，日志里 `lead_match_analyze` 已开始调用 OpenRouter 大模型，但没有成功/失败日志；随后 BullMQ job 记录 `job stalled more than allowable limit`。
