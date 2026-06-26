@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { AiLeadWebsiteCrawlerService } from './ai-lead-website-crawler.service';
+import { AiLeadWebsiteCrawlerService, createCrawleeRequestSources } from './ai-lead-website-crawler.service';
 import type { AiLeadSearchCandidate } from './ai-lead-search-orchestrator.service';
 
 describe('AiLeadWebsiteCrawlerService', () => {
@@ -59,6 +59,25 @@ describe('AiLeadWebsiteCrawlerService', () => {
     assert.equal(requestedKeys[0], 'https://abc.example.com/');
     assert.equal(requestedKeys[12], 'https://xyz.example.com/');
     assert.equal(new Set(requestedKeys).size, requestedKeys.length);
+  });
+
+  it('keeps original crawl requests in Crawlee request user data', () => {
+    const request = {
+      url: 'https://abc.example.com/',
+      uniqueKey: 'https://abc.example.com/',
+      userData: {
+        candidateIndex: 0,
+        dedupeKey: 'abc.example.com',
+        companyName: 'ABC Bearing',
+        homepage: 'https://abc.example.com'
+      }
+    };
+
+    const [source] = createCrawleeRequestSources([request]);
+
+    assert.equal(source.url, request.url);
+    assert.equal(source.uniqueKey, request.uniqueKey);
+    assert.deepEqual(source.userData.sourceRequest, request);
   });
 
   it('marks candidates without websites as skipped', async () => {

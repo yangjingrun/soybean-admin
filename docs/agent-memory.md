@@ -17,7 +17,7 @@
 
 - 场景：AI 获客新任务完成后，`result.candidates[].websiteEvidence` 全部是 `crawlStatus=failed`、`failureReason=官网未返回可解析页面`，CRM 客户没有社媒信息。
 - 坑点：`CheerioCrawler.run(requests)` 会把请求写进默认持久化 request queue；如果请求 `uniqueKey` 只用候选序号和路径（例如 `0:/`、`6:/contact`），后续任务会和历史队列记录撞 key，Crawlee 直接显示 `Total 0 requests`，handler 不执行，业务层拿到空 `pages` 后误记为官网未返回可解析页面。
-- 正确做法：固定官网页面集合采集优先用 `RequestList.open(null, requests)` 作为本次 crawl 的静态列表，再调用 `crawler.run()`；请求 `uniqueKey` 使用完整 URL，避免同一轮内不同官网/路径撞 key。排查时可对同一 URL 对比默认 storage 和临时 `APIFY_LOCAL_STORAGE_DIR`，如果临时目录能抓到 200，说明是本地 Crawlee 队列状态污染。
+- 正确做法：固定官网页面集合采集优先用 `RequestList.open(null, createCrawleeRequestSources(requests))` 作为本次 crawl 的静态列表，再调用 `crawler.run()`；请求 `uniqueKey` 使用完整 URL，避免同一轮内不同官网/路径撞 key。`createCrawleeRequestSources()` 必须把业务 request 放进 `userData.sourceRequest`，否则 handler 后续会拿不到原始 `request.url` 并报 `Cannot read properties of undefined (reading 'url')`。排查时可对同一 URL 对比默认 storage 和临时 `APIFY_LOCAL_STORAGE_DIR`，如果临时目录能抓到 200，说明是本地 Crawlee 队列状态污染。
 - 相关文件：`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts`。
 - 验证方式：运行 `./node_modules/.bin/tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts`，并用默认 storage 下的 Crawlee 最小复现确认 `RequestList` 会实际处理请求、不再被历史 request queue 跳过。
 

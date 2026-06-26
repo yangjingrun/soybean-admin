@@ -96,7 +96,7 @@ export class AiLeadWebsiteCrawlerService {
 class CrawleeWebsitePageFetcher implements AiLeadWebsiteCrawlerPageFetcher {
   async crawl(requests: AiLeadWebsiteCrawlRequest[]): Promise<AiLeadWebsiteCrawlPageResult[]> {
     const pages: AiLeadWebsiteCrawlPageResult[] = [];
-    const requestList = await RequestList.open(null, requests);
+    const requestList = await RequestList.open(null, createCrawleeRequestSources(requests));
     const crawler = new CheerioCrawler({
       requestList,
       maxRequestsPerCrawl: requests.length,
@@ -120,6 +120,17 @@ class CrawleeWebsitePageFetcher implements AiLeadWebsiteCrawlerPageFetcher {
 
     return pages;
   }
+}
+
+/** Builds Crawlee request sources while preserving the original business crawl request. */
+export function createCrawleeRequestSources(requests: AiLeadWebsiteCrawlRequest[]) {
+  return requests.map(request => ({
+    url: request.url,
+    uniqueKey: request.uniqueKey,
+    userData: {
+      sourceRequest: request
+    }
+  }));
 }
 
 function buildCandidateRequests(candidate: AiLeadSearchCandidate, homepage: string, candidateIndex: number) {
