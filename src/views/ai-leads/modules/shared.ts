@@ -1,4 +1,5 @@
 import { buildSocialLinkViews, type SocialLinkChannel, type SocialLinkView } from '@/utils/social-links';
+import { resolveCrmMarketRegionByCode, resolveCrmMarketRegionByCountryCode } from '@/constants/crm-market-regions';
 
 export interface KeywordOptimizationSummaryItem {
   label: string;
@@ -437,6 +438,10 @@ function resolveAiLeadContextOptions(keys: string[], options: AiLeadContextOptio
 function createAiLeadTargetRegionSnapshots(input: AiLeadContextSnapshotInput): Api.AiLeads.LeadContextTargetRegion[] {
   return input.targetRegionLabels.flatMap((rawLabel, index) => {
     const label = rawLabel.trim();
+    const value = input.targetRegionValues[index]?.trim() || '';
+    const countryCode = input.targetRegionCountryCodes?.[index]?.trim() || null;
+    const scope = resolveTargetRegionScope(value);
+    const marketRegion = resolveTargetRegionMarketRegion(value, countryCode);
 
     if (!label) {
       return [];
@@ -444,12 +449,39 @@ function createAiLeadTargetRegionSnapshots(input: AiLeadContextSnapshotInput): A
 
     return [
       {
-        value: input.targetRegionValues[index]?.trim() || '',
+        value,
         label,
-        countryCode: input.targetRegionCountryCodes?.[index]?.trim() || null
+        countryCode,
+        scope,
+        marketRegionCode: marketRegion?.code ?? null,
+        marketRegionLabel: marketRegion?.label ?? null
       }
     ];
   });
+}
+
+function resolveTargetRegionScope(value: string): Api.AiLeads.LeadContextTargetRegionScope {
+  if (value.startsWith('market:')) {
+    return 'market_region';
+  }
+
+  if (value.startsWith('admin1:')) {
+    return 'admin1';
+  }
+
+  if (value.startsWith('city:')) {
+    return 'city';
+  }
+
+  return 'country';
+}
+
+function resolveTargetRegionMarketRegion(value: string, countryCode: string | null) {
+  if (value.startsWith('market:')) {
+    return resolveCrmMarketRegionByCode(value.split(':')[1]);
+  }
+
+  return resolveCrmMarketRegionByCountryCode(countryCode);
 }
 
 function buildGeneratedSupplementalRequirement(rules: Api.AiLeads.SearchExecutionRules | undefined) {

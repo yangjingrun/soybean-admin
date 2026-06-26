@@ -4,6 +4,7 @@ import {
   createCrmAdmin1RegionOption,
   createCrmCityRegionOption,
   createCrmCountryRegionOption,
+  createCrmMarketRegionOption,
   filterCrmRegionOption,
   getCrmRegionKeywords
 } from './crm-region-cascader';
@@ -18,6 +19,22 @@ describe('crm region cascader helpers', () => {
 
     assert.equal(option.flag, '🇺🇸');
     assert.equal(option.label, '美国');
+  });
+
+  it('creates selectable market region options for AI lead market grouping', () => {
+    const option = createCrmMarketRegionOption(
+      {
+        code: 'middle_east',
+        label: '中东',
+        aliases: ['Middle East', 'GCC'],
+        countryCodes: ['SA', 'AE']
+      },
+      []
+    );
+
+    assert.equal(option.nodeType, 'marketRegion');
+    assert.equal(option.marketRegionCode, 'middle_east');
+    assert.deepEqual(getCrmRegionKeywords(String(option.value)), ['中东', 'Middle East', 'GCC', 'Gulf market']);
   });
 
   it('matches country options by localized names and ISO code', () => {

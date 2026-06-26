@@ -1,17 +1,26 @@
-import { computed, onMounted, shallowRef } from 'vue';
+import { computed, onMounted, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue';
 import type { CascaderOption } from 'naive-ui';
 import { fetchCrmGeoCountries } from '@/service/api';
 import { filterCrmRegionOption, type CrmRegionCascaderOption } from '@/utils/crm-region-cascader';
 import { loadCachedCrmRegionOptions } from './crm-region-cascader-cache';
 
+interface UseCrmRegionCascaderOptions {
+  includeMarketRegions?: MaybeRefOrGetter<boolean | undefined>;
+}
+
 /** Load CRM geography options for reusable country/province/state cascader filters. */
-export function useCrmRegionCascader() {
+export function useCrmRegionCascader(options: UseCrmRegionCascaderOptions = {}) {
   const regionOptions = shallowRef<CrmRegionCascaderOption[]>([]);
   const regionLoading = shallowRef(false);
   const displayRegionOptions = computed(() => regionOptions.value);
+  const includeMarketRegions = computed(() => Boolean(toValue(options.includeMarketRegions)));
   let latestCountryRequestId = 0;
 
   onMounted(() => {
+    void loadCountries();
+  });
+
+  watch(includeMarketRegions, () => {
     void loadCountries();
   });
 
@@ -23,7 +32,8 @@ export function useCrmRegionCascader() {
 
     try {
       const options = await loadCachedCrmRegionOptions({
-        loadCountries: fetchCountries
+        loadCountries: fetchCountries,
+        includeMarketRegions: includeMarketRegions.value
       });
 
       if (requestId !== latestCountryRequestId) {

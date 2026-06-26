@@ -2,7 +2,12 @@ export interface AiLeadContextTargetRegion {
   value: string;
   label: string;
   countryCode?: string | null;
+  scope?: AiLeadContextTargetRegionScope;
+  marketRegionCode?: string | null;
+  marketRegionLabel?: string | null;
 }
+
+export type AiLeadContextTargetRegionScope = 'market_region' | 'country' | 'admin1' | 'city';
 
 export interface AiLeadContextOptionSnapshot {
   key: string;
@@ -66,6 +71,10 @@ export function formatAiLeadKeywordContextPromptBlock(snapshot: AiLeadKeywordCon
 
   const lines = [
     `目标国家/地区：${formatTargetRegions(snapshot) || '-'}`,
+    `目标层级说明：大区/洲用于市场归类，国家用于市场判断，城市/区域用于精准开发。`,
+    `市场归类：${formatMarketRegions(snapshot) || '-'}`,
+    `国家市场：${formatCountryRegions(snapshot) || '-'}`,
+    `城市/区域：${formatPreciseRegions(snapshot) || '-'}`,
     `搜索关键词/型号：${snapshot.keywordText || '按产品线资料自动扩展'}`,
     `客户类型：${formatContextOptions(snapshot.targetCustomerTypes) || '-'}`,
     `排除类型：${formatContextOptions(snapshot.exclusionRules) || '无'}`,
@@ -95,7 +104,10 @@ function normalizeTargetRegion(value: unknown): AiLeadContextTargetRegion | null
   return {
     value: normalizeString(input.value),
     label,
-    countryCode: normalizeNullableString(input.countryCode)
+    countryCode: normalizeNullableString(input.countryCode),
+    scope: normalizeTargetRegionScope(input.scope),
+    marketRegionCode: normalizeNullableString(input.marketRegionCode),
+    marketRegionLabel: normalizeNullableString(input.marketRegionLabel)
   };
 }
 
@@ -167,6 +179,43 @@ function formatTargetRegions(snapshot: AiLeadKeywordContextSnapshot) {
   return regions.map(item => item.label).join('、');
 }
 
+function formatMarketRegions(snapshot: AiLeadKeywordContextSnapshot) {
+  return uniqueStrings(
+    getSnapshotRegions(snapshot).flatMap(item => [
+      item.scope === 'market_region' ? item.label : '',
+      item.marketRegionLabel ?? ''
+    ])
+  ).join('、');
+}
+
+function formatCountryRegions(snapshot: AiLeadKeywordContextSnapshot) {
+  return uniqueStrings(
+    getSnapshotRegions(snapshot).flatMap(item => {
+      if (item.scope === 'market_region') {
+        return [];
+      }
+
+      return [item.scope === 'country' ? item.label : readCountryLabelFromRegionLabel(item.label)];
+    })
+  ).join('、');
+}
+
+function formatPreciseRegions(snapshot: AiLeadKeywordContextSnapshot) {
+  return uniqueStrings(
+    getSnapshotRegions(snapshot).flatMap(item =>
+      item.scope === 'admin1' || item.scope === 'city' ? [item.label] : []
+    )
+  ).join('、');
+}
+
+function getSnapshotRegions(snapshot: AiLeadKeywordContextSnapshot) {
+  return snapshot.targetRegions.length ? snapshot.targetRegions : snapshot.targetRegion ? [snapshot.targetRegion] : [];
+}
+
+function readCountryLabelFromRegionLabel(label: string) {
+  return label.split('/')[0]?.trim() || label;
+}
+
 function normalizeTargetLeadCount(value: unknown) {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 200 ? value : null;
 }
@@ -179,4 +228,12 @@ function normalizeNullableString(value: unknown) {
   const normalized = normalizeString(value);
 
   return normalized || null;
+}
+
+function normalizeTargetRegionScope(value: unknown): AiLeadContextTargetRegionScope {
+  return value === 'market_region' || value === 'admin1' || value === 'city' ? value : 'country';
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.map(item => item.trim()).filter(Boolean)));
 }

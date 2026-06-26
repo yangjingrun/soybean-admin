@@ -69,4 +69,28 @@ describe('crm region cascader cache', () => {
     assert.equal(countryCallCount, 2);
     assert.equal(options.length, 1);
   });
+
+  it('groups countries under market regions only when requested', async () => {
+    resetCrmRegionCascaderCacheForTest();
+
+    const options = await loadCachedCrmRegionOptions({
+      includeMarketRegions: true,
+      async loadCountries() {
+        return [
+          { code: 'SA', label: '沙特阿拉伯', cityCount: 1 },
+          { code: 'AE', label: '阿联酋', cityCount: 1 },
+          { code: 'US', label: '美国', cityCount: 1 }
+        ];
+      }
+    });
+    const middleEast = options.find(option => option.marketRegionCode === 'middle_east');
+    const northAmerica = options.find(option => option.marketRegionCode === 'north_america');
+
+    assert.equal(middleEast?.label, '中东');
+    assert.deepEqual(
+      middleEast?.children?.map(option => option.countryCode),
+      ['SA', 'AE']
+    );
+    assert.equal(northAmerica?.children?.[0]?.countryCode, 'US');
+  });
 });

@@ -36,7 +36,12 @@ declare namespace Api {
       value: string;
       label: string;
       countryCode?: string | null;
+      scope?: LeadContextTargetRegionScope;
+      marketRegionCode?: string | null;
+      marketRegionLabel?: string | null;
     }
+
+    type LeadContextTargetRegionScope = 'market_region' | 'country' | 'admin1' | 'city';
 
     interface LeadContextOptionSnapshot {
       key: string;

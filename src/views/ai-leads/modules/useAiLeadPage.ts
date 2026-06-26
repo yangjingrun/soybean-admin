@@ -1030,10 +1030,11 @@ export function useAiLeadPage() {
 
   /** Stores the selected region label so it can be sent as structured AI context. */
   function handleTargetRegionPathsUpdate(paths: CrmRegionCascaderOption[][]) {
-    form.targetRegionLabels = paths.map(path => path.map(formatRegionPathItem).join(' / ')).filter(Boolean);
+    form.targetRegionLabels = paths.map(formatTargetRegionPath).filter(Boolean);
     form.targetRegionCountryCodes = paths.map(path => {
-      const selected = path[path.length - 1];
-      return selected?.countryCode || path[0]?.countryCode || '';
+      const countryNode = [...path].reverse().find(item => item.countryCode);
+
+      return countryNode?.countryCode || '';
     });
   }
 
@@ -1287,6 +1288,26 @@ function normalizeLeadRequirement(requirement: string) {
 
 function formatRegionPathItem(option: CrmRegionCascaderOption) {
   return option.displayName || option.regionName || option.cityName || option.label;
+}
+
+function formatTargetRegionPath(path: CrmRegionCascaderOption[]) {
+  const selected = path[path.length - 1];
+
+  if (!selected) {
+    return '';
+  }
+
+  if (selected.nodeType === 'marketRegion') {
+    return formatRegionPathItem(selected);
+  }
+
+  const country = path.find(item => item.nodeType === 'country');
+
+  if (!country || selected.nodeType === 'country') {
+    return formatRegionPathItem(selected);
+  }
+
+  return [formatRegionPathItem(country), formatRegionPathItem(selected)].filter(Boolean).join(' / ');
 }
 
 function resolveLeadSourceMode(plan: Api.AiLeads.OptimizedKeywordPlan): Api.AiLeads.LeadSourceMode {

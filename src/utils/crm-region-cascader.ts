@@ -1,13 +1,15 @@
 import type { CascaderOption } from 'naive-ui';
 import type { CrmAdmin1RegionRow } from '@/constants/crm-admin1-regions';
+import { resolveCrmMarketRegionByCode, type CrmMarketRegionRow } from '@/constants/crm-market-regions';
 
 export interface CrmRegionCascaderOption extends CascaderOption {
   label: string;
   value: string;
   keywords: string[];
-  nodeType: 'country' | 'admin1' | 'city';
-  countryCode: string;
+  nodeType: 'marketRegion' | 'country' | 'admin1' | 'city';
+  countryCode?: string;
   admin1Code?: string;
+  marketRegionCode?: string;
   flag?: string;
   displayName?: string | null;
   regionName?: string;
@@ -19,6 +21,22 @@ export interface CrmRegionCascaderOption extends CascaderOption {
 
 const countryDisplayNamesZh = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
 const countryDisplayNamesEn = new Intl.DisplayNames(['en-US'], { type: 'region' });
+
+/** Convert one foreign-trade market group into the top-level cascader node. */
+export function createCrmMarketRegionOption(
+  region: CrmMarketRegionRow,
+  children: CrmRegionCascaderOption[]
+): CrmRegionCascaderOption {
+  return {
+    label: region.label,
+    value: createMarketRegionValue(region.code),
+    keywords: Array.from(new Set([region.label, region.code, ...region.aliases])),
+    nodeType: 'marketRegion',
+    marketRegionCode: region.code,
+    isLeaf: children.length === 0,
+    children
+  };
+}
 
 /** Convert one persisted GeoNames country row into a remote cascader country node. */
 export function createCrmCountryRegionOption(country: Api.Crm.GeoCountryOption): CrmRegionCascaderOption {
@@ -91,6 +109,10 @@ export function filterCrmRegionOption(pattern: string, option: CascaderOption, p
 
 /** Resolve a selected cascader value into backend-searchable region keywords. */
 export function getCrmRegionKeywords(value: string) {
+  if (isMarketRegionValue(value)) {
+    return readMarketRegionKeywords(value);
+  }
+
   if (isCountryRegionValue(value)) {
     return readCountryRegionKeywords(value);
   }
@@ -104,6 +126,10 @@ export function getCrmRegionKeywords(value: string) {
   }
 
   return [];
+}
+
+function createMarketRegionValue(code: string) {
+  return `market:${code}`;
 }
 
 function createCountryRegionValue(countryCode: string, label: string) {
@@ -133,6 +159,10 @@ function isCountryRegionValue(value: string) {
   return value.startsWith('country:');
 }
 
+function isMarketRegionValue(value: string) {
+  return value.startsWith('market:');
+}
+
 function isCityRegionValue(value: string) {
   return value.startsWith('city:');
 }
@@ -146,6 +176,13 @@ function readCountryRegionKeywords(value: string) {
   const label = decodeURIComponent(encodedLabel ?? '').trim();
 
   return Array.from(new Set([label || formatCountryLabel(countryCode ?? '')].filter(Boolean)));
+}
+
+function readMarketRegionKeywords(value: string) {
+  const [, code] = value.split(':');
+  const region = resolveCrmMarketRegionByCode(code);
+
+  return region ? Array.from(new Set([region.label, ...region.aliases])) : [];
 }
 
 function readCityRegionKeywords(value: string) {

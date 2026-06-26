@@ -48,8 +48,9 @@ const emit = defineEmits<{
           <CrmRegionCascader
             v-model="targetRegionValues"
             :disabled="disabled"
+            market-regions
             multiple
-            placeholder="选择目标国家 / 省州"
+            placeholder="选择大区 / 国家 / 城市区域"
             @update:selected-path="emit('update:targetRegionPath', $event)"
             @update:selected-paths="emit('update:targetRegionPaths', $event)"
           />

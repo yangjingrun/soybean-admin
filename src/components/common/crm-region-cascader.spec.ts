@@ -11,7 +11,9 @@ describe('crm region cascader component', () => {
 
   it('keeps the picker single-select by default and allows opt-in multiple mode', () => {
     assert.match(componentSource, /multiple:\s*false/);
+    assert.match(componentSource, /marketRegions:\s*false/);
     assert.match(componentSource, /:multiple="multiple"/);
+    assert.match(componentSource, /marketRegions/);
     assert.match(componentSource, /:cascade="false"/);
     assert.doesNotMatch(componentSource, /<NCascader[\s\S]*\n\s+cascade\b/);
   });
@@ -38,9 +40,12 @@ describe('crm region cascader component', () => {
 
   it('selects country nodes when clicking the rendered country label', () => {
     assert.match(componentSource, /function handleRegionLabelClick/);
-    assert.match(componentSource, /option\.nodeType !== 'country'/);
+    assert.match(componentSource, /function canSelectRegionByLabel/);
+    assert.match(componentSource, /option\.nodeType === 'country'/);
+    assert.match(componentSource, /option\.nodeType === 'marketRegion'/);
     assert.match(componentSource, /event\.stopPropagation\(\)/);
-    assert.match(componentSource, /handleRegionUpdate\(option\.value, option, \[option\]\)/);
+    assert.match(componentSource, /toggleSelectedRegionValue/);
+    assert.match(componentSource, /emitRegionSelection/);
     assert.match(componentSource, /onClick: \(event: MouseEvent\) => handleRegionLabelClick/);
   });
 

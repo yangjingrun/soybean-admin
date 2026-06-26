@@ -118,12 +118,48 @@ describe('ai leads keyword optimization helpers', () => {
       snapshot.targetRegions?.map(item => item.label),
       ['阿联酋', '沙特阿拉伯']
     );
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => item.scope),
+      ['country', 'country']
+    );
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => item.marketRegionLabel),
+      ['中东', '中东']
+    );
     assert.equal(snapshot.targetCustomerTypes[0].label, '进口商');
     assert.equal(snapshot.exclusionRules[0].label, '中国供应商/出口商');
     assert.match(requirement, /目标客户类型：进口商、经销商\/代理商/);
     assert.match(requirement, /目标国家\/地区：阿联酋、沙特阿拉伯/);
     assert.match(requirement, /排除类型：中国供应商\/出口商/);
     assert.match(requirement, /补充判断规则：只找有官网和邮箱的公司/);
+  });
+
+  it('keeps market region and precise region levels in the lead context snapshot', () => {
+    const snapshot = createAiLeadContextSnapshot({
+      targetRegionValues: ['market:middle_east', 'admin1:SA:01:Riyadh::'],
+      targetRegionLabels: ['中东', '沙特阿拉伯 / Riyadh'],
+      targetRegionCountryCodes: ['', 'SA'],
+      targetCustomerTypeKeys: ['importer'],
+      exclusionRuleKeys: [],
+      keywordText: '',
+      supplementalRequirement: '',
+      targetLeadCount: 10
+    });
+    const requirement = buildAiLeadStructuredRequirement(snapshot);
+
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => ({
+        label: item.label,
+        scope: item.scope,
+        marketRegionLabel: item.marketRegionLabel,
+        countryCode: item.countryCode
+      })),
+      [
+        { label: '中东', scope: 'market_region', marketRegionLabel: '中东', countryCode: null },
+        { label: '沙特阿拉伯 / Riyadh', scope: 'admin1', marketRegionLabel: '中东', countryCode: 'SA' }
+      ]
+    );
+    assert.match(requirement, /目标国家\/地区：中东、沙特阿拉伯 \/ Riyadh/);
   });
 
   it('parses the AI keyword optimization JSON text', () => {

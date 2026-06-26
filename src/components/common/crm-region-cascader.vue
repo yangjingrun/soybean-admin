@@ -12,12 +12,14 @@ const props = withDefaults(
   defineProps<{
     modelValue?: RegionCascaderValue | null;
     disabled?: boolean;
+    marketRegions?: boolean;
     multiple?: boolean;
     placeholder?: string;
   }>(),
   {
     modelValue: '',
     disabled: false,
+    marketRegions: false,
     multiple: false,
     placeholder: '国家 / 省州'
   }
@@ -30,7 +32,7 @@ const emit = defineEmits<{
 }>();
 
 const { clearRegionSearch, filterCrmRegionOption, handleRegionDropdownShow, regionLoading, regionOptions } =
-  useCrmRegionCascader();
+  useCrmRegionCascader({ includeMarketRegions: () => props.marketRegions });
 
 const cascaderValue = computed(() => {
   if (props.multiple) {
@@ -66,9 +68,7 @@ function handleRegionUpdate(
   const paths = normalizeSelectedRegionPaths(path);
   const selectedValue = normalizeRegionValue(value);
 
-  emit('update:modelValue', selectedValue);
-  emit('update:selectedPath', paths[0] ?? []);
-  emit('update:selectedPaths', paths);
+  emitRegionSelection(selectedValue, paths);
   clearRegionSearch();
 }
 
@@ -78,13 +78,64 @@ function handleRegionShowUpdate(show: boolean) {
 }
 
 function handleRegionLabelClick(event: MouseEvent, option: CrmRegionCascaderOption) {
-  if (props.multiple || option.nodeType !== 'country') {
+  if (!canSelectRegionByLabel(option)) {
     return;
   }
 
   event.stopPropagation();
-  handleRegionUpdate(option.value, option, [option]);
+
+  if (props.multiple) {
+    const nextValue = toggleSelectedRegionValue(String(option.value));
+
+    emitRegionSelection(nextValue, resolveSelectedRegionPathsFromValues(nextValue));
+    clearRegionSearch();
+    return;
+  }
+
+  emitRegionSelection(String(option.value), resolveSelectedRegionPathsFromValues([String(option.value)]));
   cascaderShow.value = false;
+  clearRegionSearch();
+}
+
+function emitRegionSelection(value: RegionCascaderValue, paths: CrmRegionCascaderOption[][]) {
+  emit('update:modelValue', value);
+  emit('update:selectedPath', paths[0] ?? []);
+  emit('update:selectedPaths', paths);
+}
+
+function canSelectRegionByLabel(option: CrmRegionCascaderOption) {
+  return option.nodeType === 'country' || (props.marketRegions && option.nodeType === 'marketRegion');
+}
+
+/** 多选时允许点击大区/国家文字切换选中，保持和复选框行为一致。 */
+function toggleSelectedRegionValue(value: string) {
+  const currentValue = Array.isArray(cascaderValue.value) ? cascaderValue.value : [];
+
+  return currentValue.includes(value) ? currentValue.filter(item => item !== value) : [...currentValue, value];
+}
+
+function resolveSelectedRegionPathsFromValues(values: string[]) {
+  return values.flatMap(value => {
+    const path = findRegionOptionPath(regionOptions.value, value);
+
+    return path ? [path] : [];
+  });
+}
+
+function findRegionOptionPath(options: CrmRegionCascaderOption[], value: string): CrmRegionCascaderOption[] | null {
+  for (const option of options) {
+    if (option.value === value) {
+      return [option];
+    }
+
+    const childPath = option.children?.length ? findRegionOptionPath(option.children, value) : null;
+
+    if (childPath) {
+      return [option, ...childPath];
+    }
+  }
+
+  return null;
 }
 
 /** Naive UI 在单选和多选下 path 形态不同，这里统一成路径数组。 */
