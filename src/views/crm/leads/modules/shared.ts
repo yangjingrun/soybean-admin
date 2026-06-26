@@ -904,7 +904,7 @@ export function buildLeadSourceListView(record: Pick<Api.Crm.LeadRecord, 'source
   const precision = evidence.precisionAnalysis;
 
   return {
-    sourceLabel: evidence.sourceLabel || formatLeadSourceTypeLabel(evidence.sourceType),
+    sourceLabel: formatLeadSourceLabel(evidence.sourceLabel, evidence.sourceType),
     sourceTypeLabel: formatLeadSourceTypeLabel(evidence.sourceType),
     sourceUrl: evidence.sourceUrl || evidence.sourceWebsite || evidence.finalUrl,
     sourceReason: evidence.sourceReason || precision?.reason || '',
@@ -1011,12 +1011,43 @@ function buildLeadSourcePrecisionView(evidence: LeadWebsiteEvidenceView): LeadSo
 
 function formatLeadSourceTypeLabel(sourceType: string) {
   const labelMap: Record<string, string> = {
+    organic: '公开线索',
     search: '公开线索',
+    place: '本地商家线索',
+    local: '本地商家线索',
     places: '地图商家',
     maps: '地图商家'
   };
 
   return labelMap[sourceType] || sourceType || '-';
+}
+
+function formatLeadSourceLabel(sourceLabel: string, sourceType: string) {
+  const normalizedLabel = sourceLabel.trim();
+
+  if (!normalizedLabel) {
+    return formatLeadSourceTypeLabel(sourceType);
+  }
+
+  if (/[\u4e00-\u9fff]/.test(normalizedLabel)) {
+    return normalizedLabel;
+  }
+
+  const sourceKey = normalizedLabel.toLowerCase().replace(/[\s_-]+/g, '');
+
+  if (['organic', 'search', 'googlesearch', 'publiclead', 'publicsource'].includes(sourceKey)) {
+    return '公开线索';
+  }
+
+  if (['place', 'local', 'places', 'googleplaces', 'locallead', 'localbusiness'].includes(sourceKey)) {
+    return '本地商家线索';
+  }
+
+  if (['maps', 'googlemaps', 'maplead'].includes(sourceKey)) {
+    return '地图线索';
+  }
+
+  return formatLeadSourceTypeLabel(sourceType);
 }
 
 function formatPrecisionPriorityLabel(priority: string) {

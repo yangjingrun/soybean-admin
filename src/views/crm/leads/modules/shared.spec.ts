@@ -474,6 +474,7 @@ describe('crm lead shared helpers', () => {
       createLeadRecord({
         sourceSnapshot: {
           sourceType: 'search',
+          sourceLabel: 'Google Search',
           sourceUrl: 'https://google.example/result',
           score: 92,
           reason: '官网和产品线高度匹配',
@@ -513,6 +514,37 @@ describe('crm lead shared helpers', () => {
     assert.equal(source.precision?.priorityLabel, '高');
     assert.equal(source.precision?.scoreTagType, 'success');
     assert.match(source.precision?.tooltipItems.join('\n') ?? '', /官网归属和客户类型匹配/);
+  });
+
+  it('maps raw source labels to Chinese for lead list display', () => {
+    const searchSource = buildLeadSourceListView(
+      createLeadRecord({
+        sourceSnapshot: {
+          sourceType: 'organic',
+          sourceLabel: 'Google Search'
+        }
+      })
+    );
+    const placeSource = buildLeadSourceListView(
+      createLeadRecord({
+        sourceSnapshot: {
+          sourceType: 'place',
+          sourceLabel: 'Google Places'
+        }
+      })
+    );
+    const mapsSource = buildLeadSourceListView(
+      createLeadRecord({
+        sourceSnapshot: {
+          sourceType: 'maps',
+          sourceLabel: 'Google Maps'
+        }
+      })
+    );
+
+    assert.equal(searchSource.sourceLabel, '公开线索');
+    assert.equal(placeSource.sourceLabel, '本地商家线索');
+    assert.equal(mapsSource.sourceLabel, '地图线索');
   });
 
   it('reads source product line snapshots from imported AI leads', () => {
