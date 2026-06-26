@@ -7,6 +7,9 @@ export function toSequenceReviewInclude() {
     mailbox: true,
     policy: true,
     messages: {
+      include: {
+        openEvent: true
+      },
       orderBy: [{ stepIndex: 'asc' as const }, { createdAt: 'asc' as const }]
     }
   };

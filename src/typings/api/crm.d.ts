@@ -1143,8 +1143,39 @@ declare namespace Api {
       providerThreadId: string | null;
       metadata?: unknown | null;
       aiDraft?: AiDraftMetadata | null;
+      openTracking?: MessageOpenTrackingRecord | null;
       createdAt: string;
       updatedAt: string;
+    }
+
+    type TrackingIpReliability = 'direct' | 'proxy' | 'unknown';
+    type TrackingOpenConfidence = 'high' | 'medium' | 'low';
+
+    interface TrackingOpenInsight {
+      clientName: string | null;
+      clientType: string | null;
+      confidence: TrackingOpenConfidence;
+      deviceBrand: string | null;
+      deviceLabel: string;
+      deviceModel: string | null;
+      deviceType: string | null;
+      ipAddress: string | null;
+      ipReliability: TrackingIpReliability;
+      osName: string | null;
+      osVersion: string | null;
+      proxyProvider: string | null;
+      reliabilityNote: string;
+      userAgent: string | null;
+    }
+
+    interface MessageOpenTrackingRecord {
+      eventId: string;
+      openCount: number;
+      firstOpenedAt: string;
+      lastOpenedAt: string;
+      lastUserAgent: string | null;
+      lastIpAddress: string | null;
+      insight: TrackingOpenInsight;
     }
 
     interface MessageDraftVersionRecord {

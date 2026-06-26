@@ -28,3 +28,13 @@ describe('DraftReviewModal email content copy affordance', () => {
     assert.doesNotMatch(modalSource, /class="draft-field-label"/);
   });
 });
+
+describe('DraftReviewModal open tracking detail', () => {
+  it('shows readable open tracking details for the selected message', () => {
+    assert.match(modalSource, /buildOpenTrackingRows/);
+    assert.match(modalSource, /const openTrackingRows = computed/);
+    assert.match(modalSource, /title="打开详情"/);
+    assert.match(modalSource, /currentMessage\.value\?\.openTracking/);
+    assert.match(modalSource, /openTrackingRows/);
+  });
+});

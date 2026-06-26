@@ -15,6 +15,7 @@ import {
   buildDraftReviewOperationPayload,
   buildDraftVersionDiffSummary,
   buildDraftVersionListItems,
+  buildOpenTrackingRows,
   buildSequenceMessageTimelineItems,
   buildSequencePolicyReviewHints,
   canRegenerateAiDraft,
@@ -162,6 +163,7 @@ const canRetrySend = computed(() => Boolean(props.item && canRetryFirstMessageSe
 const policyReviewHints = computed(() =>
   props.item ? buildSequencePolicyReviewHints(props.item, currentMessage.value) : []
 );
+const openTrackingRows = computed(() => buildOpenTrackingRows(currentMessage.value?.openTracking));
 const aiDraftInfo = computed<AiDraftDisplayInfo | null>(() => currentMessage.value?.aiDraft ?? null);
 const aiDraftFactRows = computed<AiDraftDescriptionRow[]>(() => buildAiDraftFactRows(aiDraftInfo.value));
 const aiDraftSummaryRows = computed<AiDraftDescriptionRow[]>(() => buildAiDraftSummaryRows(aiDraftInfo.value));
@@ -504,6 +506,14 @@ async function copyDraftField(field: CopyableDraftField) {
 
             <NCollapseItem title="发送条件" name="send-audit">
               <SendAuditPanel :item="item" :current-message="currentMessage" />
+            </NCollapseItem>
+
+            <NCollapseItem v-if="openTrackingRows.length" title="打开详情" name="open-tracking">
+              <NDescriptions :column="1" bordered size="small" label-placement="left">
+                <NDescriptionsItem v-for="row in openTrackingRows" :key="row.key" :label="row.label">
+                  <span class="open-tracking-text">{{ row.value }}</span>
+                </NDescriptionsItem>
+              </NDescriptions>
             </NCollapseItem>
 
             <NCollapseItem v-if="personaMatchRows.length" title="客户画像" name="persona">
@@ -893,6 +903,11 @@ async function copyDraftField(field: CopyableDraftField) {
 }
 
 .persona-match-text {
+  color: var(--n-text-color-2);
+  font-size: 12px;
+}
+
+.open-tracking-text {
   color: var(--n-text-color-2);
   font-size: 12px;
 }

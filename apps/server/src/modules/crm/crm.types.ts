@@ -1,6 +1,7 @@
 import type { CrmConfiguredSendWindow, CrmFollowUpDelayDays } from './crm-global-config';
 import type { CrmAiDraftTaskStatus } from './crm-ai-draft-task.types';
 import type { CrmSendQueueJob } from './crm-ports.types';
+import type { CrmTrackingOpenInsight } from './tracking/crm-tracking-open-insight';
 import type { RequestUserContext } from '../../shared/request-context';
 import type { CrmUserContext } from './shared/crm-context';
 import type {
@@ -637,8 +638,19 @@ export interface CrmMessageRecord {
   providerThreadId: string | null;
   recipientTimeZone: string | null;
   metadata?: unknown | null;
+  openTracking?: CrmMessageOpenTrackingRecord | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CrmMessageOpenTrackingRecord {
+  eventId: string;
+  openCount: number;
+  firstOpenedAt: Date;
+  lastOpenedAt: Date;
+  lastUserAgent: string | null;
+  lastIpAddress: string | null;
+  insight: CrmTrackingOpenInsight;
 }
 
 export interface CrmMessageDraftVersionRecord {

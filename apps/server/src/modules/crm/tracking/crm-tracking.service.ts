@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { SystemNotificationService } from '../../system-notification/system-notification.service';
 import { CRM_TRACKING_REPOSITORY } from '../crm.tokens';
+import { buildCrmTrackingOpenInsight } from './crm-tracking-open-insight';
 import type { CrmEmailOpenRecordResult, CrmTrackingRepository } from './crm-tracking.types';
 
 export interface CrmEmailOpenInput {
@@ -38,6 +39,11 @@ export class CrmTrackingService {
       return result;
     }
 
+    const openInsight = buildCrmTrackingOpenInsight({
+      userAgent: result.event.lastUserAgent,
+      ipAddress: result.event.lastIpAddress
+    });
+
     await this.repository.createTimelineEvent({
       organizationId: target.message.organizationId,
       ownerUserId: target.message.ownerUserId,
@@ -51,6 +57,7 @@ export class CrmTrackingService {
         messageId: target.message.id,
         enrollmentId: target.message.enrollmentId,
         openedAt: result.event.firstOpenedAt.toISOString(),
+        openInsight,
         signal: 'email_open'
       }
     });
@@ -71,6 +78,7 @@ export class CrmTrackingService {
         contactId: target.message.contactId,
         enrollmentId: target.message.enrollmentId,
         messageId: target.message.id,
+        openInsight,
         trackingEventId: result.event.id,
         openedAt: result.event.firstOpenedAt.toISOString()
       }

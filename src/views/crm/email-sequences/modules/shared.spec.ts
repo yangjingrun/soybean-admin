@@ -4,6 +4,7 @@ import {
   buildDraftReviewOperationPayload,
   buildDraftVersionDiffSummary,
   buildDraftVersionListItems,
+  buildOpenTrackingRows,
   buildAiDraftFactRows,
   buildAiDraftPromptSnapshotRows,
   buildAiDraftReviewTags,
@@ -46,6 +47,48 @@ import {
   summarizeSequenceBatchSelection,
   normalizeSequenceCreatePayload
 } from './shared';
+
+describe('open tracking detail rows', () => {
+  it('builds readable open tracking rows for sent message details', () => {
+    const rows = buildOpenTrackingRows({
+      eventId: 'open-1',
+      openCount: 2,
+      firstOpenedAt: '2026-06-25T01:00:00.000Z',
+      lastOpenedAt: '2026-06-25T01:05:00.000Z',
+      lastUserAgent: 'GoogleImageProxy',
+      lastIpAddress: '66.249.84.10',
+      insight: {
+        clientName: 'Chrome',
+        clientType: 'browser',
+        confidence: 'medium',
+        deviceBrand: null,
+        deviceLabel: '电脑',
+        deviceModel: null,
+        deviceType: 'desktop',
+        ipAddress: '66.249.84.10',
+        ipReliability: 'proxy',
+        osName: 'Windows',
+        osVersion: '10',
+        proxyProvider: 'Gmail 图片代理',
+        reliabilityNote: '邮箱服务商代理加载图片，IP 可能不是客户真实 IP，设备只能作为线索。',
+        userAgent: 'GoogleImageProxy'
+      }
+    });
+
+    assert.deepEqual(
+      rows.map(row => [row.label, row.value]),
+      [
+        ['首次打开', '2026-06-25 09:00:00'],
+        ['最近打开', '2026-06-25 09:05:00'],
+        ['打开次数', '2 次'],
+        ['设备线索', '电脑 · Windows 10 · Chrome'],
+        ['图片代理', 'Gmail 图片代理'],
+        ['IP 线索', '66.249.84.10（邮箱代理）'],
+        ['可信度', '中 · 邮箱服务商代理加载图片，IP 可能不是客户真实 IP，设备只能作为线索。']
+      ]
+    );
+  });
+});
 
 function createMessage(overrides: Partial<Api.Crm.MessageRecord>): Api.Crm.MessageRecord {
   return {

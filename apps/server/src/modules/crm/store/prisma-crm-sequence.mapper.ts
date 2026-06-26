@@ -1,6 +1,7 @@
 import type { CrmAccountModel } from '../../../generated/prisma/models/CrmAccount';
 import type { CrmContactModel } from '../../../generated/prisma/models/CrmContact';
 import type { CrmMailboxModel } from '../../../generated/prisma/models/CrmMailbox';
+import type { CrmEmailOpenEventModel } from '../../../generated/prisma/models/CrmEmailOpenEvent';
 import type { CrmMessageModel } from '../../../generated/prisma/models/CrmMessage';
 import type { CrmProductLineModel } from '../../../generated/prisma/models/CrmProductLine';
 import type { CrmSequenceEnrollmentModel } from '../../../generated/prisma/models/CrmSequenceEnrollment';
@@ -11,6 +12,7 @@ import type {
   CrmSequenceEnrollmentRecord,
   CrmSequenceReviewRecord
 } from '../crm.types';
+import { buildCrmTrackingOpenInsight } from '../tracking/crm-tracking-open-insight';
 import { toProductLineRecord, toSequencePolicyRecord } from './prisma-crm-catalog.mapper';
 import { toAccountRecord, toContactRecord } from './prisma-crm-core.mapper';
 import { toMailboxRecord } from './prisma-crm-mailbox.mapper';
@@ -26,6 +28,7 @@ export function toSequenceEnrollmentRecord(record: CrmSequenceEnrollmentModel): 
 /** Maps one outbound CRM message and preserves provider metadata when generated Prisma types lag. */
 export function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
   const message = record as CrmMessageModel & {
+    openEvent?: CrmEmailOpenEventModel | null;
     providerMessageId?: string | null;
     providerThreadId?: string | null;
     recipientTimeZone?: string | null;
@@ -39,7 +42,23 @@ export function toMessageRecord(record: CrmMessageModel): CrmMessageRecord {
     providerMessageId: message.providerMessageId ?? null,
     providerThreadId: message.providerThreadId ?? null,
     recipientTimeZone: message.recipientTimeZone ?? null,
-    metadata: message.metadata ?? null
+    metadata: message.metadata ?? null,
+    openTracking: message.openEvent ? toMessageOpenTrackingRecord(message.openEvent) : null
+  };
+}
+
+function toMessageOpenTrackingRecord(event: CrmEmailOpenEventModel): NonNullable<CrmMessageRecord['openTracking']> {
+  return {
+    eventId: event.id,
+    openCount: event.openCount,
+    firstOpenedAt: event.firstOpenedAt,
+    lastOpenedAt: event.lastOpenedAt,
+    lastUserAgent: event.lastUserAgent,
+    lastIpAddress: event.lastIpAddress,
+    insight: buildCrmTrackingOpenInsight({
+      userAgent: event.lastUserAgent,
+      ipAddress: event.lastIpAddress
+    })
   };
 }
 
@@ -74,7 +93,7 @@ export function toSequenceReviewRecord(
     productLine: CrmProductLineModel | null;
     mailbox: CrmMailboxModel | null;
     policy?: CrmSequencePolicyModel | null;
-    messages: CrmMessageModel[];
+    messages: Array<CrmMessageModel & { openEvent?: CrmEmailOpenEventModel | null }>;
   }
 ): CrmSequenceReviewRecord {
   const messages = record.messages.map(toMessageRecord);

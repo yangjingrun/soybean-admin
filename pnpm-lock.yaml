@@ -201,6 +201,9 @@ importers:
       date-holidays:
         specifier: ^3.30.2
         version: 3.30.2
+      device-detector-js:
+        specifier: ^3.0.3
+        version: 3.0.3
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1
@@ -3280,6 +3283,10 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  device-detector-js@3.0.3:
+    resolution: {integrity: sha512-jM89LJAvP6uOd84at8OlD9dWP8KeYCCHUde0RT0HQo/stdoRH4b54Xl/fntx2nEXCmqiFhmo+/cJetS2VGUHPw==}
+    engines: {node: '>= 8.11.4'}
 
   devtools-protocol@0.0.1651496:
     resolution: {integrity: sha512-aJNGsTbQSN63p6E6DVW0+X4yVUK7BoRlkHFCYPN/dGIQTBwC/6bxucK9GjdK0yrq0HXK1mXddH7+xbOQyg85qw==}
@@ -9529,6 +9536,8 @@ snapshots:
   destr@2.0.5: {}
 
   detect-libc@2.1.2: {}
+
+  device-detector-js@3.0.3: {}
 
   devtools-protocol@0.0.1651496: {}
 

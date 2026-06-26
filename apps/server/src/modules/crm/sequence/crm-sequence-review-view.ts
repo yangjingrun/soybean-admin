@@ -106,10 +106,19 @@ function toMessageView(record: CrmMessageRecord) {
   return {
     ...record,
     aiDraft: readCrmMessageAiDraftMetadata(record.metadata),
+    openTracking: record.openTracking ? toMessageOpenTrackingView(record.openTracking) : null,
     scheduledAt: record.scheduledAt?.toISOString() ?? null,
     sentAt: record.sentAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toMessageOpenTrackingView(record: NonNullable<CrmMessageRecord['openTracking']>) {
+  return {
+    ...record,
+    firstOpenedAt: record.firstOpenedAt.toISOString(),
+    lastOpenedAt: record.lastOpenedAt.toISOString()
   };
 }
 

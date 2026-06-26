@@ -36,6 +36,25 @@ test('CrmTrackingService records first open and creates one notification with fo
   assert.equal(repository.timelineEvents[0].eventType, 'email_opened');
   assert.equal(notifications.created.length, 1);
   assert.equal(notifications.created[0].type, 'crm_email_opened');
+  assert.deepEqual(
+    (notifications.created[0].metadata as { openInsight?: Record<string, unknown> }).openInsight,
+    {
+      clientName: null,
+      clientType: null,
+      confidence: 'low',
+      deviceBrand: null,
+      deviceLabel: '未知设备',
+      deviceModel: null,
+      deviceType: null,
+      ipAddress: '127.0.0.1',
+      ipReliability: 'direct',
+      osName: null,
+      osVersion: null,
+      proxyProvider: null,
+      reliabilityNote: '邮件客户端提供的信息有限，设备和 IP 仅供参考。',
+      userAgent: 'AppleWebKit'
+    }
+  );
   assert.equal(
     notifications.created[0].routePath,
     '/crm/email-sequences?focus=tracking-open&enrollmentId=enrollment-1&messageId=message-1&eventId=open-1'

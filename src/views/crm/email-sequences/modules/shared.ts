@@ -357,6 +357,57 @@ export function formatNullableText(value: string | null | undefined) {
   return value || '-';
 }
 
+const openTrackingConfidenceLabelMap: Record<Api.Crm.TrackingOpenConfidence, string> = {
+  high: '高',
+  medium: '中',
+  low: '低'
+};
+
+const openTrackingIpReliabilityLabelMap: Record<Api.Crm.TrackingIpReliability, string> = {
+  direct: '直接请求',
+  proxy: '邮箱代理',
+  unknown: '未知'
+};
+
+/** Builds business-readable rows for one email-open tracking signal. */
+export function buildOpenTrackingRows(
+  openTracking: Api.Crm.MessageOpenTrackingRecord | null | undefined
+): AiDraftDescriptionRow[] {
+  if (!openTracking) return [];
+
+  const insight = openTracking.insight;
+  const deviceText = [insight.deviceLabel, joinVersion(insight.osName, insight.osVersion), insight.clientName]
+    .filter(Boolean)
+    .join(' · ');
+
+  return [
+    { key: 'first-opened-at', label: '首次打开', value: formatSequenceDate(openTracking.firstOpenedAt) },
+    { key: 'last-opened-at', label: '最近打开', value: formatSequenceDate(openTracking.lastOpenedAt) },
+    { key: 'open-count', label: '打开次数', value: `${openTracking.openCount} 次` },
+    { key: 'device', label: '设备线索', value: deviceText || '未知设备' },
+    {
+      key: 'proxy-provider',
+      label: '图片代理',
+      value: insight.proxyProvider || '未识别到常见邮箱图片代理'
+    },
+    {
+      key: 'ip-address',
+      label: 'IP 线索',
+      value: `${openTracking.lastIpAddress || '-'}（${openTrackingIpReliabilityLabelMap[insight.ipReliability]}）`
+    },
+    {
+      key: 'confidence',
+      label: '可信度',
+      value: `${openTrackingConfidenceLabelMap[insight.confidence]} · ${insight.reliabilityNote}`
+    }
+  ];
+}
+
+function joinVersion(name: string | null, version: string | null) {
+  if (!name) return '';
+  return version ? `${name} ${version}` : name;
+}
+
 /** Build a CSV table with customer info and up to five generated outreach emails. */
 export function buildSequenceExportCsv(records: Api.Crm.SequenceReviewItem[]) {
   const headers = buildSequenceExportHeaders();
