@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import dayjs from 'dayjs';
+import DirectorySourceRulesDrawer from './modules/DirectorySourceRulesDrawer.vue';
 import KeywordHistoryDrawer from './modules/KeywordHistoryDrawer.vue';
 import KeywordOptimizationResult from './modules/KeywordOptimizationResult.vue';
 import LeadProductLineContext from './modules/LeadProductLineContext.vue';
@@ -11,6 +12,7 @@ const {
   aiFinishReasonLabel,
   aiResult,
   canGenerate,
+  canManageDirectoryRules,
   canManageKeywordStrategy,
   canViewSerperDetails,
   canReturnToKeywordStep,
@@ -39,6 +41,7 @@ const {
   hasSearchProgress,
   historyRecords,
   isEditingResult,
+  isDirectoryRulesDrawerVisible,
   isGenerating,
   isHistoryDeleting,
   isHistoryDrawerVisible,
@@ -153,6 +156,17 @@ async function handleStartKeywordResultEdit() {
           </div>
 
           <NSpace :size="8" class="task-toolbar-actions">
+            <NButton
+              v-if="canManageDirectoryRules"
+              size="small"
+              secondary
+              @click="isDirectoryRulesDrawerVisible = true"
+            >
+              <template #icon>
+                <SvgIcon icon="material-symbols:filter-alt-outline" />
+              </template>
+              黄页过滤
+            </NButton>
             <NButton
               size="small"
               secondary
@@ -348,6 +362,7 @@ async function handleStartKeywordResultEdit() {
       @select="handleSelectHistory"
       @delete="handleDeleteHistory"
     />
+    <DirectorySourceRulesDrawer v-if="canManageDirectoryRules" v-model:show="isDirectoryRulesDrawerVisible" />
   </NSpace>
 </template>
 

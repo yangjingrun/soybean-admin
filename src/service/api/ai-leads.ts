@@ -2,7 +2,10 @@ import { request } from '../request';
 export { streamLeadCustomerSearch } from './ai-leads.stream';
 import {
   buildCreateLeadSearchTaskRequestConfig,
+  buildCreateLeadDirectorySourceRuleRequestConfig,
+  buildDeleteLeadDirectorySourceRuleRequestConfig,
   buildCurrentLeadSearchTaskRequestConfig,
+  buildLeadDirectorySourceRuleListRequestConfig,
   buildDeleteLeadKeywordHistoryRequestConfig,
   buildLeadKeywordHistoryListRequestConfig,
   buildLeadKeywordOptimizeRequestConfig,
@@ -11,6 +14,7 @@ import {
   buildLeadSearchTaskRequestConfig,
   buildLeadSearchOrchestrateRequestConfig,
   buildSaveLeadQueueConfigRequestConfig,
+  buildUpdateLeadDirectorySourceRuleRequestConfig,
   buildUpdateLeadKeywordHistoryRequestConfig
 } from './ai-leads.shared';
 
@@ -87,4 +91,24 @@ export function fetchAiLeadQueueConfig() {
 /** Save global AI leads queue settings. */
 export function saveAiLeadQueueConfig(data: Api.AiLeads.SaveQueueConfigPayload) {
   return request<Api.AiLeads.QueueConfig>(buildSaveLeadQueueConfigRequestConfig(data));
+}
+
+/** Read AI leads directory source filter rules. */
+export function fetchLeadDirectorySourceRules() {
+  return request<Api.AiLeads.DirectorySourceRuleListResult>(buildLeadDirectorySourceRuleListRequestConfig());
+}
+
+/** Create one AI leads directory source filter rule. */
+export function createLeadDirectorySourceRule(data: Api.AiLeads.SaveDirectorySourceRulePayload) {
+  return request<Api.AiLeads.DirectorySourceRuleRecord>(buildCreateLeadDirectorySourceRuleRequestConfig(data));
+}
+
+/** Update one AI leads directory source filter rule. */
+export function updateLeadDirectorySourceRule(id: string, data: Api.AiLeads.SaveDirectorySourceRulePayload) {
+  return request<Api.AiLeads.DirectorySourceRuleRecord>(buildUpdateLeadDirectorySourceRuleRequestConfig(id, data));
+}
+
+/** Delete one AI leads directory source filter rule. */
+export function deleteLeadDirectorySourceRule(id: string) {
+  return request<{ success: boolean }>(buildDeleteLeadDirectorySourceRuleRequestConfig(id));
 }

@@ -196,6 +196,91 @@ describe('AiLeadSearchOrchestrator', () => {
     assert.ok(assertCalls.length >= 2);
   });
 
+  it('filters directory organic results before lead search decision analysis', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          pageQuality: 'medium',
+          nextAction: 'stop',
+          nextRequest: {
+            endpoint: 'search',
+            requestBody: {
+              q: '',
+              gl: 'ae',
+              hl: 'en',
+              location: 'United Arab Emirates',
+              num: 10,
+              page: 1
+            }
+          },
+          tbs: null
+        })
+      }
+    ]);
+    const serper = createSerperClient([
+      {
+        organic: [
+          {
+            title: 'Industrial Bearing Suppliers in UAE',
+            link: 'https://www.yellowpages-uae.com/uae/industrial-bearing',
+            snippet: 'Directory of bearing suppliers'
+          },
+          {
+            title: 'ABC Bearing',
+            link: 'https://abc.example.com',
+            snippet: 'bearing supplier'
+          }
+        ]
+      }
+    ]);
+    const service = new AiLeadSearchOrchestrator(
+      aiGateway as unknown as AiGatewayService,
+      serper as unknown as SerperClient,
+      createLogRecorder()
+    );
+
+    const result = await service.searchWithKeywordPlan(
+      {
+        requirement: '找阿联酋轴承进口商',
+        targetLeadCount: 20,
+        keywordPlan: {
+          resolvedProductKeywords: 'bearing',
+          resolvedTargetRegions: 'United Arab Emirates',
+          resolvedTargetCustomerProfile: 'bearing importer',
+          resolvedTargetLeadCount: 20,
+          serperSearchQueries: [{ q: 'bearing importer UAE', gl: 'ae', hl: 'en' }],
+          serperPlacesQueries: []
+        }
+      },
+      { user: createUser() }
+    );
+
+    const decisionPrompt = JSON.parse(aiGateway.calls[0].prompt) as {
+      serperResult: { organic?: Array<{ link?: string }> };
+      providerFilteredSummary: {
+        rawOrganicCount: number;
+        acceptedOrganicCount: number;
+        directorySkippedCount: number;
+        directorySkippedSamples: Array<{ domain: string; url: string; reason: string }>;
+      };
+      collectedLeadCount: number;
+    };
+
+    assert.equal(result.candidates.length, 1);
+    assert.equal(result.candidates[0].url, 'https://abc.example.com');
+    assert.deepEqual(decisionPrompt.serperResult.organic?.map(item => item.link), ['https://abc.example.com']);
+    assert.equal(decisionPrompt.providerFilteredSummary.rawOrganicCount, 2);
+    assert.equal(decisionPrompt.providerFilteredSummary.acceptedOrganicCount, 1);
+    assert.equal(decisionPrompt.providerFilteredSummary.directorySkippedCount, 1);
+    assert.equal(decisionPrompt.providerFilteredSummary.directorySkippedSamples[0].domain, 'yellowpages-uae.com');
+    assert.equal(
+      decisionPrompt.providerFilteredSummary.directorySkippedSamples[0].url,
+      'https://www.yellowpages-uae.com/uae/industrial-bearing'
+    );
+    assert.equal(decisionPrompt.providerFilteredSummary.directorySkippedSamples[0].reason, '匹配黄页/目录来源规则');
+    assert.equal(decisionPrompt.collectedLeadCount, 1);
+  });
+
   it('passes dynamic product keywords to website crawler', async () => {
     const aiGateway = createAiGateway([
       {

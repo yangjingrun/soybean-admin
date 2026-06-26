@@ -4,8 +4,11 @@ import {
   aiLeadKeywordOptimizeTimeout,
   aiLeadSearchOrchestrateTimeout,
   buildDeleteLeadKeywordHistoryRequestConfig,
+  buildCreateLeadDirectorySourceRuleRequestConfig,
   buildCreateLeadSearchTaskRequestConfig,
+  buildDeleteLeadDirectorySourceRuleRequestConfig,
   buildCurrentLeadSearchTaskRequestConfig,
+  buildLeadDirectorySourceRuleListRequestConfig,
   buildLeadKeywordHistoryListRequestConfig,
   buildLeadKeywordOptimizeRequestConfig,
   buildLeadQueueConfigRequestConfig,
@@ -13,6 +16,7 @@ import {
   buildLeadSearchTaskRequestConfig,
   buildLeadSearchOrchestrateRequestConfig,
   buildSaveLeadQueueConfigRequestConfig,
+  buildUpdateLeadDirectorySourceRuleRequestConfig,
   buildUpdateLeadKeywordHistoryRequestConfig
 } from './ai-leads.shared';
 
@@ -143,6 +147,34 @@ describe('ai leads api helpers', () => {
       url: '/ai-leads/queue-config',
       method: 'post',
       data: { workerConcurrency: 2 }
+    });
+  });
+
+  it('builds directory source rule request configs', () => {
+    const payload = {
+      value: 'example-directory.com',
+      matchMode: 'domain_suffix' as const,
+      enabled: true,
+      description: '测试目录'
+    };
+
+    assert.deepEqual(buildLeadDirectorySourceRuleListRequestConfig(), {
+      url: '/ai-leads/directory-source-rules',
+      method: 'get'
+    });
+    assert.deepEqual(buildCreateLeadDirectorySourceRuleRequestConfig(payload), {
+      url: '/ai-leads/directory-source-rules',
+      method: 'post',
+      data: payload
+    });
+    assert.deepEqual(buildUpdateLeadDirectorySourceRuleRequestConfig('rule-1', payload), {
+      url: '/ai-leads/directory-source-rules/rule-1',
+      method: 'patch',
+      data: payload
+    });
+    assert.deepEqual(buildDeleteLeadDirectorySourceRuleRequestConfig('rule-1'), {
+      url: '/ai-leads/directory-source-rules/rule-1',
+      method: 'delete'
     });
   });
 });

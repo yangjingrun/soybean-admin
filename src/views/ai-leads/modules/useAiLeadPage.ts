@@ -109,6 +109,7 @@ export function useAiLeadPage() {
   const isHistoryLoading = shallowRef(false);
   const isHistorySaving = shallowRef(false);
   const isHistoryDrawerVisible = shallowRef(false);
+  const isDirectoryRulesDrawerVisible = shallowRef(false);
   const isEditingResult = shallowRef(false);
   const searchTaskPollTimer = shallowRef<ReturnType<typeof setInterval> | null>(null);
   const deletingKeywordHistoryId = shallowRef('');
@@ -169,6 +170,7 @@ export function useAiLeadPage() {
     hasPermission(authStore.userInfo, aiLeadsKeywordStrategyManagePermission)
   );
   const canViewSerperDetails = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
+  const canManageDirectoryRules = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
   const isSearchTaskPending = computed(() => isLeadSearchTaskPending(currentSearchTask.value?.status));
   const isSearching = computed(() => isSearchTaskSubmitting.value || isSearchTaskPending.value);
   const isLeadWorkflowRunning = computed(
@@ -1207,6 +1209,7 @@ export function useAiLeadPage() {
     aiFinishReasonLabel,
     aiResult,
     canGenerate,
+    canManageDirectoryRules,
     canManageKeywordStrategy,
     canViewSerperDetails,
     canReturnToKeywordStep,
@@ -1246,6 +1249,7 @@ export function useAiLeadPage() {
     hasSearchProgress,
     historyRecords,
     isEditingResult,
+    isDirectoryRulesDrawerVisible,
     isGenerating,
     isHistoryDeleting,
     isHistoryDrawerVisible,

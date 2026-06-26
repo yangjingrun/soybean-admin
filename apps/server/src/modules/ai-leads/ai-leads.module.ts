@@ -13,16 +13,19 @@ import { AiLeadSearchTaskService } from './ai-lead-search-task.service';
 import { AiLeadSearchTaskWorkerHost } from './ai-lead-search-task-worker-host.service';
 import { AiLeadSearchTaskWorkerService } from './ai-lead-search-task-worker.service';
 import { AiLeadPrecisionAnalysisService } from './ai-lead-precision-analysis.service';
+import { AiLeadDirectorySourceRuleService } from './ai-lead-directory-source-rule.service';
 import { AiLeadWebsiteCrawlerService } from './ai-lead-website-crawler.service';
 import { AiLeadsController } from './ai-leads.controller';
 import { AiLeadsService } from './ai-leads.service';
 import {
+  AI_LEAD_DIRECTORY_SOURCE_RULE_STORE,
   AI_LEAD_KEYWORD_HISTORY_STORE,
   AI_LEAD_QUEUE_CONFIG_STORE,
   AI_LEAD_SEARCH_TASK_QUEUE,
   AI_LEAD_SEARCH_TASK_STORE
 } from './ai-leads.tokens';
 import { PrismaAiLeadQueueConfigStore } from './prisma-ai-lead-queue-config.store';
+import { PrismaAiLeadDirectorySourceRuleStore } from './prisma-ai-lead-directory-source-rule.store';
 import { PrismaAiLeadKeywordHistoryStore } from './prisma-ai-lead-keyword-history.store';
 import { PrismaAiLeadSearchTaskStore } from './prisma-ai-lead-search-task.store';
 
@@ -40,6 +43,7 @@ import { PrismaAiLeadSearchTaskStore } from './prisma-ai-lead-search-task.store'
     AiLeadSearchTaskWorkerHost,
     AiLeadWebsiteCrawlerService,
     AiLeadPrecisionAnalysisService,
+    AiLeadDirectorySourceRuleService,
     {
       provide: AI_LEAD_KEYWORD_HISTORY_STORE,
       useClass: PrismaAiLeadKeywordHistoryStore
@@ -51,6 +55,10 @@ import { PrismaAiLeadSearchTaskStore } from './prisma-ai-lead-search-task.store'
     {
       provide: AI_LEAD_QUEUE_CONFIG_STORE,
       useClass: PrismaAiLeadQueueConfigStore
+    },
+    {
+      provide: AI_LEAD_DIRECTORY_SOURCE_RULE_STORE,
+      useClass: PrismaAiLeadDirectorySourceRuleStore
     },
     {
       provide: AI_LEAD_SEARCH_TASK_QUEUE,

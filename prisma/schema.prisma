@@ -1192,3 +1192,20 @@ model AiLeadQueueConfig {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+model AiLeadDirectorySourceRule {
+  id            String   @id @default(uuid())
+  value         String
+  matchMode     String   @default("domain_suffix")
+  enabled       Boolean  @default(true)
+  description   String?
+  createdById   String?
+  createdByName String?
+  updatedById   String?
+  updatedByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([value, matchMode])
+  @@index([enabled])
+}

@@ -1,17 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Optional, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { aiLeadsKeywordStrategyManagePermission, aiLeadsQueueConfigManagePermission } from '@soybean/shared';
 import { Throttle } from '@nestjs/throttler';
 import type { FastifyReply } from 'fastify';
 import { ok } from '../../shared/api-response';
-import { requirePermission } from '../../shared/permission-policy';
+import { requirePermission, requireSuperUserContext } from '../../shared/permission-policy';
 import { requireRequestUserContext, type RequestUserContext } from '../../shared/request-context';
 import { CurrentContext } from '../auth/auth.decorators';
 import { AiLeadsService } from './ai-leads.service';
+import { SaveDirectorySourceRuleDto } from './dto/directory-source-rule.dto';
 import { KeywordHistoryQueryDto, UpdateKeywordHistoryDto } from './dto/keyword-history.dto';
 import { KeywordOptimizeDto } from './dto/keyword-optimize.dto';
 import { SearchOrchestrateDto } from './dto/search-orchestrate.dto';
 import { CreateSearchTaskDto, SaveAiLeadQueueConfigDto } from './dto/search-task.dto';
+import { AiLeadDirectorySourceRuleService } from './ai-lead-directory-source-rule.service';
 import { AiLeadSearchTaskService } from './ai-lead-search-task.service';
 import { createLeadSearchProgressEmitter, serializeLeadSearchProgressEvent } from './ai-lead-search-progress';
 
@@ -19,7 +21,10 @@ import { createLeadSearchProgressEmitter, serializeLeadSearchProgressEvent } fro
 export class AiLeadsController {
   constructor(
     @Inject(AiLeadsService) private readonly aiLeadsService: AiLeadsService,
-    @Inject(AiLeadSearchTaskService) private readonly searchTaskService: AiLeadSearchTaskService
+    @Inject(AiLeadSearchTaskService) private readonly searchTaskService: AiLeadSearchTaskService,
+    @Optional()
+    @Inject(AiLeadDirectorySourceRuleService)
+    private readonly directorySourceRuleService?: AiLeadDirectorySourceRuleService
   ) {}
 
   @Post('keyword-optimize')
@@ -163,6 +168,44 @@ export class AiLeadsController {
     return ok(await this.searchTaskService.saveQueueConfig(dto.workerConcurrency, { user }));
   }
 
+  @Get('directory-source-rules')
+  async listDirectorySourceRules(@CurrentContext() currentContext: RequestUserContext | null = null) {
+    this.requireDirectorySourceRulePermission(requireRequestUserContext(currentContext));
+
+    return ok({ records: await this.requireDirectorySourceRuleService().listRules() });
+  }
+
+  @Post('directory-source-rules')
+  async createDirectorySourceRule(
+    @Body() dto: SaveDirectorySourceRuleDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = this.requireDirectorySourceRulePermission(requireRequestUserContext(currentContext));
+
+    return ok(await this.requireDirectorySourceRuleService().createRule({ ...dto, user }));
+  }
+
+  @Patch('directory-source-rules/:id')
+  async updateDirectorySourceRule(
+    @Param('id') id: string,
+    @Body() dto: SaveDirectorySourceRuleDto,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    const user = this.requireDirectorySourceRulePermission(requireRequestUserContext(currentContext));
+
+    return ok(await this.requireDirectorySourceRuleService().updateRule({ ...dto, id, user }));
+  }
+
+  @Delete('directory-source-rules/:id')
+  async deleteDirectorySourceRule(
+    @Param('id') id: string,
+    @CurrentContext() currentContext: RequestUserContext | null = null
+  ) {
+    this.requireDirectorySourceRulePermission(requireRequestUserContext(currentContext));
+
+    return ok({ success: await this.requireDirectorySourceRuleService().deleteRule(id) });
+  }
+
   @Get('keyword-histories')
   async listKeywordHistories(
     @Query() query: KeywordHistoryQueryDto,
@@ -202,6 +245,18 @@ export class AiLeadsController {
 
   private requireQueueConfigPermission(user: RequestUserContext) {
     requirePermission(user, aiLeadsQueueConfigManagePermission, '无权维护 AI 获客任务配置');
+  }
+
+  private requireDirectorySourceRulePermission(user: RequestUserContext) {
+    return requireSuperUserContext(user, '只有超级管理员可以维护 AI 获客黄页过滤字典');
+  }
+
+  private requireDirectorySourceRuleService() {
+    if (!this.directorySourceRuleService) {
+      throw new Error('AI 获客黄页过滤规则服务未配置');
+    }
+
+    return this.directorySourceRuleService;
   }
 }
 

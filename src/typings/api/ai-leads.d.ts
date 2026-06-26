@@ -253,6 +253,30 @@ declare namespace Api {
       workerConcurrency: number;
     }
 
+    type DirectorySourceRuleMatchMode = 'domain_suffix' | 'url_contains';
+
+    interface DirectorySourceRuleRecord {
+      id: string;
+      value: string;
+      matchMode: DirectorySourceRuleMatchMode;
+      enabled: boolean;
+      builtin: boolean;
+      description: string | null;
+      createdAt: string | null;
+      updatedAt: string | null;
+    }
+
+    interface DirectorySourceRuleListResult {
+      records: DirectorySourceRuleRecord[];
+    }
+
+    interface SaveDirectorySourceRulePayload {
+      value: string;
+      matchMode: DirectorySourceRuleMatchMode;
+      enabled: boolean;
+      description?: string | null;
+    }
+
     type LeadSearchProgressEventType =
       | 'workflow_started'
       | 'step_started'

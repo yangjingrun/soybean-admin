@@ -25,9 +25,9 @@
 
 - 场景：Serper Search 返回 `yellowpages-uae.com/uae/industrial-bearing`、`reachuae.com/uae/bearings-c54` 等黄页/目录页；这些页面能访问，也可能包含邮箱、WhatsApp 和社媒。
 - 坑点：目录页上的联系方式属于平台、广告位或多家公司列表，不能作为单个 CRM 客户的“官网采集公司邮箱/社媒”。如果 crawler 把目录页域名当客户官网继续拼 `/about`、`/contact`，会抽到混杂联系方式；CRM 导入时如果把目录 URL 写成 `websiteUrl`，后续 Hunter 和开发信也会围绕黄页域名误判。
-- 正确做法：用 `isDirectorySourceUrl()` 识别已知 B2B 黄页/目录域名；crawler 对这类 URL 写 `crawlStatus=skipped` 和 `failureReason=目录/黄页来源页，不作为公司官网采集`，不抽公司邮箱/社媒；CRM 导入时 `normalizeOfficialWebsiteUrl()` 不把目录 URL 写成客户官网，但保留在 `sourceSnapshot.url` 作为来源证据。
-- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-source-url.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.ts`。
-- 验证方式：运行 `./node_modules/.bin/tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.spec.ts`，确认目录页不触发 crawler 请求且导入 CRM 的 `websiteUrl` 为空。
+- 正确做法：用 `isDirectorySourceUrl()` 识别已知 B2B 黄页/目录域名；Serper Search 返回后、调用 `lead_search_result_decide` 前，先把 `organic[]` 里的目录页过滤掉，并把 `providerFilteredSummary` 传给 AI，让翻页判断基于剩余官网候选数和过滤数量；crawler 对这类 URL 写 `crawlStatus=skipped` 和 `failureReason=目录/黄页来源页，不作为公司官网采集`，不抽公司邮箱/社媒；CRM 导入时 `normalizeOfficialWebsiteUrl()` 不把目录 URL 写成客户官网，但保留在 `sourceSnapshot.url` 作为来源证据。超级管理员可在黄页过滤字典中追加自定义目录规则，组织管理员不可见。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-source-url.ts`、`apps/server/src/modules/ai-leads/ai-lead-directory-source-rule.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-orchestrator.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.ts`、`src/views/ai-leads/modules/DirectorySourceRulesDrawer.vue`。
+- 验证方式：运行 `./node_modules/.bin/tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-source-url.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-orchestrator.service.spec.ts apps/server/src/modules/ai-leads/ai-leads.controller.spec.ts apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.spec.ts`，确认目录页不会进入 AI 决策和 crawler，导入 CRM 的 `websiteUrl` 为空，且只有超级管理员能维护过滤字典。
 
 ### 2026-06-25 AI 获客 BullMQ failed 必须回写业务任务状态
 

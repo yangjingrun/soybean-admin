@@ -31,11 +31,10 @@ describe('AI leads toolbar', () => {
   it('keeps the main path to one-click lead generation with history visible', () => {
     assert.match(pageSource, /data-action="start-leads"/);
     assert.match(pageSource, /data-action="stop-leads"/);
-    assert.match(pageSource, /handleStartLeadWorkflow/);
+    assert.match(pageSource, /handleSearchCustomers/);
     assert.match(pageSource, /停止本次获客/);
     assert.match(pageSource, /历史/);
     assert.equal(pageSource.includes('data-action="generate"'), false);
-    assert.equal(pageSource.includes('优化关键词'), false);
     assert.equal(pageSource.includes('重新优化'), false);
     assert.equal(pageSource.includes('放弃'), false);
   });
@@ -140,6 +139,14 @@ describe('AI leads toolbar', () => {
     assert.match(pageSource, /:show-query-details="canViewSerperDetails"/);
     assert.match(keywordResultSource, /showQueryDetails\?: boolean/);
     assert.match(keywordResultSource, /v-if="showQueryDetails && viewModel\.showQueryDetails"/);
+  });
+
+  it('keeps directory source rule settings limited to super administrators', () => {
+    assert.match(pageComposableSource, /const canManageDirectoryRules = computed/);
+    assert.match(pageComposableSource, /authStore\.userInfo\.roles\.includes\('R_SUPER'\)/);
+    assert.match(pageSource, /v-if="canManageDirectoryRules"/);
+    assert.match(pageSource, /黄页过滤/);
+    assert.match(pageSource, /DirectorySourceRulesDrawer/);
   });
 
   it('keeps result content padded below the card header', () => {

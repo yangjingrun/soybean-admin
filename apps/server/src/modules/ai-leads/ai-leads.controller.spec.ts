@@ -259,6 +259,63 @@ describe('AiLeadsController', () => {
     assert.equal(loaded.data.workerConcurrency, 2);
     assert.equal(saved.data.workerConcurrency, 3);
   });
+
+  it('limits directory source rule management to super administrators', async () => {
+    let called = false;
+    const controller = new AiLeadsController(
+      {} as unknown as AiLeadsService,
+      {} as unknown as AiLeadSearchTaskService,
+      {
+        async listRules() {
+          called = true;
+          return [];
+        }
+      } as never
+    );
+
+    await assert.rejects(() => controller.listDirectorySourceRules(createUser(['R_ADMIN'])), ForbiddenException);
+    assert.equal(called, false);
+  });
+
+  it('allows super administrators to manage directory source rules', async () => {
+    const calls: string[] = [];
+    const controller = new AiLeadsController(
+      {} as unknown as AiLeadsService,
+      {} as unknown as AiLeadSearchTaskService,
+      {
+        async listRules() {
+          calls.push('list');
+          return [{ id: 'builtin:domain_suffix:yellowpages-uae.com' }];
+        },
+        async createRule() {
+          calls.push('create');
+          return { id: 'rule-1' };
+        },
+        async updateRule() {
+          calls.push('update');
+          return { id: 'rule-1' };
+        },
+        async deleteRule() {
+          calls.push('delete');
+          return true;
+        }
+      } as never
+    );
+    const user = createUser(['R_SUPER']);
+    const dto = {
+      value: 'example-directory.com',
+      matchMode: 'domain_suffix' as const,
+      enabled: true,
+      description: '测试目录'
+    };
+
+    await controller.listDirectorySourceRules(user);
+    await controller.createDirectorySourceRule(dto, user);
+    await controller.updateDirectorySourceRule('rule-1', dto, user);
+    await controller.deleteDirectorySourceRule('rule-1', user);
+
+    assert.deepEqual(calls, ['list', 'create', 'update', 'delete']);
+  });
 });
 
 function createUser(roles = ['R_ADMIN'], buttons: string[] = []): RequestUserContext {

@@ -21,6 +21,8 @@ import { toLeadSearchPublicResult } from './ai-lead-search-progress';
 import { AiLeadCrmPrecheckService, type AiLeadCrmPrecheckSummary } from './ai-lead-crm-precheck.service';
 import { applySerperRequestCountry } from './ai-lead-candidate-country';
 import { isBlockedLeadCandidate } from './ai-lead-candidate-filter';
+import { isDirectorySourceUrl, type AiLeadDirectorySourceMatcherRule } from './ai-lead-source-url';
+import { AiLeadDirectorySourceRuleService } from './ai-lead-directory-source-rule.service';
 import { AiLeadWebsiteCrawlerService } from './ai-lead-website-crawler.service';
 import type {
   AiLeadEmailWritingContext,
@@ -93,6 +95,18 @@ interface SerperResultTrace extends SearchRequestTrace {
   result: unknown;
 }
 
+interface ProviderFilteredSummary {
+  rawOrganicCount: number;
+  acceptedOrganicCount: number;
+  directorySkippedCount: number;
+  directorySkippedSamples: Array<{
+    title: string;
+    url: string;
+    domain: string;
+    reason: string;
+  }>;
+}
+
 interface SearchDecision {
   pageQuality?: string;
   nextAction?: 'paginate' | 'requery' | 'switch_to_places' | 'switch_to_search' | 'switch_to_maps' | 'stop';
@@ -154,7 +168,10 @@ export class AiLeadSearchOrchestrator {
     private readonly websiteCrawlerService?: AiLeadWebsiteCrawlerService,
     @Optional()
     @Inject(AiLeadPrecisionAnalysisService)
-    private readonly precisionAnalysisService?: AiLeadPrecisionAnalysisService
+    private readonly precisionAnalysisService?: AiLeadPrecisionAnalysisService,
+    @Optional()
+    @Inject(AiLeadDirectorySourceRuleService)
+    private readonly directorySourceRuleService?: AiLeadDirectorySourceRuleService
   ) {}
 
   /** Runs keyword optimization, Serper search, and search-result decisions as one backend workflow. */
@@ -317,14 +334,17 @@ export class AiLeadSearchOrchestrator {
           serperRequests.length,
           options
         );
+        const providerFilterResult = await this.filterSerperResultForLeadDecision(serperResult, currentRequest.endpoint);
+        const decisionSerperResult = providerFilterResult.result;
+
         serperResults.push({
           endpoint: currentRequest.endpoint,
           requestBody: currentRequest.requestBody,
-          result: serperResult
+          result: decisionSerperResult
         });
 
         const rawCandidates = applySerperRequestCountry(
-          extractCandidates(serperResult, currentRequest.endpoint),
+          extractCandidates(decisionSerperResult, currentRequest.endpoint),
           currentRequest.requestBody
         );
         const precheckResult = await this.precheckCandidates(rawCandidates, context);
@@ -336,6 +356,7 @@ export class AiLeadSearchOrchestrator {
           page: currentRequest.requestBody.page,
           num: currentRequest.requestBody.num,
           collectedLeadCount: candidates.length,
+          providerFilteredSummary: providerFilterResult.summary,
           crmPrecheckSummary: precheckResult.summary
         });
         await reporter?.emit({
@@ -357,7 +378,8 @@ export class AiLeadSearchOrchestrator {
           keywordOptimization,
           currentQuery,
           currentRequest,
-          serperResult,
+          serperResult: decisionSerperResult,
+          providerFilteredSummary: providerFilterResult.summary,
           serperRequests,
           collectedLeadCount: candidates.length,
           crmPrecheckSummary: precheckResult.summary,
@@ -664,11 +686,20 @@ export class AiLeadSearchOrchestrator {
     });
   }
 
+  private async filterSerperResultForLeadDecision(result: unknown, endpoint: SerperEndpoint) {
+    const rules = this.directorySourceRuleService
+      ? await this.directorySourceRuleService.listEnabledMatcherRules()
+      : undefined;
+
+    return filterSerperResultForLeadDecision(result, endpoint, rules);
+  }
+
   private async decideNextStep(input: {
     keywordOptimization: OptimizedKeywordPlan;
     currentQuery: SerperRequestBody;
     currentRequest: SearchRequestTrace;
     serperResult: unknown;
+    providerFilteredSummary: ProviderFilteredSummary;
     serperRequests: SearchRequestTrace[];
     collectedLeadCount: number;
     crmPrecheckSummary: AiLeadCrmPrecheckSummary;
@@ -691,6 +722,7 @@ export class AiLeadSearchOrchestrator {
           currentPage: input.currentRequest.requestBody.page ?? 1,
           executedQueries: input.serperRequests,
           collectedLeadCount: input.collectedLeadCount,
+          providerFilteredSummary: input.providerFilteredSummary,
           crmPrecheckSummary: input.crmPrecheckSummary,
           serperResult: input.serperResult
         }),
@@ -1106,6 +1138,65 @@ function extractCandidates(result: unknown, endpoint: SerperEndpoint): AiLeadSea
   ];
 }
 
+/** 先过滤目录/黄页结果，避免它们进入候选池和 AI 翻页判断。 */
+function filterSerperResultForLeadDecision(
+  result: unknown,
+  endpoint: SerperEndpoint,
+  directoryRules?: AiLeadDirectorySourceMatcherRule[]
+) {
+  const emptySummary: ProviderFilteredSummary = {
+    rawOrganicCount: 0,
+    acceptedOrganicCount: 0,
+    directorySkippedCount: 0,
+    directorySkippedSamples: []
+  };
+
+  if (endpoint !== 'search' || !result || typeof result !== 'object') {
+    return { result, summary: emptySummary };
+  }
+
+  const record = result as Record<string, unknown>;
+
+  if (!Array.isArray(record.organic)) {
+    return { result, summary: emptySummary };
+  }
+
+  const acceptedOrganic: unknown[] = [];
+  const directorySkippedSamples: ProviderFilteredSummary['directorySkippedSamples'] = [];
+
+  for (const item of record.organic) {
+    const organicRecord = item as Record<string, unknown>;
+    const url = stringValue(organicRecord.link);
+
+    if (!isDirectorySourceUrl(url, directoryRules)) {
+      acceptedOrganic.push(item);
+      continue;
+    }
+
+    if (directorySkippedSamples.length < 5) {
+      directorySkippedSamples.push({
+        title: stringValue(organicRecord.title),
+        url,
+        domain: getDomain(url),
+        reason: '匹配黄页/目录来源规则'
+      });
+    }
+  }
+
+  return {
+    result: {
+      ...record,
+      organic: acceptedOrganic
+    },
+    summary: {
+      rawOrganicCount: record.organic.length,
+      acceptedOrganicCount: acceptedOrganic.length,
+      directorySkippedCount: record.organic.length - acceptedOrganic.length,
+      directorySkippedSamples
+    } satisfies ProviderFilteredSummary
+  };
+}
+
 function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
   if (!Array.isArray(value)) {
     return [];
@@ -1118,7 +1209,7 @@ function extractOrganicCandidates(value: unknown): AiLeadSearchCandidate[] {
       const title = stringValue(record.title);
       const dedupeKey = getDomain(url) || title;
 
-      if (!dedupeKey || isBlockedLeadCandidate({ url, title })) {
+      if (!dedupeKey || isDirectorySourceUrl(url) || isBlockedLeadCandidate({ url, title })) {
         return null;
       }
 

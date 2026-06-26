@@ -118,3 +118,42 @@ export function buildSaveLeadQueueConfigRequestConfig(
     data
   };
 }
+
+/** Build the request config for reading AI leads directory source filter rules. */
+export function buildLeadDirectorySourceRuleListRequestConfig(): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-leads/directory-source-rules',
+    method: 'get'
+  };
+}
+
+/** Build the request config for creating one directory source filter rule. */
+export function buildCreateLeadDirectorySourceRuleRequestConfig(
+  data: Api.AiLeads.SaveDirectorySourceRulePayload
+): CustomAxiosRequestConfig {
+  return {
+    url: '/ai-leads/directory-source-rules',
+    method: 'post',
+    data
+  };
+}
+
+/** Build the request config for updating one directory source filter rule. */
+export function buildUpdateLeadDirectorySourceRuleRequestConfig(
+  id: string,
+  data: Api.AiLeads.SaveDirectorySourceRulePayload
+): CustomAxiosRequestConfig {
+  return {
+    url: `/ai-leads/directory-source-rules/${id}`,
+    method: 'patch',
+    data
+  };
+}
+
+/** Build the request config for deleting one directory source filter rule. */
+export function buildDeleteLeadDirectorySourceRuleRequestConfig(id: string): CustomAxiosRequestConfig {
+  return {
+    url: `/ai-leads/directory-source-rules/${id}`,
+    method: 'delete'
+  };
+}
