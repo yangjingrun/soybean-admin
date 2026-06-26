@@ -5,10 +5,49 @@ import type { AiLeadSearchContext, OptimizedKeywordPlan } from './ai-lead-search
 import type {
   AiLeadPrecisionAnalysis,
   AiLeadPrecisionPriority,
+  AiLeadWebsiteEvidence,
   AiLeadWebsiteEnrichedCandidate
 } from './ai-lead-website-crawler.types';
 
 const leadMatchAnalyzeMaxOutputTokens = 2600;
+const minStrongProductEvidenceScore = 40;
+const buyerSignalKeywords = new Set([
+  'supplier',
+  'manufacturer',
+  'factory',
+  'import',
+  'importer',
+  'distributor',
+  'dealer',
+  'stockist',
+  'wholesaler',
+  'export',
+  'catalog',
+  'products',
+  'product',
+  'contact',
+  'about'
+]);
+const commonRequirementTokens = new Set([
+  'customer',
+  'customers',
+  'client',
+  'clients',
+  'buyer',
+  'buyers',
+  'target',
+  'market',
+  'overseas',
+  'foreign',
+  'china',
+  'chinese',
+  'import',
+  'importer',
+  'distributor',
+  'dealer',
+  'supplier',
+  'manufacturer'
+]);
 
 interface AnalyzeCandidatesInput {
   requirement: string;
@@ -52,7 +91,11 @@ export class AiLeadPrecisionAnalysisService {
     );
 
     return input.candidates.map(candidate => {
-      const analysis = outputByKey.get(candidate.dedupeKey) ?? createDefaultAnalysis(candidate);
+      const analysis = protectStrongWebsiteProductEvidence(
+        input,
+        candidate,
+        outputByKey.get(candidate.dedupeKey) ?? createDefaultAnalysis(candidate)
+      );
 
       return {
         ...candidate,
@@ -67,7 +110,7 @@ export class AiLeadPrecisionAnalysisService {
 function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
   return JSON.stringify({
     instruction:
-      '你是外贸获客质检助手。只根据 Serper 候选信息和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。',
+      '你是外贸获客质检助手。只根据 Serper 候选信息和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。若官网当前产品页、标题、描述、URL 或页面片段明确命中目标产品，不得仅因为网站还有其他大类、公司在中国或联系方式是中国邮箱/电话就直接判 reject；这类情况应至少给 low 并标记 reviewRequired。',
     outputContract: {
       candidates: [
         {
@@ -141,6 +184,115 @@ function createDefaultAnalysis(candidate: AiLeadWebsiteEnrichedCandidate): AiLea
   };
 }
 
+function protectStrongWebsiteProductEvidence(
+  input: AnalyzeCandidatesInput,
+  candidate: AiLeadWebsiteEnrichedCandidate,
+  analysis: AiLeadPrecisionAnalysis
+): AiLeadPrecisionAnalysis {
+  if (analysis.priority !== 'reject' || !candidate.websiteEvidence) {
+    return analysis;
+  }
+
+  const productEvidence = collectStrongProductEvidence(input, candidate);
+
+  if (productEvidence.length === 0) {
+    return analysis;
+  }
+
+  return {
+    ...analysis,
+    score: Math.max(analysis.score, minStrongProductEvidenceScore),
+    priority: 'low',
+    buyerType: analysis.buyerType || '官网产品页命中目标产品',
+    reason: `官网产品页命中目标产品，需人工复核，不应直接剔除：${productEvidence.slice(0, 2).join('；')}`,
+    matchedSignals: uniqueStrings([...productEvidence, ...analysis.matchedSignals], 8),
+    risks: uniqueStrings(['AI 原判 reject，已因官网强产品证据转人工复核', ...analysis.risks], 8),
+    recommendedAction: analysis.recommendedAction || '人工复核后纳入低优先级开发名单',
+    reviewRequired: true
+  };
+}
+
+function collectStrongProductEvidence(input: AnalyzeCandidatesInput, candidate: AiLeadWebsiteEnrichedCandidate) {
+  const evidence = candidate.websiteEvidence;
+
+  if (!evidence || evidence.crawlStatus !== 'completed') {
+    return [];
+  }
+
+  const phrases = collectProductPhrases(input);
+  const tokens = collectProductTokens(input);
+  const evidenceText = normalizeComparableText(
+    [
+      candidate.title,
+      candidate.snippet,
+      candidate.url,
+      candidate.website,
+      evidence.finalUrl,
+      evidence.title,
+      evidence.description,
+      ...evidence.keywordHits,
+      ...evidence.evidenceSnippets
+    ].join(' ')
+  );
+  const matchedPhrases = phrases.filter(phrase => evidenceText.includes(phrase));
+  const matchedTokens = tokens.filter(token => evidenceText.includes(token));
+  const signals = uniqueStrings([...matchedPhrases, ...matchedTokens], 6);
+
+  if (matchedPhrases.length > 0 || matchedTokens.length >= 2 || hasProductKeywordHit(evidence, tokens)) {
+    return signals.length > 0 ? signals : uniqueStrings(evidence.keywordHits, 6);
+  }
+
+  return [];
+}
+
+function collectProductPhrases(input: AnalyzeCandidatesInput) {
+  return uniqueStrings(
+    [
+      input.keywordPlan.resolvedProductKeywords,
+      ...splitKeywordText(input.keywordPlan.resolvedProductKeywords),
+      ...splitKeywordText(input.requirement)
+    ]
+      .map(normalizeComparableText)
+      .filter(phrase => phrase.length >= 4 && !buyerSignalKeywords.has(phrase) && !commonRequirementTokens.has(phrase)),
+    24
+  );
+}
+
+function collectProductTokens(input: AnalyzeCandidatesInput) {
+  const sourceText = [
+    input.requirement,
+    input.keywordPlan.resolvedProductKeywords,
+    input.keywordPlan.resolvedTargetCustomerProfile
+  ].join(' ');
+
+  return uniqueStrings(
+    normalizeComparableText(sourceText)
+      .split(/[^a-z0-9]+/i)
+      .filter(token => token.length >= 4 || /^\d{3,}$/.test(token))
+      .filter(token => !buyerSignalKeywords.has(token) && !commonRequirementTokens.has(token)),
+    32
+  );
+}
+
+function splitKeywordText(value: string | undefined) {
+  return (value ?? '')
+    .split(/[,，;；|、/]+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function hasProductKeywordHit(evidence: AiLeadWebsiteEvidence, productTokens: string[]) {
+  if (productTokens.length === 0) {
+    return false;
+  }
+
+  return evidence.keywordHits.some(hit => {
+    const normalizedHit = normalizeComparableText(hit);
+
+    return productTokens.some(token => normalizedHit.includes(token));
+  });
+}
+
 function normalizePriority(value: unknown): AiLeadPrecisionPriority {
   return value === 'high' || value === 'medium' || value === 'low' || value === 'reject' ? value : 'medium';
 }
@@ -157,4 +309,16 @@ function normalizeString(value: unknown) {
 
 function normalizeStringArray(value: unknown) {
   return Array.isArray(value) ? value.map(normalizeString).filter(Boolean).slice(0, 8) : [];
+}
+
+function normalizeComparableText(value: unknown) {
+  return normalizeString(value)
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function uniqueStrings(values: string[], limit: number) {
+  return Array.from(new Set(values.map(normalizeString).filter(Boolean))).slice(0, limit);
 }

@@ -109,6 +109,74 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].precisionAnalysis?.priority, 'medium');
     assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
   });
+
+  it('keeps strong product-page evidence reviewable when AI incorrectly rejects the candidate', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          candidates: [
+            {
+              dedupeKey: 'fluorined-chemical.com',
+              score: 3,
+              priority: 'reject',
+              buyerType: '非目标海外化工/备件网站',
+              reason: '官网主体是化工相关，不符合目标',
+              matchedSignals: ['化工类目'],
+              risks: ['中国邮箱和电话'],
+              recommendedAction: '不纳入开发名单',
+              reviewRequired: false
+            }
+          ]
+        })
+      }
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const result = await service.analyzeCandidates(
+      {
+        requirement: '我是河北卖轴承的，主打 6203及以上 轴承，找进口商和经销商',
+        keywordPlan: {
+          resolvedProductKeywords: '6203 bearing',
+          resolvedTargetCustomerProfile: 'bearing importer and distributor'
+        },
+        candidates: [
+          {
+            dedupeKey: 'fluorined-chemical.com',
+            sourceType: 'organic',
+            title: '6203 Deep Groove Ball Bearing Suppliers',
+            website: 'https://www.fluorined-chemical.com/others/ball-bearing/radial-load-bearings-6203-deep-groove-ball.html',
+            snippet: 'Professional supplier of 6203 deep groove ball bearing.',
+            websiteEvidence: {
+              crawlStatus: 'completed',
+              pageCount: 3,
+              finalUrl:
+                'https://www.fluorined-chemical.com/others/ball-bearing/radial-load-bearings-6203-deep-groove-ball.html',
+              title: '6203 Deep Groove Ball Bearing Suppliers',
+              description: 'Professional supplier of 6203 deep groove ball bearing.',
+              emails: ['susan@xmjuda.com'],
+              phones: ['+86-592-5803997'],
+              socialLinks: [],
+              whatsappLinks: [],
+              mapLinks: [],
+              contactLinks: ['https://www.fluorined-chemical.com/contact-us'],
+              keywordHits: ['6203 bearing', 'bearing', 'products'],
+              evidenceSnippets: ['6203 deep groove ball bearing professional supplier'],
+              negativeKeywordHits: ['chemical'],
+              negativeEvidenceSnippets: ['fluorinated chemical products'],
+              failureReason: null
+            }
+          } as AiLeadSearchCandidate
+        ]
+      },
+      {}
+    );
+
+    assert.equal(result[0].score, 40);
+    assert.equal(result[0].precisionAnalysis?.priority, 'low');
+    assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
+    assert.match(result[0].reason ?? '', /官网产品页命中目标产品/);
+    assert.match(result[0].precisionAnalysis?.risks.join(' ') ?? '', /AI 原判 reject/);
+  });
 });
 
 function createAiGateway(results: Array<{ text: string }>) {
