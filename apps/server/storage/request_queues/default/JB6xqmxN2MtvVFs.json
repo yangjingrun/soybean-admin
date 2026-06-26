@@ -1,9 +1,9 @@
 {
 	"id": "JB6xqmxN2MtvVFs",
-	"json": "{\"id\":\"JB6xqmxN2MtvVFs\",\"url\":\"https://www.atninfo.com/product\",\"loadedUrl\":\"https://www.atninfo.com/product\",\"uniqueKey\":\"3:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: request timed out after 15 seconds.\\n    at Timeout._onTimeout (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74)\\n    at listOnTimeout (node:internal/timers:581:17)\\n    at process.processTimers (node:internal/timers:519:7)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.atninfo.com/product\",\"uniqueKey\":\"3:/product\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"atninfo.com\",\"companyName\":\"Top Bearings Suppliers in UAE - Dubai - Atninfo\",\"homepage\":\"https://www.atninfo.com/uae/all/bearings-118\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:26.549Z\"}",
+	"json": "{\"id\":\"JB6xqmxN2MtvVFs\",\"url\":\"https://www.kginternational.com/product\",\"loadedUrl\":\"https://www.kginternational.com/product/\",\"uniqueKey\":\"3:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.kginternational.com/product\",\"uniqueKey\":\"3:/product\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"kginternational.com\",\"companyName\":\"KG International: Bearings Manufacturer & Supplier In Dubai - UAE ...\",\"homepage\":\"https://www.kginternational.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:56.468Z\"}",
 	"method": "GET",
 	"orderNo": null,
-	"retryCount": 1,
+	"retryCount": 0,
 	"uniqueKey": "3:/product",
-	"url": "https://www.atninfo.com/product"
+	"url": "https://www.kginternational.com/product"
 }

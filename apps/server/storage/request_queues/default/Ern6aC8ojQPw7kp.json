@@ -1,9 +1,9 @@
 {
 	"id": "Ern6aC8ojQPw7kp",
-	"json": "{\"id\":\"Ern6aC8ojQPw7kp\",\"url\":\"https://oilfieldmaterial.com/elevator\",\"loadedUrl\":\"https://oilfieldmaterial.com/elevator\",\"uniqueKey\":\"13:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://oilfieldmaterial.com/elevator\",\"uniqueKey\":\"13:/elevator\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"oilfieldmaterial.com\",\"companyName\":\"SKF BEARING 6203 - Oilfield material supplier in uae\",\"homepage\":\"https://oilfieldmaterial.com/bearings/skf-bearing-6203/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:55.163Z\"}",
+	"json": "{\"id\":\"Ern6aC8ojQPw7kp\",\"url\":\"https://www.arizona.ae/elevator\",\"loadedUrl\":\"https://www.arizona.ae/elevator\",\"uniqueKey\":\"13:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.arizona.ae/elevator\",\"uniqueKey\":\"13:/elevator\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"arizona.ae\",\"companyName\":\"ARIZONA BEARING........\",\"homepage\":\"https://www.arizona.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:45.500Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "13:/elevator",
-	"url": "https://oilfieldmaterial.com/elevator"
+	"url": "https://www.arizona.ae/elevator"
 }

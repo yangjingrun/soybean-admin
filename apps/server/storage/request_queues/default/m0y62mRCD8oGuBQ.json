@@ -1,9 +1,9 @@
 {
 	"id": "m0y62mRCD8oGuBQ",
-	"json": "{\"id\":\"m0y62mRCD8oGuBQ\",\"url\":\"https://sealsstore.net/product\",\"loadedUrl\":\"https://sealsstore.net/product-categories/\",\"uniqueKey\":\"10:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://sealsstore.net/product\",\"uniqueKey\":\"10:/product\",\"userData\":{\"candidateIndex\":10,\"dedupeKey\":\"sealsstore.net\",\"companyName\":\"Ball Bearing Manufacturer, Exporter, Supplier in UAE, Dubai\",\"homepage\":\"https://sealsstore.net/products/ball-bearing/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:33.259Z\"}",
+	"json": "{\"id\":\"m0y62mRCD8oGuBQ\",\"url\":\"https://adexuae.com/product\",\"loadedUrl\":\"https://adexuae.com/product\",\"uniqueKey\":\"10:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://adexuae.com/product\",\"uniqueKey\":\"10:/product\",\"userData\":{\"candidateIndex\":10,\"dedupeKey\":\"adexuae.com\",\"companyName\":\"Ball Bearing Suppliers in UAE - Dubai - Adex International LLC\",\"homepage\":\"https://adexuae.com/product-category/ball-bearings/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:28.188Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "10:/product",
-	"url": "https://sealsstore.net/product"
+	"url": "https://adexuae.com/product"
 }

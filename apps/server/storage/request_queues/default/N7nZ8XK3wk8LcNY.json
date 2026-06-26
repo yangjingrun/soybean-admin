@@ -1,0 +1,9 @@
+{
+	"id": "N7nZ8XK3wk8LcNY",
+	"json": "{\"id\":\"N7nZ8XK3wk8LcNY\",\"url\":\"https://elmasriafortrading.com/contact\",\"loadedUrl\":\"https://elmasriafortrading.com/contact\",\"uniqueKey\":\"31:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://elmasriafortrading.com/contact\",\"uniqueKey\":\"31:/contact\",\"userData\":{\"candidateIndex\":31,\"dedupeKey\":\"elmasriafortrading.com\",\"companyName\":\"رولمان بلى - الشركة المصرية للتجارة\",\"homepage\":\"https://elmasriafortrading.com/%D8%B1%D9%88%D9%84%D9%85%D8%A7%D9%86-%D8%A8%D9%84%D9%89/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:45:48.705Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "31:/contact",
+	"url": "https://elmasriafortrading.com/contact"
+}

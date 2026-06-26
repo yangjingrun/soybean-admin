@@ -1,9 +1,9 @@
 {
 	"id": "bA5CkxmvWDOmwJB",
-	"json": "{\"id\":\"bA5CkxmvWDOmwJB\",\"url\":\"https://www.robelbearings.com/about\",\"loadedUrl\":\"https://www.robelbearings.com/about\",\"uniqueKey\":\"11:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.robelbearings.com/about\",\"uniqueKey\":\"11:/about\",\"userData\":{\"candidateIndex\":11,\"dedupeKey\":\"robelbearings.com\",\"companyName\":\"Welcome to Robel Bearings Dubai UAE : Leading Bearings Importers ...\",\"homepage\":\"https://www.robelbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:43.412Z\"}",
+	"json": "{\"id\":\"bA5CkxmvWDOmwJB\",\"url\":\"https://smart-elemech.com/about\",\"loadedUrl\":\"https://smart-elemech.com/about-us/\",\"uniqueKey\":\"11:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://smart-elemech.com/about\",\"uniqueKey\":\"11:/about\",\"userData\":{\"candidateIndex\":11,\"dedupeKey\":\"smart-elemech.com\",\"companyName\":\"Premium FAG Bearings Supplier in UAE - Smart Elemech\",\"homepage\":\"https://smart-elemech.com/fag/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:33.002Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "11:/about",
-	"url": "https://www.robelbearings.com/about"
+	"url": "https://smart-elemech.com/about"
 }

@@ -1,0 +1,9 @@
+{
+	"id": "LFqvdZIPkzFh0Vo",
+	"json": "{\"id\":\"LFqvdZIPkzFh0Vo\",\"url\":\"https://www.wasatalbadeel.com/about\",\"loadedUrl\":\"https://www.wasatalbadeel.com/about\",\"uniqueKey\":\"20:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.wasatalbadeel.com/about\",\"uniqueKey\":\"20:/about\",\"userData\":{\"candidateIndex\":20,\"dedupeKey\":\"wasatalbadeel.com\",\"companyName\":\"Bearings Manufacturer & Supplier in Dammam Saudi Arabia\",\"homepage\":\"https://www.wasatalbadeel.com/bearings.htm\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:23.655Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "20:/about",
+	"url": "https://www.wasatalbadeel.com/about"
+}

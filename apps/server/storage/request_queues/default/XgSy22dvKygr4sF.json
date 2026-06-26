@@ -1,0 +1,9 @@
+{
+	"id": "XgSy22dvKygr4sF",
+	"json": "{\"id\":\"XgSy22dvKygr4sF\",\"url\":\"https://www.universalbearings-sa.com/products\",\"loadedUrl\":\"https://www.universalbearings-sa.com/products\",\"uniqueKey\":\"19:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.universalbearings-sa.com/products\",\"uniqueKey\":\"19:/products\",\"userData\":{\"candidateIndex\":19,\"dedupeKey\":\"universalbearings-sa.com\",\"companyName\":\"Universal Bearings\",\"homepage\":\"https://www.universalbearings-sa.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:20.798Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "19:/products",
+	"url": "https://www.universalbearings-sa.com/products"
+}

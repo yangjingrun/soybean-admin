@@ -1,29 +1,51 @@
 {
-  "requestsFinished": 8,
-  "requestsFailed": 0,
-  "requestsRetries": 0,
-  "requestsFailedPerMinute": 0,
-  "requestsFinishedPerMinute": 81,
-  "requestMinDurationMillis": 190,
-  "requestMaxDurationMillis": 3459,
-  "requestTotalFailedDurationMillis": 0,
-  "requestTotalFinishedDurationMillis": 16120,
-  "crawlerStartedAt": "2026-06-25T13:26:18.168Z",
-  "crawlerFinishedAt": "2026-06-25T13:26:24.026Z",
-  "statsPersistedAt": "2026-06-25T13:26:24.026Z",
-  "crawlerRuntimeMillis": 5896,
-  "crawlerLastStartTimestamp": 1782393978130,
+  "requestsFinished": 7,
+  "requestsFailed": 1,
+  "requestsRetries": 1,
+  "requestsFailedPerMinute": 5,
+  "requestsFinishedPerMinute": 40,
+  "requestMinDurationMillis": 997,
+  "requestMaxDurationMillis": 8757,
+  "requestTotalFailedDurationMillis": 644,
+  "requestTotalFinishedDurationMillis": 37525,
+  "crawlerStartedAt": "2026-06-26T09:44:01.584Z",
+  "crawlerFinishedAt": "2026-06-26T09:44:11.992Z",
+  "statsPersistedAt": "2026-06-26T09:44:11.992Z",
+  "crawlerRuntimeMillis": 10446,
+  "crawlerLastStartTimestamp": 1782467041546,
   "requestRetryHistogram": [
-    8
+    7,
+    1
   ],
   "statsId": 16,
-  "requestAvgFailedDurationMillis": null,
-  "requestAvgFinishedDurationMillis": 2015,
-  "requestTotalDurationMillis": 16120,
+  "requestAvgFailedDurationMillis": 644,
+  "requestAvgFinishedDurationMillis": 5361,
+  "requestTotalDurationMillis": 38169,
   "requestsTotal": 8,
   "requestsWithStatusCode": {
-    "404": 4
+    "403": 2,
+    "404": 2
   },
-  "errors": {},
-  "retryErrors": {}
+  "errors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 403 status code.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 403 status code.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  }
 }

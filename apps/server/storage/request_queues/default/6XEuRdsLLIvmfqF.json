@@ -1,0 +1,9 @@
+{
+	"id": "6XEuRdsLLIvmfqF",
+	"json": "{\"id\":\"6XEuRdsLLIvmfqF\",\"url\":\"https://www.ntn.com.sg/\",\"loadedUrl\":\"https://www.ntn.com.sg/\",\"uniqueKey\":\"25:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.ntn.com.sg/\",\"uniqueKey\":\"25:/\",\"userData\":{\"candidateIndex\":25,\"dedupeKey\":\"ntn.com.sg\",\"companyName\":\"Saudi Arabia - NTN Bearing Singpore\",\"homepage\":\"https://www.ntn.com.sg/saudi-arabia/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:45:06.082Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "25:/",
+	"url": "https://www.ntn.com.sg/"
+}

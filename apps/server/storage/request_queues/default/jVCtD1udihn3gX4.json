@@ -1,0 +1,9 @@
+{
+	"id": "jVCtD1udihn3gX4",
+	"json": "{\"id\":\"jVCtD1udihn3gX4\",\"url\":\"https://allbrandbearings.com/elevator\",\"loadedUrl\":\"https://allbrandbearings.com/elevator\",\"uniqueKey\":\"23:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://allbrandbearings.com/elevator\",\"uniqueKey\":\"23:/elevator\",\"userData\":{\"candidateIndex\":23,\"dedupeKey\":\"allbrandbearings.com\",\"companyName\":\"Bearing Supplies In Saudi Arabia | All Brand Bearing Suppliers In ...\",\"homepage\":\"https://allbrandbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:56.028Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "23:/elevator",
+	"url": "https://allbrandbearings.com/elevator"
+}

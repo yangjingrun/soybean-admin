@@ -1,0 +1,9 @@
+{
+	"id": "lQutOCybTlgdJCi",
+	"json": "{\"id\":\"lQutOCybTlgdJCi\",\"url\":\"https://dcciinfo.com/about-us\",\"loadedUrl\":\"https://dcciinfo.com/about-us\",\"uniqueKey\":\"24:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://dcciinfo.com/about-us\",\"uniqueKey\":\"24:/about-us\",\"userData\":{\"candidateIndex\":24,\"dedupeKey\":\"dcciinfo.com\",\"companyName\":\"Bearings Suppliers in Saudi Arabia - DCCIinfo\",\"homepage\":\"https://dcciinfo.com/ksa/riyadh/bearings/10369\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:58.357Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "24:/about-us",
+	"url": "https://dcciinfo.com/about-us"
+}

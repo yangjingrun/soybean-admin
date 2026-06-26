@@ -1,9 +1,9 @@
 {
 	"id": "6KxoPlrIAoErAge",
-	"json": "{\"id\":\"6KxoPlrIAoErAge\",\"url\":\"https://alkhalij.com/about-us\",\"loadedUrl\":\"https://alkhalij.com/about-us\",\"uniqueKey\":\"0:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://alkhalij.com/about-us\",\"uniqueKey\":\"0:/about-us\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"alkhalij.com\",\"companyName\":\"Bearing number 1 distributor in Dubai and UAE\",\"homepage\":\"https://alkhalij.com/dubai/products/bearings-units-housing/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:22:51.887Z\"}",
+	"json": "{\"id\":\"6KxoPlrIAoErAge\",\"url\":\"https://qajtrading.com/about-us\",\"loadedUrl\":\"https://qajtrading.com/about-us\",\"uniqueKey\":\"0:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://qajtrading.com/about-us\",\"uniqueKey\":\"0:/about-us\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"qajtrading.com\",\"companyName\":\"High-Quality Marine Bearings Supplier in UAE\",\"homepage\":\"https://qajtrading.com/bearings-supplier-uae/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:43.856Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "0:/about-us",
-	"url": "https://alkhalij.com/about-us"
+	"url": "https://qajtrading.com/about-us"
 }

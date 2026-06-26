@@ -1,9 +1,9 @@
 {
 	"id": "6PFg6fO9iyymGVe",
-	"json": "{\"id\":\"6PFg6fO9iyymGVe\",\"url\":\"https://www.reachuae.com/about-us\",\"loadedUrl\":\"https://www.reachuae.com/about-us\",\"uniqueKey\":\"6:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.reachuae.com/about-us\",\"uniqueKey\":\"6:/about-us\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"reachuae.com\",\"companyName\":\"FAG Suppliers and Dealers in UAE - Dubai\",\"homepage\":\"https://www.reachuae.com/brands/fag-b8716\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:56.764Z\"}",
+	"json": "{\"id\":\"6PFg6fO9iyymGVe\",\"url\":\"https://alphatronicmachinery.ae/about-us\",\"loadedUrl\":\"https://alphatronicmachinery.ae/about-us\",\"uniqueKey\":\"6:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://alphatronicmachinery.ae/about-us\",\"uniqueKey\":\"6:/about-us\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"alphatronicmachinery.ae\",\"companyName\":\"Bearings Suppliers in Dubai | SKF, Timken, Koyo Stockist UAE\",\"homepage\":\"https://alphatronicmachinery.ae/bearings-suppliers-in-dubai.php\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:10.423Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "6:/about-us",
-	"url": "https://www.reachuae.com/about-us"
+	"url": "https://alphatronicmachinery.ae/about-us"
 }

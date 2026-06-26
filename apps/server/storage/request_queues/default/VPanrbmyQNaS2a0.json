@@ -1,9 +1,9 @@
 {
 	"id": "VPanrbmyQNaS2a0",
-	"json": "{\"id\":\"VPanrbmyQNaS2a0\",\"url\":\"https://www.rollsbearing.com/elevator\",\"loadedUrl\":\"https://www.rollsbearing.com/elevator\",\"uniqueKey\":\"5:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.rollsbearing.com/elevator\",\"uniqueKey\":\"5:/elevator\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"rollsbearing.com\",\"companyName\":\"Top 10 roller bearing suppliers in UAE in 2023\",\"homepage\":\"https://www.rollsbearing.com/23156-10-roller-bearing-suppliers-in-uae.html\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:36.287Z\"}",
+	"json": "{\"id\":\"VPanrbmyQNaS2a0\",\"url\":\"https://sealmech.com/elevator\",\"loadedUrl\":\"https://sealmech.com/elevator\",\"uniqueKey\":\"5:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://sealmech.com/elevator\",\"uniqueKey\":\"5:/elevator\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"sealmech.com\",\"companyName\":\"NKE Bearing Suppliers in Dubai - Sealmech Trading LLC\",\"homepage\":\"https://sealmech.com/product-category/bearings/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:06.393Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "5:/elevator",
-	"url": "https://www.rollsbearing.com/elevator"
+	"url": "https://sealmech.com/elevator"
 }

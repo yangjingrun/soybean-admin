@@ -1,9 +1,9 @@
 {
 	"id": "DG53mrpfV4U5knL",
-	"json": "{\"id\":\"DG53mrpfV4U5knL\",\"url\":\"https://www.fluorined-chemical.com/contact\",\"loadedUrl\":\"https://www.fluorined-chemical.com/contact\",\"uniqueKey\":\"16:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.fluorined-chemical.com/contact\",\"uniqueKey\":\"16:/contact\",\"userData\":{\"candidateIndex\":16,\"dedupeKey\":\"fluorined-chemical.com\",\"companyName\":\"6203 محمل كروي ذو أخدود عميق - موردو المبردات، عوامل إطفاء الحرائق\",\"homepage\":\"https://www.fluorined-chemical.com/others/ball-bearing/radial-load-bearings-6203-deep-groove-ball.html\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:26:20.543Z\"}",
+	"json": "{\"id\":\"DG53mrpfV4U5knL\",\"url\":\"https://www.gulfworldwide.net/contact\",\"loadedUrl\":\"https://www.gulfworldwide.net/contact-us/\",\"uniqueKey\":\"16:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.gulfworldwide.net/contact\",\"uniqueKey\":\"16:/contact\",\"userData\":{\"candidateIndex\":16,\"dedupeKey\":\"gulfworldwide.net\",\"companyName\":\"FAG/INA - Gulf Worldwide Distribution FZE\",\"homepage\":\"https://www.gulfworldwide.net/catalogs/bearings/fagina/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:10.450Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "16:/contact",
-	"url": "https://www.fluorined-chemical.com/contact"
+	"url": "https://www.gulfworldwide.net/contact"
 }

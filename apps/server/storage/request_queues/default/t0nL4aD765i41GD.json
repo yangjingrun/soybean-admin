@@ -1,9 +1,9 @@
 {
 	"id": "t0nL4aD765i41GD",
-	"json": "{\"id\":\"t0nL4aD765i41GD\",\"url\":\"https://www.smsbearings.com/contact-us\",\"loadedUrl\":\"https://www.smsbearings.com/contact-us\",\"uniqueKey\":\"9:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.smsbearings.com/contact-us\",\"uniqueKey\":\"9:/contact-us\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"smsbearings.com\",\"companyName\":\"SMS Bearings | Premium Bearings Supplier in UAE\",\"homepage\":\"https://www.smsbearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:20.784Z\"}",
+	"json": "{\"id\":\"t0nL4aD765i41GD\",\"url\":\"https://www.alnabeelbearings.com/contact-us\",\"loadedUrl\":\"https://www.alnabeelbearings.com/contact-us\",\"uniqueKey\":\"9:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.alnabeelbearings.com/contact-us\",\"uniqueKey\":\"9:/contact-us\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"alnabeelbearings.com\",\"companyName\":\"ABOUT | SKF FAG BEARINGS - Al Nabeel Machinery Spare Parts Llc\",\"homepage\":\"https://www.alnabeelbearings.com/about\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:22.122Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "9:/contact-us",
-	"url": "https://www.smsbearings.com/contact-us"
+	"url": "https://www.alnabeelbearings.com/contact-us"
 }

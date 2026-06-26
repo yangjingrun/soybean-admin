@@ -1,9 +1,9 @@
 {
 	"id": "Qdiw4CjCw1sMGaK",
-	"json": "{\"id\":\"Qdiw4CjCw1sMGaK\",\"url\":\"https://oilfieldmaterial.com/\",\"loadedUrl\":\"https://oilfieldmaterial.com/\",\"uniqueKey\":\"13:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://oilfieldmaterial.com/\",\"uniqueKey\":\"13:/\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"oilfieldmaterial.com\",\"companyName\":\"SKF BEARING 6203 - Oilfield material supplier in uae\",\"homepage\":\"https://oilfieldmaterial.com/bearings/skf-bearing-6203/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:53.904Z\"}",
+	"json": "{\"id\":\"Qdiw4CjCw1sMGaK\",\"url\":\"https://www.arizona.ae/\",\"loadedUrl\":\"https://www.arizona.ae/\",\"uniqueKey\":\"13:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.arizona.ae/\",\"uniqueKey\":\"13:/\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"arizona.ae\",\"companyName\":\"ARIZONA BEARING........\",\"homepage\":\"https://www.arizona.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:45.141Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "13:/",
-	"url": "https://oilfieldmaterial.com/"
+	"url": "https://www.arizona.ae/"
 }

@@ -1,9 +1,9 @@
 {
 	"id": "AI2MHwcf3E44rse",
-	"json": "{\"id\":\"AI2MHwcf3E44rse\",\"url\":\"https://jtekt.ae/about-us\",\"loadedUrl\":\"https://jtekt.ae/about-us\",\"uniqueKey\":\"8:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://jtekt.ae/about-us\",\"uniqueKey\":\"8:/about-us\",\"userData\":{\"candidateIndex\":8,\"dedupeKey\":\"jtekt.ae\",\"companyName\":\"U.A.E. DISTRIBUTORS - JTEKT Sales Middle East\",\"homepage\":\"https://jtekt.ae/distributors-uae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:15.637Z\"}",
+	"json": "{\"id\":\"AI2MHwcf3E44rse\",\"url\":\"https://www.revobearings.com/about-us\",\"loadedUrl\":\"https://www.revobearings.com/about-us\",\"uniqueKey\":\"8:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.revobearings.com/about-us\",\"uniqueKey\":\"8:/about-us\",\"userData\":{\"candidateIndex\":8,\"dedupeKey\":\"revobearings.com\",\"companyName\":\"Revo Bearings | Trusted Bearing Supplier in UAE\",\"homepage\":\"https://www.revobearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:20.154Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "8:/about-us",
-	"url": "https://jtekt.ae/about-us"
+	"url": "https://www.revobearings.com/about-us"
 }

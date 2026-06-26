@@ -1,9 +1,9 @@
 {
 	"id": "r15Hr8iVtM68rex",
-	"json": "{\"id\":\"r15Hr8iVtM68rex\",\"url\":\"https://bearingsworld.net/about\",\"loadedUrl\":\"https://bearingsworld.net/\",\"uniqueKey\":\"4:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://bearingsworld.net/about\",\"uniqueKey\":\"4:/about\",\"userData\":{\"candidateIndex\":4,\"dedupeKey\":\"bearingsworld.net\",\"companyName\":\"Bearings World\",\"homepage\":\"https://bearingsworld.net\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:24:30.193Z\"}",
+	"json": "{\"id\":\"r15Hr8iVtM68rex\",\"url\":\"https://uaeyellowpagesonline.com/about\",\"loadedUrl\":\"https://uaeyellowpagesonline.com/about\",\"uniqueKey\":\"4:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://uaeyellowpagesonline.com/about\",\"uniqueKey\":\"4:/about\",\"userData\":{\"candidateIndex\":4,\"dedupeKey\":\"uaeyellowpagesonline.com\",\"companyName\":\"Top 362 Bearings Suppliers in UAE\",\"homepage\":\"https://uaeyellowpagesonline.com/industrial-supplies/bearings.htm\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:00.592Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "4:/about",
-	"url": "https://bearingsworld.net/about"
+	"url": "https://uaeyellowpagesonline.com/about"
 }

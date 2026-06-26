@@ -1,50 +1,29 @@
 {
-  "requestsFinished": 0,
-  "requestsFailed": 8,
-  "requestsRetries": 8,
-  "requestsFailedPerMinute": 88,
-  "requestsFinishedPerMinute": 0,
-  "requestMinDurationMillis": null,
-  "requestMaxDurationMillis": 0,
-  "requestTotalFailedDurationMillis": 5716,
-  "requestTotalFinishedDurationMillis": 0,
-  "crawlerStartedAt": "2026-06-25T13:23:38.979Z",
-  "crawlerFinishedAt": "2026-06-25T13:23:44.383Z",
-  "statsPersistedAt": "2026-06-25T13:23:44.383Z",
-  "crawlerRuntimeMillis": 5426,
-  "crawlerLastStartTimestamp": 1782393818957,
+  "requestsFinished": 8,
+  "requestsFailed": 0,
+  "requestsRetries": 0,
+  "requestsFailedPerMinute": 0,
+  "requestsFinishedPerMinute": 208,
+  "requestMinDurationMillis": 164,
+  "requestMaxDurationMillis": 1946,
+  "requestTotalFailedDurationMillis": 0,
+  "requestTotalFinishedDurationMillis": 8419,
+  "crawlerStartedAt": "2026-06-26T09:42:48.891Z",
+  "crawlerFinishedAt": "2026-06-26T09:42:51.191Z",
+  "statsPersistedAt": "2026-06-26T09:42:51.191Z",
+  "crawlerRuntimeMillis": 2310,
+  "crawlerLastStartTimestamp": 1782466968881,
   "requestRetryHistogram": [
-    null,
     8
   ],
   "statsId": 2,
-  "requestAvgFailedDurationMillis": 715,
-  "requestAvgFinishedDurationMillis": null,
-  "requestTotalDurationMillis": 5716,
+  "requestAvgFailedDurationMillis": null,
+  "requestAvgFinishedDurationMillis": 1052,
+  "requestTotalDurationMillis": 8419,
   "requestsTotal": 8,
   "requestsWithStatusCode": {
-    "403": 16
+    "404": 7
   },
-  "errors": {
-    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
-      "missing error code": {
-        "Error": {
-          "Request blocked - received 403 status code.": {
-            "count": 8
-          }
-        }
-      }
-    }
-  },
-  "retryErrors": {
-    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
-      "missing error code": {
-        "Error": {
-          "Request blocked - received 403 status code.": {
-            "count": 8
-          }
-        }
-      }
-    }
-  }
+  "errors": {},
+  "retryErrors": {}
 }

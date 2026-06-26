@@ -1,9 +1,9 @@
 {
 	"id": "CEkiUTT6giN9rFT",
-	"json": "{\"id\":\"CEkiUTT6giN9rFT\",\"url\":\"https://www.schaeffler.ae/product\",\"loadedUrl\":\"https://www.schaeffler.ae/product\",\"uniqueKey\":\"7:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.schaeffler.ae/product\",\"uniqueKey\":\"7:/product\",\"userData\":{\"candidateIndex\":7,\"dedupeKey\":\"schaeffler.ae\",\"companyName\":\"Schaeffler Middle East FZE\",\"homepage\":\"https://www.schaeffler.ae/en/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-25T13:25:13.119Z\"}",
+	"json": "{\"id\":\"CEkiUTT6giN9rFT\",\"url\":\"https://www.qualitybearingsdubai.com/product\",\"loadedUrl\":\"https://www.qualitybearingsdubai.com/products/\",\"uniqueKey\":\"7:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.qualitybearingsdubai.com/product\",\"uniqueKey\":\"7:/product\",\"userData\":{\"candidateIndex\":7,\"dedupeKey\":\"qualitybearingsdubai.com\",\"companyName\":\"QUALITY BEARINGS :: BEARINGS - BELTS - OILSEALS - PULLEYS ...\",\"homepage\":\"https://www.qualitybearingsdubai.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:16.891Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "7:/product",
-	"url": "https://www.schaeffler.ae/product"
+	"url": "https://www.qualitybearingsdubai.com/product"
 }

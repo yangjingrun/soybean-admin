@@ -1,0 +1,9 @@
+{
+	"id": "JsoQ2gHph5HcWEF",
+	"json": "{\"id\":\"JsoQ2gHph5HcWEF\",\"url\":\"https://eletehad-bearings.com/contact-us\",\"loadedUrl\":\"https://eletehad-bearings.com/contact-us\",\"uniqueKey\":\"32:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://eletehad-bearings.com/contact-us\",\"uniqueKey\":\"32:/contact-us\",\"userData\":{\"candidateIndex\":32,\"dedupeKey\":\"eletehad-bearings.com\",\"companyName\":\"شركة الاتحاد الجديدة | لتجارة رولمان البلى\",\"homepage\":\"https://eletehad-bearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:46:02.966Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "32:/contact-us",
+	"url": "https://eletehad-bearings.com/contact-us"
+}

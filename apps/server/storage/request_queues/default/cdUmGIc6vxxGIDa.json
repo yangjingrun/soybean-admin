@@ -1,0 +1,9 @@
+{
+	"id": "cdUmGIc6vxxGIDa",
+	"json": "{\"id\":\"cdUmGIc6vxxGIDa\",\"url\":\"https://www.azab-bearings.com/product\",\"loadedUrl\":\"https://www.azab-bearings.com/product\",\"uniqueKey\":\"27:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.azab-bearings.com/product\",\"uniqueKey\":\"27:/product\",\"userData\":{\"candidateIndex\":27,\"dedupeKey\":\"azab-bearings.com\",\"companyName\":\"عزب لتجارة رولمان البلي | Azab Bearings\",\"homepage\":\"https://www.azab-bearings.com/ar\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:45:21.458Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "27:/product",
+	"url": "https://www.azab-bearings.com/product"
+}

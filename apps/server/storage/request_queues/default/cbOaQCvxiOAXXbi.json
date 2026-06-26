@@ -1,0 +1,9 @@
+{
+	"id": "cbOaQCvxiOAXXbi",
+	"json": "{\"id\":\"cbOaQCvxiOAXXbi\",\"url\":\"https://alhutaibcompany.com/product\",\"loadedUrl\":\"https://alhutaibcompany.com/product\",\"uniqueKey\":\"33:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://alhutaibcompany.com/product\",\"uniqueKey\":\"33:/product\",\"userData\":{\"candidateIndex\":33,\"dedupeKey\":\"alhutaibcompany.com\",\"companyName\":\"الحطيب للصناعة والتجارة – AlHutaib.co.\",\"homepage\":\"https://alhutaibcompany.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:46:09.175Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "33:/product",
+	"url": "https://alhutaibcompany.com/product"
+}

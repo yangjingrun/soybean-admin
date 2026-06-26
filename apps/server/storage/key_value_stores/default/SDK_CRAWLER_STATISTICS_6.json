@@ -1,38 +1,29 @@
 {
   "requestsFinished": 8,
   "requestsFailed": 0,
-  "requestsRetries": 1,
+  "requestsRetries": 0,
   "requestsFailedPerMinute": 0,
-  "requestsFinishedPerMinute": 28,
-  "requestMinDurationMillis": 448,
-  "requestMaxDurationMillis": 4938,
+  "requestsFinishedPerMinute": 148,
+  "requestMinDurationMillis": 292,
+  "requestMaxDurationMillis": 2746,
   "requestTotalFailedDurationMillis": 0,
-  "requestTotalFinishedDurationMillis": 19196,
-  "crawlerStartedAt": "2026-06-25T13:24:51.604Z",
-  "crawlerFinishedAt": "2026-06-25T13:25:09.011Z",
-  "statsPersistedAt": "2026-06-25T13:25:09.011Z",
-  "crawlerRuntimeMillis": 17422,
-  "crawlerLastStartTimestamp": 1782393891589,
+  "requestTotalFinishedDurationMillis": 11714,
+  "crawlerStartedAt": "2026-06-26T09:43:07.415Z",
+  "crawlerFinishedAt": "2026-06-26T09:43:10.637Z",
+  "statsPersistedAt": "2026-06-26T09:43:10.637Z",
+  "crawlerRuntimeMillis": 3242,
+  "crawlerLastStartTimestamp": 1782466987395,
   "requestRetryHistogram": [
-    7,
-    1
+    8
   ],
   "statsId": 6,
   "requestAvgFailedDurationMillis": null,
-  "requestAvgFinishedDurationMillis": 2400,
-  "requestTotalDurationMillis": 19196,
+  "requestAvgFinishedDurationMillis": 1464,
+  "requestTotalDurationMillis": 11714,
   "requestsTotal": 8,
-  "requestsWithStatusCode": {},
+  "requestsWithStatusCode": {
+    "404": 7
+  },
   "errors": {},
-  "retryErrors": {
-    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:89:74": {
-      "missing error code": {
-        "Error": {
-          "request timed out after 15 seconds.": {
-            "count": 1
-          }
-        }
-      }
-    }
-  }
+  "retryErrors": {}
 }

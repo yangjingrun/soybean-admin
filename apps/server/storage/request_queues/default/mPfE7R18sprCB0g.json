@@ -1,0 +1,9 @@
+{
+	"id": "mPfE7R18sprCB0g",
+	"json": "{\"id\":\"mPfE7R18sprCB0g\",\"url\":\"https://saudiyellowpagesonline.com/about\",\"loadedUrl\":\"https://saudiyellowpagesonline.com/about\",\"uniqueKey\":\"26:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://saudiyellowpagesonline.com/about\",\"uniqueKey\":\"26:/about\",\"userData\":{\"candidateIndex\":26,\"dedupeKey\":\"saudiyellowpagesonline.com\",\"companyName\":\"Bearings in Saudi Arabia\",\"homepage\":\"https://saudiyellowpagesonline.com/industrial-supplies/bearings.htm\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:45:14.891Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "26:/about",
+	"url": "https://saudiyellowpagesonline.com/about"
+}

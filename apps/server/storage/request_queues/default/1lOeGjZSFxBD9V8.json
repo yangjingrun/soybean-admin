@@ -1,0 +1,9 @@
+{
+	"id": "1lOeGjZSFxBD9V8",
+	"json": "{\"id\":\"1lOeGjZSFxBD9V8\",\"url\":\"https://www.facebook.com/about-us\",\"loadedUrl\":\"https://www.facebook.com/login/?next=https%3A%2F%2Fwww.facebook.com%2Fabout-us\",\"uniqueKey\":\"30:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.facebook.com/about-us\",\"uniqueKey\":\"30:/about-us\",\"userData\":{\"candidateIndex\":30,\"dedupeKey\":\"facebook.com\",\"companyName\":\"جروب اتحاد مستوردين وتجار رولمان البلي الاصلي _ مصر - Facebook\",\"homepage\":\"https://www.facebook.com/groups/301303140921051/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:45:37.908Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "30:/about-us",
+	"url": "https://www.facebook.com/about-us"
+}

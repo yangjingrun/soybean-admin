@@ -1,0 +1,9 @@
+{
+	"id": "UDTj9SDioKHaSjv",
+	"json": "{\"id\":\"UDTj9SDioKHaSjv\",\"url\":\"https://alhutaibcompany.com/contact-us\",\"loadedUrl\":\"https://alhutaibcompany.com/contact-us\",\"uniqueKey\":\"33:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://alhutaibcompany.com/contact-us\",\"uniqueKey\":\"33:/contact-us\",\"userData\":{\"candidateIndex\":33,\"dedupeKey\":\"alhutaibcompany.com\",\"companyName\":\"الحطيب للصناعة والتجارة – AlHutaib.co.\",\"homepage\":\"https://alhutaibcompany.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:46:08.949Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "33:/contact-us",
+	"url": "https://alhutaibcompany.com/contact-us"
+}
