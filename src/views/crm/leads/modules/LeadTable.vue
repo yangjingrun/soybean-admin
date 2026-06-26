@@ -24,7 +24,13 @@ import {
 const leadTableTooltipProps = {
   trigger: 'hover',
   placement: 'top',
-  contentClass: 'lead-table-tooltip-content'
+  contentStyle: {
+    maxWidth: 'min(520px, calc(100vw - 48px))',
+    lineHeight: '1.5',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word'
+  }
 } as const;
 
 const props = defineProps<{
@@ -801,14 +807,6 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
 
 :deep(.lead-precision-tooltip) {
   max-width: 320px;
-}
-
-:deep(.lead-table-tooltip-content) {
-  max-width: min(520px, calc(100vw - 48px));
-  line-height: 1.5;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 :deep(.lead-precision-tooltip-line) {
