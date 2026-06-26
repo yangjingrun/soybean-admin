@@ -27,10 +27,10 @@
 }
 
 .social-brand-link--x {
-  --social-brand-color: #1da1f2;
-  --social-brand-border: rgb(29 161 242 / 0.32);
-  --social-brand-bg: rgb(29 161 242 / 0.08);
-  --social-brand-bg-hover: rgb(29 161 242 / 0.14);
+  --social-brand-color: #111111;
+  --social-brand-border: rgb(17 17 17 / 0.26);
+  --social-brand-bg: rgb(17 17 17 / 0.06);
+  --social-brand-bg-hover: rgb(17 17 17 / 0.12);
 }
 
 .social-brand-link--whatsapp {

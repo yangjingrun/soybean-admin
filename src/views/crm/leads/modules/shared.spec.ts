@@ -349,19 +349,19 @@ describe('crm lead shared helpers', () => {
         {
           channel: 'linkedin',
           label: 'LinkedIn',
-          icon: 'mdi:linkedin',
+          icon: 'simple-icons:linkedin',
           url: 'https://www.linkedin.com/company/bearing-house/'
         },
         {
           channel: 'facebook',
           label: 'Facebook',
-          icon: 'mdi:facebook',
+          icon: 'simple-icons:facebook',
           url: 'https://facebook.com/bearinghouse'
         },
         {
           channel: 'whatsapp',
           label: 'WhatsApp',
-          icon: 'mdi:whatsapp',
+          icon: 'simple-icons:whatsapp',
           url: 'https://wa.me/902163128000'
         }
       ]

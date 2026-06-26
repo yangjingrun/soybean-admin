@@ -22,32 +22,32 @@ const socialChannelRules: Array<{
   icon: string;
   match: (hostname: string) => boolean;
 }> = [
-  { channel: 'linkedin', label: 'LinkedIn', icon: 'mdi:linkedin', match: host => matchesDomain(host, 'linkedin.com') },
-  { channel: 'facebook', label: 'Facebook', icon: 'mdi:facebook', match: host => matchesDomain(host, 'facebook.com') },
+  { channel: 'linkedin', label: 'LinkedIn', icon: 'simple-icons:linkedin', match: host => matchesDomain(host, 'linkedin.com') },
+  { channel: 'facebook', label: 'Facebook', icon: 'simple-icons:facebook', match: host => matchesDomain(host, 'facebook.com') },
   {
     channel: 'instagram',
     label: 'Instagram',
-    icon: 'mdi:instagram',
+    icon: 'simple-icons:instagram',
     match: host => matchesDomain(host, 'instagram.com')
   },
   {
     channel: 'youtube',
     label: 'YouTube',
-    icon: 'mdi:youtube',
+    icon: 'simple-icons:youtube',
     match: host => matchesDomain(host, 'youtube.com') || matchesDomain(host, 'youtu.be')
   },
   {
     channel: 'x',
     label: 'X / Twitter',
-    icon: 'mdi:twitter',
+    icon: 'simple-icons:x',
     match: host => matchesDomain(host, 'x.com') || matchesDomain(host, 'twitter.com')
   },
   { channel: 'tiktok', label: 'TikTok', icon: 'simple-icons:tiktok', match: host => matchesDomain(host, 'tiktok.com') },
-  { channel: 'pinterest', label: 'Pinterest', icon: 'mdi:pinterest', match: host => host.startsWith('pinterest.') },
+  { channel: 'pinterest', label: 'Pinterest', icon: 'simple-icons:pinterest', match: host => host.startsWith('pinterest.') },
   {
     channel: 'whatsapp',
     label: 'WhatsApp',
-    icon: 'mdi:whatsapp',
+    icon: 'simple-icons:whatsapp',
     match: host => matchesDomain(host, 'wa.me') || matchesDomain(host, 'whatsapp.com')
   }
 ];
