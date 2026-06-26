@@ -355,6 +355,45 @@ describe('AiLeadPrecisionAnalysisService', () => {
     );
   });
 
+  it('runs up to two precision analysis batches concurrently', async () => {
+    const aiGateway = createDeferredAiGateway([
+      JSON.stringify({ candidates: createAnalysisOutputs(0, 3) }),
+      JSON.stringify({ candidates: createAnalysisOutputs(3, 6) }),
+      JSON.stringify({ candidates: createAnalysisOutputs(6, 7) })
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const analyzePromise = service.analyzeCandidates(
+      {
+        requirement: '找轴承经销商',
+        keywordPlan: {
+          resolvedProductKeywords: 'bearing',
+          resolvedTargetCustomerProfile: 'bearing distributor'
+        },
+        candidates: Array.from({ length: 7 }, (_, index) => createPrecisionCandidate(index))
+      },
+      {}
+    );
+
+    await waitForCondition(() => aiGateway.calls.length === 2);
+    assert.equal(aiGateway.activeCount, 2);
+    assert.equal(aiGateway.maxActiveCount, 2);
+
+    aiGateway.resolveCall(0);
+    await waitForCondition(() => aiGateway.calls.length === 3);
+    assert.equal(aiGateway.maxActiveCount, 2);
+
+    aiGateway.resolveCall(1);
+    aiGateway.resolveCall(2);
+    const result = await analyzePromise;
+
+    assert.equal(aiGateway.calls.length, 3);
+    assert.deepEqual(
+      result.map(candidate => candidate.score),
+      [80, 81, 82, 83, 84, 85, 86]
+    );
+  });
+
   it('builds a conservative email writing context when AI omits it', async () => {
     const aiGateway = createAiGateway([
       {
@@ -806,6 +845,70 @@ function createAiGateway(results: Array<{ text: string }>) {
       };
     }
   };
+}
+
+function createDeferredAiGateway(textResults: string[]) {
+  const calls: Array<{ promptKey?: string; prompt: string }> = [];
+  const pendingCalls: Array<{
+    text: string;
+    resolve: (value: {
+      text: string;
+      finishReason: string;
+      usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+    }) => void;
+  }> = [];
+  const state = {
+    calls,
+    activeCount: 0,
+    maxActiveCount: 0,
+    async generateText(dto: { promptKey?: string; prompt: string }) {
+      calls.push({ promptKey: dto.promptKey, prompt: dto.prompt });
+      state.activeCount += 1;
+      state.maxActiveCount = Math.max(state.maxActiveCount, state.activeCount);
+      const text = textResults.shift();
+
+      assert.ok(text, 'missing mocked AI result');
+
+      return await new Promise<{
+        text: string;
+        finishReason: string;
+        usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+      }>(resolve => {
+        pendingCalls.push({
+          text,
+          resolve: value => {
+            state.activeCount -= 1;
+            resolve(value);
+          }
+        });
+      });
+    },
+    resolveCall(index: number) {
+      const call = pendingCalls[index];
+
+      assert.ok(call, `missing deferred AI call ${index}`);
+      call.resolve({
+        text: call.text,
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 1,
+          outputTokens: 1,
+          totalTokens: 2
+        }
+      });
+    }
+  };
+
+  return state;
+}
+
+async function waitForCondition(condition: () => boolean) {
+  const deadline = Date.now() + 500;
+
+  while (!condition()) {
+    assert.ok(Date.now() < deadline, 'condition was not met before timeout');
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
 }
 
 function createPrecisionCandidate(index: number): AiLeadSearchCandidate {

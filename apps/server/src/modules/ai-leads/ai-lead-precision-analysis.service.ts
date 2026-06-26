@@ -17,6 +17,7 @@ import type {
 } from './ai-lead-website-crawler.types';
 
 const leadMatchAnalyzeBatchSize = 3;
+const leadMatchAnalyzeBatchConcurrency = 2;
 const leadMatchAnalyzeMaxOutputTokens = 3600;
 const minStrongProductEvidenceScore = 40;
 const officialChinaCountry = '中国';
@@ -107,21 +108,31 @@ export class AiLeadPrecisionAnalysisService {
       }
     >();
 
-    for (const candidateBatch of chunkCandidates(input.candidates, leadMatchAnalyzeBatchSize)) {
-      const result = await this.aiGatewayService.generateText(
-        {
-          modelConfigKey: defaultAiModelConfigKey,
-          promptKey: leadMatchAnalyzePromptKey,
-          prompt: buildLeadPrecisionPrompt({
-            ...input,
-            candidates: candidateBatch
-          }),
-          maxOutputTokens: leadMatchAnalyzeMaxOutputTokens
-        },
-        context
-      );
-      const analysisOutput = readAnalysisOutputs(result.text);
+    const batchOutputs = await mapWithConcurrency(
+      chunkCandidates(input.candidates, leadMatchAnalyzeBatchSize),
+      leadMatchAnalyzeBatchConcurrency,
+      async candidateBatch => {
+        const result = await this.aiGatewayService.generateText(
+          {
+            modelConfigKey: defaultAiModelConfigKey,
+            promptKey: leadMatchAnalyzePromptKey,
+            prompt: buildLeadPrecisionPrompt({
+              ...input,
+              candidates: candidateBatch
+            }),
+            maxOutputTokens: leadMatchAnalyzeMaxOutputTokens
+          },
+          context
+        );
 
+        return {
+          candidateBatch,
+          analysisOutput: readAnalysisOutputs(result.text)
+        };
+      }
+    );
+
+    for (const { candidateBatch, analysisOutput } of batchOutputs) {
       for (const candidate of candidateBatch) {
         if (analysisOutput.parseErrorMessage) {
           const analysis = createDefaultAnalysis(candidate, analysisOutput.parseErrorMessage);
@@ -181,6 +192,25 @@ function chunkCandidates(candidates: AiLeadWebsiteEnrichedCandidate[], batchSize
   }
 
   return batches;
+}
+
+/** 按固定并发处理批次，避免 LLM 请求串行过慢或一次性全部打满。 */
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, handler: (item: T) => Promise<R>) {
+  const results = new Array<R>(items.length);
+  const workerCount = Math.min(items.length, concurrency);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await handler(items[currentIndex]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, runWorker));
+
+  return results;
 }
 
 function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
