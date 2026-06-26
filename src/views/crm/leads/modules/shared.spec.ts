@@ -6,6 +6,7 @@ import {
   buildLeadSearchParams,
   buildLeadEmailProgressView,
   buildLeadExpandedContactView,
+  buildLeadWebsiteEvidenceView,
   buildLeadRowContactView,
   buildLeadSequenceTarget,
   buildLeadSequenceTargetsFromCheckedRows,
@@ -366,6 +367,65 @@ describe('crm lead shared helpers', () => {
         }
       ]
     );
+  });
+
+  it('builds website evidence view from imported source snapshot', () => {
+    const evidence = buildLeadWebsiteEvidenceView(
+      createLeadRecord({
+        sourceSnapshot: {
+          url: 'https://www.schaeffler.ae/en/',
+          website: 'https://www.schaeffler.ae/en/',
+          score: 14,
+          reason: '品牌区域机构而非独立经销商',
+          websiteEvidence: {
+            crawlStatus: 'completed',
+            pageCount: 8,
+            finalUrl: 'https://www.schaeffler.ae/contact-us',
+            title: 'Schaeffler Middle East FZE',
+            description: 'Products and sales contacts',
+            emails: ['sales@example.com'],
+            phones: ['+971 44 91 0000'],
+            socialLinks: ['https://www.twitter.com/schaefflergroup'],
+            whatsappLinks: [],
+            mapLinks: [],
+            contactLinks: ['https://www.schaeffler.ae/en/meta/contact/'],
+            keywordHits: ['Products', 'Contact'],
+            evidenceSnippets: ['Products & Solutions'],
+            negativeKeywordHits: ['media'],
+            negativeEvidenceSnippets: ['News media'],
+            failureReason: null
+          },
+          precisionAnalysis: {
+            score: 14,
+            priority: 'reject',
+            buyerType: '品牌方/区域销售公司',
+            reason: '属于品牌区域机构',
+            matchedSignals: ['Products'],
+            risks: ['不是独立经销商'],
+            recommendedAction: '不作为优先客户',
+            reviewRequired: false
+          }
+        }
+      })
+    );
+
+    assert.equal(evidence.crawlStatusLabel, '已完成');
+    assert.equal(evidence.crawlStatusTagType, 'success');
+    assert.equal(evidence.pageCount, 8);
+    assert.deepEqual(evidence.emails, ['sales@example.com']);
+    assert.deepEqual(
+      evidence.socialLinks.map(link => ({ channel: link.channel, icon: link.icon, url: link.url })),
+      [
+        {
+          channel: 'x',
+          icon: 'simple-icons:x',
+          url: 'https://www.twitter.com/schaefflergroup'
+        }
+      ]
+    );
+    assert.equal(evidence.precisionAnalysis?.score, 14);
+    assert.equal(evidence.precisionAnalysis?.priorityTagType, 'error');
+    assert.equal(evidence.precisionAnalysis?.buyerType, '品牌方/区域销售公司');
   });
 
   it('formats contact email progress with full datetime text', () => {

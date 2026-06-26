@@ -3,8 +3,10 @@ import { computed, h, reactive, shallowRef, watch } from 'vue';
 import { NButton, NPopconfirm, NSpace, NTag, useMessage } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import LeadInboxPanel from './LeadInboxPanel.vue';
+import LeadSourceEvidencePanel from './LeadSourceEvidencePanel.vue';
 import {
   buildLeadEmailProgressView,
+  buildLeadWebsiteEvidenceView,
   createDefaultLeadNoteForm,
   createDefaultLeadStatusForm,
   buildLeadAccountUpdatePayload,
@@ -152,6 +154,9 @@ const archivedMatchGroups = computed(() =>
     event,
     matches: readArchivedFingerprintMatches(event)
   }))
+);
+const websiteEvidenceView = computed(() =>
+  account.value ? buildLeadWebsiteEvidenceView(account.value) : buildLeadWebsiteEvidenceView({ sourceSnapshot: null })
 );
 
 function canCreateSequenceFromDetailContact(contact: Api.Crm.LeadContact) {
@@ -640,7 +645,7 @@ function handleSelectCommunicationContact(contactId: string) {
       <div class="communication-header">
         <div class="communication-heading">
           <NSpace align="center" :size="8" wrap>
-            <span class="modal-title">客户沟通{{ account ? ` · ${account.name}` : '' }}</span>
+            <span class="modal-title">客户详情{{ account ? ` · ${account.name}` : '' }}</span>
             <NTag v-if="account" :type="leadStatusTagTypeMap[account.status]" :bordered="false" size="small">
               {{ leadStatusLabelMap[account.status] }}
             </NTag>
@@ -657,9 +662,8 @@ function handleSelectCommunicationContact(contactId: string) {
             </NTag>
           </NSpace>
           <div v-if="account" class="modal-subtitle">
-            {{ formatLeadText(account.websiteUrl || account.domain) }} ·
-            {{ formatLeadText(selectedContact?.maskedEmail) }} · {{ formatLeadText(account.city || account.country) }} ·
-            {{ formatLeadText(account.timeZone) }}
+            {{ formatLeadText(account.websiteUrl || account.domain) }} · {{ formatLeadText(account.city || account.country) }}
+            · {{ formatLeadText(account.timeZone) }}
           </div>
         </div>
         <NSpace align="center" :size="8">
@@ -711,17 +715,47 @@ function handleSelectCommunicationContact(contactId: string) {
         </NAlert>
 
         <NTabs v-model:value="activeTabModel" type="line" animated class="communication-tabs">
-          <NTabPane name="overview" tab="总览">
-            <div class="communication-tab-grid">
+          <NTabPane name="overview" tab="客户详情">
+            <div class="detail-overview-layout">
               <div class="drawer-section">
-                <div class="section-title">当前状态</div>
+                <div class="section-title">客户档案</div>
+                <NDescriptions :column="1" label-placement="left" bordered size="small">
+                  <NDescriptionsItem label="客户名称">{{ account.name }}</NDescriptionsItem>
+                  <NDescriptionsItem label="标准名">{{ formatLeadText(account.normalizedName) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="官网">
+                    <a
+                      v-if="account.websiteUrl"
+                      :href="account.websiteUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {{ account.websiteUrl }}
+                    </a>
+                    <span v-else>{{ formatLeadText(account.domain) }}</span>
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="地区">
+                    {{ formatLeadText(account.country) }}
+                    <span v-if="account.city" class="lead-secondary-text"> · {{ account.city }}</span>
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="地址">{{ formatLeadText(account.address) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="时区">{{ formatLeadText(account.timeZone) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="客户类型">{{ formatLeadText(account.customerType) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="来源任务">{{ formatLeadText(account.sourceTaskId) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="创建时间">{{ formatLeadDate(account.createdAt) }}</NDescriptionsItem>
+                  <NDescriptionsItem label="更新时间">{{ formatLeadDate(account.updatedAt) }}</NDescriptionsItem>
+                </NDescriptions>
+              </div>
+
+              <div class="drawer-section">
+                <div class="section-title">触达摘要</div>
                 <NDescriptions :column="1" label-placement="left" bordered size="small">
                   <NDescriptionsItem label="当前动作">{{ nextAction?.label ?? '-' }}</NDescriptionsItem>
-                  <NDescriptionsItem label="说明">{{ nextAction?.description ?? '-' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="动作说明">{{ nextAction?.description ?? '-' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="联系人数量">{{ contacts.length }} 个</NDescriptionsItem>
                   <NDescriptionsItem label="主联系人">
                     {{ selectedContact?.fullName || selectedContact?.maskedEmail || '-' }}
                   </NDescriptionsItem>
-                  <NDescriptionsItem label="邮箱状态">
+                  <NDescriptionsItem label="主邮箱状态">
                     <NTag
                       v-if="selectedContact"
                       :type="leadEmailStatusTagTypeMap[selectedContact.emailStatus]"
@@ -743,7 +777,13 @@ function handleSelectCommunicationContact(contactId: string) {
                   </NDescriptionsItem>
                 </NDescriptions>
               </div>
+            </div>
 
+            <div class="drawer-section">
+              <LeadSourceEvidencePanel :evidence="websiteEvidenceView" />
+            </div>
+
+            <div class="detail-overview-layout detail-overview-layout--secondary">
               <div class="drawer-section">
                 <div class="section-title">最近动态</div>
                 <NTimeline v-if="timelineEvents.length">
@@ -843,7 +883,7 @@ function handleSelectCommunicationContact(contactId: string) {
             </div>
           </NTabPane>
 
-          <NTabPane name="profile" tab="客户资料">
+          <NTabPane name="profile" tab="资料维护">
             <div class="profile-tab-content">
               <div class="drawer-section">
                 <div class="section-title-row">
@@ -1036,7 +1076,7 @@ function handleSelectCommunicationContact(contactId: string) {
 
     <template #footer>
       <NSpace justify="space-between" align="center" class="modal-footer">
-        <NText depth="3">所有入口都会打开同一个客户沟通弹窗，并自动切换到对应视图。</NText>
+        <NText depth="3">客户详情会集中展示客户档案、官网采集证据、联系人和后续触达视图。</NText>
         <NButton @click="modalVisible = false">关闭</NButton>
       </NSpace>
     </template>
@@ -1160,7 +1200,8 @@ function handleSelectCommunicationContact(contactId: string) {
 }
 
 .communication-tab-grid,
-.communication-workspace {
+.communication-workspace,
+.detail-overview-layout {
   display: grid;
   gap: 14px;
   min-width: 0;
@@ -1168,6 +1209,15 @@ function handleSelectCommunicationContact(contactId: string) {
 
 .communication-tab-grid {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.detail-overview-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+}
+
+.detail-overview-layout--secondary {
+  margin-top: 14px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .communication-workspace {
@@ -1291,6 +1341,7 @@ function handleSelectCommunicationContact(contactId: string) {
 @media (max-width: 960px) {
   .communication-metrics,
   .communication-tab-grid,
+  .detail-overview-layout,
   .communication-workspace {
     grid-template-columns: 1fr;
   }

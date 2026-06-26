@@ -118,6 +118,47 @@ export type LeadRowContactView =
       count: number;
     };
 
+export interface LeadWebsitePrecisionAnalysisView {
+  score: number | null;
+  priority: string;
+  priorityTagType: NaiveUI.ThemeColor;
+  buyerType: string;
+  reason: string;
+  matchedSignals: string[];
+  risks: string[];
+  recommendedAction: string;
+  reviewRequired: boolean;
+}
+
+export interface LeadWebsiteEvidenceView {
+  hasSnapshot: boolean;
+  sourceUrl: string;
+  sourceWebsite: string;
+  sourceType: string;
+  sourceCountry: string;
+  sourceSnippet: string;
+  sourceScore: number | null;
+  sourceReason: string;
+  crawlStatus: string;
+  crawlStatusLabel: string;
+  crawlStatusTagType: NaiveUI.ThemeColor;
+  pageCount: number | null;
+  finalUrl: string;
+  title: string;
+  description: string;
+  emails: string[];
+  phones: string[];
+  socialLinks: SocialLinkView[];
+  mapLinks: string[];
+  contactLinks: string[];
+  keywordHits: string[];
+  evidenceSnippets: string[];
+  negativeKeywordHits: string[];
+  negativeEvidenceSnippets: string[];
+  failureReason: string;
+  precisionAnalysis: LeadWebsitePrecisionAnalysisView | null;
+}
+
 const leadPendingStatuses = new Set<Api.Crm.CrmAccountStatus>([
   'candidate',
   'missing_contact',
@@ -705,6 +746,47 @@ export function getLeadCompanySocialLinks(
   return buildSocialLinkViews([...readStringArray(evidence?.socialLinks), ...readStringArray(evidence?.whatsappLinks)]);
 }
 
+/** Build a readonly detail view from original website crawl and precision-analysis data. */
+export function buildLeadWebsiteEvidenceView(
+  record: Pick<Api.Crm.LeadRecord, 'sourceSnapshot'>
+): LeadWebsiteEvidenceView {
+  const sourceSnapshot = readObject(record.sourceSnapshot);
+  const evidence = readLeadWebsiteEvidence(record.sourceSnapshot);
+  const crawlStatus = readString(evidence?.crawlStatus);
+
+  return {
+    hasSnapshot: Boolean(sourceSnapshot),
+    sourceUrl: readString(sourceSnapshot?.url),
+    sourceWebsite: readString(sourceSnapshot?.website),
+    sourceType: readString(sourceSnapshot?.sourceType),
+    sourceCountry: readString(sourceSnapshot?.country),
+    sourceSnippet: readString(sourceSnapshot?.snippet),
+    sourceScore: readNumber(sourceSnapshot?.score),
+    sourceReason: readString(sourceSnapshot?.reason),
+    crawlStatus,
+    crawlStatusLabel: formatCrawlStatusLabel(crawlStatus),
+    crawlStatusTagType: getCrawlStatusTagType(crawlStatus),
+    pageCount: readNumber(evidence?.pageCount),
+    finalUrl: readString(evidence?.finalUrl),
+    title: readString(evidence?.title),
+    description: readString(evidence?.description),
+    emails: readStringArray(evidence?.emails),
+    phones: readStringArray(evidence?.phones),
+    socialLinks: buildSocialLinkViews([
+      ...readStringArray(evidence?.socialLinks),
+      ...readStringArray(evidence?.whatsappLinks)
+    ]),
+    mapLinks: readStringArray(evidence?.mapLinks),
+    contactLinks: readStringArray(evidence?.contactLinks),
+    keywordHits: readStringArray(evidence?.keywordHits),
+    evidenceSnippets: readStringArray(evidence?.evidenceSnippets),
+    negativeKeywordHits: readStringArray(evidence?.negativeKeywordHits),
+    negativeEvidenceSnippets: readStringArray(evidence?.negativeEvidenceSnippets),
+    failureReason: readString(evidence?.failureReason),
+    precisionAnalysis: readPrecisionAnalysis(sourceSnapshot?.precisionAnalysis)
+  };
+}
+
 function readLeadWebsiteEvidence(sourceSnapshot: Record<string, unknown> | null | undefined) {
   const evidence = sourceSnapshot?.websiteEvidence;
 
@@ -712,7 +794,72 @@ function readLeadWebsiteEvidence(sourceSnapshot: Record<string, unknown> | null 
     return null;
   }
 
-  return evidence as { socialLinks?: unknown; whatsappLinks?: unknown };
+  return evidence as Record<string, unknown>;
+}
+
+function readPrecisionAnalysis(value: unknown): LeadWebsitePrecisionAnalysisView | null {
+  const precision = readObject(value);
+
+  if (!precision) return null;
+
+  const priority = readString(precision.priority);
+
+  return {
+    score: readNumber(precision.score),
+    priority,
+    priorityTagType: getPrecisionPriorityTagType(priority),
+    buyerType: readString(precision.buyerType),
+    reason: readString(precision.reason),
+    matchedSignals: readStringArray(precision.matchedSignals),
+    risks: readStringArray(precision.risks),
+    recommendedAction: readString(precision.recommendedAction),
+    reviewRequired: readBoolean(precision.reviewRequired)
+  };
+}
+
+function formatCrawlStatusLabel(status: string) {
+  if (status === 'completed') return '已完成';
+  if (status === 'failed') return '失败';
+  if (status === 'skipped') return '已跳过';
+
+  return status || '无记录';
+}
+
+function getCrawlStatusTagType(status: string): NaiveUI.ThemeColor {
+  if (status === 'completed') return 'success';
+  if (status === 'failed') return 'error';
+  if (status === 'skipped') return 'default';
+
+  return 'default';
+}
+
+function getPrecisionPriorityTagType(priority: string): NaiveUI.ThemeColor {
+  if (priority === 'high') return 'success';
+  if (priority === 'medium') return 'warning';
+  if (priority === 'low') return 'default';
+  if (priority === 'reject') return 'error';
+
+  return 'default';
+}
+
+function readObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function readString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : false;
 }
 
 function readStringArray(value: unknown) {
