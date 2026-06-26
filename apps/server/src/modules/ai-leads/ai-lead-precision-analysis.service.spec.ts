@@ -122,6 +122,23 @@ describe('AiLeadPrecisionAnalysisService', () => {
 
     const promptPayload = JSON.parse(aiGateway.calls[0].prompt) as {
       analysisGuidance?: {
+        websiteTypeGuidance?: string[];
+        companyInfoChecklist?: string[];
+        b2bRoleGuidance?: {
+          buyerSideRoles?: string[];
+        };
+        contactQualityGuidance?: {
+          highQualitySignals?: string[];
+        };
+        leadValueGuidance?: {
+          highValueSignals?: string[];
+        };
+        productFitGuidance?: {
+          fitLevels?: string[];
+        };
+        scoreAndOutputMapping?: {
+          priorityMapping?: string[];
+        };
         selectedExclusionGuidance?: Array<{
           key?: string;
           insufficientSignals?: string[];
@@ -133,6 +150,13 @@ describe('AiLeadPrecisionAnalysisService', () => {
       guidance => guidance.key === 'china_supplier'
     );
 
+    assert.match(promptPayload.analysisGuidance?.websiteTypeGuidance?.join('\n') ?? '', /SEO 采集页/);
+    assert.match(promptPayload.analysisGuidance?.companyInfoChecklist?.join('\n') ?? '', /注册地址/);
+    assert.match(promptPayload.analysisGuidance?.b2bRoleGuidance?.buyerSideRoles?.join('\n') ?? '', /Importer/);
+    assert.match(promptPayload.analysisGuidance?.contactQualityGuidance?.highQualitySignals?.join('\n') ?? '', /公司域名邮箱/);
+    assert.match(promptPayload.analysisGuidance?.leadValueGuidance?.highValueSignals?.join('\n') ?? '', /进口商/);
+    assert.match(promptPayload.analysisGuidance?.productFitGuidance?.fitLevels?.join('\n') ?? '', /高匹配/);
+    assert.match(promptPayload.analysisGuidance?.scoreAndOutputMapping?.priorityMapping?.join('\n') ?? '', /reject/);
     assert.ok(chinaGuidance);
     assert.match(chinaGuidance.insufficientSignals?.join('\n') ?? '', /Made in China/);
     assert.match(chinaGuidance.insufficientSignals?.join('\n') ?? '', /Importer from China/);

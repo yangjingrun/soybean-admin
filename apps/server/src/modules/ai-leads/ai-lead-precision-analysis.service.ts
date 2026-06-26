@@ -177,12 +177,144 @@ function buildLeadMatchAnalyzeGuidance(leadContextSnapshot: ReturnType<typeof no
   const exclusionKeys = new Set((leadContextSnapshot?.exclusionRules ?? []).map(rule => rule.key));
 
   return {
+    purpose: '把 B2B 外贸网站信息分析专家的判断框架用于 lead_match_analyze，但输出字段必须仍遵守 outputContract，不额外输出长报告。',
+    evidencePriority: [
+      '优先级从高到低：官网 Contact/About/Footer/地址/电话/邮箱/产品页 > Serper title/snippet > 页面风格和语言线索。',
+      '公司归属地、客户角色、是否目标市场，必须引用官网证据；没有证据时写 uncertain/reviewRequired=true。',
+      '不要把目录页、平台招商页、区域网络说明、产品来源说明，当成候选公司主体证据。'
+    ],
     websiteAnalysisFlow: [
       '先判断页面类型：公司官网、工厂官网、经销商官网、目录页、平台店铺、产品推广页、SEO 采集页或信息不足。',
       '再提取公司主体、国家/城市、地址、电话、邮箱、社媒、About/Contact/Products/Footer 等公开证据。',
       '然后判断 B2B 角色：供应商/工厂/出口商/品牌方，还是进口商/经销商/批发商/库存商/维修商/承包商/终端买家。',
+      '继续判断产品线匹配度、目标区域匹配度、开发价值、联系方式可触达性和真实性风险。',
+      '最后把判断压缩到 outputContract 字段：score、priority、buyerType、customerGroup、companyCountry、targetMarketFit、reason、matchedSignals、risks、recommendedAction、reviewRequired。',
       '证据不足时必须输出 reviewRequired=true，不能为了满足排除类型而编造公司归属地。'
     ],
+    websiteTypeGuidance: [
+      '公司官网/品牌官网：有稳定域名、公司介绍、产品线、联系方式、地址或团队信息；可作为主体判断依据。',
+      '工厂官网/制造商官网：强调 manufacturer/factory/OEM/production line/export/supplier，若用户排除供应商要重点检查。',
+      '贸易商/出口商官网：强调 export、global supplier、sourcing、shipment、catalog，通常是供应侧角色。',
+      '进口商/经销商/批发商/库存商官网：强调 Importer、Distributor、Dealer、Wholesaler、Stockist、Local supplier、authorized distributor、spare parts、maintenance/service。',
+      '终端行业客户官网：主营工程、设备、维修、车队、工厂、承包、项目服务，可作为潜在买家但需看是否采购目标产品。',
+      'B2C 零售/商城：购物车、个人消费品、零售价格、consumer only，若用户找 B2B 客户则低分或排除。',
+      '目录页/黄页/地图页：展示多个公司或地点，不把页面国家、标题国家直接当候选公司归属地。',
+      'B2B 平台店铺：Alibaba、Made-in-China、IndiaMART 等要识别店铺主体国家和角色，不把平台域名当客户官网。',
+      '产品推广页/落地页：只有单品堆词、缺少公司主体和联系方式时，保留产品信号但降低可信度。',
+      'SEO 采集页/内容农场：大量关键词拼接、跨品类无主体、联系方式弱或模板化，通常低价值或需人工复核。',
+      '博客/新闻/资料页：除非能回到明确公司官网，否则不能单独作为客户主体。',
+      '信息不足/抓取失败：不臆造客户类型和国家，reviewRequired=true。'
+    ],
+    companyInfoChecklist: [
+      '公司主体：官网显示的公司名、法定/本地语言名称、品牌名、集团/分公司/代理关系。',
+      '归属地：注册地址、办公室地址、仓库地址、工厂地址、门店地址、城市、国家、地图链接。',
+      '联系方式：公司域名邮箱、部门邮箱、电话区号、WhatsApp、社媒主页、Contact 页面。',
+      '经营范围：主营行业、产品目录、服务对象、目标市场、服务区域、代理品牌。',
+      '规模与可信度：成立年份、证书、团队、案例、客户行业、仓储库存、授权代理证明。',
+      '反向线索：只有个人邮箱、无地址、无公司名、模板站、过度堆词、跨无关品类。'
+    ],
+    contactQualityGuidance: {
+      highQualitySignals: [
+        '公司域名邮箱、清晰 Contact 页面、电话区号与地址国家一致、WhatsApp 或社媒与官网主体一致。',
+        '地址、电话、邮箱、公司名之间能互相印证，且能定位到具体国家/城市。'
+      ],
+      mediumQualitySignals: [
+        '有通用邮箱或电话但地址不完整；有社媒或地图但缺少公司介绍。',
+        '有联系人姓名/职位但邮箱域名或主体归属需要复核。'
+      ],
+      lowQualitySignals: [
+        '只有表单、免费邮箱、无地址、无电话、联系方式与官网主体不一致。',
+        '抓取失败或只拿到搜索摘要，需 reviewRequired=true。'
+      ],
+      riskSignals: ['联系方式国家与目标市场冲突', '电话区号和地址冲突', '邮箱域名像供应商/平台而不是客户官网']
+    },
+    b2bRoleGuidance: {
+      supplySideRoles: [
+        'Manufacturer、Factory、Producer、Exporter、Supplier、Trading company、OEM/ODM、wholesale exporter，多数是供应侧。',
+        '若用户排除中国供应商，供应侧角色还要结合中国主体强证据判断是否 reject。'
+      ],
+      buyerSideRoles: [
+        'Importer、Distributor、Dealer、Wholesaler、Stockist、Retail chain、Spare parts supplier、Maintenance/service company、Contractor、End user。',
+        '本地库存商、授权经销商、维修服务商、行业工程商通常更接近目标客户。'
+      ],
+      nonTargetRoles: [
+        '目录站、招聘站、媒体站、纯新闻/博客、无主体采集页、竞品中国供应商、无关行业网站。',
+        '纯 B2C 零售、个人卖家、平台搜索结果页通常不作为高质量 B2B 客户。'
+      ],
+      roleDecisionRules: [
+        '角色判断必须看主营业务和页面语义，不只看 supplier 一个词；海外本地 supplier/stockist 可能是经销商，不一定是制造商。',
+        '同一网站既卖产品又做服务时，优先判断它是否服务本地行业客户、是否有进口/库存/代理/维修语义。',
+        '无法区分供应侧还是买方侧时，buyerType 写不确定角色，priority 不要 high，reviewRequired=true。'
+      ]
+    },
+    leadValueGuidance: {
+      highValueSignals: [
+        '目标国家/地区明确，且是进口商、经销商、代理商、批发商、库存商、维修商、承包商或终端行业客户。',
+        '官网展示目标产品/型号/应用场景，有本地地址和可触达公司邮箱。',
+        '有库存、代理品牌、采购/服务行业、项目案例、售后维修、spare parts 等买家侧需求信号。'
+      ],
+      mediumValueSignals: [
+        '区域和联系方式可信，但产品线只部分匹配。',
+        '产品匹配强但客户角色或主体国家需要复核。',
+        '看起来是本地供应商/服务商，可能采购或经销目标产品。'
+      ],
+      lowValueSignals: [
+        '只有搜索摘要命中，官网证据少。',
+        '产品线弱匹配、客户角色模糊、联系方式较弱但未命中明确排除。'
+      ],
+      rejectSignals: [
+        '明确命中用户勾选的排除类型，例如中国供应商/出口商、纯 B2C、无关行业、目录采集页。',
+        '公司主体国家与用户目标市场冲突，且不是目标市场分支/代理/办公室。',
+        '官网几乎无真实公司信息或明显 SEO 垃圾站。'
+      ]
+    },
+    productFitGuidance: {
+      fitLevels: [
+        '高匹配：标题、产品页、URL、官网目录、型号或应用场景直接命中 CRM 产品线/用户目标产品。',
+        '中匹配：同类产品、相关配件、替代型号、行业应用匹配，但未直接出现目标型号。',
+        '低匹配：只出现泛品类或搜索摘要命中，官网主体未展示清晰产品页。',
+        '不匹配：主营行业、产品目录、负面关键词与目标产品明显无关。',
+        '风险：产品来源 China/Made in China 只说明供应链或品牌来源，不等于公司主体在中国。'
+      ],
+      productLineRules: [
+        'CRM 产品线是固定基准，用户输入是本次搜索条件；二者都要参考，但不能用用户条件覆盖产品线事实。',
+        '产品强匹配但客户角色不清楚时，不直接 reject，priority 可为 low 并 reviewRequired=true。',
+        '产品强匹配但主体明确命中用户排除类型时，按排除规则优先。'
+      ]
+    },
+    authenticityRiskGuidance: {
+      trustedSignals: [
+        '公司主体、地址、电话、邮箱、社媒、地图、产品目录之间一致。',
+        '有真实案例、证书、授权代理、库存/仓库/服务网络等可验证信息。'
+      ],
+      suspiciousSignals: [
+        '跨大量无关品类、关键词堆砌、模板化描述、无 About/Contact、联系方式不一致。',
+        '页面看似采集不同公司/国家信息，或标题国家与正文主体冲突。'
+      ],
+      handlingRules: [
+        '真实性风险写入 risks；严重时 priority=reject。',
+        '只有轻微风险但产品和客户角色较好时，保留为 low/medium 并 reviewRequired=true。'
+      ]
+    },
+    scoreAndOutputMapping: {
+      scoringBasis: [
+        'score 综合：网站真实性、B2B 客户角色、目标区域匹配、产品线匹配、联系方式质量、排除规则风险。',
+        '强排除命中优先于产品匹配；证据不足优先触发 reviewRequired，而不是编造高分。'
+      ],
+      priorityMapping: [
+        'high：目标区域 + 买方侧角色 + 产品高/中匹配 + 联系方式可信，通常 score>=80。',
+        'medium：大体匹配但有一个关键不确定项，通常 score 60-79。',
+        'low：产品或角色有线索但证据不足/弱匹配，需要人工复核，通常 score 31-59。',
+        'reject：无关行业、明确排除、主体国家冲突、明显垃圾/目录采集页，通常 score<=30。'
+      ],
+      outputFieldMapping: [
+        'buyerType 写角色判断；customerGroup 写面向业务的客户群体标签。',
+        'companyCountry 只写官网证据能支撑的主体归属国家，不能把产品来源或区域介绍当国家。',
+        'targetMarketFit 用 target/uncertain/outside_target 表示目标市场匹配。',
+        'matchedSignals 放正向证据原文；risks 放不确定、冲突、排除或真实性风险。',
+        'reason 用一句中文解释结论，并至少引用一个关键证据。'
+      ]
+    },
     selectedExclusionGuidance: exclusionKeys.has('china_supplier') ? [buildChinaSupplierAnalysisGuidance()] : []
   };
 }
@@ -193,6 +325,18 @@ function buildChinaSupplierAnalysisGuidance() {
     key: 'china_supplier',
     title: '中国供应商排除融合规则',
     goal: '当用户勾选中国供应商/出口商排除时，只排除公司主体明确在中国大陆的供应商、工厂、出口商或中国平台店铺。',
+    chinaRelationClassification: [
+      '中国主体供应商：公司地址、电话、备案、平台店铺主体或工商主体明确在中国大陆，且角色是 supplier/factory/exporter，按排除处理。',
+      '海外本地经销商销售中国品牌：公司地址和电话在目标国家，只是销售 China brands/Made in China 产品，不按中国供应商排除。',
+      '海外进口商从中国采购：Importer from China、sourcing from China、imported Chinese products 更像买方或渠道角色，不按中国主体处理。',
+      '跨国集团/区域网络含中国：亚洲区网络、全球分支或品牌覆盖 China，不能证明当前候选页面主体是中国公司。',
+      '目录或平台聚合页：先找店铺/公司主体国家；找不到主体时标记 reviewRequired，不把平台或目录页面国家当客户国家。'
+    ],
+    evidenceReadingOrder: [
+      '先看 Contact/About/Footer 的公司主体和地址，再看电话区号、邮箱域名、平台店铺主体。',
+      '再看产品页和描述中的 China 语义，区分公司主体、生产地、品牌来源、采购来源、区域网络。',
+      '最后结合用户目标区域和排除规则决定 priority，不允许只凭一个 China 词直接 reject。'
+    ],
     strongEvidence: [
       '官网 Contact/About/footer/公司地址/注册地址/工厂地址/仓库地址明确在中国大陆或中国省市。',
       '官网联系电话为 +86，或主要联系方式为微信/QQ 且与公司主体绑定。',
