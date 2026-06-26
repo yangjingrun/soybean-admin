@@ -14,6 +14,11 @@ import type {
 const leadMatchAnalyzeMaxOutputTokens = 2600;
 const minStrongProductEvidenceScore = 40;
 const officialChinaCountry = '中国';
+const chinaPhonePattern = /^\+86\b|^\+86[\s().-]/i;
+const chinaAddressSignalPattern =
+  /(?:中国|中國|中华人民共和国|الصين|جمهورية\s*الصين|الصين\s*الشعبية|китай|кнр|중국|चीन|\bchina\b|\bprc\b|\bxiamen\b|\bfujian\b|\bfujan\b|\bjiahe\b|\bsiming\b|\bxinjing\b|\bshenzhen\b|\bguangzhou\b|\bguangdong\b|\bningbo\b|\bzhejiang\b|\bshanghai\b|\bbeijing\b|\bjiangsu\b|\bhebei\b|\bshandong\b|\bwenzhou\b|\bfoshan\b|\bdongguan\b|\bcixi\b|\byuyao\b|\bquanzhou\b)/i;
+const weakChinaOriginPattern =
+  /(?:china\s+brands?|chinese\s+brands?|made\s+in\s+china|from\s+china|manufacturer\s+in\s+china|china\s+manufacturer|china\s+made|brands?\s+from\s+china|#\s*\d+\s+.*\bin\s+china)/i;
 const buyerSignalKeywords = new Set([
   'supplier',
   'manufacturer',
@@ -119,7 +124,7 @@ function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
 
   return JSON.stringify({
     instruction:
-      '你是外贸获客质检助手。只根据 Serper 候选信息、CRM 产品线基准、用户结构化获客条件 leadContextSnapshot 和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。必须先判断客户群体、官网归属地、目标市场匹配度、产品线匹配度；产品线是固定参照，用户输入只是本次搜索条件。若 leadContextSnapshot.exclusionRules 存在用户勾选的排除类型，必须逐条检查候选官网证据；命中排除规则时要在 risks 写明命中的排除类型和证据，严重命中时 priority=reject。若官网地址、页脚、联系页、电话或官网证据明确显示中国公司，而用户目标是海外/非中国客户，或用户排除类型包含中国供应商/出口商，必须标为 outside_target、priority=reject、score<=30，并说明官网证据。若无归属地冲突但官网当前产品页、标题、描述、URL 或页面片段明确命中产品线或目标产品，不要直接 reject，应至少给 low 并标记 reviewRequired。',
+      '你是外贸获客质检助手。只根据 Serper 候选信息、CRM 产品线基准、用户结构化获客条件 leadContextSnapshot 和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。必须先判断客户群体、官网归属地、目标市场匹配度、产品线匹配度；产品线是固定参照，用户输入只是本次搜索条件。若 leadContextSnapshot.exclusionRules 存在用户勾选的排除类型，必须逐条检查候选官网证据；命中排除规则时要在 risks 写明命中的排除类型和证据，严重命中时 priority=reject。若官网地址、页脚、联系页、电话或官网证据明确显示中国公司，而用户目标是海外/非中国客户，或用户排除类型包含中国供应商/出口商，必须标为 outside_target、priority=reject、score<=30，并说明官网证据。注意：China brands、made in China、manufacturer in China、Chinese brand 这类产品来源/品牌来源描述不是公司归属中国的充分证据；只有公司地址、页脚、Contact、电话 +86、工商主体或多语言地址块明确指向中国时，才按中国公司处理。若无归属地冲突但官网当前产品页、标题、描述、URL 或页面片段明确命中产品线或目标产品，不要直接 reject，应至少给 low 并标记 reviewRequired。',
     outputContract: {
       candidates: [
         {
@@ -275,19 +280,11 @@ function detectOfficialCompanyCountry(evidence: AiLeadWebsiteEvidence | undefine
     return '';
   }
 
-  const officialText = normalizeComparableText(
-    [
-      ...(evidence.companyCountrySignals ?? []),
-      ...(evidence.companyAddressEvidence ?? []),
-      ...evidence.phones
-    ].join(' ')
-  );
-
-  if (/(中国|中國|china|الصين|xiamen|fujian|fujan|\+86)/i.test(officialText)) {
+  if (collectOfficialChinaCompanyEvidence(evidence).length > 0) {
     return officialChinaCountry;
   }
 
-  return evidence.companyCountrySignals?.[0] || '';
+  return evidence.companyCountrySignals?.find(signal => signal !== officialChinaCountry) || '';
 }
 
 function collectOfficialCountryEvidence(evidence: AiLeadWebsiteEvidence | undefined) {
@@ -295,14 +292,47 @@ function collectOfficialCountryEvidence(evidence: AiLeadWebsiteEvidence | undefi
     return [];
   }
 
+  const chinaEvidence = collectOfficialChinaCompanyEvidence(evidence);
+
+  if (chinaEvidence.length > 0) {
+    return chinaEvidence;
+  }
+
   return uniqueStrings(
     [
       ...(evidence.companyAddressEvidence ?? []),
-      ...(evidence.companyCountrySignals ?? []).map(signal => `官网归属地：${signal}`),
-      ...evidence.phones.filter(phone => /^\+86\b/.test(phone.trim()))
+      ...(evidence.companyCountrySignals ?? []).map(signal => `官网归属地：${signal}`)
     ],
     8
   );
+}
+
+function collectOfficialChinaCompanyEvidence(evidence: AiLeadWebsiteEvidence) {
+  const addressEvidence = (evidence.companyAddressEvidence ?? []).filter(hasOfficialChinaAddressSignal);
+  const chinaPhones = (evidence.phones ?? [])
+    .map(phone => phone.trim())
+    .filter(phone => chinaPhonePattern.test(phone))
+    .map(phone => `官网联系电话：${phone}`);
+  const countrySignals =
+    addressEvidence.length > 0 || chinaPhones.length > 0
+      ? (evidence.companyCountrySignals ?? [])
+          .filter(signal => signal === officialChinaCountry)
+          .map(signal => `官网归属地：${signal}`)
+      : [];
+
+  return uniqueStrings([...addressEvidence, ...countrySignals, ...chinaPhones], 8);
+}
+
+function hasOfficialChinaAddressSignal(value: string) {
+  if (!value) {
+    return false;
+  }
+
+  return value
+    .split(/(?<=[。.!?؛;])\s+|\s{2,}| \| /)
+    .map(normalizeString)
+    .filter(Boolean)
+    .some(chunk => chinaAddressSignalPattern.test(chunk) && !weakChinaOriginPattern.test(chunk));
 }
 
 function isTargetingNonChinaMarket(input: AnalyzeCandidatesInput) {

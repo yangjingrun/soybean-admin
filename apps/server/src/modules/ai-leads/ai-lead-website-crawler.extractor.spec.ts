@@ -75,6 +75,27 @@ describe('ai lead website crawler extractor', () => {
     assert.match(page.companyAddressEvidence.join(' '), /Xiamen/);
   });
 
+  it('does not treat China brand mentions as official China company address evidence', () => {
+    const page = extractWebsitePageEvidence({
+      url: 'https://middle-east-bearing.example.com',
+      loadedUrl: 'https://middle-east-bearing.example.com',
+      statusCode: 200,
+      html: `
+        <html>
+          <body>
+            <h1>Bearings distributor in Dubai</h1>
+            <section>We supply American brands, China brands, European brands and Japanese brands.</section>
+            <section>One partner is the #1 bearing manufacturer in China.</section>
+            <footer>Address: Jebel Ali Free Zone, Dubai, United Arab Emirates. Tel: +971 4 881 5547</footer>
+          </body>
+        </html>
+      `
+    });
+
+    assert.deepEqual(page.companyCountrySignals, []);
+    assert.doesNotMatch(page.companyAddressEvidence.join(' '), /China brands|manufacturer in China/);
+  });
+
   it('does not classify regular company domains containing x.com as social links', () => {
     const page = extractWebsitePageEvidence({
       url: 'https://vwimpex.com',

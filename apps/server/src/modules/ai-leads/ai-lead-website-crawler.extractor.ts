@@ -37,8 +37,17 @@ const buyerSignalKeywords = [
 const whatsappPattern = /(?:wa\.me|whatsapp\.com)/i;
 const mapPattern = /(?:maps\.google|goo\.gl\/maps|google\.[^/]+\/maps)/i;
 const contactPathPattern = /(?:contact|about|iletisim|hakkimizda|support|sales|dealer|distributor|export)/i;
-const addressEvidencePattern =
-  /(?:address|地址|公司地址|联系地址|العنوان|xiamen|fujian|fujan|jiahe|siming|xinjing|istanbul|turkey|china|الصين)/i;
+const addressLabelPattern =
+  /(?:address|office|head\s*office|registered\s*office|地址|公司地址|联系地址|办公地址|总部|所在地|العنوان|عنوان|المكتب|مقر|contact\s*us)/i;
+const chinaAddressLocationPattern =
+  /(?:中国|中國|中华人民共和国|الصين|جمهورية\s*الصين|الصين\s*الشعبية|китай|кнр|중국|चीन|\bchina\b|\bprc\b|\bxiamen\b|\bfujian\b|\bfujan\b|\bjiahe\b|\bsiming\b|\bxinjing\b|\bshenzhen\b|\bguangzhou\b|\bguangdong\b|\bningbo\b|\bzhejiang\b|\bshanghai\b|\bbeijing\b|\bjiangsu\b|\bhebei\b|\bshandong\b|\bwenzhou\b|\bfoshan\b|\bdongguan\b|\bcixi\b|\byuyao\b|\bquanzhou\b)/i;
+const turkeyAddressLocationPattern = /(?:\bturkey\b|\bturkiye\b|\btürkiye\b|\bistanbul\b|\+90[\s().-]*)/i;
+const addressEvidencePattern = new RegExp(
+  `(?:${addressLabelPattern.source}|${chinaAddressLocationPattern.source}|${turkeyAddressLocationPattern.source})`,
+  'i'
+);
+const weakChinaOriginPattern =
+  /(?:china\s+brands?|chinese\s+brands?|made\s+in\s+china|from\s+china|manufacturer\s+in\s+china|china\s+manufacturer|china\s+made|brands?\s+from\s+china|#\s*\d+\s+.*\bin\s+china)/i;
 const socialHostDomains = [
   'linkedin.com',
   'facebook.com',
@@ -53,11 +62,15 @@ const socialHostDomains = [
 const companyCountrySignalRules = [
   {
     label: '中国',
-    pattern: /(?:\bchina\b|中国|中國|الصين|\bxiamen\b|\bfujian\b|\bfujan\b|\bjiahe\b|\bsiming\b|\+86[\s().-]*)/i
+    countryPattern: /(?:\bchina\b|中国|中國|中华人民共和国|الصين|جمهورية\s*الصين|الصين\s*الشعبية|китай|кнр|중국|चीन)/i,
+    locationPattern: chinaAddressLocationPattern,
+    phonePattern: /\+86[\s().-]*/
   },
   {
     label: '土耳其',
-    pattern: /(?:\bturkey\b|\bturkiye\b|\btürkiye\b|\bistanbul\b|\+90[\s().-]*)/i
+    countryPattern: /(?:\bturkey\b|\bturkiye\b|\btürkiye\b)/i,
+    locationPattern: turkeyAddressLocationPattern,
+    phonePattern: /\+90[\s().-]*/
   }
 ];
 
@@ -251,24 +264,59 @@ function extractCompanyAddressEvidence(text: string) {
     .split(/(?<=[。.!?؛;])\s+|\s{2,}/)
     .map(normalizeText)
     .filter(Boolean);
-  const matchedChunks = chunks.filter(chunk => addressEvidencePattern.test(chunk));
+  const matchedChunks = chunks.filter(isAddressEvidenceChunk);
 
   if (matchedChunks.length > 0) {
     return unique(matchedChunks.map(chunk => trimEvidenceChunk(chunk)), 8);
   }
 
-  return unique(
-    companyCountrySignalRules.flatMap(rule => {
-      const match = text.match(new RegExp(`.{0,100}${rule.pattern.source}.{0,140}`, 'i'));
-
-      return match ? [trimEvidenceChunk(match[0])] : [];
-    }),
-    8
-  );
+  return [];
 }
 
 function extractCompanyCountrySignals(text: string) {
-  return companyCountrySignalRules.filter(rule => rule.pattern.test(text)).map(rule => rule.label);
+  const addressText = extractCompanyAddressEvidence(text).join(' ');
+
+  return companyCountrySignalRules
+    .filter(rule => {
+      if (rule.phonePattern.test(text)) {
+        return true;
+      }
+
+      if (rule.label === '中国') {
+        return hasChinaCompanyAddressSignal(addressText);
+      }
+
+      return Boolean(addressText && (rule.countryPattern.test(addressText) || rule.locationPattern.test(addressText)));
+    })
+    .map(rule => rule.label);
+}
+
+function hasChinaCompanyAddressSignal(value: string) {
+  if (!value) {
+    return false;
+  }
+
+  return value
+    .split(/(?<=[。.!?؛;])\s+|\s{2,}| \| /)
+    .map(normalizeText)
+    .filter(Boolean)
+    .some(chunk => chinaAddressLocationPattern.test(chunk) && !weakChinaOriginPattern.test(chunk));
+}
+
+function isAddressEvidenceChunk(chunk: string) {
+  if (!addressEvidencePattern.test(chunk)) {
+    return false;
+  }
+
+  if (addressLabelPattern.test(chunk)) {
+    return true;
+  }
+
+  if (weakChinaOriginPattern.test(chunk)) {
+    return false;
+  }
+
+  return chinaAddressLocationPattern.test(chunk) || turkeyAddressLocationPattern.test(chunk);
 }
 
 function resolveTargetKeywords(options: AiLeadWebsiteEvidenceKeywordOptions) {

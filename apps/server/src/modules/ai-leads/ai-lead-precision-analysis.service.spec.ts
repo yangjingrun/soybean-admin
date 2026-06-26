@@ -325,6 +325,87 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.match(result[0].reason ?? '', /官网地址显示中国公司/);
     assert.match(result[0].precisionAnalysis?.matchedSignals.join(' ') ?? '', /Xiamen/);
   });
+
+  it('does not force reject when China only appears as product or brand origin text', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          candidates: [
+            {
+              dedupeKey: 'uae-bearing-distributor.example.com',
+              score: 82,
+              priority: 'high',
+              buyerType: 'bearing distributor',
+              customerGroup: '中东本地经销商',
+              companyCountry: '阿联酋',
+              targetMarketFit: 'target',
+              reason: '官网有迪拜地址和轴承库存信息',
+              matchedSignals: ['Dubai address', 'bearing stock'],
+              risks: ['销售 China brands，但不是中国公司地址证据'],
+              recommendedAction: '可优先开发',
+              reviewRequired: false
+            }
+          ]
+        })
+      }
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const result = await service.analyzeCandidates(
+      {
+        requirement: '找中东轴承进口商和经销商',
+        keywordPlan: {
+          resolvedProductKeywords: 'bearing',
+          resolvedTargetRegions: '中东',
+          leadContextSnapshot: {
+            exclusionRules: [
+              {
+                key: 'china_supplier',
+                label: '中国供应商/出口商',
+                description: '排除中国官网、中国制造商、Alibaba/Made-in-China 等供应商来源',
+                promptHint: 'exclude China supplier'
+              }
+            ]
+          }
+        },
+        candidates: [
+          {
+            dedupeKey: 'uae-bearing-distributor.example.com',
+            sourceType: 'organic',
+            title: 'Bearing distributor in UAE',
+            website: 'https://uae-bearing-distributor.example.com',
+            snippet: 'American brands, China brands, European brands and Japanese brands are available.',
+            websiteEvidence: {
+              crawlStatus: 'completed',
+              pageCount: 2,
+              finalUrl: 'https://uae-bearing-distributor.example.com/contact',
+              title: 'Bearing distributor in UAE',
+              description: 'bearing stockist in Dubai',
+              emails: ['sales@uae-bearing-distributor.example.com'],
+              phones: ['+971 4 881 5547'],
+              socialLinks: [],
+              whatsappLinks: [],
+              mapLinks: [],
+              contactLinks: ['https://uae-bearing-distributor.example.com/contact'],
+              keywordHits: ['bearing'],
+              evidenceSnippets: ['China brands are available', 'manufacturer in China partner line'],
+              companyAddressEvidence: ['Address: Jebel Ali Free Zone, Dubai, United Arab Emirates'],
+              companyCountrySignals: [],
+              negativeKeywordHits: [],
+              negativeEvidenceSnippets: [],
+              failureReason: null
+            }
+          } as AiLeadSearchCandidate
+        ]
+      },
+      {}
+    );
+
+    assert.equal(result[0].precisionAnalysis?.priority, 'high');
+    assert.equal(result[0].precisionAnalysis?.companyCountry, '阿联酋');
+    assert.equal(result[0].precisionAnalysis?.targetMarketFit, 'target');
+    assert.doesNotMatch(result[0].reason ?? '', /官网地址显示中国公司/);
+  });
 });
 
 function createAiGateway(results: Array<{ text: string }>) {
