@@ -419,24 +419,28 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'name',
       title: '公司 / 官网',
+      titleAlign: 'center',
       width: 220,
       render: row => renderCompany(row)
     },
     {
       key: 'socialLinks',
       title: '社媒',
+      titleAlign: 'center',
       width: 120,
       render: row => renderCompanySocialLinks(row)
     },
     {
       key: 'contacts',
       title: '联系人',
+      titleAlign: 'center',
       width: 220,
       render: row => renderContactSummary(row)
     },
     {
       key: 'status',
       title: '客户阶段',
+      titleAlign: 'center',
       width: 150,
       render: row =>
         h(
@@ -452,18 +456,21 @@ const columns = computed<DataTableColumns<Api.Crm.LeadRecord>>(() => {
     {
       key: 'emailProgress',
       title: '邮箱进度',
+      titleAlign: 'center',
       width: 150,
       render: row => renderEmailProgress(row.primaryContact)
     },
     {
       key: 'updatedAt',
       title: '更新时间',
+      titleAlign: 'center',
       width: 180,
       render: row => formatLeadDate(row.updatedAt)
     },
     {
       key: 'operate',
       title: '操作',
+      titleAlign: 'center',
       width: 260,
       fixed: 'right',
       render: row =>
