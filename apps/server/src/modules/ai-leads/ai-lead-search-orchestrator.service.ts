@@ -23,6 +23,7 @@ import { applySerperRequestCountry } from './ai-lead-candidate-country';
 import { isBlockedLeadCandidate } from './ai-lead-candidate-filter';
 import { AiLeadWebsiteCrawlerService } from './ai-lead-website-crawler.service';
 import type {
+  AiLeadEmailWritingContext,
   AiLeadPrecisionAnalysis,
   AiLeadWebsiteEvidence,
   AiLeadWebsiteMatchProfile
@@ -117,6 +118,7 @@ export interface AiLeadSearchCandidate {
   country?: string;
   websiteEvidence?: AiLeadWebsiteEvidence;
   precisionAnalysis?: AiLeadPrecisionAnalysis;
+  emailWritingContext?: AiLeadEmailWritingContext;
   score?: number;
   reason?: string;
 }

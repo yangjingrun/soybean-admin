@@ -1,5 +1,6 @@
 import type { ImportCrmLeadInput } from '../crm/crm.types';
 import { buildCandidateCountryPatch } from './ai-lead-candidate-country';
+import { normalizeAiLeadEmailWritingContext } from './ai-lead-email-writing-context';
 import type { AiLeadProductLineSnapshot } from './ai-lead-product-line-context';
 
 interface AiLeadCandidateLike {
@@ -19,6 +20,7 @@ interface AiLeadCandidateLike {
   sourceUrl?: unknown;
   websiteEvidence?: unknown;
   precisionAnalysis?: unknown;
+  emailWritingContext?: unknown;
 }
 
 /** Maps completed AI lead candidates to CRM import inputs. */
@@ -125,6 +127,11 @@ function buildCandidateSourceSnapshot(candidate: AiLeadCandidateLike, productLin
     if (candidate[field] && typeof candidate[field] === 'object') {
       snapshot[field] = candidate[field];
     }
+  }
+
+  const emailWritingContext = normalizeAiLeadEmailWritingContext(candidate.emailWritingContext);
+  if (emailWritingContext) {
+    snapshot.emailWritingContext = emailWritingContext;
   }
 
   if (productLineSnapshot) {

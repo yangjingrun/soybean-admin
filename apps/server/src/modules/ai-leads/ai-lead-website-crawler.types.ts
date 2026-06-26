@@ -2,6 +2,22 @@ import type { AiLeadSearchCandidate } from './ai-lead-search-orchestrator.servic
 
 export type AiLeadWebsiteCrawlStatus = 'completed' | 'failed' | 'skipped';
 
+export type AiLeadWebsiteEvidenceItemType =
+  | 'company_background'
+  | 'product'
+  | 'application'
+  | 'brand'
+  | 'recent_activity'
+  | 'purchase_signal'
+  | 'negative_relevance'
+  | 'address';
+
+export interface AiLeadWebsiteEvidenceItem {
+  type: AiLeadWebsiteEvidenceItemType;
+  url: string;
+  text: string;
+}
+
 export interface AiLeadWebsitePageEvidence {
   url: string;
   loadedUrl: string;
@@ -16,6 +32,7 @@ export interface AiLeadWebsitePageEvidence {
   contactLinks: string[];
   keywordHits: string[];
   evidenceSnippets: string[];
+  evidenceItems: AiLeadWebsiteEvidenceItem[];
   companyAddressEvidence: string[];
   companyCountrySignals: string[];
   negativeKeywordHits: string[];
@@ -36,6 +53,7 @@ export interface AiLeadWebsiteEvidence {
   contactLinks: string[];
   keywordHits: string[];
   evidenceSnippets: string[];
+  evidenceItems?: AiLeadWebsiteEvidenceItem[];
   companyAddressEvidence: string[];
   companyCountrySignals: string[];
   negativeKeywordHits: string[];
@@ -72,9 +90,24 @@ export interface AiLeadPrecisionAnalysis {
   reviewRequired: boolean;
 }
 
+export interface AiLeadEmailWritingContext {
+  companyBackgroundSummary: string;
+  industryChainPosition: string;
+  mainProducts: string[];
+  servedIndustries: string[];
+  businessModel: string;
+  productFitSummary: string;
+  recentBusinessTriggers: string[];
+  recommendedFirstEmailAngle: string;
+  negativeRelevanceSignals: string[];
+  confidenceScore: number;
+  evidenceItems: AiLeadWebsiteEvidenceItem[];
+}
+
 export type AiLeadWebsiteEnrichedCandidate = AiLeadSearchCandidate & {
   websiteEvidence?: AiLeadWebsiteEvidence;
   precisionAnalysis?: AiLeadPrecisionAnalysis;
+  emailWritingContext?: AiLeadEmailWritingContext;
   score?: number;
   reason?: string;
 };

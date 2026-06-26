@@ -5,6 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "backfill:ai-config-secrets": "tsx src/scripts/backfill-ai-config-secrets.ts",
+    "backfill:crm-email-writing-contexts": "tsx src/scripts/backfill-crm-email-writing-contexts.ts",
     "backfill:crm-account-source-snapshots": "tsx src/scripts/backfill-crm-account-source-snapshots.ts",
     "build": "nest build",
     "dev": "tsx watch src/main.ts",

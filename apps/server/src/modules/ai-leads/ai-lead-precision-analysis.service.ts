@@ -2,7 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { defaultAiModelConfigKey, leadMatchAnalyzePromptKey } from '../ai-gateway/ai-gateway.constants';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import type { AiLeadSearchContext, OptimizedKeywordPlan } from './ai-lead-search-orchestrator.service';
+import {
+  buildFallbackAiLeadEmailWritingContext,
+  normalizeAiLeadEmailWritingContext
+} from './ai-lead-email-writing-context';
 import { buildAiLeadExclusionDecisionRules, normalizeAiLeadKeywordContextSnapshot } from './ai-lead-keyword-context';
+import { normalizeAiLeadProductLineSnapshot } from './ai-lead-product-line-context';
 import type {
   AiLeadPrecisionAnalysis,
   AiLeadPrecisionPriority,
@@ -11,7 +16,7 @@ import type {
   AiLeadWebsiteEnrichedCandidate
 } from './ai-lead-website-crawler.types';
 
-const leadMatchAnalyzeMaxOutputTokens = 2600;
+const leadMatchAnalyzeMaxOutputTokens = 5200;
 const minStrongProductEvidenceScore = 40;
 const officialChinaCountry = '中国';
 const chinaPhonePattern = /^\+86\b|^\+86[\s().-]/i;
@@ -80,6 +85,7 @@ interface AiLeadPrecisionCandidateOutput {
   risks?: unknown;
   recommendedAction?: unknown;
   reviewRequired?: unknown;
+  emailWritingContext?: unknown;
 }
 
 @Injectable()
@@ -102,22 +108,37 @@ export class AiLeadPrecisionAnalysisService {
       context
     );
     const outputByKey = new Map(
-      readAnalysisOutputs(result.text).map(item => [normalizeString(item.dedupeKey), toPrecisionAnalysis(item)])
+      readAnalysisOutputs(result.text).map(item => [
+        normalizeString(item.dedupeKey),
+        {
+          analysis: toPrecisionAnalysis(item),
+          emailWritingContext: normalizeAiLeadEmailWritingContext(item.emailWritingContext)
+        }
+      ])
     );
 
     return input.candidates.map(candidate => {
-      const aiAnalysis = outputByKey.get(candidate.dedupeKey) ?? createDefaultAnalysis(candidate);
+      const aiOutput = outputByKey.get(normalizeString(candidate.dedupeKey));
+      const aiAnalysis = aiOutput?.analysis ?? createDefaultAnalysis(candidate);
       const analysis = enforceOfficialCountryMismatch(
         input,
         candidate,
         protectStrongWebsiteProductEvidence(input, candidate, aiAnalysis)
       );
+      const emailWritingContext =
+        aiOutput?.emailWritingContext ??
+        buildFallbackAiLeadEmailWritingContext({
+          candidate,
+          precisionAnalysis: analysis,
+          productLineSnapshot: normalizeAiLeadProductLineSnapshot(input.keywordPlan.productLineSnapshot)
+        });
 
       return {
         ...candidate,
         score: analysis.score,
         reason: analysis.reason,
-        precisionAnalysis: analysis
+        precisionAnalysis: analysis,
+        ...(emailWritingContext ? { emailWritingContext } : {})
       };
     });
   }
@@ -145,7 +166,26 @@ function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
           matchedSignals: ['命中的官网/Serper 信号'],
           risks: ['不确定或不匹配风险'],
           recommendedAction: '下一步建议',
-          reviewRequired: 'boolean；官网抓取失败或证据不足时为 true'
+          reviewRequired: 'boolean；官网抓取失败或证据不足时为 true',
+          emailWritingContext: {
+            companyBackgroundSummary: '公司背景摘要，只能基于官网/About/Contact/Footer/搜索摘要等已给证据',
+            industryChainPosition: '产业链位置，例如本地进口商/经销商/库存商/MRO 维修服务商/终端工程商/非目标供应商',
+            mainProducts: ['客户官网展示的主要产品或品类，最多 6 条，不写邮箱电话社媒'],
+            servedIndustries: ['服务行业/应用场景，最多 6 条'],
+            businessModel: '经营模式，例如本地库存分销、授权代理、维修服务、工程项目、制造出口等',
+            productFitSummary: '本客户与我方产品线/用户选择产业链的匹配点，引用已给证据，保守表达',
+            recentBusinessTriggers: ['新闻、项目、招聘、仓库、展会、新增代理等近期触发点；没有则空数组'],
+            recommendedFirstEmailAngle: '第一封建议切入角度，优先围绕相关性与初始价值，不把负面信号写成正向角度',
+            negativeRelevanceSignals: ['不匹配、证据不足、排除风险，只放负面或不确定线索'],
+            confidenceScore: '0-100 数字',
+            evidenceItems: [
+              {
+                type: 'company_background | product | application | brand | recent_activity | purchase_signal | negative_relevance | address',
+                url: '证据来源 URL',
+                text: '短证据原文或摘要，最多 4 条，只放写第一封有用的证据；避免长网页原文；不要放邮箱、电话、WhatsApp、社媒链接'
+              }
+            ]
+          }
         }
       ]
     },

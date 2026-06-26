@@ -23,16 +23,20 @@ describe('AiLeadWebsiteCrawlerService', () => {
       createCandidate({ title: 'ABC Bearing', website: 'https://abc.example.com' })
     ]);
 
-    assert.equal(requestedUrls.length, 8);
+    assert.equal(requestedUrls.length, 12);
     assert.deepEqual(requestedUrls, [
       'https://abc.example.com/',
-      'https://abc.example.com/contact',
-      'https://abc.example.com/contact-us',
       'https://abc.example.com/about',
       'https://abc.example.com/about-us',
+      'https://abc.example.com/company',
       'https://abc.example.com/products',
-      'https://abc.example.com/product',
-      'https://abc.example.com/elevator'
+      'https://abc.example.com/services',
+      'https://abc.example.com/industries',
+      'https://abc.example.com/solutions',
+      'https://abc.example.com/brands',
+      'https://abc.example.com/news',
+      'https://abc.example.com/contact',
+      'https://abc.example.com/contact-us'
     ]);
     assert.equal(candidates[0].websiteEvidence?.crawlStatus, 'completed');
     assert.equal(candidates[0].websiteEvidence?.pageCount, 2);

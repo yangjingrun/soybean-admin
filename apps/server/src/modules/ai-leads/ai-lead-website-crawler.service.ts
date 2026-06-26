@@ -15,20 +15,20 @@ import type {
   AiLeadWebsiteEnrichedCandidate
 } from './ai-lead-website-crawler.types';
 
-const maxPagesPerCandidate = 8;
+const maxPagesPerCandidate = 12;
 const websitePagePaths = [
   '/',
-  '/contact',
-  '/contact-us',
   '/about',
   '/about-us',
+  '/company',
   '/products',
-  '/product',
-  '/elevator',
-  '/en/contact',
-  '/en/about',
-  '/iletisim',
-  '/hakkimizda'
+  '/services',
+  '/industries',
+  '/solutions',
+  '/brands',
+  '/news',
+  '/contact',
+  '/contact-us'
 ];
 
 @Injectable()

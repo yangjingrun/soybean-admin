@@ -23,7 +23,31 @@ describe('AiLeadPrecisionAnalysisService', () => {
               matchedSignals: ['elevator bearing', 'sales@abc.example.com'],
               risks: [],
               recommendedAction: '优先开发',
-              reviewRequired: false
+              reviewRequired: false,
+              emailWritingContext: {
+                companyBackgroundSummary: 'ABC Bearing serves elevator maintenance and component distribution customers.',
+                industryChainPosition: 'Local elevator component distributor',
+                mainProducts: ['elevator bearings', 'traction machine spare parts'],
+                servedIndustries: ['elevator maintenance'],
+                businessModel: 'Distributor with local sourcing support',
+                productFitSummary: 'The site mentions elevator bearing supply, matching the product line.',
+                recentBusinessTriggers: ['Maintains spare-part sourcing pages for elevator customers'],
+                recommendedFirstEmailAngle: 'Open with elevator bearing designation comparison for their sourcing work.',
+                negativeRelevanceSignals: [],
+                confidenceScore: 88,
+                evidenceItems: [
+                  {
+                    type: 'company_background',
+                    url: 'https://abc.example.com/about',
+                    text: 'ABC Bearing serves elevator maintenance customers.'
+                  },
+                  {
+                    type: 'product',
+                    url: 'https://abc.example.com/products',
+                    text: 'Elevator bearing and traction machine spare parts.'
+                  }
+                ]
+              }
             }
           ]
         })
@@ -97,6 +121,13 @@ describe('AiLeadPrecisionAnalysisService', () => {
               contactLinks: ['https://abc.example.com/contact'],
               keywordHits: ['bearing', 'elevator'],
               evidenceSnippets: ['elevator bearing supplier'],
+              evidenceItems: [
+                {
+                  type: 'product',
+                  url: 'https://abc.example.com/products',
+                  text: 'elevator bearing supplier'
+                }
+              ],
               companyAddressEvidence: [],
               companyCountrySignals: [],
               negativeKeywordHits: [],
@@ -157,6 +188,10 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.match(promptPayload.analysisGuidance?.leadValueGuidance?.highValueSignals?.join('\n') ?? '', /进口商/);
     assert.match(promptPayload.analysisGuidance?.productFitGuidance?.fitLevels?.join('\n') ?? '', /高匹配/);
     assert.match(promptPayload.analysisGuidance?.scoreAndOutputMapping?.priorityMapping?.join('\n') ?? '', /reject/);
+    assert.match(
+      JSON.stringify((promptPayload as { outputContract?: unknown }).outputContract ?? {}),
+      /emailWritingContext/
+    );
     assert.ok(chinaGuidance);
     assert.match(chinaGuidance.insufficientSignals?.join('\n') ?? '', /Made in China/);
     assert.match(chinaGuidance.insufficientSignals?.join('\n') ?? '', /Importer from China/);
@@ -167,6 +202,15 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].precisionAnalysis?.customerGroup, '海外电梯配件经销商');
     assert.equal(result[0].precisionAnalysis?.companyCountry, '土耳其');
     assert.equal(result[0].precisionAnalysis?.targetMarketFit, 'target');
+    assert.equal(
+      result[0].emailWritingContext?.companyBackgroundSummary,
+      'ABC Bearing serves elevator maintenance and component distribution customers.'
+    );
+    assert.deepEqual(result[0].emailWritingContext?.mainProducts, [
+      'elevator bearings',
+      'traction machine spare parts'
+    ]);
+    assert.equal(result[0].emailWritingContext?.evidenceItems[0]?.type, 'company_background');
   });
 
   it('marks failed-crawl candidates for manual review when AI omits a result', async () => {
@@ -209,6 +253,110 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].score, 45);
     assert.equal(result[0].precisionAnalysis?.priority, 'medium');
     assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
+  });
+
+  it('builds a conservative email writing context when AI omits it', async () => {
+    const aiGateway = createAiGateway([
+      {
+        text: JSON.stringify({
+          candidates: [
+            {
+              dedupeKey: 'https://fit.example.com',
+              score: 72,
+              priority: 'medium',
+              buyerType: 'MRO distributor',
+              customerGroup: '海外 MRO 维修渠道',
+              companyCountry: '阿联酋',
+              targetMarketFit: 'target',
+              reason: '官网展示 maintenance sourcing 和 bearing spare parts',
+              matchedSignals: ['maintenance sourcing', 'bearing spare parts'],
+              risks: ['只看到维修场景，未确认库存'],
+              recommendedAction: '用备件匹配角度开发',
+              reviewRequired: false
+            }
+          ]
+        })
+      }
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const result = await service.analyzeCandidates(
+      {
+        requirement: '找阿联酋轴承 MRO 客户',
+        keywordPlan: {
+          resolvedProductKeywords: 'bearing spare parts',
+          productLineSnapshot: {
+            id: 'line-1',
+            name: 'Deep groove bearings',
+            targetCustomerType: 'MRO distributors',
+            coreSellingPoints: 'designation-based replacement matching'
+          }
+        },
+        candidates: [
+          {
+            dedupeKey: 'https://fit.example.com',
+            sourceType: 'organic',
+            title: 'Fit MRO',
+            website: 'https://fit.example.com',
+            snippet: 'bearing spare parts for maintenance teams',
+            websiteEvidence: {
+              crawlStatus: 'completed',
+              pageCount: 3,
+              finalUrl: 'https://fit.example.com',
+              title: 'Fit MRO',
+              description: 'Industrial MRO sourcing partner',
+              emails: ['sales@fit.example.com'],
+              phones: ['+971 4 000 0000'],
+              socialLinks: ['https://www.linkedin.com/company/fit-mro/'],
+              whatsappLinks: ['https://wa.me/97140000000'],
+              mapLinks: [],
+              contactLinks: ['https://fit.example.com/contact'],
+              keywordHits: ['bearing', 'spare parts', 'maintenance'],
+              evidenceSnippets: ['bearing spare parts for maintenance teams'],
+              evidenceItems: [
+                {
+                  type: 'company_background',
+                  url: 'https://fit.example.com/about',
+                  text: 'Industrial MRO sourcing partner for UAE maintenance teams.'
+                },
+                {
+                  type: 'product',
+                  url: 'https://fit.example.com/products',
+                  text: 'Bearing spare parts for maintenance teams.'
+                },
+                {
+                  type: 'negative_relevance',
+                  url: 'https://fit.example.com/services',
+                  text: 'Only limited stock information is published.'
+                }
+              ],
+              companyAddressEvidence: ['Address: Dubai, United Arab Emirates'],
+              companyCountrySignals: ['阿联酋'],
+              negativeKeywordHits: ['limited stock'],
+              negativeEvidenceSnippets: ['Only limited stock information is published'],
+              failureReason: null
+            }
+          } as AiLeadSearchCandidate
+        ]
+      },
+      {}
+    );
+
+    assert.equal(result[0].emailWritingContext?.industryChainPosition, '海外 MRO 维修渠道');
+    assert.match(result[0].emailWritingContext?.productFitSummary ?? '', /bearing spare parts/);
+    assert.match(result[0].emailWritingContext?.recommendedFirstEmailAngle ?? '', /备件匹配/);
+    assert.deepEqual(result[0].emailWritingContext?.negativeRelevanceSignals, [
+      '只看到维修场景，未确认库存',
+      'Only limited stock information is published'
+    ]);
+    assert.equal(
+      result[0].emailWritingContext?.evidenceItems.some(item => item.text.includes('sales@fit.example.com')),
+      false
+    );
+    assert.equal(
+      result[0].emailWritingContext?.evidenceItems.some(item => item.text.includes('wa.me')),
+      false
+    );
   });
 
   it('rejects official China companies for overseas lead requirements even when product page evidence is strong', async () => {

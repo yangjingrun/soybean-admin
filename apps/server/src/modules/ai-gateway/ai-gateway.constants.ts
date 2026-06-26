@@ -829,6 +829,10 @@ Object.assign(defaultAiPromptSystemPrompts, {
   crm_outreach_general_step_1_relevance: `${crmOutreachDefaultPromptRules}
 
 通用模板第 1 封重点：相关性与初始价值。
+- 优先读取 publicFacts 中的 source_snapshot.email_writing.*（页面文案叫“AI 写信用客户资料”），尤其是 company_background_summary、industry_chain_position、product_fit_summary、recommended_first_email_angle 和 evidence_items。
+- 若 AI 写信用客户资料存在，用它先判断客户公司背景、产业链位置、产品匹配点和第一封切入角度；再结合客户类型、产品资料、联系人职位和地区信息写具体岗位场景。
+- negative_relevance_signals 只能作为 riskNotes 或人工审核提醒，不能改写成正向卖点或开发信开场。
+- 如果缺少 AI 写信用客户资料，保持保守写法：只基于 CRM 客户类型、产品资料、职位信息和已验证 publicFacts 提一个低摩擦相关性问题。
 - 建立客户、联系人岗位和产品资料之间的一个真实相关性假设。
 - 只选 1 个产品/产品族/designation/配置/供应价值，不发目录，不堆型号。
 - CTA 优先 permission_send、compare_one、micro_input 或 confirm_relevance。

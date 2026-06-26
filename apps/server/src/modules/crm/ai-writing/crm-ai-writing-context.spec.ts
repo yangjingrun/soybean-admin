@@ -132,6 +132,70 @@ describe('crm-ai-writing-context', () => {
     assert.match(context.publicFacts.find(fact => fact.id === 'sequence_strategy.cta')?.value ?? '', /short list/);
     assert.match(context.publicFacts.find(fact => fact.id === 'sequence_strategy.self_check')?.value ?? '', /one CTA/);
   });
+
+  it('adds AI 写信用客户资料 from sourceSnapshot emailWritingContext to public facts', () => {
+    const context = buildCrmAiWritingContext(
+      createInput({
+        account: {
+          name: 'ABC Bearings',
+          country: 'SA',
+          city: 'Riyadh',
+          timeZone: 'Asia/Riyadh',
+          domain: 'abc.example',
+          customerType: 'Distributor',
+          sourceSnapshot: {
+            emailWritingContext: {
+              companyBackgroundSummary: 'ABC Bearings supplies industrial customers in Riyadh.',
+              industryChainPosition: 'Local distributor and MRO supplier',
+              mainProducts: ['bearings', 'power-transmission parts'],
+              servedIndustries: ['maintenance', 'industrial repair'],
+              businessModel: 'Local stock and service support',
+              productFitSummary: 'Their product pages mention bearing replacement sourcing.',
+              recentBusinessTriggers: ['Opened a new warehouse page in June.'],
+              recommendedFirstEmailAngle: 'Use a bearing designation comparison angle.',
+              negativeRelevanceSignals: ['No published stock list.'],
+              confidenceScore: 86,
+              evidenceItems: [
+                {
+                  type: 'company_background',
+                  url: 'https://abc.example/about',
+                  text: 'Supplies industrial customers in Riyadh.'
+                },
+                {
+                  type: 'product',
+                  url: 'https://abc.example/products',
+                  text: 'Bearing replacement sourcing.'
+                }
+              ]
+            }
+          }
+        }
+      })
+    );
+
+    assert.match(
+      context.publicFacts.find(fact => fact.id === 'source_snapshot.email_writing.company_background_summary')
+        ?.value ?? '',
+      /industrial customers/
+    );
+    assert.match(
+      context.publicFacts.find(fact => fact.id === 'source_snapshot.email_writing.product_fit_summary')?.value ?? '',
+      /bearing replacement/
+    );
+    assert.match(
+      context.publicFacts.find(fact => fact.id === 'source_snapshot.email_writing.recommended_first_email_angle')
+        ?.value ?? '',
+      /designation comparison/
+    );
+    assert.match(
+      context.publicFacts.find(fact => fact.id === 'source_snapshot.email_writing.evidence_items')?.value ?? '',
+      /company_background: Supplies industrial customers/
+    );
+    assert.equal(
+      context.publicFacts.some(fact => fact.value.includes('sales@abc.example') || fact.value.includes('wa.me')),
+      false
+    );
+  });
 });
 
 function createInput(overrides: Partial<CrmAiDraftPromptInput> = {}): CrmAiDraftPromptInput {

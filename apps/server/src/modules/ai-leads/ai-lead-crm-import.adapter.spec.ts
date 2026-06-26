@@ -43,6 +43,13 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
               contactLinks: ['https://abc.example/contact'],
               keywordHits: ['bearing'],
               evidenceSnippets: ['Bearing distributor'],
+              evidenceItems: [
+                {
+                  type: 'product',
+                  url: 'https://abc.example/products',
+                  text: 'Bearing distributor'
+                }
+              ],
               failureReason: null
             },
             precisionAnalysis: {
@@ -54,6 +61,25 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
               risks: [],
               recommendedAction: '优先开发',
               reviewRequired: false
+            },
+            emailWritingContext: {
+              companyBackgroundSummary: 'ABC Bearing is a local bearing distributor in Riyadh.',
+              industryChainPosition: '进口商和经销商',
+              mainProducts: ['bearings'],
+              servedIndustries: ['industrial maintenance'],
+              businessModel: 'Local distributor',
+              productFitSummary: 'Matches deep groove bearing distribution intent.',
+              recentBusinessTriggers: [],
+              recommendedFirstEmailAngle: 'Ask whether one bearing designation comparison is useful.',
+              negativeRelevanceSignals: [],
+              confidenceScore: 82,
+              evidenceItems: [
+                {
+                  type: 'product',
+                  url: 'https://abc.example/products',
+                  text: 'Bearing distributor'
+                }
+              ]
             }
           },
           { title: '  ', website: 'https://blank.example' },
@@ -96,22 +122,48 @@ describe('mapAiLeadTaskResultToCrmImportInputs', () => {
             whatsappLinks: [],
             mapLinks: [],
             contactLinks: ['https://abc.example/contact'],
-            keywordHits: ['bearing'],
-            evidenceSnippets: ['Bearing distributor'],
-            failureReason: null
-          },
-          precisionAnalysis: {
+              keywordHits: ['bearing'],
+              evidenceSnippets: ['Bearing distributor'],
+              evidenceItems: [
+                {
+                  type: 'product',
+                  url: 'https://abc.example/products',
+                  text: 'Bearing distributor'
+                }
+              ],
+              failureReason: null
+            },
+            precisionAnalysis: {
             score: 82,
             priority: 'high',
             buyerType: 'bearing distributor',
             reason: 'Matches bearing supplier intent',
             matchedSignals: ['bearing'],
-            risks: [],
-            recommendedAction: '优先开发',
-            reviewRequired: false
-          },
-          productLine: productLineSnapshot
-        }
+              risks: [],
+              recommendedAction: '优先开发',
+              reviewRequired: false
+            },
+            emailWritingContext: {
+              companyBackgroundSummary: 'ABC Bearing is a local bearing distributor in Riyadh.',
+              industryChainPosition: '进口商和经销商',
+              mainProducts: ['bearings'],
+              servedIndustries: ['industrial maintenance'],
+              businessModel: 'Local distributor',
+              productFitSummary: 'Matches deep groove bearing distribution intent.',
+              recentBusinessTriggers: [],
+              recommendedFirstEmailAngle: 'Ask whether one bearing designation comparison is useful.',
+              negativeRelevanceSignals: [],
+              confidenceScore: 82,
+              evidenceItems: [
+                {
+                  type: 'product',
+                  url: 'https://abc.example/products',
+                  text: 'Bearing distributor'
+                }
+              ]
+            },
+            productLine: productLineSnapshot
+          }
       },
       {
         name: 'XYZ Trading',

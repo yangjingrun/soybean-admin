@@ -48,8 +48,49 @@ describe('ai lead website crawler extractor', () => {
     assert.equal(page.title, 'Bearing Example');
     assert.equal(page.description, 'Elevator traction machine bearing supplier');
     assert.match(page.evidenceSnippets.join(' '), /traction machine bearings/);
+    assert.ok(page.evidenceItems.some(item => item.type === 'product' && /traction machine bearings/.test(item.text)));
+    assert.ok(page.evidenceItems.every(item => item.url === 'https://bearing.example.com/contact'));
     assert.deepEqual(page.negativeKeywordHits, []);
     assert.deepEqual(page.negativeEvidenceSnippets, []);
+  });
+
+  it('extracts structured writing evidence from about, products, services, and news pages', () => {
+    const pages = [
+      extractWebsitePageEvidence({
+        url: 'https://abc.example.com/about',
+        loadedUrl: 'https://abc.example.com/about',
+        statusCode: 200,
+        html: '<title>About ABC</title><body>ABC Bearings is a family-owned industrial distributor serving elevator maintenance companies since 2008.</body>'
+      }),
+      extractWebsitePageEvidence({
+        url: 'https://abc.example.com/products',
+        loadedUrl: 'https://abc.example.com/products',
+        statusCode: 200,
+        html: '<body>Products include elevator traction machine bearings, guide rail rollers and spare parts.</body>'
+      }),
+      extractWebsitePageEvidence({
+        url: 'https://abc.example.com/services',
+        loadedUrl: 'https://abc.example.com/services',
+        statusCode: 200,
+        html: '<body>We support MRO replacement sourcing, maintenance teams and local repair workshops.</body>'
+      }),
+      extractWebsitePageEvidence({
+        url: 'https://abc.example.com/news',
+        loadedUrl: 'https://abc.example.com/news',
+        statusCode: 200,
+        html: '<body>News: ABC opened a new warehouse and expanded same-day delivery for industrial customers.</body>'
+      })
+    ];
+    const evidence = mergeWebsitePageEvidence(pages);
+    const evidenceItems = evidence.evidenceItems ?? [];
+
+    assert.ok(evidenceItems.some(item => item.type === 'company_background' && /family-owned/.test(item.text)));
+    assert.ok(evidenceItems.some(item => item.type === 'product' && /traction machine bearings/.test(item.text)));
+    assert.ok(evidenceItems.some(item => item.type === 'application' && /maintenance teams/.test(item.text)));
+    assert.ok(evidenceItems.some(item => item.type === 'recent_activity' && /new warehouse/.test(item.text)));
+    assert.ok(evidenceItems.every(item => item.url.startsWith('https://abc.example.com/')));
+    assert.ok(evidenceItems.every(item => item.text.length <= 260));
+    assert.equal(evidenceItems.length <= 24, true);
   });
 
   it('extracts official China address and country signals from website footer text', () => {
@@ -153,6 +194,13 @@ describe('ai lead website crawler extractor', () => {
         contactLinks: ['https://bearing.example.com/contact'],
         keywordHits: ['bearing', 'elevator'],
         evidenceSnippets: ['Bearing supplier for elevator projects'],
+        evidenceItems: [
+          {
+            type: 'product',
+            url: 'https://bearing.example.com',
+            text: 'Bearing supplier for elevator projects'
+          }
+        ],
         companyAddressEvidence: [],
         companyCountrySignals: [],
         negativeKeywordHits: [],
@@ -172,6 +220,18 @@ describe('ai lead website crawler extractor', () => {
         contactLinks: ['https://bearing.example.com/contact'],
         keywordHits: ['bearing', 'traction'],
         evidenceSnippets: ['Traction machine bearing stock'],
+        evidenceItems: [
+          {
+            type: 'product',
+            url: 'https://bearing.example.com/contact',
+            text: 'Traction machine bearing stock'
+          },
+          {
+            type: 'negative_relevance',
+            url: 'https://bearing.example.com/contact',
+            text: 'School maintenance team only'
+          }
+        ],
         companyAddressEvidence: ['Address: 10 Bearing Street, Istanbul, Turkey'],
         companyCountrySignals: ['土耳其'],
         negativeKeywordHits: ['school'],
@@ -193,6 +253,23 @@ describe('ai lead website crawler extractor', () => {
       contactLinks: ['https://bearing.example.com/contact'],
       keywordHits: ['bearing', 'elevator', 'traction'],
       evidenceSnippets: ['Bearing supplier for elevator projects', 'Traction machine bearing stock'],
+      evidenceItems: [
+        {
+          type: 'product',
+          url: 'https://bearing.example.com',
+          text: 'Bearing supplier for elevator projects'
+        },
+        {
+          type: 'product',
+          url: 'https://bearing.example.com/contact',
+          text: 'Traction machine bearing stock'
+        },
+        {
+          type: 'negative_relevance',
+          url: 'https://bearing.example.com/contact',
+          text: 'School maintenance team only'
+        }
+      ],
       companyAddressEvidence: ['Address: 10 Bearing Street, Istanbul, Turkey'],
       companyCountrySignals: ['土耳其'],
       negativeKeywordHits: ['school'],

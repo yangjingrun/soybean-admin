@@ -1,5 +1,7 @@
 import type {
   AiLeadWebsiteEvidence,
+  AiLeadWebsiteEvidenceItem,
+  AiLeadWebsiteEvidenceItemType,
   AiLeadWebsiteEvidenceKeywordOptions,
   AiLeadWebsitePageEvidence
 } from './ai-lead-website-crawler.types';
@@ -37,6 +39,20 @@ const buyerSignalKeywords = [
 const whatsappPattern = /(?:wa\.me|whatsapp\.com)/i;
 const mapPattern = /(?:maps\.google|goo\.gl\/maps|google\.[^/]+\/maps)/i;
 const contactPathPattern = /(?:contact|about|iletisim|hakkimizda|support|sales|dealer|distributor|export)/i;
+const companyBackgroundPathPattern = /(?:^\/$|\/(?:about|about-us|company|hakkimizda)(?:\/?$|[/?#]))/i;
+const productPathPattern = /\/(?:products?|catalog|spare-parts?)(?:\/?$|[/?#])/i;
+const applicationPathPattern = /\/(?:services?|industries|solutions?|applications?)(?:\/?$|[/?#])/i;
+const brandPathPattern = /\/(?:brands?|partners?)(?:\/?$|[/?#])/i;
+const recentActivityPathPattern = /\/(?:news|blog|events?|projects?|cases?)(?:\/?$|[/?#])/i;
+const companyBackgroundPattern =
+  /(?:company|about|founded|established|since|family-owned|headquartered|located|serving|speciali[sz]es|distributor|dealer|stockist|supplier)/i;
+const applicationSignalPattern =
+  /(?:application|industr(?:y|ies)|sector|market|maintenance|repair|mro|project|workshop|service|customers?|teams?)/i;
+const brandSignalPattern = /(?:brand|authorized|authorised|dealer|partner|distributor|代理|授权)/i;
+const recentActivitySignalPattern =
+  /(?:news|opened|expanded|new warehouse|launch|launched|exhibition|trade show|project|recent|latest|hiring|新增|扩建|展会)/i;
+const purchaseSignalPattern =
+  /(?:importer|import|stockist|wholesaler|distributor|dealer|procurement|sourcing|purchasing|spare parts|replacement|mro|库存|采购)/i;
 const addressLabelPattern =
   /(?:address|office|head\s*office|registered\s*office|地址|公司地址|联系地址|办公地址|总部|所在地|العنوان|عنوان|المكتب|مقر|contact\s*us)/i;
 const chinaAddressLocationPattern =
@@ -77,6 +93,8 @@ const companyCountrySignalRules = [
     phonePattern: /\+90[\s().-]*/
   }
 ];
+const maxPageEvidenceItems = 8;
+const maxMergedEvidenceItems = 24;
 
 interface ExtractWebsitePageEvidenceInput {
   url: string;
@@ -97,6 +115,9 @@ export function extractWebsitePageEvidence(
   const combined = normalizeText(`${title} ${description} ${text} ${links.join(' ')}`);
   const targetKeywords = resolveTargetKeywords(options);
   const negativeKeywords = resolveNegativeKeywords(options);
+  const evidenceSnippets = unique(extractEvidenceSnippets(text, targetKeywords), 6);
+  const companyAddressEvidence = extractCompanyAddressEvidence(text);
+  const negativeEvidenceSnippets = unique(extractEvidenceSnippets(text, negativeKeywords), 6);
 
   return {
     url: input.url,
@@ -113,11 +134,21 @@ export function extractWebsitePageEvidence(
       links.filter(link => sameHost(input.loadedUrl || input.url, link) && contactPathPattern.test(link))
     ),
     keywordHits: targetKeywords.filter(keyword => matchesKeyword(combined, keyword)),
-    evidenceSnippets: unique(extractEvidenceSnippets(text, targetKeywords), 6),
-    companyAddressEvidence: extractCompanyAddressEvidence(text),
+    evidenceSnippets,
+    evidenceItems: extractStructuredEvidenceItems({
+      sourceUrl: input.loadedUrl || input.url,
+      title,
+      description,
+      text,
+      targetKeywords,
+      evidenceSnippets,
+      companyAddressEvidence,
+      negativeEvidenceSnippets
+    }),
+    companyAddressEvidence,
     companyCountrySignals: extractCompanyCountrySignals(combined),
     negativeKeywordHits: negativeKeywords.filter(keyword => matchesKeyword(combined, keyword)),
-    negativeEvidenceSnippets: unique(extractEvidenceSnippets(text, negativeKeywords), 6)
+    negativeEvidenceSnippets
   };
 }
 
@@ -163,6 +194,10 @@ export function mergeWebsitePageEvidence(pages: AiLeadWebsitePageEvidence[]): Ai
       pages.flatMap(page => page.evidenceSnippets),
       8
     ),
+    evidenceItems: uniqueEvidenceItems(
+      pages.flatMap(page => page.evidenceItems ?? []),
+      maxMergedEvidenceItems
+    ),
     companyAddressEvidence: unique(
       pages.flatMap(page => page.companyAddressEvidence),
       8
@@ -203,12 +238,117 @@ function createEmptyWebsiteEvidence(crawlStatus: 'failed' | 'skipped', reason: s
     contactLinks: [],
     keywordHits: [],
     evidenceSnippets: [],
+    evidenceItems: [],
     companyAddressEvidence: [],
     companyCountrySignals: [],
     negativeKeywordHits: [],
     negativeEvidenceSnippets: [],
     failureReason: reason
   };
+}
+
+interface ExtractStructuredEvidenceItemsInput {
+  sourceUrl: string;
+  title: string;
+  description: string;
+  text: string;
+  targetKeywords: string[];
+  evidenceSnippets: string[];
+  companyAddressEvidence: string[];
+  negativeEvidenceSnippets: string[];
+}
+
+function extractStructuredEvidenceItems(input: ExtractStructuredEvidenceItemsInput) {
+  const pageText = normalizeText([input.title, input.description, input.text].filter(Boolean).join('. '));
+  const path = readUrlPath(input.sourceUrl);
+  const items: AiLeadWebsiteEvidenceItem[] = [];
+
+  if (companyBackgroundPathPattern.test(path)) {
+    addEvidenceItem(items, 'company_background', input.sourceUrl, findCompanyBackgroundEvidence(pageText));
+  }
+
+  if (productPathPattern.test(path) || input.evidenceSnippets.length > 0) {
+    addEvidenceItem(items, 'product', input.sourceUrl, input.evidenceSnippets[0] || findKeywordEvidence(pageText, input.targetKeywords));
+  }
+
+  if (applicationPathPattern.test(path) || applicationSignalPattern.test(pageText)) {
+    addEvidenceItem(items, 'application', input.sourceUrl, findEvidenceSentence(pageText, applicationSignalPattern));
+  }
+
+  if (brandPathPattern.test(path) || brandSignalPattern.test(pageText)) {
+    addEvidenceItem(items, 'brand', input.sourceUrl, findEvidenceSentence(pageText, brandSignalPattern));
+  }
+
+  if (recentActivityPathPattern.test(path) || recentActivitySignalPattern.test(pageText)) {
+    addEvidenceItem(items, 'recent_activity', input.sourceUrl, findEvidenceSentence(pageText, recentActivitySignalPattern));
+  }
+
+  if (purchaseSignalPattern.test(pageText)) {
+    addEvidenceItem(items, 'purchase_signal', input.sourceUrl, findEvidenceSentence(pageText, purchaseSignalPattern));
+  }
+
+  for (const address of input.companyAddressEvidence.slice(0, 2)) {
+    addEvidenceItem(items, 'address', input.sourceUrl, address);
+  }
+
+  for (const snippet of input.negativeEvidenceSnippets.slice(0, 2)) {
+    addEvidenceItem(items, 'negative_relevance', input.sourceUrl, snippet);
+  }
+
+  return uniqueEvidenceItems(items, maxPageEvidenceItems);
+}
+
+function addEvidenceItem(
+  items: AiLeadWebsiteEvidenceItem[],
+  type: AiLeadWebsiteEvidenceItemType,
+  url: string,
+  text: string
+) {
+  const normalizedText = trimStructuredEvidenceText(text);
+  if (!normalizedText) return;
+
+  items.push({
+    type,
+    url,
+    text: normalizedText
+  });
+}
+
+function readUrlPath(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`.toLowerCase();
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+function findKeywordEvidence(text: string, keywords: string[]) {
+  return keywords
+    .map(keyword => text.match(new RegExp(`.{0,90}${toKeywordPattern(keyword)}.{0,120}`, 'i'))?.[0] ?? '')
+    .map(normalizeText)
+    .find(Boolean) ?? '';
+}
+
+function findCompanyBackgroundEvidence(text: string) {
+  const chunks = splitEvidenceChunks(text);
+  const substantialMatch = chunks.find(chunk => chunk.length >= 40 && companyBackgroundPattern.test(chunk));
+
+  return substantialMatch || chunks.find(chunk => companyBackgroundPattern.test(chunk)) || chunks[0] || '';
+}
+
+function findEvidenceSentence(text: string, pattern: RegExp) {
+  const chunks = splitEvidenceChunks(text);
+  const matched = chunks.find(chunk => pattern.test(chunk));
+
+  return matched || chunks[0] || '';
+}
+
+function splitEvidenceChunks(text: string) {
+  return text
+    .split(/(?<=[。.!?؛;])\s+|\s{2,}/)
+    .map(normalizeText)
+    .filter(Boolean);
 }
 
 function extractLinks(html: string, baseUrl: string) {
@@ -371,6 +511,12 @@ function trimEvidenceChunk(value: string) {
   return normalized.length > 220 ? `${normalized.slice(0, 220)}...` : normalized;
 }
 
+function trimStructuredEvidenceText(value: string) {
+  const normalized = normalizeText(value);
+
+  return normalized.length > 260 ? `${normalized.slice(0, 257)}...` : normalized;
+}
+
 function decodeHtml(value: string) {
   return value
     .replace(/&amp;/g, '&')
@@ -394,6 +540,31 @@ function unique(values: string[], limit = 12) {
 
     seen.add(key);
     output.push(normalized);
+
+    if (output.length >= limit) {
+      break;
+    }
+  }
+
+  return output;
+}
+
+function uniqueEvidenceItems(values: AiLeadWebsiteEvidenceItem[], limit: number) {
+  const seen = new Set<string>();
+  const output: AiLeadWebsiteEvidenceItem[] = [];
+
+  for (const value of values) {
+    const type = value.type;
+    const url = normalizeText(value.url);
+    const text = trimStructuredEvidenceText(value.text);
+    const key = `${type}|${url.toLowerCase()}|${text.toLowerCase()}`;
+
+    if (!type || !url || !text || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push({ type, url, text });
 
     if (output.length >= limit) {
       break;

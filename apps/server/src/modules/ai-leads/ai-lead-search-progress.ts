@@ -30,6 +30,7 @@ export interface LeadSearchCandidateView {
   reason?: string;
   websiteEvidence?: unknown;
   precisionAnalysis?: unknown;
+  emailWritingContext?: unknown;
 }
 
 export interface LeadSearchSerperResultView {
@@ -97,6 +98,7 @@ interface InternalCandidateSummary {
   reason?: string;
   websiteEvidence?: unknown;
   precisionAnalysis?: unknown;
+  emailWritingContext?: unknown;
 }
 
 /** Adds run metadata and monotonic sequence numbers to business progress events. */
@@ -157,7 +159,8 @@ function toCandidateView(candidate: InternalCandidateSummary): LeadSearchCandida
     score: candidate.score,
     reason: candidate.reason,
     websiteEvidence: candidate.websiteEvidence,
-    precisionAnalysis: candidate.precisionAnalysis
+    precisionAnalysis: candidate.precisionAnalysis,
+    emailWritingContext: candidate.emailWritingContext
   };
 }
 
