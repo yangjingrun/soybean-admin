@@ -255,6 +255,63 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
   });
 
+  it('keeps collection going when AI precision output is not valid JSON', async () => {
+    const aiGateway = createAiGateway([
+      { text: '{"candidates":[{"dedupeKey":"https://abc.example.com","reason":"bad "quote"}]}' }
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const result = await service.analyzeCandidates(
+      {
+        requirement: '找轴承客户',
+        keywordPlan: {
+          productLineSnapshot: {
+            id: 'line-1',
+            name: 'Bearing',
+            targetCustomerType: 'Distributor'
+          }
+        },
+        candidates: [
+          {
+            dedupeKey: 'https://abc.example.com',
+            sourceType: 'organic',
+            title: 'ABC Bearing',
+            website: 'https://abc.example.com',
+            snippet: 'bearing distributor',
+            websiteEvidence: {
+              crawlStatus: 'completed',
+              pageCount: 1,
+              emails: [],
+              phones: [],
+              socialLinks: [],
+              whatsappLinks: [],
+              mapLinks: [],
+              contactLinks: [],
+              keywordHits: ['bearing'],
+              evidenceSnippets: ['bearing distributor'],
+              companyAddressEvidence: [],
+              companyCountrySignals: [],
+              negativeKeywordHits: [],
+              negativeEvidenceSnippets: [],
+              failureReason: null
+            }
+          } as AiLeadSearchCandidate
+        ]
+      },
+      {}
+    );
+
+    assert.equal(result[0].score, 60);
+    assert.equal(result[0].precisionAnalysis?.priority, 'medium');
+    assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
+    assert.equal(result[0].reason, '模型返回的精准度 JSON 无法解析，需人工复核');
+    assert.deepEqual(result[0].precisionAnalysis?.risks, ['模型返回的精准度 JSON 无法解析，需人工复核']);
+    assert.equal(
+      result[0].emailWritingContext?.negativeRelevanceSignals[0],
+      '模型返回的精准度 JSON 无法解析，需人工复核'
+    );
+  });
+
   it('analyzes candidates in batches of three and merges results in original order', async () => {
     const aiGateway = createAiGateway([
       { text: JSON.stringify({ candidates: createAnalysisOutputs(0, 3) }) },

@@ -120,8 +120,24 @@ export class AiLeadPrecisionAnalysisService {
         },
         context
       );
+      const analysisOutput = readAnalysisOutputs(result.text);
 
-      for (const item of readAnalysisOutputs(result.text)) {
+      for (const candidate of candidateBatch) {
+        if (analysisOutput.parseErrorMessage) {
+          const analysis = createDefaultAnalysis(candidate, analysisOutput.parseErrorMessage);
+
+          outputByKey.set(normalizeString(candidate.dedupeKey), {
+            analysis,
+            emailWritingContext: buildFallbackAiLeadEmailWritingContext({
+              candidate,
+              precisionAnalysis: analysis,
+              productLineSnapshot: normalizeAiLeadProductLineSnapshot(input.keywordPlan.productLineSnapshot)
+            })
+          });
+        }
+      }
+
+      for (const item of analysisOutput.items) {
         outputByKey.set(normalizeString(item.dedupeKey), {
           analysis: toPrecisionAnalysis(item),
           emailWritingContext: normalizeAiLeadEmailWritingContext(item.emailWritingContext)
@@ -431,14 +447,28 @@ function buildChinaSupplierAnalysisGuidance() {
   };
 }
 
-function readAnalysisOutputs(text: string): AiLeadPrecisionCandidateOutput[] {
-  const parsed = JSON.parse(text) as { candidates?: unknown };
+/**
+ * 读取精准度模型输出；单批输出异常时降级为人工复核，避免整批采集任务失败。
+ */
+function readAnalysisOutputs(text: string): { items: AiLeadPrecisionCandidateOutput[]; parseErrorMessage?: string } {
+  let parsed: { candidates?: unknown };
 
-  if (!Array.isArray(parsed.candidates)) {
-    return [];
+  try {
+    parsed = JSON.parse(text) as { candidates?: unknown };
+  } catch {
+    return {
+      items: [],
+      parseErrorMessage: '模型返回的精准度 JSON 无法解析，需人工复核'
+    };
   }
 
-  return parsed.candidates.filter(item => item && typeof item === 'object') as AiLeadPrecisionCandidateOutput[];
+  if (!Array.isArray(parsed.candidates)) {
+    return { items: [] };
+  }
+
+  return {
+    items: parsed.candidates.filter(item => item && typeof item === 'object') as AiLeadPrecisionCandidateOutput[]
+  };
 }
 
 function toPrecisionAnalysis(output: AiLeadPrecisionCandidateOutput): AiLeadPrecisionAnalysis {
@@ -457,7 +487,7 @@ function toPrecisionAnalysis(output: AiLeadPrecisionCandidateOutput): AiLeadPrec
   };
 }
 
-function createDefaultAnalysis(candidate: AiLeadWebsiteEnrichedCandidate): AiLeadPrecisionAnalysis {
+function createDefaultAnalysis(candidate: AiLeadWebsiteEnrichedCandidate, reason?: string): AiLeadPrecisionAnalysis {
   const crawlFailed = candidate.websiteEvidence?.crawlStatus !== 'completed';
 
   return {
@@ -467,9 +497,9 @@ function createDefaultAnalysis(candidate: AiLeadWebsiteEnrichedCandidate): AiLea
     customerGroup: '',
     companyCountry: '',
     targetMarketFit: 'uncertain',
-    reason: crawlFailed ? '官网证据抓取失败，需人工复核' : '模型未返回该客户分析结果',
+    reason: reason || (crawlFailed ? '官网证据抓取失败，需人工复核' : '模型未返回该客户分析结果'),
     matchedSignals: candidate.websiteEvidence?.keywordHits ?? [],
-    risks: crawlFailed ? [candidate.websiteEvidence?.failureReason || '官网证据不足'] : ['模型未返回分析结果'],
+    risks: reason ? [reason] : crawlFailed ? [candidate.websiteEvidence?.failureReason || '官网证据不足'] : ['模型未返回分析结果'],
     recommendedAction: '人工复核后再开发',
     reviewRequired: true
   };
