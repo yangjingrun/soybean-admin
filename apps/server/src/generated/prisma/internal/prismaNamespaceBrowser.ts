@@ -98,7 +98,8 @@ export const ModelName = {
   AiLeadSearchTaskQuery: 'AiLeadSearchTaskQuery',
   AiLeadSearchTaskEvent: 'AiLeadSearchTaskEvent',
   SystemNotification: 'SystemNotification',
-  AiLeadQueueConfig: 'AiLeadQueueConfig'
+  AiLeadQueueConfig: 'AiLeadQueueConfig',
+  AiLeadDirectorySourceRule: 'AiLeadDirectorySourceRule'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1049,6 +1050,24 @@ export const AiLeadQueueConfigScalarFieldEnum = {
 } as const
 
 export type AiLeadQueueConfigScalarFieldEnum = (typeof AiLeadQueueConfigScalarFieldEnum)[keyof typeof AiLeadQueueConfigScalarFieldEnum]
+
+
+export const AiLeadDirectorySourceRuleScalarFieldEnum = {
+  id: 'id',
+  value: 'value',
+  matchMode: 'matchMode',
+  enabled: 'enabled',
+  builtin: 'builtin',
+  description: 'description',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AiLeadDirectorySourceRuleScalarFieldEnum = (typeof AiLeadDirectorySourceRuleScalarFieldEnum)[keyof typeof AiLeadDirectorySourceRuleScalarFieldEnum]
 
 
 export const SortOrder = {

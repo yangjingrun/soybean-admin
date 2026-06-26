@@ -17,3 +17,15 @@ export function parseDirectorySourceRuleValues(value: string) {
 
   return output;
 }
+
+/** 从请求结果里读取黄页过滤规则列表。 */
+export function readDirectorySourceRuleRecords(value: {
+  data?: Api.AiLeads.DirectorySourceRuleListResult | null;
+  error?: unknown;
+}) {
+  if (value.error || !value.data || !Array.isArray(value.data.records)) {
+    return null;
+  }
+
+  return value.data.records;
+}

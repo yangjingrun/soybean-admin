@@ -431,7 +431,8 @@ export const ModelName = {
   AiLeadSearchTaskQuery: 'AiLeadSearchTaskQuery',
   AiLeadSearchTaskEvent: 'AiLeadSearchTaskEvent',
   SystemNotification: 'SystemNotification',
-  AiLeadQueueConfig: 'AiLeadQueueConfig'
+  AiLeadQueueConfig: 'AiLeadQueueConfig',
+  AiLeadDirectorySourceRule: 'AiLeadDirectorySourceRule'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -447,7 +448,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmGeoCityName" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmLeadEnrichmentHistory" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmEmailOpenEvent" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiPromptVersion" | "aiPromptTestRun" | "aiModelConfig" | "aiUserModelConfig" | "aiUserSerperConfig" | "aiUserHunterConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig"
+    modelProps: "systemLog" | "systemUser" | "systemRole" | "authSession" | "organization" | "crmAccount" | "crmGeoCityName" | "crmContact" | "crmEmailVerificationCache" | "crmGlobalConfig" | "crmUserSendPreference" | "crmOrganizationConfig" | "crmBlacklist" | "crmArchivedFingerprint" | "crmLeadEnrichmentHistory" | "crmTimelineEvent" | "crmMailbox" | "crmMailboxSendUsage" | "crmProductLine" | "crmProductLineAiPromptVersion" | "crmPersonaProfile" | "crmEmailTemplateGroup" | "crmEmailTemplateStep" | "crmSequencePolicy" | "crmSequenceEnrollment" | "crmMessage" | "crmEmailOpenEvent" | "crmMessageDraftVersion" | "crmInboxThread" | "crmInboxMessage" | "crmAiDraftTask" | "crmAiDraftTaskItem" | "crmAiDraftQueueConfig" | "aiPromptConfig" | "aiPromptVersion" | "aiPromptTestRun" | "aiModelConfig" | "aiUserModelConfig" | "aiUserSerperConfig" | "aiUserHunterConfig" | "serperConfig" | "hunterConfig" | "aiLeadKeywordHistory" | "aiLeadSearchTask" | "aiLeadSearchTaskQuery" | "aiLeadSearchTaskEvent" | "systemNotification" | "aiLeadQueueConfig" | "aiLeadDirectorySourceRule"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4003,6 +4004,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AiLeadDirectorySourceRule: {
+      payload: Prisma.$AiLeadDirectorySourceRulePayload<ExtArgs>
+      fields: Prisma.AiLeadDirectorySourceRuleFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AiLeadDirectorySourceRuleFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AiLeadDirectorySourceRuleFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>
+        }
+        findFirst: {
+          args: Prisma.AiLeadDirectorySourceRuleFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AiLeadDirectorySourceRuleFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>
+        }
+        findMany: {
+          args: Prisma.AiLeadDirectorySourceRuleFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>[]
+        }
+        create: {
+          args: Prisma.AiLeadDirectorySourceRuleCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>
+        }
+        createMany: {
+          args: Prisma.AiLeadDirectorySourceRuleCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AiLeadDirectorySourceRuleCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>[]
+        }
+        delete: {
+          args: Prisma.AiLeadDirectorySourceRuleDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>
+        }
+        update: {
+          args: Prisma.AiLeadDirectorySourceRuleUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>
+        }
+        deleteMany: {
+          args: Prisma.AiLeadDirectorySourceRuleDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AiLeadDirectorySourceRuleUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AiLeadDirectorySourceRuleUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>[]
+        }
+        upsert: {
+          args: Prisma.AiLeadDirectorySourceRuleUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AiLeadDirectorySourceRulePayload>
+        }
+        aggregate: {
+          args: Prisma.AiLeadDirectorySourceRuleAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAiLeadDirectorySourceRule>
+        }
+        groupBy: {
+          args: Prisma.AiLeadDirectorySourceRuleGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiLeadDirectorySourceRuleGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AiLeadDirectorySourceRuleCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AiLeadDirectorySourceRuleCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4976,6 +5051,24 @@ export const AiLeadQueueConfigScalarFieldEnum = {
 export type AiLeadQueueConfigScalarFieldEnum = (typeof AiLeadQueueConfigScalarFieldEnum)[keyof typeof AiLeadQueueConfigScalarFieldEnum]
 
 
+export const AiLeadDirectorySourceRuleScalarFieldEnum = {
+  id: 'id',
+  value: 'value',
+  matchMode: 'matchMode',
+  enabled: 'enabled',
+  builtin: 'builtin',
+  description: 'description',
+  createdById: 'createdById',
+  createdByName: 'createdByName',
+  updatedById: 'updatedById',
+  updatedByName: 'updatedByName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AiLeadDirectorySourceRuleScalarFieldEnum = (typeof AiLeadDirectorySourceRuleScalarFieldEnum)[keyof typeof AiLeadDirectorySourceRuleScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -5348,6 +5441,7 @@ export type GlobalOmitConfig = {
   aiLeadSearchTaskEvent?: Prisma.AiLeadSearchTaskEventOmit
   systemNotification?: Prisma.SystemNotificationOmit
   aiLeadQueueConfig?: Prisma.AiLeadQueueConfigOmit
+  aiLeadDirectorySourceRule?: Prisma.AiLeadDirectorySourceRuleOmit
 }
 
 /* Types for Logging */

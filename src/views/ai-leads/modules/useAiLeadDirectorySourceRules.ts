@@ -6,7 +6,7 @@ import {
   fetchLeadDirectorySourceRules,
   updateLeadDirectorySourceRule
 } from '@/service/api';
-import { parseDirectorySourceRuleValues } from './directory-source-rules';
+import { parseDirectorySourceRuleValues, readDirectorySourceRuleRecords } from './directory-source-rules';
 
 interface RuleFormModel {
   value: string;
@@ -44,8 +44,10 @@ export function useAiLeadDirectorySourceRules() {
 
     try {
       const result = await fetchLeadDirectorySourceRules();
-      if (hasDirectorySourceRuleRecords(result)) {
-        records.value = result.records;
+      const nextRecords = readDirectorySourceRuleRecords(result);
+
+      if (nextRecords) {
+        records.value = nextRecords;
       }
     } finally {
       isLoading.value = false;
@@ -147,8 +149,4 @@ function toPayload(form: RuleFormModel, value = form.value): Api.AiLeads.SaveDir
     enabled: form.enabled,
     description: form.description || null
   };
-}
-
-function hasDirectorySourceRuleRecords(value: unknown): value is Api.AiLeads.DirectorySourceRuleListResult {
-  return Boolean(value && typeof value === 'object' && Array.isArray((value as { records?: unknown }).records));
 }

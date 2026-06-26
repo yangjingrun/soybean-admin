@@ -279,3 +279,8 @@ export type SystemNotification = Prisma.SystemNotificationModel
  * 
  */
 export type AiLeadQueueConfig = Prisma.AiLeadQueueConfigModel
+/**
+ * Model AiLeadDirectorySourceRule
+ * 
+ */
+export type AiLeadDirectorySourceRule = Prisma.AiLeadDirectorySourceRuleModel
