@@ -130,6 +130,7 @@ function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
   return JSON.stringify({
     instruction:
       '你是外贸获客质检助手。只根据 Serper 候选信息、CRM 产品线基准、用户结构化获客条件 leadContextSnapshot 和官网抓取证据判断客户精准度，不要编造事实。输出严格 JSON。必须先判断客户群体、官网归属地、目标市场匹配度、产品线匹配度；产品线是固定参照，用户输入只是本次搜索条件。若 leadContextSnapshot.exclusionRules 存在用户勾选的排除类型，必须逐条检查候选官网证据；命中排除规则时要在 risks 写明命中的排除类型和证据，严重命中时 priority=reject。若官网地址、页脚、联系页、电话或官网证据明确显示中国公司，而用户目标是海外/非中国客户，或用户排除类型包含中国供应商/出口商，必须标为 outside_target、priority=reject、score<=30，并说明官网证据。注意：China brands、made in China、manufacturer in China、Chinese brand 这类产品来源/品牌来源描述不是公司归属中国的充分证据；只有公司地址、页脚、Contact、电话 +86、工商主体或多语言地址块明确指向中国时，才按中国公司处理。若无归属地冲突但官网当前产品页、标题、描述、URL 或页面片段明确命中产品线或目标产品，不要直接 reject，应至少给 low 并标记 reviewRequired。',
+    analysisGuidance: buildLeadMatchAnalyzeGuidance(leadContextSnapshot),
     outputContract: {
       candidates: [
         {
@@ -169,6 +170,58 @@ function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
       websiteEvidence: candidate.websiteEvidence
     }))
   });
+}
+
+/** 按用户本次勾选的排除类型，给 lead_match_analyze 注入更细的网站主体判定规则。 */
+function buildLeadMatchAnalyzeGuidance(leadContextSnapshot: ReturnType<typeof normalizeAiLeadKeywordContextSnapshot>) {
+  const exclusionKeys = new Set((leadContextSnapshot?.exclusionRules ?? []).map(rule => rule.key));
+
+  return {
+    websiteAnalysisFlow: [
+      '先判断页面类型：公司官网、工厂官网、经销商官网、目录页、平台店铺、产品推广页、SEO 采集页或信息不足。',
+      '再提取公司主体、国家/城市、地址、电话、邮箱、社媒、About/Contact/Products/Footer 等公开证据。',
+      '然后判断 B2B 角色：供应商/工厂/出口商/品牌方，还是进口商/经销商/批发商/库存商/维修商/承包商/终端买家。',
+      '证据不足时必须输出 reviewRequired=true，不能为了满足排除类型而编造公司归属地。'
+    ],
+    selectedExclusionGuidance: exclusionKeys.has('china_supplier') ? [buildChinaSupplierAnalysisGuidance()] : []
+  };
+}
+
+/** 中国供应商排除来自用户勾选，强制使用证据分级，避免把产品来源误判为公司归属。 */
+function buildChinaSupplierAnalysisGuidance() {
+  return {
+    key: 'china_supplier',
+    title: '中国供应商排除融合规则',
+    goal: '当用户勾选中国供应商/出口商排除时，只排除公司主体明确在中国大陆的供应商、工厂、出口商或中国平台店铺。',
+    strongEvidence: [
+      '官网 Contact/About/footer/公司地址/注册地址/工厂地址/仓库地址明确在中国大陆或中国省市。',
+      '官网联系电话为 +86，或主要联系方式为微信/QQ 且与公司主体绑定。',
+      'ICP 备案、中国大陆法律主体、中国银行账户、中国发货港口与该公司主体强绑定。',
+      'Alibaba、Made-in-China 等平台店铺主体明确是中国供应商/工厂/出口商。'
+    ],
+    mediumEvidence: [
+      '邮箱为 qq、163、126、foxmail、aliyun 等中国常见邮箱，但没有地址或电话证据。',
+      '页面提到 China factory、China warehouse、中国团队、中国员工，但主体地址不清楚。',
+      '英文表达像中国外贸站，只能作为风格线索，不能单独定性。'
+    ],
+    insufficientSignals: [
+      'Made in China、China brands、Chinese products、import from China 只说明产品或供应链来源，不等于网站主体在中国。',
+      'Importer from China、sourcing from China 往往更像海外买家或经销商，不应按中国供应商排除。',
+      '多国家网络、全球分支、亚洲区运营说明里出现 China，不能单独证明当前候选公司归属中国。',
+      '中文名、亚洲头像、WhatsApp、销售中国品牌，都不能单独作为中国公司证据。'
+    ],
+    decisionPolicy: [
+      '命中强证据：priority=reject，targetMarketFit=outside_target，score<=30，companyCountry=中国，customerGroup 写中国供应商/非目标海外客户，并在 matchedSignals 引用证据。',
+      '只有中等或弱证据：不要强制 reject；写入 risks，targetMarketFit=uncertain，reviewRequired=true。',
+      '如果官网同时有目标产品强证据但公司归属不清楚：至少保留 low 并人工复核，不要直接剔除。',
+      '如果判断为目录页、平台页或 SEO 采集页：按 marketplace_listing/no_official_website 逻辑处理，不要把目录页国家当客户国家。'
+    ],
+    outputRequirements: [
+      'reason 必须引用具体官网证据，不能只写疑似中国供应商。',
+      'matchedSignals 放强证据原文；risks 放弱证据或反向证据。',
+      '证据不足时 companyCountry 为空字符串或保留模型已知国家，不要臆造中国。'
+    ]
+  };
 }
 
 function readAnalysisOutputs(text: string): AiLeadPrecisionCandidateOutput[] {

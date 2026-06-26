@@ -119,6 +119,24 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.match(aiGateway.calls[0].prompt, /China brands、made in China、manufacturer in China/);
     assert.match(aiGateway.calls[0].prompt, /纯 B2C 零售站/);
     assert.match(aiGateway.calls[0].prompt, /sales@abc\.example\.com/);
+
+    const promptPayload = JSON.parse(aiGateway.calls[0].prompt) as {
+      analysisGuidance?: {
+        selectedExclusionGuidance?: Array<{
+          key?: string;
+          insufficientSignals?: string[];
+          decisionPolicy?: string[];
+        }>;
+      };
+    };
+    const chinaGuidance = promptPayload.analysisGuidance?.selectedExclusionGuidance?.find(
+      guidance => guidance.key === 'china_supplier'
+    );
+
+    assert.ok(chinaGuidance);
+    assert.match(chinaGuidance.insufficientSignals?.join('\n') ?? '', /Made in China/);
+    assert.match(chinaGuidance.insufficientSignals?.join('\n') ?? '', /Importer from China/);
+    assert.match(chinaGuidance.decisionPolicy?.join('\n') ?? '', /priority=reject/);
     assert.equal(result[0].score, 88);
     assert.equal(result[0].reason, '官网展示 elevator bearing 和 contact 邮箱');
     assert.equal(result[0].precisionAnalysis?.priority, 'high');
