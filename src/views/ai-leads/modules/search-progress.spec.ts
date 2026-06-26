@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   canReturnToKeywordOptimizationStep,
-  createLeadSearchProgressStateFromTask,
   createLeadSearchProgressState,
+  createLeadSearchProgressStateFromTask,
+  formatLeadSearchElapsedMs,
+  getLeadSearchElapsedMs,
   getLeadSearchTaskActionState,
   getMetricDisplayText,
   isLeadSearchTaskPending,
@@ -181,6 +183,7 @@ describe('ai leads search progress state', () => {
     const state = createLeadSearchProgressStateFromTask(
       createTaskRecord({
         status: 'running',
+        startedAt: '2026-06-18T00:00:00.000Z',
         progressState: {
           type: 'step_progress',
           runId: 'run-1',
@@ -198,6 +201,35 @@ describe('ai leads search progress state', () => {
     assert.equal(state.currentTitle, '采集公开线索');
     assert.equal(state.steps[0].key, 'collect_public_leads');
     assert.equal(state.progressPercent, 35);
+    assert.equal(state.startedAt, '2026-06-18T00:00:00.000Z');
+  });
+
+  it('calculates running task elapsed time from backend start time', () => {
+    const state = createLeadSearchProgressStateFromTask(
+      createTaskRecord({
+        status: 'running',
+        startedAt: '2026-06-18T00:00:00.000Z'
+      })
+    );
+
+    assert.equal(getLeadSearchElapsedMs(state, new Date('2026-06-18T00:01:05.000Z').getTime()), 65_000);
+    assert.equal(
+      formatLeadSearchElapsedMs(getLeadSearchElapsedMs(state, new Date('2026-06-18T00:01:05.000Z').getTime())),
+      '1分5秒'
+    );
+  });
+
+  it('calculates completed task elapsed time from finished time', () => {
+    const state = createLeadSearchProgressStateFromTask(
+      createTaskRecord({
+        status: 'completed',
+        startedAt: '2026-06-18T00:00:00.000Z',
+        finishedAt: '2026-06-18T01:02:03.000Z'
+      })
+    );
+
+    assert.equal(getLeadSearchElapsedMs(state, new Date('2026-06-18T02:00:00.000Z').getTime()), 3_723_000);
+    assert.equal(formatLeadSearchElapsedMs(getLeadSearchElapsedMs(state)), '1小时2分3秒');
   });
 
   it('restores completed task result into public search summary', () => {

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, h } from 'vue';
+import { computed, h, onBeforeUnmount, onMounted, shallowRef } from 'vue';
 import { NProgress, NTag, NTooltip } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import { useRouterPush } from '@/hooks/common/router';
-import { getMetricDisplayText } from './search-progress';
+import { formatLeadSearchElapsedMs, getLeadSearchElapsedMs, getMetricDisplayText } from './search-progress';
 import type { LeadSearchProgressState } from './search-progress';
 import {
   buildAiLeadCandidateImportRows,
@@ -26,6 +26,8 @@ const emit = defineEmits<{
 }>();
 
 const { routerPushByKey } = useRouterPush();
+const nowMs = shallowRef(Date.now());
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
 const visibleErrorMessage = computed(() => (props.state.status === 'failed' ? '' : props.state.errorMessage));
 const errorConfigHint = computed(() => resolveConfigHintTarget(visibleErrorMessage.value));
@@ -65,6 +67,18 @@ const progressStatus = computed(() => {
 
   return undefined;
 });
+const elapsedText = computed(() => {
+  if (props.state.status === 'running') {
+    return formatLeadSearchElapsedMs(getLeadSearchElapsedMs(props.state, nowMs.value));
+  }
+
+  if ((props.state.status === 'completed' || props.state.status === 'failed') && props.state.finishedAt) {
+    return formatLeadSearchElapsedMs(getLeadSearchElapsedMs(props.state, nowMs.value));
+  }
+
+  return '';
+});
+const elapsedLabel = computed(() => (props.state.status === 'running' ? '当前耗时' : '总耗时'));
 const summaryItems = computed(() => {
   const summary = props.state.result?.summary;
 
@@ -111,6 +125,18 @@ const serperResultRows = computed(() =>
     resultCode: formatJson(item.result)
   }))
 );
+
+onMounted(() => {
+  elapsedTimer = setInterval(() => {
+    nowMs.value = Date.now();
+  }, 1000);
+});
+
+onBeforeUnmount(() => {
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+  }
+});
 const sourceColumn: DataTableColumns<AiLeadCandidateImportRow>[number] = {
   title: '来源',
   key: 'sourceLabel',
@@ -484,7 +510,10 @@ function getPrecisionTooltipItems(row: AiLeadCandidateImportRow) {
           </div>
           <NText depth="3" class="workflow-description">{{ description }}</NText>
         </div>
-        <NSpace v-if="state.metrics.length" :size="6" class="workflow-metrics">
+        <NSpace v-if="state.metrics.length || elapsedText" :size="6" class="workflow-metrics">
+          <NTag v-if="elapsedText" size="small" :bordered="false" type="info">
+            {{ elapsedLabel }} {{ elapsedText }}
+          </NTag>
           <NTag v-for="metric in state.metrics" :key="metric.key" size="small" :bordered="false">
             {{ getMetricDisplayText(metric) }}
           </NTag>

@@ -21,7 +21,8 @@ export function createStartingSearchProgressState(): LeadSearchProgressState {
     status: 'running',
     currentTitle: '准备搜索采集',
     currentDescription: '正在建立采集任务。',
-    progressPercent: 3
+    progressPercent: 3,
+    startedAt: new Date().toISOString()
   };
 }
 

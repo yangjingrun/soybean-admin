@@ -18,6 +18,8 @@ export interface LeadSearchProgressState {
   metrics: Api.AiLeads.LeadSearchProgressMetric[];
   result: Api.AiLeads.LeadSearchPublicResult | null;
   errorMessage: string;
+  startedAt: string | null;
+  finishedAt: string | null;
 }
 
 export interface LeadSearchTaskActionState {
@@ -39,7 +41,9 @@ export function createLeadSearchProgressState(): LeadSearchProgressState {
     currentDescription: '',
     metrics: [],
     result: null,
-    errorMessage: ''
+    errorMessage: '',
+    startedAt: null,
+    finishedAt: null
   };
 }
 
@@ -101,7 +105,8 @@ export function reduceLeadSearchProgressEvent(
       status: 'running',
       currentTitle: event.title || state.currentTitle,
       currentDescription: event.description || state.currentDescription,
-      progressPercent: event.progressPercent ?? state.progressPercent
+      progressPercent: event.progressPercent ?? state.progressPercent,
+      startedAt: state.startedAt ?? event.emittedAt
     };
   }
 
@@ -114,7 +119,8 @@ export function reduceLeadSearchProgressEvent(
       currentDescription: event.description || state.currentDescription,
       progressPercent: event.progressPercent ?? 100,
       result: event.result ?? state.result,
-      metrics: event.metrics ?? state.metrics
+      metrics: event.metrics ?? state.metrics,
+      finishedAt: state.finishedAt ?? event.emittedAt
     };
   }
 
@@ -126,7 +132,8 @@ export function reduceLeadSearchProgressEvent(
       currentTitle: event.title || '搜索采集失败',
       currentDescription: event.description || state.currentDescription,
       errorMessage: event.errorMessage || '搜索采集失败，请稍后重试',
-      progressPercent: event.progressPercent ?? state.progressPercent
+      progressPercent: event.progressPercent ?? state.progressPercent,
+      finishedAt: state.finishedAt ?? event.emittedAt
     };
   }
 
@@ -158,6 +165,45 @@ export function getMetricDisplayText(metric: Api.AiLeads.LeadSearchProgressMetri
   return typeof metric.total === 'number'
     ? `${metric.label} ${metric.value}/${metric.total}`
     : `${metric.label} ${metric.value}`;
+}
+
+/** 计算任务耗时毫秒数，运行中任务用当前时间作为结束点。 */
+export function getLeadSearchElapsedMs(
+  state: Pick<LeadSearchProgressState, 'startedAt' | 'finishedAt'>,
+  nowMs = Date.now()
+) {
+  const startedAtMs = parseDateMs(state.startedAt);
+  const finishedAtMs = parseDateMs(state.finishedAt);
+
+  if (startedAtMs === null) {
+    return null;
+  }
+
+  const endMs = finishedAtMs ?? nowMs;
+
+  return Math.max(0, endMs - startedAtMs);
+}
+
+/** 格式化任务耗时，保持页面标签短而稳定。 */
+export function formatLeadSearchElapsedMs(durationMs: number | null) {
+  if (durationMs === null) {
+    return '';
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}小时${minutes}分${seconds}秒`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}分${seconds}秒`;
+  }
+
+  return `${seconds}秒`;
 }
 
 export function isSearchWorkflowFinished(state: LeadSearchProgressState) {
@@ -224,7 +270,11 @@ function upsertStep(steps: LeadSearchProgressStep[], nextStep: LeadSearchProgres
 }
 
 function createTaskBaseProgressState(task: Api.AiLeads.TaskRecord): LeadSearchProgressState {
-  const baseState = createLeadSearchProgressState();
+  const baseState: LeadSearchProgressState = {
+    ...createLeadSearchProgressState(),
+    startedAt: task.startedAt ?? task.createdAt,
+    finishedAt: task.finishedAt
+  };
   const statusStateMap: Record<Api.AiLeads.TaskStatus, LeadSearchProgressState> = {
     queued: {
       ...baseState,
@@ -266,6 +316,16 @@ function createTaskBaseProgressState(task: Api.AiLeads.TaskRecord): LeadSearchPr
   };
 
   return statusStateMap[task.status];
+}
+
+function parseDateMs(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const dateMs = new Date(value).getTime();
+
+  return Number.isFinite(dateMs) ? dateMs : null;
 }
 
 function normalizeTaskSearchResult(
