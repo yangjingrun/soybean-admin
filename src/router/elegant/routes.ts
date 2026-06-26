@@ -40,6 +40,132 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'ai-leads',
+    path: '/ai-leads',
+    component: 'layout.base$view.ai-leads',
+    meta: {
+      title: 'ai-leads',
+      i18nKey: 'route.ai-leads',
+      icon: 'mdi:account-search-outline',
+      order: 2,
+      keepAlive: true
+    }
+  },
+  {
+    name: 'ai-prompt-settings',
+    path: '/ai-prompt-settings',
+    component: 'layout.base$view.ai-prompt-settings',
+    meta: {
+      title: 'ai-prompt-settings',
+      i18nKey: 'route.ai-prompt-settings',
+      icon: 'mdi:file-document-edit-outline',
+      order: 7,
+      permissions: ['ai:settings:prompt:manage']
+    }
+  },
+  {
+    name: 'ai-settings',
+    path: '/ai-settings',
+    component: 'layout.base$view.ai-settings',
+    meta: {
+      title: 'ai-settings',
+      i18nKey: 'route.ai-settings',
+      icon: 'mdi:server-network-outline',
+      order: 6
+    }
+  },
+  {
+    name: 'crm',
+    path: '/crm',
+    component: 'layout.base',
+    meta: {
+      title: 'crm',
+      i18nKey: 'route.crm',
+      icon: 'mdi:account-box-multiple-outline',
+      order: 3,
+      flattenChildrenInMenu: true
+    },
+    children: [
+      {
+        name: 'crm_email-sequences',
+        path: '/crm/email-sequences',
+        component: 'view.crm_email-sequences',
+        meta: {
+          title: 'crm_email-sequences',
+          i18nKey: 'route.crm_email-sequences',
+          icon: 'mdi:email-sync-outline',
+          order: 4
+        }
+      },
+      {
+        name: 'crm_gmail-oauth-callback',
+        path: '/crm/gmail-oauth-callback',
+        component: 'view.crm_gmail-oauth-callback',
+        meta: {
+          title: 'crm_gmail-oauth-callback',
+          i18nKey: 'route.crm_gmail-oauth-callback',
+          hideInMenu: true,
+          activeMenu: 'crm_settings'
+        }
+      },
+      {
+        name: 'crm_inbox',
+        path: '/crm/inbox',
+        component: 'view.crm_inbox',
+        meta: {
+          title: 'crm_inbox',
+          i18nKey: 'route.crm_inbox',
+          icon: 'mdi:inbox-full-outline',
+          order: 5
+        }
+      },
+      {
+        name: 'crm_inbox-detail',
+        path: '/crm/inbox/detail/:id',
+        component: 'view.crm_inbox-detail',
+        meta: {
+          title: 'crm_inbox-detail',
+          i18nKey: 'route.crm_inbox-detail',
+          hideInMenu: true,
+          activeMenu: 'crm_inbox'
+        }
+      },
+      {
+        name: 'crm_leads',
+        path: '/crm/leads',
+        component: 'view.crm_leads',
+        meta: {
+          title: 'crm_leads',
+          i18nKey: 'route.crm_leads',
+          icon: 'mdi:account-multiple-outline',
+          order: 3
+        }
+      },
+      {
+        name: 'crm_settings',
+        path: '/crm/settings',
+        component: 'view.crm_settings',
+        meta: {
+          title: 'crm_settings',
+          i18nKey: 'route.crm_settings',
+          icon: 'mdi:cog-outline',
+          order: 8,
+          permissions: [
+            'crm:settings:assets:read',
+            'crm:settings:assets:write',
+            'crm:settings:rules:read',
+            'crm:settings:rules:write',
+            'crm:settings:safety:read',
+            'crm:settings:safety:write',
+            'crm:settings:global:write',
+            'crm:settings:ai-draft-queue:write',
+            'crm:settings:operations:write'
+          ]
+        }
+      }
+    ]
+  },
+  {
     name: 'home',
     path: '/home',
     component: 'layout.base$view.home',
@@ -74,5 +200,79 @@ export const generatedRoutes: GeneratedRoute[] = [
       constant: true,
       hideInMenu: true
     }
+  },
+  {
+    name: 'manage',
+    path: '/manage',
+    component: 'layout.base',
+    meta: {
+      title: 'manage',
+      i18nKey: 'route.manage',
+      icon: 'carbon:cloud-service-management',
+      order: 9,
+      roles: ['R_SUPER']
+    },
+    children: [
+      {
+        name: 'manage_organization',
+        path: '/manage/organization',
+        component: 'view.manage_organization',
+        meta: {
+          title: 'manage_organization',
+          i18nKey: 'route.manage_organization',
+          icon: 'mdi:office-building-cog-outline',
+          order: 1,
+          roles: ['R_SUPER']
+        }
+      },
+      {
+        name: 'manage_permission',
+        path: '/manage/permission',
+        component: 'view.manage_permission',
+        meta: {
+          title: 'manage_permission',
+          i18nKey: 'route.manage_permission',
+          icon: 'mdi:shield-key-outline',
+          order: 4,
+          roles: ['R_SUPER']
+        }
+      },
+      {
+        name: 'manage_role',
+        path: '/manage/role',
+        component: 'view.manage_role',
+        meta: {
+          title: 'manage_role',
+          i18nKey: 'route.manage_role',
+          icon: 'mdi:account-key-outline',
+          order: 3,
+          roles: ['R_SUPER']
+        }
+      },
+      {
+        name: 'manage_system-log',
+        path: '/manage/system-log',
+        component: 'view.manage_system-log',
+        meta: {
+          title: 'manage_system-log',
+          i18nKey: 'route.manage_system-log',
+          icon: 'mdi:clipboard-text-clock-outline',
+          order: 5,
+          roles: ['R_SUPER']
+        }
+      },
+      {
+        name: 'manage_user',
+        path: '/manage/user',
+        component: 'view.manage_user',
+        meta: {
+          title: 'manage_user',
+          i18nKey: 'route.manage_user',
+          icon: 'ic:round-manage-accounts',
+          order: 2,
+          roles: ['R_SUPER']
+        }
+      }
+    ]
   }
 ];

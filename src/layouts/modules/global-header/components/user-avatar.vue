@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, shallowRef } from 'vue';
 import type { VNode } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouterPush } from '@/hooks/common/router';
 import { useSvgIcon } from '@/hooks/common/icon';
 import { $t } from '@/locales';
+import ChangePasswordModal from './change-password/ChangePasswordModal.vue';
+import UserProfileModal from './user-profile/UserProfileModal.vue';
 
 defineOptions({
   name: 'UserAvatar'
@@ -13,12 +15,14 @@ defineOptions({
 const authStore = useAuthStore();
 const { routerPushByKey, toLogin } = useRouterPush();
 const { SvgIconVNode } = useSvgIcon();
+const userProfileVisible = shallowRef(false);
+const changePasswordVisible = shallowRef(false);
 
 function loginOrRegister() {
   toLogin();
 }
 
-type DropdownKey = 'logout';
+type DropdownKey = 'profile' | 'changePassword' | 'logout';
 
 type DropdownOption =
   | {
@@ -33,6 +37,20 @@ type DropdownOption =
 
 const options = computed(() => {
   const opts: DropdownOption[] = [
+    {
+      label: '个人信息',
+      key: 'profile',
+      icon: SvgIconVNode({ icon: 'ph:user-gear', fontSize: 18 })
+    },
+    {
+      label: '修改密码',
+      key: 'changePassword',
+      icon: SvgIconVNode({ icon: 'ph:password', fontSize: 18 })
+    },
+    {
+      type: 'divider',
+      key: 'account-divider'
+    },
     {
       label: $t('common.logout'),
       key: 'logout',
@@ -49,14 +67,18 @@ function logout() {
     content: $t('common.logoutConfirm'),
     positiveText: $t('common.confirm'),
     negativeText: $t('common.cancel'),
-    onPositiveClick: () => {
-      authStore.resetStore();
+    onPositiveClick: async () => {
+      await authStore.logout();
     }
   });
 }
 
 function handleDropdown(key: DropdownKey) {
-  if (key === 'logout') {
+  if (key === 'profile') {
+    userProfileVisible.value = true;
+  } else if (key === 'changePassword') {
+    changePasswordVisible.value = true;
+  } else if (key === 'logout') {
     logout();
   } else {
     // If your other options are jumps from other routes, they will be directly supported here
@@ -73,10 +95,12 @@ function handleDropdown(key: DropdownKey) {
     <div>
       <ButtonIcon>
         <SvgIcon icon="ph:user-circle" class="text-icon-large" />
-        <span class="text-16px font-medium">{{ authStore.userInfo.userName }}</span>
+        <span class="text-16px font-medium">{{ authStore.userDisplayName }}</span>
       </ButtonIcon>
     </div>
   </NDropdown>
+  <UserProfileModal v-model:show="userProfileVisible" />
+  <ChangePasswordModal v-model:show="changePasswordVisible" />
 </template>
 
 <style scoped></style>

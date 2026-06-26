@@ -1,0 +1,598 @@
+# Project Agent Memory
+
+本文件只记录当前项目内已经确认的踩坑经验，供后续 AI 会话在执行任务前读取。
+
+## 使用规则
+
+- 只记录本项目有效的经验，不写全局通用常识。
+- 只记录已经复现、定位并确认解决的坑，不记录临时猜测。
+- 内容写成可执行规则，避免写成聊天流水账。
+- 每条经验尽量包含场景、坑点、正确做法和相关文件。
+- 涉及敏感信息时只记录脱敏后的上下文，不写密码、token、apiKey、Cookie 等。
+- 如果经验已经过期，移动到“已废弃经验”并说明原因。
+
+## 已确认经验
+
+### 2026-06-26 AI 获客官网 crawler 不能用默认持久队列跑固定 URL 列表
+
+- 场景：AI 获客新任务完成后，`result.candidates[].websiteEvidence` 全部是 `crawlStatus=failed`、`failureReason=官网未返回可解析页面`，CRM 客户没有社媒信息。
+- 坑点：`CheerioCrawler.run(requests)` 会把请求写进默认持久化 request queue；如果请求 `uniqueKey` 只用候选序号和路径（例如 `0:/`、`6:/contact`），后续任务会和历史队列记录撞 key，Crawlee 直接显示 `Total 0 requests`，handler 不执行，业务层拿到空 `pages` 后误记为官网未返回可解析页面。
+- 正确做法：固定官网页面集合采集优先用 `RequestList.open(null, createCrawleeRequestSources(requests))` 作为本次 crawl 的静态列表，再调用 `crawler.run()`；请求 `uniqueKey` 使用完整 URL，避免同一轮内不同官网/路径撞 key。`createCrawleeRequestSources()` 必须把业务 request 放进 `userData.sourceRequest`，否则 handler 后续会拿不到原始 `request.url` 并报 `Cannot read properties of undefined (reading 'url')`。排查时可对同一 URL 对比默认 storage 和临时 `APIFY_LOCAL_STORAGE_DIR`，如果临时目录能抓到 200，说明是本地 Crawlee 队列状态污染。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts`。
+- 验证方式：运行 `./node_modules/.bin/tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts`，并用默认 storage 下的 Crawlee 最小复现确认 `RequestList` 会实际处理请求、不再被历史 request queue 跳过。
+
+### 2026-06-26 AI 获客黄页/目录页不能当公司官网采集和导入
+
+- 场景：Serper Search 返回 `yellowpages-uae.com/uae/industrial-bearing`、`reachuae.com/uae/bearings-c54` 等黄页/目录页；这些页面能访问，也可能包含邮箱、WhatsApp 和社媒。
+- 坑点：目录页上的联系方式属于平台、广告位或多家公司列表，不能作为单个 CRM 客户的“官网采集公司邮箱/社媒”。如果 crawler 把目录页域名当客户官网继续拼 `/about`、`/contact`，会抽到混杂联系方式；CRM 导入时如果把目录 URL 写成 `websiteUrl`，后续 Hunter 和开发信也会围绕黄页域名误判。
+- 正确做法：黄页/目录规则必须持久化在 `AiLeadDirectorySourceRule` 表；系统内置域名通过 Prisma migration 种子插入为 `builtin=true`，不要在运行时代码里维护硬编码内置数组。用 `AiLeadDirectorySourceRuleService.listEnabledMatcherRules()` 取得规则后传给 `isDirectorySourceUrl()`；Serper Search 返回后、调用 `lead_search_result_decide` 前，先把 `organic[]` 里的目录页过滤掉，并把 `providerFilteredSummary` 传给 AI，让翻页判断基于剩余官网候选数和过滤数量；crawler 对这类 URL 写 `crawlStatus=skipped` 和 `failureReason=目录/黄页来源页，不作为公司官网采集`，不抽公司邮箱/社媒；CRM 导入时 `normalizeOfficialWebsiteUrl()` 不把目录 URL 写成客户官网，但保留在 `sourceSnapshot.url` 作为来源证据。超级管理员可在黄页过滤字典中追加自定义目录规则，组织管理员不可见，内置规则只读展示。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-source-url.ts`、`apps/server/src/modules/ai-leads/ai-lead-directory-source-rule.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-orchestrator.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.ts`、`src/views/ai-leads/modules/DirectorySourceRulesDrawer.vue`。
+- 验证方式：运行 `./node_modules/.bin/tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-source-url.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-orchestrator.service.spec.ts apps/server/src/modules/ai-leads/ai-leads.controller.spec.ts apps/server/src/modules/ai-leads/ai-lead-website-crawler.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.spec.ts`，确认目录页不会进入 AI 决策和 crawler，导入 CRM 的 `websiteUrl` 为空，且只有超级管理员能维护过滤字典。
+
+### 2026-06-25 AI 获客 BullMQ failed 必须回写业务任务状态
+
+- 场景：AI 获客任务停在“分析客户精准度”94%，日志里 `lead_match_analyze` 已开始调用 OpenRouter 大模型，但没有成功/失败日志；随后 BullMQ job 记录 `job stalled more than allowable limit`。
+- 坑点：BullMQ job 已经 failed 不等于 `AiLeadSearchTask.status` 会自动变更。如果 worker host 的 `failed` 监听只写系统日志、不按 `taskId + runVersion` 回写任务，前端会一直按 `running` 轮询并显示卡在旧进度。另一个展示坑是任务已 completed/failed 时，如果前端继续沿用最后一条 running progress event，会出现“已结束但进度 94%”或“失败但标题仍在分析”的错觉。
+- 正确做法：`worker.on('failed')` 要调用 worker service，用 `status + runVersion` guard 把仍处于 `queued/running` 的业务任务置为 `failed`，写任务事件并发失败通知；AI SDK 调用要设置总超时，避免外部模型长期无返回；前端恢复 completed/failed 任务时以任务终态为准，completed 强制 100%，failed 强制失败标题和描述。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-search-task-worker-host.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`apps/server/src/modules/ai-gateway/ai-gateway.service.ts`、`apps/server/src/modules/ai-gateway/ai-sdk-text-generator.service.ts`、`src/views/ai-leads/modules/search-progress.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts` 和 `pnpm exec tsx --test src/views/ai-leads/modules/search-progress.spec.ts`，确认 BullMQ failed 会回写任务失败、发通知，大模型参数包含超时，前端终态显示不再残留旧进度。
+
+### 2026-06-25 AI 获客 crawler 证据导入 CRM 必须持久化 sourceSnapshot
+
+- 场景：AI 获客任务的官网 crawler 已经采到 `websiteEvidence.socialLinks/whatsappLinks/emails/contactLinks`，但 CRM 客户开发台“社媒”列显示 `-`。
+- 坑点：只在 AI 获客任务结果里保存 crawler 原始证据不够；CRM 页面读取的是 `CrmAccount.sourceSnapshot.websiteEvidence`。如果 Prisma schema、数据库字段或导入服务没有持久化 `sourceSnapshot`，导入后社媒证据会丢失。另一个坑是社媒链接不能用裸字符串 `/x\.com/` 匹配，否则 `vwimpex.com` 这类普通官网会被误判成 X。
+- 正确做法：`CrmAccount` 保留 `sourceSnapshot Json?`，AI 获客导入时把规范化后的嵌套 JSON 写入 account 和导入时间线；历史数据用 `backfill:crm-account-source-snapshots` 从 `AiLeadSearchTask.result.candidates` 回填；crawler 和前端展示都按 URL hostname 判断社媒域名。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/accounts/crm-account.service.ts`、`apps/server/src/modules/crm/accounts/crm-account-source-snapshot-backfill.ts`、`apps/server/src/modules/ai-leads/ai-lead-website-crawler.extractor.ts`、`src/utils/social-links.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-list-indexes.spec.ts apps/server/src/modules/crm/accounts/crm-account.service.spec.ts apps/server/src/modules/crm/accounts/crm-account-source-snapshot-backfill.spec.ts apps/server/src/modules/crm/store/prisma-crm-account.store.spec.ts apps/server/src/modules/ai-leads/ai-lead-crm-import.adapter.spec.ts apps/server/src/modules/ai-leads/ai-lead-website-crawler.extractor.spec.ts`，以及 `pnpm exec tsx --test src/utils/social-links.spec.ts src/views/crm/leads/modules/shared.spec.ts`。
+
+### 2026-06-25 CRM 同产品批量首封要变化主题角度和 CTA 句式
+
+- 场景：CRM AI 开发信同一批次都使用同一个产品资料，例如轴承，首封正文需要保持产品事实一致但避免批量模板感。
+- 坑点：只要求“同产品事实准确”会让多封首封重复使用 `One bearing designation`、`one designation check is easier than a broad catalog` 和同一 CTA 句式；单封能发，批量看会显得机械。
+- 正确做法：prompt 中明确“同产品可重复事实，但 subject direction、opening scenario、value point、CTA sentence pattern 要按客户角色和业务任务变化”；轴承类首封优先在补货、MOQ/交期、替换交叉参考、备选供应、产线连续性、品类缺口等角度中选一个，不默认复用同一句开场。
+- 相关文件：`apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.ts`、`apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts apps/server/src/modules/crm/crm-ai-draft-prompt.spec.ts`，确认 prompt 包含同产品批次变化约束且 AI 写信相关测试通过。
+
+### 2026-06-24 CRM 产品资料 AI 写信 step prompt 留空要走系统内置
+
+- 场景：产品资料启用 AI 写信后，配置页每封开发信提示词允许留空，页面文案说明“留空默认使用系统内置写法”。
+- 坑点：生成链路本身已支持空 step prompt 走系统内置规则，但批量 AI 草稿任务的前置校验如果继续要求 `step.prompt` 非空，会把任务跳过并提示“产品资料缺少第 N 封 AI 写信提示词”。
+- 正确做法：任务创建和 worker 重检只校验产品资料存在、状态 active、AI 写信已启用且配置可规范化；不要把空 step prompt 当成业务跳过。具体写法由 `crm-ai-draft-prompt` 和全局 prompt 模块兜底。
+- 相关文件：`apps/server/src/modules/crm/ai-draft-task/crm-ai-draft-task.rules.ts`、`apps/server/src/modules/crm/crm-ai-draft-task-worker.service.ts`、`apps/server/src/modules/crm/crm-ai-draft-prompt.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-draft-task/crm-ai-draft-task.rules.spec.ts apps/server/src/modules/crm/crm-ai-draft-task-worker.service.spec.ts`，确认空 step prompt 不再跳过任务。
+
+### 2026-06-24 CRM AI 草稿质量旗标要驱动润色压缩
+
+- 场景：CRM AI 开发信已经生成成功，但邮件正文过长、段落过多或产品型号堆叠，质量检查会写入 `qualityFlags`。
+- 坑点：如果 `auto_when_flagged` 只对“AI 味开头/无价值跟进”触发润色，正文过长和段落过多只会显示提醒，最终仍保存模板感强、目录堆叠的文案。
+- 正确做法：主 prompt 不要求保留 base draft 措辞，只把 base draft 当事实、CTA 和签名种子；质量检查遇到正文过长、段落过多、主题过长也触发一次 polish；polish prompt 要明确压缩正文、减少段落、保留事实和 CTA 强度。
+- 相关文件：`apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.ts`、`apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.ts`、`apps/server/src/modules/crm/crm-ai-draft.service.ts`、`apps/server/src/modules/ai-gateway/ai-gateway.constants.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/ai-writing/crm-ai-writing-prompt-composer.spec.ts apps/server/src/modules/crm/ai-writing/crm-ai-writing-quality-check.spec.ts apps/server/src/modules/crm/crm-ai-draft.service.spec.ts`，确认过长草稿会触发二次 polish。
+
+### 2026-06-24 项目不要保留 TypeScript 编译出的 JS
+
+- 场景：本地运行 TypeScript 相关命令、IDE 自动编译或历史模板残留后，`src`、`packages`、`build`、根配置和脚本目录出现 `.js/.mjs/.cjs` 文件。
+- 坑点：这些 JS 多数是同名 `.ts` 的编译副本或构建产物；留在工作区会干扰排查，也会让 AI 误以为项目允许继续写 JS。
+- 正确做法：源码、脚本、配置默认写 `.ts` / `.vue`，不要新建 `.js` / `.mjs` / `.cjs`；发现同名 TS 旁边的 JS、`src/**/*.js`、`*.js.map` 或 `apps/server/dist` 这类生成产物时直接清理。根 `tsconfig.json` 保持 `noEmit: true`，避免 `tsc` 在源码旁生成 JS。
+- 相关文件：`tsconfig.json`、`.gitignore`、`AGENTS.md`、`package.json`、`scripts/run-tests.ts`、`scripts/dev-all.ts`。
+- 验证方式：运行 `find . \( -path './node_modules' -o -path './.git' -o -path './dist' -o -path '*/dist' \) -prune -o -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.js.map' \) -print`，应没有输出。
+
+### 2026-06-24 CRM 退信要写入独立收件箱状态并保留业务状态
+
+- 场景：Gmail history 同步到 `Delivery Status Notification (Failure)`、mailer-daemon 等退信后，CRM 客户回信列表需要展示邮件退信，而不是普通待处理回信。
+- 坑点：退信消息 `messageType=bounce`、联系人 `emailStatus=unreachable` 和时间线 `email_bounced` 即使都正确，如果 `CrmInboxThread.status` 仍统一写 `pending`，列表状态会继续显示“待处理回信”；后续 Gmail 已读/未读标签同步也可能把退信 thread 覆盖成 `handled/pending`。
+- 正确做法：退信入库时把 inbox thread 状态写为 `bounced`，前后端状态枚举和标签映射同步包含 `bounced`；Gmail UNREAD 标签同步只调整退信 thread 的 `unreadCount`，不覆盖 `bounced` 业务状态；已有 pending 退信用数据迁移回填。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm-inbox.store.ts`、`apps/server/src/modules/crm/store/prisma-crm-gmail-state.helpers.ts`、`src/views/crm/inbox/modules/shared.ts`、`prisma/migrations/20260624131000_mark_bounced_inbox_threads/migration.sql`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm-inbox.store.spec.ts` 和 `pnpm exec tsx --test src/views/crm/inbox/modules/shared.spec.ts`，确认退信 thread 状态为 `bounced` 且 Gmail 已读同步不会改成 `handled`。
+
+### 2026-06-24 CRM 首封发送后列表进度要推进到下一封待处理邮件
+
+- 场景：CRM 首封开发信发送成功后，系统自动生成第二封并进入 `draft_ready` 待发送；开发信任务列表需要展示当前正在流转的邮件。
+- 坑点：发送完成事务如果只把 `CrmSequenceEnrollment.currentStep` 写成刚发出的首封 step，详情弹窗可通过 `messages` 看到第二封待发送，但列表“跟进进度”会继续显示 `第 1 / 5 封`；同时列表“发送条件”如果无条件展示首封 checklist，会把已排期的后续邮件误显示成“需确认”。
+- 正确做法：发送完成时若创建或复用 `nextMessage`，把 enrollment 的 `currentStep` 推进到 `nextMessage.stepIndex`；列表发送条件摘要中，失败优先，其次对当前 `queued`/`draft_ready + scheduledAt` 邮件展示“发送中/已排期”，再展示草稿审核 checklist。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm-sequence-send-state.store.ts`、`src/views/crm/email-sequences/modules/shared.ts`。
+- 验证方式：运行 `pnpm exec tsx --test src/views/crm/email-sequences/modules/shared.spec.ts` 和 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm-send-worker.store.spec.ts`，确认首封发送后列表进度为下一封，已排期后续邮件不再显示旧 checklist 警告。
+
+### 2026-06-24 CRM 后续开发信默认自动进入发送池，客户回复后才停发
+
+- 场景：CRM 序列邮件发送成功后，需要自动推进下一封跟进邮件；用户期望首封发送后第二封按调度时间自动排队，不再需要人工确认。
+- 坑点：如果 `buildNextFollowUpDraft()` 继续创建 `draft_pending_review`，后续邮件会停在待审核，无法自动进入调度；如果客户回复时只跳过 `queued`，已经自动排期但尚未入 BullMQ 的 `draft_ready` 后续邮件仍可能继续发送。
+- 正确做法：发送 worker 生成下一封跟进邮件时直接写 `status: draft_ready` 和计算好的 `scheduledAt`，由发送调度器按时间窗口/邮箱错峰入队；客户回复或确认退订时，把同账号未发送的 `draft_ready/queued` 邮件统一置为 `skipped`，并递增 active enrollment 的 `runVersion`。
+- 相关文件：`apps/server/src/modules/crm/crm-follow-up-draft.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm-inbox.store.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-send-worker.service.spec.ts apps/server/src/modules/crm/store/prisma-crm-send-worker.store.spec.ts apps/server/src/modules/crm/store/prisma-crm-inbox.store.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts apps/server/src/modules/crm/store/prisma-crm-send-scheduler.store.spec.ts`，确认下一封为 `draft_ready`，回复/退订会跳过 `draft_ready + queued`，调度器仍会派发后续邮件。
+
+### 2026-06-24 CRM 同邮箱发送错峰要找最早可用空档，不要只排到最远未来排期之后
+
+- 场景：创建或重试 CRM 首封开发信时，同一个发送邮箱下可能已有多个 `draft_ready/queued` 计划发送时间，客户之间还可能有不同国家和时区。
+- 坑点：如果只取该邮箱最远的 `scheduledAt/sentAt` 再追加 5-10 分钟，会被一封更远未来、甚至跨周末/跨时区的邮件反向阻塞；例如中国客户在 2026-06-24 工作时间可发，却被洛杉矶测试邮件拖到 2026-06-29。
+- 正确做法：按客户时区先计算候选可发送窗口，再用同邮箱已有发送时间列表扫描最早可用空档；候选时间只需避开前后 5-10 分钟间隔，如果被推到客户窗口外，再顺延到客户的下一发送窗口。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/store/prisma-crm-send-schedule.store.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-control.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`，确认远期同邮箱排期不会拖延当前客户，近距离前后邮件仍会错峰。
+
+### 2026-06-24 CRM GeoNames 城市中文展示必须使用带语言标记的别名
+
+- 场景：CRM 地区级联筛选展示国家/城市，城市数据来自 GeoNames `cities*.txt` 和可选 `alternateNamesV2.txt`。
+- 坑点：`cities*.txt` 的 alternate names 字段没有语言和首选标记，里面会混入历史名、区名、机场别名等；如果仅凭“包含汉字”选中文展示名，会把深圳显示成“宝安”、成都显示成“天府”。
+- 正确做法：`cities*.txt` 自带 alternate names 只用于搜索匹配；城市展示中文名只使用 `alternateNamesV2.txt` 中带 `zh/zh-CN/zh-Hans/zh-Hant/zh-TW/zh-HK/zh-MO/cmn/yue` 语言标记的行。导入时用 `--alternate-names` 追加可信中文别名，目录服务无语言标记时返回 `displayName: null`。
+- 相关文件：`apps/server/src/modules/crm/geo/geonames-timezone-import.ts`、`apps/server/src/scripts/import-geonames-timezones.ts`、`apps/server/src/modules/crm/geo/crm-geo-catalog.service.ts`、`docs/geonames-timezone-import.md`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/geo/geonames-timezone-import.spec.ts apps/server/src/modules/crm/geo/crm-geo-catalog.service.spec.ts`，确认无语言标记的“宝安/天府”不会作为展示名，带 `zh` 的“深圳”可以作为展示名。
+
+### 2026-06-24 首页工作台不展示首封草稿审核
+
+- 场景：CRM 首封开发信主流程已经改为确认后直接进入发送计划，首页工作台展示当天 CRM 发送状态。
+- 坑点：首页如果继续展示“待审核草稿/草稿待审核”，会让用户误以为首封仍需要人工审核；只按 queued 统计也会漏掉尚未进入 BullMQ、但已按 `scheduledAt` 排期的待发送邮件。
+- 正确做法：首页工作台用发送状态口径：`scheduledTodayCount` 统计今天 `draft_ready + scheduledAt` 的已排期邮件，`scheduledTomorrowCount` 统计明天已排期邮件，`queuedCount/failedCount/sentCount` 分别按真实状态统计。首页卡片和待办展示“今日待发送/今日发送计划”，不展示“待审核草稿”。今日有已排期、queued 或 failed 发送任务时，runningTasks 需要包含 `send` 项，让首页继续轮询刷新。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm-dashboard.store.ts`、`apps/server/src/modules/crm/crm.types.ts`、`src/views/home/modules/shared.ts`、`src/hooks/business/crm-workbench-refresh.ts`。
+- 验证方式：运行 `pnpm exec tsx --test src/views/home/modules/shared.spec.ts src/views/home/modules/shared.spec.js`、`pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm-dashboard.store.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts` 和 `pnpm typecheck`。
+
+### 2026-06-24 CRM 发送节拍按邮箱维度错峰
+
+- 场景：CRM 开发信会持续新增计划发送邮件，同一个发送邮箱下可能已经排了很多封未来待发邮件。
+- 坑点：错峰不能按国家或业务员维度做；同一个邮箱需要 5-10 分钟随机间隔，但两个不同发送邮箱允许同一时间发送。新加邮件也不能只看当前时间，必须排到该邮箱已有计划队列尾部。
+- 正确做法：写入计划时间和调度器真正入队前，都按 `organizationId + mailboxId` 查询/维护最后发送点；取 `draft_ready/queued.scheduledAt` 与 `sent.sentAt` 的最大值，再追加 5-10 分钟随机间隔。如果间隔把时间推到客户当地发送窗口外，再顺延到客户当地下一发送窗口。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/store/prisma-crm-send-schedule.store.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-control.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts apps/server/src/modules/crm/store/prisma-crm-send-scheduler.store.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`，确认同邮箱错峰、不同邮箱可同时间入队。
+
+### 2026-06-24 CRM 首封确认发送要立即写入真实可发送时间
+
+- 场景：用户确认发送首封开发信后，列表展示“等待发送 + 计划发送时间”，后台调度器每分钟扫描到期邮件。
+- 坑点：确认发送时如果直接写 `scheduledAt = new Date()`，但客户当地当前不在发送窗口内，页面会先展示一个已经过去或马上过去的计划时间；调度器下一轮才会按客户时区顺延，用户会误以为“时间到了但没发出去”。
+- 正确做法：创建首封、旧流程确认首封、失败重试首封这类写入发送池的入口，必须先用 `CrmSendAvailabilityService.evaluate()` 和全局 `sendWorkdays/sendWindows` 计算真实 `scheduledAt`：可发就写当前时间，不可发就写 `nextAvailableAt`。后台调度器仍保留发送前二次校验。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-control.service.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/crm-module.providers.spec.ts` 和 `pnpm typecheck`，确认非发送窗口会直接写入下一可发送时间。
+
+### 2026-06-24 Nest 后台调度 Service 依赖要显式 Inject
+
+- 场景：CRM 邮件发送调度器每分钟扫描到期 `draft_ready` 邮件，将其转入 BullMQ 发送队列。
+- 坑点：`CrmSendSchedulerService` 构造函数里 `CrmSendAvailabilityService` 如果只依赖 TypeScript 反射注入，运行时可能变成 `undefined`，调度器会每分钟记录 `send-scheduler-failed`，错误为 `Cannot read properties of undefined (reading 'evaluate')`，页面表现为计划时间已过但仍停在“等待发送”。
+- 正确做法：后台 worker/scheduler 这类运行期服务依赖具体服务时，用 `@Inject(ConcreteService)` 显式声明注入 token；同时在 `crm-module.providers.spec.ts` 用 `Reflect.getMetadata('self:paramtypes', Service)` 固化关键运行期注入。
+- 相关文件：`apps/server/src/modules/crm/crm-send-scheduler.service.ts`、`apps/server/src/modules/crm/crm-module.providers.spec.ts`、`apps/server/src/modules/crm/crm-send-scheduler-host.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-module.providers.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts`，并观察 `send-scheduler-failed` 不再继续新增；洛杉矶非工作时间到期邮件会被顺延到当地下一发送窗口。
+
+### 2026-06-24 CRM 邮件打开追踪像素接口必须显式公开
+
+- 场景：CRM 邮件打开追踪通过邮件里的 1x1 图片请求 `GET /crm/tracking/open/:token`，请求来自客户邮箱客户端，不会携带系统登录 token。
+- 坑点：只新增 Controller 路由但不加 `@Public()` 时，会被全局 `AuthGuard` 拦截为 401，Cloudflare 隧道和后端端口都正常也无法记录打开。
+- 正确做法：追踪像素、Gmail Pub/Sub push、健康检查这类外部回调或公开探测接口，按现有模式在 handler 上显式加 `@Public()`；鉴权仍由 token/HMAC 等业务校验负责。
+- 相关文件：`apps/server/src/modules/crm/tracking/crm-tracking.controller.ts`、`apps/server/src/modules/auth/auth.guard.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/tracking/crm-tracking.controller.spec.ts apps/server/src/modules/crm/tracking/crm-tracking.service.spec.ts apps/server/src/modules/crm/tracking/crm-tracking-token.service.spec.ts`，并通过公网隧道请求无效 token 确认返回 `200 image/gif` 而不是登录 401。
+
+### 2026-06-23 CRM 客户时区优先查 GeoNames 字典，新增可选依赖放构造函数末尾
+
+- 场景：CRM 导入 AI 获客或手动客户时，需要用 `country + city` 判断客户 IANA 时区，城市可能是阿拉伯语等小语种名称。
+- 坑点：只靠 `crm-customer-timezone.rules.ts` 手写英文城市映射覆盖不足；在 `CrmAccountService` 构造函数中间插入新的可选依赖，会让大量单测里手动 `new CrmAccountService(...)` 的后续依赖参数错位。
+- 正确做法：GeoNames 城市名写入 `CrmGeoCityName` 表，`CrmGeoTimezoneService` 按国家代码和标准化城市名查询，查不到再回退本地规则；给已有 Service 增加可选依赖时优先追加到构造函数末尾，避免破坏现有测试和手动实例化。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/geo/crm-geo-timezone.service.ts`、`apps/server/src/modules/crm/geo/geonames-timezone-import.ts`、`apps/server/src/modules/crm/accounts/crm-account.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/geo/crm-geo-timezone.service.spec.ts apps/server/src/modules/crm/geo/geonames-timezone-import.spec.ts apps/server/src/modules/crm/accounts/crm-account.service.spec.ts apps/server/src/modules/crm/crm-customer-timezone.rules.spec.ts apps/server/src/modules/crm/crm-send-availability.service.spec.ts`，并用 `pnpm --filter @soybean/server import:geonames -- --cities /tmp/geonames-cities-sample.txt --dry-run` 验证脚本入口。
+
+### 2026-06-22 Nest 构造函数注入遇到运行时 undefined 要显式 Inject
+
+- 场景：后端启动时报 `Nest can't resolve dependencies of the CrmSendWorkerService ... argument at index [2]`，前端因 `localhost:9528` 后端未启动而通过 Vite 代理弹出 502。
+- 坑点：构造函数依赖只依赖 TypeScript 反射 metadata 时，某些可注入类在运行时可能被解析成 `undefined`，Nest 会在启动期失败，导致前端只看到代理层 502。
+- 正确做法：对启动失败的构造参数使用 `@Inject(ConcreteService)` 显式声明注入 token，不改业务兜底、不改前端提示来掩盖后端启动失败。
+- 相关文件：`apps/server/src/modules/crm/crm-send-worker.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，并启动 `pnpm --filter @soybean/server dev` 确认 Nest 能初始化到路由映射阶段。
+
+### 2026-06-21 普通 CRM 成员进入邮件序列需要默认读取写信资料和发送规则
+
+- 场景：普通 `R_USER` 用户进入 `/crm/email-sequences` 时，页面会预加载“生成首封草稿”所需的客户、邮箱、产品资料和序列策略资源。
+- 坑点：产品资料接口依赖 `crm:settings:assets:read`，序列策略接口依赖 `crm:settings:rules:read`；如果普通用户默认权限为空，邮件序列主列表能打开，但页面会弹出“无权查看 CRM 写信资料/发送规则”。
+- 正确做法：`R_USER` 默认只授予 `crm:settings:assets:read` 和 `crm:settings:rules:read`，认证解析时合并角色默认权限和角色表权限；不能给普通用户默认写权限。
+- 相关文件：`packages/shared/src/index.ts`、`apps/server/src/modules/auth/auth.service.ts`、`apps/server/src/modules/crm/crm-organization-resource-permissions.spec.ts`、`prisma/migrations/20260621192500_grant_user_crm_sequence_read_permissions/migration.sql`。
+- 验证方式：运行 `pnpm exec tsx --test packages/shared/src/index.spec.ts` 和 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/auth/auth.service.spec.ts apps/server/src/modules/crm/crm-organization-resource-permissions.spec.ts`。
+
+### 2026-06-21 系统通知“查看”动作必须标记通知已读
+
+- 场景：全局布局轮询 `/system-notifications/pending` 弹出 AI 获客任务完成通知，用户点击通知里的“查看”进入 `/ai-leads`。
+- 坑点：后端按约定会持续返回 `pending` 和 `shown` 状态；前端弹出后只调用 `markShown` 会让通知继续被轮询捞出，表现为关闭或查看后反复弹窗。
+- 正确做法：`shown` 只代表已经展示过；用户点击通知 action 时应调用 `markRead` 再跳转目标路由。任务页的“确认结果”仍继续调用任务 read，并由后端同步标记关联通知 read。
+- 相关文件：`src/layouts/base-layout/index.vue`、`src/layouts/base-layout/system-notification-action.ts`、`src/store/modules/ai-leads-task/index.ts`、`apps/server/src/modules/system-notification/system-notification.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --test src/layouts/base-layout/system-notification-action.spec.ts`，确认通知 action 调用顺序为销毁弹窗、标记已读、跳转路由。
+
+### 2026-06-21 长任务页面切走保留状态要配置路由 keepAlive
+
+- 场景：AI 获客页面点击“优化关键词”或“开始搜索采集”后切换到其他页面，再返回时页面本地加载态、表单和结果状态丢失。
+- 坑点：本项目内容区虽然使用 `<KeepAlive :include="routeStore.cacheRoutes">`，但缓存名单只从叶子路由 `meta.keepAlive` 收集；只在页面 composable 里维护 `ref/shallowRef`，切页卸载后本地状态会重建，长请求返回也只会写入旧组件实例。
+- 正确做法：对需要保留页面级长任务状态的路由，在 `build/plugins/router.ts` 的 `onRouteMetaGen` 中设置 `meta.keepAlive = true`，并同步生成的 `src/router/elegant/routes.ts`；不需要为纯页面局部状态提前迁移到全局 Pinia。
+- 相关文件：`build/plugins/router.ts`、`src/router/elegant/routes.ts`、`src/layouts/modules/global-content/index.vue`、`src/store/modules/route/shared.ts`、`src/views/ai-leads/modules/useAiLeadPage.ts`。
+- 验证方式：用 `pnpm exec tsx -e "import { generatedRoutes } from './src/router/elegant/routes.ts'; const route = generatedRoutes.find(item => item.name === 'ai-leads'); console.log(route?.meta)"` 确认 `keepAlive: true`；运行 `git diff --check -- build/plugins/router.ts src/router/elegant/routes.ts`。
+
+### 2026-06-21 本项目 RTK 使用全量安装模板
+
+- 场景：在本项目内使用 RTK（Rust Token Killer）压缩低价值命令输出。
+- 坑点：只依赖全局 `/Users/yjr/.codex/RTK.md` 时，`rtk init --show --codex` 会显示本地 AGENTS 未配置，后续会话不一定按项目本地规则识别为已安装。
+- 正确做法：本项目已经执行 `rtk init --codex`，根目录存在 `RTK.md`，`AGENTS.md` 末尾引用 `@RTK.md`；全局也已执行 `rtk init --global --codex`。Codex 不会自动 hook shell 命令，后续执行命令要主动用 `rtk <command>`；需要精确输出但仍希望记录时用 `rtk proxy <command>`。RTK 规则以本地 `RTK.md` 和全局 `/Users/yjr/.codex/RTK.md` 为准。
+- 相关文件：`RTK.md`、`AGENTS.md`、`/Users/yjr/.codex/RTK.md`、`/Users/yjr/.codex/AGENTS.md`。
+- 验证方式：运行 `rtk init --show --codex`，确认 Global/Local RTK.md 和 AGENTS.md reference 都显示 `[ok]`。
+
+### 2026-06-18 Nest Controller 调用不存在的服务方法导致页面 500
+
+- 场景：前端页面进入即提示 `Internal server error`，但页面组件本身能正常渲染空表格，例如用户管理进入后 GET `/system-users` 报 500。
+- 坑点：不要只看前端空数据状态；本项目新增后端模块时，Controller 可能临时复用旧 Service，调用真实类上不存在的方法（如 `AuthService.listUsers()`），运行时会抛异常并被前端统一显示为 500。
+- 正确做法：从前端接口文件追到 Controller，再确认被注入 Service 的真实公开方法；列表/CRUD 这类业务逻辑应放独立模块 Service，Controller 只做鉴权、入参和响应组织，Module 要注册对应 provider 并导入需要的依赖模块。
+- 相关文件：`src/service/api/system-user.ts`、`apps/server/src/modules/system-user/system-user.controller.ts`、`apps/server/src/modules/system-user/system-user.service.ts`、`apps/server/src/modules/system-user/system-user.module.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/system-user/system-user.service.spec.ts apps/server/src/modules/system-user/system-user.controller.spec.ts`，确认用户管理 Controller 和 Service 聚焦测试通过。
+
+### 2026-06-18 AI 获客后台任务状态被旧 worker 覆盖
+
+- 场景：AI 获客后台任务支持排队、运行、中断、继续、重试、放弃；用户动作和 BullMQ worker 可能同时更新同一任务。
+- 坑点：任务状态更新不能只按 `id` 覆盖。旧 worker 从 `queued/running` 读到任务后，如果用户已经中断或放弃，后续 `running/completed/failed` 写入会把用户动作覆盖；创建任务落库后入队失败也会留下没有 BullMQ job 的 `queued` 任务；继续/重试如果先入队再更新 `runVersion`，快 worker 会按旧版本跳过；放弃如果先删 BullMQ job，锁定中的 job 删除失败会导致任务仍未放弃。
+- 正确做法：任务 store 更新要支持 `status/runVersion/userId` guard；worker 写进度、完成、失败前必须确认仍是同一 `runVersion` 且状态仍为 `running`；创建任务要用事务确认当前用户无可恢复任务，入队失败时补偿成 `failed` 并写事件；继续/重试要先持久化新 `runVersion`、状态和预期 jobId，再入队；放弃要先把任务状态置为 `discarded`，再尽力删除队列 job，删除失败只记事件不阻塞用户动作。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-search-task.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`apps/server/src/modules/ai-leads/prisma-ai-lead-search-task.store.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-search-task.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts`，确认入队失败补偿、旧 worker 不覆盖放弃任务、中断后外部调用失败不改成 failed。
+
+### 2026-06-18 系统通知 shown 不是已处理状态
+
+- 场景：AI 获客后台任务完成或失败后，布局层轮询系统通知并弹出 Naive notification，用户可能没有点击“查看”处理任务。
+- 坑点：`shown` 只表示前端已经弹出过通知，不表示用户已经处理；如果后端待提醒列表只查 `pending`，通知一旦被 `markShown` 就不会再次提醒。
+- 正确做法：系统通知在 `read` 前都应继续进入提醒列表，服务端查询待提醒通知时包含 `pending` 和 `shown`；前端只用本地 active set 避免同一条通知同时重复弹出，关闭后仍允许下一轮轮询再次提醒。
+- 相关文件：`apps/server/src/modules/system-notification/system-notification.service.ts`、`src/layouts/base-layout/index.vue`、`src/store/modules/ai-leads-task/index.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/system-notification/system-notification.service.spec.ts apps/server/src/modules/system-notification/system-notification.controller.spec.ts`，确认 `shown` 未读通知仍会返回。
+
+### 2026-06-18 AI 获客任务已读要同步处理关联通知
+
+- 场景：AI 获客后台任务完成后，用户可能直接在 `/ai-leads` 页面点击“确认结果”，而不是点击系统通知里的“查看”按钮。
+- 坑点：任务 `readAt` 和系统通知 `status=read` 是两套状态；只标记任务已读会让 `pending/shown` 通知继续被全局轮询捞出并重复提醒。
+- 正确做法：任务服务确认完成任务时，要按 `targetType=aiLeadSearchTask + targetId=task.id + userId` 同步标记关联通知已读；通知写入失败不能回滚任务已读，但要写任务事件便于排查。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-search-task.service.ts`、`apps/server/src/modules/system-notification/system-notification.service.ts`、`apps/server/src/modules/system-notification/store/prisma-system-notification.store.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-search-task.service.spec.ts apps/server/src/modules/system-notification/system-notification.service.spec.ts`，确认任务确认会调用 target 维度通知已读。
+
+### 2026-06-18 新增前端 CRM 一级菜单要走 elegant-router 和 i18n 链路
+
+- 场景：新增独立 CRM 一级菜单，包含线索库、邮件序列、收件箱、CRM 配置等子页面。
+- 坑点：本项目菜单不是单独维护的静态菜单，而是由 `@elegant-router/vue` 根据 `src/views` 和 route meta 生成；只建页面、只改生成文件或只补 i18n 都会导致菜单、标题、全局搜索、标签页或类型不完整。当前 `.env` 使用 `VITE_AUTH_ROUTE_MODE=static`，静态模式下 `meta.roles` 会影响菜单过滤和路由守卫；动态模式则会走后端 route 接口。
+- 正确做法：多子页一级菜单参考 `manage` 路由形态，页面放 `src/views/crm/<page>/index.vue`，路由 key 预期为 `crm`、`crm_leads`、`crm_email-sequences`、`crm_inbox`、`crm_settings`；在 `build/plugins/router.ts` 的 `onRouteMetaGen` 为父子路由配置 `icon/order/roles`，再运行 `pnpm gen-route` 更新 `src/router/elegant/routes.ts`、`imports.ts`、`transform.ts` 和 `src/typings/elegant-router.d.ts`；菜单标题补 `src/locales/langs/zh-cn.ts` 和 `src/locales/langs/en-us.ts` 的 `route` 节点。
+- 页面组织：列表页优先参考 `src/views/manage/system-log` 的薄 `index.vue` + `modules/FilterPanel.vue` + `modules/LogTable.vue` + `modules/shared.ts`；复杂 CRUD 再参考 `src/views/manage/user` 的 `useNaivePaginatedTable` 写法。占位页可先用 `src/components/custom/look-forward.vue` 或空 `NCard`/`NDataTable`，不要提前接不存在的接口。
+- API 和类型：前端接口放 `src/service/api/crm.ts` 并从 `src/service/api/index.ts` 导出；接口类型放 `src/typings/api/crm.d.ts` 的 `declare namespace Api.Crm` 下；分页沿用 `Api.Common.PaginatingQueryRecord<T>` 和 `current/size/total/records`。后端未完成前不要写会请求 404 的正式调用。
+- 相关文件：`build/plugins/router.ts`、`src/router/elegant/routes.ts`、`src/router/guard/route.ts`、`src/store/modules/route/shared.ts`、`src/typings/router.d.ts`、`src/locales/langs/zh-cn.ts`、`src/locales/langs/en-us.ts`、`src/service/api/index.ts`、`src/typings/api/common.d.ts`、`src/views/manage/system-log/index.vue`、`src/views/manage/user/index.vue`。
+- 验证方式：新增页面和 meta 后运行 `pnpm gen-route`；若新增 API 类型或路由类型引用，再运行 `pnpm typecheck`。按项目规则不需要运行 `npm run build`。
+
+### 2026-06-18 AI 获客后台任务必须持久化组织上下文
+
+- 场景：AI 获客任务由前端用户创建，但实际采集和完成后 CRM 导入发生在后台 worker 中。
+- 坑点：worker 只能从任务表恢复 `userId/userName`，不能依赖前端 token，也不能在后台猜默认组织；如果任务没有保存 `organizationId/organizationRole`，完成后导入 CRM 会丢失租户隔离上下文。
+- 正确做法：创建 `AiLeadSearchTask` 时从 `UserInfo` 固化 `organizationId/organizationRole`，Prisma store 写入并映射回 `AiLeadSearchTaskRecord`；worker 重建上下文或导入 CRM 时使用任务快照里的组织字段。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-search-task.service.ts`、`apps/server/src/modules/ai-leads/prisma-ai-lead-search-task.store.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-search-task.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts`，确认任务创建保存组织字段、worker 导入 CRM 使用任务组织上下文。
+
+### 2026-06-18 CRM 成员私有线索不能用组织级唯一查重
+
+- 场景：第一期 CRM 普通成员只能看自己的线索和邮件正文，组织管理员才可看组织内整体。
+- 坑点：如果 Account/Contact 按 `organizationId + domain/emailHash` 全组织查重，普通成员导入同组织其他成员已有的客户时会拿到或更新对方记录，造成成员隔离泄漏。
+- 正确做法：第一期成员私有数据的 Account/Contact 查重和唯一索引使用 `organizationId + ownerUserId + domain/emailHash`；组织级历史去重后续用归档指纹、提醒或管理员视图处理，不直接复用其他成员的私有 CRM 主记录。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`、`prisma/migrations/20260618230000_create_crm_foundation/migration.sql`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认同组织不同成员同域名不会复用对方 Account，并发唯一冲突会重读已有记录。
+
+### 2026-06-19 CRM 归档指纹只做组织级历史提醒，不复用成员主记录
+
+- 场景：线索归档后，后续 AI 获客或手动导入可能再次遇到同一公司域名或联系人邮箱；未来 30 天后瘦身主记录时仍需要保留去重/历史触达判断能力。
+- 坑点：不能为了历史去重把 Account/Contact 改成组织级唯一，也不能把归档主记录删除后丢掉 domain/emailHash；否则要么泄漏其他成员私有线索，要么后续获客无法识别历史触达。
+- 正确做法：归档时写 `CrmArchivedFingerprint`，唯一键为 `organizationId + fingerprintType + fingerprintValue`；domain 指纹保存域名，email 指纹只保存 `emailHash + maskedValue`。导入时按组织查指纹并写 `archived_fingerprint_matched` 时间线提醒，但继续按 `organizationId + ownerUserId` 创建/复用当前成员自己的 Account/Contact。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认归档写 domain/email_hash 指纹，再导入命中组织归档指纹时只写提醒时间线，不复用其他成员主记录。
+
+### 2026-06-18 远程表格筛选要防旧请求覆盖新结果
+
+- 场景：CRM 线索库这类前端远程表格支持关键词、状态、分页快速切换。
+- 坑点：如果每次筛选/分页都直接请求并在返回时写入表格，旧请求可能比新请求更晚返回，导致 UI 筛选条件已变但表格数据被旧结果覆盖；旧请求的 `finally` 也可能提前关闭新请求的 loading。
+- 正确做法：列表 composable 内维护递增 request id 或 AbortController，只允许最后一次请求写入 `records/pagination/loading`；筛选统计文案要区分“全库总数”和“当前筛选 total”。
+- 相关文件：`src/views/crm/leads/modules/shared/useLeadTable.ts`、`src/views/crm/leads/modules/LeadStats.vue`。
+- 验证方式：运行 `pnpm typecheck`，并由 code review 检查快速切换筛选/重置时不会出现旧响应覆盖新状态的代码路径。
+
+### 2026-06-18 全局唯一资源冲突不能直接返回未授权记录
+
+- 场景：CRM Mailbox 第一版要求同一个 Gmail 地址不能绑定到多个组织或用户，数据库用 `provider + emailHash` 全局唯一约束。
+- 坑点：Store 为处理并发唯一冲突而重读已有记录时，不能直接把已有记录返回给 Service 当成功结果；如果输掉唯一索引的一方来自其他组织或用户，就会拿到别人的 mailbox 并泄露记录。
+- 正确做法：全局唯一资源在 create 前查重后，create 返回值仍要在 Service 再做归属校验；不是当前 `organizationId + ownerUserId` 的记录必须抛业务错误，不能写成功日志或返回视图。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认并发唯一冲突返回其他 owner mailbox 时会拒绝且不写成功日志。
+
+### 2026-06-18 先查重再写入仍要转换数据库唯一冲突
+
+- 场景：CRM ProductLine 按 `organizationId + name` 做唯一约束，Service 在创建或改名前会先查同名记录。
+- 坑点：先查重不是并发安全保证；两个请求可能同时通过查重，后写入的一方触发 Prisma `P2002`。如果不转换，会把底层数据库错误当 500 抛给前端。
+- 正确做法：对有唯一约束的写入，Service 除了前置查重，还要 catch Prisma `P2002` 并转换成业务错误；测试要覆盖 create 和 update/rename 两条路径。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认并发 create/rename 唯一冲突会返回“产品资料名称已存在”。
+
+### 2026-06-19 CRM 草稿确认必须 owner-only
+
+- 场景：CRM 邮件序列第一期允许组织管理员查看组织内线索/序列，但需求明确管理员不能编辑正文、确认草稿、代发、代回复。
+- 坑点：复用 `toOwnerScope(context)` 会让组织管理员和 `R_SUPER` 去掉 `ownerUserId` 限制；如果草稿保存/确认也走这个 scope，管理员就能把成员草稿置为 `ready_to_send`，后续发送队列接入后等同代发。
+- 正确做法：读列表/详情可以按管理员组织 scope；任何会改变邮件正文、草稿审核状态、发送准备状态的操作必须强制 `ownerUserId: context.userId`。已确认草稿不允许再次编辑，避免 `Message=draft_pending_review` 但 `Enrollment=ready_to_send` 的状态错位。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认管理员不能修改/确认他人草稿，`draft_ready` 草稿不能编辑。
+
+### 2026-06-19 CRM 草稿创建和确认要事务化
+
+- 场景：创建首封开发信审核项需要同时写 `CrmSequenceEnrollment`、首封 `CrmMessage`、时间线事件，并更新 Account 状态；确认草稿也会同时更新 message、enrollment、timeline 和 Account。
+- 坑点：如果分多次写入，`createMessage`、时间线或 Account 状态更新失败会留下半成品 enrollment；确认草稿时如果保存请求和确认请求并发，旧保存可能把 `draft_ready` 改回 `draft_pending_review`，造成 message/enrollment 状态错位。
+- 正确做法：Store 提供事务方法一次性创建 enrollment/message/timeline 并更新 Account；确认草稿也走事务并用当前 message/enrollment 状态做条件更新。保存草稿时 update 要带 `status=draft_pending_review` guard。Service 只编排校验和日志。数据库层用 partial unique index 约束同一 `organizationId + ownerUserId + contactId` 只能存在一个 active 状态序列，Prisma schema 里保留普通索引即可。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`、`prisma/migrations/20260619103000_create_crm_sequence_drafts/migration.sql`、`prisma/schema.prisma`。
+- 验证方式：运行 CRM store/service spec 和 `pnpm --filter @soybean/server typecheck`，确认事务方法类型通过、active partial unique index 存在于迁移 SQL。
+
+### 2026-06-19 审核抽屉异步请求要绑定当前记录 ID
+
+- 场景：CRM 邮件序列审核抽屉可快速切换不同 enrollment，并支持保存/确认草稿。
+- 坑点：只用 `currentItem` 承载抽屉状态时，打开新行但旧详情或旧保存请求晚返回，可能把 A 草稿响应写到 B 抽屉；如果 footer 在 loading 时仍可点，也可能对上一条 message 发保存/确认。
+- 正确做法：抽屉状态要维护 `selectedEnrollmentId/selectedMessageId`，打开新行先清空旧 item，关闭时递增 detail request id 让旧请求失效；保存/确认返回后必须校验仍是同一 enrollment/message 才写 UI 状态和弹成功提示。确认按钮只允许 `draft_pending_review` 状态。
+- 相关文件：`src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`、`src/views/crm/email-sequences/modules/DraftReviewDrawer.vue`。
+- 验证方式：运行 `pnpm typecheck`，并由 code review 检查抽屉切换、关闭、保存、确认路径都有 ID 校验。
+
+### 2026-06-19 CRM 跨页面预填创建流程要拆开资源请求和联系人请求
+
+- 场景：从线索详情联系人行跳到邮件序列页，自动打开“生成首封草稿”弹窗，并通过 query 预填 `accountId/contactId`。
+- 坑点：创建弹窗需要同时加载线索/邮箱/产品线资源和所选线索的联系人列表；如果二者复用同一个 request id 或 loading 标志，普通资源请求和联系人请求会互相判定为旧请求，或一个请求先结束导致另一个请求的 loading 被提前关闭。
+- 正确做法：邮件序列 composable 中分别维护全局创建资源请求 id 和联系人请求 id，loading 用两个内部状态合并；线索详情只 emit 联系人，页面 composable 负责 `router.push({ path: '/crm/email-sequences', query: { accountId, contactId } })`，邮件序列页读取 query 后打开弹窗并校验联系人仍属于该线索。
+- 相关文件：`src/views/crm/leads/modules/LeadDetailDrawer.vue`、`src/views/crm/leads/modules/shared/useLeadTable.ts`、`src/views/crm/email-sequences/modules/useEmailSequenceTable.ts`。
+- 验证方式：运行 `pnpm typecheck`、`pnpm exec eslint --max-warnings=0 .`、`pnpm exec oxlint`，并检查从线索详情点击“开发信”时弹窗能预选线索和联系人。
+
+### 2026-06-19 CRM 发送队列要用 runVersion 和 bullJobId 做发送前 guard
+
+- 场景：首封开发信从 `ready_to_send/draft_ready` 进入 BullMQ 后，由后台 worker 标记 `queued/sent/failed`。
+- 坑点：只按 message id 或 status 更新会让旧 job、重复点击、入队失败补偿和 worker 重试互相覆盖；如果不保存 `bullJobId`，也很难排查具体是哪次入队触发了状态变化。
+- 正确做法：启动发送必须 owner-only；事务化把 enrollment 改为 `sequence_running`、message 改为 `queued` 并写 timeline，入队成功后回写 `CrmMessage.bullJobId`；worker 执行前必须校验 `organizationId + ownerUserId + enrollmentId + messageId + runVersion + enrollment.status=sequence_running + message.status=queued + mailbox.active`，不匹配直接跳过。入队失败要把 enrollment/message/account 补偿回可重试状态并记录事件，不要假成功。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-send-worker.service.spec.ts apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认旧 runVersion job 跳过、owner-only 生效、入队失败回退、成功发送写入 sent。
+
+### 2026-06-19 CRM 发送控制事务要先校验可用资源再改状态
+
+- 场景：CRM 首封发送启动和停止序列都跨 `CrmSequenceEnrollment`、`CrmMessage`、`CrmAccount`、`CrmTimelineEvent` 多表写入。
+- 坑点：如果在发送启动事务里先把 enrollment/message/account 改成运行中和 queued，再检查 mailbox/contact 是否仍可用，邮箱刚好被暂停时会返回失败但事务已经提交半状态；停止序列如果不 bump `runVersion`，旧 BullMQ job 仍可能按旧快照继续执行。
+- 正确做法：`startFirstMessageSend` 在事务内先按当前状态读取 enrollment、首封 message、contact、active mailbox，确认资源可用后再做状态更新和 timeline；`stopSequenceEnrollment` 要把 active 状态改为 `stopped`、`runVersion + 1`，并把 queued 首封改为 `skipped`、清空 `bullJobId`，让旧 job 执行前 guard 自动失效。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.controller.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm.controller.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认邮箱暂停时不写半状态、管理员可停止成员序列、旧 queued message 被标记为 skipped。
+
+### 2026-06-19 扩展 CrmStore 接口要同步测试 fake store
+
+- 场景：CRM 模块新增收件箱、回信入库或序列控制这类 store 方法时，`CrmService` 单元测试使用内存 fake store 覆盖大量业务路径。
+- 坑点：只改 `CrmStore` 接口和 `PrismaCrmStore`，不补 `crm.service.spec.ts` 里的 fake store 方法和测试 record 类型，`pnpm --filter @soybean/server typecheck` 会报 fake store 不满足接口；如果用 `ReturnType<CrmStore['ingestCustomerReply']>` 推导 nullable 返回里的子对象，也容易变成 `never` 或重复类型别名。
+- 正确做法：新增 store 方法后同步给 service spec 的 fake store 添加最小实现或明确空实现；测试数据类型优先复用正式 `CrmInboxThreadRecord`、`CrmInboxMessageRecord` 这类 record 类型，避免从可空操作结果里反推。
+- 相关文件：`apps/server/src/modules/crm/crm.types.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`。
+- 验证方式：运行 `pnpm --filter @soybean/server typecheck` 和 CRM service/controller/store 测试，确认 fake store 与正式 store 接口一致。
+
+### 2026-06-19 CRM 邮箱额度要在 worker 发送前 claim，避免入队即扣和重复扣
+
+- 场景：CRM 首封开发信从 `ready_to_send` 入 BullMQ 后，由 worker 执行真实发送，并需要遵守每个 Gmail 的每日/每小时额度。
+- 坑点：不要在 `startFirstMessageSend` 入队阶段扣真实发送额度；queued 可能因为 BullMQ 不可用、用户停止、旧 job 或后续调度变化而从未发送。也不要在 worker 里先普通读取再发送，或重复调用 claim 方法，否则并发 worker 会超发或双扣额度。
+- 正确做法：额度账本在 worker 发送前通过 store 事务方法 `claimFirstMessageSendDelivery` 统一完成：校验 `organizationId + ownerUserId + enrollmentId + messageId + runVersion + sequence_running + queued + mailbox.active`，再按 UTC day/hour bucket 原子占用 `CrmMailboxSendUsage`；claim 失败时 worker 不调用发送网关。成功路径测试要断言 claim 只调用一次。
+- 相关文件：`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认额度满不发送、正常发送只 claim 一次。
+
+### 2026-06-19 CRM 退订黑名单按组织隔离，但 worker claim 仍要最终拦截
+
+- 场景：客户回复 `remove me / unsubscribe / stop` 等退订语义后，同一组织内其他成员或后续任务再次开发同一邮箱时必须被挡住；不同组织不共享退订黑名单。
+- 坑点：不能把退订黑名单做成全局邮箱缓存，也不能只在草稿创建或开始发送前校验；草稿审核后到 BullMQ worker 真正发送前，客户可能已经退订，旧 queued job 仍会执行。
+- 正确做法：退订回信在 `PrismaCrmStore.ingestCustomerReply` 同一事务里 upsert `CrmBlacklist`，唯一键为 `organizationId + emailHash`；`CrmService.createSequenceReviewItem` 和 `startFirstMessageSend` 先查黑名单并拒绝；`claimFirstMessageSendDelivery` 在扣额度前再次查询黑名单，命中时停止 enrollment、跳过 queued message 并返回 `null`。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认黑名单联系人不能建审核、不能入队、worker claim 不扣额度，退订回信会写组织级黑名单。
+
+### 2026-06-19 Prisma schema 变更要同步生成客户端
+
+- 场景：给 `CrmMessage` 增加 `providerMessageId/providerThreadId` 这类数据库字段，后端 store 需要在 Prisma 写入和读取这些字段。
+- 坑点：只改 `prisma/schema.prisma` 和 migration 不够；项目把 Prisma client 生成代码提交在 `apps/server/src/generated/prisma`，如果不运行 generate，TypeScript 可能靠局部类型绕过，但运行时 Prisma client 仍可能不认识新字段。
+- 正确做法：schema 和 migration 改完后运行 `pnpm --filter @soybean/server exec prisma generate --schema ../../prisma/schema.prisma`，并检查生成 diff 是否集中在对应模型和 internal metadata；不要手写 generated 文件。
+- 相关文件：`prisma/schema.prisma`、`prisma/migrations/*/migration.sql`、`apps/server/src/generated/prisma/models/*`、`apps/server/src/generated/prisma/internal/*`。
+- 验证方式：运行对应 store/worker spec、`pnpm --filter @soybean/server typecheck` 和 `pnpm typecheck`，确认 Prisma 类型和运行入口都识别新字段。
+
+### 2026-06-19 Gmail 回信入库必须按 providerMessageId 幂等
+
+- 场景：后续 Gmail Pub/Sub/History 同步客户回信、退订或退信时，同一 Gmail message 可能因为至少一次投递、worker 重试或并发通知被处理多次。
+- 坑点：不能只在 service 层做先查再写，也不能重复调用 `ingestCustomerReply` 后照常发站内通知；并发下仍可能撞 `CrmInboxMessage` 唯一约束，或者重复递增 `unreadCount/messageCount`、重复写 timeline/通知。
+- 正确做法：`PrismaCrmStore.ingestCustomerReply` 先按 `organizationId + ownerUserId + mailboxId + providerMessageId` 查已有入站消息；创建时遇到 Prisma `P2002` 要按 providerMessageId 重读并返回 `isDuplicate=true`、`event=null`。Service 拿到重复结果时跳过站内通知和“已入库”业务日志；不同新回信仍正常通知。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm.types.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm.service.spec.ts`，确认重复 providerMessageId 不 create、不更新 thread、不写 timeline、不通知，并发 `P2002` 会重读已有消息。
+
+### 2026-06-19 默认 commit hook 会格式化大量无关文件
+
+- 场景：CRM 开发完成后执行普通 `git commit -m ...`，提交钩子会自动跑 `typecheck`、`lint --fix` 和 `fmt`。
+- 坑点：当前 `fmt` 会改动大量 Prisma generated 文件和旧前端文件，即使本次任务没有触碰它们；如果不检查 `git status` 和 diff，容易把无关格式化改动混进提交。
+- 正确做法：提交前先运行需要的测试、`pnpm typecheck`、`pnpm exec eslint --max-warnings=0 .`、`pnpm exec oxlint`、`git diff --check`；确认通过后手动 `git add` 本次文件，并用 `git commit --no-verify -m ...` 提交。若误触发普通 commit hook，先用 `git restore .` 清理未暂存的 hook 产物，再确认 staged 只剩本次相关文件。
+- 相关文件：`apps/server/src/generated/prisma/*`、`src/views/crm/*`、`src/views/ai-leads/index.vue`。
+- 验证方式：提交前后都运行 `git status --short`，确认没有 generated 或无关 UI 文件残留。
+
+### 2026-06-21 未跟踪 JS 产物会遮住 TS 源路由
+
+- 场景：新增 `src/views` 页面并运行 `pnpm gen-route` 后，`src/router/elegant/routes.ts`、`imports.ts` 已包含新路由，但前端菜单仍显示旧入口，例如新增 `manage_role` 后系统管理里看不到角色管理。
+- 坑点：工作区可能存在未跟踪的同名 JS 产物（如 `src/router/elegant/routes.js`、`imports.js`、`transform.js`、`src/service/api/index.js`）；只配置 `resolve.extensions` 还不够，Vite 会把 TS 里的无后缀导入转换成浏览器模块 URL（例如 `/src/router/elegant/routes.js`），如果磁盘上有同名旧 JS，直接请求这个 URL 仍会命中旧文件。
+- 正确做法：不要把这些历史 JS 产物提交为源码；开发期通过 `setupPreferTsSourcePlugin()` 把 `src/build/packages` 下有同名 `.ts/.tsx` 的 `.js` 模块请求重写回 TS 源文件。排查菜单缺失时同时检查 `routes.ts` 和浏览器实际请求的 `/src/router/elegant/routes.js` 内容。
+- 相关文件：`vite.config.ts`、`build/plugins/prefer-ts-source.ts`、`build/plugins/index.ts`、`src/router/routes/index.ts`、`src/router/elegant/routes.ts`、`src/router/elegant/imports.ts`、`src/router/elegant/transform.ts`。
+- 验证方式：启动 `pnpm dev` 后用 `curl http://localhost:9527/src/router/elegant/routes.js | rg "manage_role|manage_permission"`，确认旧 `.js` URL 返回的是 TS 生成后的新路由；再检查 `imports.js` 和 `transform.js` 也包含目标页面。
+
+### 2026-06-19 Gmail 403 不能全部当授权失效
+
+- 场景：CRM Gmail watch/history 接入真实 Gmail API，网关需要把 Gmail 错误转换成业务状态。
+- 坑点：Gmail API 的 403 可能是 `authError/domainPolicy/insufficientPermissions`，也可能是 `rateLimitExceeded/userRateLimitExceeded/dailyLimitExceeded`。如果把所有 403 都转换成 `CrmGmailAuthorizationExpiredError`，`CrmGmailWatchService` 会把临时限流误标成 `auth_expired` 并暂停邮箱。
+- 正确做法：解析 Gmail error body 的 `error.errors[].reason`；只有授权/权限类 reason 或 401 才走授权失效，限流类 403 抛普通错误或后续可重试错误，不改 mailbox 授权状态。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-watch.gateway.spec.ts`、`apps/server/src/modules/crm/crm-gmail-watch.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch.gateway.spec.ts`，确认 `rateLimitExceeded` 不会抛 `CrmGmailAuthorizationExpiredError`。
+
+### 2026-06-19 CRM 发送 worker 必须按 job.messageId 定位目标邮件
+
+- 场景：首封发送成功后会在同一个 Enrollment 下生成第 2/3/4/5 封 follow-up 草稿，审核后这些后续邮件也会进入同一套发送 worker。
+- 坑点：`toSequenceReviewInclude()` 返回整组 `messages[]` 后，列表第一条通常仍是 step 1；如果 claim/send/complete 逻辑继续用 `record.messages[0]` 或 `firstMessage` 当作当前 job 目标，第 2 封及后续 queued job 会被误跳过，或发送完成后把 `currentStep` 固定写成 1。
+- 正确做法：发送 claim 必须用 `job.messageId` 在 `messages[]` 中定位 queued 目标邮件，返回给 worker 的发送 message 也必须是该目标邮件；发送完成时用目标邮件的 `stepIndex` 回写 `Enrollment.currentStep`，再按该 step 生成下一封 follow-up 草稿。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`、`apps/server/src/modules/crm/crm-send-worker.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/store/prisma-crm.store.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认 step 2 queued job 能 claim、发送并生成 step 3 草稿。
+
+### 2026-06-19 CRM 客户回信必须停止同公司当前所有序列
+
+- 场景：同一个 Account 下可能同时开发多个联系人，A 联系人回信时，B 联系人的后续开发信可能已经在队列中等待发送。
+- 坑点：只把 `outboundMessage.enrollmentId` 对应的单条 enrollment 改成 `replied` 不够；同公司其他 active enrollment 的 `runVersion` 不变，旧 BullMQ job 仍可能通过发送前 guard，UI 也会继续显示 queued。
+- 正确做法：`ingestCustomerReply` 必须在同一个事务内按 `organizationId + ownerUserId + accountId` 把 `draft_review_pending/ready_to_send/sequence_running/paused` 的 enrollment 批量改成 `replied` 并 `runVersion + 1`，同时把同公司 `queued` message 改成 `skipped` 并清空 `bullJobId`。
+- 相关文件：`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`、`apps/server/src/modules/crm/crm.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认同公司两个联系人各有运行中序列时，任一回信会让两条 enrollment 都变 `replied`，queued follow-up 变 `skipped`。
+
+### 2026-06-19 Gmail Pub/Sub 和 History 同步要先做来源与邮箱状态 guard
+
+- 场景：Gmail Pub/Sub push 会公开打到后端 webhook；邮箱也可能已经 `paused/auth_expired`，但 Google 仍可能继续推送历史通知。
+- 坑点：webhook 不校验来源会允许伪造 push 触发同步队列；非 active mailbox 继续入队会制造无效同步；History worker 遇到 `CrmGmailAuthorizationExpiredError` 如果只抛给 BullMQ，会反复重试而不暂停邮箱或通知用户。
+- 正确做法：配置 `CRM_GMAIL_PUBSUB_PUSH_SECRET` 时，controller 必须校验 `x-crm-gmail-pubsub-secret`，且不能记录完整 secret；webhook service 和 History worker 都要跳过非 `active` mailbox；History worker 捕获 `CrmGmailAuthorizationExpiredError` 后调用 `markMailboxAuthorizationExpired`，返回 `authorization_expired` 跳过结果。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-webhook.controller.ts`、`apps/server/src/modules/crm/crm-gmail-webhook.service.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-webhook.controller.spec.ts apps/server/src/modules/crm/crm-gmail-webhook.service.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认错误 secret 拒绝、非 active 邮箱不入队/不调 Gmail、授权失效会标记邮箱并跳过重试。
+
+### 2026-06-19 AI 获客外部联系人补全不能阻断 CRM 导入
+
+- 场景：AI 获客任务完成后，后台 worker 会把候选公司导入 CRM，并在导入前调用 Hunter Domain Search 尝试补全联系人邮箱。
+- 坑点：Hunter 未配置、无官网域名、接口限流或单个域名失败时，如果直接抛错，会让已经采集完成的任务无法沉淀 CRM 线索；如果把 Hunter raw response 或 apiKey 写入事件/日志，又会泄漏外部服务数据和敏感凭据。
+- 正确做法：联系人补全作为 best-effort 步骤；无官网域名不读取配置也不调用 Hunter；已有联系人邮箱不覆盖；只合并缺失的 `fullName/title/email`；补全失败写任务事件摘要 `attemptedCount/enrichedCount/failedCount/firstErrorMessage` 后继续用原始 inputs 导入 CRM，事件和业务日志不记录 raw response 或 apiKey。
+- 相关文件：`apps/server/src/modules/ai-leads/ai-lead-hunter-enrichment.service.ts`、`apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.ts`、`apps/server/src/modules/ai-gateway/ai-gateway.service.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-leads/ai-lead-hunter-enrichment.service.spec.ts apps/server/src/modules/ai-leads/ai-lead-search-task-worker.service.spec.ts apps/server/src/modules/ai-gateway/ai-gateway.service.spec.ts`，确认无域名不调用 Hunter、失败不阻断 CRM 导入、日志不包含 API Key。
+
+### 2026-06-19 CRM 邮箱验证缓存是全平台共享，不按组织隔离
+
+- 场景：AI 获客或手动验证联系人邮箱时，需要做格式、公共邮箱、MX/DNS 等验证；不同用户甚至不同组织可能反复遇到同一个邮箱。
+- 坑点：不要把邮箱验证缓存设计成联系人字段或 `organizationId + emailHash`。联系人主记录必须保持成员/组织隔离，但验证结果只是邮箱可用性结论；按组织缓存会让跨组织重复查 DNS/MX，违背“所有用户共用一次验证结果”的需求。
+- 正确做法：使用独立全局 `CrmEmailVerificationCache`，按 `emailHash` 唯一，保存 `maskedEmail/domain/status/reason/verifiedAt/expiresAt/checkedBy`，不保存明文邮箱；验证前先查 `emailHash` 缓存，再按 `CrmGlobalConfig.emailVerificationCooldownDays` 计算 `verifiedAt + 冷却天数` 是否仍有效，命中则跳过 DNS/MX，未命中再验证并按当前配置刷新冷却期。冷却天数默认 30 天，但必须支持平台超管后台配置。客户主记录、邮件正文、时间线仍按组织和 owner 隔离。
+- 相关文件：`prisma/schema.prisma`、`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认跨 owner、跨 organization 的同邮箱命中新鲜缓存不查 DNS，过期缓存会重新验证并刷新。
+
+### 2026-06-19 多 Agent 合并前要冻结同文件写入
+
+- 场景：多个子 Agent 并行实现 CRM 配置页时，主 Agent 已经决定把“基础规则”和“邮箱验证冷却期”拆成两个卡片，但子 Agent 仍在后台继续修改同一组前端文件。
+- 坑点：子 Agent 后续写入可能把主 Agent 刚合并的方案覆盖、重复渲染同一个配置入口，甚至删除 `BasicRulesCard.vue` 这类主页面仍在 import 的文件；只看最后一次测试通过不够，必须重新检查 `git status` 和关键文件内容。
+- 正确做法：合并同一前端区域前先 `send_input` 明确要求相关子 Agent 停止写入并总结；主 Agent 再统一落最终结构。合并后必须检查 `git status --short`、`git diff --name-status`、关键父组件 import、实际组件文件是否存在，并重新跑 `pnpm typecheck`、相关单测和 lint。
+- 相关文件：`src/views/crm/settings/modules/BasicRulesCard.vue`、`src/views/crm/settings/modules/GlobalConfigCard.vue`、`src/views/crm/settings/modules/MailboxManager.vue`。
+- 验证方式：确认 `MailboxManager.vue` 同时 import 的组件文件都存在，且配置表单只在 `GlobalConfigCard.vue` 出现一次。
+
+### 2026-06-19 CRM mock 调试接口默认必须关闭
+
+- 场景：Gmail OAuth、发送和回信同步接入期间，CRM 曾保留 `/crm/mailboxes/mock-authorize` 和 `/crm/messages/:id/mock-reply` 方便本地验证邮箱授权和客户回信流程。
+- 坑点：mock 授权会创建没有 OAuth refresh token 的 active mailbox，mock 回信会人为触发回信入库、停发、退订和黑名单逻辑；如果普通用户在生产环境可直接调用，会绕开真实 Gmail 授权和同步边界。
+- 正确做法：正式前端不导出也不调用 mock API；后端 mock controller 入口必须同时满足 `NODE_ENV !== production`、`CRM_ENABLE_MOCK_ENDPOINTS=true` 和 `R_SUPER`，默认抛 `ForbiddenException`。单元测试需要用 helper 临时设置环境变量，并在 finally 中恢复，避免污染其他测试。
+- 相关文件：`apps/server/src/modules/crm/crm.controller.ts`、`apps/server/src/modules/crm/crm.controller.spec.ts`、`src/service/api/crm.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.controller.spec.ts`，确认 mock endpoint 默认拒绝、普通用户拒绝、production 拒绝、显式打开且超管时旧测试仍通过；运行 `rg "mockAuthorizeCrmMailbox|mockReplyCrmMessage|MessageMockReplyPayload" src -n` 确认前端无残留。
+
+### 2026-06-19 Gmail History checkpoint 过期不能静默推进
+
+- 场景：Gmail History API 可能因为 `startHistoryId` 太旧返回 404，gateway 会转换为 `CrmGmailHistoryExpiredError`。
+- 坑点：如果 History worker 不捕获这个错误，BullMQ 会反复重试同一个已过期 checkpoint；但如果直接把 `lastHistoryId` 推进到 Pub/Sub 目标 historyId，又会把未同步历史误标成已处理，造成漏回信。
+- 正确做法：History worker 捕获 `CrmGmailHistoryExpiredError` 后，返回 `skipped/history_expired`，保持 mailbox 原 `lastHistoryId` 不动，并写系统日志和站内通知提醒邮箱 owner 重新授权、手动同步或联系管理员处理；不要在 worker 里无边界全量扫邮箱。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认 history 过期时 checkpoint 不推进、返回 `history_expired`，并创建日志和通知。
+
+### 2026-06-19 Gmail 外部手动发送回复要按 outbound 分流
+
+- 场景：用户可能直接在 Gmail 里对 CRM 发起的线程手动回复，Gmail History 会把这类 `SENT` 且非 `INBOX` 的消息作为 `messageAdded` 推过来。
+- 坑点：History gateway 如果把 `SENT-only` 消息直接过滤，会漏掉用户外部手动回复；如果只删除过滤但不建模方向，worker 会把外发消息误当客户回信，触发 inbox 入库和停发逻辑。
+- 正确做法：`parseGmailApiMessage` 根据 `labelIds` 标记 `direction: inbound/outbound`；gateway 保留 `SENT-only` 消息；History worker 对 `outbound` 只按 `providerThreadId` 匹配已发送 CRM message 并写 `external_gmail_reply_sent` 时间线事件，不调用 `ingestCustomerReply`。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-message.ts`、`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-message.spec.ts apps/server/src/modules/crm/crm-gmail-history.gateway.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`，确认 SENT-only 被解析为 outbound、gateway 不跳过、worker 写时间线且不走客户回信入库。
+
+### 2026-06-19 Gmail label/delete 同步不能删除本地 CRM 历史
+
+- 场景：用户在 Gmail 里标记已读/未读、归档、移入垃圾箱或删除消息时，Gmail History 会推 `labelAdded/labelRemoved/messageDeleted`，但 CRM 已同步的正文和时间线是业务记录。
+- 坑点：如果 History gateway 只订阅 `messageAdded`，CRM 收件箱状态不会跟随 Gmail 侧处理；如果把 `messageDeleted` 或归档误做成本地 hard delete，会抹掉已经入库的客户回信和时间线。
+- 正确做法：History gateway 同时订阅 `messageAdded/messageDeleted/labelAdded/labelRemoved`，把 label/delete 解析成轻量 `labelChanges`；worker 对 labelChanges 只调用 `syncInboxThreadGmailState`。`UNREAD` 去除 -> `handled + unreadCount=0`，`UNREAD` 新增 -> `pending + unreadCount>=1`，`INBOX` 去除、`TRASH` 新增或 `messageDeleted` -> `archived + unreadCount=0`；不删除 `CrmInboxMessage` 正文。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-history.gateway.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`apps/server/src/modules/crm/crm.types.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history.gateway.spec.ts apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts apps/server/src/modules/crm/store/prisma-crm.store.spec.ts`，确认 label/delete delta 能推进 checkpoint、更新 thread 状态、写时间线且不删除本地 message。
+
+### 2026-06-19 CRM 序列策略默认状态和后续草稿要一起校验
+
+- 场景：每组织/每序列策略引入 `CrmSequencePolicy` 后，创建首封草稿会绑定默认或指定策略，发送 worker 会继续生成第 2-5 封 follow-up 草稿。
+- 坑点：只在首封草稿读取策略不够；后续草稿如果仍只读模板或全局延迟，会导致同一 enrollment 的后续发送间隔和线程模式不按所选策略执行。另一个坑是 update 接口如果允许 `status=archived + isDefault=true`，会产生“归档默认策略”错位状态。
+- 正确做法：`CrmSendWorkerService` 生成下一封草稿时，`delayDays/threadMode` 优先使用 enrollment 绑定的 `policy.steps`，再退到默认模板 step，最后退到全局 follow-up 配置；service 写策略时必须保证默认策略只能是 `active`，归档策略要清掉 `isDefault`。
+- 相关文件：`apps/server/src/modules/crm/crm.service.ts`、`apps/server/src/modules/crm/crm-send-worker.service.ts`、`apps/server/src/modules/crm/store/prisma-crm.store.ts`、`prisma/schema.prisma`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm.service.spec.ts apps/server/src/modules/crm/crm-send-worker.service.spec.ts`，确认归档策略不能设默认，后续草稿按绑定策略生成。
+
+### 2026-06-19 Gmail History expired 手动同步要重新初始化 checkpoint
+
+- 场景：Gmail History API 返回 checkpoint 过期后，worker 已保持 `lastHistoryId` 不推进，并在邮箱上写 `lastSyncIssue.type=history_expired`。
+- 坑点：如果用户点击“立即同步”仍按旧 `lastHistoryId` 入队增量同步，worker 会再次命中 history expired，形成重复失败和重复告警；不能在 worker 里无边界全量扫邮箱。
+- 正确做法：`CrmGmailWatchService.syncMailboxNow` 遇到 `history_expired` 同步问题时，先续订 watch，再把 mailbox 的 `lastHistoryId` 重置为新的 Gmail `historyId`，同时清空 `syncIssueType/syncIssueAt/syncIssueMessage`，返回 `checkpoint_reinitialized`，不入队 history sync。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch.service.spec.ts`、`src/views/crm/settings/modules/useMailboxTable.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch.service.spec.ts`，确认 history expired 邮箱手动同步不入队、重置 checkpoint 并清空同步问题。
+
+### 2026-06-19 Gmail watch 自动续订定时任务不能重入
+
+- 场景：`CrmGmailWatchRenewalService.onModuleInit` 会立即执行一次自动续订，并按 `CRM_GMAIL_WATCH_RENEWAL_INTERVAL_MS` 定时续订即将过期的 Gmail watch。
+- 坑点：如果上一批 Gmail watch 续订还没结束，下一次 interval 又启动一批，会重复扫描同一批 mailbox，造成重复续订、重复日志或并发更新冲突。
+- 正确做法：只在自动调度路径加 in-flight guard；`renewDueMailboxWatches()` 保持可显式调用，便于测试和人工触发。首批未结束时跳过新的 interval tick，结束后下一次 tick 再执行。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认未完成的 scheduled renewal 不会被 interval 重入，完成后后续 tick 可继续执行。
+
+### 2026-06-19 Gmail watch 自动续订调度失败要捕获并记录日志
+
+- 场景：自动续订定时任务在调度入口调用 `renewDueMailboxWatches()`，批次开始阶段可能因为数据库查询、连接池或 store 层错误直接抛出。
+- 坑点：如果只在每个 mailbox 循环里捕获错误，批次级错误会从 `void this.runScheduledRenewal()` 泄漏成 unhandled rejection，定时任务失败也没有业务日志可查。
+- 正确做法：自动调度路径 `runScheduledRenewal()` 要 catch 批次级异常并写 `gmail-watch-auto-renew-scheduled-failed` 系统日志；显式调用 `renewDueMailboxWatches()` 保持抛错语义，避免隐藏人工触发或测试中的真实失败。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认批次级 store 错误不会产生 unhandled rejection，并会写调度失败日志。
+
+### 2026-06-19 Gmail watch 自动续订禁用开关要容忍空白和大小写
+
+- 场景：生产或预发环境通过 `CRM_GMAIL_WATCH_RENEWAL_DISABLED=true` 临时关闭自动 watch 续订。
+- 坑点：部署平台或人工配置可能写成 `TRUE`、`True` 等形式；如果只按精确字符串比较，会导致以为已关闭但实际仍启动定时续订。
+- 正确做法：读取 `CRM_GMAIL_WATCH_RENEWAL_DISABLED` 时先 `trim().toLowerCase()`，只把规范化后的 `true` 视为禁用；默认和其他值仍保持启用。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认带空白和大小写变化的 disabled env 不会启动首批续订或 interval。
+
+### 2026-06-19 Gmail watch 自动续订批大小 env 必须是正整数
+
+- 场景：自动续订读取 `CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE` 后传给 store 的分页 `take`。
+- 坑点：`Number('1.5')` 是有限正数，但 Prisma 分页 `take` 需要整数；如果小数透传，可能在运行期触发底层查询错误。
+- 正确做法：interval/window 这类毫秒配置可按正数处理，`CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE` 必须使用正整数校验；非整数、非正数或非法值回退默认 50。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.ts`、`apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-watch-renewal.service.spec.ts`，确认 `CRM_GMAIL_WATCH_RENEWAL_BATCH_SIZE=1.5` 时传给 store 的 `take` 回退为 50。
+
+### 2026-06-21 status 文本列迁 enum 前要处理 partial index
+
+- 场景：Prisma migration 把 PostgreSQL `status` 文本列改成 enum，表上存在依赖 `status IN (...)` 的 partial index，例如 `CrmSequenceEnrollment_active_contact_unique_idx`。
+- 坑点：如果 migration 直接 `ALTER COLUMN "status" TYPE enum USING ...`，PostgreSQL 会重新解析 partial index 的 text 条件，可能报 `operator does not exist: "CrmSequenceEnrollmentStatus" = text`，并让本地库留下 enum type 已创建、部分列已转换、迁移记录 failed 的半执行状态。
+- 正确做法：同一条 migration 里先 `DROP INDEX IF EXISTS` 依赖旧 text status 的 partial index，列转换完成后用 enum 字面量 cast 重建 partial index；本地半执行库恢复时先确认没有非法 status 值，手动补完剩余列转换和索引重建，再用 `pnpm prisma migrate resolve --applied <migration>` 标记后重新跑 `pnpm prisma migrate deploy`。
+- 相关文件：`prisma/migrations/20260621010000_add_status_enums/migration.sql`、`prisma/migrations/20260619103000_create_crm_sequence_drafts/migration.sql`。
+- 验证方式：运行 `pnpm prisma migrate deploy`，确认不再出现 P3009，且 `CrmSequenceEnrollment_active_contact_unique_idx` 的 WHERE 条件使用 `"CrmSequenceEnrollmentStatus"` enum cast。
+
+### 2026-06-21 AI/Gmail 加密密钥错误要转成可处理 HTTP 异常
+
+- 场景：保存 AI 模型/Serper/Hunter 配置或完成 Gmail OAuth 时，需要用 AES-256-GCM 加密 API key、refresh token。
+- 坑点：共享加密工具 `encryptSecret()` / `decryptSecret()` 会对缺失、格式错误或非 32 字节密钥抛普通 `Error`；如果这类错误穿过 Controller，会被 `ApiExceptionFilter` 隐藏成 `Internal server error`，前端只看到 500。
+- 正确做法：模块级密钥包装函数要先校验密钥并把配置错误转换成 Nest `ServiceUnavailableException`，消息里指出要检查对应 env，例如 `AI_CONFIG_SECRET_ENCRYPTION_KEY` 或 `CRM_GMAIL_TOKEN_ENCRYPTION_KEY`；不要为了绕过错误使用默认密钥或明文回退。
+- 相关文件：`apps/server/src/modules/ai-gateway/ai-config-secret-crypto.ts`、`apps/server/src/modules/crm/crm-gmail-oauth-token.provider.ts`、`apps/server/src/shared/secret-crypto.ts`、`apps/server/src/shared/api-exception.filter.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/ai-gateway/ai-config-secret-crypto.spec.ts apps/server/src/modules/crm/crm-gmail-oauth-token.provider.spec.ts`，确认缺失或非法长度密钥返回可处理的 `ServiceUnavailableException`。
+
+### 2026-06-22 真实 Gmail 回信入库后也要创建系统通知
+
+- 场景：用户通过 Gmail Pub/Sub + History 同步真实客户回信，收件箱线程状态已更新为待处理，但全局布局没有弹出系统通知。
+- 坑点：手动 mock 客户回信路径会调用 `SystemNotificationService.create()`，真实 Gmail history worker 只调用 store 入库并推进 checkpoint，导致收件箱状态正确但顶部全局提醒缺失；同时不能把 `shown` 当作已处理状态，否则用户只是看到弹窗但没点击查看时会停止提醒。
+- 正确做法：`CrmGmailHistorySyncWorkerService` 在 `ingestCustomerReply()` 返回非重复记录后，复用 `toInboxNotificationCopy()` 和 `inboxNotificationTargetType` 创建 `crm_customer_reply` 通知；重复 Gmail message 仍依赖 providerMessageId 幂等，不重复通知。系统通知待提醒列表继续包含 `pending` 和 `shown`，只有用户点击查看或明确确认后标记 `read` 才停止提醒。
+- 相关文件：`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.ts`、`apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts`、`apps/server/src/modules/crm/inbox/crm-inbox-rules.ts`、`apps/server/src/modules/system-notification/system-notification.service.ts`、`src/layouts/base-layout/system-notification-action.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/crm-gmail-history-sync-worker.service.spec.ts apps/server/src/modules/system-notification/system-notification.service.spec.ts apps/server/src/modules/system-notification/system-notification.controller.spec.ts`，确认真实 Gmail 新回信会创建通知、重复 history 不重复通知、`shown` 未读通知仍会返回。
+
+### 2026-06-22 首封开发信创建要按联系人历史序列阻止重复生成
+
+- 场景：CRM 邮件序列页已经为某联系人生成过首封开发信草稿，后续序列可能已停止、已回复或归档。
+- 坑点：创建首封草稿前如果只检查 `draft_review_pending/ready_to_send/sequence_running/paused` 这类活跃状态，停止或已回复的历史序列不会被拦截，用户可以为同一联系人再次生成首封草稿。
+- 正确做法：首封创建使用独立的 `firstDraftCreationBlockingStatuses`，覆盖所有 `CrmSequenceEnrollmentStatus`；同公司多联系人策略仍只用活跃状态 `activeSequenceBlockingStatuses`，不要混淆“是否已生成过首封”和“是否有活跃序列”。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-control-rules.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-eligibility.service.spec.ts`，确认 stopped/replied/archived 等历史序列会阻止再次生成首封草稿。
+
+### 2026-06-25 CRM 发送排期避开整点秒级时间戳
+
+- 场景：CRM 首封、后续开发信和调度器都通过 `resolveCrmSequenceScheduledAt()` 计算真实发送时间，需要让发送时间看起来不像机器整点批量发送。
+- 坑点：调度器测试如果继续固定 `now=xx:00:00`，会误把“整点立即入队”当成正确行为；但避让幅度也不能过大，用户只需要避开 `00:00:00`、`01:00:00` 这类整点秒级时间戳。
+- 正确做法：先用客户时区和全局发送窗口求出真实可发点；如果结果正好落在 `hh:00:00.000`，顺延 10-60 秒后再按同邮箱间隔扫描。调度器遇到整点到期消息应先回写秒级偏移后的 `scheduledAt`，下一轮再入队。
+- 相关文件：`apps/server/src/modules/crm/sequence/crm-sequence-send-schedule-time.ts`、`apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts`、`apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts`。
+- 验证方式：运行 `pnpm exec tsx --tsconfig apps/server/tsconfig.json --test apps/server/src/modules/crm/sequence/crm-sequence-review-creation.service.spec.ts apps/server/src/modules/crm/crm-send-scheduler.service.spec.ts apps/server/src/modules/crm/sequence/crm-sequence-control.service.spec.ts apps/server/src/modules/crm/crm-ai-draft-task-worker.service.spec.ts`，确认整点会改到 10-60 秒内，调度器整点不会立即入队。
+
+### 记录模板
+
+```md
+### YYYY-MM-DD 标题
+
+- 场景：
+- 坑点：
+- 正确做法：
+- 相关文件：
+- 验证方式：
+```
+
+## 待确认经验
+
+用于临时放置还没有完全验证、但后续可能需要沉淀的线索。确认后再移动到“已确认经验”。
+
+暂无。
+
+## 已废弃经验
+
+暂无。

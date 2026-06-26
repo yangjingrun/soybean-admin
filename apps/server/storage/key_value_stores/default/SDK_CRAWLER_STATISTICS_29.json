@@ -1,0 +1,50 @@
+{
+  "requestsFinished": 0,
+  "requestsFailed": 8,
+  "requestsRetries": 8,
+  "requestsFailedPerMinute": 64,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 8789,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2026-06-26T09:45:28.685Z",
+  "crawlerFinishedAt": "2026-06-26T09:45:36.104Z",
+  "statsPersistedAt": "2026-06-26T09:45:36.104Z",
+  "crawlerRuntimeMillis": 7467,
+  "crawlerLastStartTimestamp": 1782467128637,
+  "requestRetryHistogram": [
+    null,
+    8
+  ],
+  "statsId": 29,
+  "requestAvgFailedDurationMillis": 1099,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 8789,
+  "requestsTotal": 8,
+  "requestsWithStatusCode": {
+    "403": 16
+  },
+  "errors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 403 status code.": {
+            "count": 8
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 403 status code.": {
+            "count": 8
+          }
+        }
+      }
+    }
+  }
+}

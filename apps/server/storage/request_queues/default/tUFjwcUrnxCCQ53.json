@@ -1,0 +1,9 @@
+{
+	"id": "tUFjwcUrnxCCQ53",
+	"json": "{\"id\":\"tUFjwcUrnxCCQ53\",\"url\":\"https://www.arizona.ae/products\",\"loadedUrl\":\"https://www.arizona.ae/products\",\"uniqueKey\":\"13:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.arizona.ae/products\",\"uniqueKey\":\"13:/products\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"arizona.ae\",\"companyName\":\"ARIZONA BEARING........\",\"homepage\":\"https://www.arizona.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:45.389Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "13:/products",
+	"url": "https://www.arizona.ae/products"
+}

@@ -1,5 +1,6 @@
 export enum SetupStoreId {
   App = 'app-store',
+  AiLeadsTaskNotification = 'ai-leads-task-notification-store',
   Theme = 'theme-store',
   Auth = 'auth-store',
   Route = 'route-store',

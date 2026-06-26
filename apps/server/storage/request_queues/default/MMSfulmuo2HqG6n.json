@@ -1,0 +1,9 @@
+{
+	"id": "MMSfulmuo2HqG6n",
+	"json": "{\"id\":\"MMSfulmuo2HqG6n\",\"url\":\"https://saadounco.com/product\",\"loadedUrl\":\"https://saadounco.com/product?lang=ar\",\"uniqueKey\":\"21:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://saadounco.com/product\",\"uniqueKey\":\"21:/product\",\"userData\":{\"candidateIndex\":21,\"dedupeKey\":\"saadounco.com\",\"companyName\":\"| Authorized dealer - saadounco.com\",\"homepage\":\"https://saadounco.com/services/%D9%85%D9%88%D8%B2%D8%B9-%D9%85%D8%B9%D8%AA%D9%85%D8%AF-%D8%A8%D9%8A%D8%B9/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:40.109Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "21:/product",
+	"url": "https://saadounco.com/product"
+}

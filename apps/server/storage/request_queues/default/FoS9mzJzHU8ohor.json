@@ -1,0 +1,9 @@
+{
+	"id": "FoS9mzJzHU8ohor",
+	"json": "{\"id\":\"FoS9mzJzHU8ohor\",\"url\":\"https://falcongroup.ae/about-us\",\"loadedUrl\":\"https://falcongroup.ae/about-us/\",\"uniqueKey\":\"14:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://falcongroup.ae/about-us\",\"uniqueKey\":\"14:/about-us\",\"userData\":{\"candidateIndex\":14,\"dedupeKey\":\"falcongroup.ae\",\"companyName\":\"Hydrodynamic Bearings Manufacturer UAE | Falcon Group\",\"homepage\":\"https://falcongroup.ae/hydrodynamic-bearings-accessories-manufacture-refurbishment/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:49.340Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "14:/about-us",
+	"url": "https://falcongroup.ae/about-us"
+}

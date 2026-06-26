@@ -1,0 +1,9 @@
+{
+	"id": "sw9qpKMu881XmM1",
+	"json": "{\"id\":\"sw9qpKMu881XmM1\",\"url\":\"https://www.kginternational.com/elevator\",\"loadedUrl\":\"https://www.kginternational.com/elevator/\",\"uniqueKey\":\"3:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.kginternational.com/elevator\",\"uniqueKey\":\"3:/elevator\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"kginternational.com\",\"companyName\":\"KG International: Bearings Manufacturer & Supplier In Dubai - UAE ...\",\"homepage\":\"https://www.kginternational.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:57.380Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "3:/elevator",
+	"url": "https://www.kginternational.com/elevator"
+}

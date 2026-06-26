@@ -1,0 +1,9 @@
+{
+	"id": "GSEQ8wOOYDAZHPM",
+	"json": "{\"id\":\"GSEQ8wOOYDAZHPM\",\"url\":\"https://adexuae.com/contact\",\"loadedUrl\":\"https://adexuae.com/shop/contact-non-contact-food-temperature-meter-pce-ir-100/\",\"uniqueKey\":\"10:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://adexuae.com/contact\",\"uniqueKey\":\"10:/contact\",\"userData\":{\"candidateIndex\":10,\"dedupeKey\":\"adexuae.com\",\"companyName\":\"Ball Bearing Suppliers in UAE - Dubai - Adex International LLC\",\"homepage\":\"https://adexuae.com/product-category/ball-bearings/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:27.402Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "10:/contact",
+	"url": "https://adexuae.com/contact"
+}

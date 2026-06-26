@@ -1,0 +1,9 @@
+{
+	"id": "UUo63XYw306C9vD",
+	"json": "{\"id\":\"UUo63XYw306C9vD\",\"url\":\"https://bearingworld.com.sa/about-us\",\"loadedUrl\":\"https://bearingworld.com.sa/about-us\",\"uniqueKey\":\"18:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://bearingworld.com.sa/about-us\",\"uniqueKey\":\"18:/about-us\",\"userData\":{\"candidateIndex\":18,\"dedupeKey\":\"bearingworld.com.sa\",\"companyName\":\"Bearing World | Authorized Bearing Distributor in Saudi Arabia ...\",\"homepage\":\"https://bearingworld.com.sa\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:17.487Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "18:/about-us",
+	"url": "https://bearingworld.com.sa/about-us"
+}

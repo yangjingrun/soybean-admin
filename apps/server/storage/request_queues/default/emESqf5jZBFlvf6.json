@@ -1,0 +1,9 @@
+{
+	"id": "emESqf5jZBFlvf6",
+	"json": "{\"id\":\"emESqf5jZBFlvf6\",\"url\":\"https://www.bearingsworld.ae/\",\"loadedUrl\":\"https://www.bearingsworld.ae/\",\"uniqueKey\":\"1:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.bearingsworld.ae/\",\"uniqueKey\":\"1:/\",\"userData\":{\"candidateIndex\":1,\"dedupeKey\":\"bearingsworld.ae\",\"companyName\":\"Bearing Worlds\",\"homepage\":\"https://www.bearingsworld.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:48.816Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "1:/",
+	"url": "https://www.bearingsworld.ae/"
+}

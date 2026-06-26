@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-17T12:25:49Z",
+  "title": "Design System: SoybeanAdmin Naive",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Soybean Indigo",
+        "canonical": "#646cff",
+        "tonalRamp": ["#141633", "#252966", "#373d99", "#5057cc", "#646cff", "#858aff", "#aaadff", "#d7d8ff"]
+      },
+      "info": {
+        "role": "secondary",
+        "displayName": "System Info Blue",
+        "canonical": "#2080f0",
+        "tonalRamp": ["#08213d", "#0f4078", "#1460b5", "#1a73d1", "#2080f0", "#5aa2f5", "#9ac9fa", "#d8ecff"]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Operation Green",
+        "canonical": "#52c41a",
+        "tonalRamp": ["#153306", "#25600c", "#368c12", "#47ad17", "#52c41a", "#7ed957", "#aeea8b", "#def8cc"]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Review Amber",
+        "canonical": "#faad14",
+        "tonalRamp": ["#3a2704", "#704b08", "#a66f0c", "#d49410", "#faad14", "#ffc64a", "#ffdc85", "#fff0c2"]
+      },
+      "error": {
+        "role": "secondary",
+        "displayName": "Destructive Red",
+        "canonical": "#f5222d",
+        "tonalRamp": ["#3a080b", "#730f15", "#ad171f", "#d91e28", "#f5222d", "#f75d66", "#faa0a6", "#ffd6d9"]
+      },
+      "surface-container": {
+        "role": "neutral",
+        "displayName": "Container White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1f1f1f", "#3a3a3a", "#585858", "#777777", "#999999", "#c7c7c7", "#eeeeee", "#ffffff"]
+      },
+      "surface-layout": {
+        "role": "neutral",
+        "displayName": "Layout Mist",
+        "canonical": "#f7fafc",
+        "tonalRamp": ["#192026", "#34404a", "#536473", "#758999", "#9cafbd", "#c8d5df", "#e7eef4", "#f7fafc"]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page or feature titles inside product surfaces."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card headings, compact section titles, and login module headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default product text, table content, descriptions, and form helper copy."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Compact labels, metadata, and short secondary text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "header",
+        "value": "0 1px 2px rgb(0, 21, 41, 0.08)",
+        "purpose": "Fixed header boundary."
+      },
+      {
+        "name": "sider",
+        "value": "2px 0 8px 0 rgb(29, 35, 41, 0.05)",
+        "purpose": "Sider boundary against the content field."
+      },
+      {
+        "name": "tab",
+        "value": "0 1px 2px rgb(0, 21, 41, 0.08)",
+        "purpose": "Tab bar boundary."
+      }
+    ],
+    "motion": [
+      {
+        "name": "fade",
+        "value": "opacity 0.3s ease-in-out",
+        "purpose": "Simple page fade transition."
+      },
+      {
+        "name": "fade-slide",
+        "value": "all 0.3s",
+        "purpose": "Default page transition mode from theme settings."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "lt-sm",
+        "value": "640px"
+      },
+      {
+        "name": "naive-screen-responsive",
+        "value": "Use Naive UI responsive grid spans such as 24 s:24 m:8."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Naive Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default committed action using the project primary token.",
+      "html": "<button class=\"ds-btn-primary\">保存更改</button>",
+      "css": ".ds-btn-primary { height: 34px; padding: 0 16px; border: 0; border-radius: 6px; background: #646cff; color: #fff; font: 500 14px/34px v-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; cursor: pointer; transition: background-color 0.2s ease, box-shadow 0.2s ease; } .ds-btn-primary:hover { background: #7379ff; } .ds-btn-primary:focus-visible { outline: 2px solid rgba(100, 108, 255, 0.35); outline-offset: 2px; } .ds-btn-primary:active { background: #5057cc; } .ds-btn-primary:disabled { cursor: not-allowed; opacity: 0.45; }"
+    },
+    {
+      "name": "Naive Quaternary Button",
+      "kind": "button",
+      "refersTo": "button-quaternary",
+      "description": "Low-emphasis action for header tools and inline controls.",
+      "html": "<button class=\"ds-btn-quaternary\">取消</button>",
+      "css": ".ds-btn-quaternary { height: 34px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: #1f1f1f; font: 500 14px/34px v-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease; } .ds-btn-quaternary:hover { background: rgba(31, 31, 31, 0.06); } .ds-btn-quaternary:focus-visible { outline: 2px solid rgba(100, 108, 255, 0.35); outline-offset: 2px; } .ds-btn-quaternary:active { background: rgba(31, 31, 31, 0.1); }"
+    },
+    {
+      "name": "Card Wrapper",
+      "kind": "card",
+      "refersTo": "card-wrapper",
+      "description": "Standard dashboard and workbench container.",
+      "html": "<section class=\"ds-card\"><h3>线索来源</h3><p>按关键词、行业、地区筛选待处理客户。</p></section>",
+      "css": ".ds-card { width: 280px; padding: 16px; border-radius: 8px; background: #fff; color: #1f1f1f; box-shadow: 0 1px 3px rgba(0, 21, 41, 0.08); font-family: v-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-card h3 { margin: 0 0 8px; font-size: 18px; line-height: 1.4; font-weight: 600; } .ds-card p { margin: 0; color: rgba(31, 31, 31, 0.68); font-size: 14px; line-height: 1.6; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Naive UI style text field for forms and filters.",
+      "html": "<label class=\"ds-field\"><span>关键词</span><input placeholder=\"请输入关键词搜索\" /></label>",
+      "css": ".ds-field { display: grid; gap: 6px; width: 260px; font-family: v-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1f1f1f; } .ds-field span { font-size: 13px; line-height: 1.4; font-weight: 500; } .ds-field input { height: 34px; padding: 0 12px; border: 1px solid rgba(31, 31, 31, 0.16); border-radius: 6px; background: #fff; color: #1f1f1f; font-size: 14px; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; } .ds-field input::placeholder { color: rgba(31, 31, 31, 0.55); } .ds-field input:focus { border-color: #646cff; box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.18); }"
+    },
+    {
+      "name": "App Header Surface",
+      "kind": "nav",
+      "refersTo": "app-header",
+      "description": "Compact shell header with breadcrumb area and right-side tools.",
+      "html": "<header class=\"ds-header\"><span>首页</span><nav><button>搜索</button><button>主题</button></nav></header>",
+      "css": ".ds-header { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 12px; background: #fff; color: #1f1f1f; box-shadow: 0 1px 2px rgb(0, 21, 41, 0.08); font-family: v-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-header span { font-size: 14px; font-weight: 500; } .ds-header nav { display: flex; align-items: center; gap: 8px; } .ds-header button { height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #1f1f1f; cursor: pointer; } .ds-header button:hover { background: rgba(31, 31, 31, 0.06); } .ds-header button:focus-visible { outline: 2px solid rgba(100, 108, 255, 0.35); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Control Room",
+    "overview": "SoybeanAdmin Naive is a product interface for repeated operational work. Its visual system should feel calm, structured, and immediately familiar to people who live in admin tools: a restrained light layout, a clear indigo primary accent, soft neutral surfaces, and compact controls that let users scan records and act quickly.\n\nThe system is not a place for a separate custom UI kit. Naive UI is the default component language, and existing project wrappers such as ButtonIcon, DarkModeContainer, SystemLogo, ExceptionBase, and layout modules are the local vocabulary. New business components may compose these pieces, but they should not reinvent buttons, inputs, selects, tables, drawers, modals, notifications, tabs, or tooltips.",
+    "keyCharacteristics": [
+      "Restrained product density with 16px page rhythm and responsive Naive UI grids.",
+      "Theme-driven color, radius, shadow, layout height, dark mode, grayscale mode, and color-weakness mode.",
+      "Primary color used for current location, primary action, loading bar, and state emphasis, not decoration.",
+      "Familiar admin shell: header, sider, breadcrumb, tab bar, content body, and optional footer.",
+      "Short state-driven motion, mainly page transitions and control feedback."
+    ],
+    "rules": [
+      {
+        "name": "The Token Ownership Rule",
+        "body": "Do not hard-code a new palette for a page. Use themeStore.themeColor, themeStore.themeColors, themeVars, Naive UI theme overrides, or the CSS variables generated from src/theme/settings.ts.",
+        "section": "colors"
+      },
+      {
+        "name": "The Accent Scarcity Rule",
+        "body": "Primary color should mark state or action. If more than 10 percent of a normal admin page is primary-colored, the page is probably decorating instead of guiding.",
+        "section": "colors"
+      },
+      {
+        "name": "The Product Type Rule",
+        "body": "Do not use fluid hero typography in app pages. Admin UI uses fixed rem or px scales so labels, table rows, and controls stay predictable.",
+        "section": "typography"
+      },
+      {
+        "name": "The Readability Rule",
+        "body": "Body copy must stay at or above 4.5:1 contrast against its surface. Avoid pale gray text such as #999 on tinted or low-contrast backgrounds unless contrast is verified.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Cards and panels should be calm at rest. Do not pair a 1px border with a wide soft shadow as decoration.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use Naive UI as the default UI component system for product pages.",
+      "Do compose business components from Naive UI and existing project wrappers before writing local CSS.",
+      "Do keep colors, radius, shadows, dark mode, and layout settings tied to src/theme/settings.ts and the theme store.",
+      "Do use NSpace, NGrid, NGi, NCard, NForm, NButton, NDrawer, NModal, NAlert, NTag, NTooltip, and Naive UI feedback providers for standard product UI.",
+      "Do keep product pages action-first: filters, records, primary action, secondary actions, and feedback should be obvious.",
+      "Do preserve i18n, route meta, tab cache, responsive layout behavior, and existing app shell contracts."
+    ],
+    "donts": [
+      "Don't build custom UI controls that duplicate Naive UI components.",
+      "Don't use marketing landing-page composition inside authenticated admin screens.",
+      "Don't add glassmorphism, gradient text, side-stripe card accents, decorative blur, oversized hero metrics, or hand-drawn SVG scenes.",
+      "Don't hard-code a separate palette, radius scale, shadow system, or motion language inside a page.",
+      "Don't invent page-local modals, drawers, toasts, tables, selects, tabs, or tooltips when Naive UI already provides the interaction.",
+      "Don't use uppercase tracked eyebrows or numbered section markers as default scaffolding in product pages."
+    ]
+  }
+}

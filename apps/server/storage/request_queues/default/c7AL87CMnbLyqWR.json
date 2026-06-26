@@ -1,0 +1,9 @@
+{
+	"id": "c7AL87CMnbLyqWR",
+	"json": "{\"id\":\"c7AL87CMnbLyqWR\",\"url\":\"https://qajtrading.com/products\",\"loadedUrl\":\"https://qajtrading.com/products\",\"uniqueKey\":\"0:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://qajtrading.com/products\",\"uniqueKey\":\"0:/products\",\"userData\":{\"candidateIndex\":0,\"dedupeKey\":\"qajtrading.com\",\"companyName\":\"High-Quality Marine Bearings Supplier in UAE\",\"homepage\":\"https://qajtrading.com/bearings-supplier-uae/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:44.947Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "0:/products",
+	"url": "https://qajtrading.com/products"
+}

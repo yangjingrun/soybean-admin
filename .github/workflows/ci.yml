@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.19.0
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.5.0 --activate
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck frontend
+        run: pnpm typecheck
+
+      - name: Typecheck server
+        run: pnpm --filter @soybean/server typecheck
+
+      - name: Lint
+        run: pnpm lint:check
+
+      - name: Whitespace check
+        run: pnpm whitespace:check
+
+      - name: Test scripts
+        run: pnpm test:scripts
+
+      - name: Test frontend helpers
+        run: pnpm test:front
+
+      - name: Test server modules
+        run: pnpm test:server

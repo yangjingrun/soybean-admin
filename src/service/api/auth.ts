@@ -6,14 +6,23 @@ import { request } from '../request';
  * @param userName User name
  * @param password Password
  */
-export function fetchLogin(userName: string, password: string) {
+export function fetchLogin(userName: string, password: string, captchaId?: string, captchaCode?: string) {
   return request<Api.Auth.LoginToken>({
     url: '/auth/login',
     method: 'post',
     data: {
       userName,
-      password
+      password,
+      captchaId,
+      captchaCode
     }
+  });
+}
+
+/** Get image captcha */
+export function fetchImageCaptcha() {
+  return request<Api.Auth.ImageCaptchaResult>({
+    url: '/auth/captcha'
   });
 }
 
@@ -34,6 +43,32 @@ export function fetchRefreshToken(refreshToken: string) {
     data: {
       refreshToken
     }
+  });
+}
+
+/** Logout current user and let backend record the logout action. */
+export function fetchLogout() {
+  return request<null>({
+    url: '/auth/logout',
+    method: 'post'
+  });
+}
+
+/** Change current user's password. */
+export function changeCurrentUserPassword(data: Api.Auth.ChangePasswordPayload) {
+  return request<null>({
+    url: '/auth/change-password',
+    method: 'post',
+    data
+  });
+}
+
+/** Update current user's editable profile. */
+export function updateCurrentUserProfile(data: Api.Auth.UpdateCurrentUserProfilePayload) {
+  return request<Api.Auth.UserInfo>({
+    url: '/auth/profile',
+    method: 'patch',
+    data
   });
 }
 

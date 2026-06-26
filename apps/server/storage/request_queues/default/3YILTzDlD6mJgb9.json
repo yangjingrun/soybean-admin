@@ -1,0 +1,9 @@
+{
+	"id": "3YILTzDlD6mJgb9",
+	"json": "{\"id\":\"3YILTzDlD6mJgb9\",\"url\":\"https://sealmech.com/product\",\"loadedUrl\":\"https://sealmech.com/products/\",\"uniqueKey\":\"5:/product\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://sealmech.com/product\",\"uniqueKey\":\"5:/product\",\"userData\":{\"candidateIndex\":5,\"dedupeKey\":\"sealmech.com\",\"companyName\":\"NKE Bearing Suppliers in Dubai - Sealmech Trading LLC\",\"homepage\":\"https://sealmech.com/product-category/bearings/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:06.612Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "5:/product",
+	"url": "https://sealmech.com/product"
+}

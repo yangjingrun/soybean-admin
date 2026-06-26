@@ -1,0 +1,9 @@
+{
+	"id": "jDr0lPDzlayekvT",
+	"json": "{\"id\":\"jDr0lPDzlayekvT\",\"url\":\"https://www.qualitybearingsdubai.com/contact\",\"loadedUrl\":\"https://www.qualitybearingsdubai.com/contact/\",\"uniqueKey\":\"7:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.qualitybearingsdubai.com/contact\",\"uniqueKey\":\"7:/contact\",\"userData\":{\"candidateIndex\":7,\"dedupeKey\":\"qualitybearingsdubai.com\",\"companyName\":\"QUALITY BEARINGS :: BEARINGS - BELTS - OILSEALS - PULLEYS ...\",\"homepage\":\"https://www.qualitybearingsdubai.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:14.698Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "7:/contact",
+	"url": "https://www.qualitybearingsdubai.com/contact"
+}

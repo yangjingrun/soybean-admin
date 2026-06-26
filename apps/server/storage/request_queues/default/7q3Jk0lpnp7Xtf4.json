@@ -1,0 +1,9 @@
+{
+	"id": "7q3Jk0lpnp7Xtf4",
+	"json": "{\"id\":\"7q3Jk0lpnp7Xtf4\",\"url\":\"https://www.alnabeelbearings.com/about-us\",\"loadedUrl\":\"https://www.alnabeelbearings.com/about-us\",\"uniqueKey\":\"9:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.alnabeelbearings.com/about-us\",\"uniqueKey\":\"9:/about-us\",\"userData\":{\"candidateIndex\":9,\"dedupeKey\":\"alnabeelbearings.com\",\"companyName\":\"ABOUT | SKF FAG BEARINGS - Al Nabeel Machinery Spare Parts Llc\",\"homepage\":\"https://www.alnabeelbearings.com/about\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:22.299Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "9:/about-us",
+	"url": "https://www.alnabeelbearings.com/about-us"
+}

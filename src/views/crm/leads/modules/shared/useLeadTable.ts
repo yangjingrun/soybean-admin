@@ -1,0 +1,1023 @@
+import { computed, h, onMounted, reactive, shallowRef, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { NButton, useDialog, useMessage, useNotification } from 'naive-ui';
+import { notifyCrmWorkbenchChanged } from '@/hooks/business/crm-workbench-refresh';
+import {
+  archiveCrmAccount,
+  clearCurrentUserCrmOutreachState,
+  createCrmContact,
+  createCrmAccountNote,
+  createCrmFirstOutreachAiDraftTask,
+  deleteCrmContact,
+  fetchCrmAccountDetail,
+  fetchCrmAccounts,
+  fetchCrmMailboxes,
+  fetchCrmProductLines,
+  fetchCrmSequencePolicies,
+  importCrmLead,
+  refreshCrmAccountEnrichment,
+  restoreCrmAccount,
+  updateCrmAccount,
+  updateCrmContact,
+  updateCrmAccountStatus,
+  verifyCrmContactEmail
+} from '@/service/api';
+import { createDefaultSequenceCreateForm } from '../../../email-sequences/modules/shared';
+import { isMailboxAvailableForSequence } from '../../../settings/modules/shared';
+import {
+  buildLeadSequenceTarget,
+  buildLeadSequenceTargetsFromCheckedRows,
+  buildLeadSearchParams,
+  canCreateSequenceFromLeadAccountContact,
+  createDefaultLeadFilterModel,
+  createDefaultLeadImportForm,
+  hasMixedLeadSequenceProductLines,
+  hasPartialLeadSequenceProductLineSources,
+  patchLeadEmailProgressForContacts,
+  resolveCommonLeadSequenceProductLineId,
+  type LeadCommunicationTab,
+  type LeadEmailProgressPatch,
+  type LeadSequenceTarget
+} from '../shared';
+
+/** Manage CRM lead list request state, pagination and current-page derived stats. */
+export function useLeadTable() {
+  const dialog = useDialog();
+  const message = useMessage();
+  const notification = useNotification();
+  const route = useRoute();
+  const router = useRouter();
+  const records = shallowRef<Api.Crm.LeadRecord[]>([]);
+  const checkedLeadRowKeys = shallowRef<string[]>([]);
+  const loading = shallowRef(false);
+  const detailVisible = shallowRef(false);
+  const detailActiveTab = shallowRef<LeadCommunicationTab>('overview');
+  const detailActiveContactId = shallowRef<string | null>(null);
+  const detailLoading = shallowRef(false);
+  const importVisible = shallowRef(false);
+  const importSubmitting = shallowRef(false);
+  const leadDetail = shallowRef<Api.Crm.LeadDetail | null>(null);
+  const selectedLeadId = shallowRef<string | null>(null);
+  const noteSubmitting = shallowRef(false);
+  const accountSubmitting = shallowRef(false);
+  const contactSubmitting = shallowRef(false);
+  const contactDeletingId = shallowRef<string | null>(null);
+  const statusSubmitting = shallowRef(false);
+  const archiveOperatingId = shallowRef<string | null>(null);
+  const clearingOutreachState = shallowRef(false);
+  const verifyingContactIds = shallowRef<string[]>([]);
+  const refreshingEnrichmentProvider = shallowRef<Api.Crm.LeadEnrichmentProvider | null>(null);
+  const sequenceCreateVisible = shallowRef(false);
+  const sequenceCreateSubmitting = shallowRef(false);
+  const sequenceResourceLoading = shallowRef(false);
+  const sequenceTargets = shallowRef<LeadSequenceTarget[]>([]);
+  const sequenceMailboxOptions = shallowRef<Api.Crm.MailboxRecord[]>([]);
+  const sequenceProductLineOptions = shallowRef<Api.Crm.ProductLineRecord[]>([]);
+  const sequencePolicyOptions = shallowRef<Api.Crm.SequencePolicyRecord[]>([]);
+  const expandedRowKeys = shallowRef<string[]>([]);
+  const expandedLeadDetails = shallowRef<Record<string, Api.Crm.LeadDetail>>({});
+  const expandedLeadLoadingIds = shallowRef<string[]>([]);
+  const expandedLeadFailedIds = shallowRef<string[]>([]);
+  let latestRequestId = 0;
+  let latestDetailRequestId = 0;
+
+  const pagination = reactive({
+    current: 1,
+    size: 10,
+    total: 0
+  });
+
+  const filterModel = reactive<Api.Crm.LeadFilterModel>(createDefaultLeadFilterModel());
+  const importForm = reactive<Api.Crm.LeadImportFormModel>(createDefaultLeadImportForm());
+  const sequenceCreateForm = reactive<Api.Crm.SequenceReviewCreateFormModel>(createDefaultSequenceCreateForm());
+  const checkedLeadSequenceTargets = computed(() =>
+    buildLeadSequenceTargetsFromCheckedRows(records.value, checkedLeadRowKeys.value)
+  );
+  const sequenceMailboxSelectOptions = computed(() =>
+    sequenceMailboxOptions.value
+      .filter(mailbox => isMailboxAvailableForSequence(mailbox))
+      .map(mailbox => ({
+        label: mailbox.maskedEmail,
+        value: mailbox.id
+      }))
+  );
+  const sequenceProductLineSelectOptions = computed(() =>
+    sequenceProductLineOptions.value.map(productLine => ({
+      label: productLine.name,
+      value: productLine.id,
+      aiWritingConfig: productLine.aiWritingConfig
+    }))
+  );
+  const sequencePolicySelectOptions = computed(() =>
+    sequencePolicyOptions.value.map(policy => ({
+      label: `${policy.name}${policy.isDefault ? ' · 默认' : ''}`,
+      value: policy.id
+    }))
+  );
+
+  onMounted(() => {
+    applyRouteFilters();
+    void loadLeads();
+  });
+
+  watch(
+    () => route.query,
+    () => {
+      if (route.name !== 'crm_leads') return;
+
+      applyRouteFilters();
+      pagination.current = 1;
+      void loadLeads();
+    }
+  );
+
+  function applyRouteFilters() {
+    const status = getRouteQueryString(route.query.status);
+    const sourceTaskId = getRouteQueryString(route.query.sourceTaskId);
+
+    filterModel.status = null;
+    filterModel.sourceTaskId = null;
+
+    if (isLeadStatus(status)) {
+      filterModel.status = status;
+    }
+
+    if (sourceTaskId) {
+      filterModel.sourceTaskId = sourceTaskId;
+    }
+  }
+
+  /** Load CRM account leads with backend pagination. */
+  async function loadLeads() {
+    const requestId = latestRequestId + 1;
+    latestRequestId = requestId;
+    loading.value = true;
+
+    try {
+      const { data, error } = await fetchCrmAccounts(
+        buildLeadSearchParams({
+          current: pagination.current,
+          size: pagination.size,
+          filterModel
+        })
+      );
+
+      if (error) {
+        return;
+      }
+
+      if (requestId !== latestRequestId) {
+        return;
+      }
+
+      records.value = data.records;
+      pagination.current = data.current;
+      pagination.size = data.size;
+      pagination.total = data.total;
+      syncExpandedRowsWithVisibleRecords(data.records);
+      checkedLeadRowKeys.value = checkedLeadRowKeys.value.filter(id => data.records.some(record => record.id === id));
+    } finally {
+      if (requestId === latestRequestId) {
+        loading.value = false;
+      }
+    }
+  }
+
+  /** Load detail for the selected lead and ignore stale communication-modal requests. */
+  async function loadLeadDetail(id = selectedLeadId.value) {
+    if (!id) {
+      return;
+    }
+
+    const requestId = latestDetailRequestId + 1;
+    latestDetailRequestId = requestId;
+    detailLoading.value = true;
+
+    try {
+      const { data, error } = await fetchCrmAccountDetail(id);
+
+      if (error) {
+        return;
+      }
+
+      // The modal may have switched to another lead while this request was in flight.
+      if (requestId !== latestDetailRequestId || selectedLeadId.value !== id) {
+        return;
+      }
+
+      leadDetail.value = data;
+    } finally {
+      if (requestId === latestDetailRequestId) {
+        detailLoading.value = false;
+      }
+    }
+  }
+
+  /** Open the unified customer communication modal on the requested tab. */
+  function openLeadDetail(
+    record: Api.Crm.LeadRecord,
+    activeTab: LeadCommunicationTab = 'overview',
+    contactId?: string
+  ) {
+    selectedLeadId.value = record.id;
+    detailActiveTab.value = activeTab;
+    detailActiveContactId.value = contactId ?? record.primaryContact?.id ?? null;
+    leadDetail.value = null;
+    detailVisible.value = true;
+    void loadLeadDetail(record.id);
+  }
+
+  /** Load contacts for a list-row expansion without replacing the active detail drawer. */
+  async function loadExpandedLeadDetail(id: string, force = false) {
+    if (!force && expandedLeadDetails.value[id]) {
+      return;
+    }
+
+    if (expandedLeadLoadingIds.value.includes(id)) {
+      return;
+    }
+
+    expandedLeadLoadingIds.value = [...expandedLeadLoadingIds.value, id];
+    expandedLeadFailedIds.value = expandedLeadFailedIds.value.filter(item => item !== id);
+
+    try {
+      const { data, error } = await fetchCrmAccountDetail(id);
+
+      if (error) {
+        expandedLeadFailedIds.value = [...expandedLeadFailedIds.value, id];
+        return;
+      }
+
+      expandedLeadDetails.value = {
+        ...expandedLeadDetails.value,
+        [id]: data
+      };
+    } finally {
+      expandedLeadLoadingIds.value = expandedLeadLoadingIds.value.filter(item => item !== id);
+    }
+  }
+
+  /** Keep expanded row keys controlled and lazy-load newly expanded company contacts. */
+  function handleExpandedRowKeysUpdate(keys: string[]) {
+    expandedRowKeys.value = keys;
+
+    for (const id of keys) {
+      void loadExpandedLeadDetail(id);
+    }
+  }
+
+  async function refreshExpandedLeadDetail(id: string) {
+    if (!expandedLeadDetails.value[id] && !expandedRowKeys.value.includes(id)) {
+      return;
+    }
+
+    await loadExpandedLeadDetail(id, true);
+  }
+
+  function handleDetailVisibleUpdate(show: boolean) {
+    detailVisible.value = show;
+
+    if (!show) {
+      selectedLeadId.value = null;
+      detailActiveTab.value = 'overview';
+      detailActiveContactId.value = null;
+      leadDetail.value = null;
+      detailLoading.value = false;
+      latestDetailRequestId += 1;
+    }
+  }
+
+  function handleDetailActiveTabUpdate(tab: LeadCommunicationTab) {
+    detailActiveTab.value = tab;
+  }
+
+  function openImportModal() {
+    Object.assign(importForm, createDefaultLeadImportForm());
+    importVisible.value = true;
+  }
+
+  function handleImportVisibleUpdate(show: boolean) {
+    importVisible.value = show;
+  }
+
+  /** Import one manually entered CRM lead, then refresh and open the new detail drawer. */
+  async function handleImportLead(payload: Api.Crm.LeadImportPayload) {
+    importSubmitting.value = true;
+
+    try {
+      const { data, error } = await importCrmLead(payload);
+
+      if (error) {
+        return;
+      }
+
+      message.success(data.contact ? '客户和联系人已导入' : '客户已导入');
+      notifyCrmWorkbenchChanged();
+      importVisible.value = false;
+      pagination.current = 1;
+      await loadLeads();
+      openLeadDetail(data.account);
+    } finally {
+      importSubmitting.value = false;
+    }
+  }
+
+  /** Mark one contact email verification request as running. */
+  function addVerifyingContact(contactId: string) {
+    verifyingContactIds.value = [...verifyingContactIds.value, contactId];
+  }
+
+  /** Remove one finished contact email verification request. */
+  function removeVerifyingContact(contactId: string) {
+    verifyingContactIds.value = verifyingContactIds.value.filter(id => id !== contactId);
+  }
+
+  /** Verify one contact email, then refresh the matching open detail drawer. */
+  async function handleVerifyContactEmail(contact: Api.Crm.LeadContact) {
+    const contactId = contact.id;
+    const accountId = contact.accountId;
+
+    if (verifyingContactIds.value.includes(contactId)) {
+      return;
+    }
+
+    addVerifyingContact(contactId);
+
+    try {
+      const { error } = await verifyCrmContactEmail(contactId);
+
+      if (error) {
+        return;
+      }
+
+      message.success('邮箱验证已完成');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      // Only refresh the drawer if the user is still viewing this contact's account.
+      if (detailVisible.value && selectedLeadId.value === accountId) {
+        await loadLeadDetail(accountId);
+      }
+
+      await refreshExpandedLeadDetail(accountId);
+    } finally {
+      removeVerifyingContact(contactId);
+    }
+  }
+
+  /** Manually refresh provider contacts from the open detail drawer. */
+  async function handleRefreshAccountEnrichment(provider: Api.Crm.LeadEnrichmentProvider) {
+    const id = selectedLeadId.value;
+
+    if (!id || provider !== 'hunter' || refreshingEnrichmentProvider.value) {
+      return;
+    }
+
+    refreshingEnrichmentProvider.value = provider;
+
+    try {
+      const { error } = await refreshCrmAccountEnrichment(id, { provider });
+
+      if (error) {
+        return;
+      }
+
+      message.success('联系人获取已完成');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === id) {
+        await loadLeadDetail(id);
+      }
+
+      await refreshExpandedLeadDetail(id);
+    } finally {
+      refreshingEnrichmentProvider.value = null;
+    }
+  }
+
+  /** Open first-email generation modal for one contact in the customer workspace. */
+  function handleCreateSequenceFromContact(contact: Api.Crm.LeadContact) {
+    if (!canOpenSequenceForContact(contact)) {
+      message.warning('只有未开发客户可以生成开发信');
+      return;
+    }
+
+    openSequenceCreateModal([buildLeadSequenceTarget(contact, findCachedLeadAccount(contact.accountId))]);
+  }
+
+  /** Open first-email generation modal for selected visible customer rows. */
+  function handleOpenBatchSequenceCreateModal() {
+    if (!checkedLeadSequenceTargets.value.length) {
+      message.warning('请先勾选可生成开发信的客户');
+      return;
+    }
+
+    openSequenceCreateModal(checkedLeadSequenceTargets.value);
+  }
+
+  function handleCheckedLeadRowKeysUpdate(keys: string[]) {
+    checkedLeadRowKeys.value = keys;
+  }
+
+  function handleSequenceCreateVisibleUpdate(show: boolean) {
+    sequenceCreateVisible.value = show;
+
+    if (!show) {
+      sequenceTargets.value = [];
+      Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+    }
+  }
+
+  /** Load sending resources needed by first-email generation. */
+  async function loadSequenceCreateResources() {
+    sequenceResourceLoading.value = true;
+
+    try {
+      const [mailboxes, productLines, sequencePolicies] = await Promise.all([
+        fetchCrmMailboxes({ current: 1, size: 100, status: 'active' }),
+        fetchCrmProductLines({ current: 1, size: 100, status: 'active' }),
+        fetchCrmSequencePolicies({ current: 1, size: 100, status: 'active' })
+      ]);
+
+      if (!mailboxes.error) sequenceMailboxOptions.value = mailboxes.data.records;
+      if (!productLines.error) {
+        sequenceProductLineOptions.value = productLines.data.records;
+        applySourceProductLineDefault(productLines.data.records);
+      }
+      if (!sequencePolicies.error) sequencePolicyOptions.value = sequencePolicies.data.records;
+    } finally {
+      sequenceResourceLoading.value = false;
+    }
+  }
+
+  /** Create first-email drafts for selected contacts without leaving the customer page. */
+  async function handleCreateSequencesFromTargets() {
+    if (!sequenceTargets.value.length) {
+      return;
+    }
+
+    if (!sequenceCreateForm.mailboxId) {
+      message.warning('请选择发送邮箱');
+      return;
+    }
+
+    const submittedTargets = [...sequenceTargets.value];
+    const progressPatch: LeadEmailProgressPatch = {
+      at: new Date().toISOString(),
+      contactIds: submittedTargets.map(target => target.contactId),
+      label: '正在生成中',
+      status: 'draft_pending_review'
+    };
+
+    sequenceCreateSubmitting.value = true;
+
+    try {
+      const { error } = await createCrmFirstOutreachAiDraftTask({
+        targets: submittedTargets.map(target => ({
+          accountId: target.accountId,
+          contactId: target.contactId
+        })),
+        ...(sequenceCreateForm.productLineId ? { productLineId: sequenceCreateForm.productLineId } : {}),
+        mailboxId: sequenceCreateForm.mailboxId,
+        ...(sequenceCreateForm.policyId ? { policyId: sequenceCreateForm.policyId } : {})
+      });
+
+      if (error) {
+        return;
+      }
+
+      patchVisibleLeadEmailProgress(progressPatch);
+      showFirstOutreachProgressNotification(submittedTargets.length);
+      notifyCrmWorkbenchChanged();
+      checkedLeadRowKeys.value = [];
+      sequenceCreateVisible.value = false;
+      sequenceTargets.value = [];
+      Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+      await loadLeads();
+      patchVisibleLeadEmailProgress(progressPatch);
+
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+        patchVisibleLeadEmailProgress(progressPatch);
+      }
+    } finally {
+      sequenceCreateSubmitting.value = false;
+    }
+  }
+
+  async function handleCreateNote(payload: Api.Crm.LeadNotePayload) {
+    const id = selectedLeadId.value;
+
+    if (!id) {
+      return;
+    }
+
+    noteSubmitting.value = true;
+
+    try {
+      const { error } = await createCrmAccountNote(id, payload);
+
+      if (error) {
+        return;
+      }
+
+      message.success('备注已添加');
+      if (detailVisible.value && selectedLeadId.value === id) {
+        await loadLeadDetail(id);
+      }
+    } finally {
+      noteSubmitting.value = false;
+    }
+  }
+
+  async function handleUpdateAccount(payload: Api.Crm.LeadAccountUpdatePayload, done?: (success: boolean) => void) {
+    const id = selectedLeadId.value;
+
+    if (!id) {
+      done?.(false);
+      return;
+    }
+
+    accountSubmitting.value = true;
+
+    try {
+      const { error } = await updateCrmAccount(id, payload);
+
+      if (error) {
+        done?.(false);
+        return;
+      }
+
+      message.success('账户信息已更新');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === id) {
+        await loadLeadDetail(id);
+      }
+
+      done?.(true);
+    } finally {
+      accountSubmitting.value = false;
+    }
+  }
+
+  async function handleCreateContact(payload: Api.Crm.LeadContactCreatePayload, done?: (success: boolean) => void) {
+    const accountId = selectedLeadId.value;
+
+    if (!accountId) {
+      done?.(false);
+      return false;
+    }
+
+    contactSubmitting.value = true;
+
+    try {
+      const { error } = await createCrmContact(accountId, payload);
+
+      if (error) {
+        done?.(false);
+        return false;
+      }
+
+      message.success('联系人已新增');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === accountId) {
+        await loadLeadDetail(accountId);
+      }
+
+      await refreshExpandedLeadDetail(accountId);
+      done?.(true);
+      return true;
+    } finally {
+      contactSubmitting.value = false;
+    }
+  }
+
+  async function handleUpdateContact(
+    contactId: string,
+    payload: Api.Crm.LeadContactUpdatePayload,
+    done?: (success: boolean) => void
+  ) {
+    contactSubmitting.value = true;
+
+    try {
+      const { error } = await updateCrmContact(contactId, payload);
+
+      if (error) {
+        done?.(false);
+        return false;
+      }
+
+      message.success('联系人已更新');
+      notifyCrmWorkbenchChanged();
+
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+      }
+
+      const updatedAccountId = findCachedContactAccountId(contactId);
+
+      if (updatedAccountId) {
+        await refreshExpandedLeadDetail(updatedAccountId);
+      }
+
+      done?.(true);
+      return true;
+    } finally {
+      contactSubmitting.value = false;
+    }
+  }
+
+  async function handleDeleteContact(contact: Api.Crm.LeadContact) {
+    if (contactDeletingId.value) {
+      return;
+    }
+
+    contactDeletingId.value = contact.id;
+
+    try {
+      const { error } = await deleteCrmContact(contact.id);
+
+      if (error) {
+        return;
+      }
+
+      message.success('联系人已删除');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === contact.accountId) {
+        await loadLeadDetail(contact.accountId);
+      }
+
+      await refreshExpandedLeadDetail(contact.accountId);
+    } finally {
+      contactDeletingId.value = null;
+    }
+  }
+
+  async function handleUpdateStatus(payload: Api.Crm.LeadStatusPayload) {
+    const id = selectedLeadId.value;
+
+    if (!id) {
+      return;
+    }
+
+    statusSubmitting.value = true;
+
+    try {
+      const { error } = await updateCrmAccountStatus(id, payload);
+
+      if (error) {
+        return;
+      }
+
+      message.success('状态已更新');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === id) {
+        await loadLeadDetail(id);
+      }
+    } finally {
+      statusSubmitting.value = false;
+    }
+  }
+
+  function handleArchiveLead(record: Api.Crm.LeadRecord) {
+    dialog.warning({
+      title: '确认暂不开发客户',
+      content: `确认将“${record.name}”标记为暂不开发？客户会移出日常开发队列，但保留历史记录，后续可重新开发。`,
+      positiveText: '暂不开发',
+      negativeText: '取消',
+      onPositiveClick: () => archiveLead(record)
+    });
+  }
+
+  function handleRestoreLead(record: Api.Crm.LeadRecord) {
+    dialog.warning({
+      title: '确认重新开发客户',
+      content: `确认重新开发“${record.name}”？客户会回到候选线索，继续补资料和创建开发信。`,
+      positiveText: '重新开发',
+      negativeText: '取消',
+      onPositiveClick: () => restoreLead(record)
+    });
+  }
+
+  /** Clear current user's outreach test state from the customer workbench. */
+  async function handleClearOutreachState() {
+    if (clearingOutreachState.value) {
+      return;
+    }
+
+    clearingOutreachState.value = true;
+    try {
+      const { data, error } = await clearCurrentUserCrmOutreachState();
+
+      if (error) {
+        return;
+      }
+
+      message.success(`已清除 ${data.deletedEnrollmentCount} 个开发信任务，复位 ${data.resetAccountCount} 个客户`);
+      notifyCrmWorkbenchChanged();
+      checkedLeadRowKeys.value = [];
+      expandedLeadDetails.value = {};
+      expandedLeadFailedIds.value = [];
+      expandedLeadLoadingIds.value = [];
+      expandedRowKeys.value = [];
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value) {
+        await loadLeadDetail(selectedLeadId.value);
+      }
+    } finally {
+      clearingOutreachState.value = false;
+    }
+  }
+
+  /** Archive one lead, then refresh the list and close the matching detail drawer. */
+  async function archiveLead(record: Api.Crm.LeadRecord) {
+    archiveOperatingId.value = record.id;
+
+    try {
+      const { error } = await archiveCrmAccount(record.id);
+
+      if (error) {
+        return;
+      }
+
+      message.success('客户已标记为暂不开发');
+      notifyCrmWorkbenchChanged();
+
+      if (selectedLeadId.value === record.id) {
+        handleDetailVisibleUpdate(false);
+      }
+
+      await loadLeads();
+    } finally {
+      archiveOperatingId.value = null;
+    }
+  }
+
+  /** Restore one archived lead, then refresh the list and matching detail drawer. */
+  async function restoreLead(record: Api.Crm.LeadRecord) {
+    archiveOperatingId.value = record.id;
+
+    try {
+      const { error } = await restoreCrmAccount(record.id);
+
+      if (error) {
+        return;
+      }
+
+      message.success('客户已恢复为候选线索');
+      notifyCrmWorkbenchChanged();
+      await loadLeads();
+
+      if (detailVisible.value && selectedLeadId.value === record.id) {
+        await loadLeadDetail(record.id);
+      }
+    } finally {
+      archiveOperatingId.value = null;
+    }
+  }
+
+  function handleSearch() {
+    pagination.current = 1;
+    void loadLeads();
+  }
+
+  function handleReset() {
+    Object.assign(filterModel, createDefaultLeadFilterModel());
+    pagination.current = 1;
+    void loadLeads();
+  }
+
+  function handlePageUpdate(page: number) {
+    pagination.current = page;
+    void loadLeads();
+  }
+
+  function handlePageSizeUpdate(pageSize: number) {
+    pagination.size = pageSize;
+    pagination.current = 1;
+    void loadLeads();
+  }
+
+  return {
+    archiveOperatingId,
+    accountSubmitting,
+    contactDeletingId,
+    contactSubmitting,
+    clearingOutreachState,
+    detailActiveTab,
+    detailActiveContactId,
+    detailLoading,
+    detailVisible,
+    expandedLeadDetails,
+    expandedLeadFailedIds,
+    expandedLeadLoadingIds,
+    expandedRowKeys,
+    filterModel,
+    checkedLeadRowKeys,
+    checkedLeadSequenceTargets,
+    handleArchiveLead,
+    handleClearOutreachState,
+    handleUpdateAccount,
+    handleCheckedLeadRowKeysUpdate,
+    handleCreateSequencesFromTargets,
+    handleImportLead,
+    handleImportVisibleUpdate,
+    handleCreateSequenceFromContact,
+    handleCreateContact,
+    handleCreateNote,
+    handleDeleteContact,
+    handleDetailActiveTabUpdate,
+    handleDetailVisibleUpdate,
+    handleExpandedRowKeysUpdate,
+    handlePageSizeUpdate,
+    handlePageUpdate,
+    handleOpenBatchSequenceCreateModal,
+    handleReset,
+    handleRestoreLead,
+    handleRefreshAccountEnrichment,
+    handleSearch,
+    handleSequenceCreateVisibleUpdate,
+    handleUpdateContact,
+    handleUpdateStatus,
+    handleVerifyContactEmail,
+    importForm,
+    importSubmitting,
+    importVisible,
+    leadDetail,
+    loadLeads,
+    loadLeadDetail,
+    loadExpandedLeadDetail,
+    loading,
+    noteSubmitting,
+    pagination,
+    refreshingEnrichmentProvider,
+    records,
+    openLeadDetail,
+    openImportModal,
+    sequenceCreateForm,
+    sequenceCreateSubmitting,
+    sequenceCreateVisible,
+    sequenceMailboxSelectOptions,
+    sequencePolicySelectOptions,
+    sequenceProductLineSelectOptions,
+    sequenceResourceLoading,
+    sequenceTargets,
+    statusSubmitting,
+    verifyingContactIds
+  };
+
+  function syncExpandedRowsWithVisibleRecords(nextRecords: Api.Crm.LeadRecord[]) {
+    const visibleIds = new Set(nextRecords.map(record => record.id));
+
+    expandedRowKeys.value = expandedRowKeys.value.filter(id => visibleIds.has(id));
+    expandedLeadLoadingIds.value = expandedLeadLoadingIds.value.filter(id => visibleIds.has(id));
+    expandedLeadFailedIds.value = expandedLeadFailedIds.value.filter(id => visibleIds.has(id));
+    expandedLeadDetails.value = Object.fromEntries(
+      Object.entries(expandedLeadDetails.value).filter(([id]) => visibleIds.has(id))
+    );
+  }
+
+  function findCachedContactAccountId(contactId: string) {
+    const detailContact = leadDetail.value?.contacts.find(contact => contact.id === contactId);
+
+    if (detailContact) {
+      return detailContact.accountId;
+    }
+
+    for (const detail of Object.values(expandedLeadDetails.value)) {
+      const contact = detail.contacts.find(item => item.id === contactId);
+
+      if (contact) {
+        return contact.accountId;
+      }
+    }
+
+    return null;
+  }
+
+  function findCachedLeadAccount(accountId: string) {
+    const record = records.value.find(item => item.id === accountId);
+
+    if (record) {
+      return record;
+    }
+
+    if (leadDetail.value?.account.id === accountId) {
+      return leadDetail.value.account;
+    }
+
+    return Object.values(expandedLeadDetails.value).find(detail => detail.account.id === accountId)?.account ?? null;
+  }
+
+  function canOpenSequenceForContact(contact: Api.Crm.LeadContact) {
+    const account = findCachedLeadAccount(contact.accountId);
+
+    return account ? canCreateSequenceFromLeadAccountContact(account, contact) : false;
+  }
+
+  function openSequenceCreateModal(targets: LeadSequenceTarget[]) {
+    sequenceTargets.value = targets;
+    Object.assign(sequenceCreateForm, createDefaultSequenceCreateForm());
+
+    if (hasMixedLeadSequenceProductLines(targets)) {
+      message.warning('所选客户来自多个产品线，建议按产品线分组生成开发信');
+    } else if (hasPartialLeadSequenceProductLineSources(targets)) {
+      message.warning('部分客户没有来源产品线，请手动选择本次开发信使用的产品线');
+    }
+
+    sequenceCreateVisible.value = true;
+    void loadSequenceCreateResources();
+  }
+
+  /** 默认沿用 AI 获客来源产品线；归档产品线不自动套用。 */
+  function applySourceProductLineDefault(productLines: Api.Crm.ProductLineRecord[]) {
+    const sourceProductLineId = resolveCommonLeadSequenceProductLineId(sequenceTargets.value);
+
+    if (!sourceProductLineId || sequenceCreateForm.productLineId) {
+      return;
+    }
+
+    const activeProductLine = productLines.find(productLine => productLine.id === sourceProductLineId);
+
+    if (activeProductLine) {
+      sequenceCreateForm.productLineId = activeProductLine.id;
+    } else {
+      message.warning('来源产品线已归档或不可用，请重新选择当前可用产品线');
+    }
+  }
+
+  /** Keep the visible customer table and open drawers aligned with submitted background generation. */
+  function patchVisibleLeadEmailProgress(patch: LeadEmailProgressPatch) {
+    records.value = records.value.map(record => patchLeadEmailProgressForContacts(record, patch));
+
+    if (leadDetail.value) {
+      leadDetail.value = patchLeadEmailProgressForContacts(leadDetail.value, patch);
+    }
+
+    expandedLeadDetails.value = Object.fromEntries(
+      Object.entries(expandedLeadDetails.value).map(([id, detail]) => [
+        id,
+        patchLeadEmailProgressForContacts(detail, patch)
+      ])
+    );
+  }
+
+  /** Guide first-time users to the persisted AI draft task progress entry. */
+  function showFirstOutreachProgressNotification(count: number) {
+    const notice = notification.info({
+      title: '批量开发信生成中',
+      content: `已提交后台生成 ${count} 封开发信。客户管理邮箱进度已标记为“正在生成中”，也可到邮箱调度查看任务进度。`,
+      meta: '系统通知',
+      duration: 0,
+      keepAliveOnHover: true,
+      action: () =>
+        h(
+          NButton,
+          {
+            size: 'small',
+            type: 'primary',
+            onClick: () => {
+              notice.destroy();
+              void router.push('/crm/email-sequences');
+            }
+          },
+          { default: () => '查看' }
+        )
+    });
+  }
+}
+
+function getRouteQueryString(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return '';
+}
+
+function isLeadStatus(value: string): value is Api.Crm.CrmAccountStatus {
+  return [
+    'candidate',
+    'missing_contact',
+    'email_verification_pending',
+    'manual_review_pending',
+    'ready',
+    'sequence_running',
+    'replied_pending',
+    'followed_up',
+    'opportunity',
+    'customer',
+    'invalid',
+    'paused',
+    'blocked',
+    'archived'
+  ].includes(value);
+}

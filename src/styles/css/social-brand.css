@@ -1,0 +1,55 @@
+.social-brand-link--linkedin {
+  --social-brand-color: #0a66c2;
+  --social-brand-border: rgb(10 102 194 / 0.32);
+  --social-brand-bg: rgb(10 102 194 / 0.08);
+  --social-brand-bg-hover: rgb(10 102 194 / 0.14);
+}
+
+.social-brand-link--facebook {
+  --social-brand-color: #1877f2;
+  --social-brand-border: rgb(24 119 242 / 0.32);
+  --social-brand-bg: rgb(24 119 242 / 0.08);
+  --social-brand-bg-hover: rgb(24 119 242 / 0.14);
+}
+
+.social-brand-link--instagram {
+  --social-brand-color: #e4405f;
+  --social-brand-border: rgb(228 64 95 / 0.32);
+  --social-brand-bg: rgb(228 64 95 / 0.08);
+  --social-brand-bg-hover: rgb(228 64 95 / 0.14);
+}
+
+.social-brand-link--youtube {
+  --social-brand-color: #ff0000;
+  --social-brand-border: rgb(255 0 0 / 0.28);
+  --social-brand-bg: rgb(255 0 0 / 0.08);
+  --social-brand-bg-hover: rgb(255 0 0 / 0.14);
+}
+
+.social-brand-link--x {
+  --social-brand-color: #111111;
+  --social-brand-border: rgb(17 17 17 / 0.26);
+  --social-brand-bg: rgb(17 17 17 / 0.06);
+  --social-brand-bg-hover: rgb(17 17 17 / 0.12);
+}
+
+.social-brand-link--whatsapp {
+  --social-brand-color: #25d366;
+  --social-brand-border: rgb(37 211 102 / 0.32);
+  --social-brand-bg: rgb(37 211 102 / 0.08);
+  --social-brand-bg-hover: rgb(37 211 102 / 0.14);
+}
+
+.social-brand-link--tiktok {
+  --social-brand-color: #111111;
+  --social-brand-border: rgb(17 17 17 / 0.26);
+  --social-brand-bg: rgb(17 17 17 / 0.06);
+  --social-brand-bg-hover: rgb(17 17 17 / 0.12);
+}
+
+.social-brand-link--pinterest {
+  --social-brand-color: #e60023;
+  --social-brand-border: rgb(230 0 35 / 0.3);
+  --social-brand-bg: rgb(230 0 35 / 0.08);
+  --social-brand-bg-hover: rgb(230 0 35 / 0.14);
+}

@@ -1,0 +1,9 @@
+{
+	"id": "cyYLT6N2Ce48Zgb",
+	"json": "{\"id\":\"cyYLT6N2Ce48Zgb\",\"url\":\"https://www.alhuwaisksa.com/elevator\",\"loadedUrl\":\"https://www.alhuwaisksa.com/elevator\",\"uniqueKey\":\"22:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.alhuwaisksa.com/elevator\",\"uniqueKey\":\"22:/elevator\",\"userData\":{\"candidateIndex\":22,\"dedupeKey\":\"alhuwaisksa.com\",\"companyName\":\"Bearings - Hamad Abdullah Al Huwais Trading Est.\",\"homepage\":\"https://www.alhuwaisksa.com/bearings.aspx\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:47.336Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "22:/elevator",
+	"url": "https://www.alhuwaisksa.com/elevator"
+}

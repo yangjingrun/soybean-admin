@@ -1,0 +1,969 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { ConflictException } from '@nestjs/common';
+import type { UserInfo } from '../auth/auth.types';
+import type { SystemLogRecordInput } from '../system-log/system-log.types';
+import { AiLeadSearchTaskService } from './ai-lead-search-task.service';
+import type {
+  AiLeadQueueConfigRecord,
+  AiLeadQueueConfigStore,
+  AiLeadSearchTaskCreateInput,
+  AiLeadSearchTaskEventInput,
+  AiLeadSearchTaskRecord,
+  AiLeadSearchTaskStore
+} from './ai-lead-search-task.types';
+
+const user: UserInfo = {
+  userId: 'u-1',
+  userName: 'AI外贸管理系统',
+  nickName: null,
+  phone: null,
+  email: null,
+  roles: ['R_SUPER'],
+  buttons: [],
+  organizationId: 'org-1',
+  organizationName: 'Org One',
+  organizationRole: 'admin'
+};
+const ordinaryUser: UserInfo = {
+  ...user,
+  roles: [],
+  organizationRole: 'member'
+};
+
+describe('AiLeadSearchTaskService', () => {
+  it('creates a queued task and enqueues it with the saved queue concurrency', async () => {
+    const enqueued: Array<{ taskId: string; runVersion: number; priority: number }> = [];
+    const appliedConcurrency: number[] = [];
+    const taskStore = createTaskStore();
+    const queueConfigStore = createQueueConfigStore({ workerConcurrency: 3 });
+    const service = createSearchTaskService(taskStore, queueConfigStore, {
+      async enqueueSearchTask(input) {
+        enqueued.push(input);
+        return { jobId: `job-${input.taskId}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency(concurrency) {
+        appliedConcurrency.push(concurrency);
+      }
+    });
+
+    const task = await service.createTask(
+      {
+        requirement: ' 找沙特轴承进口商 ',
+        targetLeadCount: 20,
+        productLineId: 'product-line-1',
+        keywordPlan: { serperSearchQueries: [] }
+      },
+      { user }
+    );
+
+    assert.equal(task.status, 'queued');
+    assert.equal(task.requirement, '找沙特轴承进口商');
+    assert.equal(task.productLineId, 'product-line-1');
+    assert.deepEqual(task.productLineSnapshot, {
+      id: 'product-line-1',
+      name: '6204 Bearing',
+      targetCustomerType: '进口商和经销商',
+      coreSellingPoints: '供货稳定',
+      moq: '100 pcs',
+      leadTime: '7 days',
+      paymentTerms: 'T/T',
+      certifications: 'ISO',
+      catalogUrl: 'https://example.com/catalog.pdf',
+      websiteUrl: 'https://example.com/bearing',
+      commonModelsText: '6204, 6205'
+    });
+    assert.deepEqual((task.keywordPlan as Record<string, unknown>).productLineSnapshot, task.productLineSnapshot);
+    assert.equal(task.bullJobId, 'job-task-1');
+    assert.deepEqual(enqueued, [{ taskId: 'task-1', runVersion: 1, priority: 0 }]);
+    assert.deepEqual(appliedConcurrency, [3]);
+  });
+
+  it('creates queued task events through the shared state-change shape', async () => {
+    const events: AiLeadSearchTaskEventInput[] = [];
+    const taskStore = createTaskStore({
+      onTaskEvent(input) {
+        events.push(input);
+      }
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        return { jobId: `job-${input.taskId}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await service.createTask(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20,
+        productLineId: 'product-line-1',
+        keywordPlan: { serperSearchQueries: [] }
+      },
+      { user }
+    );
+
+    assert.deepEqual(events[0], {
+      taskId: 'task-1',
+      eventType: 'task_queued',
+      title: '采集任务已排队',
+      message: null,
+      fromStatus: null,
+      toStatus: 'queued',
+      metadata: null
+    });
+  });
+
+  it('persists the current organization context on created tasks', async () => {
+    const capturedInputs: Array<Record<string, unknown>> = [];
+    const taskStore = createTaskStore({
+      onCreate(input) {
+        capturedInputs.push(input as unknown as Record<string, unknown>);
+      }
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        return { jobId: `job-${input.taskId}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await service.createTask(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20,
+        productLineId: 'product-line-1',
+        keywordPlan: { serperSearchQueries: [] }
+      },
+      { user }
+    );
+
+    assert.equal(capturedInputs[0].organizationId, 'org-1');
+    assert.equal(capturedInputs[0].organizationRole, 'admin');
+  });
+
+  it('rejects creating another task while current user has an active task', async () => {
+    const taskStore = createTaskStore({
+      activeTask: createTask({ id: 'active-1', status: 'running' })
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('should not enqueue');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await assert.rejects(
+      () =>
+        service.createTask(
+          {
+            requirement: '找沙特轴承进口商',
+            targetLeadCount: 20,
+            productLineId: 'product-line-1',
+            keywordPlan: { serperSearchQueries: [] }
+          },
+          { user }
+        ),
+      ConflictException
+    );
+  });
+
+  it('marks a just-created task failed when BullMQ enqueue is unavailable', async () => {
+    const taskStore = createTaskStore();
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('queue unavailable');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await assert.rejects(
+      () =>
+        service.createTask(
+          {
+            requirement: '找沙特轴承进口商',
+            targetLeadCount: 20,
+            productLineId: 'product-line-1',
+            keywordPlan: { serperSearchQueries: [] }
+          },
+          { user }
+        ),
+      /queue unavailable/
+    );
+
+    const task = await taskStore.findTaskById('task-1');
+    assert.equal(task?.status, 'failed');
+    assert.equal(task?.finishedAt instanceof Date, true);
+    assert.match(task?.errorMessage || '', /queue unavailable/);
+  });
+
+  it('keeps task creation successful when the queued event write fails', async () => {
+    const enqueued: Array<{ taskId: string; runVersion: number; priority: number }> = [];
+    const taskStore = createTaskStore({
+      failEventTypes: ['task_queued']
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        enqueued.push(input);
+        return { jobId: `job-${input.taskId}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.createTask(
+      {
+        requirement: '找沙特轴承进口商',
+        targetLeadCount: 20,
+        productLineId: 'product-line-1',
+        keywordPlan: { serperSearchQueries: [] }
+      },
+      { user }
+    );
+
+    assert.equal(task.status, 'queued');
+    assert.equal(task.bullJobId, 'job-task-1');
+    assert.deepEqual(enqueued, [{ taskId: 'task-1', runVersion: 1, priority: 0 }]);
+  });
+
+  it('interrupts a running task without removing its active BullMQ job', async () => {
+    const removedJobs: string[] = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'running', bullJobId: 'job-task-1' })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('should not enqueue');
+      },
+      async removeSearchTaskJob(jobId) {
+        removedJobs.push(jobId);
+      },
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.interruptTask('task-1', { user });
+
+    assert.equal(task.status, 'interrupted');
+    assert.deepEqual(removedJobs, []);
+  });
+
+  it('discards a queued task and removes its waiting BullMQ job', async () => {
+    const removedJobs: string[] = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'queued', bullJobId: 'job-task-1' })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('should not enqueue');
+      },
+      async removeSearchTaskJob(jobId) {
+        removedJobs.push(jobId);
+      },
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.discardTask('task-1', { user });
+
+    assert.equal(task.status, 'discarded');
+    assert.deepEqual(removedJobs, ['job-task-1']);
+  });
+
+  it('marks task notifications read when a failed task is discarded', async () => {
+    const markedTargets: Array<{ targetType: string; targetId: string; userId: string }> = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'failed' })]
+    });
+    const service = createSearchTaskService(
+      taskStore,
+      createQueueConfigStore(),
+      {
+        async enqueueSearchTask() {
+          throw new Error('should not enqueue');
+        },
+        async removeSearchTaskJob() {},
+        async applyGlobalConcurrency() {}
+      },
+      undefined,
+      undefined,
+      {
+        async markTargetReadForUser(targetType: string, targetId: string, userId: string) {
+          markedTargets.push({ targetType, targetId, userId });
+          return { count: 1 };
+        }
+      } as never
+    );
+
+    const task = await service.discardTask('task-1', { user });
+
+    assert.equal(task.status, 'discarded');
+    assert.deepEqual(markedTargets, [{ targetType: 'aiLeadSearchTask', targetId: 'task-1', userId: 'u-1' }]);
+  });
+
+  it('keeps discard successful and writes a task event when notification read fails', async () => {
+    const events: string[] = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'failed' })],
+      onEvent(eventType) {
+        events.push(eventType);
+      }
+    });
+    const service = createSearchTaskService(
+      taskStore,
+      createQueueConfigStore(),
+      {
+        async enqueueSearchTask() {
+          throw new Error('should not enqueue');
+        },
+        async removeSearchTaskJob() {},
+        async applyGlobalConcurrency() {}
+      },
+      undefined,
+      undefined,
+      {
+        async markTargetReadForUser() {
+          throw new Error('notification store unavailable');
+        }
+      } as never
+    );
+
+    const task = await service.discardTask('task-1', { user });
+
+    assert.equal(task.status, 'discarded');
+    assert.deepEqual(events, ['task_discarded', 'task_notification_read_failed']);
+  });
+
+  it('still discards a queued task when the BullMQ job is already locked by a worker', async () => {
+    const events: string[] = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'queued', bullJobId: 'job-task-1' })],
+      onEvent(eventType) {
+        events.push(eventType);
+      }
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('should not enqueue');
+      },
+      async removeSearchTaskJob() {
+        throw new Error('Job is locked');
+      },
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.discardTask('task-1', { user });
+
+    assert.equal(task.status, 'discarded');
+    assert.deepEqual(events, ['task_discarded', 'task_job_remove_failed']);
+  });
+
+  it('resumes an interrupted task by creating a new queued run version', async () => {
+    const enqueued: Array<{ taskId: string; runVersion: number; priority: number }> = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'interrupted', runVersion: 1 })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        enqueued.push(input);
+        return { jobId: `job-${input.taskId}-${input.runVersion}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.resumeTask('task-1', { user });
+
+    assert.equal(task.status, 'queued');
+    assert.equal(task.runVersion, 2);
+    assert.equal(task.bullJobId, 'job-task-1-2');
+    assert.deepEqual(enqueued, [{ taskId: 'task-1', runVersion: 2, priority: 0 }]);
+  });
+
+  it('persists a resumed run version before enqueueing so fast workers can pick it up', async () => {
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'interrupted', runVersion: 1 })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        const task = await taskStore.findTaskById(input.taskId);
+
+        assert.equal(task?.status, 'queued');
+        assert.equal(task?.runVersion, input.runVersion);
+
+        return { jobId: `job-${input.taskId}-${input.runVersion}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.resumeTask('task-1', { user });
+
+    assert.equal(task.status, 'queued');
+    assert.equal(task.runVersion, 2);
+  });
+
+  it('marks task notifications read when a failed task is retried', async () => {
+    const markedTargets: Array<{ targetType: string; targetId: string; userId: string }> = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'failed', runVersion: 1 })]
+    });
+    const service = createSearchTaskService(
+      taskStore,
+      createQueueConfigStore(),
+      {
+        async enqueueSearchTask(input) {
+          return { jobId: `job-${input.taskId}-${input.runVersion}` };
+        },
+        async removeSearchTaskJob() {},
+        async applyGlobalConcurrency() {}
+      },
+      undefined,
+      undefined,
+      {
+        async markTargetReadForUser(targetType: string, targetId: string, userId: string) {
+          markedTargets.push({ targetType, targetId, userId });
+          return { count: 1 };
+        }
+      } as never
+    );
+
+    const task = await service.retryTask('task-1', { user });
+
+    assert.equal(task.status, 'queued');
+    assert.equal(task.runVersion, 2);
+    assert.deepEqual(markedTargets, [{ targetType: 'aiLeadSearchTask', targetId: 'task-1', userId: 'u-1' }]);
+  });
+
+  it('keeps retry successful and writes a task event when notification read fails', async () => {
+    const events: string[] = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'failed', runVersion: 1 })],
+      onEvent(eventType) {
+        events.push(eventType);
+      }
+    });
+    const service = createSearchTaskService(
+      taskStore,
+      createQueueConfigStore(),
+      {
+        async enqueueSearchTask(input) {
+          return { jobId: `job-${input.taskId}-${input.runVersion}` };
+        },
+        async removeSearchTaskJob() {},
+        async applyGlobalConcurrency() {}
+      },
+      undefined,
+      undefined,
+      {
+        async markTargetReadForUser() {
+          throw new Error('notification store unavailable');
+        }
+      } as never
+    );
+
+    const task = await service.retryTask('task-1', { user });
+
+    assert.equal(task.status, 'queued');
+    assert.equal(task.runVersion, 2);
+    assert.deepEqual(events, ['task_retried', 'task_notification_read_failed']);
+  });
+
+  it('returns the latest task when a fast worker advances before job id backfill', async () => {
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'interrupted', runVersion: 1 })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        await taskStore.updateTask(
+          input.taskId,
+          {
+            status: 'running',
+            startedAt: new Date('2026-06-18T01:10:00Z')
+          },
+          {
+            userId: user.userId,
+            status: 'queued',
+            runVersion: input.runVersion
+          }
+        );
+
+        return { jobId: `job-${input.taskId}-${input.runVersion}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.resumeTask('task-1', { user });
+
+    assert.equal(task.status, 'running');
+    assert.equal(task.runVersion, 2);
+    assert.equal(task.startedAt?.toISOString(), '2026-06-18T01:10:00.000Z');
+  });
+
+  it('clears stale progress and result when an interrupted task is resumed', async () => {
+    const taskStore = createTaskStore({
+      records: [
+        createTask({
+          id: 'task-1',
+          status: 'interrupted',
+          runVersion: 1,
+          progressState: { type: 'workflow_failed', title: '旧失败状态' },
+          result: { candidates: [{ title: 'Old' }] },
+          readAt: new Date('2026-06-18T00:20:00Z'),
+          finishedAt: new Date('2026-06-18T00:30:00Z')
+        })
+      ]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask(input) {
+        return { jobId: `job-${input.taskId}-${input.runVersion}` };
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.resumeTask('task-1', { user });
+
+    assert.equal(task.status, 'queued');
+    assert.equal(task.progressState, null);
+    assert.equal(task.result, null);
+    assert.equal(task.readAt, null);
+    assert.equal(task.finishedAt, null);
+  });
+
+  it('rejects marking unfinished tasks as read', async () => {
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'failed' })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('should not enqueue');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await assert.rejects(() => service.markTaskRead('task-1', { user }), ConflictException);
+  });
+
+  it('marks task notifications read when a completed task is confirmed', async () => {
+    const markedTargets: Array<{ targetType: string; targetId: string; userId: string }> = [];
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'completed', readAt: null })]
+    });
+    const service = createSearchTaskService(
+      taskStore,
+      createQueueConfigStore(),
+      {
+        async enqueueSearchTask() {
+          throw new Error('not used');
+        },
+        async removeSearchTaskJob() {},
+        async applyGlobalConcurrency() {}
+      },
+      undefined,
+      undefined,
+      {
+        async markTargetReadForUser(targetType: string, targetId: string, userId: string) {
+          markedTargets.push({ targetType, targetId, userId });
+          return { count: 1 };
+        }
+      } as never
+    );
+
+    const task = await service.markTaskRead('task-1', { user });
+
+    assert.equal(task.readAt instanceof Date, true);
+    assert.deepEqual(markedTargets, [{ targetType: 'aiLeadSearchTask', targetId: 'task-1', userId: 'u-1' }]);
+  });
+
+  it('returns public search result without raw Serper details for ordinary users', async () => {
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'completed', result: createCompletedTaskResult() })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('not used');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.getTaskById('task-1', { user: ordinaryUser });
+    const result = task.result as {
+      summary: { candidateCount: number; actionCount?: number; qualityCheckCount?: number; stopReason?: string };
+      candidates: Array<Record<string, unknown>>;
+      serperResults: unknown[];
+    };
+
+    assert.deepEqual(result.summary, {
+      candidateCount: 1,
+      actionCount: 1,
+      qualityCheckCount: 1,
+      stopReason: '所有查询已完成'
+    });
+    assert.equal('sourceLabel' in result.candidates[0], true);
+    assert.deepEqual(result.serperResults, []);
+  });
+
+  it('keeps raw Serper details visible for super admin task reads', async () => {
+    const rawResult = createCompletedTaskResult();
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-1', status: 'completed', result: rawResult })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('not used');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    const task = await service.getTaskById('task-1', { user });
+
+    assert.deepEqual(task.result, rawResult);
+  });
+
+  it('does not read tasks from another organization even when user id matches', async () => {
+    const taskStore = createTaskStore({
+      records: [
+        createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'completed' })
+      ]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('not used');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    await assert.rejects(() => service.getTaskById('task-foreign-org', { user }), /采集任务不存在/);
+  });
+
+  it('does not restore current tasks from another organization', async () => {
+    const taskStore = createTaskStore({
+      records: [createTask({ id: 'task-foreign-org', userId: user.userId, organizationId: 'org-2', status: 'running' })]
+    });
+    const service = createSearchTaskService(taskStore, createQueueConfigStore(), {
+      async enqueueSearchTask() {
+        throw new Error('not used');
+      },
+      async removeSearchTaskJob() {},
+      async applyGlobalConcurrency() {}
+    });
+
+    assert.equal(await service.getCurrentTask({ user }), null);
+  });
+
+  it('records a business log when saving queue concurrency config', async () => {
+    const logRecorder = createLogRecorder();
+    const taskStore = createTaskStore();
+    const queueConfigStore = createQueueConfigStore({ workerConcurrency: 4 });
+    const appliedConcurrency: number[] = [];
+    const service = createSearchTaskService(
+      taskStore,
+      queueConfigStore,
+      {
+        async enqueueSearchTask() {
+          throw new Error('not used');
+        },
+        async removeSearchTaskJob() {},
+        async applyGlobalConcurrency(concurrency) {
+          appliedConcurrency.push(concurrency);
+        }
+      },
+      undefined,
+      logRecorder
+    );
+
+    await service.saveQueueConfig(4, { user });
+
+    assert.deepEqual(appliedConcurrency, [4]);
+    assert.equal(logRecorder.records.length, 1);
+    assert.deepEqual(logRecorder.records[0], {
+      level: 'info',
+      status: 'success',
+      module: 'ai-leads',
+      action: 'save-queue-config',
+      message: 'AI 获客任务配置已保存',
+      userId: 'u-1',
+      userName: 'AI外贸管理系统',
+      metadata: {
+        workerConcurrency: 4
+      }
+    });
+  });
+});
+
+function createTaskStore(
+  options: {
+    activeTask?: AiLeadSearchTaskRecord | null;
+    records?: AiLeadSearchTaskRecord[];
+    onCreate?: (input: AiLeadSearchTaskCreateInput) => void;
+    onEvent?: (eventType: string) => void;
+    onTaskEvent?: (input: AiLeadSearchTaskEventInput) => void;
+    failEventTypes?: string[];
+  } = {}
+): AiLeadSearchTaskStore {
+  const records: AiLeadSearchTaskRecord[] = options.records ?? [];
+
+  return {
+    async createTask(input: AiLeadSearchTaskCreateInput) {
+      options.onCreate?.(input);
+      const record = createTask({
+        id: 'task-1',
+        userId: input.userId,
+        userName: input.userName ?? null,
+        organizationId: input.organizationId,
+        organizationRole: input.organizationRole,
+        requirement: input.requirement,
+        targetLeadCount: input.targetLeadCount,
+        productLineId: input.productLineId,
+        productLineSnapshot: input.productLineSnapshot,
+        keywordPlan: input.keywordPlan,
+        status: 'queued',
+        priority: input.priority,
+        runVersion: 1
+      });
+      records.push(record);
+
+      return record;
+    },
+    async createTaskIfNoCurrent(input: AiLeadSearchTaskCreateInput) {
+      if (options.activeTask) {
+        return null;
+      }
+
+      const current = records.find(
+        record =>
+          record.userId === input.userId &&
+          record.organizationId === input.organizationId &&
+          ['queued', 'running', 'interrupted', 'failed'].includes(record.status)
+      );
+
+      return current ? null : this.createTask(input);
+    },
+    async findCurrentTaskForUser(userId, organizationId) {
+      if (options.activeTask?.userId === userId && options.activeTask.organizationId === organizationId) {
+        return options.activeTask;
+      }
+
+      return (
+        records.find(
+          record =>
+            record.userId === userId &&
+            record.organizationId === organizationId &&
+            ['queued', 'running', 'interrupted', 'failed'].includes(record.status)
+        ) ?? null
+      );
+    },
+    async findTaskById(id: string) {
+      return records.find(record => record.id === id) ?? null;
+    },
+    async findTaskByIdForUser(id: string, userId: string, organizationId: string) {
+      return (
+        records.find(
+          record => record.id === id && record.userId === userId && record.organizationId === organizationId
+        ) ?? null
+      );
+    },
+    async updateTask(id, patch, guard) {
+      const record = records.find(item => item.id === id);
+
+      if (!record) return null;
+      if (guard?.userId && record.userId !== guard.userId) return null;
+      if (guard?.runVersion !== undefined && record.runVersion !== guard.runVersion) return null;
+      if (guard?.status) {
+        const statuses = Array.isArray(guard.status) ? guard.status : [guard.status];
+        if (!statuses.includes(record.status)) return null;
+      }
+      Object.assign(record, patch, { updatedAt: new Date('2026-06-18T01:00:00Z') });
+
+      return record;
+    },
+    async interruptRunningTasksForRecovery() {
+      const runningRecords = records.filter(record => record.status === 'running');
+      runningRecords.forEach(record => {
+        Object.assign(record, {
+          status: 'interrupted',
+          errorMessage: '服务重启，采集任务已自动中断，可继续采集。'
+        });
+      });
+
+      return runningRecords;
+    },
+    async createTaskEvent(input) {
+      if (options.failEventTypes?.includes(input.eventType)) {
+        throw new Error(`event write failed: ${input.eventType}`);
+      }
+
+      options.onEvent?.(input.eventType);
+      options.onTaskEvent?.(input);
+
+      return undefined;
+    },
+    async findQueryByRequestKey() {
+      return null;
+    },
+    async upsertRunningQuery() {
+      throw new Error('not used');
+    },
+    async completeQuery() {
+      throw new Error('not used');
+    },
+    async failQuery() {
+      throw new Error('not used');
+    }
+  };
+}
+
+function createQueueConfigStore(overrides: Partial<AiLeadQueueConfigRecord> = {}) {
+  const store: AiLeadQueueConfigStore = {
+    async getConfig() {
+      return {
+        configKey: 'ai-lead-search',
+        workerConcurrency: 2,
+        priorityStrategy: 'fifo',
+        updatedAt: new Date('2026-06-18T00:00:00Z'),
+        ...overrides
+      };
+    },
+    async saveConfig(input) {
+      return {
+        configKey: 'ai-lead-search',
+        workerConcurrency: input.workerConcurrency,
+        priorityStrategy: 'fifo',
+        updatedAt: new Date('2026-06-18T00:00:00Z')
+      };
+    }
+  };
+
+  return store;
+}
+
+function createSearchTaskService(
+  taskStore: AiLeadSearchTaskStore,
+  queueConfigStore: AiLeadQueueConfigStore,
+  taskQueue: ConstructorParameters<typeof AiLeadSearchTaskService>[2],
+  workerHost?: ConstructorParameters<typeof AiLeadSearchTaskService>[3],
+  systemLogService?: ConstructorParameters<typeof AiLeadSearchTaskService>[4],
+  notificationService?: ConstructorParameters<typeof AiLeadSearchTaskService>[5],
+  productLineService: ConstructorParameters<typeof AiLeadSearchTaskService>[6] = createProductLineService()
+) {
+  return new AiLeadSearchTaskService(
+    taskStore,
+    queueConfigStore,
+    taskQueue,
+    workerHost,
+    systemLogService,
+    notificationService,
+    productLineService
+  );
+}
+
+function createProductLineService(): ConstructorParameters<typeof AiLeadSearchTaskService>[6] {
+  return {
+    async requireActiveProductLine(id: string, context: { organizationId: string }) {
+      return {
+        id,
+        organizationId: context.organizationId,
+        name: '6204 Bearing',
+        targetCustomerType: '进口商和经销商',
+        coreSellingPoints: '供货稳定',
+        moq: '100 pcs',
+        leadTime: '7 days',
+        paymentTerms: 'T/T',
+        certifications: 'ISO',
+        catalogUrl: 'https://example.com/catalog.pdf',
+        websiteUrl: 'https://example.com/bearing',
+        commonModelsText: '6204, 6205',
+        aiWritingConfig: null,
+        status: 'active',
+        createdById: 'u-1',
+        createdByName: 'AI外贸管理系统',
+        createdAt: new Date('2026-06-18T00:00:00Z'),
+        updatedAt: new Date('2026-06-18T00:00:00Z')
+      };
+    }
+  } as ConstructorParameters<typeof AiLeadSearchTaskService>[6];
+}
+
+function createLogRecorder() {
+  return {
+    records: [] as SystemLogRecordInput[],
+    async record(input: SystemLogRecordInput) {
+      this.records.push(input);
+    }
+  };
+}
+
+function createTask(overrides: Partial<AiLeadSearchTaskRecord>): AiLeadSearchTaskRecord {
+  return {
+    id: 'task-1',
+    userId: 'u-1',
+    userName: 'AI外贸管理系统',
+    organizationId: 'org-1',
+    organizationRole: 'admin',
+    requirement: '找沙特轴承进口商',
+    targetLeadCount: 20,
+    productLineId: 'product-line-1',
+    productLineSnapshot: {
+      id: 'product-line-1',
+      name: '6204 Bearing'
+    },
+    keywordPlan: {},
+    status: 'queued',
+    priority: 0,
+    runVersion: 1,
+    progressState: null,
+    result: null,
+    errorMessage: null,
+    bullJobId: null,
+    readAt: null,
+    notifiedAt: null,
+    startedAt: null,
+    finishedAt: null,
+    createdAt: new Date('2026-06-18T00:00:00Z'),
+    updatedAt: new Date('2026-06-18T00:00:00Z'),
+    ...overrides
+  };
+}
+
+function createCompletedTaskResult() {
+  return {
+    keywordOptimization: { serperSearchQueries: [] },
+    keywordOptimizationText: '{}',
+    qualityWarnings: [],
+    serperRequests: [{ endpoint: 'search', requestBody: { q: 'bearing importer Saudi Arabia' } }],
+    serperResults: [
+      {
+        endpoint: 'search',
+        requestBody: { q: 'bearing importer Saudi Arabia' },
+        result: {
+          organic: [
+            {
+              title: 'Bearing House',
+              link: 'https://bearing.example.com',
+              snippet: 'bearing distributor'
+            }
+          ]
+        }
+      }
+    ],
+    decisions: [{ decision: { nextAction: 'stop' } }],
+    candidates: [
+      {
+        sourceType: 'organic',
+        title: 'Bearing House',
+        url: 'https://bearing.example.com',
+        snippet: 'bearing distributor'
+      }
+    ],
+    stopReason: '所有查询已完成'
+  };
+}

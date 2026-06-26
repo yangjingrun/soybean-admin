@@ -1,0 +1,9 @@
+{
+	"id": "HKqGXdn6ll7Ytgo",
+	"json": "{\"id\":\"HKqGXdn6ll7Ytgo\",\"url\":\"https://eletehad-bearings.com/products\",\"loadedUrl\":\"https://eletehad-bearings.com/products\",\"uniqueKey\":\"32:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://eletehad-bearings.com/products\",\"uniqueKey\":\"32:/products\",\"userData\":{\"candidateIndex\":32,\"dedupeKey\":\"eletehad-bearings.com\",\"companyName\":\"شركة الاتحاد الجديدة | لتجارة رولمان البلى\",\"homepage\":\"https://eletehad-bearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:46:05.736Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "32:/products",
+	"url": "https://eletehad-bearings.com/products"
+}

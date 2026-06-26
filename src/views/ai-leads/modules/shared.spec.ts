@@ -1,0 +1,536 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import {
+  buildAiLeadStructuredRequirement,
+  buildAiLeadCandidateImportPayload,
+  buildAiLeadCandidateImportRows,
+  buildGeneratedLeadContextFormHints,
+  buildKeywordHistoryUpdatePayload,
+  createAiLeadContextSnapshot,
+  createKeywordOptimizationViewModel,
+  createAiResultFromKeywordHistory,
+  createDefaultAiLeadExclusionRuleKeys,
+  createDefaultAiLeadTargetCustomerTypeKeys,
+  formatAiFinishReason,
+  formatKeywordOptimizationVisibleText,
+  getAiLeadCandidateClassificationTags,
+  getAiLeadCandidateSocialLinks,
+  parseKeywordOptimizationPlan,
+  normalizeAiLeadCandidateDomain,
+  resolveTargetLeadCountAfterOptimization
+} from './shared';
+
+const keywordPlan: Api.AiLeads.OptimizedKeywordPlan = {
+  resolvedProductKeywords: '6204 bearing, deep groove ball bearing',
+  resolvedTargetRegions: '沙特阿拉伯',
+  resolvedTargetCustomerProfile: '轴承进口商和工业品经销商',
+  resolvedTargetLeadCount: null,
+  structuredRequirement: '中国河北轴承供应商生成 Serper Maps 查询计划，寻找沙特进口商和经销商。',
+  buyerSegments: [
+    {
+      buyerType: 'Importer',
+      purchaseReason: '补充本地轴承库存并转售给工业客户',
+      websiteSignals: ['Import', 'Serper Places 查询词覆盖 Bearing catalog'],
+      priorityContacts: ['Purchasing Manager'],
+      priorityLevel: '高'
+    }
+  ],
+  serperSearchQueries: [
+    {
+      endpoint: 'search',
+      requestBody: {
+        q: '6204 bearing importer Saudi Arabia',
+        location: 'Saudi Arabia',
+        gl: 'sa',
+        hl: 'en',
+        num: 10,
+        page: 1
+      },
+      meta: {
+        buyerType: 'Importer',
+        intent: 'importer',
+        priority: '高'
+      }
+    }
+  ],
+  serperPlacesQueries: [
+    {
+      endpoint: 'places',
+      requestBody: {
+        q: 'bearing supplier Riyadh',
+        location: 'Riyadh, Saudi Arabia',
+        gl: 'sa',
+        hl: 'en',
+        num: 10,
+        page: 1
+      },
+      meta: {
+        buyerType: 'Industrial supplier',
+        intent: 'industrial_supplier',
+        city: 'Riyadh',
+        priority: '高',
+        expectedPlaceTypes: ['Bearing supplier']
+      }
+    }
+  ],
+  serperMapsQueries: [
+    {
+      endpoint: 'maps',
+      requestBody: {
+        q: 'bearing distributor',
+        hl: 'en',
+        ll: '@41.6469296,-73.2681778,8z',
+        page: 1
+      },
+      meta: {
+        buyerType: 'Local bearing distributor',
+        intent: 'local_distributor',
+        city: 'New York metro',
+        priority: '高',
+        reason: 'Use Maps to find physical bearing distributors'
+      }
+    }
+  ],
+  searchExecutionRules: {
+    keep: ['importer'],
+    exclude: ['school'],
+    websiteCheckPages: ['Products'],
+    dedupeKeys: ['domain']
+  }
+};
+
+describe('ai leads keyword optimization helpers', () => {
+  it('builds structured lead context from foreign-trade customer and exclusion dictionaries', () => {
+    const snapshot = createAiLeadContextSnapshot({
+      targetRegionValues: ['country:AE:%E9%98%BF%E8%81%94%E9%85%8B', 'country:SA:%E6%B2%99%E7%89%B9'],
+      targetRegionLabels: ['阿联酋', '沙特阿拉伯'],
+      targetRegionCountryCodes: ['AE', 'SA'],
+      targetCustomerTypeKeys: createDefaultAiLeadTargetCustomerTypeKeys(),
+      exclusionRuleKeys: createDefaultAiLeadExclusionRuleKeys(),
+      keywordText: '6203 bearing',
+      supplementalRequirement: '只找有官网和邮箱的公司',
+      targetLeadCount: 20
+    });
+    const requirement = buildAiLeadStructuredRequirement(snapshot);
+
+    assert.equal(snapshot.targetRegion?.label, '阿联酋');
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => item.label),
+      ['阿联酋', '沙特阿拉伯']
+    );
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => item.scope),
+      ['country', 'country']
+    );
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => item.marketRegionLabel),
+      ['中东', '中东']
+    );
+    assert.equal(snapshot.targetCustomerTypes[0].label, '进口商');
+    assert.equal(snapshot.exclusionRules[0].label, '中国供应商/出口商');
+    assert.match(requirement, /目标客户类型：进口商、经销商\/代理商/);
+    assert.match(requirement, /目标国家\/地区：阿联酋、沙特阿拉伯/);
+    assert.match(requirement, /排除类型：中国供应商\/出口商/);
+    assert.match(requirement, /补充判断规则：只找有官网和邮箱的公司/);
+  });
+
+  it('keeps market region and precise region levels in the lead context snapshot', () => {
+    const snapshot = createAiLeadContextSnapshot({
+      targetRegionValues: ['market:middle_east', 'admin1:SA:01:Riyadh::'],
+      targetRegionLabels: ['中东', '沙特阿拉伯 / Riyadh'],
+      targetRegionCountryCodes: ['', 'SA'],
+      targetCustomerTypeKeys: ['importer'],
+      exclusionRuleKeys: [],
+      keywordText: '',
+      supplementalRequirement: '',
+      targetLeadCount: 10
+    });
+    const requirement = buildAiLeadStructuredRequirement(snapshot);
+
+    assert.deepEqual(
+      snapshot.targetRegions?.map(item => ({
+        label: item.label,
+        scope: item.scope,
+        marketRegionLabel: item.marketRegionLabel,
+        countryCode: item.countryCode
+      })),
+      [
+        { label: '中东', scope: 'market_region', marketRegionLabel: '中东', countryCode: null },
+        { label: '沙特阿拉伯 / Riyadh', scope: 'admin1', marketRegionLabel: '中东', countryCode: 'SA' }
+      ]
+    );
+    assert.match(requirement, /目标国家\/地区：中东、沙特阿拉伯 \/ Riyadh/);
+  });
+
+  it('parses the AI keyword optimization JSON text', () => {
+    const result = parseKeywordOptimizationPlan(JSON.stringify(keywordPlan));
+
+    assert.equal(result.resolvedProductKeywords, keywordPlan.resolvedProductKeywords);
+    assert.equal(result.serperSearchQueries[0].requestBody?.q, '6204 bearing importer Saudi Arabia');
+  });
+
+  it('builds generated form hints from keyword optimization rules', () => {
+    const hints = buildGeneratedLeadContextFormHints(keywordPlan);
+
+    assert.equal(hints.keywordText, '6204 bearing, deep groove ball bearing');
+    assert.match(hints.supplementalRequirement, /优先保留：importer/);
+    assert.match(hints.supplementalRequirement, /排除：school/);
+    assert.match(hints.supplementalRequirement, /官网重点核验：Products/);
+  });
+
+  it('keeps business summary visible while hiding query details for regular users', () => {
+    const viewModel = createKeywordOptimizationViewModel(keywordPlan, false);
+
+    assert.equal(viewModel.summaryItems.length, 4);
+    assert.match(viewModel.summaryItems[0].value, /地图查询计划/);
+    assert.doesNotMatch(viewModel.summaryItems[0].value, /Serper/);
+    assert.equal(viewModel.buyerSegments.length, 1);
+    assert.equal(viewModel.buyerSegments[0].buyerType, 'Importer（进口商）');
+    assert.match(viewModel.buyerSegments[0].websiteSignals[1], /本地商家查询词覆盖/);
+    assert.doesNotMatch(viewModel.buyerSegments[0].websiteSignals.join(' '), /Serper/);
+    assert.equal(viewModel.showQueryDetails, false);
+    assert.deepEqual(viewModel.searchQueries, []);
+    assert.deepEqual(viewModel.placesQueries, []);
+    assert.deepEqual(viewModel.mapsQueries, []);
+  });
+
+  it('shows Search, Places and Maps query details for super administrators', () => {
+    const viewModel = createKeywordOptimizationViewModel(keywordPlan, true);
+
+    assert.equal(viewModel.showQueryDetails, true);
+    assert.match(viewModel.summaryItems[0].value, /Serper Maps 查询计划/);
+    assert.match(viewModel.buyerSegments[0].websiteSignals[1], /Serper Places 查询词/);
+    assert.equal(viewModel.searchQueries[0].q, '6204 bearing importer Saudi Arabia');
+    assert.equal(viewModel.searchQueries[0].buyerType, 'Importer（进口商）');
+    assert.equal(viewModel.placesQueries[0].q, 'bearing supplier Riyadh');
+    assert.equal(viewModel.placesQueries[0].buyerType, 'Industrial supplier（工业用品供应商）');
+    assert.equal(viewModel.placesQueries[0].intent, 'industrial_supplier（工业用品供应商）');
+    assert.equal(viewModel.mapsQueries[0].q, 'bearing distributor');
+    assert.equal(viewModel.mapsQueries[0].buyerType, 'Local bearing distributor（经销商）');
+    assert.equal(viewModel.mapsQueries[0].city, 'New York metro');
+  });
+
+  it('formats only visible fields when regular users copy the result', () => {
+    const viewModel = createKeywordOptimizationViewModel(keywordPlan, false);
+    const text = formatKeywordOptimizationVisibleText(viewModel);
+
+    assert.match(text, /需求归纳：中国河北轴承供应商生成地图查询计划，寻找沙特进口商和经销商。/);
+    assert.match(text, /买家类型：Importer（进口商）/);
+    assert.doesNotMatch(text, /Serper/);
+    assert.doesNotMatch(text, /6204 bearing importer Saudi Arabia/);
+    assert.doesNotMatch(text, /bearing supplier Riyadh/);
+    assert.doesNotMatch(text, /bearing distributor/);
+  });
+
+  it('includes Maps query details when super administrators copy the result', () => {
+    const viewModel = createKeywordOptimizationViewModel(keywordPlan, true);
+    const text = formatKeywordOptimizationVisibleText(viewModel);
+
+    assert.match(text, /Maps 查询词：/);
+    assert.match(text, /Local bearing distributor（经销商）｜local_distributor（本地经销商）｜bearing distributor/);
+  });
+
+  it('restores ai result from a keyword history record', () => {
+    const result = createAiResultFromKeywordHistory({
+      id: 'history-1',
+      requirement: '找沙特轴承进口商',
+      resultText: JSON.stringify(keywordPlan),
+      keywordPlan,
+      finishReason: 'stop',
+      usage: {
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20
+      },
+      createdAt: '2026-06-18T01:00:00.000Z',
+      updatedAt: '2026-06-18T01:00:00.000Z'
+    });
+
+    assert.equal(result.text, JSON.stringify(keywordPlan));
+    assert.deepEqual(result.usage, {
+      inputTokens: 12,
+      outputTokens: 8,
+      totalTokens: 20
+    });
+  });
+
+  it('builds keyword history update payload from edited plan', () => {
+    const editedPlan = {
+      ...keywordPlan,
+      resolvedProductKeywords: '6204 bearing supplier'
+    };
+    const payload = buildKeywordHistoryUpdatePayload(' 更新后的需求 ', editedPlan);
+
+    assert.equal(payload.requirement, '更新后的需求');
+    assert.equal(payload.keywordPlan.resolvedProductKeywords, '6204 bearing supplier');
+  });
+
+  it('formats AI finish reason for user-facing display', () => {
+    assert.equal(formatAiFinishReason('stop'), '正常完成');
+    assert.equal(formatAiFinishReason('length'), '输出被截断');
+    assert.equal(formatAiFinishReason('content_filter'), '内容被过滤');
+    assert.equal(formatAiFinishReason(''), '');
+  });
+
+  it('uses AI resolved lead count when the user has not edited the field', () => {
+    const count = resolveTargetLeadCountAfterOptimization({
+      currentValue: 20,
+      resolvedValue: 50,
+      isManuallyEdited: false,
+      defaultValue: 20
+    });
+
+    assert.equal(count, 50);
+  });
+
+  it('keeps the manually edited lead count after keyword optimization', () => {
+    const count = resolveTargetLeadCountAfterOptimization({
+      currentValue: 30,
+      resolvedValue: 50,
+      isManuallyEdited: true,
+      defaultValue: 20
+    });
+
+    assert.equal(count, 30);
+  });
+
+  it('keeps an empty manually edited lead count instead of applying AI output', () => {
+    const count = resolveTargetLeadCountAfterOptimization({
+      currentValue: null,
+      resolvedValue: 50,
+      isManuallyEdited: true,
+      defaultValue: 20
+    });
+
+    assert.equal(count, null);
+  });
+
+  it('filters low-quality AI lead candidates before CRM import', () => {
+    const rows = buildAiLeadCandidateImportRows([
+      {
+        title: 'Bearing House',
+        website: 'https://www.bearing.example.com/products',
+        snippet: 'Bearing supplier and industrial distributor',
+        sourceLabel: '公开线索',
+        sourceType: 'search',
+        sourceUrl: 'https://google.example.com/result',
+        score: 82,
+        reason: 'Matches importer signal'
+      },
+      {
+        title: 'Bearing House Branch',
+        website: 'bearing.example.com/contact',
+        snippet: 'Same company branch',
+        sourceLabel: '公开线索'
+      },
+      {
+        title: '',
+        website: '',
+        sourceLabel: '公开线索'
+      },
+      {
+        title: 'Home',
+        website: 'https://low.example.com',
+        sourceLabel: '公开线索',
+        score: 20
+      }
+    ]);
+
+    assert.equal(rows[0].importState.canImport, true);
+    assert.equal(rows[0].importState.domain, 'bearing.example.com');
+    assert.deepEqual(rows[1].importState.reasons, ['重复域名']);
+    assert.deepEqual(rows[2].importState.reasons, ['缺少公司名', '缺少官网或域名', '候选质量偏低']);
+    assert.deepEqual(rows[3].importState.reasons, ['候选质量偏低']);
+  });
+
+  it('builds CRM import payload with AI candidate source snapshot', () => {
+    const candidate: Api.AiLeads.LeadSearchCandidateView = {
+      title: ' Bearing House ',
+      website: ' https://bearing.example.com ',
+      snippet: 'Industrial bearing distributor',
+      address: 'Riyadh',
+      city: 'Riyadh',
+      country: 'Saudi Arabia',
+      phoneNumber: '+966 123',
+      sourceLabel: '公开线索',
+      sourceType: 'search',
+      sourceUrl: 'https://google.example.com/result',
+      score: 88,
+      reason: 'Good buyer signal',
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        pageCount: 1,
+        emails: ['sales@bearing.example.com'],
+        phones: ['+966 123'],
+        socialLinks: ['https://www.linkedin.com/company/bearing-house'],
+        whatsappLinks: [],
+        mapLinks: [],
+        contactLinks: ['https://bearing.example.com/contact'],
+        keywordHits: ['bearing'],
+        evidenceSnippets: ['Bearing distributor'],
+        failureReason: null
+      },
+      precisionAnalysis: {
+        score: 88,
+        priority: 'high',
+        buyerType: 'bearing distributor',
+        customerGroup: '海外轴承经销商',
+        companyCountry: 'Saudi Arabia',
+        targetMarketFit: 'target',
+        reason: 'Good buyer signal',
+        matchedSignals: ['bearing'],
+        risks: [],
+        recommendedAction: '优先开发',
+        reviewRequired: false
+      }
+    };
+
+    assert.equal(normalizeAiLeadCandidateDomain(candidate), 'bearing.example.com');
+    assert.deepEqual(buildAiLeadCandidateImportPayload(candidate, { sourceTaskId: 'task-1' }), {
+      name: 'Bearing House',
+      websiteUrl: 'https://bearing.example.com',
+      country: 'Saudi Arabia',
+      city: 'Riyadh',
+      address: 'Riyadh',
+      customerType: '公开线索',
+      sourceTaskId: 'task-1',
+      sourceSnapshot: {
+        title: 'Bearing House',
+        website: 'https://bearing.example.com',
+        snippet: 'Industrial bearing distributor',
+        country: 'Saudi Arabia',
+        city: 'Riyadh',
+        address: 'Riyadh',
+        phoneNumber: '+966 123',
+        sourceType: 'search',
+        sourceLabel: '公开线索',
+        sourceUrl: 'https://google.example.com/result',
+        score: 88,
+        reason: 'Good buyer signal',
+        websiteEvidence: {
+          crawlStatus: 'completed',
+          pageCount: 1,
+          emails: ['sales@bearing.example.com'],
+          phones: ['+966 123'],
+          socialLinks: ['https://www.linkedin.com/company/bearing-house'],
+          whatsappLinks: [],
+          mapLinks: [],
+          contactLinks: ['https://bearing.example.com/contact'],
+          keywordHits: ['bearing'],
+          evidenceSnippets: ['Bearing distributor'],
+          failureReason: null
+        },
+        precisionAnalysis: {
+          score: 88,
+          priority: 'high',
+          buyerType: 'bearing distributor',
+          customerGroup: '海外轴承经销商',
+          companyCountry: 'Saudi Arabia',
+          targetMarketFit: 'target',
+          reason: 'Good buyer signal',
+          matchedSignals: ['bearing'],
+          risks: [],
+          recommendedAction: '优先开发',
+          reviewRequired: false
+        }
+      }
+    });
+  });
+
+  it('builds customer classification tags from match analysis and official country evidence', () => {
+    const tags = getAiLeadCandidateClassificationTags({
+      precisionAnalysis: {
+        score: 25,
+        priority: 'reject',
+        buyerType: 'bearing supplier',
+        customerGroup: '中国供应商 / 非目标海外客户',
+        companyCountry: '中国',
+        targetMarketFit: 'outside_target',
+        reason: '官网地址显示中国公司，不符合阿联酋海外客户开发目标',
+        matchedSignals: ['Xiamen, Fujian, China'],
+        risks: ['产品页命中目标产品但公司归属为中国'],
+        recommendedAction: '不纳入开发名单',
+        reviewRequired: false
+      },
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        pageCount: 1,
+        emails: ['susan@xmjuda.com'],
+        phones: ['+86-592-5803997'],
+        socialLinks: [],
+        whatsappLinks: [],
+        mapLinks: [],
+        contactLinks: [],
+        keywordHits: ['6203 bearing'],
+        evidenceSnippets: ['6203 deep groove ball bearing'],
+        companyAddressEvidence: ['Xinjing, Jiahe Road, Siming, Xiamen, Fujian, China'],
+        companyCountrySignals: ['中国'],
+        failureReason: null
+      }
+    });
+
+    assert.deepEqual(
+      tags.map(tag => ({ key: tag.key, label: tag.label, type: tag.type })),
+      [
+        { key: 'outside-target', label: '非目标市场', type: 'error' },
+        { key: 'company-country', label: '中国公司', type: 'warning' },
+        { key: 'customer-group', label: '中国供应商 / 非目标海外客户', type: 'default' }
+      ]
+    );
+    assert.match(tags[0].tooltip ?? '', /官网地址显示中国公司/);
+    assert.match(tags[1].tooltip ?? '', /Xinjing/);
+  });
+
+  it('normalizes candidate social links for icon display', () => {
+    const links = getAiLeadCandidateSocialLinks({
+      websiteEvidence: {
+        crawlStatus: 'completed',
+        pageCount: 1,
+        emails: [],
+        phones: [],
+        socialLinks: [
+          'https://www.linkedin.com/company/bearing-house/',
+          'https://facebook.com/bearinghouse',
+          'https://x.com/bearinghouse',
+          'https://www.linkedin.com/company/bearing-house'
+        ],
+        whatsappLinks: ['https://wa.me/902163128000'],
+        mapLinks: [],
+        contactLinks: [],
+        keywordHits: [],
+        evidenceSnippets: [],
+        failureReason: null
+      }
+    });
+
+    assert.deepEqual(
+      links.map(link => ({ channel: link.channel, label: link.label, icon: link.icon, url: link.url })),
+      [
+        {
+          channel: 'linkedin',
+          label: 'LinkedIn',
+          icon: 'simple-icons:linkedin',
+          url: 'https://www.linkedin.com/company/bearing-house/'
+        },
+        {
+          channel: 'facebook',
+          label: 'Facebook',
+          icon: 'simple-icons:facebook',
+          url: 'https://facebook.com/bearinghouse'
+        },
+        {
+          channel: 'x',
+          label: 'X / Twitter',
+          icon: 'simple-icons:x',
+          url: 'https://x.com/bearinghouse'
+        },
+        {
+          channel: 'whatsapp',
+          label: 'WhatsApp',
+          icon: 'simple-icons:whatsapp',
+          url: 'https://wa.me/902163128000'
+        }
+      ]
+    );
+  });
+});

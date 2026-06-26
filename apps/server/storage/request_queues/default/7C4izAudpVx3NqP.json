@@ -1,0 +1,9 @@
+{
+	"id": "7C4izAudpVx3NqP",
+	"json": "{\"id\":\"7C4izAudpVx3NqP\",\"url\":\"https://www.revobearings.com/products\",\"loadedUrl\":\"https://www.revobearings.com/products\",\"uniqueKey\":\"8:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.revobearings.com/products\",\"uniqueKey\":\"8:/products\",\"userData\":{\"candidateIndex\":8,\"dedupeKey\":\"revobearings.com\",\"companyName\":\"Revo Bearings | Trusted Bearing Supplier in UAE\",\"homepage\":\"https://www.revobearings.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:19.180Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "8:/products",
+	"url": "https://www.revobearings.com/products"
+}

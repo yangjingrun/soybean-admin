@@ -1,0 +1,9 @@
+{
+	"id": "v0cA6YBTEahbuQX",
+	"json": "{\"id\":\"v0cA6YBTEahbuQX\",\"url\":\"https://alphatronicmachinery.ae/products\",\"loadedUrl\":\"https://alphatronicmachinery.ae/products\",\"uniqueKey\":\"6:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://alphatronicmachinery.ae/products\",\"uniqueKey\":\"6:/products\",\"userData\":{\"candidateIndex\":6,\"dedupeKey\":\"alphatronicmachinery.ae\",\"companyName\":\"Bearings Suppliers in Dubai | SKF, Timken, Koyo Stockist UAE\",\"homepage\":\"https://alphatronicmachinery.ae/bearings-suppliers-in-dubai.php\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:10.429Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "6:/products",
+	"url": "https://alphatronicmachinery.ae/products"
+}

@@ -1,0 +1,9 @@
+{
+	"id": "90fxwgPiltGPBT6",
+	"json": "{\"id\":\"90fxwgPiltGPBT6\",\"url\":\"https://www.yellowpages.ae/contact\",\"loadedUrl\":\"https://www.yellowpages.ae/contact\",\"uniqueKey\":\"12:/contact\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.yellowpages.ae/contact\",\"uniqueKey\":\"12:/contact\",\"userData\":{\"candidateIndex\":12,\"dedupeKey\":\"yellowpages.ae\",\"companyName\":\"Bearings Suppliers in UAE | Top Ball Bearings - Yellow Pages UAE\",\"homepage\":\"https://www.yellowpages.ae/subcategory/engineering-&-mechanicals/bearings/5f12e4adebee8a7379abff7e\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:40.641Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "12:/contact",
+	"url": "https://www.yellowpages.ae/contact"
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@soybean/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "backfill:ai-config-secrets": "tsx src/scripts/backfill-ai-config-secrets.ts",
+    "backfill:crm-email-writing-contexts": "tsx src/scripts/backfill-crm-email-writing-contexts.ts",
+    "backfill:crm-account-source-snapshots": "tsx src/scripts/backfill-crm-account-source-snapshots.ts",
+    "build": "nest build",
+    "dev": "tsx watch src/main.ts",
+    "import:geonames": "tsx src/scripts/import-geonames-timezones.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.51",
+    "@nestjs/common": "^11.1.8",
+    "@nestjs/core": "^11.1.8",
+    "@nestjs/platform-fastify": "^11.1.8",
+    "@nestjs/throttler": "^6.5.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@soybean/shared": "workspace:*",
+    "ai": "^6.0.207",
+    "bullmq": "^5.79.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "crawlee": "^3.17.0",
+    "date-holidays": "^3.30.2",
+    "device-detector-js": "^3.0.3",
+    "ioredis": "^5.11.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "svg-captcha": "^1.4.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.14",
+    "@types/node": "^25.0.0",
+    "prisma": "^7.8.0",
+    "tsx": "4.21.0",
+    "typescript": "^6.0.3"
+  }
+}

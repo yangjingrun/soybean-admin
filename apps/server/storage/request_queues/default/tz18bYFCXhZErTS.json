@@ -1,0 +1,9 @@
+{
+	"id": "tz18bYFCXhZErTS",
+	"json": "{\"id\":\"tz18bYFCXhZErTS\",\"url\":\"https://akapolco.com/\",\"loadedUrl\":\"https://akapolco.com/\",\"uniqueKey\":\"2:/\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://akapolco.com/\",\"uniqueKey\":\"2:/\",\"userData\":{\"candidateIndex\":2,\"dedupeKey\":\"akapolco.com\",\"companyName\":\"Akapolco — International LLC\",\"homepage\":\"https://akapolco.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:51.007Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "2:/",
+	"url": "https://akapolco.com/"
+}

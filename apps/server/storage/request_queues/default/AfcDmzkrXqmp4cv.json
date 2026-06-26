@@ -1,0 +1,9 @@
+{
+	"id": "AfcDmzkrXqmp4cv",
+	"json": "{\"id\":\"AfcDmzkrXqmp4cv\",\"url\":\"https://smart-elemech.com/about-us\",\"loadedUrl\":\"https://smart-elemech.com/about-us/\",\"uniqueKey\":\"11:/about-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://smart-elemech.com/about-us\",\"uniqueKey\":\"11:/about-us\",\"userData\":{\"candidateIndex\":11,\"dedupeKey\":\"smart-elemech.com\",\"companyName\":\"Premium FAG Bearings Supplier in UAE - Smart Elemech\",\"homepage\":\"https://smart-elemech.com/fag/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:33.926Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "11:/about-us",
+	"url": "https://smart-elemech.com/about-us"
+}

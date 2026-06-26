@@ -1,0 +1,9 @@
+{
+	"id": "Rra3VIZNWBfdhaA",
+	"json": "{\"id\":\"Rra3VIZNWBfdhaA\",\"url\":\"https://www.kginternational.com/contact-us\",\"loadedUrl\":\"https://www.kginternational.com/get-in-touch-with-us/\",\"uniqueKey\":\"3:/contact-us\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.kginternational.com/contact-us\",\"uniqueKey\":\"3:/contact-us\",\"userData\":{\"candidateIndex\":3,\"dedupeKey\":\"kginternational.com\",\"companyName\":\"KG International: Bearings Manufacturer & Supplier In Dubai - UAE ...\",\"homepage\":\"https://www.kginternational.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:56.050Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "3:/contact-us",
+	"url": "https://www.kginternational.com/contact-us"
+}

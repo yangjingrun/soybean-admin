@@ -1,0 +1,483 @@
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { CrmAiDraftService } from '../crm-ai-draft.service';
+import { renderEmailTemplateText, findPersonaProfile, type PersonaProfile } from '../crm-email-template-renderer';
+import { getCrmOutreachStepStrategy, toCrmAiStepStrategy } from '../crm-outreach-step-strategy';
+import { buildPersonaMatch, type ResolvedPersonaMatch } from '../crm-persona-match';
+import {
+  CRM_ACCOUNT_REPOSITORY,
+  CRM_MAILBOX_REPOSITORY,
+  CRM_SEQUENCE_REPOSITORY,
+  CRM_SETTINGS_REPOSITORY
+} from '../crm.tokens';
+import type {
+  CrmAccountRecord,
+  CrmAiDraftMetadata,
+  CrmAiWritingStepIndex,
+  CrmContactRecord,
+  CrmEmailTemplateGroupRecord,
+  CrmMessageRecord,
+  CrmProductLineRecord,
+  CrmSequencePolicyRecord,
+  CrmUserContext
+} from '../crm.types';
+import { CrmLoggerService } from '../shared/crm-logger.service';
+import { resolveCrmSenderName } from '../shared/crm-context';
+import { createCrmOwnerFilter } from '../shared/crm-scope';
+import { isPrismaUniqueConflict } from '../store/prisma-error.helpers';
+import type { CrmAccountRepository } from '../accounts/crm-account.repository';
+import type { CrmMailboxRepository } from '../mailbox/crm-mailbox.repository';
+import type { CrmSettingsRepository } from '../settings/crm-settings.repository';
+import { CrmSendAvailabilityService } from '../crm-send-availability.service';
+import { CrmSequenceEligibilityService } from './crm-sequence-eligibility.service';
+import { scoreCrmSequenceFit } from './crm-sequence-fit-score';
+import type { CrmSequenceRepository } from './crm-sequence.repository';
+import { toSequenceReviewView } from './crm-sequence-review-view';
+import { resolveCrmSequenceScheduledAt } from './crm-sequence-send-schedule-time';
+
+const initialDraftStepIndex: CrmAiWritingStepIndex = 1;
+
+export interface SequenceReviewCreateInput {
+  accountId: string;
+  contactId: string;
+  productLineId?: string | null;
+  mailboxId?: string | null;
+  policyId?: string | null;
+}
+
+export interface GeneratedDraft {
+  subject: string;
+  bodyText: string;
+  aiDraft?: CrmAiDraftMetadata | null;
+}
+
+@Injectable()
+export class CrmSequenceReviewCreationService {
+  constructor(
+    @Inject(CRM_ACCOUNT_REPOSITORY)
+    private readonly accountRepository: CrmAccountRepository,
+    @Inject(CRM_SETTINGS_REPOSITORY)
+    private readonly settingsRepository: CrmSettingsRepository,
+    @Inject(CRM_MAILBOX_REPOSITORY)
+    private readonly mailboxRepository: CrmMailboxRepository,
+    @Inject(CRM_SEQUENCE_REPOSITORY)
+    private readonly sequenceRepository: CrmSequenceRepository,
+    @Inject(CrmSequenceEligibilityService)
+    private readonly sequenceEligibilityService: CrmSequenceEligibilityService,
+    @Inject(CrmSendAvailabilityService)
+    private readonly availabilityService: CrmSendAvailabilityService,
+    @Optional()
+    @Inject(CrmAiDraftService)
+    private readonly aiDraftService?: CrmAiDraftService | null,
+    @Optional()
+    @Inject(CrmLoggerService)
+    private readonly crmLogger?: CrmLoggerService
+  ) {}
+
+  /** Creates the first outreach email and immediately places it in the send schedule. */
+  async createSequenceReviewItem(input: SequenceReviewCreateInput, context: CrmUserContext) {
+    const { account, contact } = await this.requireScopedAccountAndContact(input.accountId, input.contactId, context);
+    await this.sequenceEligibilityService.assertLeadCanStartSequence(account, contact, context);
+
+    if (!input.mailboxId) {
+      throw new BadRequestException('请选择发送邮箱');
+    }
+
+    const [productLine, mailbox, selectedPolicy, defaultPolicy, globalConfig] = await Promise.all([
+      input.productLineId ? this.requireActiveProductLine(input.productLineId, context) : Promise.resolve(null),
+      this.requireOwnedActiveMailbox(input.mailboxId, context),
+      input.policyId ? this.requireActiveSequencePolicy(input.policyId, context) : Promise.resolve(null),
+      input.policyId
+        ? Promise.resolve(null)
+        : this.settingsRepository.findDefaultSequencePolicy(context.organizationId),
+      this.settingsRepository.getGlobalConfig()
+    ]);
+    const policy = selectedPolicy ?? defaultPolicy;
+    await this.sequenceEligibilityService.assertPolicyAllowsSequence(account, contact, policy, context);
+    const fitScore = scoreCrmSequenceFit({ account, contact, productLine });
+
+    if (!fitScore.canCreateColdSequence) {
+      throw new BadRequestException('客户事实不足，不建议自动创建开发信序列');
+    }
+
+    const mailboxScheduleTimes = await this.sequenceRepository.listMailboxSendScheduleTimes({
+      organizationId: context.organizationId,
+      mailboxId: mailbox.id
+    });
+    const scheduledAt = resolveCrmSequenceScheduledAt({
+      availabilityService: this.availabilityService,
+      account,
+      globalConfig,
+      mailboxScheduleTimes
+    });
+    const [defaultTemplateGroup, personaMatch] = await Promise.all([
+      this.settingsRepository.findDefaultEmailTemplateGroup(context.organizationId),
+      this.resolvePersonaProfileMatch(account, contact, context)
+    ]);
+    const draft = await this.generateConfiguredReviewDraft({
+      account,
+      contact,
+      productLine,
+      context,
+      stepIndex: initialDraftStepIndex,
+      previousMessages: [],
+      templateLanguage: defaultTemplateGroup?.language ?? null,
+      personaProfile: personaMatch.templatePersona,
+      fallbackDraft: generateFirstDraft({
+        account,
+        contact,
+        productLine,
+        context,
+        personaProfile: personaMatch.templatePersona,
+        templateGroup: defaultTemplateGroup
+      })
+    });
+    const bundle = await this.runSequenceWrite(() =>
+      this.sequenceRepository.createSequenceDraftBundle({
+        enrollment: {
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          accountId: account.id,
+          contactId: contact.id,
+          productLineId: productLine?.id ?? null,
+          mailboxId: mailbox?.id ?? null,
+          policyId: policy?.id ?? null,
+          name: buildSequenceName(account, contact),
+          status: 'sequence_running',
+          currentStep: initialDraftStepIndex,
+          totalSteps: fitScore.recommendedColdSteps,
+          runVersion: 1,
+          createdById: context.userId,
+          createdByName: resolveCrmSenderName(context)
+        },
+        message: {
+          organizationId: context.organizationId,
+          ownerUserId: context.userId,
+          accountId: account.id,
+          contactId: contact.id,
+          mailboxId: mailbox?.id ?? null,
+          stepIndex: initialDraftStepIndex,
+          threadMode: getSequencePolicyStep(policy, initialDraftStepIndex)?.threadMode ?? 'new_subject',
+          subject: draft.subject,
+          bodyText: draft.bodyText,
+          status: 'draft_ready',
+          scheduledAt,
+          metadata: createAiDraftMessageMetadata(draft.aiDraft)
+        },
+        timelineEvent: {
+          organizationId: context.organizationId,
+          accountId: account.id,
+          contactId: contact.id,
+          ownerUserId: context.userId,
+          eventType: 'message_send_scheduled',
+          title: '首封开发信已生成并等待发送',
+          content: draft.subject,
+          metadata: {
+            productLineId: productLine?.id ?? null,
+            mailboxId: mailbox?.id ?? null,
+            policyId: policy?.id ?? null,
+            personaProfileId: personaMatch.persona?.id ?? null,
+            personaProfileName: personaMatch.persona?.name ?? null,
+            personaMatchMethod: personaMatch.matchMethod,
+            personaMatchedKeywords: personaMatch.matchedKeywords,
+            personaFallbackReason: personaMatch.fallbackReason,
+            fitScore,
+            aiDraft: draft.aiDraft ?? null
+          }
+        },
+        accountStatus: 'sequence_running'
+      })
+    );
+
+    await this.crmLogger?.record('sequence-review-create', 'CRM 首封开发信已生成并安排发送', context, {
+      organizationId: context.organizationId,
+      accountId: account.id,
+      contactId: contact.id,
+      enrollmentId: bundle.enrollment.id,
+      messageId: bundle.message.id,
+      productLineId: productLine?.id ?? null,
+      mailboxId: mailbox?.id ?? null,
+      policyId: policy?.id ?? null
+    });
+
+    return {
+      item: toSequenceReviewView(
+        {
+          enrollment: bundle.enrollment,
+          account: bundle.account,
+          contact,
+          productLine,
+          mailbox,
+          policy,
+          firstMessage: bundle.message,
+          messages: [bundle.message]
+        },
+        context,
+        personaMatch
+      )
+    };
+  }
+
+  private async requireScopedAccountAndContact(accountId: string, contactId: string, context: CrmUserContext) {
+    const detail = await this.accountRepository.getAccountDetail({
+      id: accountId,
+      organizationId: context.organizationId,
+      ...createCrmOwnerFilter(context)
+    });
+    const contact = detail?.contacts.find(item => item.id === contactId) ?? null;
+
+    if (!detail) {
+      throw new NotFoundException('线索不存在');
+    }
+
+    if (!contact) {
+      throw new NotFoundException('联系人不存在');
+    }
+
+    return {
+      account: detail.account,
+      contact
+    };
+  }
+
+  private async requireActiveProductLine(id: string, context: CrmUserContext) {
+    const productLine = await this.settingsRepository.findProductLineById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!productLine) {
+      throw new NotFoundException('产品资料不存在');
+    }
+
+    if (productLine.status !== 'active') {
+      throw new BadRequestException('产品资料已归档');
+    }
+
+    return productLine;
+  }
+
+  private async requireActiveSequencePolicy(id: string, context: CrmUserContext) {
+    const policy = await this.settingsRepository.findSequencePolicyById({
+      id,
+      organizationId: context.organizationId
+    });
+
+    if (!policy) {
+      throw new NotFoundException('序列策略不存在');
+    }
+
+    if (policy.status !== 'active') {
+      throw new BadRequestException('序列策略已归档');
+    }
+
+    return policy;
+  }
+
+  private async requireOwnedActiveMailbox(id: string, context: CrmUserContext) {
+    const mailbox = await this.mailboxRepository.findMailboxById({
+      id,
+      organizationId: context.organizationId,
+      ownerUserId: context.userId
+    });
+
+    if (!mailbox) {
+      throw new NotFoundException('邮箱不存在');
+    }
+
+    if (mailbox.status !== 'active') {
+      throw new BadRequestException('邮箱未启用');
+    }
+
+    return mailbox;
+  }
+
+  private async resolvePersonaProfileMatch(
+    account: Pick<CrmAccountRecord, 'customerType'>,
+    contact: Pick<CrmContactRecord, 'title'>,
+    context: CrmUserContext
+  ): Promise<ResolvedPersonaMatch> {
+    const organizationProfiles = await this.settingsRepository.listActivePersonaProfiles(context.organizationId);
+    return buildPersonaMatch(organizationProfiles, account, contact);
+  }
+
+  /** Generates an AI draft only when the selected product line explicitly enables it. */
+  private async generateConfiguredReviewDraft(input: {
+    account: CrmAccountRecord;
+    contact: CrmContactRecord;
+    productLine: CrmProductLineRecord | null;
+    context: CrmUserContext;
+    stepIndex: CrmAiWritingStepIndex;
+    previousMessages: Array<Pick<CrmMessageRecord, 'stepIndex' | 'subject' | 'bodyText'>>;
+    fallbackDraft: GeneratedDraft;
+    templateLanguage?: string | null;
+    personaProfile?: PersonaProfile | null;
+  }): Promise<GeneratedDraft> {
+    const {
+      account,
+      contact,
+      productLine,
+      context,
+      fallbackDraft,
+      previousMessages,
+      stepIndex,
+      templateLanguage,
+      personaProfile
+    } = input;
+
+    if (!productLine?.aiWritingConfig?.enabled) {
+      return fallbackDraft;
+    }
+
+    if (!this.aiDraftService) {
+      throw new BadRequestException('AI 写信服务未初始化');
+    }
+
+    const draft = await this.aiDraftService.generateDraft(
+      {
+        account: {
+          name: account.name,
+          country: account.country,
+          city: account.city,
+          timeZone: account.timeZone,
+          domain: account.domain,
+          customerType: account.customerType,
+          sourceSnapshot: account.sourceSnapshot
+        },
+        contact: {
+          fullName: contact.fullName,
+          title: contact.title,
+          maskedEmail: contact.maskedEmail,
+          emailStatus: contact.emailStatus
+        },
+        productLine: {
+          id: productLine.id,
+          name: productLine.name,
+          targetCustomerType: productLine.targetCustomerType,
+          coreSellingPoints: productLine.coreSellingPoints,
+          moq: productLine.moq,
+          leadTime: productLine.leadTime,
+          paymentTerms: productLine.paymentTerms,
+          certifications: productLine.certifications,
+          catalogUrl: productLine.catalogUrl,
+          websiteUrl: productLine.websiteUrl,
+          commonModelsText: productLine.commonModelsText
+        },
+        writingConfig: productLine.aiWritingConfig,
+        stepIndex,
+        previousMessages: previousMessages.map(message => ({
+          stepIndex: message.stepIndex,
+          subject: message.subject,
+          bodyText: message.bodyText
+        })),
+        senderName: resolveCrmSenderName(context),
+        templateLanguage,
+        baseDraft: {
+          subject: fallbackDraft.subject,
+          bodyText: fallbackDraft.bodyText
+        },
+        persona: personaProfile ?? findPersonaProfile(contact.title),
+        stepStrategy: toCrmAiStepStrategy(getCrmOutreachStepStrategy(stepIndex))
+      },
+      context
+    );
+
+    if (!draft.subject && stepIndex === initialDraftStepIndex) {
+      throw new BadRequestException('AI 返回首封主题不能为空');
+    }
+
+    return {
+      subject: draft.subject || fallbackDraft.subject,
+      bodyText: draft.bodyText,
+      aiDraft: draft.metadata
+    };
+  }
+
+  private async runSequenceWrite<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isPrismaUniqueConflict(error)) {
+        throw new BadRequestException('该联系人已有运行中或待审核的开发信序列');
+      }
+
+      throw error;
+    }
+  }
+}
+
+export function createAiDraftMessageMetadata(aiDraft?: CrmAiDraftMetadata | null) {
+  return aiDraft ? { aiDraft } : null;
+}
+
+/** Builds a conservative first-touch draft from verified CRM fields only. */
+export function generateFirstDraft(options: {
+  account: CrmAccountRecord;
+  contact: CrmContactRecord;
+  productLine: CrmProductLineRecord | null;
+  context: CrmUserContext;
+  personaProfile?: PersonaProfile | null;
+  templateGroup?: CrmEmailTemplateGroupRecord | null;
+}): GeneratedDraft {
+  const { account, contact, context, personaProfile, productLine, templateGroup } = options;
+  const templateStep = templateGroup?.steps.find(step => step.stepIndex === initialDraftStepIndex);
+  const greetingName = contact.fullName?.split(/\s+/)[0] || contact.title || 'there';
+  const productName = productLine?.name || 'our product line';
+  const sellingPoint = productLine?.coreSellingPoints || 'role-specific supply checks';
+  const persona = personaProfile ?? findPersonaProfile(contact.title);
+  const senderName = resolveCrmSenderName(context);
+
+  if (templateGroup?.status === 'active' && templateStep) {
+    return {
+      subject: renderEmailTemplateText(templateStep.subjectTemplate, {
+        account,
+        contact,
+        persona,
+        productLine,
+        senderName
+      }),
+      bodyText: renderEmailTemplateText(templateStep.bodyTemplate, {
+        account,
+        contact,
+        persona,
+        productLine,
+        senderName
+      })
+    };
+  }
+
+  const supplyInfo = [
+    productLine?.moq ? `MOQ: ${productLine.moq}` : null,
+    productLine?.leadTime ? `lead time: ${productLine.leadTime}` : null,
+    productLine?.certifications ? `certifications: ${productLine.certifications}` : null
+  ].filter(Boolean);
+  const subject = productLine ? `${productName} comparison` : `Supply comparison`;
+  const bodyLines = [
+    `Hi ${greetingName},`,
+    '',
+    persona
+      ? `For ${persona.draftFocusText}, a narrow first check is usually better than a broad catalog.`
+      : `A narrow first check is usually better than a broad catalog when the right contact is not confirmed.`,
+    `We work on ${productName}, mainly focused on ${sellingPoint}.`,
+    supplyInfo.length ? `For reference, ${supplyInfo.join(', ')}.` : null,
+    '',
+    'Would comparing one current item, designation, or supply requirement be relevant?',
+    '',
+    'Best regards,',
+    senderName || 'Sales team'
+  ].filter((line): line is string => line !== null);
+
+  return {
+    subject,
+    bodyText: bodyLines.join('\n')
+  };
+}
+
+export function buildSequenceName(account: CrmAccountRecord, contact: CrmContactRecord) {
+  const contactLabel = contact.fullName || contact.title || contact.maskedEmail;
+
+  return `${account.name} - ${contactLabel}`;
+}
+
+export function getSequencePolicyStep(policy: CrmSequencePolicyRecord | null, stepIndex: number) {
+  return policy?.steps.find(step => step.stepIndex === stepIndex) ?? null;
+}

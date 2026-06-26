@@ -1,0 +1,50 @@
+{
+  "requestsFinished": 0,
+  "requestsFailed": 8,
+  "requestsRetries": 8,
+  "requestsFailedPerMinute": 266,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 871,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2026-06-26T09:44:12.214Z",
+  "crawlerFinishedAt": "2026-06-26T09:44:13.992Z",
+  "statsPersistedAt": "2026-06-26T09:44:13.992Z",
+  "crawlerRuntimeMillis": 1801,
+  "crawlerLastStartTimestamp": 1782467052191,
+  "requestRetryHistogram": [
+    null,
+    8
+  ],
+  "statsId": 17,
+  "requestAvgFailedDurationMillis": 109,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 871,
+  "requestsTotal": 8,
+  "requestsWithStatusCode": {
+    "429": 16
+  },
+  "errors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 429 status code.": {
+            "count": 8
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 429 status code.": {
+            "count": 8
+          }
+        }
+      }
+    }
+  }
+}

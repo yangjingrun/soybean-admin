@@ -2,6 +2,7 @@ import type { LocationQueryRaw, RouteLocationNormalized, RouteLocationRaw, Route
 import type { RouteKey, RoutePath } from '@elegant-router/types';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouteStore } from '@/store/modules/route';
+import { hasRouteAccess } from '@/store/modules/route/access';
 import { localStg } from '@/utils/storage';
 import { getRouteName } from '@/router/elegant/transform';
 
@@ -26,10 +27,7 @@ export function createRouteGuard(router: Router) {
 
     const isLogin = Boolean(localStg.get('token'));
     const needLogin = !to.meta.constant;
-    const routeRoles = to.meta.roles || [];
-
-    const hasRole = authStore.userInfo.roles.some(role => routeRoles.includes(role));
-    const hasAuth = authStore.isStaticSuper || !routeRoles.length || hasRole;
+    const hasAuth = authStore.isStaticSuper || hasRouteAccess(authStore.userInfo, to.meta);
 
     // if it is login route when logged in, then switch to the root page
     if (to.name === loginRoute && isLogin) {

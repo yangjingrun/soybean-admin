@@ -2,7 +2,8 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useLoading } from '@sa/hooks';
-import { fetchGetUserInfo, fetchLogin } from '@/service/api';
+import { DEFAULT_ORGANIZATION_ID, DEFAULT_ORGANIZATION_NAME } from '@soybean/shared';
+import { fetchGetUserInfo, fetchLogin, fetchLogout, updateCurrentUserProfile } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
 import { SetupStoreId } from '@/enum';
@@ -24,8 +25,14 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   const userInfo: Api.Auth.UserInfo = reactive({
     userId: '',
     userName: '',
+    nickName: null,
+    phone: null,
+    email: null,
     roles: [],
-    buttons: []
+    buttons: [],
+    organizationId: DEFAULT_ORGANIZATION_ID,
+    organizationName: DEFAULT_ORGANIZATION_NAME,
+    organizationRole: 'admin'
   });
 
   /** is super role in static route */
@@ -37,6 +44,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   /** Is login */
   const isLogin = computed(() => Boolean(token.value));
+
+  /** Display name configured by current user, used by the app chrome and CRM sender identity. */
+  const userDisplayName = computed(() => userInfo.nickName || userInfo.userName);
 
   /** Reset auth store */
   async function resetStore() {
@@ -96,10 +106,10 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * @param password Password
    * @param [redirect=true] Whether to redirect after login. Default is `true`
    */
-  async function login(userName: string, password: string, redirect = true) {
+  async function login(userName: string, password: string, captchaId?: string, captchaCode?: string, redirect = true) {
     startLoading();
 
-    const { data: loginToken, error } = await fetchLogin(userName, password);
+    const { data: loginToken, error } = await fetchLogin(userName, password, captchaId, captchaCode);
 
     if (!error) {
       const pass = await loginByToken(loginToken);
@@ -117,7 +127,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
         window.$notification?.success({
           title: $t('page.login.common.loginSuccess'),
-          content: $t('page.login.common.welcomeBack', { userName: userInfo.userName }),
+          content: $t('page.login.common.welcomeBack', { userName: userDisplayName.value }),
           duration: 4500
         });
       }
@@ -158,6 +168,18 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     return false;
   }
 
+  /** Update editable profile fields for the current login user. */
+  async function updateProfile(data: Api.Auth.UpdateCurrentUserProfilePayload) {
+    const { data: info, error } = await updateCurrentUserProfile(data);
+
+    if (!error) {
+      Object.assign(userInfo, info);
+      return true;
+    }
+
+    return false;
+  }
+
   async function initUserInfo() {
     const maybeToken = getToken();
 
@@ -171,14 +193,23 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     }
   }
 
+  /** Logout from backend first so the operation can be recorded. */
+  async function logout() {
+    await fetchLogout();
+    await resetStore();
+  }
+
   return {
     token,
     userInfo,
     isStaticSuper,
     isLogin,
+    userDisplayName,
     loginLoading,
     resetStore,
+    logout,
     login,
+    updateProfile,
     initUserInfo
   };
 });

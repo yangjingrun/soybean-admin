@@ -1,0 +1,9 @@
+{
+	"id": "81TGZwgQsEtwEH2",
+	"json": "{\"id\":\"81TGZwgQsEtwEH2\",\"url\":\"https://www.arizona.ae/about\",\"loadedUrl\":\"https://www.arizona.ae/about\",\"uniqueKey\":\"13:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.arizona.ae/about\",\"uniqueKey\":\"13:/about\",\"userData\":{\"candidateIndex\":13,\"dedupeKey\":\"arizona.ae\",\"companyName\":\"ARIZONA BEARING........\",\"homepage\":\"https://www.arizona.ae\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:45.073Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "13:/about",
+	"url": "https://www.arizona.ae/about"
+}

@@ -22,6 +22,12 @@ declare module 'vue-router' {
      * It only works when the route mode is "static", if the route mode is "dynamic", it will be ignored
      */
     roles?: string[];
+    /**
+     * Product permission codes of the route
+     *
+     * Route can be accessed if the current user has at least one listed permission.
+     */
+    permissions?: import('@soybean/shared').PermissionCode[];
     /** Whether to cache the route */
     keepAlive?: boolean | null;
     /**
@@ -50,6 +56,12 @@ declare module 'vue-router' {
     href?: string | null;
     /** Whether to hide the route in the menu */
     hideInMenu?: boolean | null;
+    /**
+     * Whether to lift visible child routes to the current menu level.
+     *
+     * Useful when a route is only a URL grouping container.
+     */
+    flattenChildrenInMenu?: boolean | null;
     /**
      * The menu key will be activated when entering the route
      *

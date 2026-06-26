@@ -1,0 +1,9 @@
+{
+	"id": "vaqrMXHCQRoquO9",
+	"json": "{\"id\":\"vaqrMXHCQRoquO9\",\"url\":\"https://akapolco.com/products\",\"loadedUrl\":\"https://akapolco.com/products\",\"uniqueKey\":\"2:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://akapolco.com/products\",\"uniqueKey\":\"2:/products\",\"userData\":{\"candidateIndex\":2,\"dedupeKey\":\"akapolco.com\",\"companyName\":\"Akapolco — International LLC\",\"homepage\":\"https://akapolco.com\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:42:51.174Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "2:/products",
+	"url": "https://akapolco.com/products"
+}

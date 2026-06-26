@@ -1,6 +1,7 @@
 @import './reset.css';
 @import './nprogress.css';
 @import './transition.css';
+@import './social-brand.css';
 
 html,
 body,
@@ -12,4 +13,67 @@ body,
 html {
   overflow-x: hidden;
   color: rgb(var(--base-text-color));
+}
+
+.app-filter-grid {
+  --app-filter-item-min-width: 220px;
+
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--app-filter-item-min-width)), 1fr)) !important;
+}
+
+.app-filter-grid > * {
+  min-width: 0;
+  grid-column: span 1 / span 1 !important;
+}
+
+.app-filter-grid :where(.n-form-item) {
+  margin-bottom: 0;
+}
+
+.app-filter-grid :where(.n-input, .n-base-selection, .n-date-picker) {
+  width: 100%;
+}
+
+.n-modal {
+  width: min(50vw, calc(100vw - 32px));
+}
+
+.app-filter-grid > .app-filter-actions-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  grid-column: -2 / -1 !important;
+}
+
+@media (min-width: 768px) {
+  .app-filter-grid > .app-filter-actions-cell.app-filter-actions-cell--wide {
+    grid-column: -3 / -1 !important;
+  }
+}
+
+.app-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  justify-content: flex-end;
+  min-height: 29px;
+  padding-top: 1px;
+}
+
+.app-filter-actions :where(.n-space) {
+  row-gap: 8px !important;
+  min-height: 28px;
+}
+
+.app-filter-actions :where(.n-button) {
+  flex-shrink: 0;
+  min-width: 72px;
+}
+
+@media (max-width: 767px) {
+  .app-filter-grid > .app-filter-actions-cell {
+    grid-column: 1 / -1 !important;
+  }
 }

@@ -1,6 +1,20 @@
+const aiSettingsHunterLocale = {
+  hunter: {
+    title: 'Hunter Email Enrichment Config',
+    description:
+      'Used for CRM Domain Search contact email enrichment. API keys stay password-only and are not shown in full.',
+    save: 'Save Hunter',
+    loaded: 'Hunter config loaded',
+    saved: 'Hunter config saved',
+    testPassed: 'Hunter connection is healthy',
+    testResult: 'Hunter test result',
+    apiKeyPlaceholder: 'Enter the Hunter API Key'
+  }
+};
+
 const local: App.I18n.Schema = {
   system: {
-    title: 'SoybeanAdmin',
+    title: 'AI外贸管理系统',
     updateTitle: 'System Version Update Notification',
     updateContent: 'A new version of the system has been detected. Do you want to refresh the page immediately?',
     updateConfirm: 'Refresh immediately',
@@ -229,9 +243,159 @@ const local: App.I18n.Schema = {
     404: 'Page Not Found',
     500: 'Server Error',
     'iframe-page': 'Iframe',
+    'ai-leads': 'AI Leads',
+    'ai-settings': 'AI Settings',
+    'ai-prompt-settings': 'Prompt Config',
+    crm: 'CRM',
+    crm_leads: 'Customer Management',
+    'crm_gmail-oauth-callback': 'Gmail OAuth Callback',
+    'crm_email-sequences': 'Mailbox Scheduling',
+    crm_inbox: 'Customer Replies',
+    'crm_inbox-detail': 'Customer Reply Detail',
+    crm_settings: 'CRM Settings',
+    manage: 'System Manage',
+    manage_organization: 'Organization Manage',
+    'manage_system-log': 'System Logs',
+    manage_permission: 'Permission Manage',
+    manage_role: 'Role Manage',
+    manage_user: 'User Manage',
     home: 'Home'
   },
   page: {
+    aiSettings: {
+      title: 'AI Settings',
+      description:
+        'Configure the model channel used by AI requests from your account. Business AI requests do not fall back to a platform key.',
+      providers: {
+        openrouter: 'OpenRouter / relay provider',
+        custom: 'OpenAI compatible',
+        openai: 'OpenAI official',
+        deepseek: 'DeepSeek',
+        dashscope: 'Qwen DashScope'
+      },
+      actions: {
+        reload: 'Load Saved',
+        test: 'Test Connection',
+        save: 'Save Model'
+      },
+      form: {
+        title: 'Config Name',
+        provider: 'Model Provider',
+        model: 'Model Name',
+        apiBase: 'API Base',
+        apiKey: 'API Key'
+      },
+      placeholders: {
+        title: 'My model channel',
+        model: 'openai/gpt-4o-mini',
+        apiBase: 'https://openrouter.ai/api/v1',
+        apiKey: 'Enter the model service key'
+      },
+      status: {
+        title: 'Connection Status',
+        connected: 'Connected',
+        savedUntested: 'Saved, not tested',
+        pending: 'Pending setup',
+        notSaved: 'Not saved yet',
+        testResult: 'Test result',
+        tokens: 'Tokens',
+        input: 'Input',
+        output: 'Output'
+      },
+      test: {
+        systemPrompt: 'You are a model connectivity test assistant. Reply only with OK.',
+        prompt: 'Reply with OK'
+      },
+      serper: {
+        title: 'Serper Search Config',
+        description: 'Configure the Serper Search / Places API used by AI Leads search orchestration.',
+        save: 'Save Serper',
+        loaded: 'Serper config loaded',
+        saved: 'Serper config saved',
+        testPassed: 'Serper connection is healthy',
+        testResult: 'Serper test result',
+        apiKeyPlaceholder: 'Enter the Serper API Key'
+      },
+      ...aiSettingsHunterLocale,
+      messages: {
+        loaded: 'Personal model channel loaded',
+        saved: 'Personal model channel saved',
+        testPassed: 'Model connection is healthy'
+      }
+    },
+    aiPromptSettings: {
+      title: 'Prompt Config',
+      description: 'Maintain system prompts for built-in AI leads workflow steps.',
+      superOnly: 'Super admin only',
+      globalTip:
+        'This saves a global built-in prompt. Users will read the latest saved version when they run the matching workflow.',
+      steps: {
+        title: 'Built-in Workflow Steps'
+      },
+      actions: {
+        reload: 'Reload',
+        test: 'Test Prompt',
+        runTest: 'Run Test',
+        clearTest: 'Clear Input',
+        copyResult: 'Copy Result',
+        goModelConfig: 'Go to Model Config',
+        useDefault: 'Use Built-in Default',
+        save: 'Save Prompt'
+      },
+      form: {
+        systemPrompt: 'System Prompt'
+      },
+      placeholders: {
+        systemPrompt: 'Write the fixed rules the model must follow'
+      },
+      status: {
+        notSaved: 'Not saved yet'
+      },
+      test: {
+        title: 'Test Prompt',
+        tip: 'The test uses the prompt currently in the editor and does not save it automatically. Save the prompt after the result looks right.',
+        inputLabel: 'Test Input',
+        inputPlaceholder: 'Enter product, market, customer type, strengths, and other workflow input',
+        resultTitle: 'Test Result',
+        tokens: 'Tokens',
+        inputTokens: 'Input',
+        outputTokens: 'Output',
+        totalTokens: 'Total',
+        empty: 'No test result yet',
+        modelConfigMissingTitle: 'Model config is missing',
+        modelConfigMissingDesc: 'configure your personal model channel before testing prompts'
+      },
+      messages: {
+        loaded: 'Prompts loaded',
+        saved: 'Prompt saved',
+        defaultLoaded: 'Built-in default prompt loaded. Review it before saving.',
+        testPassed: 'Prompt test completed',
+        testCopied: 'Test result copied'
+      },
+      prompts: {
+        leadKeywordOptimize: {
+          title: 'Keyword Optimization',
+          usage: 'Optimize natural-language lead requirements into a Serper Search / Places query package.'
+        },
+        leadMapsKeywordOptimize: {
+          title: 'Maps Keyword Optimization',
+          usage: 'Optimize natural-language lead requirements into a Serper Maps query package.'
+        },
+        leadSearchResultDecide: {
+          title: 'Search Result Decision',
+          usage:
+            'Decide whether Serper Search / Places / Maps results should paginate, requery, switch channel, or stop.'
+        },
+        leadMatchAnalyze: {
+          title: 'Match Analysis',
+          usage: 'Judge lead fit in later AI leads workflow steps, with reasons and risks.'
+        },
+        leadEmailGenerate: {
+          title: 'Email Drafting',
+          usage: 'Generate outreach emails from customer evidence in later AI leads workflow steps.'
+        }
+      }
+    },
     login: {
       common: {
         loginOrRegister: 'Login / Register',
@@ -299,11 +463,11 @@ const local: App.I18n.Schema = {
       projectNews: {
         title: 'Project News',
         moreNews: 'More News',
-        desc1: 'Soybean created the open source project soybean-admin on May 28, 2021!',
-        desc2: 'Yanbowe submitted a bug to soybean-admin, the multi-tab bar will not adapt.',
-        desc3: 'Soybean is ready to do sufficient preparation for the release of soybean-admin!',
-        desc4: 'Soybean is busy writing project documentation for soybean-admin!',
-        desc5: 'Soybean just wrote some of the workbench pages casually, and it was enough to see!'
+        desc1: 'AI外贸管理系统 created the open source project AI外贸管理系统 on May 28, 2021!',
+        desc2: 'Yanbowe submitted a bug to AI外贸管理系统, the multi-tab bar will not adapt.',
+        desc3: 'AI外贸管理系统 is ready to do sufficient preparation for the release of AI外贸管理系统!',
+        desc4: 'AI外贸管理系统 is busy writing project documentation for AI外贸管理系统!',
+        desc5: 'AI外贸管理系统 just wrote some of the workbench pages casually, and it was enough to see!'
       },
       creativity: 'Creativity'
     }

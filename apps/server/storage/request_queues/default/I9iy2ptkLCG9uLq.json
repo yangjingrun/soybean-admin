@@ -1,0 +1,9 @@
+{
+	"id": "I9iy2ptkLCG9uLq",
+	"json": "{\"id\":\"I9iy2ptkLCG9uLq\",\"url\":\"https://www.gulfworldwide.net/products\",\"loadedUrl\":\"https://www.gulfworldwide.net/products/\",\"uniqueKey\":\"16:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://www.gulfworldwide.net/products\",\"uniqueKey\":\"16:/products\",\"userData\":{\"candidateIndex\":16,\"dedupeKey\":\"gulfworldwide.net\",\"companyName\":\"FAG/INA - Gulf Worldwide Distribution FZE\",\"homepage\":\"https://www.gulfworldwide.net/catalogs/bearings/fagina/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:11.977Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "16:/products",
+	"url": "https://www.gulfworldwide.net/products"
+}

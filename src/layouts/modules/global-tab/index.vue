@@ -166,6 +166,22 @@ function removeFocus() {
   (document.activeElement as HTMLElement)?.blur();
 }
 
+/**
+ * Build project-level classes for the global route tab skin.
+ *
+ * @param tabId Route tab id
+ * @param modeClass PageTab render mode class suffix
+ */
+function getRouteTabClass(tabId: string, modeClass: string) {
+  const classes = ['global-route-tab', `global-route-tab--${modeClass}`];
+
+  if (tabId === tabStore.activeTabId) {
+    classes.push('global-route-tab--active');
+  }
+
+  return classes.join(' ');
+}
+
 // watch
 watch(
   () => route.fullPath,
@@ -185,7 +201,7 @@ init();
 </script>
 
 <template>
-  <DarkModeContainer class="size-full flex-y-center px-16px shadow-tab">
+  <DarkModeContainer class="global-route-tab-shell size-full flex-y-center px-12px shadow-tab">
     <div ref="bsWrapper" class="h-full flex-1-hidden">
       <BetterScroll ref="bsScroll" :options="{ scrollX: true, scrollY: false, click: !isPCFlag }" @click="removeFocus">
         <div
@@ -203,6 +219,9 @@ init();
             :dark-mode="themeStore.darkMode"
             :active="tab.id === tabStore.activeTabId"
             :active-color="themeStore.themeColor"
+            :chrome-class="getRouteTabClass(tab.id, 'chrome')"
+            :button-class="getRouteTabClass(tab.id, 'button')"
+            :slider-class="getRouteTabClass(tab.id, 'slider')"
             :closable="!tabStore.isTabRetain(tab.id)"
             @pointerdown="switchTab($event, tab)"
             @mousedown="handleMousedown($event, tab)"
@@ -230,4 +249,52 @@ init();
   />
 </template>
 
-<style scoped></style>
+<style scoped>
+.global-route-tab-shell {
+  border-top: 1px solid rgb(var(--layout-bg-color));
+  background: rgb(var(--container-bg-color));
+}
+
+.global-route-tab-shell :deep(.global-route-tab) {
+  height: 30px;
+  gap: 6px;
+  margin-right: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: rgb(var(--base-text-color) / 0.72);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+.global-route-tab-shell :deep(.global-route-tab:hover) {
+  color: var(--soy-primary-color);
+  background: var(--soy-primary-color-opacity1);
+}
+
+.global-route-tab-shell :deep(.global-route-tab--chrome > div:first-child),
+.global-route-tab-shell :deep(.global-route-tab--chrome > div:last-child) {
+  display: none;
+}
+
+.global-route-tab-shell :deep(.global-route-tab--button),
+.global-route-tab-shell :deep(.global-route-tab--slider) {
+  background: transparent;
+}
+
+.global-route-tab-shell :deep(.global-route-tab--active) {
+  border-color: var(--soy-primary-color-opacity3);
+  color: var(--soy-primary-color);
+  background: var(--soy-primary-color-opacity1);
+}
+
+.global-route-tab-shell :deep(.global-route-tab .svg-close) {
+  margin-left: 0;
+}
+
+.global-route-tab-shell :deep(.global-route-tab .svg-close:hover) {
+  color: #fff;
+  background: var(--soy-primary-color);
+}
+</style>

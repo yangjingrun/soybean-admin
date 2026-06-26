@@ -166,9 +166,25 @@ const routeMap: RouteMap = {
   "403": "/403",
   "404": "/404",
   "500": "/500",
+  "ai-leads": "/ai-leads",
+  "ai-prompt-settings": "/ai-prompt-settings",
+  "ai-settings": "/ai-settings",
+  "crm": "/crm",
+  "crm_email-sequences": "/crm/email-sequences",
+  "crm_gmail-oauth-callback": "/crm/gmail-oauth-callback",
+  "crm_inbox": "/crm/inbox",
+  "crm_inbox-detail": "/crm/inbox/detail/:id",
+  "crm_leads": "/crm/leads",
+  "crm_settings": "/crm/settings",
   "home": "/home",
   "iframe-page": "/iframe-page/:url",
-  "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?"
+  "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?",
+  "manage": "/manage",
+  "manage_organization": "/manage/organization",
+  "manage_permission": "/manage/permission",
+  "manage_role": "/manage/role",
+  "manage_system-log": "/manage/system-log",
+  "manage_user": "/manage/user"
 };
 
 /**

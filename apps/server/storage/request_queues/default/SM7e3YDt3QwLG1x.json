@@ -1,0 +1,9 @@
+{
+	"id": "SM7e3YDt3QwLG1x",
+	"json": "{\"id\":\"SM7e3YDt3QwLG1x\",\"url\":\"https://gtbearing.co/elevator\",\"loadedUrl\":\"https://gtbearing.co/elevator\",\"uniqueKey\":\"15:/elevator\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://gtbearing.co/elevator\",\"uniqueKey\":\"15:/elevator\",\"userData\":{\"candidateIndex\":15,\"dedupeKey\":\"gtbearing.co\",\"companyName\":\"GT Bearings – GT Bearings\",\"homepage\":\"https://gtbearing.co\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:44:00.728Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "15:/elevator",
+	"url": "https://gtbearing.co/elevator"
+}

@@ -1,0 +1,1213 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../apps/server/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AiLeadSearchTaskStatus {
+  queued
+  running
+  interrupted
+  failed
+  completed
+  discarded
+}
+
+enum AiLeadSearchTaskQueryStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+enum CrmSequenceEnrollmentStatus {
+  draft_review_pending
+  ready_to_send
+  sequence_running
+  paused
+  stopped
+  replied
+  archived
+}
+
+enum CrmMessageStatus {
+  draft_pending_review
+  draft_ready
+  queued
+  sent
+  failed
+  skipped
+}
+
+enum CrmAiDraftTaskStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum CrmAiDraftTaskItemStatus {
+  pending
+  running
+  retrying
+  succeeded
+  skipped
+  failed
+}
+
+model SystemLog {
+  id           String   @id @default(uuid())
+  level        String
+  status       String
+  module       String
+  action       String
+  message      String
+  userId       String?
+  userName     String?
+  errorCode    String?
+  errorMessage String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level])
+  @@index([status, createdAt])
+  @@index([level, status, createdAt])
+  @@index([module, action, createdAt])
+  @@index([userId])
+  @@index([userId, createdAt])
+}
+
+model SystemUser {
+  id               String    @id @default(uuid())
+  userName         String    @unique
+  nickName         String?
+  phone            String?
+  email            String?
+  roles            String[]
+  permissions      String[]  @default([])
+  status           String    @default("enabled")
+  organizationId   String    @default("org-default")
+  organizationRole String    @default("member")
+  companyName      String?
+  expireAt         DateTime?
+  remark           String?
+  passwordHash     String
+  passwordSalt     String
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  passwordResetAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  authSessions AuthSession[]
+  aiUserModelConfig AiUserModelConfig?
+  aiUserSerperConfig AiUserSerperConfig?
+  aiUserHunterConfig AiUserHunterConfig?
+
+  @@index([status])
+  @@index([organizationId])
+  @@index([organizationRole])
+  @@index([expireAt])
+  @@index([lockedUntil])
+}
+
+model SystemRole {
+  id          String   @id @default(uuid())
+  roleName    String
+  roleCode    String   @unique
+  roleDesc    String?
+  permissions String[] @default([])
+  status      String   @default("enabled")
+  builtIn     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([builtIn])
+}
+
+model AuthSession {
+  id                    String    @id @default(uuid())
+  userId                String
+  accessTokenHash       String    @unique
+  refreshTokenHash      String    @unique
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  revokedAt             DateTime?
+  loginIp               String?
+  userAgent             String?
+  lastUsedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([accessTokenExpiresAt])
+  @@index([refreshTokenExpiresAt])
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("enabled")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             SystemUser[]
+  aiLeadSearchTasks AiLeadSearchTask[]
+  crmAccounts       CrmAccount[]
+  crmContacts       CrmContact[]
+  crmTimelineEvents CrmTimelineEvent[]
+  crmBlacklists     CrmBlacklist[]
+  crmArchivedFingerprints CrmArchivedFingerprint[]
+  crmLeadEnrichmentHistories CrmLeadEnrichmentHistory[]
+  crmOrganizationConfig CrmOrganizationConfig?
+  crmMailboxes      CrmMailbox[]
+  crmMailboxSendUsages CrmMailboxSendUsage[]
+  crmProductLines   CrmProductLine[]
+  crmProductLineAiPromptVersions CrmProductLineAiPromptVersion[]
+  crmPersonaProfiles CrmPersonaProfile[]
+  crmEmailTemplateGroups CrmEmailTemplateGroup[]
+  crmEmailTemplateSteps  CrmEmailTemplateStep[]
+  crmSequencePolicies CrmSequencePolicy[]
+  crmEnrollments     CrmSequenceEnrollment[]
+  crmMessages        CrmMessage[]
+  crmMessageDraftVersions CrmMessageDraftVersion[]
+  crmUserSendPreferences CrmUserSendPreference[]
+  crmInboxThreads    CrmInboxThread[]
+  crmInboxMessages   CrmInboxMessage[]
+  crmAiDraftTasks CrmAiDraftTask[]
+  crmAiDraftTaskItems CrmAiDraftTaskItem[]
+  crmEmailOpenEvents CrmEmailOpenEvent[]
+
+  @@index([status])
+}
+
+model CrmAccount {
+  id             String   @id @default(uuid())
+  organizationId String
+  ownerUserId    String
+  name           String
+  normalizedName String
+  websiteUrl     String?
+  domain         String?
+  country        String?
+  city           String?
+  address        String?
+  latitude       Float?
+  longitude      Float?
+  timeZone       String?
+  customerType   String?
+  status         String   @default("candidate")
+  sourceTaskId   String?
+  sourceSnapshot Json?
+  archivedAt     DateTime?
+  archiveReason  String?
+  archiveSlimmedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  contacts     CrmContact[]
+  events       CrmTimelineEvent[]
+  enrichmentHistories CrmLeadEnrichmentHistory[]
+  enrollments  CrmSequenceEnrollment[]
+  messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
+  inboxThreads CrmInboxThread[]
+  inboxMessages CrmInboxMessage[]
+  emailOpenEvents CrmEmailOpenEvent[]
+
+  @@unique([organizationId, ownerUserId, domain])
+  @@index([organizationId, ownerUserId, updatedAt])
+  @@index([organizationId, ownerUserId, normalizedName])
+  @@index([organizationId, ownerUserId, status, updatedAt])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, status, archivedAt])
+  @@index([sourceTaskId])
+}
+
+model CrmGeoCityName {
+  id             String   @id @default(uuid())
+  geonameId      Int
+  countryCode    String
+  name           String
+  normalizedName String
+  asciiName      String?
+  timeZone       String
+  population     Int      @default(0)
+  latitude       Float?
+  longitude      Float?
+  nameSource     String
+  languageCode   String?
+  isPreferred    Boolean  @default(false)
+  isShort        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([countryCode, normalizedName, geonameId])
+  @@index([countryCode, normalizedName, population])
+  @@index([geonameId])
+}
+
+model CrmContact {
+  id             String   @id @default(uuid())
+  organizationId String
+  accountId      String
+  ownerUserId    String
+  fullName       String?
+  title          String?
+  email          String
+  emailHash      String
+  maskedEmail    String
+  isPublicEmail  Boolean  @default(false)
+  emailStatus    String   @default("unchecked")
+  sourceTaskId   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  account      CrmAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  events       CrmTimelineEvent[]
+  enrichmentHistories CrmLeadEnrichmentHistory[]
+  enrollments  CrmSequenceEnrollment[]
+  messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
+  inboxThreads CrmInboxThread[]
+  inboxMessages CrmInboxMessage[]
+  emailOpenEvents CrmEmailOpenEvent[]
+
+  @@unique([organizationId, ownerUserId, emailHash])
+  @@index([organizationId, accountId])
+  @@index([organizationId, ownerUserId, updatedAt])
+  @@index([organizationId, emailStatus])
+  @@index([sourceTaskId])
+}
+
+model CrmEmailVerificationCache {
+  id             String   @id @default(uuid())
+  emailHash      String
+  maskedEmail    String
+  domain         String?
+  status         String
+  reason         String
+  verifiedAt     DateTime
+  expiresAt      DateTime
+  checkedById    String?
+  checkedByName  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([emailHash])
+  @@index([expiresAt])
+  @@index([domain, expiresAt])
+}
+
+model CrmGlobalConfig {
+  id                            String   @id @default(uuid())
+  configKey                     String   @unique
+  emailVerificationCooldownDays Int      @default(30)
+  ownerConcurrentSendLimit      Int      @default(5)
+  ownerDailySendLimitMax        Int      @default(200)
+  followUpDelayDaysText         String   @default("3,7,12,18")
+  sendWorkdaysText              String   @default("1,2,3,4,5")
+  sendWindowsText               String   @default("09:00-12:00,14:00-18:00")
+  updatedById                   String?
+  updatedByName                 String?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+}
+
+model CrmUserSendPreference {
+  id                   String   @id @default(uuid())
+  organizationId       String
+  ownerUserId          String
+  ownerUserName        String?
+  dailySendLimit       Int      @default(50)
+  followUpSharePercent       Int      @default(70)
+  emailOpenTrackingEnabled   Boolean  @default(true)
+  updatedById                String?
+  updatedByName              String?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, ownerUserId])
+  @@index([organizationId, updatedAt])
+}
+
+model CrmOrganizationConfig {
+  id                            String   @id @default(uuid())
+  organizationId                String   @unique
+  allowAdminViewMemberEmailBody Boolean  @default(false)
+  updatedById                   String?
+  updatedByName                 String?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+}
+
+model CrmBlacklist {
+  id              String   @id @default(uuid())
+  organizationId  String
+  emailHash       String
+  maskedEmail     String
+  reason          String
+  sourceAccountId String?
+  sourceContactId String?
+  sourceMessageId String?
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, emailHash])
+  @@index([organizationId, reason, updatedAt])
+  @@index([organizationId, updatedAt])
+}
+
+model CrmArchivedFingerprint {
+  id               String   @id @default(uuid())
+  organizationId   String
+  fingerprintType  String
+  fingerprintValue String
+  maskedValue      String?
+  accountName      String?
+  normalizedName   String?
+  country          String?
+  sourceAccountId  String?
+  sourceContactId  String?
+  sourceTaskId     String?
+  archiveReason    String?
+  archivedAt       DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, fingerprintType, fingerprintValue])
+  @@index([organizationId, fingerprintType, archivedAt])
+  @@index([organizationId, archivedAt])
+  @@index([sourceAccountId])
+  @@index([sourceContactId])
+}
+
+model CrmLeadEnrichmentHistory {
+  id               String   @id @default(uuid())
+  organizationId   String
+  ownerUserId      String
+  accountId        String?
+  contactId        String?
+  provider         String
+  identityType     String
+  identityValue    String
+  status           String
+  lastAttemptedAt  DateTime
+  lastSucceededAt  DateTime?
+  maskedEmail      String?
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  account      CrmAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contact      CrmContact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, ownerUserId, provider, identityType, identityValue])
+  @@index([organizationId, ownerUserId, identityType, identityValue])
+  @@index([accountId])
+  @@index([contactId])
+}
+
+model CrmTimelineEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+  accountId      String
+  contactId      String?
+  ownerUserId    String
+  eventType      String
+  title          String
+  content        String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  account      CrmAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, accountId, createdAt])
+  @@index([organizationId, contactId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model CrmMailbox {
+  id              String    @id @default(uuid())
+  organizationId  String
+  ownerUserId     String
+  ownerUserName   String?
+  provider        String    @default("gmail")
+  emailAddress    String
+  emailHash       String
+  maskedEmail     String
+  status          String    @default("active")
+  dailyLimit      Int       @default(50)
+  hourlyLimit     Int       @default(10)
+  warmupStage     String    @default("new")
+  encryptedRefreshToken String?
+  watchExpiration DateTime?
+  lastHistoryId   String?
+  syncIssueType   String?
+  syncIssueAt     DateTime?
+  syncIssueMessage String?
+  authorizedAt    DateTime
+  pausedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id])
+  enrollments  CrmSequenceEnrollment[]
+  messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
+  inboxThreads CrmInboxThread[]
+  inboxMessages CrmInboxMessage[]
+  sendUsages   CrmMailboxSendUsage[]
+
+  @@unique([provider, emailHash])
+  @@index([organizationId, ownerUserId, updatedAt])
+  @@index([organizationId, status, updatedAt])
+  @@index([provider, status])
+}
+
+model CrmMailboxSendUsage {
+  id             String   @id @default(uuid())
+  organizationId String
+  mailboxId      String
+  bucketType     String
+  bucketKey      String
+  usedCount      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  mailbox      CrmMailbox   @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  @@unique([mailboxId, bucketType, bucketKey])
+  @@index([organizationId, mailboxId, bucketType, bucketKey])
+}
+
+model CrmProductLine {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  name               String
+  targetCustomerType String?
+  coreSellingPoints  String?
+  moq                String?
+  leadTime           String?
+  paymentTerms       String?
+  certifications     String?
+  catalogUrl         String?
+  websiteUrl         String?
+  commonModelsText   String?
+  aiWritingConfig    Json?
+  status             String   @default("active")
+  createdById        String
+  createdByName      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  enrollments  CrmSequenceEnrollment[]
+  aiPromptVersions CrmProductLineAiPromptVersion[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, updatedAt])
+}
+
+model CrmProductLineAiPromptVersion {
+  id              String   @id @default(uuid())
+  organizationId  String
+  productLineId   String
+  version         Int
+  aiWritingConfig Json?
+  editorId        String
+  editorName      String?
+  changeSummary   String?
+  createdAt       DateTime @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  productLine  CrmProductLine @relation(fields: [productLineId], references: [id], onDelete: Cascade)
+
+  @@unique([productLineId, version])
+  @@index([organizationId, productLineId, version])
+  @@index([organizationId, createdAt])
+}
+
+model CrmPersonaProfile {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  name               String
+  description        String?
+  titleKeywordsText  String?
+  customerTypeKeywordsText String?
+  painPoints         String?
+  focusText          String?
+  avoidText          String?
+  status             String   @default("active")
+  isDefault          Boolean  @default(false)
+  createdById        String
+  createdByName      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, isDefault])
+}
+
+model CrmEmailTemplateGroup {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  language       String   @default("en")
+  description    String?
+  status         String   @default("active")
+  isDefault      Boolean  @default(false)
+  createdById    String
+  createdByName  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  steps        CrmEmailTemplateStep[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, isDefault])
+}
+
+model CrmEmailTemplateStep {
+  id              String   @id @default(uuid())
+  organizationId  String
+  templateGroupId String
+  stepIndex       Int
+  name            String
+  threadMode      String
+  delayDays       Int      @default(0)
+  subjectTemplate String
+  bodyTemplate    String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization  Organization          @relation(fields: [organizationId], references: [id])
+  templateGroup CrmEmailTemplateGroup @relation(fields: [templateGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([templateGroupId, stepIndex])
+  @@index([organizationId, templateGroupId])
+}
+
+model CrmSequencePolicy {
+  id                              String   @id @default(uuid())
+  organizationId                  String
+  name                            String
+  description                     String?
+  status                          String   @default("active")
+  isDefault                       Boolean  @default(false)
+  stepDelayDaysText               String   @default("0,3,7,12,18")
+  stepThreadModesText             String   @default("new_subject,same_thread,new_subject,new_subject,new_subject")
+  linkPolicy                      String   @default("preserve_template_links")
+  allowLowRiskAutoSend            Boolean  @default(false)
+  sameCompanyContactStrategy      String   @default("single_active_per_company")
+  createdById                     String
+  createdByName                   String?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  enrollments  CrmSequenceEnrollment[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, isDefault])
+}
+
+model CrmSequenceEnrollment {
+  id              String   @id @default(uuid())
+  organizationId  String
+  ownerUserId     String
+  accountId       String
+  contactId       String
+  productLineId   String?
+  mailboxId       String?
+  policyId        String?
+  name            String
+  status          CrmSequenceEnrollmentStatus @default(draft_review_pending)
+  currentStep     Int      @default(1)
+  totalSteps      Int      @default(5)
+  runVersion      Int      @default(1)
+  createdById     String
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  account      CrmAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  productLine  CrmProductLine? @relation(fields: [productLineId], references: [id], onDelete: SetNull)
+  mailbox      CrmMailbox?     @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  policy       CrmSequencePolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  messages     CrmMessage[]
+  messageDraftVersions CrmMessageDraftVersion[]
+  inboxThreads CrmInboxThread[]
+  inboxMessages CrmInboxMessage[]
+  emailOpenEvents CrmEmailOpenEvent[]
+
+  @@index([organizationId, ownerUserId, status, updatedAt])
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, accountId, status])
+  @@index([organizationId, contactId, status])
+  @@index([organizationId, ownerUserId, contactId])
+  @@index([organizationId, policyId])
+}
+
+model CrmMessage {
+  id             String    @id @default(uuid())
+  organizationId String
+  ownerUserId    String
+  accountId      String
+  contactId      String
+  enrollmentId   String
+  mailboxId      String?
+  stepIndex      Int
+  threadMode     String    @default("new_subject")
+  subject        String
+  bodyText       String
+  status         CrmMessageStatus @default(draft_pending_review)
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  bullJobId      String?
+  providerMessageId String?
+  providerThreadId  String?
+  recipientTimeZone String?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  account      CrmAccount            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enrollment   CrmSequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  mailbox      CrmMailbox?           @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  draftVersions CrmMessageDraftVersion[]
+  openEvent    CrmEmailOpenEvent?
+
+  @@unique([enrollmentId, stepIndex])
+  @@index([organizationId, ownerUserId, status, updatedAt])
+  @@index([status, scheduledAt, updatedAt])
+  @@index([status, bullJobId, scheduledAt, updatedAt])
+  @@index([organizationId, accountId, createdAt])
+  @@index([organizationId, contactId, createdAt])
+  @@index([organizationId, bullJobId])
+  @@index([organizationId, ownerUserId, mailboxId, providerThreadId])
+  @@unique([organizationId, ownerUserId, mailboxId, providerMessageId])
+}
+
+model CrmEmailOpenEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+  ownerUserId    String
+  accountId      String
+  contactId      String
+  enrollmentId   String
+  messageId      String   @unique
+  openCount      Int      @default(1)
+  firstOpenedAt  DateTime
+  lastOpenedAt   DateTime
+  lastUserAgent  String?
+  lastIpAddress  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  account      CrmAccount            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enrollment   CrmSequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  message      CrmMessage            @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, ownerUserId, lastOpenedAt])
+  @@index([organizationId, accountId, lastOpenedAt])
+  @@index([organizationId, contactId, lastOpenedAt])
+}
+
+model CrmMessageDraftVersion {
+  id             String   @id @default(uuid())
+  organizationId String
+  ownerUserId    String
+  accountId      String
+  contactId      String
+  enrollmentId   String
+  messageId      String
+  mailboxId      String?
+  stepIndex      Int
+  versionNo      Int
+  subject        String
+  bodyText       String
+  editorId       String
+  editorName     String?
+  createdAt      DateTime @default(now())
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  account      CrmAccount            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enrollment   CrmSequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  message      CrmMessage            @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  mailbox      CrmMailbox?           @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, versionNo])
+  @@index([organizationId, ownerUserId, messageId, versionNo])
+  @@index([organizationId, enrollmentId, stepIndex])
+  @@index([createdAt])
+}
+
+model CrmInboxThread {
+  id               String   @id @default(uuid())
+  organizationId   String
+  ownerUserId      String
+  accountId        String
+  contactId        String
+  enrollmentId     String?
+  mailboxId        String?
+  provider         String   @default("gmail")
+  providerThreadId String?
+  subject          String
+  status           String   @default("pending")
+  lastInboundAt    DateTime
+  unreadCount      Int      @default(1)
+  messageCount     Int      @default(0)
+  replyDraftBodyText String?
+  replyDraftTopic    String?
+  replyDraftMetadata Json?
+  replyDraftUpdatedAt DateTime?
+  replyDraftUpdatedById String?
+  replyDraftUpdatedByName String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id])
+  account      CrmAccount             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact      CrmContact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enrollment   CrmSequenceEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  mailbox      CrmMailbox?            @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  messages     CrmInboxMessage[]
+
+  @@unique([organizationId, ownerUserId, mailboxId, providerThreadId])
+  @@index([organizationId, ownerUserId, status, lastInboundAt])
+  @@index([organizationId, lastInboundAt])
+  @@index([organizationId, mailboxId, lastInboundAt])
+  @@index([organizationId, ownerUserId, mailboxId, lastInboundAt])
+  @@index([organizationId, accountId, lastInboundAt])
+  @@index([organizationId, contactId, lastInboundAt])
+  @@index([enrollmentId])
+}
+
+model CrmInboxMessage {
+  id                String   @id @default(uuid())
+  threadId          String
+  organizationId    String
+  ownerUserId       String
+  accountId         String
+  contactId         String
+  enrollmentId      String?
+  mailboxId         String?
+  provider          String   @default("gmail")
+  providerMessageId String?
+  replyToMessageId  String?
+  fromEmail         String
+  fromEmailHash     String
+  maskedFromEmail   String
+  subject           String
+  snippet           String?
+  bodyText          String
+  receivedAt        DateTime
+  messageType       String   @default("customer_reply")
+  createdAt         DateTime @default(now())
+
+  thread      CrmInboxThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  account     CrmAccount           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact     CrmContact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enrollment  CrmSequenceEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  mailbox     CrmMailbox?          @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, ownerUserId, mailboxId, providerMessageId])
+  @@index([organizationId, ownerUserId, receivedAt])
+  @@index([organizationId, accountId, receivedAt])
+  @@index([organizationId, contactId, receivedAt])
+  @@index([threadId, receivedAt])
+  @@index([enrollmentId])
+}
+
+model CrmAiDraftTask {
+  id                     String   @id @default(cuid())
+  organizationId         String
+  organizationRole       String?
+  ownerUserId            String
+  ownerUserName          String?
+  status                 CrmAiDraftTaskStatus @default(queued)
+  runVersion             Int      @default(1)
+  bullJobId              String?
+  requestedCount         Int
+  successCount           Int      @default(0)
+  skippedCount           Int      @default(0)
+  failedCount            Int      @default(0)
+  retryingCount          Int      @default(0)
+  runningCount           Int      @default(0)
+  pendingCount           Int      @default(0)
+  effectiveConcurrency   Int      @default(3)
+  maxAttempts            Int      @default(3)
+  failureReason          String?
+  progressState          Json?
+  resultSummary          Json?
+  readAt                 DateTime?
+  notifiedAt             DateTime?
+  startedAt              DateTime?
+  finishedAt             DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  items                  CrmAiDraftTaskItem[]
+  organization           Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, ownerUserId, status, updatedAt])
+  @@index([organizationId, status, updatedAt])
+}
+
+model CrmAiDraftTaskItem {
+  id             String   @id @default(cuid())
+  taskId         String
+  organizationId String
+  ownerUserId    String
+  enrollmentId   String
+  messageId      String?
+  contactId      String?
+  accountId      String?
+  productLineId  String?
+  stepIndex      Int
+  status         CrmAiDraftTaskItemStatus @default(pending)
+  attemptCount   Int      @default(0)
+  maxAttempts    Int      @default(3)
+  failureType    String?
+  failureReason  String?
+  draftSubject   String?
+  draftBodyText  String?
+  metadata       Json?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  task           CrmAiDraftTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([taskId, enrollmentId, stepIndex])
+  @@index([taskId, status, updatedAt])
+  @@index([organizationId, ownerUserId, status])
+}
+
+model CrmAiDraftQueueConfig {
+  configKey              String   @id @default("crm-ai-draft")
+  itemConcurrency        Int      @default(3)
+  maxItemConcurrency     Int      @default(5)
+  maxActiveTasksPerUser  Int      @default(1)
+  maxActiveTasksPerOrg   Int      @default(2)
+  maxAttempts            Int      @default(3)
+  retryBackoffSeconds    Json?
+  updatedById            String?
+  updatedByName          String?
+  updatedAt              DateTime @updatedAt
+}
+
+model AiPromptConfig {
+  id           String   @id @default(uuid())
+  promptKey    String   @unique
+  title        String
+  systemPrompt String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AiPromptVersion {
+  id               String   @id @default(uuid())
+  promptKey        String
+  title            String
+  version          Int
+  lifecycle        String   @default("draft")
+  systemPrompt     String
+  validationResult Json?
+  changeNote       String?
+  createdById      String?
+  createdByName    String?
+  publishedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([promptKey, version])
+  @@index([promptKey, lifecycle, updatedAt])
+  @@index([promptKey, version])
+}
+
+model AiPromptTestRun {
+  id               String   @id @default(uuid())
+  promptKey        String
+  inputPrompt      String
+  outputText       String?
+  validationResult Json?
+  success          Boolean  @default(false)
+  durationMs       Int?
+  errorMessage     String?
+  createdById      String?
+  createdByName    String?
+  createdAt        DateTime @default(now())
+
+  @@index([promptKey, createdAt])
+  @@index([success, createdAt])
+}
+
+model AiModelConfig {
+  id              String   @id @default(uuid())
+  configKey       String   @unique
+  title           String
+  providerName    String
+  apiBase         String
+  apiKey          String
+  encryptedApiKey String?
+  model           String
+  temperature     Float?
+  maxOutputTokens Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model AiUserModelConfig {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  providerName    String
+  apiBase         String
+  apiKey          String
+  encryptedApiKey String?
+  model           String
+  temperature     Float?
+  maxOutputTokens Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiUserSerperConfig {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  title           String
+  apiBase         String
+  apiKey          String
+  encryptedApiKey String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiUserHunterConfig {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  title           String
+  apiBase         String
+  apiKey          String
+  encryptedApiKey String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user SystemUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SerperConfig {
+  id        String   @id @default(uuid())
+  configKey String   @unique
+  title     String
+  apiBase   String
+  apiKey    String
+  encryptedApiKey String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HunterConfig {
+  id        String   @id @default(uuid())
+  configKey String   @unique
+  title     String
+  apiBase   String
+  apiKey    String
+  encryptedApiKey String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AiLeadKeywordHistory {
+  id           String   @id @default(uuid())
+  userId       String
+  userName     String?
+  requirement  String
+  resultText   String
+  keywordPlan  Json
+  finishReason String
+  inputTokens  Int?
+  outputTokens Int?
+  totalTokens  Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([createdAt])
+}
+
+model AiLeadSearchTask {
+  id              String   @id @default(uuid())
+  userId          String
+  userName        String?
+  organizationId  String   @default("org-default")
+  organizationRole String  @default("member")
+  requirement     String
+  targetLeadCount Int
+  productLineId   String?
+  productLineSnapshot Json?
+  keywordPlan     Json
+  status          AiLeadSearchTaskStatus @default(queued)
+  priority        Int      @default(0)
+  runVersion      Int      @default(1)
+  progressState   Json?
+  result          Json?
+  errorMessage    String?
+  bullJobId       String?
+  readAt          DateTime?
+  notifiedAt      DateTime?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  queries AiLeadSearchTaskQuery[]
+  events  AiLeadSearchTaskEvent[]
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([userId, organizationId, status, updatedAt])
+  @@index([userId, status, updatedAt])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, productLineId, updatedAt])
+  @@index([status, createdAt])
+  @@index([bullJobId])
+}
+
+model AiLeadSearchTaskQuery {
+  id           String   @id @default(uuid())
+  taskId       String
+  requestKey   String
+  endpoint     String
+  requestBody  Json
+  status       AiLeadSearchTaskQueryStatus @default(pending)
+  result       Json?
+  errorMessage String?
+  orderIndex   Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  task AiLeadSearchTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, requestKey])
+  @@index([taskId, status, orderIndex])
+}
+
+model AiLeadSearchTaskEvent {
+  id         String   @id @default(uuid())
+  taskId     String
+  eventType  String
+  fromStatus String?
+  toStatus   String?
+  title      String
+  message    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  task AiLeadSearchTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model SystemNotification {
+  id         String   @id @default(uuid())
+  userId     String
+  userName   String?
+  module     String
+  type       String
+  title      String
+  content    String
+  targetType String?
+  targetId   String?
+  routePath  String?
+  status     String   @default("pending")
+  shownAt    DateTime?
+  readAt     DateTime?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([targetType, targetId])
+}
+
+model AiLeadQueueConfig {
+  id                String   @id @default(uuid())
+  configKey         String   @unique
+  workerConcurrency Int      @default(2)
+  priorityStrategy  String   @default("fifo")
+  updatedById       String?
+  updatedByName     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model AiLeadDirectorySourceRule {
+  id            String   @id @default(uuid())
+  value         String
+  matchMode     String   @default("domain_suffix")
+  enabled       Boolean  @default(true)
+  builtin       Boolean  @default(false)
+  description   String?
+  createdById   String?
+  createdByName String?
+  updatedById   String?
+  updatedByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([value, matchMode])
+  @@index([enabled])
+  @@index([builtin])
+}

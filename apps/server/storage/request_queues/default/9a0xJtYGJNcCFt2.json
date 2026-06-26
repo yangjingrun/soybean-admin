@@ -1,0 +1,9 @@
+{
+	"id": "9a0xJtYGJNcCFt2",
+	"json": "{\"id\":\"9a0xJtYGJNcCFt2\",\"url\":\"https://adexuae.com/products\",\"loadedUrl\":\"https://adexuae.com/products\",\"uniqueKey\":\"10:/products\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://adexuae.com/products\",\"uniqueKey\":\"10:/products\",\"userData\":{\"candidateIndex\":10,\"dedupeKey\":\"adexuae.com\",\"companyName\":\"Ball Bearing Suppliers in UAE - Dubai - Adex International LLC\",\"homepage\":\"https://adexuae.com/product-category/ball-bearings/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:27.992Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "10:/products",
+	"url": "https://adexuae.com/products"
+}

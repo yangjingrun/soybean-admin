@@ -1,0 +1,9 @@
+{
+	"id": "r9RXIL8829czvbL",
+	"json": "{\"id\":\"r9RXIL8829czvbL\",\"url\":\"https://falcongroup.ae/about\",\"loadedUrl\":\"https://falcongroup.ae/about-us/\",\"uniqueKey\":\"14:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: Request blocked - received 403 status code.\\n    at CheerioCrawler._throwOnBlockedRequest (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+basic@3.17.0/node_modules/@crawlee/basic/internals/basic-crawler.js:910:19)\\n    at CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+http@3.17.0/node_modules/@crawlee/http/internals/http-crawler.js:324:22)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\\n    at async CheerioCrawler._runRequestHandler (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@crawlee+cheerio@3.17.0/node_modules/@crawlee/cheerio/internals/cheerio-crawler.js:153:9)\\n    at async wrap (/Users/yjr/Desktop/soybean-admin-naive/node_modules/.pnpm/@apify+timeout@0.3.5/node_modules/@apify/src/index.ts:78:27)\"],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://falcongroup.ae/about\",\"uniqueKey\":\"14:/about\",\"userData\":{\"candidateIndex\":14,\"dedupeKey\":\"falcongroup.ae\",\"companyName\":\"Hydrodynamic Bearings Manufacturer UAE | Falcon Group\",\"homepage\":\"https://falcongroup.ae/hydrodynamic-bearings-accessories-manufacture-refurbishment/\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:51.430Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "14:/about",
+	"url": "https://falcongroup.ae/about"
+}

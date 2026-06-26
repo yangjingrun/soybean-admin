@@ -1,6 +1,19 @@
+const aiSettingsHunterLocale = {
+  hunter: {
+    title: 'Hunter 邮箱补全配置',
+    description: '用于 CRM 阶段 Domain Search 联系人邮箱补全；API Key 仅密码态输入，不展示完整内容。',
+    save: '保存 Hunter',
+    loaded: 'Hunter 配置已加载',
+    saved: 'Hunter 配置已保存',
+    testPassed: 'Hunter 连接正常',
+    testResult: 'Hunter 测试返回',
+    apiKeyPlaceholder: '请输入 Hunter API Key'
+  }
+};
+
 const local: App.I18n.Schema = {
   system: {
-    title: 'Soybean 管理系统',
+    title: 'AI外贸管理系统',
     updateTitle: '系统版本更新通知',
     updateContent: '检测到系统有新版本发布，是否立即刷新页面？',
     updateConfirm: '立即刷新',
@@ -95,7 +108,7 @@ const local: App.I18n.Schema = {
         applySuccess: '预设应用成功',
         default: {
           name: '默认预设',
-          desc: 'Soybean 默认主题预设'
+          desc: 'AI外贸管理系统默认主题预设'
         },
         dark: {
           name: '暗色预设',
@@ -225,9 +238,157 @@ const local: App.I18n.Schema = {
     404: '页面不存在',
     500: '服务器错误',
     'iframe-page': '外链页面',
+    'ai-leads': 'AI获客',
+    'ai-settings': 'AI 配置',
+    'ai-prompt-settings': '提示词配置',
+    crm: 'CRM',
+    crm_leads: '客户管理',
+    'crm_gmail-oauth-callback': 'Gmail授权回调',
+    'crm_email-sequences': '邮箱调度',
+    crm_inbox: '客户回信',
+    'crm_inbox-detail': '客户回信详情',
+    crm_settings: 'CRM配置',
+    manage: '系统管理',
+    manage_organization: '组织管理',
+    'manage_system-log': '日志管理',
+    manage_permission: '权限管理',
+    manage_role: '角色管理',
+    manage_user: '用户管理',
     home: '首页'
   },
   page: {
+    aiSettings: {
+      title: 'AI 配置',
+      description:
+        '配置当前账号发起业务 AI 请求使用的模型通道；未配置个人 API Key 时，业务 AI 请求不会使用平台 Key 兜底。',
+      providers: {
+        openrouter: 'OpenRouter / 中转站',
+        custom: 'OpenAI 兼容',
+        openai: 'OpenAI 官方',
+        deepseek: 'DeepSeek',
+        dashscope: '通义千问'
+      },
+      actions: {
+        reload: '读取已保存',
+        test: '测试连接',
+        save: '保存模型'
+      },
+      form: {
+        title: '配置名称',
+        provider: '模型服务',
+        model: '模型名称',
+        apiBase: 'API Base',
+        apiKey: 'API Key'
+      },
+      placeholders: {
+        title: '我的模型通道',
+        model: 'openai/gpt-4o-mini',
+        apiBase: 'https://openrouter.ai/api/v1',
+        apiKey: '请输入模型服务密钥'
+      },
+      status: {
+        title: '连接状态',
+        connected: '连接正常',
+        savedUntested: '已保存，待测试',
+        pending: '待配置',
+        notSaved: '暂未保存',
+        testResult: '测试返回',
+        tokens: 'Tokens',
+        input: '输入',
+        output: '输出'
+      },
+      test: {
+        systemPrompt: '你是模型连通性测试助手。请只回复 OK。',
+        prompt: '请回复 OK'
+      },
+      serper: {
+        title: 'Serper 搜索配置',
+        description: '配置 AI获客搜索编排使用的 Serper Search / Places API。',
+        save: '保存 Serper',
+        loaded: 'Serper 配置已加载',
+        saved: 'Serper 配置已保存',
+        testPassed: 'Serper 连接正常',
+        testResult: 'Serper 测试返回',
+        apiKeyPlaceholder: '请输入 Serper API Key'
+      },
+      ...aiSettingsHunterLocale,
+      messages: {
+        loaded: '个人模型通道已加载',
+        saved: '个人模型通道已保存',
+        testPassed: '模型连通性正常'
+      }
+    },
+    aiPromptSettings: {
+      title: '提示词配置',
+      description: '维护 AI获客内置业务步骤的系统提示词，保存后会作为对应步骤的全局版本生效。',
+      superOnly: '仅超级管理员',
+      globalTip: '当前保存的是全局内置提示词。用户在业务页面调用对应步骤时，会读取这里保存的最新版本。',
+      steps: {
+        title: '内置业务步骤'
+      },
+      actions: {
+        reload: '重新加载',
+        test: '测试提示词',
+        runTest: '开始测试',
+        clearTest: '清空输入',
+        copyResult: '复制结果',
+        goModelConfig: '去模型配置',
+        useDefault: '使用内置默认',
+        save: '保存提示词'
+      },
+      form: {
+        systemPrompt: '系统提示词'
+      },
+      placeholders: {
+        systemPrompt: '写入模型必须遵守的固定规则'
+      },
+      status: {
+        notSaved: '暂未保存'
+      },
+      test: {
+        title: '测试提示词',
+        tip: '测试会使用当前编辑框里的提示词，不会自动保存；满意后仍需要点击保存提示词。',
+        inputLabel: '测试输入',
+        inputPlaceholder: '输入产品、市场、客户类型、优势等内容，模拟业务页面调用',
+        resultTitle: '测试结果',
+        tokens: 'Tokens',
+        inputTokens: '输入',
+        outputTokens: '输出',
+        totalTokens: '总计',
+        empty: '暂无测试结果',
+        modelConfigMissingTitle: '模型配置未完成',
+        modelConfigMissingDesc: '请先配置个人模型通道后再测试提示词'
+      },
+      messages: {
+        loaded: '提示词已加载',
+        saved: '提示词已保存',
+        defaultLoaded: '已载入内置默认提示词，请确认后保存',
+        testPassed: '提示词测试完成',
+        testCopied: '测试结果已复制'
+      },
+      prompts: {
+        leadKeywordOptimize: {
+          title: '关键词优化',
+          usage: 'AI获客第一步，将自然语言获客需求优化成 Serper Search / Places 查询包。'
+        },
+        leadMapsKeywordOptimize: {
+          title: '地图关键词优化',
+          usage: 'AI获客地图模式，将自然语言获客需求优化成 Serper Maps 查询包。'
+        },
+        leadSearchResultDecide: {
+          title: '搜索结果决策',
+          usage: 'AI获客搜索中间步骤，根据 Serper Search / Places / Maps 结果判断翻页、重搜、切换通道或停止。'
+        },
+        leadMatchAnalyze: {
+          title: '匹配分析',
+          usage: 'AI获客后续步骤，判断线索是否匹配并给出原因和风险。'
+        },
+        leadEmailGenerate: {
+          title: '开发信生成',
+          usage: 'AI获客后续步骤，根据客户证据生成开发信。'
+        }
+      }
+    },
     login: {
       common: {
         loginOrRegister: '登录 / 注册',
@@ -295,11 +456,11 @@ const local: App.I18n.Schema = {
       projectNews: {
         title: '项目动态',
         moreNews: '更多动态',
-        desc1: 'Soybean 在2021年5月28日创建了开源项目 soybean-admin!',
-        desc2: 'Yanbowe 向 soybean-admin 提交了一个bug，多标签栏不会自适应。',
-        desc3: 'Soybean 准备为 soybean-admin 的发布做充分的准备工作!',
-        desc4: 'Soybean 正在忙于为soybean-admin写项目说明文档！',
-        desc5: 'Soybean 刚才把工作台页面随便写了一些，凑合能看了！'
+        desc1: 'AI外贸管理系统在2021年5月28日创建了开源项目 AI外贸管理系统!',
+        desc2: 'Yanbowe 向 AI外贸管理系统提交了一个bug，多标签栏不会自适应。',
+        desc3: 'AI外贸管理系统准备为 AI外贸管理系统 的发布做充分的准备工作!',
+        desc4: 'AI外贸管理系统正在忙于为 AI外贸管理系统写项目说明文档！',
+        desc5: 'AI外贸管理系统刚才把工作台页面随便写了一些，凑合能看了！'
       },
       creativity: '创意'
     }

@@ -1,0 +1,9 @@
+{
+	"id": "0rDvcezN7BB5Gnp",
+	"json": "{\"id\":\"0rDvcezN7BB5Gnp\",\"url\":\"https://gtbearing.co/about\",\"loadedUrl\":\"https://gtbearing.co/about-us/\",\"uniqueKey\":\"15:/about\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceRequest\":{\"url\":\"https://gtbearing.co/about\",\"uniqueKey\":\"15:/about\",\"userData\":{\"candidateIndex\":15,\"dedupeKey\":\"gtbearing.co\",\"companyName\":\"GT Bearings – GT Bearings\",\"homepage\":\"https://gtbearing.co\"}},\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-26T09:43:57.786Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "15:/about",
+	"url": "https://gtbearing.co/about"
+}
