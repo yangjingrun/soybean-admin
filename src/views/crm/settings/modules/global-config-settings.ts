@@ -15,6 +15,7 @@ export function createDefaultSendPreferenceForm(): Api.Crm.SendPreferenceFormMod
   return {
     dailySendLimit: 50,
     followUpSharePercent: 70,
+    emailOpenTrackingEnabled: true,
     ownerDailySendLimitMax: 200
   };
 }

@@ -354,17 +354,20 @@ declare namespace Api {
     interface SendPreference {
       dailySendLimit: number;
       followUpSharePercent: number;
+      emailOpenTrackingEnabled: boolean;
       ownerDailySendLimitMax: number;
     }
 
     interface SaveSendPreferencePayload {
       dailySendLimit: number;
       followUpSharePercent: number;
+      emailOpenTrackingEnabled: boolean;
     }
 
     interface SendPreferenceFormModel {
       dailySendLimit: number | null;
       followUpSharePercent: number | null;
+      emailOpenTrackingEnabled: boolean;
       ownerDailySendLimitMax: number;
     }
 

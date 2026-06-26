@@ -48,6 +48,8 @@ export function toGlobalConfigRecord(record: CrmGlobalConfigModel): CrmGlobalCon
 
 /** Maps one user's send preference row into the CRM settings record. */
 export function toSendPreferenceRecord(record: CrmUserSendPreferenceModel): CrmSendPreferenceRecord {
+  const persisted = record as CrmUserSendPreferenceModel & { emailOpenTrackingEnabled?: boolean };
+
   return {
     id: record.id,
     organizationId: record.organizationId,
@@ -55,6 +57,7 @@ export function toSendPreferenceRecord(record: CrmUserSendPreferenceModel): CrmS
     ownerUserName: record.ownerUserName,
     dailySendLimit: record.dailySendLimit,
     followUpSharePercent: record.followUpSharePercent,
+    emailOpenTrackingEnabled: persisted.emailOpenTrackingEnabled ?? true,
     updatedById: record.updatedById,
     updatedByName: record.updatedByName,
     createdAt: record.createdAt,

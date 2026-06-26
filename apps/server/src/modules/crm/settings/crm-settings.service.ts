@@ -89,7 +89,10 @@ export class CrmSettingsService {
   }
 
   /** Save the current owner's daily send scheduling preference. */
-  async saveSendPreference(input: { dailySendLimit: number; followUpSharePercent: number }, context: CrmUserContext) {
+  async saveSendPreference(
+    input: { dailySendLimit: number; followUpSharePercent: number; emailOpenTrackingEnabled?: boolean },
+    context: CrmUserContext
+  ) {
     const globalConfig = await this.settingsRepository.getGlobalConfig();
     const ownerDailySendLimitMax = normalizeOwnerDailySendLimitMax(globalConfig.ownerDailySendLimitMax);
     const dailySendLimit = Number(input.dailySendLimit);
@@ -114,6 +117,7 @@ export class CrmSettingsService {
       ownerUserName: resolveCrmSenderName(context),
       dailySendLimit: normalizeOwnerDailySendLimit(dailySendLimit, ownerDailySendLimitMax),
       followUpSharePercent: normalizeFollowUpSharePercent(followUpSharePercent),
+      emailOpenTrackingEnabled: input.emailOpenTrackingEnabled ?? true,
       updatedById: context.userId,
       updatedByName: context.userName
     });
@@ -123,6 +127,7 @@ export class CrmSettingsService {
       ownerUserId: context.userId,
       dailySendLimit: record.dailySendLimit,
       followUpSharePercent: record.followUpSharePercent,
+      emailOpenTrackingEnabled: record.emailOpenTrackingEnabled,
       ownerDailySendLimitMax
     });
 
@@ -208,6 +213,7 @@ function toSendPreferenceView(record: CrmSendPreferenceRecord | null, ownerDaily
   return {
     dailySendLimit: record?.dailySendLimit ?? Math.min(defaultOwnerDailySendLimit, ownerDailySendLimitMax),
     followUpSharePercent: record?.followUpSharePercent ?? defaultFollowUpSharePercent,
+    emailOpenTrackingEnabled: record?.emailOpenTrackingEnabled ?? true,
     ownerDailySendLimitMax
   };
 }

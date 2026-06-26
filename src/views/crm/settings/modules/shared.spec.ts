@@ -207,6 +207,7 @@ describe('crm settings shared helpers', () => {
     assert.deepEqual(createDefaultSendPreferenceForm(), {
       dailySendLimit: 50,
       followUpSharePercent: 70,
+      emailOpenTrackingEnabled: true,
       ownerDailySendLimitMax: 200
     });
     assert.equal(isValidDailySendLimit(1, 200), true);

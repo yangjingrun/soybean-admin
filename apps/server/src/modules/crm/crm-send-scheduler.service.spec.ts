@@ -464,6 +464,7 @@ function createSendPreference(input: Partial<CrmSendPreferenceRecord> = {}): Crm
     ownerUserName: 'Alice',
     dailySendLimit: input.dailySendLimit ?? 50,
     followUpSharePercent: input.followUpSharePercent ?? 70,
+    emailOpenTrackingEnabled: input.emailOpenTrackingEnabled ?? true,
     updatedById: 'user-1',
     updatedByName: 'Alice',
     createdAt: new Date('2026-06-18T09:00:00.000Z'),

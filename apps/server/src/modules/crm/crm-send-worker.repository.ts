@@ -11,6 +11,7 @@ import type {
   CrmSendCompletionRecord,
   CrmSendDeliveryClaimInput,
   CrmSendDeliveryClaimRecord,
+  CrmSendPreferenceRecord,
   CrmSendFailureInput,
   CrmSendFailureRecord
 } from './crm.types';
@@ -26,5 +27,6 @@ export interface CrmSendWorkerRepository {
     input: CrmMailboxAuthorizationExpiredInput
   ): Promise<CrmMailboxAuthorizationExpiredRecord | null>;
   getGlobalConfig(): Promise<CrmGlobalConfigRecord>;
+  getSendPreference(args: { organizationId: string; ownerUserId: string }): Promise<CrmSendPreferenceRecord | null>;
   findDefaultEmailTemplateGroup(organizationId: string): Promise<CrmEmailTemplateGroupRecord | null>;
 }

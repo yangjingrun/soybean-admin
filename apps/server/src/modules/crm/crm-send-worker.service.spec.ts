@@ -14,6 +14,7 @@ import type {
   CrmMailboxRecord,
   CrmMessageRecord,
   CrmSendDeliveryClaimRecord,
+  CrmSendPreferenceRecord,
   CrmSendQueueJob,
   CrmSequenceEnrollmentRecord,
   CrmSequencePolicyRecord,
@@ -99,6 +100,34 @@ describe('CrmSendWorkerService', () => {
     assert.match(gateway.calls[0].tracking?.openPixelUrl ?? '', /^https:\/\/crm\.example\.com\/crm\/tracking\/open\//);
     const token = decodeURIComponent(gateway.calls[0].tracking?.openPixelUrl.split('/').at(-1) ?? '');
     assert.equal(tokenService.verifyMessageToken(token), 'message-1');
+  });
+
+  it('skips email open tracking context when owner preference disables tracking', async () => {
+    const store = createWorkerStore(
+      {
+        enrollment: createEnrollment({ status: 'sequence_running', runVersion: 2 }),
+        message: createMessage({ status: 'queued' }),
+        mailbox: createMailbox({ status: 'active' })
+      },
+      {
+        sendPreference: createSendPreference({ emailOpenTrackingEnabled: false })
+      }
+    );
+    const gateway = createGateway();
+    const appConfig = createTrackingAppConfig();
+    const tokenService = new CrmTrackingTokenService(appConfig);
+    const worker = new CrmSendWorkerService(
+      store,
+      gateway,
+      createAllowingAvailability(),
+      undefined,
+      appConfig,
+      tokenService
+    );
+
+    await worker.processSendJob(createJob({ runVersion: 2 }));
+
+    assert.equal(gateway.calls[0].tracking, null);
   });
 
   it('sends queued follow-up messages and creates the next step draft', async () => {
@@ -433,6 +462,7 @@ function createWorkerStore(
     defaultTemplateGroup?: CrmEmailTemplateGroupRecord | null;
     globalConfig?: CrmGlobalConfigRecord;
     globalConfigError?: Error;
+    sendPreference?: CrmSendPreferenceRecord | null;
   } = {}
 ) {
   const item: CrmSequenceReviewRecord = {
@@ -504,6 +534,9 @@ function createWorkerStore(
       }
 
       return options.globalConfig ?? createGlobalConfig();
+    },
+    async getSendPreference() {
+      return options.sendPreference ?? createSendPreference();
     },
     async findDefaultEmailTemplateGroup() {
       return options.defaultTemplateGroup ?? null;
@@ -752,6 +785,22 @@ function createGlobalConfig(input: Partial<CrmGlobalConfigRecord> = {}): CrmGlob
       { startMinute: 14 * 60, endMinute: 18 * 60 }
     ],
     updatedAt: input.updatedAt || new Date(0)
+  };
+}
+
+function createSendPreference(input: Partial<CrmSendPreferenceRecord> = {}): CrmSendPreferenceRecord {
+  return {
+    id: input.id || 'send-preference-1',
+    organizationId: input.organizationId || 'org-1',
+    ownerUserId: input.ownerUserId || 'user-1',
+    ownerUserName: input.ownerUserName ?? 'Alice',
+    dailySendLimit: input.dailySendLimit ?? 50,
+    followUpSharePercent: input.followUpSharePercent ?? 70,
+    emailOpenTrackingEnabled: input.emailOpenTrackingEnabled ?? true,
+    updatedById: input.updatedById ?? null,
+    updatedByName: input.updatedByName ?? null,
+    createdAt: input.createdAt || new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: input.updatedAt || new Date('2026-06-18T09:00:00.000Z')
   };
 }
 

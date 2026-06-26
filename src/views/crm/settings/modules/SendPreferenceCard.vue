@@ -44,6 +44,7 @@ async function loadSendPreference(showMessage = true) {
 
     formModel.dailySendLimit = data.dailySendLimit;
     formModel.followUpSharePercent = data.followUpSharePercent;
+    formModel.emailOpenTrackingEnabled = data.emailOpenTrackingEnabled;
     formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
 
     if (showMessage) {
@@ -78,7 +79,8 @@ async function saveSendPreference() {
   try {
     const { data, error } = await saveCrmSendPreference({
       dailySendLimit,
-      followUpSharePercent
+      followUpSharePercent,
+      emailOpenTrackingEnabled: formModel.emailOpenTrackingEnabled
     });
 
     if (error) {
@@ -87,6 +89,7 @@ async function saveSendPreference() {
 
     formModel.dailySendLimit = data.dailySendLimit;
     formModel.followUpSharePercent = data.followUpSharePercent;
+    formModel.emailOpenTrackingEnabled = data.emailOpenTrackingEnabled;
     formModel.ownerDailySendLimitMax = data.ownerDailySendLimitMax;
     message.success('发送偏好已保存');
   } finally {
@@ -136,12 +139,19 @@ async function saveSendPreference() {
               <template #suffix>%</template>
             </NInputNumber>
           </NFormItem>
+
+          <NFormItem label="打开追踪" class="send-preference-field">
+            <NSwitch v-model:value="formModel.emailOpenTrackingEnabled" :disabled="loading || saving">
+              <template #checked>开启</template>
+              <template #unchecked>关闭</template>
+            </NSwitch>
+          </NFormItem>
         </div>
       </NForm>
 
       <NText depth="3" class="send-preference-summary">
         每天最多 {{ formModel.dailySendLimit }} 封 · 老客户跟进 {{ formModel.followUpSharePercent }}% · 新客户首封
-        {{ firstTouchSharePercent ?? '—' }}%（自动 = 100 − 跟进占比）
+        {{ firstTouchSharePercent ?? '—' }}% · 打开追踪{{ formModel.emailOpenTrackingEnabled ? '开启' : '关闭' }}
       </NText>
 
       <div class="send-preference-footer">

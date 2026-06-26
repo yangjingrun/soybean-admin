@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { maxOwnerDailySendLimitMax } from '../crm-global-config';
 
 export class SaveCrmSendPreferenceDto {
@@ -14,4 +14,8 @@ export class SaveCrmSendPreferenceDto {
   @Max(100)
   @Type(() => Number)
   followUpSharePercent!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  emailOpenTrackingEnabled?: boolean;
 }

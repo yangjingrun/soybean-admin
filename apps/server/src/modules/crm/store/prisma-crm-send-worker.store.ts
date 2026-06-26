@@ -68,6 +68,12 @@ export class PrismaCrmSendWorkerStore implements CrmSendWorkerRepository {
     return this.settingsStore.getGlobalConfig(...args);
   }
 
+  getSendPreference(
+    ...args: Parameters<PrismaCrmSettingsStore['getSendPreference']>
+  ): ReturnType<PrismaCrmSettingsStore['getSendPreference']> {
+    return this.settingsStore.getSendPreference(...args);
+  }
+
   findDefaultEmailTemplateGroup(
     ...args: Parameters<PrismaCrmEmailTemplateGroupStore['findDefaultEmailTemplateGroup']>
   ): ReturnType<PrismaCrmEmailTemplateGroupStore['findDefaultEmailTemplateGroup']> {

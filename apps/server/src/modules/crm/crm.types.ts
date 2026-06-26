@@ -237,6 +237,7 @@ export interface CrmSendPreferenceRecord {
   ownerUserName: string | null;
   dailySendLimit: number;
   followUpSharePercent: number;
+  emailOpenTrackingEnabled: boolean;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date;
@@ -249,6 +250,7 @@ export interface CrmSendPreferenceInput {
   ownerUserName?: string | null;
   dailySendLimit: number;
   followUpSharePercent: number;
+  emailOpenTrackingEnabled?: boolean;
   updatedById?: string | null;
   updatedByName?: string | null;
 }

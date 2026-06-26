@@ -333,11 +333,12 @@ model CrmUserSendPreference {
   ownerUserId          String
   ownerUserName        String?
   dailySendLimit       Int      @default(50)
-  followUpSharePercent Int      @default(70)
-  updatedById          String?
-  updatedByName        String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  followUpSharePercent       Int      @default(70)
+  emailOpenTrackingEnabled   Boolean  @default(true)
+  updatedById                String?
+  updatedByName              String?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 

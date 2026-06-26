@@ -12,6 +12,7 @@ import type {
   CrmEmailTemplateGroupRecord,
   CrmGlobalConfigRecord,
   CrmMailboxRecord,
+  CrmSendPreferenceRecord,
   CrmSendDeliveryClaimRecord,
   CrmSendQueueJob
 } from './crm.types';
@@ -80,13 +81,17 @@ export class CrmSendWorkerService {
 
     try {
       const nextDraftContext = await this.prepareNextFollowUpDraftContext(item, globalConfig);
+      const sendPreference = await this.store.getSendPreference({
+        organizationId: job.organizationId,
+        ownerUserId: job.ownerUserId
+      });
       const sent = await this.sendGateway.sendPlainText({
         enrollment: item.enrollment,
         message: item.firstMessage,
         account: item.account,
         contact: item.contact,
         mailbox: item.mailbox,
-        tracking: this.buildEmailOpenTrackingContext(item.firstMessage)
+        tracking: this.buildEmailOpenTrackingContext(item.firstMessage, sendPreference)
       });
       const sentAt = new Date();
       await this.store.completeFirstMessageSend({
@@ -171,7 +176,14 @@ export class CrmSendWorkerService {
     });
   }
 
-  private buildEmailOpenTrackingContext(message: CrmSendDeliveryClaimRecord['firstMessage']) {
+  private buildEmailOpenTrackingContext(
+    message: CrmSendDeliveryClaimRecord['firstMessage'],
+    sendPreference: CrmSendPreferenceRecord | null
+  ) {
+    if (sendPreference?.emailOpenTrackingEnabled === false) {
+      return null;
+    }
+
     const baseUrl = this.appConfigService?.config.crmTrackingPublicBaseUrl?.trim();
 
     if (!baseUrl || !this.trackingTokenService) {

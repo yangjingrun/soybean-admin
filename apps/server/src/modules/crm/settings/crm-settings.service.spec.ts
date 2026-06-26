@@ -95,7 +95,8 @@ describe('CrmSettingsService', () => {
     const saved = await service.saveSendPreference(
       {
         dailySendLimit: 60,
-        followUpSharePercent: 75
+        followUpSharePercent: 75,
+        emailOpenTrackingEnabled: false
       },
       createContext()
     );
@@ -103,10 +104,12 @@ describe('CrmSettingsService', () => {
     assert.deepEqual(current, {
       dailySendLimit: 50,
       followUpSharePercent: 70,
+      emailOpenTrackingEnabled: true,
       ownerDailySendLimitMax: 80
     });
     assert.equal(saved.dailySendLimit, 60);
     assert.equal(saved.followUpSharePercent, 75);
+    assert.equal(saved.emailOpenTrackingEnabled, false);
     assert.equal(saved.ownerDailySendLimitMax, 80);
     assert.equal(repository.sendPreference?.organizationId, 'org-1');
     assert.equal(repository.sendPreference?.ownerUserId, 'user-1');
@@ -272,6 +275,7 @@ function createSendPreference(input: CrmSendPreferenceInput): TestSendPreference
     ownerUserName: input.ownerUserName ?? null,
     dailySendLimit: input.dailySendLimit,
     followUpSharePercent: input.followUpSharePercent,
+    emailOpenTrackingEnabled: input.emailOpenTrackingEnabled ?? true,
     updatedById: input.updatedById ?? null,
     updatedByName: input.updatedByName ?? null,
     createdAt: new Date('2026-06-20T09:00:00.000Z'),

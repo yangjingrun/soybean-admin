@@ -67,6 +67,28 @@ describe('PrismaCrmConfigStore', () => {
     assert.equal(prisma.crmOrganizationConfig.upsertCalls[0].create.allowAdminViewMemberEmailBody, true);
     assert.equal(prisma.crmOrganizationConfig.upsertCalls[0].update.updatedByName, 'Alice');
   });
+
+  it('reads and saves owner email open tracking preference', async () => {
+    const prisma = new ConfigPrisma({ sendPreference: createSendPreference({ emailOpenTrackingEnabled: false }) });
+    const store = new PrismaCrmConfigStore(prisma as never);
+
+    const current = await store.getSendPreference({ organizationId: 'org-1', ownerUserId: 'user-1' });
+    const saved = await store.saveSendPreference({
+      organizationId: 'org-1',
+      ownerUserId: 'user-1',
+      ownerUserName: 'Alice',
+      dailySendLimit: 30,
+      followUpSharePercent: 60,
+      emailOpenTrackingEnabled: false,
+      updatedById: 'user-1',
+      updatedByName: 'Alice'
+    });
+
+    assert.equal(current?.emailOpenTrackingEnabled, false);
+    assert.equal(saved.emailOpenTrackingEnabled, false);
+    assert.deepEqual(prisma.queryRawCalls[0].values, ['org-1', 'user-1']);
+    assert.deepEqual(prisma.executeRawCalls[0].values, [false, 'org-1', 'user-1']);
+  });
 });
 
 interface GlobalConfigRecord {
@@ -86,6 +108,20 @@ interface OrganizationConfigRecord {
   id: string;
   organizationId: string;
   allowAdminViewMemberEmailBody: boolean;
+  updatedById: string | null;
+  updatedByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface SendPreferenceRecord {
+  id: string;
+  organizationId: string;
+  ownerUserId: string;
+  ownerUserName: string | null;
+  dailySendLimit: number;
+  followUpSharePercent: number;
+  emailOpenTrackingEnabled: boolean;
   updatedById: string | null;
   updatedByName: string | null;
   createdAt: Date;
@@ -131,9 +167,29 @@ function createOrganizationConfig(input: Partial<OrganizationConfigRecord> = {})
   };
 }
 
+function createSendPreference(input: Partial<SendPreferenceRecord> = {}): SendPreferenceRecord {
+  return {
+    id: 'send-preference-1',
+    organizationId: 'org-1',
+    ownerUserId: 'user-1',
+    ownerUserName: 'Alice',
+    dailySendLimit: 50,
+    followUpSharePercent: 70,
+    emailOpenTrackingEnabled: true,
+    updatedById: null,
+    updatedByName: null,
+    createdAt: new Date('2026-06-18T09:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T10:00:00.000Z'),
+    ...input
+  };
+}
+
 class ConfigPrisma {
   readonly globalConfig = createGlobalConfig();
   readonly organizationConfig: OrganizationConfigRecord | null;
+  readonly sendPreference: SendPreferenceRecord | null;
+  readonly executeRawCalls: Array<{ strings: TemplateStringsArray; values: unknown[] }> = [];
+  readonly queryRawCalls: Array<{ strings: TemplateStringsArray; values: unknown[] }> = [];
 
   readonly crmGlobalConfig = {
     findUniqueCalls: [] as UniqueCall[],
@@ -161,7 +217,34 @@ class ConfigPrisma {
     }
   };
 
-  constructor(options: { organizationConfig?: OrganizationConfigRecord | null } = {}) {
+  readonly crmUserSendPreference = {
+    findUniqueCalls: [] as UniqueCall[],
+    upsertCalls: [] as Array<UpsertCall<SendPreferenceRecord, Partial<SendPreferenceRecord>>>,
+    findUnique: async (args: UniqueCall) => {
+      this.crmUserSendPreference.findUniqueCalls.push(args);
+      return this.sendPreference;
+    },
+    upsert: async (args: UpsertCall<SendPreferenceRecord, Partial<SendPreferenceRecord>>) => {
+      this.crmUserSendPreference.upsertCalls.push(args);
+      return createSendPreference(args.create);
+    }
+  };
+
+  $queryRaw = async <T>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T> => {
+    this.queryRawCalls.push({ strings, values });
+    return (this.sendPreference ? [{ emailOpenTrackingEnabled: this.sendPreference.emailOpenTrackingEnabled }] : []) as T;
+  };
+
+  $executeRaw = async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    this.executeRawCalls.push({ strings, values });
+    return 1;
+  };
+
+  constructor(options: {
+    organizationConfig?: OrganizationConfigRecord | null;
+    sendPreference?: SendPreferenceRecord | null;
+  } = {}) {
     this.organizationConfig = options.organizationConfig ?? null;
+    this.sendPreference = options.sendPreference ?? null;
   }
 }

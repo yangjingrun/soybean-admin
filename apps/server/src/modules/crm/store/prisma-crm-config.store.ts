@@ -1,4 +1,5 @@
 import { Inject } from '@nestjs/common';
+import type { CrmUserSendPreferenceModel } from '../../../generated/prisma/models/CrmUserSendPreference';
 import { PrismaService } from '../../database/prisma.service';
 import {
   createDefaultAiDraftQueueConfig,
@@ -142,7 +143,13 @@ export class PrismaCrmConfigStore {
       }
     });
 
-    return record ? toSendPreferenceRecord(record) : null;
+    if (!record) {
+      return null;
+    }
+
+    const emailOpenTrackingEnabled = await this.readEmailOpenTrackingEnabled(args);
+
+    return toSendPreferenceRecord(withEmailOpenTrackingPreference(record, emailOpenTrackingEnabled ?? true));
   }
 
   async saveSendPreference(input: CrmSendPreferenceInput) {
@@ -171,7 +178,41 @@ export class PrismaCrmConfigStore {
       }
     });
 
-    return toSendPreferenceRecord(record);
+    const emailOpenTrackingEnabled = input.emailOpenTrackingEnabled ?? true;
+    await this.writeEmailOpenTrackingEnabled({
+      organizationId: input.organizationId,
+      ownerUserId: input.ownerUserId,
+      emailOpenTrackingEnabled
+    });
+
+    return toSendPreferenceRecord(withEmailOpenTrackingPreference(record, emailOpenTrackingEnabled));
+  }
+
+  /** 读取打开追踪开关，避免新字段依赖本地已生成的 Prisma 类型。 */
+  private async readEmailOpenTrackingEnabled(args: { organizationId: string; ownerUserId: string }) {
+    const rows = await this.prisma.$queryRaw<Array<{ emailOpenTrackingEnabled: boolean }>>`
+      SELECT "emailOpenTrackingEnabled" AS "emailOpenTrackingEnabled"
+      FROM "CrmUserSendPreference"
+      WHERE "organizationId" = ${args.organizationId}
+        AND "ownerUserId" = ${args.ownerUserId}
+      LIMIT 1
+    `;
+
+    return rows[0]?.emailOpenTrackingEnabled ?? null;
+  }
+
+  /** 用参数化 SQL 保存打开追踪开关，避免手写拼接。 */
+  private async writeEmailOpenTrackingEnabled(input: {
+    organizationId: string;
+    ownerUserId: string;
+    emailOpenTrackingEnabled: boolean;
+  }) {
+    await this.prisma.$executeRaw`
+      UPDATE "CrmUserSendPreference"
+      SET "emailOpenTrackingEnabled" = ${input.emailOpenTrackingEnabled}
+      WHERE "organizationId" = ${input.organizationId}
+        AND "ownerUserId" = ${input.ownerUserId}
+    `;
   }
 
   async getOrganizationConfig(organizationId: string) {
@@ -200,4 +241,11 @@ export class PrismaCrmConfigStore {
 
     return toOrganizationConfigRecord(record);
   }
+}
+
+function withEmailOpenTrackingPreference(record: CrmUserSendPreferenceModel, emailOpenTrackingEnabled: boolean) {
+  return {
+    ...record,
+    emailOpenTrackingEnabled
+  } as CrmUserSendPreferenceModel;
 }
