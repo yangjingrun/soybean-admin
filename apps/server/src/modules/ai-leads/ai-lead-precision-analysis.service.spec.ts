@@ -255,6 +255,49 @@ describe('AiLeadPrecisionAnalysisService', () => {
     assert.equal(result[0].precisionAnalysis?.reviewRequired, true);
   });
 
+  it('analyzes candidates in batches of three and merges results in original order', async () => {
+    const aiGateway = createAiGateway([
+      { text: JSON.stringify({ candidates: createAnalysisOutputs(0, 3) }) },
+      { text: JSON.stringify({ candidates: createAnalysisOutputs(3, 6) }) },
+      { text: JSON.stringify({ candidates: createAnalysisOutputs(6, 7) }) }
+    ]);
+    const service = new AiLeadPrecisionAnalysisService(aiGateway as unknown as AiGatewayService);
+
+    const result = await service.analyzeCandidates(
+      {
+        requirement: '找轴承经销商',
+        keywordPlan: {
+          resolvedProductKeywords: 'bearing',
+          resolvedTargetCustomerProfile: 'bearing distributor'
+        },
+        candidates: Array.from({ length: 7 }, (_, index) => createPrecisionCandidate(index))
+      },
+      {}
+    );
+
+    assert.equal(aiGateway.calls.length, 3);
+    assert.deepEqual(
+      aiGateway.calls.map(call => (JSON.parse(call.prompt) as { candidates: unknown[] }).candidates.length),
+      [3, 3, 1]
+    );
+    assert.deepEqual(
+      result.map(candidate => candidate.dedupeKey),
+      [
+        'https://batch-0.example.com',
+        'https://batch-1.example.com',
+        'https://batch-2.example.com',
+        'https://batch-3.example.com',
+        'https://batch-4.example.com',
+        'https://batch-5.example.com',
+        'https://batch-6.example.com'
+      ]
+    );
+    assert.deepEqual(
+      result.map(candidate => candidate.score),
+      [80, 81, 82, 83, 84, 85, 86]
+    );
+  });
+
   it('builds a conservative email writing context when AI omits it', async () => {
     const aiGateway = createAiGateway([
       {
@@ -706,4 +749,35 @@ function createAiGateway(results: Array<{ text: string }>) {
       };
     }
   };
+}
+
+function createPrecisionCandidate(index: number): AiLeadSearchCandidate {
+  return {
+    dedupeKey: `https://batch-${index}.example.com`,
+    sourceType: 'organic',
+    title: `Batch ${index}`,
+    website: `https://batch-${index}.example.com`,
+    snippet: 'bearing distributor'
+  };
+}
+
+function createAnalysisOutputs(startIndex: number, endIndex: number) {
+  return Array.from({ length: endIndex - startIndex }, (_, offset) => {
+    const index = startIndex + offset;
+
+    return {
+      dedupeKey: `https://batch-${index}.example.com`,
+      score: 80 + index,
+      priority: 'high',
+      buyerType: 'bearing distributor',
+      customerGroup: '轴承经销商',
+      companyCountry: '',
+      targetMarketFit: 'target',
+      reason: `第 ${index} 个客户匹配`,
+      matchedSignals: ['bearing distributor'],
+      risks: [],
+      recommendedAction: '优先开发',
+      reviewRequired: false
+    };
+  });
 }

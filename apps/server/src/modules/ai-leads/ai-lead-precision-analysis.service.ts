@@ -16,7 +16,8 @@ import type {
   AiLeadWebsiteEnrichedCandidate
 } from './ai-lead-website-crawler.types';
 
-const leadMatchAnalyzeMaxOutputTokens = 5200;
+const leadMatchAnalyzeBatchSize = 3;
+const leadMatchAnalyzeMaxOutputTokens = 3600;
 const minStrongProductEvidenceScore = 40;
 const officialChinaCountry = '中国';
 const chinaPhonePattern = /^\+86\b|^\+86[\s().-]/i;
@@ -98,24 +99,35 @@ export class AiLeadPrecisionAnalysisService {
       return [];
     }
 
-    const result = await this.aiGatewayService.generateText(
+    const outputByKey = new Map<
+      string,
       {
-        modelConfigKey: defaultAiModelConfigKey,
-        promptKey: leadMatchAnalyzePromptKey,
-        prompt: buildLeadPrecisionPrompt(input),
-        maxOutputTokens: leadMatchAnalyzeMaxOutputTokens
-      },
-      context
-    );
-    const outputByKey = new Map(
-      readAnalysisOutputs(result.text).map(item => [
-        normalizeString(item.dedupeKey),
+        analysis: AiLeadPrecisionAnalysis;
+        emailWritingContext: ReturnType<typeof normalizeAiLeadEmailWritingContext>;
+      }
+    >();
+
+    for (const candidateBatch of chunkCandidates(input.candidates, leadMatchAnalyzeBatchSize)) {
+      const result = await this.aiGatewayService.generateText(
         {
+          modelConfigKey: defaultAiModelConfigKey,
+          promptKey: leadMatchAnalyzePromptKey,
+          prompt: buildLeadPrecisionPrompt({
+            ...input,
+            candidates: candidateBatch
+          }),
+          maxOutputTokens: leadMatchAnalyzeMaxOutputTokens
+        },
+        context
+      );
+
+      for (const item of readAnalysisOutputs(result.text)) {
+        outputByKey.set(normalizeString(item.dedupeKey), {
           analysis: toPrecisionAnalysis(item),
           emailWritingContext: normalizeAiLeadEmailWritingContext(item.emailWritingContext)
-        }
-      ])
-    );
+        });
+      }
+    }
 
     return input.candidates.map(candidate => {
       const aiOutput = outputByKey.get(normalizeString(candidate.dedupeKey));
@@ -142,6 +154,17 @@ export class AiLeadPrecisionAnalysisService {
       };
     });
   }
+}
+
+/** 按固定小批次送入 LLM，避免单次客户过多导致证据读取和输出截断。 */
+function chunkCandidates(candidates: AiLeadWebsiteEnrichedCandidate[], batchSize: number) {
+  const batches: AiLeadWebsiteEnrichedCandidate[][] = [];
+
+  for (let index = 0; index < candidates.length; index += batchSize) {
+    batches.push(candidates.slice(index, index + batchSize));
+  }
+
+  return batches;
 }
 
 function buildLeadPrecisionPrompt(input: AnalyzeCandidatesInput) {
